@@ -11,8 +11,13 @@ import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import { useReadEnvironments } from '../commands/pairing';
-import { useEnvironments, useEnvironmentStorageStatus } from '../store';
+import {
+  useEnvironments,
+  useEnvironmentStorageStatus,
+  useMissingCredentials,
+} from '../store';
 import { ComputerUpdatesSummary } from './computer-updates-summary';
+import { MissingCredentialRow } from './missing-credential-row';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
 import { PairEnvironmentForm } from './pair-environment-form';
@@ -28,6 +33,7 @@ function EnvironmentSettingsSection({
 }) {
   const [pairing, setPairing] = useState(false);
   const remotes = useEnvironments();
+  const missing = useMissingCredentials();
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
   const nativeAdd = presentation === 'destination' && !showHeading;
@@ -81,8 +87,15 @@ function EnvironmentSettingsSection({
         {storage.status === 'loading' ? (
           <Loading label="Reading saved computers…" />
         ) : null}
-        {storage.error ? <ErrorState message={storage.error} /> : null}
-        {storage.status === 'ready' && remotes.length === 0 ? (
+        {storage.error ? (
+          <ErrorState
+            message={storage.error}
+            retry={{ label: 'Try again', onPress: () => read(undefined) }}
+          />
+        ) : null}
+        {storage.status === 'ready' &&
+        remotes.length === 0 &&
+        missing.length === 0 ? (
           <Card gap={2} padding={4}>
             <Text variant="ui" weight="medium">
               No computers paired.
@@ -93,6 +106,21 @@ function EnvironmentSettingsSection({
             </Text>
           </Card>
         ) : null}
+        {missing
+          .filter(
+            (entry) =>
+              !remotes.some(
+                (remote) => remote.environmentId === entry.environmentId,
+              ),
+          )
+          .map((remote) => (
+            <Card key={remote.environmentId}>
+              <MissingCredentialRow
+                remote={remote}
+                disabled={storage.status !== 'ready'}
+              />
+            </Card>
+          ))}
         {remotes.length > 0 ? (
           <Card className="overflow-hidden">
             {remotes.map((remote, index) => (
@@ -100,18 +128,14 @@ function EnvironmentSettingsSection({
                 {index > 0 ? <Separator /> : null}
                 <EnvironmentRow
                   remote={remote}
+                  missing={missing.find(
+                    (entry) => entry.environmentId === remote.environmentId,
+                  )}
                   disabled={storage.status !== 'ready'}
                 />
               </Fragment>
             ))}
           </Card>
-        ) : null}
-        {storage.status === 'unreadable' ? (
-          <Button
-            variant="outline"
-            label="Read saved computers again"
-            onPress={() => read(undefined)}
-          />
         ) : null}
       </Box>
       {!inlinePairing ? (

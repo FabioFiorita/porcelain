@@ -32,6 +32,7 @@ export function RevisionCode({
   marks,
   steps = [],
   active,
+  threadMargin = false,
 }: {
   revision: ReviewRevision;
   paths: readonly string[];
@@ -40,6 +41,7 @@ export function RevisionCode({
   marks: ReviewMarks;
   steps?: readonly ReviewStep[];
   active: boolean;
+  threadMargin?: boolean;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
   const files = revision.files.filter((file) => paths.includes(file.path));
@@ -55,6 +57,7 @@ export function RevisionCode({
           marks={marks}
           steps={steps}
           active={active}
+          threadMargin={threadMargin}
         />
       )}
       {files.length > shown && (
@@ -102,6 +105,7 @@ function RevisionDiffs({
   marks,
   steps,
   active,
+  threadMargin,
 }: {
   revision: ReviewRevision;
   files: ReviewRevision['files'];
@@ -110,6 +114,7 @@ function RevisionDiffs({
   marks: ReviewMarks;
   steps: readonly ReviewStep[];
   active: boolean;
+  threadMargin: boolean;
 }) {
   const result = useAtomValue(
     readReviewRevisionDiffs({
@@ -237,6 +242,7 @@ function RevisionDiffs({
           }}
           entries={entries}
           fullHeight
+          threadMargin={threadMargin}
           onReview={(entry) => {
             const target = entry.review;
             if (

@@ -123,8 +123,9 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await expect
     .element(review.getByRole('region', { name: 'Verdict', exact: true }))
     .not.toBeInTheDocument();
-  await review
-    .getByRole('button', { name: 'Open the briefing', exact: true })
+  await review.getByRole('button', { name: /, jump to a stop$/ }).click();
+  await app.page
+    .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
   await review.getByRole('button', { name: 'latest', exact: true }).click();
   await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
@@ -176,6 +177,12 @@ test('the briefing owns the verdict, revisions retain immutable code after check
         exact: true,
       }),
     )
+    .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Open r2, the latest', exact: true })
+    .click();
+  await expect
+    .element(review.getByRole('region', { name: 'Briefing', exact: true }))
     .toBeVisible();
   await app.navigate('/reviews/00000000-0000-4000-8000-000000000099');
   await expect
@@ -266,8 +273,9 @@ test('review-owned marks and comments persist, closing keeps the review readable
       },
     ]);
   await review.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
-  await review
-    .getByRole('button', { name: 'Open the briefing', exact: true })
+  await review.getByRole('button', { name: /, jump to a stop$/ }).click();
+  await app.page
+    .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
   await review
     .getByRole('button', { name: 'Close review', exact: true })

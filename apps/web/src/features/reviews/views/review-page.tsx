@@ -29,6 +29,10 @@ import {
   decisionKey,
   revisionDecisionStates,
   stopDone,
+  reviewArchivable,
+  reviewClosed,
+  reviewListStatus,
+  stopName,
   stopTitle,
   walkthroughStops,
   revisionReviewItems,
@@ -37,6 +41,7 @@ import {
   type ReviewScope,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
+import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -44,14 +49,18 @@ import { usePreferences, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { reviewListTitle } from '@porcelain/client/reviews/rules';
-import { bindSummaryLayerRequests } from '../adapters/summary-messages';
 import { useReviewSummary } from '../queries/summary';
 import { useWalkthroughPlace } from '../store';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
 import { ReviewProof } from './review-proof';
 import { WalkthroughBriefing } from './walkthrough-briefing';
-import { StopBrief } from './walkthrough-stop';
+import { DecisionPage } from './walkthrough-stop';
+import { ClosingPage } from './closing-page';
+import { MarginRow } from './margin-row';
+import { SummaryFrame } from './summary-frame';
+import { WalkthroughDock } from './walkthrough-dock';
+import { useComments } from '../queries/comments';
 import { RevisionCode, RevisionFile } from './revision-code';
 import { ReviewComments } from './review-comments';
 import {
@@ -316,6 +325,11 @@ function ReviewRevisionPage({
   const decisions = revisionDecisionStates(revision, marks);
   const items = revisionReviewItems(revision, marks);
   const done = (item: typeof stop) => stopDone(item, items, decisions);
+  const decisionCount = review.layers.length;
+  const neighbour = (direction: 1 | -1) => {
+    const next = neighbourStop(stops, stop.key, direction);
+    return next ? () => go(next.key) : undefined;
+  };
   const go = (key: WalkthroughKey) => {
     setChosen(key);
     place.setPlace(key);
@@ -356,6 +370,7 @@ function ReviewRevisionPage({
     pull?.kind === 'available' ? pull.pullRequest.title : undefined,
   );
   const record = data.review;
+  const { threads } = useComments(scope, context);
   return (
     <section
       aria-label="Review walkthrough"
@@ -404,10 +419,13 @@ function ReviewRevisionPage({
         </p>
       )}
       {missingDecision && (
-        <p role="status" className="border-b px-4 py-3 text-sm">
-          That decision is not in this revision. The briefing is shown below.
-          Choose another decision or revision.
-        </p>
+        <div className="px-4 pt-3">
+          <StateNotice
+            role="status"
+            title="That decision is not in this revision."
+            description="The briefing is shown below. Choose another decision or revision."
+          />
+        </div>
       )}
       <Tabs
         value={view}
@@ -443,146 +461,222 @@ function ReviewRevisionPage({
           </p>
         }
       >
-        {view === 'walkthrough' && (
-          <>
-            <div className="flex min-w-0 flex-1 items-start">
-              <WalkthroughSpine
-                stops={stops}
-                current={stop.key}
-                done={done}
-                onGo={go}
-              />
-              <div className="flex min-w-0 flex-1 flex-col">
-                {stop.kind !== 'briefing' && (
-                  <nav
-                    aria-label="Walkthrough navigation"
-                    className="flex flex-wrap gap-2 border-b p-3 @2xl/review:hidden"
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => go('briefing')}
-                    >
-                      Open the briefing
-                    </Button>
-                    {stops
-                      .filter((item) => item.kind !== 'briefing')
-                      .map((item) => (
-                        <Button
-                          key={item.key}
-                          variant={
-                            item.key === stop.key ? 'secondary' : 'ghost'
-                          }
-                          size="xs"
-                          className="h-auto max-w-full whitespace-normal"
-                          onClick={() => go(item.key)}
-                        >
-                          {stopTitle(item)}
-                        </Button>
-                      ))}
-                  </nav>
-                )}
-                {AsyncResult.isFailure(markResult) && (
-                  <p role="alert" className="p-3 text-sm">
-                    Reviewed marks could not be read.{' '}
-                    <Button variant="outline" size="xs" onClick={retryMarks}>
-                      Try again
-                    </Button>
-                  </p>
-                )}
-                {file ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      className="self-start"
-                      onClick={() => setFile(undefined)}
-                    >
-                      Back to decision
-                    </Button>
-                    <RevisionFile
-                      revision={revision}
-                      scope={scope}
-                      context={context}
-                      path={file.path}
-                      step={file.step}
-                      active={active}
-                    />
-                  </>
-                ) : null}
-                {!file && stop.kind === 'briefing' && (
-                  <WalkthroughBriefing
-                    {...props}
+        {(view === 'walkthrough' || (view === 'summary' && showSummary)) && (
+          <div className="flex min-w-0 flex-1 items-start">
+            <WalkthroughSpine
+              stops={stops}
+              current={view === 'summary' ? undefined : stop.key}
+              done={done}
+              onGo={go}
+            />
+            <div className="flex min-w-0 flex-1 flex-col">
+              {AsyncResult.isFailure(markResult) && (
+                <p role="alert" className="p-3 text-sm">
+                  Reviewed marks could not be read.{' '}
+                  <Button variant="outline" size="xs" onClick={retryMarks}>
+                    Try again
+                  </Button>
+                </p>
+              )}
+              {view === 'summary' && (
+                <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
+                  <SummaryFrame
                     revision={revision}
-                    title={title}
-                    proofCurrent={
-                      proofCurrent && revision.headOid === latestHead
-                    }
-                    margin={
-                      <BriefingMargin
-                        data={data}
-                        revision={revision}
-                        latest={latest}
-                        context={context}
-                        onRevision={onRevision}
-                        onDeleted={onDeleted ?? onBack}
-                      />
-                    }
+                    page={Option.getOrUndefined(AsyncResult.value(summary))}
+                    url={summaryUrl}
+                    dark={dark}
                     stops={stops}
-                    items={items}
-                    decisions={decisions}
                     done={done}
                     onGo={go}
                   />
-                )}
-                {!file && stop.kind !== 'briefing' && (
-                  <section
-                    role="region"
-                    aria-label={stopTitle(stop)}
-                    className="flex flex-col"
+                </div>
+              )}
+              {view === 'walkthrough' && file && (
+                <>
+                  <Button
+                    variant="ghost"
+                    className="self-start"
+                    onClick={() => setFile(undefined)}
                   >
-                    <StopBrief
-                      stop={stop}
-                      stops={stops}
-                      review={review}
-                      decision={
-                        stop.kind === 'decision'
-                          ? decisions.get(stop.layer.id)
-                          : undefined
-                      }
-                      finished={done(stop)}
-                      onGo={go}
-                      onStep={(step) =>
-                        setFile({ path: step.pointer.path, step })
-                      }
+                    Back to decision
+                  </Button>
+                  <RevisionFile
+                    revision={revision}
+                    scope={scope}
+                    context={context}
+                    path={file.path}
+                    step={file.step}
+                    active={active}
+                  />
+                </>
+              )}
+              {view === 'walkthrough' && !file && stop.kind === 'briefing' && (
+                <WalkthroughBriefing
+                  {...props}
+                  revision={revision}
+                  title={title}
+                  proofCurrent={proofCurrent && revision.headOid === latestHead}
+                  margin={
+                    <BriefingMargin
+                      data={data}
+                      revision={revision}
+                      latest={latest}
+                      context={context}
+                      onRevision={onRevision}
+                      onDeleted={onDeleted ?? onBack}
                     />
-                    {stop.kind === 'decision' && (
-                      <DecisionMark
+                  }
+                  stops={stops}
+                  items={items}
+                  decisions={decisions}
+                  done={done}
+                  onGo={go}
+                />
+              )}
+              {view === 'walkthrough' && !file && stop.kind !== 'briefing' && (
+                <section
+                  role="region"
+                  aria-label={
+                    stop.kind === 'decision'
+                      ? stopTitle(stop)
+                      : 'After the decisions'
+                  }
+                  className="flex min-w-0 flex-col"
+                >
+                  <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 @2xl/review:px-6">
+                    {stop.kind === 'decision' ? (
+                      <>
+                        <DecisionPage
+                          key={stop.key}
+                          proofCurrent={
+                            proofCurrent && revision.headOid === latestHead
+                          }
+                          stop={stop}
+                          total={decisionCount}
+                          review={review}
+                          revision={revision}
+                          scope={scope}
+                          context={context}
+                          decision={decisions.get(stop.layer.id)}
+                          finished={done(stop)}
+                          items={items}
+                          onGo={go}
+                          onStep={(step) =>
+                            setFile({ path: step.pointer.path, step })
+                          }
+                        />
+                        <MarginRow>
+                          <RevisionCode
+                            key={stop.key}
+                            revision={revision}
+                            paths={stop.paths}
+                            scope={scope}
+                            context={context}
+                            active={active}
+                            marks={marks ?? { files: [], decisions: [] }}
+                            steps={stop.layer.steps}
+                            threadMargin
+                          />
+                        </MarginRow>
+                      </>
+                    ) : (
+                      <ClosingPage
+                        stops={stops}
+                        current={stop}
                         revision={revision}
-                        layerId={stop.layer.id}
-                        fingerprint={stop.layer.fingerprint}
-                        reviewed={done(stop)}
-                        files={revision.files.filter((file) =>
-                          stop.paths.includes(file.path),
-                        )}
-                        settled={AsyncResult.isSuccess(markResult)}
+                        record={record}
+                        items={items}
+                        threads={threads}
+                        pullRequest={
+                          pull?.kind === 'available'
+                            ? pull.pullRequest
+                            : undefined
+                        }
+                        archivable={
+                          record ? reviewArchivable(record, pull) : false
+                        }
+                        status={
+                          record && reviewClosed(record, pull)
+                            ? {
+                                ...reviewListStatus({
+                                  revision,
+                                  marks,
+                                  status: worktree?.status,
+                                }),
+                                group: 'Closed',
+                              }
+                            : reviewListStatus({
+                                revision,
+                                marks,
+                                status: worktree?.status,
+                              })
+                        }
+                        scope={scope}
                         context={context}
+                        onGo={go}
+                        code={(section) => (
+                          <RevisionCode
+                            revision={revision}
+                            paths={section.paths}
+                            scope={scope}
+                            context={context}
+                            active={active && section.key === stop.key}
+                            marks={marks ?? { files: [], decisions: [] }}
+                          />
+                        )}
                       />
                     )}
-                    <RevisionCode
-                      key={stop.key}
-                      revision={revision}
-                      paths={stop.paths}
-                      scope={scope}
-                      context={context}
-                      active={active}
-                      marks={marks ?? { files: [], decisions: [] }}
-                      steps={stop.kind === 'decision' ? stop.layer.steps : []}
-                    />
-                  </section>
-                )}
-              </div>
+                  </div>
+                  <MarginRowDock>
+                    <WalkthroughDock
+                      label={
+                        stop.kind === 'decision'
+                          ? `Decision ${stop.number} of ${decisionCount}`
+                          : stopName(stop)
+                      }
+                      shortLabel={
+                        stop.kind === 'decision'
+                          ? `${stop.number} of ${decisionCount}`
+                          : stopName(stop)
+                      }
+                      stops={stops}
+                      current={stop.key}
+                      onGo={go}
+                      onPrevious={neighbour(-1)}
+                      onNext={neighbour(1)}
+                    >
+                      {stop.kind === 'decision' ? (
+                        <DecisionMark
+                          revision={revision}
+                          layerId={stop.layer.id}
+                          fingerprint={stop.layer.fingerprint}
+                          reviewed={done(stop)}
+                          files={revision.files.filter((file) =>
+                            stop.paths.includes(file.path),
+                          )}
+                          settled={AsyncResult.isSuccess(markResult)}
+                          context={context}
+                        />
+                      ) : (
+                        <FilesMark
+                          revision={revision}
+                          files={revision.files.filter(
+                            (file) =>
+                              file.newOid !== undefined &&
+                              stop.paths.includes(file.path) &&
+                              items.find((item) => item.path === file.path)
+                                ?.reviewStatus !== 'reviewed',
+                          )}
+                          settled={AsyncResult.isSuccess(markResult)}
+                          context={context}
+                        />
+                      )}
+                    </WalkthroughDock>
+                  </MarginRowDock>
+                </section>
+              )}
             </div>
-          </>
+          </div>
         )}
         {view === 'proof' && (
           <div className="p-4">
@@ -606,25 +700,22 @@ function ReviewRevisionPage({
             }}
           />
         )}
-        {view === 'summary' && showSummary && (
-          <iframe
-            ref={(frame) =>
-              frame
-                ? bindSummaryLayerRequests(frame, (number) => {
-                    const layer = review.layers[number - 1];
-                    if (layer) go(decisionKey(layer.id));
-                  })
-                : undefined
-            }
-            title="Review summary"
-            src={`${summaryUrl}#theme=${dark ? 'dark' : 'light'}`}
-            sandbox="allow-scripts allow-forms allow-popups allow-modals"
-            referrerPolicy="no-referrer"
-            className="min-h-96 w-full flex-1 border-0"
-          />
-        )}
       </Suspense>
     </section>
+  );
+}
+
+function MarginRowDock({ children }: { children: ReactNode }) {
+  return (
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-4 pb-4 @2xl/review:px-6">
+      <MarginRow>{children}</MarginRow>
+    </div>
+  );
+}
+
+function blobFiles(files: ReviewRevision['files']) {
+  return files.flatMap((file) =>
+    file.newOid ? [{ path: file.path, headBlobOid: file.newOid }] : [],
   );
 }
 
@@ -652,10 +743,10 @@ function DecisionMark({
   const [result, mark] = useAtom(commands.completeDecision);
   const [removed, unmark] = useAtom(commands.unmark);
   return (
-    <div className="px-4 pb-4">
+    <>
       <Button
-        variant="outline"
         size="sm"
+        variant={reviewed ? 'outline' : 'default'}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
         onClick={() =>
@@ -665,23 +756,61 @@ function DecisionMark({
                 revision: revision.revision,
                 layerId,
                 fingerprint,
-                files: files.flatMap((file) => {
-                  const headBlobOid = file.newOid ?? file.oldOid;
-                  return headBlobOid ? [{ path: file.path, headBlobOid }] : [];
-                }),
+                files: blobFiles(files),
               })
         }
       >
+        <CheckIcon data-icon="inline-start" />
         {reviewed ? 'Decision reviewed' : 'Mark decision reviewed'}
       </Button>
       {(AsyncResult.isFailure(result) || AsyncResult.isFailure(removed)) && (
-        <p role="alert" className="text-sm text-destructive">
-          The decision mark could not be updated. Try again.
+        <p role="alert" className="px-2 text-xs text-destructive">
+          Not saved. Try again.
         </p>
       )}
-    </div>
+    </>
   );
 }
+
+function FilesMark({
+  revision,
+  files,
+  settled,
+  context,
+}: {
+  revision: ReviewRevision;
+  files: ReviewRevision['files'];
+  settled: boolean;
+  context: ConnectionContext;
+}) {
+  const commands = reviewCommands({
+    connection: context.connection,
+    reviewId: revision.reviewId,
+  });
+  const [result, mark] = useAtom(commands.markFiles);
+  return (
+    <>
+      <Button
+        size="sm"
+        disabled={!settled || files.length === 0 || result.waiting}
+        onClick={() =>
+          mark({ revision: revision.revision, files: blobFiles(files) })
+        }
+      >
+        <CheckIcon data-icon="inline-start" />
+        {files.length === 0
+          ? 'Every file reviewed'
+          : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
+      </Button>
+      {AsyncResult.isFailure(result) && (
+        <p role="alert" className="px-2 text-xs text-destructive">
+          Some files were not marked. Try again.
+        </p>
+      )}
+    </>
+  );
+}
+
 function BranchTipNotice({
   scope,
   context,
@@ -694,12 +823,9 @@ function BranchTipNotice({
   const read = useBranchChanges(scope, context.connection, undefined);
   const data = Option.getOrUndefined(AsyncResult.value(read.result));
   return data && data.head.oid !== headOid ? (
-    <p
-      role="status"
-      className="border-b px-4 py-2 text-sm text-muted-foreground"
-    >
-      The branch tip differs from this review. Publish a revision to include it.
-    </p>
+    <div className="px-4 pt-3">
+      <StateNotice role="status" title="The branch tip differs from this review. Publish a revision to include it." />
+    </div>
   ) : null;
 }
 

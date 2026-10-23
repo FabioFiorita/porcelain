@@ -178,6 +178,28 @@ export const reviewCommands = Atom.family(
           }).pipe(Effect.ensuring(invalidate));
         }),
       ),
+      markFiles: runtime.fn(
+        Effect.fn('Reviews.markFiles')(function* (payload: {
+          revision: number;
+          files: readonly { path: string; headBlobOid: string }[];
+        }) {
+          return yield* Effect.forEach(
+            payload.files,
+            (file) =>
+              requestApi(input.connection, (api) =>
+                api.reviews.setReviewMark({
+                  params,
+                  payload: {
+                    kind: 'file',
+                    revision: payload.revision,
+                    ...file,
+                  },
+                }),
+              ),
+            { discard: true },
+          ).pipe(Effect.ensuring(invalidate));
+        }),
+      ),
       mark: runtime.fn(
         Effect.fn('Reviews.mark')(function* (payload: SetReviewMarkRequest) {
           const answer = yield* requestApi(input.connection, (api) =>

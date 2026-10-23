@@ -6,6 +6,35 @@ import {
 
 const pathOf = (request: RoutedRequest) => new URL(request.url()).pathname;
 
+export async function capturePreviewRequests(context: BrowserContext) {
+  const requests: { navigation: boolean; marker: boolean }[] = [];
+  const executions: string[] = [];
+  const violations: string[] = [];
+  context.on('console', (message) => {
+    if (message.text() === 'AUDIT_ONLY_PREVIEW_EXECUTED')
+      executions.push(message.text());
+    if (
+      message.type() === 'error' &&
+      message.text().includes('Content Security Policy')
+    )
+      violations.push(message.text());
+  });
+  await context.route(
+    /https?:\/\/(?:audit-exfil\.invalid\/|[^/]+\/preview-capture(?:\?|$))/,
+    async (route) => {
+      requests.push({
+        navigation: route.request().isNavigationRequest(),
+        marker:
+          new URL(route.request().url()).searchParams
+            .get('d')
+            ?.includes('AUDIT_ONLY_CONTENT') ?? false,
+      });
+      await route.fulfill({ contentType: 'text/html', body: 'Intercepted' });
+    },
+  );
+  return { requests, executions, violations };
+}
+
 export async function liveRouter(context: BrowserContext) {
   const network = browserNetwork(context);
   await network.live.route();

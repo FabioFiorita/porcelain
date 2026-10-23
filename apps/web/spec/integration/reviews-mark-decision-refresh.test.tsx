@@ -75,8 +75,9 @@ test('sidebar decisions return from an older revision or summary to the latest w
       review.getByRole('region', { name: '1. Latest decision', exact: true }),
     )
     .toBeVisible();
-  await review
-    .getByRole('button', { name: 'Open the briefing', exact: true })
+  await review.getByRole('button', { name: /, jump to a stop$/ }).click();
+  await workspace
+    .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
   await expect
     .element(review.getByRole('button', { name: 'latest', exact: true }))

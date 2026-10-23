@@ -1,140 +1,71 @@
 import {
   ArrowRightIcon,
   CheckIcon,
-  FileCodeIcon,
+  CircleCheckIcon,
+  CircleHelpIcon,
+  CircleXIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
 import { LONG_DECISION_SUMMARY } from '@/config/limits';
-import { spansLabel } from '@porcelain/client/changes/rules';
 import {
   basename,
   checkResultLabel,
   decisionKey,
   decisionLinks,
   decisionRoute,
+  filesReviewed,
   orderedChecks,
   proofOnLayer,
   systemChanges,
-  stopTitle,
+  type DecisionLink,
   type DecisionState,
+  type ReviewChangeItem,
   type ReviewLayer,
+  type ReviewRevision,
   type ReviewStep,
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { DecisionQuestion } from './walkthrough-question';
+import { AnswerableQuestion } from './walkthrough-question';
+import { MarginRow } from './margin-row';
+import { StateNotice } from '@/shared/views/state-notice';
 import type { WalkthroughProps } from './walkthrough-props';
-type CodeStop = Exclude<WalkthroughStop, { kind: 'briefing' }>;
 
-export function StopBrief({
-  stop,
-  stops,
-  review,
-  decision,
-  finished,
-  onStep,
-  onGo,
-}: {
-  stop: CodeStop;
-  stops: readonly WalkthroughStop[];
-  review: WalkthroughProps['review'];
-  decision: DecisionState | undefined;
-  finished: boolean;
-  onStep: (step: ReviewStep) => void;
-  onGo: (key: WalkthroughKey) => void;
-}) {
-  if (stop.kind === 'decision') {
-    return (
-      <DecisionBrief
-        stop={stop}
-        total={stops.filter((item) => item.kind === 'decision').length}
-        review={review}
-        decision={decision}
-        finished={finished}
-        onStep={onStep}
-        onGo={onGo}
-      />
-    );
-  }
-  if (stop.kind === 'unexplained') {
-    return <UnexplainedBrief stop={stop} stops={stops} onGo={onGo} />;
-  }
-  return (
-    <Brief
-      eyebrow={
-        <span className="tracking-wide uppercase">
-          Set apart by your settings
-        </span>
-      }
-      title="Specs"
-      lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
-    />
-  );
-}
+type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
 
-function changeLabel(change: 'new' | 'changed' | 'removed') {
-  if (change === 'new') return 'New';
-  if (change === 'changed') return 'Changed';
-  return 'Removed';
-}
-
-function Brief({
-  eyebrow,
-  title,
-  lead,
-  children,
-}: {
-  eyebrow: ReactNode;
-  title: string;
-  lead?: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="border-b bg-muted/20">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4 px-5 pt-6 pb-5 font-sans">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2 text-2xs font-medium text-muted-foreground">
-            {eyebrow}
-          </div>
-          <h2 className="text-xl leading-tight font-semibold text-balance">
-            {title}
-          </h2>
-          {lead && (
-            <div className="max-w-3xl text-sm text-muted-foreground text-pretty">
-              {lead}
-            </div>
-          )}
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function DecisionBrief({
+export function DecisionPage({
   stop,
   total,
   review,
+  revision,
+  scope,
+  context,
   decision,
   finished,
+  items,
+  proofCurrent,
   onStep,
   onGo,
 }: {
-  stop: Extract<WalkthroughStop, { kind: 'decision' }>;
+  proofCurrent: boolean;
+  stop: DecisionStop;
   total: number;
   review: WalkthroughProps['review'];
+  revision: ReviewRevision;
+  scope: WalkthroughProps['scope'];
+  context: WalkthroughProps['context'];
   decision: DecisionState | undefined;
   finished: boolean;
+  items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   onStep: (step: ReviewStep) => void;
   onGo: (key: WalkthroughKey) => void;
 }) {
   const { layer } = stop;
-  const route = decisionRoute(layer);
   const links = decisionLinks(review, layer.id);
   const questions = [
     ...systemChanges(review).questions.filter(
@@ -146,122 +77,187 @@ function DecisionBrief({
       all.findIndex((other) => other.id === part.id) === index,
   );
   const proof = proofOnLayer(review.proof, layer.id);
+  const progress = filesReviewed(stop.paths, items);
   return (
-    <Brief
-      eyebrow={
-        <>
-          <span className="tracking-wide uppercase">
-            Decision {stop.number} of {total}
-          </span>
-          {finished && (
-            <Badge variant="outline">
-              <CheckIcon className="text-graph-2" /> Reviewed
-            </Badge>
-          )}
-          {decision?.stale && (
-            <Badge variant="outline">
-              <TriangleAlertIcon className="text-graph-4" /> Code moved since it
-              was explained
-            </Badge>
-          )}
-        </>
-      }
-      title={layer.title}
-      lead={<Summary text={layer.summary} />}
-    >
-      {route.length > 0 && (
-        <ol
-          aria-label="Route through the system"
-          className="flex flex-wrap items-center gap-1.5"
+    <MarginRow
+      margin={
+        <aside
+          aria-label="Decision details"
+          className="flex min-w-0 flex-col gap-6 text-xs"
         >
-          {route.map((lane, index) => (
-            <li key={`${lane}:${index}`} className="flex items-center gap-1.5">
-              {index > 0 && (
-                <ArrowRightIcon
-                  className="size-3 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              )}
-              <Badge variant="secondary">{lane}</Badge>
-            </li>
+          {questions.map((part) => (
+            <AnswerableQuestion
+              key={part.id}
+              part={part}
+              revision={revision}
+              scope={scope}
+              context={context}
+              compact
+            />
           ))}
-        </ol>
-      )}
-      {links.length > 0 && (
-        <ul aria-label="Connections" className="flex flex-wrap gap-1.5">
-          {links.map((link) => (
-            <li
-              key={link.part.id}
-              className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs"
-            >
+          {links.length > 0 && <Contracts links={links} />}
+          {proof.checks.length > 0 && (
+            <section aria-label="Proof" className="flex flex-col gap-2">
+              <h3 className="flex items-baseline justify-between border-b pb-2 font-medium text-muted-foreground">
+                Proof
+                <span className="font-mono font-normal">
+                  at {revision.headOid.slice(0, 7)}
+                </span>
+              </h3>
+              {!proofCurrent && (
+                <p className="text-graph-4">
+                  These checks ran before the latest changes
+                </p>
+              )}
+              <ul
+                aria-label="Checks for this decision"
+                className="flex flex-col gap-1.5"
+              >
+                {orderedChecks(proof.checks).map((check) => (
+                  <li
+                    key={check.name}
+                    className={cn(
+                      'flex items-start gap-1.5 wrap-anywhere',
+                      check.result === 'fail' && 'text-destructive',
+                    )}
+                  >
+                    {check.result === 'fail' ? (
+                      <CircleXIcon className="mt-px size-3.5 shrink-0" />
+                    ) : (
+                      <CircleCheckIcon className="mt-px size-3.5 shrink-0 text-graph-2" />
+                    )}
+                    <span className="min-w-0">
+                      {check.name} · {checkResultLabel(check.result)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                variant="link"
+                size="xs"
+                className="self-start"
+                onClick={() => onGo('briefing')}
+              >
+                All proof for this review
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+            </section>
+          )}
+        </aside>
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-6">
+        <header className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              Decision {stop.number} of {total}
+            </span>
+            {questions.length > 0 && (
+              <Badge variant="outline">
+                <CircleHelpIcon className="text-graph-1" /> Needs your decision
+              </Badge>
+            )}
+            {decision?.stale && (
+              <Badge variant="outline">
+                <TriangleAlertIcon className="text-graph-4" /> Code moved
+              </Badge>
+            )}
+            {finished && (
+              <Badge variant="outline">
+                <CheckIcon className="text-graph-2" /> Reviewed
+              </Badge>
+            )}
+          </div>
+          <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
+            <span aria-hidden="true" className="text-muted-foreground">
+              {stop.number}.{' '}
+            </span>
+            {layer.title}
+          </h2>
+          <Summary text={layer.summary} />
+        </header>
+        {decision?.stale && (
+          <StateNotice role="status" title="Code moved since it was explained" description={<> Lines this decision points at changed after the agent explained
+            them. Read the diff below, or ask the agent to publish a revision. </>} />
+        )}
+        <RouteTable
+          layer={layer}
+          reviewed={progress.reviewed}
+          total={progress.total}
+          onStep={onStep}
+        />
+        {stop.elsewhere.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Also changes</span>
+            {stop.elsewhere.map((file) => (
+              <Button
+                key={file.path}
+                variant="outline"
+                size="xs"
+                className="max-w-full"
+                onClick={() => onGo(file.stop)}
+              >
+                <span className="truncate">{basename(file.path)}</span>
+                <span className="text-muted-foreground">
+                  {file.stop === 'specs'
+                    ? '· in Specs'
+                    : `· shown in decision ${review.layers.findIndex((item) => decisionKey(item.id) === file.stop) + 1}`}
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    </MarginRow>
+  );
+}
+
+function changeVariant(change: NonNullable<DecisionLink['change']>) {
+  if (change === 'new') return 'default';
+  if (change === 'changed') return 'outline';
+  return 'destructive';
+}
+
+function changeLabel(change: NonNullable<DecisionLink['change']>) {
+  if (change === 'new') return 'New';
+  if (change === 'changed') return 'Changed';
+  return 'Removed';
+}
+
+function Contracts({ links }: { links: readonly DecisionLink[] }) {
+  return (
+    <section aria-label="Contracts" className="flex min-w-0 flex-col gap-2">
+      <h3 className="border-b pb-2 font-medium text-muted-foreground">
+        Contracts
+      </h3>
+      <ul
+        aria-label="Connections"
+        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y"
+      >
+        {links.map((link) => (
+          <li
+            key={link.part.id}
+            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2.5"
+          >
+            <span className="flex min-w-0 items-baseline gap-1.5 wrap-anywhere @5xl/review:flex-col @5xl/review:gap-0.5">
               <span className="text-muted-foreground">
                 {link.outgoing ? link.verb : `${link.part.label} ${link.verb}`}
               </span>
               {link.outgoing && (
-                <span className="font-medium">{link.part.label}</span>
-              )}
-              {link.change && (
-                <span
-                  className={cn(
-                    'rounded px-1 text-2xs font-medium',
-                    link.change === 'new' && 'bg-graph-2/12 text-graph-2',
-                    link.change === 'changed' && 'bg-graph-1/12 text-graph-1',
-                    link.change === 'removed' &&
-                      'bg-destructive/10 text-destructive',
-                  )}
-                >
-                  {changeLabel(link.change)}
+                <span className="text-caption font-medium text-foreground">
+                  {link.part.label}
                 </span>
               )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {questions.map((part) => (
-        <DecisionQuestion key={part.id} part={part} />
-      ))}
-      <StepList layer={layer} onStep={onStep} />
-      {stop.elsewhere.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <span>Also changes</span>
-          {stop.elsewhere.map((file) => (
-            <Button
-              key={file.path}
-              variant="outline"
-              size="xs"
-              title={file.path}
-              onClick={() => onGo(file.stop)}
-            >
-              {basename(file.path)}
-              <span className="text-muted-foreground">
-                {file.stop === 'specs'
-                  ? '· in Specs'
-                  : `· shown in decision ${review.layers.findIndex((item) => decisionKey(item.id) === file.stop) + 1}`}
-              </span>
-            </Button>
-          ))}
-        </div>
-      )}
-      {proof.checks.length > 0 && (
-        <ul
-          aria-label="Checks for this decision"
-          className="flex flex-wrap gap-1.5"
-        >
-          {orderedChecks(proof.checks).map((check) => (
-            <li
-              key={check.name}
-              className={cn(
-                'rounded-md border px-2 py-1 text-xs',
-                check.result === 'fail' &&
-                  'border-destructive/40 text-destructive',
-              )}
-            >
-              {check.name} · {checkResultLabel(check.result)}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Brief>
+            </span>
+            {link.change && (
+              <Badge variant={changeVariant(link.change)}>
+                {changeLabel(link.change)}
+              </Badge>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -272,7 +268,7 @@ function Summary({ text }: { text: string }) {
     <div className="flex flex-col items-start gap-1">
       <MarkdownView
         text={text}
-        className={cn('text-sm', long && !open && 'line-clamp-3')}
+        className={cn('text-base text-pretty', long && !open && 'line-clamp-3')}
       />
       {long && (
         <Button
@@ -287,117 +283,136 @@ function Summary({ text }: { text: string }) {
   );
 }
 
-function StepList({
+function RouteTable({
   layer,
+  reviewed,
+  total,
   onStep,
 }: {
   layer: ReviewLayer;
+  reviewed: number;
+  total: number;
   onStep: (step: ReviewStep) => void;
 }) {
+  if (layer.steps.length === 0) return null;
+  const route = decisionRoute(layer);
   return (
-    <ol
-      aria-label="Steps"
-      className="grid grid-cols-2 gap-1.5 max-narrow:grid-cols-1"
-    >
-      {layer.steps.map((step, index) => (
-        <li key={step.id}>
-          <button
-            type="button"
-            aria-label={`Go to step ${index + 1}: ${step.title}`}
-            onClick={() => onStep(step)}
-            className="flex w-full items-start gap-2.5 rounded-lg border bg-background px-2.5 py-2 text-left hover:border-foreground/20 hover:bg-accent/40"
-          >
-            <span
-              className={cn(
-                'mt-px grid size-5 shrink-0 place-items-center rounded-full bg-graph-1/12 text-2xs font-semibold text-graph-1 tabular-nums',
-                step.kind === 'context' && 'bg-muted text-muted-foreground',
-              )}
-            >
-              {index + 1}
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-caption font-medium">{step.title}</span>
-              <span className="flex min-w-0 items-center gap-1 text-2xs text-muted-foreground">
-                <FileCodeIcon className="size-3 shrink-0" aria-hidden="true" />
-                <span className="truncate" title={step.pointer.path}>
-                  {step.pointer.path}
-                </span>
-              </span>
-              <span className="text-2xs text-muted-foreground">
-                {layer.lanes[step.lane]}
-                {step.kind === 'context' && ' · existing code'}
-                {step.location.state === 'changed' && (
-                  <span className="text-graph-4"> · code moved</span>
+    <section aria-label="Route through the system" className="flex flex-col">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b pb-2 text-xs">
+        <span className="text-muted-foreground tabular-nums">
+          {layer.steps.length} {layer.steps.length === 1 ? 'step' : 'steps'}
+        </span>
+        {route.length > 0 && (
+          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 font-medium @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
+            {route.map((lane, index) => (
+              <li
+                key={`${lane}:${index}`}
+                className="flex items-center gap-1.5"
+              >
+                {index > 0 && (
+                  <ArrowRightIcon
+                    className="size-3 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 )}
-                {step.location.state === 'broken' && (
-                  <span className="text-graph-4"> · broken pointer</span>
-                )}
-                {step.location.state === 'committed' && ' · committed'}
-              </span>
-            </span>
-          </button>
-        </li>
-      ))}
-    </ol>
+                {lane}
+              </li>
+            ))}
+          </ol>
+        )}
+        <span className="ml-auto text-muted-foreground tabular-nums">
+          {reviewed} of {total} files reviewed here
+        </span>
+      </div>
+      <ol aria-label="Steps" className="flex flex-col">
+        {layer.steps.map((step, index) => (
+          <li key={step.id}>
+            <RouteRow
+              step={step}
+              index={index}
+              lane={
+                index === 0 || layer.steps[index - 1]?.lane !== step.lane
+                  ? layer.lanes[step.lane]
+                  : undefined
+              }
+              onStep={onStep}
+            />
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
-function UnexplainedBrief({
-  stop,
-  stops,
-  onGo,
+function RouteRow({
+  step,
+  index,
+  lane,
+  onStep,
 }: {
-  stop: Extract<WalkthroughStop, { kind: 'unexplained' }>;
-  stops: readonly WalkthroughStop[];
-  onGo: (key: WalkthroughKey) => void;
+  step: ReviewStep;
+  index: number;
+  lane: string | undefined;
+  onStep: (step: ReviewStep) => void;
 }) {
-  const where = (key: WalkthroughKey) => {
-    const found = stops.find((item) => item.key === key);
-    return found ? stopTitle(found) : key;
-  };
   return (
-    <Brief
-      eyebrow={
-        <span className="tracking-wide uppercase">After the decisions</span>
-      }
-      title="Not explained"
-      lead={
-        stop.paths.length > 0
-          ? `${stop.paths.length} changed ${stop.paths.length === 1 ? 'file has' : 'files have'} no decision pointing at ${stop.paths.length === 1 ? 'it' : 'them'}. Read ${stop.paths.length === 1 ? 'it' : 'them'} before calling the review done, or ask the agent to explain.`
-          : 'Every changed file belongs to a decision, but some lines inside them have no explanation.'
-      }
-    >
-      {stop.partial.length > 0 && (
-        <ul
-          aria-label="Unexplained lines in explained files"
-          className="flex flex-col gap-1.5"
-        >
-          {stop.partial.map((gap) => (
-            <li
-              key={gap.path}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-graph-4/40 bg-graph-4/5 px-3 py-2 text-sm"
-            >
-              <TriangleAlertIcon className="size-4 shrink-0 text-graph-4" />
-              <span className="min-w-0 flex-1 break-all" title={gap.path}>
-                {gap.path}
-                <span className="text-muted-foreground">
-                  {' · '}
-                  {gap.ranges.length > 0
-                    ? spansLabel(gap.ranges)
-                    : 'whole file'}
-                </span>
-              </span>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => onGo(gap.stop)}
-              >
-                Read in {where(gap.stop)}
-              </Button>
-            </li>
-          ))}
-        </ul>
+    <button
+      type="button"
+      aria-label={`Go to step ${index + 1}: ${step.title}`}
+      onClick={() => onStep(step)}
+      className={cn(
+        'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
+        lane !== undefined && index > 0 && 'border-t',
       )}
-    </Brief>
+    >
+      <span className="hidden w-24 shrink-0 truncate text-xs text-muted-foreground @2xl/review:block">
+        {lane}
+      </span>
+      <span
+        className={cn(
+          'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
+          step.kind === 'context' && 'border-dashed text-muted-foreground',
+        )}
+      >
+        {index + 1}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+        <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+          {step.title}
+          <StepMarker step={step} />
+        </span>
+        <span
+          className="min-w-0 truncate font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2"
+          title={step.pointer.path}
+        >
+          {step.pointer.path}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function stepMarker(step: ReviewStep) {
+  if (step.location.state === 'changed') return 'code moved';
+  if (step.location.state === 'broken') return 'broken pointer';
+  if (step.kind === 'context') return 'existing code';
+  if (step.location.state === 'committed') return 'committed';
+  return undefined;
+}
+
+function StepMarker({ step }: { step: ReviewStep }): ReactNode {
+  const marker = stepMarker(step);
+  if (!marker) return null;
+  return (
+    <span
+      className={cn(
+        'ml-2 text-xs font-normal text-muted-foreground',
+        (step.location.state === 'changed' ||
+          step.location.state === 'broken') &&
+          'text-graph-4',
+      )}
+    >
+      {marker}
+    </span>
   );
 }

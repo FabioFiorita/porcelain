@@ -363,9 +363,13 @@ export const test = base
         })
       ).body,
   }))
-  .extend('repo', async ({ world: _world }) =>
+  .extend('repo', async ({ world: _world, failures }) =>
     sampleRepository(
-      (step) => host.porcelainRepo(step, 'this'),
+      (step) => {
+        if (step.kind === 'service-update-fixture' && step.state === 'error')
+          failures.response('GET /api/service/update', 500);
+        return host.porcelainRepo(step, 'this');
+      },
       await host.porcelainFixture('this'),
     ),
   )

@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import type { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import type { AgentAction } from '@porcelain/server/kit/session';
 
 export type {
@@ -26,6 +27,10 @@ export type RepoStep =
         | 'remove-repository';
       title: string;
       asked?: string | undefined;
+    }
+  | {
+      kind: 'service-update-fixture';
+      state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;
     }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
