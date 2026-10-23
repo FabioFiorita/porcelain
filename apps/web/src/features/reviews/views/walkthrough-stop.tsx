@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -199,7 +200,7 @@ export function DecisionPage({
                 className="max-w-full"
                 onClick={() => onGo(file.stop)}
               >
-                <span className="truncate">{basename(file.path)}</span>
+                <TruncatedText text={basename(file.path)} />
                 <span className="text-muted-foreground">
                   {file.stop === 'specs'
                     ? '· in Specs'
@@ -367,9 +368,10 @@ function RouteRow({
         lane !== undefined && index > 0 && 'border-t',
       )}
     >
-      <span className="hidden w-24 shrink-0 truncate text-xs text-muted-foreground @2xl/review:block">
-        {lane}
-      </span>
+      <TruncatedText
+        className="hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block"
+        text={lane ?? ''}
+      />
       <span
         className={cn(
           'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
@@ -383,12 +385,10 @@ function RouteRow({
           {step.title}
           <StepMarker step={step} />
         </span>
-        <span
-          className="min-w-0 truncate font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2"
-          title={step.pointer.path}
-        >
-          {step.pointer.path}
-        </span>
+        <TruncatedText
+          className="min-w-0 font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2"
+          text={step.pointer.path}
+        />
       </span>
     </button>
   );

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
@@ -402,9 +403,10 @@ function BranchHeader({
               className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/25 px-3 py-2 text-xs"
             >
               {control(item)}
-              <span className="truncate font-mono font-medium">
-                {item.path}
-              </span>
+              <TruncatedText
+                className="font-mono font-medium"
+                text={item.path}
+              />
               <span className="shrink-0 text-muted-foreground">
                 {item.status} ·{' '}
                 {diffUnavailableReason(item, patchOf(item), failed) ??

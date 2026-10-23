@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
@@ -105,15 +106,14 @@ export function ChangeRow({
           >
             <ReviewStatusIcon status={reviewStatus} />
             <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-            <span
+            <TruncatedText
               className={cn(
-                'min-w-0 flex-1 truncate',
+                'min-w-0 flex-1 ',
                 reviewStatus === 'reviewed' &&
                   'line-through decoration-muted-foreground/40',
               )}
-            >
-              {basename(path)}
-            </span>
+              text={basename(path)}
+            />
             {commentCount > 0 && (
               <span className="flex shrink-0 items-center gap-0.5 text-2xs">
                 <MessageSquareIcon className="size-3" />

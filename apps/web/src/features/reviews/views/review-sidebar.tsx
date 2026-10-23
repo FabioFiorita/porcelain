@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { publishedReviewTitle } from '../rules/documents';
 import {
   FileDiffIcon,
@@ -70,14 +71,14 @@ export function ReviewSidebar({
           <TabsList className="h-8 w-full">
             <TabsTrigger value="files" className="min-w-0">
               <FilesIcon className="size-3.5" />
-              <span className="truncate">Files</span>
+              <TruncatedText text={'Files'} />
             </TabsTrigger>
             <TabsTrigger value="changes" className="min-w-0">
               <ChangesSurfaceLabel scope={scope} context={context} />
             </TabsTrigger>
             <TabsTrigger value="history" className="min-w-0">
               <HistoryIcon className="size-3.5" />
-              <span className="truncate">History</span>
+              <TruncatedText text={'History'} />
             </TabsTrigger>
           </TabsList>
         </div>
@@ -139,7 +140,7 @@ function ChangesSurfaceLabel({
   return (
     <>
       <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{title ?? 'Changes'}</span>
+      <TruncatedText text={title ?? 'Changes'} />
     </>
   );
 }

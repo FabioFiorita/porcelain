@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
@@ -16,7 +17,7 @@ import {
   SquareXIcon,
   XIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -273,158 +274,156 @@ function DocumentTab({
   } = describeTab(tabKey, reviewTitle);
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
+  const activateTab = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onActivate(tabKey);
+    }
+  };
 
   return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex" />}>
-        <ContextMenu
-          onOpenChange={(open) => {
-            if (open) setOpeningSide(false);
-          }}
-        >
-          <ContextMenuTrigger
-            render={
-              <div
-                ref={(tab) => {
-                  if (active)
-                    tab?.scrollIntoView?.({
-                      block: 'nearest',
-                      inline: 'nearest',
-                    });
-                }}
-                role="tab"
-                tabIndex={0}
-                aria-selected={active}
-                aria-label={accessibleName}
-
-                data-entry={tabKey}
-                className={cn(
-                  'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
-                  active
-                    ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
-                    : 'text-muted-foreground hover:bg-accent/50',
-                )}
-                onClick={() => onActivate(tabKey)}
-                onAuxClick={(event) => {
-                  if (event.button === 1 && !pinned && tabKey !== 'handoff') {
-                    event.preventDefault();
-                    onClose(tabKey);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onActivate(tabKey);
-                  }
-                }}
-              />
-            }
-          >
-            <Icon className="size-3.5 shrink-0" />
-            <span
-              className={cn(
-                'min-w-0 truncate',
-                tabKey.startsWith('file:') && 'italic',
-              )}
-            >
-              {title}
-            </span>
-            {tabKey === 'handoff' && reviewCount}
-            {tabKey !== 'handoff' && pinned && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={`Unpin ${title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onTogglePin(tabKey);
-                      }}
-                      className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                    />
-                  }
-                >
-                  <PinIcon className="size-3" />
-                </TooltipTrigger>
-                <TooltipContent>{`Unpin ${title}`}</TooltipContent>
-              </Tooltip>
-            )}
-            {tabKey !== 'handoff' && active && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={`Close ${title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onClose(tabKey);
-                      }}
-                      className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                    />
-                  }
-                >
-                  <XIcon className="size-3" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  {`Close ${title}`}
-                  <Kbd>{formatForDisplay(SHORTCUTS.closeTab)}</Kbd>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </ContextMenuTrigger>
-          <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
-            <ContextMenuItem
-              disabled={tabKey === 'handoff'}
-              onClick={() => onTogglePin(tabKey)}
-            >
-              {pinned ? <PinOffIcon /> : <PinIcon />}
-              {pinned ? 'Unpin' : 'Pin'}
-            </ContextMenuItem>
-            <ContextMenuItem
-              disabled={onOpenToSide === undefined}
-              onClick={() => {
-                flushSync(() => setOpeningSide(true));
-                onOpenToSide?.(tabKey);
+    <span className="inline-flex">
+      <ContextMenu
+        onOpenChange={(open) => {
+          if (open) setOpeningSide(false);
+        }}
+      >
+        <ContextMenuTrigger
+          render={
+            <div
+              ref={(tab) => {
+                if (active)
+                  tab?.scrollIntoView?.({
+                    block: 'nearest',
+                    inline: 'nearest',
+                  });
               }}
-            >
+              role="tab"
+              tabIndex={0}
+              aria-selected={active}
+              aria-label={accessibleName}
+
+              data-entry={tabKey}
+              className={cn(
+                'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                active
+                  ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
+                  : 'text-muted-foreground hover:bg-accent/50',
+              )}
+              onClick={() => onActivate(tabKey)}
+              onAuxClick={(event) => {
+                if (event.button === 1 && !pinned && tabKey !== 'handoff') {
+                  event.preventDefault();
+                  onClose(tabKey);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.target === event.currentTarget) activateTab(event);
+              }}
+            />
+          }
+        >
+          <Icon className="size-3.5 shrink-0" />
+          <TruncatedText
+            className={cn('min-w-0', tabKey.startsWith('file:') && 'italic')}
+            text={pinned ? `${hint} · pinned` : hint}
+            render={<span onKeyDown={activateTab} />}
+          >
+            {title}
+          </TruncatedText>
+          {tabKey === 'handoff' && reviewCount}
+          {tabKey !== 'handoff' && pinned && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Unpin ${title}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onTogglePin(tabKey);
+                    }}
+                    className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  />
+                }
+              >
+                <PinIcon className="size-3" />
+              </TooltipTrigger>
+              <TooltipContent>{`Unpin ${title}`}</TooltipContent>
+            </Tooltip>
+          )}
+          {tabKey !== 'handoff' && active && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Close ${title}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onClose(tabKey);
+                    }}
+                    className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  />
+                }
+              >
+                <XIcon className="size-3" />
+              </TooltipTrigger>
+              <TooltipContent>
+                {`Close ${title}`}
+                <Kbd>{formatForDisplay(SHORTCUTS.closeTab)}</Kbd>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
+          <ContextMenuItem
+            disabled={tabKey === 'handoff'}
+            onClick={() => onTogglePin(tabKey)}
+          >
+            {pinned ? <PinOffIcon /> : <PinIcon />}
+            {pinned ? 'Unpin' : 'Pin'}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={onOpenToSide === undefined}
+            onClick={() => {
+              flushSync(() => setOpeningSide(true));
+              onOpenToSide?.(tabKey);
+            }}
+          >
+            <Columns2Icon />
+            {openToSideLabel}
+            <ContextMenuShortcut>
+              {formatForDisplay(SHORTCUTS.openToSide)}
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          {onClosePane && (
+            <ContextMenuItem onClick={onClosePane}>
               <Columns2Icon />
-              {openToSideLabel}
-              <ContextMenuShortcut>
-                {formatForDisplay(SHORTCUTS.openToSide)}
-              </ContextMenuShortcut>
+              Close pane
             </ContextMenuItem>
-            {onClosePane && (
-              <ContextMenuItem onClick={onClosePane}>
-                <Columns2Icon />
-                Close pane
-              </ContextMenuItem>
-            )}
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              disabled={tabKey === 'handoff'}
-              onClick={() => onClose(tabKey)}
-            >
-              <XIcon />
-              Close
-              <ContextMenuShortcut>
-                {formatForDisplay(SHORTCUTS.closeTab)}
-              </ContextMenuShortcut>
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
-              <SquareXIcon />
-              Close others
-            </ContextMenuItem>
-            <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
-              <ListXIcon />
-              Close unpinned
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      </TooltipTrigger>
-      <TooltipContent>{pinned ? `${hint} · pinned` : hint}</TooltipContent>
-    </Tooltip>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            disabled={tabKey === 'handoff'}
+            onClick={() => onClose(tabKey)}
+          >
+            <XIcon />
+            Close
+            <ContextMenuShortcut>
+              {formatForDisplay(SHORTCUTS.closeTab)}
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
+            <SquareXIcon />
+            Close others
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
+            <ListXIcon />
+            Close unpinned
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </span>
   );
 }

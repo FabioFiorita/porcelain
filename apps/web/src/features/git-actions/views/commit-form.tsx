@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
@@ -91,9 +92,12 @@ export function CommitForm(
       </DialogHeader>
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-caption">
         <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate font-medium">
-          {liveBranch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
-        </span>
+        <TruncatedText
+          className="font-medium"
+          text={
+            liveBranch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'
+          }
+        />
         {liveBranch?.upstream !== null &&
           liveBranch?.upstream !== undefined && (
             <span className="ml-auto shrink-0 text-muted-foreground">
@@ -258,7 +262,7 @@ function CommitFiles({ form }: { form: CommitFormState }) {
           const body = (
             <>
               <FileTypeIcon path={file.path} className="size-3.5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{file.path}</span>
+              <TruncatedText className="min-w-0 flex-1" text={file.path} />
               <span className="shrink-0 text-muted-foreground">
                 {fileState(file.kind, included, commitAction)}
               </span>
@@ -461,7 +465,7 @@ function CommitGroups({ form }: { form: CommitFormState }) {
                 key={file.path}
                 className="flex min-w-0 items-center gap-2 text-xs"
               >
-                <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                <TruncatedText className="min-w-0 flex-1" text={file.path} />
                 <Select
                   items={assignments}
                   value={group.id}
@@ -499,7 +503,7 @@ function CommitGroups({ form }: { form: CommitFormState }) {
               key={file.path}
               className="flex min-w-0 items-center gap-2 text-xs"
             >
-              <span className="min-w-0 flex-1 truncate">{file.path}</span>
+              <TruncatedText className="min-w-0 flex-1" text={file.path} />
               <Select
                 items={assignments}
                 value="uncommitted"

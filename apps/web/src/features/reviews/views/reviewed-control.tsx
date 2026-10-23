@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
   TooltipTrigger,
@@ -132,12 +133,11 @@ export function ReviewedControl({
         </TooltipContent>
       </Tooltip>
       {error !== undefined && (
-        <span
-          role="alert"
-          className="max-w-52 truncate text-2xs text-destructive"
-        >
-          {reviewErrorMessage(error)}
-        </span>
+        <TruncatedText
+          className="max-w-52 text-2xs text-destructive"
+          render={<span role="alert" />}
+          text={reviewErrorMessage(error)}
+        />
       )}
     </span>
   );

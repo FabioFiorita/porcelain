@@ -918,6 +918,87 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...[
+    ['"Save"', 'Save', 'Delete'],
+    ["{'Save'}", "{'Save'}", "{'Delete'}"],
+    ['{`Save`}', '{`Save`}', '{`Delete`}'],
+    [
+      '"Save file"',
+      '<span>Save</span>{" "}<strong>file</strong>',
+      '<span>Delete file</span>',
+    ],
+    ['"Save"', 'Save <Kbd>{shortcut}</Kbd>', 'Delete <Kbd>{shortcut}</Kbd>'],
+    [
+      '"Save"',
+      'Save <KbdGroup><Kbd>S</Kbd></KbdGroup>',
+      'Delete <KbdGroup><Kbd>S</Kbd></KbdGroup>',
+    ],
+  ].map(([label, valid, invalid]) => ({
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/shared/workspace/save-control.tsx',
+    valid: `import { Button as Action } from '@/components/ui/button'; import * as Tip from '@/components/ui/tooltip'; import { Kbd, KbdGroup } from '@/components/ui/kbd'; export const control = <Tip.Tooltip><Tip.TooltipTrigger render={<Action size="icon" aria-label=${label} />} /><Tip.TooltipContent>${valid}</Tip.TooltipContent></Tip.Tooltip>;`,
+    invalid: `import { Button as Action } from '@/components/ui/button'; import * as Tip from '@/components/ui/tooltip'; import { Kbd, KbdGroup } from '@/components/ui/kbd'; export const control = <Tip.Tooltip><Tip.TooltipTrigger render={<Action size="icon" aria-label=${label} />} /><Tip.TooltipContent>${invalid}</Tip.TooltipContent></Tip.Tooltip>;`,
+    errors: 1,
+  })),
+  ...[
+    ['{label}', 'Save'],
+    ['"Save"', '{label}'],
+    ['"Save"', '<span>{label}</span>'],
+    ['"Save"', 'Save<DynamicDescription />'],
+    ['"Save"', '  Save  '],
+    ['"Save"', '<>Save</>'],
+  ].map(([label, content]) => ({
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/features/files/views/save-control.tsx',
+    valid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size="icon" aria-label=${label} />} /><TooltipContent>${content}</TooltipContent></Tooltip>;`,
+    invalid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size="icon" aria-label="Save" />} /><TooltipContent>Delete</TooltipContent></Tooltip>;`,
+    errors: 1,
+  })),
+  ...[
+    '<span className="truncate">path</span>',
+    '<span className={cn("min-w-0", "truncate")}>path</span>',
+    '<span className={compact ? "truncate" : "block"}>path</span>',
+    '<span className={`min-w-0 truncate ${style}`}>path</span>',
+    '<span className="md:truncate">path</span>',
+    '<span className="[&>span]:truncate"><span>path</span></span>',
+    'const labelClass = "min-w-0 truncate"; <span className={labelClass}>path</span>;',
+    '<span className={cn({ truncate: compact })}>path</span>',
+    'const labelClass = `truncate ${style}`; <span className={labelClass}>path</span>;',
+    '<span className="!truncate">path</span>',
+    '<span className="truncate!">path</span>',
+  ].flatMap((invalid) =>
+    [
+      'apps/web/src/features/files/views/file-label.tsx',
+      'apps/web/src/app/file-label.tsx',
+      'apps/web/src/shared/views/file-label.tsx',
+    ].map((path) => ({
+      rule: 'web-truncated-text',
+      path,
+      valid: `import { TruncatedText } from '@/shared/views/truncated-text'; export const label = <TruncatedText text={path} />;`,
+      invalid,
+      errors: 1,
+    })),
+  ),
+  ...[
+    'apps/web/src/shared/views/truncated-text.tsx',
+    'apps/web/src/components/ui/sidebar.tsx',
+    'apps/mobile/src/features/files/views/file-label.tsx',
+  ].map((validPath) => ({
+    rule: 'web-truncated-text',
+    path: 'apps/web/src/features/files/views/file-label.tsx',
+    validPath,
+    valid: '<span className="truncate">path</span>',
+    invalid: '<span className="truncate">path</span>',
+    errors: 1,
+  })),
+  {
+    rule: 'web-truncated-text',
+    path: 'apps/web/src/shared/views/file-label.tsx',
+    valid:
+      'const value = "truncate"; export const label = <span aria-label="truncate" className="text-ellipsis">{value}</span>;',
+    invalid: '<span className="truncate">path</span>',
+    errors: 1,
+  },
   ...['icon', 'icon-sm', 'icon-xs', 'icon-lg'].flatMap((size) =>
     [
       `<Button size="${size}" aria-label="Save"><SaveIcon /></Button>`,

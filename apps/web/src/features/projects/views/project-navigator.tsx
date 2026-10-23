@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -224,7 +225,7 @@ export function ProjectNavigator({
               >
                 <FilterIcon />
               </TooltipTrigger>
-              <TooltipContent role="tooltip">Filter and open</TooltipContent>
+              <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
               align="end"
@@ -242,12 +243,10 @@ export function ProjectNavigator({
                         setFilter({ ...filter, [section.key]: option.next })
                       }
                     >
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        title={option.label}
-                      >
-                        {option.label}
-                      </span>
+                      <TruncatedText
+                        className="min-w-0 flex-1"
+                        text={option.label}
+                      />
                     </DropdownMenuCheckboxItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -329,20 +328,12 @@ export function ProjectNavigator({
                           disabled={entry.disabled}
                           onClick={() => openWorktree(entry)}
                         >
-                          <span
-                            className="min-w-0 flex-1 truncate"
-                            title={`${entry.branch} · ${entry.projectName}`}
-                          >
-                            {entry.branch} · {entry.projectName}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="max-w-1/2"
-                            title={entry.environmentName}
-                          >
-                            <span className="truncate">
-                              {entry.environmentName}
-                            </span>
+                          <TruncatedText
+                            className="min-w-0 flex-1"
+                            text={`${entry.branch} · ${entry.projectName}`}
+                          />
+                          <Badge variant="secondary" className="max-w-1/2">
+                            <TruncatedText text={entry.environmentName} />
                           </Badge>
                         </DropdownMenuRadioItem>
                       ))}
@@ -443,101 +434,82 @@ export function ProjectNavigator({
                                   )}
                                 >
                                   <NavigatorStatus entry={entry} />
-                                  <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <SidebarMenuButton
-                                          size="lg"
-                                          className="h-10 min-w-0 flex-1"
-                                          aria-label={
-                                            entry.reviewId
-                                              ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                              : undefined
-                                          }
-                                          disabled={
-                                            !entry.reviewId && entry.disabled
-                                          }
-                                          aria-current={
-                                            active ? 'page' : undefined
-                                          }
-                                          onClick={() =>
-                                            entry.reviewId
-                                              ? setOpenMobile(false)
-                                              : openWorktree(entry)
-                                          }
-                                          render={
-                                            entry.reviewId ? (
-                                              <Link
-                                                to="/reviews/$reviewId"
-                                                params={{
-                                                  reviewId: entry.reviewId,
-                                                }}
-                                                search={{
-                                                  environment:
-                                                    entry.environmentId ===
-                                                    connection.environmentId
-                                                      ? undefined
-                                                      : entry.environmentId,
-                                                  decision: undefined,
-                                                }}
-                                              />
-                                            ) : undefined
-                                          }
+                                  <SidebarMenuButton
+                                    size="lg"
+                                    className="h-10 min-w-0 flex-1"
+                                    aria-label={
+                                      entry.reviewId
+                                        ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                        : undefined
+                                    }
+                                    disabled={!entry.reviewId && entry.disabled}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() =>
+                                      entry.reviewId
+                                        ? setOpenMobile(false)
+                                        : openWorktree(entry)
+                                    }
+                                    render={
+                                      entry.reviewId ? (
+                                        <Link
+                                          to="/reviews/$reviewId"
+                                          params={{
+                                            reviewId: entry.reviewId,
+                                          }}
+                                          search={{
+                                            environment:
+                                              entry.environmentId ===
+                                              connection.environmentId
+                                                ? undefined
+                                                : entry.environmentId,
+                                            decision: undefined,
+                                          }}
                                         />
-                                      }
-                                    >
-                                      <div className="min-w-0 flex-1 text-ui leading-4">
-                                        <div className="flex min-w-0 items-center gap-1">
-                                          <span className="min-w-0 flex-1 truncate">
-                                            {entry.title}
+                                      ) : undefined
+                                    }
+                                  >
+                                    <div className="min-w-0 flex-1 text-ui leading-4">
+                                      <div className="flex min-w-0 items-center gap-1">
+                                        <TruncatedText
+                                          className="min-w-0 flex-1"
+                                          text={entry.title}
+                                        />
+                                        {entry.reviewId ? (
+                                          <span
+                                            className={cn(
+                                              'shrink-0 text-xs',
+                                              active
+                                                ? 'text-brand'
+                                                : 'text-muted-foreground',
+                                            )}
+                                            aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                          >
+                                            {entry.reviewed}/{entry.total}
                                           </span>
-                                          {entry.reviewId ? (
-                                            <span
-                                              className={cn(
-                                                'shrink-0 text-xs',
-                                                active
-                                                  ? 'text-brand'
-                                                  : 'text-muted-foreground',
-                                              )}
-                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                            >
-                                              {entry.reviewed}/{entry.total}
-                                            </span>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                        <div className="flex min-w-0 flex-1 items-center gap-1">
+                                          {context.project ? (
+                                            <TruncatedText
+                                              className={
+                                                context.branch
+                                                  ? 'min-w-0 max-w-1/2'
+                                                  : 'min-w-0 flex-1'
+                                              }
+                                              text={context.project}
+                                            />
+                                          ) : null}
+                                          {context.branch ? (
+                                            <TruncatedText
+                                              className="min-w-0 flex-1"
+                                              text={context.branch}
+                                            />
                                           ) : null}
                                         </div>
-                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                          <div className="flex min-w-0 flex-1 items-center gap-1">
-                                            {context.project ? (
-                                              <span
-                                                className={
-                                                  context.branch
-                                                    ? 'min-w-0 max-w-1/2 truncate'
-                                                    : 'min-w-0 flex-1 truncate'
-                                                }
-                                              >
-                                                {context.project}
-                                              </span>
-                                            ) : null}
-                                            {context.branch ? (
-                                              <span className="min-w-0 flex-1 truncate">
-                                                {context.branch}
-                                              </span>
-                                            ) : null}
-                                          </div>
-                                        </div>
                                       </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" role="tooltip">
-                                      <div>
-                                        <p>{entry.title}</p>
-                                        <p>
-                                          {[context.project, context.branch]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                        </p>
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                    </div>
+                                  </SidebarMenuButton>
                                 </div>
                                 {entry.archivable && entry.reviewId ? (
                                   <ArchiveReview

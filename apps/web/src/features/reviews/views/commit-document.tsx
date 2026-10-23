@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { commitPath, commitPaths } from '@porcelain/client/history/rules';
 import { ordinal, useCommit } from '@/features/history/index';
 import {
@@ -112,6 +113,7 @@ export function CommitDocument({
                 />
               </>
             }
+            titleLabel={oid}
             title={<span className="font-mono">{shortOid(oid)}</span>}
             subtitle={`${commit.files.length} file${commit.files.length === 1 ? '' : 's'} changed`}
           >
@@ -276,7 +278,7 @@ function OmittedCommitChanges({
               className="rounded-lg border bg-muted/25 px-3 py-2 text-xs"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-mono font-medium">{path}</span>
+                <TruncatedText className="font-mono font-medium" text={path} />
                 <span className="shrink-0 text-muted-foreground">
                   {change.status} · {reason}
                 </span>

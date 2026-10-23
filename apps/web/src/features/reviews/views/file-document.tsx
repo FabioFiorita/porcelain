@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
@@ -465,9 +466,10 @@ function FileToolbar({
         <span className="flex min-w-0 items-center gap-1.5">
           <FileTypeIcon path={path} className="size-4 shrink-0" />
           {directory && (
-            <span className="truncate font-normal text-muted-foreground">
-              {directory}
-            </span>
+            <TruncatedText
+              className="font-normal text-muted-foreground"
+              text={directory}
+            />
           )}
           <span className="shrink-0">{name}</span>
         </span>

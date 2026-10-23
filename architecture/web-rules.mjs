@@ -562,10 +562,29 @@ export const webRules = {
               : (child.type === 'JSXElement' || child.type === 'JSXFragment') &&
                 content(child),
         );
+      const staticText = (element) => {
+        const parts = element.children.map((child) => {
+          if (child.type === 'JSXText') return child.value.replace(/\s+/g, ' ');
+          if (child.type === 'JSXExpressionContainer')
+            return child.expression.type === 'JSXEmptyExpression'
+              ? ''
+              : stringValue(child);
+          if (child.type === 'JSXFragment') return staticText(child);
+          if (child.type === 'JSXElement') {
+            if (['Kbd', 'KbdGroup'].includes(name(child))) return '';
+            const tag = child.openingElement.name;
+            return tag.type === 'JSXIdentifier' && /^[a-z]/.test(tag.name)
+              ? staticText(child)
+              : undefined;
+          }
+          return undefined;
+        });
+        return parts.includes(undefined) ? undefined : parts.join('');
+      };
       return {
         Program(program) {
           imports = importedFrom(program, (source) =>
-            /(?:^|\/)components\/ui\/(?:button|input-group|tooltip|dropdown-menu)(?:\.tsx?)?$/.test(
+            /(?:^|\/)components\/ui\/(?:button|input-group|tooltip|dropdown-menu|kbd)(?:\.tsx?)?$/.test(
               source,
             ),
           );
@@ -589,19 +608,104 @@ export const webRules = {
               break;
             }
           }
+          const popup = tooltip?.children.find(
+            (child) => name(child) === 'TooltipContent' && content(child),
+          );
           if (
             labelled(value(attribute(element, 'aria-label'))) &&
             trigger &&
-            tooltip?.children.some(
-              (child) => name(child) === 'TooltipContent' && content(child),
+            popup
+          ) {
+            const label = stringValue(attribute(element, 'aria-label'));
+            const text = staticText(popup);
+            if (
+              label !== undefined &&
+              text !== undefined &&
+              label.replace(/\s+/g, ' ').trim() !== text.trim()
             )
-          )
+              context.report({
+                node: popup,
+                message:
+                  'Make an icon-only button’s static Tooltip text equal its aria-label, because sighted and screen-reader users must hear the same action name.',
+              });
             return;
+          }
           context.report({
             node: element.openingElement,
             message:
               'Give an icon-only button an aria-label and compose it with the shared Tooltip, TooltipTrigger render prop and TooltipContent naming its action, because keyboard and sighted mouse users need a visible label for an icon-only control.',
           });
+        },
+      };
+    },
+  },
+  'web-truncated-text': {
+    create(context) {
+      const path = webPath(context);
+      if (
+        !path.startsWith(webSource) ||
+        !pageCode(path) ||
+        path === 'apps/web/src/shared/views/truncated-text.tsx'
+      )
+        return {};
+      const reported = new Set();
+      const check = (node, text) => {
+        if (
+          typeof text === 'string' &&
+          /(?:^|[\s:])!?truncate!?(?=\s|$)/.test(text) &&
+          !reported.has(node)
+        ) {
+          reported.add(node);
+          context.report({
+            node,
+            message:
+              'Use TruncatedText from shared/views/truncated-text instead of the bare truncate utility, because clipped text needs its full accessible name and a Tooltip reachable on hover and keyboard focus.',
+          });
+        }
+      };
+      const classes = (node, seen = new Set()) => {
+        if (!node || seen.has(node)) return;
+        seen.add(node);
+        const text = stringValue(node);
+        if (text !== undefined) {
+          check(node, text);
+          return;
+        }
+        if (node.type === 'Identifier') {
+          classes(variableOf(context, node)?.defs[0]?.node?.init, seen);
+        } else if (node.type === 'TemplateLiteral') {
+          for (const part of node.quasis) check(part, part.value.raw);
+          for (const expression of node.expressions) classes(expression, seen);
+        } else if (node.type === 'ConditionalExpression') {
+          classes(node.consequent, seen);
+          classes(node.alternate, seen);
+        } else if (node.type === 'LogicalExpression') {
+          classes(node.left, seen);
+          classes(node.right, seen);
+        } else if (node.type === 'CallExpression') {
+          for (const argument of node.arguments) classes(argument, seen);
+        } else if (node.type === 'ArrayExpression') {
+          for (const element of node.elements) classes(element, seen);
+        } else if (node.type === 'ObjectExpression') {
+          for (const property of node.properties) {
+            if (property.type === 'Property') {
+              check(property.key, property.key.name ?? property.key.value);
+            } else if (property.type === 'SpreadElement')
+              classes(property.argument, seen);
+          }
+        } else if (
+          [
+            'JSXExpressionContainer',
+            'TSAsExpression',
+            'TSSatisfiesExpression',
+          ].includes(node.type)
+        ) {
+          classes(node.expression, seen);
+        }
+      };
+      return {
+        JSXAttribute(node) {
+          if (node.name.name === 'className') classes(node.value);
         },
       };
     },

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -240,10 +241,13 @@ export function WalkthroughBriefing({
                       <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stop.layer.title}
                       </span>
-                      <span className="min-w-0 truncate text-xs text-muted-foreground @2xl/review:max-w-1/2">
-                        {decisionRoute(stop.layer).join(' → ') ||
-                          'No changed code'}
-                      </span>
+                      <TruncatedText
+                        className="min-w-0 text-xs text-muted-foreground @2xl/review:max-w-1/2"
+                        text={
+                          decisionRoute(stop.layer).join(' → ') ||
+                          'No changed code'
+                        }
+                      />
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
                       <span className="text-xs text-muted-foreground tabular-nums">

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { Undo2Icon } from 'lucide-react';
@@ -109,12 +110,11 @@ export function DiscardButton({
               : 'The file goes back to the last commit. You can restore the changes.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <p
-          className="truncate rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs"
-          title={path}
-        >
-          {path}
-        </p>
+        <TruncatedText
+          className="rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs"
+          render={<p />}
+          text={path}
+        />
         {error && (
           <GitActionError text={error.text}>
             {error.moved ? ' Look at the diff again before discarding.' : ''}

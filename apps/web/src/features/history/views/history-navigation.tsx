@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { GitBranchIcon, GitGraphIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -74,9 +75,10 @@ export function HistoryHeading({
         action !== undefined) && (
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate">
-            {historyHeading(history.snapshot)}
-          </span>
+          <TruncatedText
+            className="min-w-0 flex-1"
+            text={historyHeading(history.snapshot)}
+          />
           {action}
         </div>
       )}

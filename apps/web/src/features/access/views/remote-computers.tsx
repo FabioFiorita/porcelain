@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { KeyRoundIcon, MonitorIcon, ChevronRightIcon } from 'lucide-react';
@@ -57,7 +58,7 @@ function RemoteRow({
           onClick={() => onOpen(remote.environmentId)}
         >
           <span className="min-w-0">
-            <span className="block truncate font-medium">{name}</span>
+            <TruncatedText className="block font-medium" text={name} />
             <span className="block break-all text-xs font-normal text-muted-foreground">
               {remoteStatusText(status)} · {remote.address} ·{' '}
               {remote.environmentId.slice(0, 8)}

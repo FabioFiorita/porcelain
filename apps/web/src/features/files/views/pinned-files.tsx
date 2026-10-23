@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
   TooltipTrigger,
@@ -68,9 +69,10 @@ export function PinnedFiles({
                   <FileTypeIcon path={path} className="size-3.5 shrink-0" />
                   <span className="shrink-0">{path.slice(separator)}</span>
                   {separator > 0 && (
-                    <span className="truncate text-muted-foreground">
-                      {path.slice(0, separator - 1)}
-                    </span>
+                    <TruncatedText
+                      className="text-muted-foreground"
+                      text={path.slice(0, separator - 1)}
+                    />
                   )}
                 </button>
                 <Tooltip>

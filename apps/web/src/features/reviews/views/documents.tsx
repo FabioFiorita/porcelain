@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
@@ -140,7 +141,7 @@ function TimelineDocument({
         title={
           <span className="flex min-w-0 items-center gap-1.5">
             <HistoryIcon className="size-4 shrink-0" />
-            <span className="truncate">{path}</span>
+            <TruncatedText text={path} />
           </span>
         }
         subtitle="Commits that changed this file"
