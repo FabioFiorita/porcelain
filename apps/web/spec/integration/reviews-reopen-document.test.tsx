@@ -233,7 +233,10 @@ test('Changes and comment links focus an already-open diff in the other pane and
   });
   await original.click();
   await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace
     .getByRole('button', { name: 'README.md · unstaged', exact: true })
     .click();

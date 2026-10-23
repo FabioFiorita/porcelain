@@ -12,7 +12,10 @@ test('Spec files creates a separate collapsed section only while the setting is 
     name: /^(README\.md|search\.spec\.ts|search\.ts)( · .+)?$/,
   });
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await pairedPage
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   for (const [index, name] of [
     /^README\.md/,
     /^search\.spec\.ts/,

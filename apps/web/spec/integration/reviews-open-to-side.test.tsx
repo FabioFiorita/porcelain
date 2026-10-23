@@ -113,10 +113,9 @@ test('tree side menu preserves the source document and focuses the destination a
   await expect.element(right).not.toBeInTheDocument();
   await expect
     .element(
-      workspace.getByRole('tab', {
-        name: 'Changes',
-        exact: true,
-      }),
+      workspace
+        .getByRole('tablist', { name: 'Open documents', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
 });
@@ -257,7 +256,10 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
   repo,
 }) => {
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${repo.readme.path.replace('.', '\\.')}( · .+)?$`),
   });
@@ -380,7 +382,10 @@ test('branch file side actions keep the branch document kind', async ({
   await repo.write('notes.md', 'Branch notes\n');
   await repo.commit('Add notes');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   const row = workspace.getByRole('button', {
     name: 'notes.md · added',
@@ -552,10 +557,9 @@ test('closing the destination during sheet exit cancels its focus transfer and r
   await expect.element(sheet).not.toBeInTheDocument();
   await expect
     .element(
-      workspace.getByRole('tab', {
-        name: 'Changes',
-        exact: true,
-      }),
+      workspace
+        .getByRole('tablist', { name: 'Open documents', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
   await expect.element(trigger).toHaveFocus();
