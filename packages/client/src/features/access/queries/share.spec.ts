@@ -10,6 +10,7 @@ import {
   readPairedAccess,
   readRemoteAccess,
   readServiceUpdate,
+  serviceUpdateSnapshot,
 } from './share.ts';
 
 const fixture = clientFixtures('environment');
@@ -354,6 +355,33 @@ it.each([
     expect(proof.requests).toBe(expectedReads);
   },
 );
+
+it('marks a successful service check as waiting until its refresh settles', async () => {
+  let reads = 0;
+  const refresh = Promise.withResolvers<void>();
+  const arrived = Promise.withResolvers<void>();
+  const { connection, registry } = fixture(async () => {
+    reads += 1;
+    if (reads === 2) {
+      arrived.resolve();
+      await refresh.promise;
+    }
+    return Response.json(offered);
+  });
+  const atom = readServiceUpdate(connection);
+  registry.mount(atom);
+  await Effect.runPromise(AtomRegistry.getResult(registry, atom));
+  registry.refresh(atom);
+  try {
+    await arrived.promise;
+    expect(registry.get(atom).waiting).toBe(true);
+    expect(serviceUpdateSnapshot(registry.get(atom))).toEqual(offered);
+  } finally {
+    refresh.resolve();
+  }
+  await expect.poll(() => registry.get(atom).waiting).toBe(false);
+  expect(reads).toBe(2);
+});
 
 it('marks a failed service check as waiting until its retry settles', async () => {
   let reads = 0;

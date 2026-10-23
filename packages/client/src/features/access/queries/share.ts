@@ -53,34 +53,39 @@ function pollWhile<A, E, R>(
   interval: number,
   settling: Effect.Effect<(answer: A | undefined) => boolean, never, R>,
 ) {
-  return Atom.optimistic(
-    runtime
-      .atom((get) => {
-        const previous = Option.flatMap(
-          get.self<AsyncResult.AsyncResult<AsyncResult.AsyncResult<A, E>>>(),
-          AsyncResult.value,
-        );
-        return Stream.unwrap(
-          Effect.map(settling, (inProgress) =>
-            Stream.concat(
-              Stream.succeed(AsyncResult.waitingFrom(previous)),
-              Stream.fromEffect(read).pipe(
-                Stream.repeat(Schedule.spaced(interval)),
-                Stream.takeUntil(
-                  (answer) =>
-                    !inProgress(
-                      Option.getOrUndefined(AsyncResult.value(answer)),
-                    ),
-                ),
+  const observation = runtime
+    .atom((get) => {
+      const previous = Option.flatMap(
+        get.self<AsyncResult.AsyncResult<AsyncResult.AsyncResult<A, E>>>(),
+        AsyncResult.value,
+      );
+      return Stream.unwrap(
+        Effect.map(settling, (inProgress) =>
+          Stream.concat(
+            Stream.succeed(AsyncResult.waitingFrom(previous)),
+            Stream.fromEffect(read).pipe(
+              Stream.repeat(Schedule.spaced(interval)),
+              Stream.takeUntil(
+                (answer) =>
+                  !inProgress(Option.getOrUndefined(AsyncResult.value(answer))),
               ),
             ),
           ),
-        );
-      })
-      .pipe(
-        Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
-      ),
-  ).pipe(Atom.setIdleTTL(0));
+        ),
+      );
+    })
+    .pipe(
+      Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
+    );
+  return Atom.optimistic(observation).pipe(
+    Atom.transform((get, optimistic) => {
+      const result = get(optimistic);
+      return get(observation).waiting
+        ? AsyncResult.waitingFrom(Option.some(result))
+        : result;
+    }),
+    Atom.setIdleTTL(0),
+  );
 }
 
 function accessObservation<A, E, R>(
