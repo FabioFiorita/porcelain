@@ -5,8 +5,11 @@ import type { ConnectionContext } from '@/shared/workspace/connection';
 import { usePublishedReview } from '../queries/published-review';
 import { useReviewRevisionSelection } from '../store';
 import { ReviewPage } from './review-page';
-import { Button } from '@/components/ui/button';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
+import {
+  StateFailure,
+  StateNotice,
+  StateSkeleton,
+} from '@/components/state-notice';
 
 export function BranchReviewPage({
   scope,
@@ -27,14 +30,10 @@ export function BranchReviewPage({
     return <StateSkeleton label="Loading review" />;
   if (AsyncResult.isFailure(published.result))
     return (
-      <StateNotice
-        title="Could not display"
+      <StateFailure
         description="The branch review could not be read."
-      >
-        <Button variant="outline" onClick={published.refresh}>
-          Try again
-        </Button>
-      </StateNotice>
+        onRetry={published.refresh}
+      />
     );
   if (!reviewId || reviewId === deleted)
     return (

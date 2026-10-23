@@ -1,10 +1,8 @@
+import { BranchState } from './branch-state';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause } from 'effect';
 import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { branchErrorMessage } from '@porcelain/client/changes/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchChanges } from '@/features/changes/index';
 import { toast } from '@/components/ui/toast';
@@ -23,7 +21,7 @@ import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
+import { StateSkeleton } from '@/components/state-notice';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -89,30 +87,13 @@ function BranchFiles({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (AsyncResult.isFailure(changes.result))
-    return (
-      <StateNotice
-        role="alert"
-        title="Could not display"
-        description={branchErrorMessage(Cause.squash(changes.result.cause))}
-      >
-        <Button variant="outline" size="xs" onClick={changes.refresh}>
-          Try again
-        </Button>
-      </StateNotice>
-    );
-  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base === undefined)
-    return (
-      <div className="p-3">
-        <StateNotice
-          title="No default branch"
-          description="Choose the branch this one is compared against."
-        />
-      </div>
-    );
+  if (
+    !AsyncResult.isSuccess(changes.result) ||
+    changes.result.value.base === undefined
+  )
+    return <BranchState changes={changes} />;
   return (
-    <Suspense fallback={<ComparingBranch />}>
+    <Suspense fallback={<StateSkeleton label="Comparing the branch" />}>
       <BranchFileList
         scope={scope}
         context={context}
@@ -124,10 +105,6 @@ function BranchFiles({
       />
     </Suspense>
   );
-}
-
-function ComparingBranch() {
-  return <StateSkeleton label="Comparing the branch" />;
 }
 
 function BranchFileList({

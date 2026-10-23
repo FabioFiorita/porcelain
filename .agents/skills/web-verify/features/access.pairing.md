@@ -5,7 +5,7 @@ selectors:
   - "Checking the link with your computer"
   - "This pairing link is not usable. Ask for a new one."
 tests:
-  - apps/web/spec/integration/state-notices.test.tsx
+  - apps/web/spec/e2e/access-pairing-states.e2e.ts
   - apps/web/spec/e2e/access-pairing.e2e.ts
   - apps/web/spec/e2e/access-pair-open-page.e2e.ts
 api:

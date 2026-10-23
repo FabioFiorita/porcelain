@@ -52,7 +52,11 @@ import { StopBrief } from './walkthrough-stop';
 import { RevisionCode, RevisionFile } from './revision-code';
 import { ReviewActions } from './review-actions';
 import { ReviewComments } from './review-comments';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
+import {
+  StateFailure,
+  StateNotice,
+  StateSkeleton,
+} from '@/components/state-notice';
 import { ProofList } from './proof-list';
 
 type ReviewPageProps = {
@@ -98,18 +102,11 @@ export function ReviewPage({
     return <StateSkeleton label="Loading review" />;
   if (AsyncResult.isFailure(result))
     return (
-      <StateNotice
-        role="alert"
-        title="Could not display"
+      <StateFailure
         description="Review could not be loaded. Check the link and connection."
-      >
-        <Button variant="outline" onClick={retry}>
-          Try again
-        </Button>
-        <Button variant="ghost" onClick={onBack}>
-          Back to workspace
-        </Button>
-      </StateNotice>
+        onRetry={retry}
+        onBack={onBack}
+      />
     );
   if (!data?.review || !data.revision)
     return (
@@ -159,18 +156,11 @@ export function ReviewMissing({
     return <StateSkeleton label="Loading review" />;
   if (AsyncResult.isFailure(result))
     return (
-      <StateNotice
-        role="alert"
-        title="Could not display"
+      <StateFailure
         description="Review could not be loaded. Check the link and connection."
-      >
-        <Button variant="outline" onClick={retry}>
-          Try again
-        </Button>
-        <Button variant="ghost" onClick={onBack}>
-          Back to workspace
-        </Button>
-      </StateNotice>
+        onRetry={retry}
+        onBack={onBack}
+      />
     );
   return (
     <StateNotice

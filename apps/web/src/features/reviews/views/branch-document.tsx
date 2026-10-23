@@ -1,16 +1,13 @@
+import { BranchState } from './branch-state';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
+import { Option } from 'effect';
 import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import {
-  type BranchFile,
-  branchErrorMessage,
-  branchRange,
-} from '@porcelain/client/changes/rules';
+import { type BranchFile, branchRange } from '@porcelain/client/changes/rules';
 import {
   commitEntry,
   useBranchChanges,
@@ -66,28 +63,13 @@ function BranchCode({
 }: Props & { path: string | undefined }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (AsyncResult.isFailure(changes.result))
-    return (
-      <StateNotice
-        role="alert"
-        title="Could not display"
-        description={branchErrorMessage(Cause.squash(changes.result.cause))}
-      >
-        <Button variant="outline" onClick={changes.refresh}>
-          Try again
-        </Button>
-      </StateNotice>
-    );
-  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base === undefined)
-    return (
-      <StateNotice
-        title="No default branch"
-        description="Choose the branch this one is compared against in the Branch list."
-      />
-    );
+  if (
+    !AsyncResult.isSuccess(changes.result) ||
+    changes.result.value.base === undefined
+  )
+    return <BranchState changes={changes} />;
   return (
-    <Suspense fallback={<ComparingBranch />}>
+    <Suspense fallback={<StateSkeleton label="Comparing the branch" />}>
       <BranchMarkedCode
         scope={scope}
         context={context}
@@ -97,10 +79,6 @@ function BranchCode({
       />
     </Suspense>
   );
-}
-
-function ComparingBranch() {
-  return <StateSkeleton label="Comparing the branch" />;
 }
 
 function BranchMarkedCode({

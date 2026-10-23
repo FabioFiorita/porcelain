@@ -63,14 +63,17 @@ const workspaceMessages = {
   'not-found': {
     title: 'Page not found',
     description: 'This URL does not open a page in Porcelain.',
+    icon: CompassIcon,
   },
   'missing-worktree': {
     title: 'Worktree not found',
     description: 'This URL has an invalid or unavailable worktree ID.',
+    icon: FolderXIcon,
   },
   empty: {
     title: 'Select a worktree',
     description: 'Choose one on the left to open its review.',
+    icon: GitBranchIcon,
   },
 };
 
@@ -89,6 +92,7 @@ export function ConnectedWorkspace({
 }) {
   const navigationTrigger = useElement<HTMLButtonElement>();
   const message = workspaceMessages[notice ?? 'empty'];
+  const NoticeIcon = message.icon;
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const navigate = useNavigate();
@@ -214,15 +218,7 @@ export function ConnectedWorkspace({
                 <StateNotice
                   title={message.title}
                   description={message.description}
-                  icon={
-                    notice === 'not-found' ? (
-                      <CompassIcon />
-                    ) : notice === 'missing-worktree' ? (
-                      <FolderXIcon />
-                    ) : (
-                      <GitBranchIcon />
-                    )
-                  }
+                  icon={<NoticeIcon />}
                 >
                   {!notice && recovery && (
                     <div className="flex w-full min-w-0 flex-col gap-2">

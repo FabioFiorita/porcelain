@@ -24,6 +24,16 @@ export function NotPaired({
   pending?: boolean;
 }) {
   const command = `porcelain pair "This browser" --address ${pairingAddress()}`;
+  let status = 'This browser cannot open your worktrees yet';
+  let firstStep = 'On your computer, run this';
+  if (reason) {
+    status = 'That link did not let this browser in';
+    firstStep = 'On your computer, run it again';
+  }
+  if (pending) {
+    status = 'Checking the link with your computer';
+    firstStep = 'Ran porcelain pair on your computer';
+  }
   return (
     <section className="flex w-full min-w-0 flex-1 flex-col gap-8">
       <p
@@ -41,17 +51,13 @@ export function NotPaired({
           {pending && <Spinner className="size-3" />}
           {pending ? 'Pairing' : 'Not paired'}
         </span>
-        {pending
-          ? 'Checking the link with your computer'
-          : reason
-            ? 'That link did not let this browser in'
-            : 'This browser cannot open your worktrees yet'}
+        {status}
       </p>
       <div className="flex flex-col gap-6">
         <div className="text-4xl font-semibold leading-none tracking-tighter md:text-6xl">
           <h2
             aria-label="This browser is not paired"
-            className="text-muted-foreground"
+            className="text-[color:var(--title-dim,var(--muted-foreground))]"
           >
             This browser is not paired.
           </h2>
@@ -64,13 +70,7 @@ export function NotPaired({
       </div>
       <ol aria-label="How pairing works" className="flex max-w-3xl flex-col">
         <PairingStep number={1} current={!pending} done={pending}>
-          <h3 className="font-semibold">
-            {pending
-              ? 'Ran porcelain pair on your computer'
-              : reason
-                ? 'On your computer, run it again'
-                : 'On your computer, run this'}
-          </h3>
+          <h3 className="font-semibold">{firstStep}</h3>
           {!pending && (
             <>
               <div className="my-3 flex min-w-0 items-center gap-3 rounded-full border bg-muted py-1 pl-4 pr-1 text-ui">
@@ -182,6 +182,17 @@ function PairingStep({
   failed?: boolean;
   children: React.ReactNode;
 }) {
+  let state = '';
+  let marker: React.ReactNode = number;
+  if (failed) {
+    state = ', failed';
+    marker = <XIcon className="size-3" />;
+  }
+  if (done) {
+    state = ', done';
+    marker = <CheckIcon className="size-3" />;
+  }
+  if (current) state = ', current';
   return (
     <li className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-4 pb-8 last:pb-0">
       <span
@@ -190,7 +201,7 @@ function PairingStep({
       />
       <span
         aria-current={current ? 'step' : undefined}
-        aria-label={`Step ${number}${current ? ', current' : done ? ', done' : failed ? ', failed' : ''}`}
+        aria-label={`Step ${number}${state}`}
         className={cn(
           'relative flex size-6 shrink-0 items-center justify-center rounded-full border bg-background text-xs tabular-nums text-muted-foreground',
           current &&
@@ -200,13 +211,7 @@ function PairingStep({
           failed && 'border-destructive text-destructive',
         )}
       >
-        {done ? (
-          <CheckIcon className="size-3" />
-        ) : failed ? (
-          <XIcon className="size-3" />
-        ) : (
-          number
-        )}
+        {marker}
       </span>
       <div className="min-w-0">{children}</div>
     </li>

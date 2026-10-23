@@ -1,6 +1,5 @@
 import { Component, type ReactNode, Suspense } from 'react';
-import { StateNotice, StateSkeleton } from '@/components/state-notice';
-import { Button } from '@/components/ui/button';
+import { StateFailure, StateSkeleton } from '@/components/state-notice';
 import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';
@@ -17,21 +16,10 @@ class ReviewErrorBoundary extends Component<
   override render() {
     if (this.state.error)
       return (
-        <StateNotice
-          role="alert"
-          title="Could not display"
+        <StateFailure
           description={reviewErrorMessage(this.state.error)}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              this.props.reset(() => this.setState({ error: null }))
-            }
-          >
-            Try again
-          </Button>
-        </StateNotice>
+          onRetry={() => this.props.reset(() => this.setState({ error: null }))}
+        />
       );
     return this.props.children;
   }

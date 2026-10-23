@@ -20,18 +20,13 @@ export function RemoteUnavailable({
 }) {
   if (status.kind === 'online') return null;
   const waiting = status.kind === 'checking' || status.kind === 'reconnecting';
+  let icon = <ServerOffIcon />;
+  if (status.kind === 'needs-pairing') icon = <LinkIcon />;
+  if (waiting) icon = <Spinner />;
   return (
     <StateNotice
       role="status"
-      icon={
-        waiting ? (
-          <Spinner />
-        ) : status.kind === 'needs-pairing' ? (
-          <LinkIcon />
-        ) : (
-          <ServerOffIcon />
-        )
-      }
+      icon={icon}
       title={
         status.kind === 'offline'
           ? `${name} is offline`

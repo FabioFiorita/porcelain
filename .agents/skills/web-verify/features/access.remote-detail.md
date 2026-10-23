@@ -12,7 +12,6 @@ selectors:
   - 'Forget on this app'
   - 'Back'
 tests:
-  - apps/web/spec/integration/state-notices.test.tsx
   - apps/web/spec/e2e/access-remote-detail.desktop.e2e.ts
 api:
   - GET /api/environment

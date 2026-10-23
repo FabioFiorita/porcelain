@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { InfoIcon } from 'lucide-react';
+import { CloudOffIcon, InfoIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -73,5 +74,35 @@ export function StateSkeleton({ label }: { label: string }) {
       <Skeleton className="h-4 w-1/2" />
       <span className="sr-only">{label}…</span>
     </div>
+  );
+}
+
+export function StateFailure({
+  description,
+  onRetry,
+  onBack,
+  title = 'Could not display',
+}: {
+  description: ReactNode;
+  onRetry: () => void;
+  onBack?: () => void;
+  title?: string;
+}) {
+  return (
+    <StateNotice
+      role="alert"
+      title={title}
+      description={description}
+      icon={<CloudOffIcon />}
+    >
+      <Button variant="outline" onClick={onRetry}>
+        Try again
+      </Button>
+      {onBack && (
+        <Button variant="ghost" onClick={onBack}>
+          Back to workspace
+        </Button>
+      )}
+    </StateNotice>
   );
 }
