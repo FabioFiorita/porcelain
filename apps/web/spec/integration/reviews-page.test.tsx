@@ -148,10 +148,6 @@ test('keys pressed at once from the latest briefing move between its stops on on
   const continuity = reviewLayout.continuity(review);
   try {
     await userEvent.keyboard('np');
-    await expect.element(briefing).toBeVisible();
-    await expect
-      .poll(() => app.location())
-      .toBe(`/reviews/${fixture.reviewId}`);
     await userEvent.keyboard('n');
     await expect
       .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
@@ -164,6 +160,51 @@ test('keys pressed at once from the latest briefing move between its stops on on
     await expect
       .poll(() => app.location())
       .toBe(`/reviews/${fixture.reviewId}`);
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
+});
+
+test('a latest decision URL replaces the stop chosen with the keyboard without remounting', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await expect
+    .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+    .toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('n');
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await app.navigate(`/reviews/${fixture.reviewId}?decision=unknown`);
+    await expect
+      .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        review.getByText('That decision is not in this revision.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await app.navigate(
+      `/reviews/${fixture.reviewId}?decision=${fixture.layerId}`,
+    );
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
     await expect
       .poll(() => continuity.read())
       .toEqual({ remounted: false, reloaded: false });

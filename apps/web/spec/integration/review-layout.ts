@@ -13,10 +13,18 @@ export const reviewLayout = {
   continuity(page: Locator) {
     const mounted = page.element();
     let reloaded = false;
-    const observer = new MutationObserver(() => {
-      reloaded ||= Array.from(
-        document.querySelectorAll('[role="status"]'),
-      ).some((status) => status.textContent === 'Loading review…');
+    const observer = new MutationObserver((records) => {
+      reloaded ||= records.some((record) =>
+        Array.from(record.addedNodes).some(
+          (node) =>
+            node instanceof Element &&
+            [node, ...node.querySelectorAll('[role="status"]')].some(
+              (status) =>
+                status.getAttribute('role') === 'status' &&
+                status.textContent === 'Loading review…',
+            ),
+        ),
+      );
     });
     observer.observe(document.body, { childList: true, subtree: true });
     return {
