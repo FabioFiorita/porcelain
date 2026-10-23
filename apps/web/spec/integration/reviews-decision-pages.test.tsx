@@ -153,29 +153,41 @@ test('the agent summary lists the decisions its page links to and opens one from
     .toBeVisible();
 });
 
-test.for([1440, 900])(
-  'threads on neighbouring lines of a decision each stay readable and reachable at %i px',
+test.for([
+  [1440, 'margin'],
+  [900, 'inline'],
+] as const)(
+  'threads on neighbouring lines of a decision each stay readable and reachable at %i px, placed in the %s',
   { timeout: 30_000 },
-  async (width, { agent, render, server, reviewLayout }) => {
+  async ([width, placement], { agent, render, server, reviewLayout }) => {
     await browserPage.viewport(width, 896);
     try {
       await agent.publishArchitecture();
       const published = (await server.publishedReview()).review;
       if (!published?.reviewId || !published.headOid || !published.base)
         throw new Error('The published fixture has no review');
-      const path = 'packages/workspace/src/outbox.ts';
-      const bodies = [2, 3, 4, 5, 6].map(
-        (line) => `Line ${line} needs a second look before delivery retries.`,
-      );
-      for (const [index, body] of bodies.entries())
-        await agent.comment(path, body, {
+      const seeded = [
+        ...[2, 3, 4, 5, 6].map((line) => ({
+          path: 'packages/workspace/src/outbox.ts',
+          line,
+        })),
+        ...[10, 11, 12].map((line) => ({
+          path: 'packages/workspace/src/sessions.ts',
+          line,
+        })),
+      ].map((thread) => ({
+        ...thread,
+        body: `${thread.path.split('/').at(-1)} line ${thread.line} needs a second look.`,
+      }));
+      for (const thread of seeded)
+        await agent.comment(thread.path, thread.body, {
           reviewId: published.reviewId,
           reviewRevision: published.revision,
           anchor: {
             kind: 'codeRange',
-            filePath: path,
-            startLine: index + 2,
-            endLine: index + 2,
+            filePath: thread.path,
+            startLine: thread.line,
+            endLine: thread.line,
             side: 'additions',
             revision: published.headOid,
             comparison: { kind: 'branch', base: published.base },
@@ -192,24 +204,34 @@ test.for([1440, 900])(
         name: '9. Establish the shared mutation boundary',
         exact: true,
       });
-      const outbox = decision.getByRole('button', {
-        name: /^Comment on packages\/workspace\/src\/outbox\.ts/,
-      });
-      await expect.element(outbox).toBeInTheDocument();
-      reviewLayout.bringIntoView(outbox);
       const threads = decision.getByRole('article', {
         name: 'Comment thread',
         exact: true,
       });
-      for (const body of bodies)
-        await expect.element(threads.filter({ hasText: body })).toBeVisible();
-      await expect.poll(() => reviewLayout.separate(threads)).toBe(true);
-      for (const body of bodies)
+      for (const file of ['outbox', 'sessions']) {
+        const header = decision.getByRole('button', {
+          name: new RegExp(`^Comment on packages/workspace/src/${file}\\.ts`),
+        });
+        await expect.element(header).toBeInTheDocument();
+        reviewLayout.bringIntoView(header);
+        const stack = threads.filter({ hasText: `${file}.ts line` });
+        for (const thread of seeded.filter((item) =>
+          item.path.endsWith(`/${file}.ts`),
+        ))
+          await expect
+            .element(stack.filter({ hasText: thread.body }))
+            .toBeVisible();
+        await expect
+          .poll(() => reviewLayout.placement(stack, header))
+          .toBe(placement);
+        await expect.poll(() => reviewLayout.separate(stack)).toBe(true);
+      }
+      for (const thread of seeded)
         await expect
           .poll(() =>
             reviewLayout.reachable(
               threads
-                .filter({ hasText: body })
+                .filter({ hasText: thread.body })
                 .getByRole('button', { name: 'Reply', exact: true }),
             ),
           )

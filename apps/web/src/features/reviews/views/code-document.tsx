@@ -133,7 +133,7 @@ function CodeSurface({
   const entries = groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
-  const marginCard = useMarginStack();
+  const margin = useMarginStack();
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
@@ -510,7 +510,7 @@ function CodeSurface({
             ) : (
               <div
                 {...(threadMargin && note.lineNumber > 0
-                  ? { ref: marginCard }
+                  ? { ref: margin.card }
                   : {})}
                 className={cn(
                   'm-3 flex flex-col gap-3 font-sans',
@@ -572,6 +572,9 @@ function CodeSurface({
             );
           }}
           options={options}
+          {...(margin.reserve > 0
+            ? { style: { paddingBottom: margin.reserve } }
+            : {})}
           className={
             fullHeight
               ? 'flex-none overflow-visible'

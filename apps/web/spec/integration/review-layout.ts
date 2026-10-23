@@ -38,6 +38,14 @@ export const reviewLayout = {
         .some((other) => box.bottom > other.top && other.bottom > box.top),
     );
   },
+  placement(cards: Locator, header: Locator) {
+    const edge = header.element().getBoundingClientRect().right;
+    const lefts = cards
+      .elements()
+      .map((card) => card.getBoundingClientRect().left);
+    if (lefts.length > 0 && lefts.every((left) => left > edge)) return 'margin';
+    return lefts.every((left) => left < edge) ? 'inline' : 'mixed';
+  },
   reachable(locator: Locator) {
     const element = locator.element();
     element.scrollIntoView({ block: 'center' });

@@ -2,35 +2,40 @@ import { useState } from 'react';
 import { stackMargin } from '../rules/margin-stack';
 
 export function useMarginStack() {
-  const [stack] = useState(createMarginStack);
-  return stack;
+  const [reserve, setReserve] = useState(0);
+  const [card] = useState(() => createMarginStack(setReserve));
+  return { card, reserve };
 }
 
-function createMarginStack() {
+function createMarginStack(onReserve: (pixels: number) => void) {
   const cards = new Set<HTMLElement>();
   let frame = 0;
   const layout = () => {
+    cancelAnimationFrame(frame);
     frame = 0;
     for (const card of cards) card.style.translate = '';
     const placed = [...cards].filter(
       (card) =>
         card.isConnected && getComputedStyle(card).position === 'absolute',
     );
+    const boxes = placed.map((card) => card.getBoundingClientRect());
     const offsets = stackMargin(
-      placed.map((card) => {
-        const box = card.getBoundingClientRect();
-        return { top: box.top, height: box.height };
-      }),
+      boxes.map((box) => ({ top: box.top, height: box.height })),
     );
+    let reserve = 0;
     placed.forEach((card, index) => {
       const offset = offsets[index] ?? 0;
       if (offset > 0) card.style.translate = `0 ${offset}px`;
+      const end = card.offsetParent?.getBoundingClientRect().bottom;
+      const bottom = (boxes[index]?.bottom ?? 0) + offset;
+      if (end !== undefined) reserve = Math.max(reserve, bottom - end);
     });
+    onReserve(Math.ceil(reserve));
   };
   const schedule = () => {
     if (!frame) frame = requestAnimationFrame(layout);
   };
-  const observer = new ResizeObserver(schedule);
+  const observer = new ResizeObserver(layout);
   return (card: HTMLElement | null) => {
     if (!card) return;
     cards.add(card);
@@ -39,10 +44,12 @@ function createMarginStack() {
     schedule();
     return () => {
       cards.delete(card);
+      observer.unobserve(card);
       if (cards.size > 0) return schedule();
       observer.disconnect();
       cancelAnimationFrame(frame);
       frame = 0;
+      onReserve(0);
     };
   };
 }
