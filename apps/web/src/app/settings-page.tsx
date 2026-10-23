@@ -55,6 +55,13 @@ export const settingsSections: readonly [
 
 export const defaultSettingsSection = settingsSections[0].id;
 
+function contentClass(wide = false) {
+  return cn(
+    'settings-content mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pl-7 lg:pr-14',
+    wide ? 'max-w-5xl' : 'max-w-3xl',
+  );
+}
+
 function SectionFrame({
   children,
   wide = false,
@@ -64,14 +71,7 @@ function SectionFrame({
 }) {
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div
-        className={cn(
-          'settings-content mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pl-7 lg:pr-14',
-          wide ? 'max-w-5xl' : 'max-w-3xl',
-        )}
-      >
-        {children}
-      </div>
+      <div className={contentClass(wide)}>{children}</div>
     </ScrollArea>
   );
 }
@@ -265,7 +265,7 @@ export function SettingsPage({
                 aria-label="Computers list"
                 tabIndex={-1}
               >
-                <div className="settings-content mx-auto flex w-full max-w-4xl flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pr-10">
+                <div className={contentClass()}>
                   <RemoteComputers
                     showUpdates={environmentId === undefined}
                     environment={environment}

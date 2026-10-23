@@ -79,7 +79,7 @@ export function ComputerSettings({
           <span className="text-muted-foreground">Computers.</span>{' '}
           {environment.name}
         </h1>
-        <p>
+        <p className="text-base">
           Devices pair with this computer here, and your agents reach Porcelain
           through it.
         </p>

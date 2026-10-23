@@ -135,11 +135,11 @@ export function RemoteComputers({
   const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">
           <span className="text-muted-foreground">Settings.</span> Computers
         </h1>
-        <p>
+        <p className="text-base">
           Every computer this app is paired with. In the Mac app and on iPhone
           and iPad, their worktrees share one sidebar, and Update updates them
           all.
