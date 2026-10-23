@@ -26,6 +26,9 @@ import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
+import { formatForDisplay } from '@tanstack/react-hotkeys';
+import { Kbd } from '@/components/ui/kbd';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
 import { BranchReviewPage } from './branch-review-page';
 import { usePreferences } from '@/features/preferences/index';
@@ -37,6 +40,7 @@ type DocumentProps = {
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
   sideLabel: string;
+  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
 };
 
 export function DocumentView({
@@ -44,6 +48,7 @@ export function DocumentView({
   context,
   document,
   onOpen,
+  onBrowse,
   sideLabel,
   active = false,
   reveal,
@@ -56,6 +61,7 @@ export function DocumentView({
   toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
+  onBrowse: DocumentProps['onBrowse'];
   active?: boolean;
   reveal?: RevealComment | undefined;
   base?: string | undefined;
@@ -64,6 +70,7 @@ export function DocumentView({
     scope,
     context,
     onOpen,
+    onBrowse,
     sideLabel,
     interaction: {
       toolbarTarget,
@@ -192,6 +199,7 @@ function PlainChangesDocument({
   scope,
   context,
   interaction,
+  onBrowse,
   specsOnly = false,
 }: DocumentProps & { specsOnly?: boolean }) {
   const { connection } = context;
@@ -205,6 +213,35 @@ function PlainChangesDocument({
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
+  if (!specsOnly && changes.length === 0)
+    return (
+      <StateNotice
+        title="No changes to review"
+        description={
+          <>
+            <span className="font-mono text-foreground">
+              {list.branch?.name ?? 'This worktree'}
+            </span>{' '}
+            matches its last commit. Browse files or history from the right.
+          </>
+        }
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('files', event.currentTarget)}
+        >
+          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('history', event.currentTarget)}
+        >
+          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+        </Button>
+      </StateNotice>
+    );
   const story = review
     ? walkthroughStops(
         review,
@@ -232,16 +269,6 @@ function PlainChangesDocument({
                   decisionNotes(layer, index + 1),
                 ),
                 gapNotes(review.notExplained),
-              ),
-            }
-          : {})}
-        {...(!specsOnly && changes.length === 0
-          ? {
-              header: () => (
-                <StateNotice
-                  title="No changes to review"
-                  description="This worktree matches its last commit. Browse files or history from the right."
-                />
               ),
             }
           : {})}

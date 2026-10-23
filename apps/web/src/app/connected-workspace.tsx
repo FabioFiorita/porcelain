@@ -17,7 +17,7 @@ import { type ReactNode, useState } from 'react';
 import { StateNotice } from '@/shared/views/state-notice';
 import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import {
   Tooltip,
@@ -92,8 +92,6 @@ export function ConnectedWorkspace({
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
   const navigationTrigger = useElement<HTMLButtonElement>();
-  const message = workspaceMessages[notice ?? 'empty'];
-  const NoticeIcon = message.icon;
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const navigate = useNavigate();
@@ -103,6 +101,16 @@ export function ConnectedWorkspace({
     localInventory,
     firstWaitingWorktree(localInventory)?.id,
   );
+  const firstRun = !notice && localInventory.projects.length === 0;
+  const message = firstRun
+    ? {
+        title: 'Open your first project',
+        description:
+          'Open a Git repository to see its worktrees and review changes.',
+        icon: GitBranchIcon,
+      }
+    : workspaceMessages[notice ?? 'empty'];
+  const NoticeIcon = message.icon;
   const recoveryLabel = worktreeLabel(recovery?.worktree.branch || undefined);
   const remotes = useRemoteConnections();
   const context = useConnectedContext(remote?.connection);
@@ -222,6 +230,17 @@ export function ConnectedWorkspace({
                   description={message.description}
                   icon={<NoticeIcon />}
                 >
+                  {firstRun && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setOpenMobile(false);
+                        openHere();
+                      }}
+                    >
+                      Open project
+                    </Button>
+                  )}
                   {!notice && recovery && (
                     <div className="flex w-full min-w-0 flex-col gap-2">
                       <p className="text-sm text-muted-foreground">

@@ -51,11 +51,11 @@ Automated coverage: `reviews-all-changes.test.tsx`.
 
 ### Clean worktree
 
-With the default fixture and no review published, commit the sample edit in the disposable repository before loading the page. The permanent Changes tab shows "No changes to review" and "This worktree matches its last commit. Browse files or history from the right." It cannot close with Alt+W and has no Close Changes button.
+With the default fixture and no review published, commit the sample edit in the disposable repository before loading the page. The permanent Changes tab shows "No changes to review" and the branch name followed by "matches its last commit. Browse files or history from the right." It cannot close with Alt+W and has no Close Changes button.
 
-Open the right panel using Review at phone width, then choose Files or History. Escape closes the sheet and returns focus to the Review panel button. At desktop width, Files and History remain in the docked panel. Repeat at 1440 and 414, light and dark.
+Use the Files or History button inside the notice. Its shortcut hint comes from the shared shortcuts. The selected panel opens even when it was hidden. Escape closes the phone sheet and returns focus to the notice button that opened it. At desktop width, Files and History remain in the docked panel. Repeat at 1440 and 414, light and dark.
 
-Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Changes open and reaches Files/History from its panel".
+Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Changes open and reaches Files/History from its notice".
 
 ## Gotchas
 

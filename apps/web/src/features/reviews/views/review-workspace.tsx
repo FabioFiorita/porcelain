@@ -195,6 +195,13 @@ function ReviewWorkspaceContent({
   useHotkey(SHORTCUTS.surfaceHistory, () => setSurface('history'), {
     ignoreInputs: true,
   });
+  const browseTrigger = useElement<HTMLButtonElement>();
+  const browse = (next: 'files' | 'history', trigger: HTMLButtonElement) => {
+    browseTrigger.attach(trigger);
+    setSurface(next);
+    if (desktop) setSidebarOpen(true);
+    else setMobileOpen(true);
+  };
   const sidebar = (
     <ReviewSidebar
       scope={scope}
@@ -259,7 +266,10 @@ function ReviewWorkspaceContent({
                   className="xl:hidden"
                   aria-label="Review"
                   aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                  onClick={() => layout.selectPane(pane)}
+                  onClick={() => {
+                    browseTrigger.attach(null);
+                    layout.selectPane(pane);
+                  }}
                 />
               }
             >
@@ -304,6 +314,7 @@ function ReviewWorkspaceContent({
               base={search.base}
               focused={focusedPane}
               onOpen={open}
+              onBrowse={browse}
               navigationTrigger={navigationTrigger}
               navigatorIsMobile={navigatorIsMobile}
               navigatorOpen={navigatorOpen}
@@ -336,7 +347,11 @@ function ReviewWorkspaceContent({
           const active = document.activeElement;
           const stayed =
             active === document.body || mobileSheet.element?.contains(active);
-          return stayed ? mobileTrigger.element : false;
+          return stayed
+            ? browseTrigger.element?.isConnected
+              ? browseTrigger.element
+              : mobileTrigger.element
+            : false;
         }}
         className="w-[min(90vw,22rem)]!"
         showCloseButton={false}
@@ -358,6 +373,7 @@ type PaneContext = {
   context: ConnectionContext;
   base: string | undefined;
   onOpen: OpenDocument;
+  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;
@@ -406,6 +422,7 @@ function DocumentPanes({
   base,
   focused,
   onOpen,
+  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -452,6 +469,7 @@ function DocumentPanes({
     review: published.review ?? undefined,
     base,
     onOpen,
+    onBrowse,
     navigationTrigger,
     navigatorIsMobile,
     navigatorOpen,
@@ -493,6 +511,7 @@ function PaneView({
   review,
   base,
   onOpen,
+  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -609,6 +628,7 @@ function PaneView({
               sideLabel={openToSideText(paneSide(split, index))}
               base={base}
               onOpen={onOpen}
+              onBrowse={onBrowse}
               active={focused}
               toolbarTarget={toolbarTarget}
               reveal={

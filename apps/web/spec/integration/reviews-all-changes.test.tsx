@@ -53,7 +53,7 @@ test('all changes includes every changed file, including unexplained, deleted an
 });
 
 for (const surface of ['Files', 'History'] as const) {
-  test(`a clean worktree keeps Changes open and reaches ${surface} from its panel`, async ({
+  test(`a clean worktree keeps Changes open and reaches ${surface} from its notice`, async ({
     repo,
     render,
   }) => {
@@ -78,14 +78,21 @@ for (const surface of ['Files', 'History'] as const) {
         workspace.getByRole('button', { name: 'Close Changes', exact: true }),
       )
       .not.toBeInTheDocument();
+    await expect
+      .element(
+        workspace.getByText(
+          'main matches its last commit. Browse files or history from the right.',
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: new RegExp(`^${surface}`) })
       .click();
     const panel = workspace.getByRole('dialog', {
       name: 'Worktree review',
       exact: true,
     });
-    await panel.getByRole('tab', { name: surface, exact: true }).click();
     await expect
       .element(
         panel.getByRole('tab', { name: surface, selected: true, exact: true }),
@@ -94,7 +101,9 @@ for (const surface of ['Files', 'History'] as const) {
     await userEvent.keyboard('{Escape}');
     await expect.element(panel).not.toBeInTheDocument();
     await expect
-      .element(workspace.getByRole('button', { name: 'Review', exact: true }))
+      .element(
+        workspace.getByRole('button', { name: new RegExp(`^${surface}`) }),
+      )
       .toHaveFocus();
     await expect
       .element(

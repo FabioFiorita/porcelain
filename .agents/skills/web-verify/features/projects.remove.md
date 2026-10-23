@@ -7,7 +7,7 @@ selectors:
   - "Remove from Porcelain"
   - "Cancel"
   - "No projects registered"
-  - "Select a worktree"
+  - "Open your first project"
   - "Worktree not found"
 tests:
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
@@ -54,7 +54,7 @@ Cancelling keeps it. An address of one of its worktrees, open at the time or ope
 7. Inspect HTTP traffic
    Expect: `DELETE /api/projects/<projectId>` with status 200.
 8. Navigate to `/`
-   Expect: after the reload URL stays `/` and the workspace shows "Select a worktree"; Click button `Toggle Sidebar` shows "No projects registered" (the server forgot it).
+   Expect: after the reload URL stays `/` and the workspace shows "Open your first project"; Click button `Toggle Sidebar` shows "No projects registered" (the server forgot it).
 9. Disk: `git -C "$REPO" status --short` still prints ` M README.md`; the repository is untouched.
 
 ### Unavailable project submenu

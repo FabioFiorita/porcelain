@@ -227,6 +227,10 @@
   }
 }
 
+[data-slot='skeleton'] {
+  background-color: var(--skeleton);
+}
+
 [data-slot='kbd'] {
   font-family: var(--font-mono);
 }
