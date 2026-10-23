@@ -24,7 +24,6 @@ import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
-import { ProofDocument } from './proof-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
@@ -82,7 +81,15 @@ export function DocumentView({
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'proof':
-      return <ProofDocument scope={scope} context={context} />;
+      return (
+        <BranchReviewPage
+          scope={scope}
+          context={context}
+          toolbarTarget={toolbarTarget}
+          active={active}
+          initialView="proof"
+        />
+      );
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
     case 'file':

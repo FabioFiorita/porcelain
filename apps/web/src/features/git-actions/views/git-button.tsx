@@ -302,7 +302,13 @@ export function GitButton({
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
-                      <Tooltip key={candidate.id}>
+                      <Tooltip
+                        key={candidate.id}
+                        onOpenChange={(_open, details) => {
+                          if (details.reason === 'escape-key')
+                            details.allowPropagation();
+                        }}
+                      >
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
                             disabled={blocker !== null && blocker !== undefined}
