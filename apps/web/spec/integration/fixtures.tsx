@@ -62,6 +62,7 @@ export type Render = {
   ) => Promise<{
     page: typeof page;
     navigate: (path: string) => Promise<void>;
+    whenRendered: (path: string) => Promise<void>;
     pair: () => Promise<void>;
     location: () => string;
     title: () => string;
@@ -394,7 +395,11 @@ export const test = base
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
     let unmount: (() => Promise<void>) | undefined;
-    onCleanup(() => unmount?.());
+    const subscriptions = new Set<() => void>();
+    onCleanup(async () => {
+      for (const unsubscribe of subscriptions) unsubscribe();
+      await unmount?.();
+    });
     const show = async (view: (connection: Connection) => ReactNode) => {
       if (unmount !== undefined)
         throw new Error('A test renders one feature once.');
@@ -417,6 +422,19 @@ export const test = base
             mounted.router.history.push(path);
             await mounted.router.load();
           },
+          whenRendered: (path) =>
+            new Promise<void>((resolve) => {
+              const unsubscribe = mounted.router.subscribe(
+                'onRendered',
+                ({ toLocation }) => {
+                  if (toLocation.href !== path) return;
+                  unsubscribe();
+                  subscriptions.delete(unsubscribe);
+                  resolve();
+                },
+              );
+              subscriptions.add(unsubscribe);
+            }),
           pair: async () => {
             const grant = await host.porcelainPairingLink(
               'Durable review reader',

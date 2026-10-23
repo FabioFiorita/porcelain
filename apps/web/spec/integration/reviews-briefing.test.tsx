@@ -133,7 +133,11 @@ test.for([414, 1080, 1440])(
       await expect
         .element(app.page.getByRole('tooltip'))
         .toHaveTextContent(lane);
+      const rendered = app.whenRendered(
+        `/reviews/${fixture.reviewId}/${fixture.revision}/decisions/${fixture.layerId}`,
+      );
       await userEvent.keyboard('{Enter}');
+      await rendered;
       const decision = app.page.getByRole('region', {
         name: `1. ${title}`,
         exact: true,
