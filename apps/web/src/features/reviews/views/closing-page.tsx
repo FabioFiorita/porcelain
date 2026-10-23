@@ -11,6 +11,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { spansLabel } from '@porcelain/client/changes/rules';
 import {
+  changeAnchor,
   filesReviewed,
   type reviewListStatus,
   stopTitle,
@@ -37,28 +38,13 @@ type ClosingStop = Extract<
 >;
 type CompletionStatus = Pick<
   ReturnType<typeof reviewListStatus>,
-  'group' | 'reviewed' | 'total'
->;
+  'reviewed' | 'total'
+> & { group: ReturnType<typeof reviewListStatus>['group'] | 'Closed' };
 type CompletionGroup = CompletionStatus['group'];
 type LinkedPullRequest = { number: number; url: string; state: string };
 
-export function ClosingPage({
-  stops,
-  current,
-  revision,
-  record,
-  items,
-  threads,
-  pullRequest,
-  archivable,
-  status,
-  scope,
-  context,
-  onGo,
-  code,
-}: {
+type CompletionProps = {
   stops: readonly WalkthroughStop[];
-  current: ClosingStop;
   revision: ReviewRevision;
   record: DurableReviewRead['review'];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
@@ -68,9 +54,19 @@ export function ClosingPage({
   status: CompletionStatus;
   scope: WalkthroughProps['scope'];
   context: ConnectionContext;
+};
+
+export function ClosingPage({
+  current,
+  onGo,
+  code,
+  ...completion
+}: CompletionProps & {
+  current: ClosingStop;
   onGo: (key: WalkthroughKey) => void;
   code: (stop: ClosingStop) => ReactNode;
 }) {
+  const { stops, items } = completion;
   const unexplained = stops.find(
     (stop): stop is Extract<ClosingStop, { kind: 'unexplained' }> =>
       stop.kind === 'unexplained',
@@ -82,8 +78,10 @@ export function ClosingPage({
   const [scrolled, setScrolled] = useState<WalkthroughKey>();
   const target = (key: WalkthroughKey) => (node: HTMLElement | null) => {
     if (!node || key !== current.key || scrolled === key) return;
+    const moved = scrolled !== undefined;
     setScrolled(key);
-    if (key === 'specs' && unexplained) node.scrollIntoView({ block: 'start' });
+    if (moved || (key === 'specs' && unexplained))
+      node.scrollIntoView({ block: 'start' });
   };
   return (
     <MarginRow
@@ -92,18 +90,7 @@ export function ClosingPage({
           aria-label="Completion"
           className="min-w-0 @5xl/review:sticky @5xl/review:top-4 @5xl/review:self-start"
         >
-          <CompletionCard
-            stops={stops}
-            revision={revision}
-            record={record}
-            items={items}
-            threads={threads}
-            pullRequest={pullRequest}
-            archivable={archivable}
-            status={status}
-            scope={scope}
-            context={context}
-          />
+          <CompletionCard {...completion} />
         </aside>
       }
     >
@@ -254,18 +241,7 @@ function CompletionCard({
   status,
   scope,
   context,
-}: {
-  stops: readonly WalkthroughStop[];
-  revision: ReviewRevision;
-  record: DurableReviewRead['review'];
-  items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
-  threads: readonly CommentThread[];
-  pullRequest: LinkedPullRequest | undefined;
-  archivable: boolean;
-  status: CompletionStatus;
-  scope: WalkthroughProps['scope'];
-  context: ConnectionContext;
-}) {
+}: CompletionProps) {
   const [asking, setAsking] = useState(false);
   const [askButton, setAskButton] = useState<HTMLButtonElement | null>(null);
   const { group } = status;
@@ -362,11 +338,10 @@ function CompletionCard({
           <InlineComposer
             scope={scope}
             context={context}
-            anchor={{
-              kind: 'change',
-              revision: revision.headOid,
-              comparison: { kind: 'branch', base: revision.base },
-            }}
+            anchor={changeAnchor({
+              base: revision.base,
+              tip: revision.headOid,
+            })}
             onClose={() => {
               setAsking(false);
               askButton?.focus();
@@ -405,6 +380,7 @@ function CompletionCard({
 function groupLabel(group: CompletionGroup) {
   if (group === 'Ready to merge') return 'Ready to merge';
   if (group === 'Waiting on agent') return 'Waiting on the agent';
+  if (group === 'Closed') return 'Closed';
   return 'Still needs you';
 }
 

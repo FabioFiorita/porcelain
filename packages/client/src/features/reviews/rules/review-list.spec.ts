@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   reviewArchivable,
+  reviewClosed,
   emptyReviewListFilter,
   filterReviewList,
   reviewListGroups,
@@ -444,3 +445,20 @@ it('never offers Archive without a readable pull request', () => {
     reviewArchivable({ archived: false }, { kind: 'not-linked' }),
   ]).toEqual([false, false]);
 });
+
+it.each([
+  ['an open review with an open pull request', false, 'open', 'open', false],
+  ['a closed review', false, 'closed', 'open', true],
+  ['an archived review', true, 'open', 'open', true],
+  ['a merged pull request', false, 'open', 'merged', true],
+] as const)(
+  'treats %s as closed only once it leaves review',
+  (_, archived, state, pull, expected) => {
+    expect(
+      reviewClosed(
+        { archived, state },
+        { kind: 'available', pullRequest: { state: pull } },
+      ),
+    ).toBe(expected);
+  },
+);

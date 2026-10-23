@@ -83,14 +83,26 @@ export function reviewListStatus({
   return { reviewed, total, group, badges };
 }
 
+type ReviewPullState =
+  | { kind: string; pullRequest?: { state: 'open' | 'closed' | 'merged' } }
+  | undefined;
+
+export function reviewClosed(
+  record: Pick<ReviewRecord, 'archived' | 'state'>,
+  pull: ReviewPullState,
+) {
+  return (
+    record.archived === true ||
+    record.state === 'closed' ||
+    (pull?.kind === 'available' &&
+      pull.pullRequest !== undefined &&
+      pull.pullRequest.state !== 'open')
+  );
+}
+
 export function reviewArchivable(
   record: Pick<ReviewRecord, 'archived'>,
-  pull:
-    | {
-        kind: string;
-        pullRequest?: { state: 'open' | 'closed' | 'merged' };
-      }
-    | undefined,
+  pull: ReviewPullState,
 ) {
   return (
     record.archived !== true &&

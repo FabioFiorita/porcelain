@@ -6,6 +6,7 @@ import type { Project } from '../../projects/rules/inventory.ts';
 import { worktreeLabel } from '../../projects/rules/inventory.ts';
 import {
   reviewArchivable,
+  reviewClosed,
   reviewListStatus,
   reviewListTitle,
   type ReviewListEntry,
@@ -70,10 +71,7 @@ export const readReviewList = Atom.family(
                 worktreeLabel(row.branch) === record.branch &&
                 (!revision || row.path === revision.worktreePath),
             );
-            const closed =
-              record.archived === true ||
-              record.state === 'closed' ||
-              (pull?.kind === 'available' && pull.pullRequest.state !== 'open');
+            const closed = reviewClosed(record, pull);
             if (worktree && !closed) reviewedWorktrees.add(worktree.id);
             if (!closed && worktree?.main) continue;
             if (

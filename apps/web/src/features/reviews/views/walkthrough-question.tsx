@@ -1,15 +1,16 @@
 import { CircleHelpIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import type {
-  ReviewRevision,
-  SystemPart,
+import {
+  changeAnchor,
+  type ReviewRevision,
+  type SystemPart,
 } from '@porcelain/client/reviews/rules';
 import { cn } from '@/shared/lib/utils';
 import { InlineComposer } from './inline-composer';
 import type { WalkthroughProps } from './walkthrough-props';
 
-export function DecisionQuestion({
+function DecisionQuestion({
   part,
   action,
   children,
@@ -85,11 +86,10 @@ export function AnswerableQuestion({
           scope={scope}
           context={context}
           quote={part.problem}
-          anchor={{
-            kind: 'change',
-            revision: revision.headOid,
-            comparison: { kind: 'branch', base: revision.base },
-          }}
+          anchor={changeAnchor({
+            base: revision.base,
+            tip: revision.headOid,
+          })}
           onClose={() => {
             setAnswering(false);
             answerButton?.focus();

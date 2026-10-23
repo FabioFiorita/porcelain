@@ -48,9 +48,11 @@ export function DecisionPage({
   decision,
   finished,
   items,
+  proofCurrent,
   onStep,
   onGo,
 }: {
+  proofCurrent: boolean;
   stop: DecisionStop;
   total: number;
   review: WalkthroughProps['review'];
@@ -102,6 +104,11 @@ export function DecisionPage({
                   at {revision.headOid.slice(0, 7)}
                 </span>
               </h3>
+              {!proofCurrent && (
+                <p className="text-graph-4">
+                  These checks ran before the latest changes
+                </p>
+              )}
               <ul
                 aria-label="Checks for this decision"
                 className="flex flex-col gap-1.5"

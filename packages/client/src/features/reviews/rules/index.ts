@@ -115,6 +115,7 @@ export { revisionReviewItems, revisionDecisionStates } from './revision.ts';
 export { parseReviewAppLink, type ReviewAppLink } from './app-link.ts';
 export {
   reviewArchivable,
+  reviewClosed,
   reviewListStatus,
   reviewListTitle,
   reviewListView,

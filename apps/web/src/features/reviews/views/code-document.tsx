@@ -217,8 +217,7 @@ function CodeSurface({
         anchor.kind === 'codeRange'
           ? (anchor.side ?? 'additions')
           : 'additions';
-      const key =
-        lineNumber === 0 ? item.thread.id : `${side}:${lineNumber}`;
+      const key = lineNumber === 0 ? item.thread.id : `${side}:${lineNumber}`;
       const line = lines.get(key);
       if (line) line.threads.push(item);
       else {

@@ -30,6 +30,7 @@ import {
   revisionDecisionStates,
   stopDone,
   reviewArchivable,
+  reviewClosed,
   reviewListStatus,
   stopName,
   stopTitle,
@@ -486,6 +487,10 @@ function ReviewRevisionPage({
                     {stop.kind === 'decision' ? (
                       <>
                         <DecisionPage
+                          key={stop.key}
+                          proofCurrent={
+                            proofCurrent && revision.headOid === latestHead
+                          }
                           stop={stop}
                           total={decisionCount}
                           review={review}
@@ -530,11 +535,22 @@ function ReviewRevisionPage({
                         archivable={
                           record ? reviewArchivable(record, pull) : false
                         }
-                        status={reviewListStatus({
-                          revision,
-                          marks,
-                          status: worktree?.status,
-                        })}
+                        status={
+                          record && reviewClosed(record, pull)
+                            ? {
+                                ...reviewListStatus({
+                                  revision,
+                                  marks,
+                                  status: worktree?.status,
+                                }),
+                                group: 'Closed',
+                              }
+                            : reviewListStatus({
+                                revision,
+                                marks,
+                                status: worktree?.status,
+                              })
+                        }
                         scope={scope}
                         context={context}
                         onGo={go}
@@ -561,7 +577,7 @@ function ReviewRevisionPage({
                       shortLabel={
                         stop.kind === 'decision'
                           ? `${stop.number} of ${decisionCount}`
-                          : ''
+                          : stopName(stop)
                       }
                       stops={stops}
                       current={stop.key}
@@ -688,8 +704,8 @@ function DecisionMark({
         {reviewed ? 'Decision reviewed' : 'Mark decision reviewed'}
       </Button>
       {(AsyncResult.isFailure(result) || AsyncResult.isFailure(removed)) && (
-        <p role="alert" className="sr-only">
-          The decision mark could not be updated. Try again.
+        <p role="alert" className="px-2 text-xs text-destructive">
+          Not saved. Try again.
         </p>
       )}
     </>
@@ -727,8 +743,8 @@ function FilesMark({
           : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
       </Button>
       {AsyncResult.isFailure(result) && (
-        <p role="alert" className="sr-only">
-          Some files could not be marked reviewed. Try again.
+        <p role="alert" className="px-2 text-xs text-destructive">
+          Some files were not marked. Try again.
         </p>
       )}
     </>
@@ -744,11 +760,11 @@ function RevisionMissing({
   context: ConnectionContext;
   onRevision: ReviewPageProps['onRevision'];
 }) {
-  const latest = Option.getOrUndefined(
-    AsyncResult.value(
-      useAtomValue(readReview({ connection: context.connection, reviewId })),
-    ),
-  )?.review;
+  const read = useAtomValue(
+    readReview({ connection: context.connection, reviewId }),
+  );
+  const latest = Option.getOrUndefined(AsyncResult.value(read))?.review;
+  if (AsyncResult.isInitial(read)) return <p role="status">Loading review…</p>;
   return (
     <>
       <ReviewEmpty
