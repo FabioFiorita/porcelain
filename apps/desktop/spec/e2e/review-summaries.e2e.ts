@@ -442,7 +442,7 @@ test('a remote computer summary renders through the app from that computer, cann
   ).toBeVisible();
   const layerTab = page
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByTitle('Walkthrough of the decisions', { exact: true });
+    .getByRole('tab', { name: 'Review', exact: true });
   await layerTab.focus();
   await expect(layerTab).toBeFocused();
   await page.keyboard.up('Enter');
@@ -458,7 +458,7 @@ test('a remote computer summary renders through the app from that computer, cann
   });
   await page
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByTitle('Walkthrough of the decisions', { exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
     .click();
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const reopenedSummary = await summaryNavigation;

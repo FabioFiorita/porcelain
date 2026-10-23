@@ -21,7 +21,10 @@ test('reading more of a long branch keeps the diffs already shown while the next
   const workspace = await render.workspace();
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   await workspace.getByRole('button', { name: /^All branch changes/u }).click();
   await expect

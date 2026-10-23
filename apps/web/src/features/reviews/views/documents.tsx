@@ -1,4 +1,5 @@
-import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
+import { FileIcon, HistoryIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
@@ -23,7 +24,6 @@ import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
-import { ProofDocument } from './proof-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { StateNotice } from '@/shared/views/state-notice';
@@ -48,10 +48,12 @@ export function DocumentView({
   active = false,
   reveal,
   base,
+  toolbarTarget,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   document: DocumentRef;
+  toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
   active?: boolean;
@@ -64,6 +66,7 @@ export function DocumentView({
     onOpen,
     sideLabel,
     interaction: {
+      toolbarTarget,
       active,
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
@@ -78,7 +81,15 @@ export function DocumentView({
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'proof':
-      return <ProofDocument scope={scope} context={context} />;
+      return (
+        <BranchReviewPage
+          scope={scope}
+          context={context}
+          toolbarTarget={toolbarTarget}
+          active={active}
+          initialView="proof"
+        />
+      );
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
     case 'file':
@@ -99,15 +110,6 @@ export function DocumentView({
 function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={
-          <span className="flex min-w-0 items-center gap-1.5">
-            <GitGraphIcon className="size-4 shrink-0" />
-            <span className="truncate">Commit graph</span>
-          </span>
-        }
-        subtitle="Commits on this branch with their merges and refs"
-      />
       <div className="min-h-0 flex-1 overflow-auto">
         <CommitGraph
           scope={scope}
@@ -170,7 +172,13 @@ function TimelineDocument({
 function HandoffDocument(props: DocumentProps) {
   const published = usePublishedReview(props.scope, props.context);
   if (published.review?.reviewId)
-    return <BranchReviewPage {...props} active={props.interaction.active} />;
+    return (
+      <BranchReviewPage
+        {...props}
+        toolbarTarget={props.interaction.toolbarTarget}
+        active={props.interaction.active}
+      />
+    );
   return <PlainChangesDocument {...props} />;
 }
 
@@ -227,8 +235,20 @@ function PlainChangesDocument({
               ),
             }
           : {})}
+        {...(!specsOnly && changes.length === 0
+          ? {
+              header: () => (
+                <StateNotice
+                  title="No changes to review"
+                  description="This worktree matches its last commit. Browse files or history from the right."
+                />
+              ),
+            }
+          : {})}
         toolbar={(collapseControl) => (
           <DocumentToolbar
+            target={interaction.toolbarTarget}
+            barActions={null}
             title={changesTitle(specsOnly, interaction.entry)}
             subtitle={`${changes.length} files`}
           >
@@ -280,6 +300,13 @@ function ChangeDocument({
               ? { commentRequest: interaction.reveal.nonce }
               : {})}
             headerActions={
+              <BarAction
+                label="Timeline"
+                icon={HistoryIcon}
+                onClick={() => onOpen({ kind: 'timeline', path })}
+              />
+            }
+            headerLeading={
               <>
                 <Button
                   variant="ghost"

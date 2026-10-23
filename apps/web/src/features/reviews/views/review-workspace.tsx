@@ -1,3 +1,4 @@
+import { StateSkeleton } from '@/shared/views/state-notice';
 import { publishedReviewTitle, type ReviewTitle } from '../rules/documents';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
@@ -7,11 +8,24 @@ import {
   formatForDisplay,
   useHotkey,
 } from '@tanstack/react-hotkeys';
-import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
+import { PanelRightIcon } from 'lucide-react';
 import { type ReactNode, type SyntheticEvent, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Kbd } from '@/components/ui/kbd';
-import { StateNotice, StateSkeleton } from '@/shared/views/state-notice';
+import { Button } from '@/components/ui/button';
+import { useAtomValue } from '@effect/atom-react';
+import { readReview, readReviewMarks } from '@porcelain/client/reviews';
+import {
+  walkthroughStops,
+  revisionReviewItems,
+  revisionDecisionStates,
+  stopDone,
+  type ReviewResponse,
+} from '@porcelain/client/reviews/rules';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -43,7 +57,8 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { useTabLayoutStore } from '../store';
+import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
+import { usePreferences } from '@/features/preferences/index';
 import {
   anchorBase,
   type RevealComment,
@@ -92,7 +107,6 @@ function ReviewWorkspaceContent({
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const desktopTrigger = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
-  const emptyTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
   const {
     isMobile: navigatorIsMobile,
@@ -111,16 +125,18 @@ function ReviewWorkspaceContent({
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
-  const hasHandoff =
+  const defaultEntry =
     Boolean(published.review) ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
-      0;
+      0
+      ? entryKey({ kind: 'handoff' })
+      : null;
   const layout = useTabLayout({
     worktreeId: worktree.id,
     entry: search.entry,
     side: search.side,
     onSearch,
-    fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
+    fallback: defaultEntry,
     focused: focusedPane,
     setFocused: setFocusedPane,
     ready,
@@ -202,49 +218,62 @@ function ReviewWorkspaceContent({
 
   const tabControls = (pane: PaneIndex) => (
     <div data-review-controls="" className="contents">
+      <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
       <GitButton scope={scope} context={context} />
-      <Button
-        ref={(element) => desktopTrigger.attach(element)}
-        className="hidden xl:inline-flex"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}
-        aria-expanded={sidebarOpen}
-        aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-        title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-        onClick={() => {
-          layout.selectPane(pane);
-          toggleSidebar();
-        }}
-      >
-        <PanelRightIcon />
-      </Button>
-      <SheetTrigger
-        render={
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
           <Button
+            ref={(element) => desktopTrigger.attach(element)}
+            className="hidden xl:inline-flex"
             variant="ghost"
             size="icon-sm"
-            ref={(element) => mobileTrigger.attach(element)}
-            className="xl:hidden"
-            aria-label="Review"
+            aria-label={
+              sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
+            }
+            aria-expanded={sidebarOpen}
             aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-            title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
-            onClick={() => layout.selectPane(pane)}
-          />
-        }
-      >
-        <PanelRightIcon />
-      </SheetTrigger>
+            onClick={() => {
+              layout.selectPane(pane);
+              toggleSidebar();
+            }}
+          >
+            <PanelRightIcon />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
+          <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
+          <SheetTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                ref={(element) => mobileTrigger.attach(element)}
+                className="xl:hidden"
+                aria-label="Review"
+                aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                onClick={() => layout.selectPane(pane)}
+              />
+            }
+          >
+            <PanelRightIcon />
+          </SheetTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 
   return (
     <Sheet
       open={mobileOpen}
-      onOpenChange={(open) => {
-        if (open) emptyTrigger.attach(null);
-        setMobileOpen(open);
-      }}
+      onOpenChange={setMobileOpen}
       onOpenChangeComplete={(open) => {
         if (!open) layout.focusDestination();
       }}
@@ -267,19 +296,10 @@ function ReviewWorkspaceContent({
               overview={overview}
               published={published}
               needsDefault={needsDefault}
-              hasHandoff={hasHandoff}
               layout={layout}
               base={search.base}
               focused={focusedPane}
               onOpen={open}
-              onBrowse={(next, trigger) => {
-                setSurface(next);
-                if (desktop) setSidebarOpen(true);
-                else {
-                  emptyTrigger.attach(trigger);
-                  setMobileOpen(true);
-                }
-              }}
               navigationTrigger={navigationTrigger}
               navigatorIsMobile={navigatorIsMobile}
               navigatorOpen={navigatorOpen}
@@ -312,9 +332,7 @@ function ReviewWorkspaceContent({
           const active = document.activeElement;
           const stayed =
             active === document.body || mobileSheet.element?.contains(active);
-          if (!stayed) return false;
-          if (emptyTrigger.element?.isConnected) return emptyTrigger.element;
-          return mobileTrigger.element;
+          return stayed ? mobileTrigger.element : false;
         }}
         className="w-[min(90vw,22rem)]!"
         showCloseButton={false}
@@ -336,7 +354,6 @@ type PaneContext = {
   context: ConnectionContext;
   base: string | undefined;
   onOpen: OpenDocument;
-  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;
@@ -351,7 +368,6 @@ type DocumentAreaProps = PaneContext & {
   overview: ReturnType<typeof useReviewOverview>;
   published: ReturnType<typeof usePublishedReview>;
   needsDefault: boolean;
-  hasHandoff: boolean;
 };
 
 function DocumentArea(props: DocumentAreaProps) {
@@ -379,7 +395,6 @@ function DocumentArea(props: DocumentAreaProps) {
 
 function DocumentPanes({
   published,
-  hasHandoff,
   layout,
   reveal,
   scope,
@@ -387,7 +402,6 @@ function DocumentPanes({
   base,
   focused,
   onOpen,
-  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -431,12 +445,9 @@ function DocumentPanes({
     scope,
     context,
     reviewTitle: publishedReviewTitle(published.review),
-    handoff:
-      publishedReviewTitle(published.review) ??
-      (hasHandoff ? ('Changes' as const) : null),
+    review: published.review ?? undefined,
     base,
     onOpen,
-    onBrowse,
     navigationTrigger,
     navigatorIsMobile,
     navigatorOpen,
@@ -446,12 +457,15 @@ function DocumentPanes({
 
   if (!layout.split) return <PaneView {...paneProps(0)} />;
   return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-      <ResizablePanel id="pane-left" minSize={320}>
+    <ResizablePanelGroup
+      orientation={navigatorIsMobile ? 'vertical' : 'horizontal'}
+      className="min-h-0 flex-1"
+    >
+      <ResizablePanel id="pane-left" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(0)} />
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel id="pane-right" minSize={320}>
+      <ResizablePanel id="pane-right" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(1)} />
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -472,10 +486,9 @@ function PaneView({
   scope,
   context,
   reviewTitle,
-  handoff,
+  review,
   base,
   onOpen,
-  onBrowse,
   navigationTrigger,
   navigatorIsMobile,
   navigatorOpen,
@@ -487,8 +500,10 @@ function PaneView({
   split: boolean;
   focused: boolean;
   reviewTitle: ReviewTitle | undefined;
-  handoff: ReviewTitle | 'Changes' | null;
+  review: ReviewResponse | undefined;
 }) {
+  const { element: toolbarTarget, attach: setToolbarTarget } =
+    useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
   const focusPane = (event: SyntheticEvent<HTMLElement>) => {
@@ -511,31 +526,43 @@ function PaneView({
       onPointerDownCapture={focusPane}
       onFocusCapture={focusPane}
       className={cn(
-        'flex h-full min-h-0 flex-col',
+        '@container/pane flex h-full min-h-0 min-w-0 flex-col',
         split && index === 1 && 'border-l',
       )}
     >
       <DocumentTabs
+        reviewCount={
+          review?.reviewId ? (
+            <ReviewTabProgress review={review} context={context} />
+          ) : undefined
+        }
         leading={
           index === 0 ? (
-            <SidebarTrigger
-              ref={(element) => navigationTrigger.attach(element)}
-              aria-label="Toggle Sidebar"
-              aria-expanded={
-                navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
-              }
-              aria-keyshortcuts={
-                detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-              }
-              title={`Toggle projects (${formatForDisplay(SHORTCUTS.toggleNavigator)})`}
-              onClick={() => {
-                if (!navigatorIsMobile && navigatorOpen) {
-                  requestAnimationFrame(() =>
-                    navigationTrigger.element?.focus(),
-                  );
-                }
-              }}
-            />
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <SidebarTrigger
+                  ref={(element) => navigationTrigger.attach(element)}
+                  aria-label="Toggle Sidebar"
+                  aria-expanded={
+                    navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
+                  }
+                  aria-keyshortcuts={
+                    detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                  }
+                  onClick={() => {
+                    if (!navigatorIsMobile && navigatorOpen) {
+                      requestAnimationFrame(() =>
+                        navigationTrigger.element?.focus(),
+                      );
+                    }
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                Toggle Sidebar{' '}
+                <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+              </TooltipContent>
+            </Tooltip>
           ) : undefined
         }
         tabs={pane.tabs}
@@ -550,11 +577,21 @@ function PaneView({
         onCloseUnpinned={() => layout.closeUnpinned(index)}
         onTogglePin={(key) => layout.togglePin(index, key)}
         onOpenToSide={(key) => layout.openToSide(index, key)}
-        trailing={!split || index === 1 ? tabControls(index) : undefined}
+        onClosePane={split ? () => layout.closePane(index) : undefined}
+        trailing={
+          <>
+            <div
+              ref={setToolbarTarget}
+              data-pane-controls=""
+              role="toolbar"
+              aria-label="Document controls"
+              className="flex items-center gap-1"
+            />
+            {(!split || index === 1) && tabControls(index)}
+          </>
+        }
       />
-      {document === null || document === undefined ? (
-        <EmptyDocument handoff={handoff} onOpen={onOpen} onBrowse={onBrowse} />
-      ) : (
+      {document === null || document === undefined ? null : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ReviewBoundary
             connection={context.connection}
@@ -569,6 +606,7 @@ function PaneView({
               base={base}
               onOpen={onOpen}
               active={focused}
+              toolbarTarget={toolbarTarget}
               reveal={
                 reveal?.pane === index && reveal.key === pane.active
                   ? reveal
@@ -582,57 +620,50 @@ function PaneView({
   );
 }
 
-function EmptyDocument({
-  handoff,
-  onOpen,
-  onBrowse,
+function ReviewTabProgress({
+  review,
+  context,
 }: {
-  handoff: ReviewTitle | 'Changes' | null;
-  onOpen: OpenDocument;
-  onBrowse: PaneContext['onBrowse'];
+  review: ReviewResponse;
+  context: ConnectionContext;
 }) {
-  const target =
-    handoff &&
-    {
-      Review: { opens: 'the review', action: 'Open review' },
-      Changes: { opens: 'all changes', action: 'Open all changes' },
-    }[handoff];
+  const selection = useReviewRevisionSelection(review.reviewId ?? '');
+  const { preferences } = usePreferences();
+  const read = useAtomValue(
+    readReview({
+      connection: context.connection,
+      reviewId: review.reviewId ?? '',
+      ...(selection.revision === undefined
+        ? {}
+        : { revision: selection.revision }),
+    }),
+  );
+  const revision = Option.getOrUndefined(AsyncResult.value(read))?.revision;
+  const result = useAtomValue(
+    readReviewMarks({
+      connection: context.connection,
+      reviewId: review.reviewId ?? '',
+    }),
+  );
+  const marks = Option.getOrUndefined(AsyncResult.value(result));
+  let reviewed = 0;
+  if (revision) {
+    const items = revisionReviewItems(revision, marks);
+    const decisions = revisionDecisionStates(revision, marks);
+    reviewed = walkthroughStops(
+      revision.content,
+      revision.files.map((file) => file.path),
+      { specsApart: preferences.collapseSpecs },
+    ).filter(
+      (stop) => stop.kind === 'decision' && stopDone(stop, items, decisions),
+    ).length;
+  }
   return (
-    <div className="grid min-h-0 flex-1 place-items-center p-8">
-      <StateNotice
-        icon={<ReviewLayersIcon />}
-        title={handoff ? 'Nothing open' : 'No changes to review'}
-        description={
-          target
-            ? `Open ${target.opens}, or choose a file or commit from the right.`
-            : 'This worktree matches its last commit. Browse files or history from the right.'
-        }
-      >
-        {target ? (
-          <Button onClick={() => onOpen({ kind: 'handoff' })}>
-            {target.action}
-          </Button>
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Files"
-              onClick={(event) => onBrowse('files', event.currentTarget)}
-            >
-              Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="History"
-              onClick={(event) => onBrowse('history', event.currentTarget)}
-            >
-              History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
-            </Button>
-          </>
-        )}
-      </StateNotice>
-    </div>
+    <span
+      aria-hidden="true"
+      className="text-2xs text-muted-foreground tabular-nums"
+    >
+      {reviewed}/{revision?.content.layers.length ?? review.layers.length}
+    </span>
   );
 }

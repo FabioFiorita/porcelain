@@ -16,7 +16,9 @@ export function BranchReviewPage({
   context,
   initialView,
   active,
+  toolbarTarget,
 }: {
+  toolbarTarget?: HTMLElement | null | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   initialView?: 'proof';
@@ -45,6 +47,7 @@ export function BranchReviewPage({
   return (
     <ReviewPage
       key={selection.request}
+      toolbarTarget={toolbarTarget}
       proofCurrent={published.review?.proof.current}
       active={active}
       reviewId={reviewId}

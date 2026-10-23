@@ -58,8 +58,10 @@ test('the briefing keeps system owners and questions, the decisions open retaine
   await expect
     .element(review.getByRole('region', { name: 'Not explained', exact: true }))
     .toBeVisible();
-  await review.getByRole('tab', { name: 'Agent summary', exact: true }).click();
+  await workspace
+    .getByRole('tab', { name: 'Agent summary', exact: true })
+    .click();
   await expect
-    .element(review.getByRole('tab', { name: 'Agent summary', exact: true }))
+    .element(workspace.getByRole('tab', { name: 'Agent summary', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
 });

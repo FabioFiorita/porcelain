@@ -1,3 +1,11 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import { Kbd } from '@/components/ui/kbd';
+import { detectPlatform, formatForDisplay } from '@tanstack/react-hotkeys';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -81,7 +89,24 @@ export function ReviewRoute({
   return (
     <ConnectedWorkspace {...(remote ? { remote } : {})}>
       <ReviewPage
-        navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
+        navigation={
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <SidebarTrigger
+                  aria-label="Toggle Sidebar"
+                  aria-keyshortcuts={
+                    detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                  }
+                />
+              }
+            />
+            <TooltipContent>
+              Toggle Sidebar{' '}
+              <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        }
         reviewId={reviewId}
         revision={number}
         decision={decision}

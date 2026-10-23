@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('all changes includes every changed file, including unexplained, deleted and spec files', async ({
@@ -50,3 +51,58 @@ test('all changes includes every changed file, including unexplained, deleted an
     .toBeEnabled();
   await expect(marks()).resolves.toEqual([]);
 });
+
+for (const surface of ['Files', 'History'] as const) {
+  test(`a clean worktree keeps Changes open and reaches ${surface} from its panel`, async ({
+    repo,
+    render,
+  }) => {
+    await repo.commit('Commit the sample change');
+    const workspace = await render.workspace();
+    const changes = workspace
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByRole('tab', { name: 'Changes', exact: true });
+    await expect
+      .element(
+        workspace.getByRole('heading', {
+          name: 'No changes to review',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await changes.click();
+    await userEvent.keyboard('{Alt>}w{/Alt}');
+    await expect.element(changes).toBeVisible();
+    await expect
+      .element(
+        workspace.getByRole('button', { name: 'Close Changes', exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    const panel = workspace.getByRole('dialog', {
+      name: 'Worktree review',
+      exact: true,
+    });
+    await panel.getByRole('tab', { name: surface, exact: true }).click();
+    await expect
+      .element(
+        panel.getByRole('tab', { name: surface, selected: true, exact: true }),
+      )
+      .toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(panel).not.toBeInTheDocument();
+    await expect
+      .element(workspace.getByRole('button', { name: 'Review', exact: true }))
+      .toHaveFocus();
+    await expect
+      .element(
+        workspace.getByRole('heading', {
+          name: 'No changes to review',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  });
+}

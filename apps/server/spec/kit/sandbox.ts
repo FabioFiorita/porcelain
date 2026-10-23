@@ -468,6 +468,7 @@ async function main() {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: {
           PATH: installation.binAt,
+          PORCELAIN_CODING_TOOL_DIRECTORY: installation.binAt,
           HOME: root,
           TMPDIR: root,
           PORCELAIN_DEV_ROOT: root,

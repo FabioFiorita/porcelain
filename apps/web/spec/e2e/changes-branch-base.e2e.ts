@@ -16,9 +16,14 @@ test('a branch deep link keeps valid selections when another optional search val
     `${workspace}?surface=changes&scope=branch&base=refs%2Fheads%2Fmain&side=42&entry=%7B%22invalid%22%3Atrue%7D`,
   );
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await pairedPage
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await expect(
-    pairedPage.getByRole('tab', { name: 'Changes', exact: true }),
+    pairedPage
+      .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      .getByRole('tab', { name: 'Changes', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await expect(
     pairedPage.getByRole('tab', { name: 'Branch', exact: true }),

@@ -5,7 +5,8 @@ import {
   isSubmoduleChange,
 } from '@porcelain/client/changes/rules';
 import { relativeTime } from '@/shared/lib/relative-time';
-import { CopyIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
+import { CopyIcon, GitBranchIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ import {
   type CommitFiles,
 } from '@porcelain/client/history/rules';
 import { refLabel, shortOid } from '@porcelain/client/history/rules';
-import type { DocumentInteraction } from '../rules/documents';
+import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
@@ -33,11 +34,13 @@ export function CommitDocument({
   context,
   interaction,
   oid,
+  onOpen,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
   oid: string;
+  onOpen: OpenDocument;
 }) {
   const { connection } = context;
   const { reveal } = interaction;
@@ -93,6 +96,22 @@ export function CommitDocument({
       <CodeDocument
         toolbar={(collapseControl) => (
           <DocumentToolbar
+            target={interaction.toolbarTarget}
+            barActions={
+              <>
+                {' '}
+                <BarAction
+                  label="Copy hash"
+                  icon={CopyIcon}
+                  onClick={() => copyText(oid, 'commit id')}
+                />
+                <BarAction
+                  label="Open in graph"
+                  icon={GitBranchIcon}
+                  onClick={() => onOpen({ kind: 'graph' })}
+                />
+              </>
+            }
             title={<span className="font-mono">{shortOid(oid)}</span>}
             subtitle={`${commit.files.length} file${commit.files.length === 1 ? '' : 's'} changed`}
           >
@@ -118,24 +137,13 @@ export function CommitDocument({
                 </TabsList>
               </Tabs>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => copyText(oid, 'commit id')}
-            >
-              <CopyIcon className="size-3.5" />
-              Copy id
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
+            <BarAction
+              label="Copy message"
+              icon={CopyIcon}
               onClick={() =>
                 copyText(commitMessage(commit.commit), 'commit message')
               }
-            >
-              <CopyIcon className="size-3.5" />
-              Copy message
-            </Button>
+            />
             {collapseControl}
           </DocumentToolbar>
         )}

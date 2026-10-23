@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { Refusal } from './cli.ts';
+import { verificationEnvironment } from './environment.ts';
 import type { Connection } from './connection.ts';
 import { Evidence, Redactor, type EvidenceFormat } from './evidence.ts';
 import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
@@ -334,6 +335,7 @@ export class Registry<Detail> {
     const log = openSync(join(evidence, 'supervisor.log'), 'a', 0o600);
     const supervisor = spawn(process.execPath, [this.cli, 'serve', folder], {
       cwd: repositoryRoot,
+      env: verificationEnvironment(process.env),
       detached: true,
       stdio: ['ignore', log, log],
     });

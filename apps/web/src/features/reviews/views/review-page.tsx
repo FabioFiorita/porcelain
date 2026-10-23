@@ -1,3 +1,10 @@
+import { createPortal } from 'react-dom';
+import { ListChecksIcon, FileTextIcon } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { refLabel } from '@porcelain/client/history/rules';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -51,6 +58,8 @@ import type { ConnectionContext } from '@/shared/workspace/connection';
 import { reviewListTitle } from '@porcelain/client/reviews/rules';
 import { useReviewSummary } from '../queries/summary';
 import { useWalkthroughPlace } from '../store';
+import { GitButton } from '@/features/git-actions/index';
+import { DocumentTabs } from './document-tabs';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
 import { ReviewProof } from './review-proof';
@@ -71,6 +80,7 @@ import {
 } from '@/shared/views/state-notice';
 
 type ReviewPageProps = {
+  toolbarTarget?: HTMLElement | null | undefined;
   reviewId: string;
   navigation?: ReactNode;
   revision?: number | undefined;
@@ -88,6 +98,7 @@ type ReviewPageProps = {
 
 export function ReviewPage({
   reviewId,
+  toolbarTarget,
   navigation,
   revision,
   decision,
@@ -126,6 +137,7 @@ export function ReviewPage({
     <ReviewRevisionPage
       key={`${reviewId}:${data.revision.revision}:${decision ?? ''}`}
       navigation={navigation}
+      toolbarTarget={toolbarTarget}
       data={data}
       revision={data.revision}
       context={context}
@@ -225,6 +237,7 @@ function ReviewFailure({
 }
 
 function ReviewRevisionPage({
+  toolbarTarget,
   navigation,
   data,
   revision,
@@ -324,6 +337,12 @@ function ReviewRevisionPage({
   const stop = currentStop(stops, chosen ?? destination);
   const decisions = revisionDecisionStates(revision, marks);
   const items = revisionReviewItems(revision, marks);
+  const reviewedFiles = items.filter(
+    (item) => item.reviewStatus === 'reviewed',
+  ).length;
+  const reviewedDecisions = stops.filter(
+    (item) => item.kind === 'decision' && stopDone(item, items, decisions),
+  ).length;
   const done = (item: typeof stop) => stopDone(item, items, decisions);
   const decisionCount = review.layers.length;
   const neighbour = (direction: 1 | -1) => {
@@ -354,6 +373,78 @@ function ReviewRevisionPage({
       else if (document.path) setFile({ path: document.path });
     },
   };
+  const presentation = (
+    <Tabs
+      className="shrink-0"
+      value={view}
+      onValueChange={(value: unknown) => {
+        if (value === 'walkthrough' || value === 'summary') {
+          setView(value);
+          setFile(undefined);
+        }
+      }}
+    >
+      <TabsList
+        aria-label="Review presentation"
+        aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
+        className="h-7"
+      >
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <TabsTrigger value="walkthrough" aria-label="Walkthrough" />
+            }
+          >
+            <ListChecksIcon className="size-3.5 @min-3xl/pane:hidden" />
+            <span className="hidden whitespace-nowrap @min-3xl/pane:inline">
+              Walkthrough
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Walkthrough</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={<TabsTrigger value="summary" aria-label="Agent summary" />}
+          >
+            <FileTextIcon className="size-3.5 @min-3xl/pane:hidden" />
+            <span className="hidden whitespace-nowrap @min-3xl/pane:inline">
+              Agent summary
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Agent summary</TooltipContent>
+        </Tooltip>
+      </TabsList>
+    </Tabs>
+  );
+  const bar = (
+    <>
+      {showSummary && presentation}
+      <span
+        aria-label="Review progress"
+        className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
+      >
+        {reviewedFiles} of {items.length} files
+        <span
+          role="progressbar"
+          aria-label="Files reviewed"
+          aria-valuemin={0}
+          aria-valuemax={items.length}
+          aria-valuenow={reviewedFiles}
+          className="h-1 w-16 overflow-hidden rounded-full bg-muted"
+        >
+          <span
+            className="block h-full bg-primary"
+            style={{
+              width: `${items.length === 0 ? 0 : (reviewedFiles / items.length) * 100}%`,
+            }}
+          />
+        </span>
+        <span>
+          {reviewedDecisions} of {review.layers.length} decisions
+        </span>
+      </span>
+    </>
+  );
   const titleInput = {
     connection: context.connection,
     reviewId: revision.reviewId,
@@ -375,13 +466,52 @@ function ReviewRevisionPage({
     <section
       aria-label="Review walkthrough"
       className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card"
+      style={{ containerName: 'pane review' }}
     >
+      {toolbarTarget === undefined && (
+        <DocumentTabs
+          tabs={['handoff']}
+          pinned={[]}
+          active="handoff"
+          reviewTitle="Review"
+          reviewCount={
+            <span
+              aria-hidden="true"
+              className="text-2xs text-muted-foreground tabular-nums"
+            >
+              {reviewedDecisions}/{review.layers.length}
+            </span>
+          }
+          side={null}
+          focused={active}
+          leading={navigation}
+          trailing={
+            <>
+              {bar}
+              {currentScope && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="mx-1 h-5 w-px bg-border"
+                  />
+                  <GitButton scope={currentScope} context={context} />
+                </>
+              )}
+            </>
+          }
+          onActivate={() => {}}
+          onClose={() => {}}
+          onCloseOthers={() => {}}
+          onCloseUnpinned={() => {}}
+          onTogglePin={() => {}}
+        />
+      )}
+      {toolbarTarget && createPortal(bar, toolbarTarget)}
       {active && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
       )}
       <header className="flex shrink-0 flex-col gap-2 border-b px-4 py-3">
         <div className="flex items-center gap-2">
-          {navigation}
           <Button variant="ghost" size="sm" onClick={onBack}>
             Back
           </Button>
@@ -443,12 +573,11 @@ function ReviewRevisionPage({
       >
         <TabsList
           className="flex h-auto flex-wrap"
-          aria-label="Review presentation"
+          aria-label="Review details"
           aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
         >
-          <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
-          {showSummary && (
-            <TabsTrigger value="summary">Agent summary</TabsTrigger>
+          {!showSummary && (
+            <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
           )}
           <TabsTrigger value="proof">Proof</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>

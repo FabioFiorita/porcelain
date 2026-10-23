@@ -115,11 +115,11 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.delete-resolved](reviews.delete-resolved.md) — Resolved-thread deletion and cancellation.
 - [reviews.delete-review](reviews.delete-review.md) — Review deletion, cancellation and retained worktree data.
 - [reviews.edit-comment](reviews.edit-comment.md) — Comment editing and saved text.
-- [reviews.empty-document](reviews.empty-document.md) — Empty document panes before and after review publication.
 - [reviews.mark-all](reviews.mark-all.md) — Batch file marking and completion.
 - [reviews.mark-decision](reviews.mark-decision.md) — Decision and file marks, failure and unmarking.
 - [reviews.mark-file](reviews.mark-file.md) — File marking, unmarking and changed content.
 - [reviews.open-to-side](reviews.open-to-side.md) — Open files and commits in the other document pane.
+- [reviews.pane-bar](reviews.pane-bar.md) — Pane bars, permanent tabs, controls and Git placement.
 - [reviews.page](reviews.page.md) — Durable revisions, verdict, comments and lifecycle.
 - [reviews.proof](reviews.proof.md) — Published check results and image attachments.
 - [reviews.read-retry](reviews.read-retry.md) — Review loading, failure and retry.
