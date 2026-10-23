@@ -23,6 +23,7 @@ import { CodeDocument } from './code-document';
 import { fileEntry } from '../adapters/code-entries';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { AgentNote } from './agent-note';
+import { retainedCommentTarget } from '../rules/retained-comments';
 
 export function RevisionCode({
   revision,
@@ -165,14 +166,7 @@ function RevisionDiffs({
       {
         ...entry,
         agentNotes: notes[file.path] ?? [],
-        comment: {
-          filePath: file.path,
-          revision: revision.headOid,
-          comparison: {
-            kind: 'branch' as const,
-            base: revision.base,
-          },
-        },
+        comment: retainedCommentTarget(revision, file.path),
         review: {
           path: file.path,
           fingerprint,
@@ -333,11 +327,7 @@ export function RevisionFile({
             path,
             file.text,
           ),
-          comment: {
-            filePath: path,
-            revision: revision.headOid,
-            comparison: { kind: 'file' as const },
-          },
+          comment: retainedCommentTarget(revision, path),
         }
       : undefined;
   return (
