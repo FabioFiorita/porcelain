@@ -15,9 +15,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   await settings
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
-  await settings
-    .getByRole('button', { name: /^Open This computer:/u })
-    .click();
+  await settings.getByRole('button', { name: /^Open This computer:/u }).click();
   const version = await app.electron.evaluate(({ app }) => app.getVersion());
   await expect(
     settings.getByText(`Mac app ${version}`, { exact: true }),
