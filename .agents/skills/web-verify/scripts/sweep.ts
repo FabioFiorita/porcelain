@@ -285,22 +285,23 @@ async function shoot(
   file: string,
 ): Promise<void> {
   const browser = await chromium.launch();
-  const context = await browser.newContext({
-    storageState: signed,
-    viewport: { width: shot.width, height: heights[shot.width] },
-    colorScheme: shot.theme,
-    reducedMotion: 'reduce',
-  });
-  const page = await context.newPage();
-  const record = (problem: string) => shot.problems.push(problem);
-  const onPageError = (error: Error) =>
-    record(`page error: ${firstLine(error)}`);
-  const onConsole = (message: { type(): string; text(): string }) => {
-    if (message.type() === 'error') record(`console error: ${message.text()}`);
-  };
-  page.on('pageerror', onPageError);
-  page.on('console', onConsole);
   try {
+    const context = await browser.newContext({
+      storageState: signed,
+      viewport: { width: shot.width, height: heights[shot.width] },
+      colorScheme: shot.theme,
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
+    const record = (problem: string) => shot.problems.push(problem);
+    const onPageError = (error: Error) =>
+      record(`page error: ${firstLine(error)}`);
+    const onConsole = (message: { type(): string; text(): string }) => {
+      if (message.type() === 'error')
+        record(`console error: ${message.text()}`);
+    };
+    page.on('pageerror', onPageError);
+    page.on('console', onConsole);
     const response = await page.goto(url.href, { waitUntil: 'load' });
     if (response !== null && !response.ok())
       record(`the page answered HTTP ${response.status()}`);
