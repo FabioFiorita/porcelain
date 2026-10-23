@@ -276,6 +276,17 @@ test('the review page keeps whole-change and inline comments in its Review panel
     await expect
       .element(panel.getByRole('region', { name: 'Readiness', exact: true }))
       .toBeVisible();
+    await panel
+      .getByRole('button', { name: 'retired.ts', exact: true })
+      .click();
+    await expect
+      .element(
+        review.getByRole('button', {
+          name: 'Mark retired.ts as reviewed',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
     await panel.getByRole('tab', { name: /^Comments/ }).click();
     await panel
       .getByRole('button', { name: 'Comment on the whole branch', exact: true })

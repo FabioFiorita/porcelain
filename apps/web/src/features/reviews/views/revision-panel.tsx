@@ -23,6 +23,7 @@ export function RevisionPanel({
   marks,
   file,
   onFile,
+  onChange,
   onStop,
   onProof,
 }: {
@@ -32,6 +33,7 @@ export function RevisionPanel({
   marks: ReviewMarks | undefined;
   file: string | undefined;
   onFile: (path: string) => void;
+  onChange: (path: string) => void;
   onStop: (key: 'briefing' | 'unexplained') => void;
   onProof: () => void;
 }) {
@@ -52,7 +54,7 @@ export function RevisionPanel({
           if (key === 'files') onStop('briefing');
           if (key === 'unexplained') onStop('unexplained');
           if (key === 'checks') onProof();
-          if (key === 'stale' && firstStale !== undefined) onFile(firstStale);
+          if (key === 'stale' && firstStale !== undefined) onChange(firstStale);
         }}
       />
       <ReviewViews
@@ -76,7 +78,7 @@ export function RevisionPanel({
                   key={item.path}
                   label={item.path}
                   active={file === item.path}
-                  onOpen={() => onFile(item.path)}
+                  onOpen={() => onChange(item.path)}
                 >
                   <ReviewStatusIcon status={item.reviewStatus} />
                   <FileTypeIcon

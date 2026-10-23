@@ -279,7 +279,11 @@ function ReviewRevisionPage({
   const [view, setView] = useState<'walkthrough' | 'summary' | 'proof'>(
     initialView ?? 'walkthrough',
   );
-  const [file, setFile] = useState<{ path: string; step?: ReviewStep }>();
+  const [file, setFile] = useState<{
+    path: string;
+    step?: ReviewStep;
+    change?: true;
+  }>();
   const standalone = toolbarTarget === undefined;
   const desktop = useDesktopReview();
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
@@ -464,6 +468,12 @@ function ReviewRevisionPage({
               reveal(() => {
                 setView('walkthrough');
                 setFile({ path });
+              })
+            }
+            onChange={(path) =>
+              reveal(() => {
+                setView('walkthrough');
+                setFile({ path, change: true });
               })
             }
             onStop={(key) => reveal(() => go(key))}
@@ -662,14 +672,25 @@ function ReviewRevisionPage({
                   >
                     Back to decision
                   </Button>
-                  <RevisionFile
-                    revision={revision}
-                    scope={scope}
-                    context={context}
-                    path={file.path}
-                    step={file.step}
-                    active={active}
-                  />
+                  {file.change ? (
+                    <RevisionCode
+                      revision={revision}
+                      paths={[file.path]}
+                      scope={scope}
+                      context={context}
+                      active={active}
+                      marks={marks ?? { files: [], decisions: [] }}
+                    />
+                  ) : (
+                    <RevisionFile
+                      revision={revision}
+                      scope={scope}
+                      context={context}
+                      path={file.path}
+                      step={file.step}
+                      active={active}
+                    />
+                  )}
                 </>
               )}
               {view === 'walkthrough' && !file && stop.kind === 'briefing' && (
