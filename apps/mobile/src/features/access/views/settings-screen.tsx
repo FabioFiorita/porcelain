@@ -43,6 +43,11 @@ export function SettingsScreen({
     remotes.length,
     settingsUpdateCount(targets),
   );
+  const paired = {
+    loading: 'Reading saved computers…',
+    unreadable: 'Saved computers could not be read',
+    ready: computers.paired,
+  }[storage.status];
   return (
     <ScrollView
       className="flex-1 bg-frame"
@@ -74,11 +79,7 @@ export function SettingsScreen({
             <Item
               testID="settings-computers"
               title="Computers"
-              accessibilityLabel={[
-                'Computers',
-                storage.status === 'ready' ? computers.paired : undefined,
-                computers.updates,
-              ]
+              accessibilityLabel={['Computers', paired, computers.updates]
                 .filter(Boolean)
                 .join(', ')}
               leading={<IconTile name="environments" />}
@@ -86,9 +87,7 @@ export function SettingsScreen({
               onPress={onOpenComputers}
             >
               <Text variant="caption" tone="muted" numberOfLines={1}>
-                {storage.status === 'ready'
-                  ? computers.paired
-                  : 'Reading saved computers…'}
+                {paired}
                 {computers.updates ? (
                   <>
                     {' · '}

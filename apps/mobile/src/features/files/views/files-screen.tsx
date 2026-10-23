@@ -213,7 +213,7 @@ function FilesNavigationView({
   const header = (
     <Box
       gap={embedded ? 3 : 2}
-      {...(embedded ? { paddingX: 4, paddingY: 3 } : {})}
+      {...(embedded ? { paddingX: 4, paddingY: 3 } : { paddingY: 2 })}
     >
       <Box className="flex-row items-center" gap={2}>
         <Box className="min-w-0 flex-1">
@@ -349,7 +349,7 @@ function FilesNavigationView({
           }}
         />
       ) : null}
-      {preferenceEntries.pinnedPaths.length > 0 ? (
+      {!searching && preferenceEntries.pinnedPaths.length > 0 ? (
         <Box gap={1}>
           <GroupHeader
             label="Pinned"
