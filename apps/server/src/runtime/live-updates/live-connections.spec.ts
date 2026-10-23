@@ -177,45 +177,171 @@ describe('LiveConnections', () => {
   );
 
   it.effect(
-    'releases bounded publisher backpressure when a stalled connection closes',
+    'retires a pong-responsive stalled client while writers and two healthy clients keep going and resubscribe',
     () =>
       Effect.gen(function* () {
         const { live, failures } = yield* subject(1);
         const sending = yield* Deferred.make<void>();
-        const gate = yield* Deferred.make<void>();
+        const aborted = yield* Deferred.make<void>();
+        const cleanup = Promise.withResolvers<void>();
         const blocked = yield* channel((notice) =>
           notice.type === 'inventory'
             ? Deferred.succeed(sending, undefined).pipe(
-                Effect.andThen(Deferred.await(gate)),
+                Effect.andThen(Effect.never),
+                Effect.onInterrupt(() =>
+                  Deferred.succeed(aborted, undefined).pipe(
+                    Effect.andThen(Effect.promise(() => cleanup.promise)),
+                  ),
+                ),
               )
             : Effect.void,
         );
         const client = yield* live.connect(blocked);
         yield* blocked.next();
-        yield* live.toEveryone({ type: 'inventory' });
-        yield* Deferred.await(sending);
-        yield* live.heartbeat();
-        let published = false;
-        const publisher = yield* Effect.forkChild(
-          live.heartbeat().pipe(
-            Effect.tap(() =>
-              Effect.sync(() => {
-                published = true;
-              }),
-            ),
-          ),
-          { startImmediately: true },
-        );
-        expect(published).toBe(false);
+        const healthy = [yield* channel(), yield* channel()];
+        const responders = [];
+        for (const peer of healthy) {
+          responders.push(yield* live.connect(peer));
+          yield* peer.next();
+        }
+        try {
+          yield* live.toEveryone({ type: 'inventory' });
+          yield* Deferred.await(sending);
+          expect(yield* Effect.forEach(healthy, (peer) => peer.next())).toEqual(
+            [{ type: 'inventory' }, { type: 'inventory' }],
+          );
+          const progress: boolean[] = [];
+          const deliveries = [];
+          for (let index = 0; index < 4; index += 1) {
+            yield* client.answered();
+            for (const responder of responders) yield* responder.answered();
+            yield* live.ping();
+            let published = false;
+            const publisher = yield* Effect.forkChild(
+              live.heartbeat().pipe(
+                Effect.tap(() =>
+                  Effect.sync(() => {
+                    published = true;
+                  }),
+                ),
+              ),
+              { startImmediately: true },
+            );
+            progress.push(published);
+            if (!published) break;
+            yield* Fiber.join(publisher);
+            deliveries.push(
+              ...(yield* Effect.forEach(healthy, (peer) => peer.next())),
+            );
+          }
+          expect(progress).toEqual([true, true, true, true]);
+          expect(deliveries).toEqual([
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+            { type: 'heartbeat' },
+          ]);
+          expect(yield* blocked.nextControl()).toBe('ping');
+          expect(yield* blocked.nextControl()).toBe('ping');
+          expect(yield* blocked.nextControl()).toBe('terminated');
+          yield* Deferred.await(aborted);
+          const fresh = yield* channel();
+          const recovered = yield* live.connect(fresh);
+          expect(yield* fresh.next()).toEqual({ type: 'ready' });
+          yield* recovered.follow(targets('a', 'one'));
+          expect(yield* fresh.next()).toEqual({ type: 'subscribed' });
+          yield* live.toProject('a', {
+            type: 'project',
+            projectId: 'a',
+            change: 'preferences',
+          });
+          expect(yield* fresh.next()).toEqual({
+            type: 'project',
+            projectId: 'a',
+            change: 'preferences',
+          });
+          yield* client.follow(targets('a', 'one'));
+          expect(blocked.notices()).toEqual([{ type: 'ready' }]);
+          expect(failures).toEqual([]);
+        } finally {
+          cleanup.resolve();
+        }
         yield* client.close();
-        yield* Fiber.join(publisher);
-        expect(published).toBe(true);
-        const fresh = yield* channel();
-        yield* live.connect(fresh);
-        yield* fresh.next();
+        yield* live.close();
+        yield* live.close();
+      }),
+  );
+
+  it.effect(
+    'unfollowed traffic cannot overflow a stalled client and replacing targets filters queued notices',
+    () =>
+      Effect.gen(function* () {
+        const { live, failures } = yield* subject(1);
+        const started = yield* Deferred.make<void>();
+        const gate = yield* Deferred.make<void>();
+        const peer = yield* channel((notice) =>
+          notice.type === 'inventory'
+            ? Deferred.succeed(started, undefined).pipe(
+                Effect.andThen(Deferred.await(gate)),
+              )
+            : Effect.void,
+        );
+        const client = yield* live.connect(peer);
+        yield* peer.next();
+        yield* client.follow(targets('a', 'one'));
+        yield* peer.next();
+        yield* live.toEveryone({ type: 'inventory' });
+        yield* Deferred.await(started);
+        const progress: boolean[] = [];
+        for (let index = 0; index < 4; index += 1) {
+          let published = false;
+          const publisher = yield* Effect.forkChild(
+            live.toProject('b', { type: 'inventory' }).pipe(
+              Effect.andThen(
+                live.toWorktree('two', () => ({ type: 'inventory' })),
+              ),
+              Effect.andThen(
+                live.toProjectOrWorktree('b', 'two', { type: 'inventory' }),
+              ),
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  published = true;
+                }),
+              ),
+            ),
+            { startImmediately: true },
+          );
+          progress.push(published);
+          if (!published) break;
+          yield* Fiber.join(publisher);
+        }
+        expect(progress).toEqual([true, true, true, true]);
+        yield* live.toProject('a', {
+          type: 'project',
+          projectId: 'a',
+          change: 'preferences',
+        });
+        yield* client.follow({ projects: [], worktrees: [] });
+        expect(yield* peer.next()).toEqual({ type: 'subscribed' });
+        yield* Deferred.succeed(gate, undefined);
+        expect(yield* peer.next()).toEqual({ type: 'inventory' });
+        yield* Effect.yieldNow;
+        yield* live.ping();
+        expect(yield* peer.nextControl()).toBe('ping');
         yield* live.heartbeat();
-        expect(yield* fresh.next()).toEqual({ type: 'heartbeat' });
-        expect(blocked.notices()).toEqual([{ type: 'ready' }]);
+        expect(yield* peer.next()).toEqual({ type: 'heartbeat' });
+        expect(peer.notices()).toEqual([
+          { type: 'ready' },
+          { type: 'subscribed' },
+          { type: 'subscribed' },
+          { type: 'inventory' },
+          { type: 'heartbeat' },
+        ]);
+        yield* client.close();
         expect(failures).toEqual([]);
       }),
   );

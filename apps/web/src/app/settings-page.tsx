@@ -456,7 +456,7 @@ export function SettingsPage({
           aria-label="Settings sections"
           className="flex shrink-0 flex-col overflow-hidden rounded-xl border bg-card md:w-66"
         >
-          <NavigatorHeader environment={environment.name} />
+          <NavigatorHeader />
           <div className="flex gap-1 overflow-x-auto p-2 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto">
             {settingsSections.map((item) => {
               const Icon = item.icon;

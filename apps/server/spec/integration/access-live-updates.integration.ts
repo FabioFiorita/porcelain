@@ -1,12 +1,15 @@
 import { liveNoticeSchema } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
+import WebSocket from 'ws';
 import { expect } from 'vitest';
 import { apiError, unauthenticated, upgradeHeaders } from '../kit/answers.ts';
 import {
   expectation,
   fingerprintOf,
   inventory,
+  receiptOf,
   watching,
 } from '../kit/reads.ts';
 import {
@@ -17,7 +20,30 @@ import {
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { liveNotices } from '../kit/live-notices.ts';
-import { list, record, type Session } from '../kit/session.ts';
+import {
+  list,
+  record,
+  text,
+  type Session,
+  type HttpResponse,
+} from '../kit/session.ts';
+
+async function mutationBeforeDeadline(operation: Promise<HttpResponse>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Live publication stalled a product writer')),
+          2000,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const worktreeNotice = (session: Session, change: string) => ({
   type: 'worktree',
@@ -387,3 +413,164 @@ test('a paired viewer opening live updates from the same origin switches protoco
   expect(response.status).toBe(101);
   expect(response.body).toBeUndefined();
 });
+
+test.for([
+  {
+    mode: 'unopened notices',
+    requestId: '97271928-25ef-44f6-ad5d-a29bfb635d64',
+  },
+  {
+    mode: 'unacknowledged notices',
+    requestId: 'aff3f13c-1847-49f8-a71c-4d0768d02b5f',
+  },
+])(
+  'a pong-responsive peer with $mode cannot stall writers or two healthy viewers and recovers by resubscribing',
+  async ({ mode, requestId }, { session }) => {
+    const healthy = [await watching(session), await watching(session)];
+    const issued = await session.read({
+      method: 'POST',
+      path: '/api/live/tickets',
+      headers: { origin: session.address },
+    });
+    const ticket = text(record(issued.body).ticket);
+    session.secret(ticket);
+    const url = new URL('/api/live', session.address);
+    url.protocol = 'ws:';
+    url.searchParams.set('ticket', ticket);
+    const stalled = new WebSocket(url, {
+      origin: session.address,
+      autoPong: true,
+    });
+    stalled.on('error', () => undefined);
+    try {
+      await once(stalled, 'open');
+      if (mode === 'unacknowledged notices')
+        stalled.send(
+          JSON.stringify({
+            _tag: 'Request',
+            id: '1',
+            tag: 'notices',
+            payload: null,
+            headers: [],
+          }),
+        );
+      const followed = new Promise<void>((resolveFollow) => {
+        const receive = (data: WebSocket.RawData) => {
+          const frame = record(
+            JSON.parse(
+              new TextDecoder().decode(
+                Array.isArray(data) ? Buffer.concat(data) : data,
+              ),
+            ),
+          );
+          if (frame._tag === 'Exit' && frame.requestId === '2') {
+            stalled.off('message', receive);
+            resolveFollow();
+          }
+        };
+        stalled.on('message', receive);
+      });
+      stalled.send(
+        JSON.stringify({
+          _tag: 'Request',
+          id: '2',
+          tag: 'follow',
+          payload: {
+            projects: [session.projectId],
+            worktrees: [
+              {
+                projectId: session.projectId,
+                worktreeId: session.worktreeId,
+                paths: [],
+              },
+            ],
+          },
+          headers: [],
+        }),
+      );
+      await followed;
+      const path = `lagging-viewer-${mode}.md`;
+      await session.writeFile(path, 'A durable change.\n');
+      const response = await session.send({
+        method: 'POST',
+        path: gitPath(session, '/actions'),
+        body: {
+          requestId,
+          input: {
+            action: 'commit',
+            message: 'Keep a durable receipt',
+            paths: [path],
+          },
+          expected: {
+            ...(await expectation(session)),
+            files: [{ path, fingerprint: await fingerprintOf(session, path) }],
+          },
+        },
+      });
+      expect(response.status).toBe(202);
+      for (const connection of healthy)
+        expect(
+          await connection.next(
+            (notice) =>
+              notice.type === 'git-action' &&
+              record(notice.receipt).requestId === requestId &&
+              record(notice.receipt).state === 'succeeded',
+          ),
+        ).toMatchObject({
+          type: 'git-action',
+          receipt: { requestId, state: 'succeeded' },
+        });
+      for (let index = 0; index < 600; index += 1) {
+        const updated = await mutationBeforeDeadline(
+          session.send({
+            method: 'PATCH',
+            path: `/api/projects/${session.projectId}`,
+            body: { name: `${mode} ${index % 2 === 0 ? 'A' : 'B'}` },
+          }),
+        );
+        expect(updated.status).toBe(200);
+        for (const connection of healthy)
+          expect(
+            await connection.next((notice) => notice.type === 'inventory'),
+          ).toStrictEqual({ type: 'inventory' });
+      }
+      await expect.poll(() => stalled.readyState).toBe(WebSocket.CLOSED);
+      const recovered = await watching(session);
+      try {
+        const projects = list(record(await inventory(session)).projects).map(
+          record,
+        );
+        expect(
+          projects.find((project) => project.id === session.projectId),
+        ).toMatchObject({
+          id: session.projectId,
+          name: `${mode} B`,
+        });
+        expect(await receiptOf(session, requestId)).toMatchObject({
+          requestId,
+          state: 'succeeded',
+          action: 'commit',
+        });
+        const updated = await session.send({
+          method: 'PATCH',
+          path: `/api/projects/${session.projectId}`,
+          body: { name: 'Recovered' },
+        });
+        expect(updated.status).toBe(200);
+        for (const connection of [...healthy, recovered])
+          expect(
+            await connection.next((notice) => notice.type === 'inventory'),
+          ).toStrictEqual({ type: 'inventory' });
+      } finally {
+        await recovered.close();
+      }
+    } finally {
+      if (stalled.readyState !== WebSocket.CLOSED) {
+        const closed = once(stalled, 'close');
+        stalled.terminate();
+        await closed;
+      }
+      for (const connection of healthy) await connection.close();
+    }
+  },
+);
