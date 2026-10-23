@@ -122,7 +122,7 @@ export function useCommentDraft(
   };
 }
 
-export function writeFailure(
+function writeFailure(
   result: AsyncResult.AsyncResult<unknown, unknown>,
 ) {
   return AsyncResult.isFailure(result)

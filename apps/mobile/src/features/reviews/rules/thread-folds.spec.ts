@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CommentThread } from '@porcelain/client/reviews/rules';
-import { foldThreads, foldedThread, threadSummary } from './thread-folds';
+import {
+  foldThreads,
+  foldedThread,
+  threadOnRevision,
+  threadSummary,
+} from './thread-folds';
 
 const lines = [
   { id: 'h', text: '@@ -4,3 +4,4 @@' },
@@ -143,6 +148,11 @@ describe('thread folds', () => {
       'older',
       'other',
     ]);
+    expect(
+      [current, older, otherReview, branchHead].map((entry) =>
+        threadOnRevision(entry, revision),
+      ),
+    ).toEqual([false, false, false, true]);
   });
 
   it('reads back only the thread rows it folded in', () => {

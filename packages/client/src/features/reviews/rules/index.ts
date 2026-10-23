@@ -8,7 +8,6 @@ export {
   commentIsStale,
   decisionMentions,
   messageRevision,
-  type CommentSegment,
   matchesCommentTarget,
   rangeAnchor,
   resolvedCleanup,

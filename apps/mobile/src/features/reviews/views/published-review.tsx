@@ -670,7 +670,7 @@ function stepVariant(current: boolean, reviewed: boolean) {
   return reviewed ? 'secondary' : 'outline';
 }
 
-export function openComments(
+function openComments(
   router: ReturnType<typeof useRouter>,
   workspace: Workspace,
   input: { compose: true; body: string } | { thread: string },
