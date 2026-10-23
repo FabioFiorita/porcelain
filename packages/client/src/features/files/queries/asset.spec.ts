@@ -16,6 +16,32 @@ const image = {
   mediaType: 'image/png',
   base64: 'aGVsbG8=',
 };
+it.each([
+  [404, 'Not Found', 'Path not found'],
+  [422, 'Unprocessable Entity', 'Path could not be read'],
+  [422, 'Unprocessable Entity', 'File exceeds the read limit'],
+] as const)(
+  'preserves a server %i refusal for a known image path: %s, %s',
+  async (statusCode, error, message) => {
+    const subject = fixture(() =>
+      Promise.resolve(
+        Response.json({ statusCode, error, message }, { status: statusCode }),
+      ),
+    );
+    await expect(
+      Effect.runPromise(
+        AtomRegistry.getResult(
+          subject.registry,
+          readAsset({
+            connection: subject.connection,
+            scope,
+            path: 'wide/target.png',
+          }),
+        ),
+      ),
+    ).rejects.toThrow(message);
+  },
+);
 it('shares an active asset read, isolates replacement credentials and encodes the path once', async () => {
   const sent: string[] = [];
   const transport: Transport = (path) => {

@@ -1,6 +1,15 @@
 import { NodeServices } from '@effect/platform-node';
 import { testClock } from '@porcelain/kernel/test-kit';
-import { Effect, Exit, Layer, Schema, Scope } from 'effect';
+import {
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Schema,
+  Scope,
+} from 'effect';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -8,6 +17,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -20,13 +30,20 @@ class HeldError extends Error {}
 
 const roots: string[] = [];
 const scopes: Scope.Closeable[] = [];
-function takeLock(input: Parameters<typeof acquireDirectoryLock>[0]) {
+function takeLock(
+  input: Parameters<typeof acquireDirectoryLock>[0],
+  fileSystem: (fs: FileSystem.FileSystem) => FileSystem.FileSystem = (fs) => fs,
+) {
   const scope = Effect.runSync(Scope.make());
   scopes.push(scope);
   return Effect.runPromise(
     Effect.gen(function* () {
       const services = yield* Layer.build(NodeServices.layer);
       return yield* acquireDirectoryLock(input).pipe(
+        Effect.provideService(
+          FileSystem.FileSystem,
+          fileSystem(Context.get(services, FileSystem.FileSystem)),
+        ),
         Effect.provideContext(services),
       );
     }).pipe(Scope.provide(scope)),
@@ -81,6 +98,205 @@ describe('acquireDirectoryLock', () => {
     await Effect.runPromise(lock.release);
     expect(existsSync(path)).toBe(false);
   });
+
+  it('keeps concurrent stale takeover exclusive across ownership replacement', async () => {
+    const path = lockPath();
+    const exited = spawnSync(process.execPath, ['-e', '']).pid;
+    leaveLock(path, exited);
+    const removing = Effect.runSync(Deferred.make<void>());
+    const resume = Effect.runSync(Deferred.make<void>());
+    const input = { ...(await options(path)), pollMs: 1 };
+    const pause = Effect.gen(function* () {
+      yield* Deferred.succeed(removing, undefined);
+      yield* Deferred.await(resume);
+    });
+    const contender = takeLock(input, (fs) => ({
+      ...fs,
+      remove: (target, settings) =>
+        target === path
+          ? pause.pipe(Effect.andThen(fs.remove(target, settings)))
+          : fs.remove(target, settings),
+      rename: (source, target) =>
+        target === join(path, 'owner.json')
+          ? pause.pipe(Effect.andThen(fs.rename(source, target)))
+          : fs.rename(source, target),
+    }));
+    const outcome = contender.then(
+      () => 'acquired',
+      (error: unknown) => error,
+    );
+    try {
+      await Effect.runPromise(
+        Deferred.await(removing).pipe(Effect.timeout('2 seconds')),
+      );
+      const replacement = await takeLock(input).then(
+        () => 'acquired',
+        (error: unknown) => error,
+      );
+      const owner = readFileSync(join(path, 'owner.json'), 'utf8');
+      await Effect.runPromise(Deferred.succeed(resume, undefined));
+      const delayed = await outcome;
+      expect(
+        [replacement, delayed].filter((result) => result === 'acquired'),
+      ).toHaveLength(1);
+      if (replacement === 'acquired') {
+        expect(delayed).toBeInstanceOf(HeldError);
+        expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(owner);
+      } else {
+        expect(replacement).toBeInstanceOf(HeldError);
+        expect(delayed).toBe('acquired');
+      }
+    } finally {
+      await Effect.runPromise(Deferred.succeed(resume, undefined));
+      await outcome;
+    }
+  });
+
+  it.each(['same directory', 'replacement directory'])(
+    'rechecks ownership inside exclusion after observing a stale %s',
+    async (replacement) => {
+      const path = lockPath();
+      const exited = spawnSync(process.execPath, ['-e', '']).pid;
+      leaveLock(path, exited);
+      const observed = Effect.runSync(Deferred.make<void>());
+      const resume = Effect.runSync(Deferred.make<void>());
+      let paused = false;
+      const input = await options(path);
+      const contender = takeLock(input, (fs) => ({
+        ...fs,
+        stat: (target) =>
+          Effect.gen(function* () {
+            const info = yield* fs.stat(target);
+            if (target === path && !paused) {
+              paused = true;
+              yield* Deferred.succeed(observed, undefined);
+              yield* Deferred.await(resume);
+            }
+            return info;
+          }),
+      })).then(
+        () => 'acquired',
+        (error: unknown) => error,
+      );
+      try {
+        await Effect.runPromise(
+          Deferred.await(observed).pipe(Effect.timeout('2 seconds')),
+        );
+        const first = await takeLock(input);
+        if (replacement === 'replacement directory') {
+          await Effect.runPromise(first.release);
+          await takeLock(input);
+        }
+        const owner = readFileSync(join(path, 'owner.json'), 'utf8');
+        await Effect.runPromise(Deferred.succeed(resume, undefined));
+        expect(await contender).toBeInstanceOf(HeldError);
+        expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(owner);
+      } finally {
+        await Effect.runPromise(Deferred.succeed(resume, undefined));
+        await contender;
+      }
+    },
+  );
+
+  it('preserves stale ownership when takeovers are disabled', async () => {
+    const path = lockPath();
+    const exited = spawnSync(process.execPath, ['-e', '']).pid;
+    leaveLock(path, exited);
+    const before = readFileSync(join(path, 'owner.json'), 'utf8');
+    await expect(
+      takeLock({ ...(await options(path)), staleTakeovers: 0 }),
+    ).rejects.toThrow(HeldError);
+    expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
+    expect(readdirSync(path)).toEqual(['owner.json']);
+  });
+
+  it('preserves stale ownership when the exclusion file cannot be opened', async () => {
+    const path = lockPath();
+    const exited = spawnSync(process.execPath, ['-e', '']).pid;
+    leaveLock(path, exited);
+    const before = readFileSync(join(path, 'owner.json'), 'utf8');
+    mkdirSync(join(path, 'ownership.sqlite'));
+    await expect(takeLock(await options(path))).rejects.toThrow(
+      'withOwnershipExclusion',
+    );
+    expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(before);
+  });
+
+  it('retries an exclusion open failure when its directory has been replaced', async () => {
+    const path = lockPath();
+    const exited = spawnSync(process.execPath, ['-e', '']).pid;
+    leaveLock(path, exited);
+    let replaced = false;
+    await expect(
+      takeLock(await options(path), (fs) => ({
+        ...fs,
+        stat: (target) =>
+          Effect.gen(function* () {
+            const info = yield* fs.stat(target);
+            if (target === path && !replaced) {
+              replaced = true;
+              renameSync(path, `${path}.retired`);
+              leaveLock(path, process.pid);
+              mkdirSync(join(path, 'ownership.sqlite'));
+            }
+            return info;
+          }),
+      })),
+    ).rejects.toThrow(HeldError);
+    expect(readFileSync(join(path, 'owner.json'), 'utf8')).toBe(
+      JSON.stringify({ pid: process.pid, token: 'left' }),
+    );
+  });
+
+  it('retries when the observed lock disappears before exclusion opens', async () => {
+    const path = lockPath();
+    const exited = spawnSync(process.execPath, ['-e', '']).pid;
+    leaveLock(path, exited);
+    let removed = false;
+    const lock = await takeLock(await options(path, 250), (fs) => ({
+      ...fs,
+      stat: (target) =>
+        Effect.gen(function* () {
+          const info = yield* fs.stat(target);
+          if (target === path && !removed) {
+            removed = true;
+            rmSync(path, { recursive: true, force: true });
+          }
+          return info;
+        }),
+    }));
+    expect(await held(path)).toBe(true);
+    await Effect.runPromise(lock.release);
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it.each(['missing', '{broken', '{}'])(
+    'reclaims %s ownership and keeps the owner record compatible with older readers',
+    async (record) => {
+      const path = lockPath();
+      mkdirSync(path);
+      if (record !== 'missing') writeFileSync(join(path, 'owner.json'), record);
+      const lock = await takeLock(await options(path));
+      const owner = Schema.decodeUnknownSync(
+        Schema.fromJsonString(
+          Schema.Struct({
+            pid: Schema.Int,
+            token: Schema.String,
+            createdAt: Schema.String,
+            bootId: Schema.optional(Schema.String),
+            startTime: Schema.optional(Schema.String),
+          }),
+        ),
+      )(readFileSync(join(path, 'owner.json'), 'utf8'));
+      expect(owner.pid).toBe(process.pid);
+      expect(owner.token).not.toBe('left');
+      expect(owner.createdAt).toBe('2026-09-24T00:00:00.000Z');
+      expect(await held(path)).toBe(true);
+      rmSync(path, { recursive: true, force: true });
+      await Effect.runPromise(lock.release);
+      expect(existsSync(path)).toBe(false);
+    },
+  );
 
   it('waits for a holder that releases within the wait', async () => {
     const path = lockPath();

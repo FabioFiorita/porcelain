@@ -10,6 +10,15 @@ function uncovered(element: Element) {
 }
 
 export const reviewLayout = {
+  titleLines(locator: Locator) {
+    const title = locator.element();
+    const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);
+    return {
+      withinThreeLines:
+        title.getBoundingClientRect().height <= lineHeight * 3 + 1,
+      clipped: title.scrollHeight > title.clientHeight,
+    };
+  },
   fitsViewport(locator: Locator) {
     const button = locator.element();
     const bounds = button.getBoundingClientRect();

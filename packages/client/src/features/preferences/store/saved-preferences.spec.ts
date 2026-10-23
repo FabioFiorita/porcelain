@@ -17,8 +17,7 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
       appearance: 'system',
       diffStyle: 'unified',
       lineOverflow: 'scroll',
-      markdownDefault: 'reader',
-      htmlDefault: 'preview',
+      documentsDefault: 'rendered',
       collapseSpecs: false,
       reviewListGroupOpen: {},
       archiveDeleteWorktree: true,
@@ -45,8 +44,7 @@ it.each([true, false])(
       appearance: 'dark',
       diffStyle: 'unified',
       lineOverflow: wrapLongLines ? 'wrap' : 'scroll',
-      markdownDefault: 'source',
-      htmlDefault: 'source',
+      documentsDefault: 'source',
       collapseSpecs: false,
       reviewListGroupOpen: {},
       archiveDeleteWorktree: true,
@@ -63,8 +61,7 @@ it('keeps an old web record and writes only the canonical shape', () => {
     appearance: 'light',
     diffStyle: 'split',
     lineOverflow: 'wrap',
-    markdownDefault: 'source',
-    htmlDefault: 'source',
+    documentsDefault: 'source',
     collapseSpecs: true,
   } as const;
   expect(readPreferences(JSON.stringify(saved))).toEqual(saved);
@@ -77,8 +74,7 @@ it.each([
   ['appearance', 'automatic'],
   ['diffStyle', 'side-by-side'],
   ['lineOverflow', true],
-  ['markdownDefault', 'preview'],
-  ['htmlDefault', 'reader'],
+  ['documentsDefault', 'preview'],
   ['collapseSpecs', 'true'],
   ['reviewListGroupOpen', { Projects: 'false' }],
 ] as const)(
@@ -107,8 +103,7 @@ it.each([
   'appearance',
   'diffStyle',
   'lineOverflow',
-  'markdownDefault',
-  'htmlDefault',
+  'documentsDefault',
   'collapseSpecs',
   'reviewListGroupOpen',
 ] as const)('repairs missing %s without losing another field', (key) => {
@@ -137,7 +132,7 @@ it('repairs invalid legacy fields independently', () => {
     readPreferences(
       '{"theme":"automatic","wrapLongLines":"false","htmlDefault":"source"}',
     ),
-  ).toEqual({ ...defaultPreferences, htmlDefault: 'source' });
+  ).toEqual({ ...defaultPreferences, documentsDefault: 'source' });
 });
 it('reads web records through the browser key-value path, keeping an old record and repairing only a bad field', async () => {
   const old = {
@@ -147,8 +142,7 @@ it('reads web records through the browser key-value path, keeping an old record 
     appearance: 'light',
     diffStyle: 'split',
     lineOverflow: 'wrap',
-    markdownDefault: 'source',
-    htmlDefault: 'source',
+    documentsDefault: 'source',
     collapseSpecs: true,
   } as const;
   const result = await Effect.runPromise(
@@ -205,3 +199,34 @@ it('round-trips independent review group choices without losing other preference
   ).toEqual(saved);
   expect(saved.appearance).toBe('dark');
 });
+
+it.each([
+  [{}, 'rendered'],
+  [{ markdownDefault: 'reader', htmlDefault: 'preview' }, 'rendered'],
+  [{ markdownDefault: 'source' }, 'source'],
+  [{ htmlDefault: 'source' }, 'source'],
+  [{ markdownDefault: 'source', htmlDefault: 'source' }, 'source'],
+  [{ markdownDefault: 'source', htmlDefault: 'preview' }, 'source'],
+  [{ markdownDefault: 'reader', htmlDefault: 'source' }, 'source'],
+  [{ markdownDefault: false, htmlDefault: 'reader' }, 'rendered'],
+  [{ documentsDefault: 'rendered', markdownDefault: 'source' }, 'rendered'],
+  [{ documentsDefault: 'source', htmlDefault: 'preview' }, 'source'],
+] as const)(
+  'migrates document choices %j to %s and writes only the new preference',
+  (legacy, expected) => {
+    const preferences = readPreferences(
+      JSON.stringify({ ...legacy, commitModel: 'keep me' }),
+    );
+    expect(preferences.documentsDefault).toBe(expected);
+    expect(preferences.commitModel).toBe('keep me');
+    const encoded = Schema.encodeSync(preferencesSchema)(preferences);
+    expect(encoded).toEqual({
+      ...defaultPreferences,
+      documentsDefault: expected,
+      commitModel: 'keep me',
+    });
+    expect(encoded).not.toHaveProperty('markdownDefault');
+    expect(encoded).not.toHaveProperty('htmlDefault');
+    expect(readPreferences(JSON.stringify(encoded))).toEqual(preferences);
+  },
+);

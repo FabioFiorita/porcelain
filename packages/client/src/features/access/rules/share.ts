@@ -12,7 +12,12 @@ export type RemoteRouteName = keyof RemoteAccess['routes'];
 export type RemoteRoute = RemoteAccess['routes'][RemoteRouteName];
 type PairingAddress = { route: RemoteRouteName; url: string };
 type DeviceRoute = ListAccessResponse['devices'][number]['route'];
-type IssuedLink = { label: string; link: string; expiresAt: string };
+type IssuedLink = {
+  id: string;
+  label: string;
+  link: string;
+  expiresAt: string;
+};
 
 const remoteRouteNames: readonly RemoteRouteName[] = [
   'lan',
@@ -95,6 +100,7 @@ export function issuedLink(issued: IssuePairingResponse): IssuedLink | null {
   const [first] = issued.grants;
   if (!first) return null;
   return {
+    id: first.grant.id,
     label: first.grant.label,
     link: pairingLink(first.link),
     expiresAt: first.grant.expiresAt,

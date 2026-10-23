@@ -443,9 +443,7 @@ function defaultFileDisplayMode(
   kind: ReadableFileKind,
   preferences: ReturnType<typeof usePreferences>['preferences'],
 ): FileDisplayMode {
-  if (kind === 'markdown')
-    return preferences.markdownDefault === 'reader' ? 'rendered' : 'source';
-  if (kind === 'html')
-    return preferences.htmlDefault === 'preview' ? 'rendered' : 'source';
+  if (kind === 'markdown' || kind === 'html')
+    return preferences.documentsDefault;
   return 'source';
 }

@@ -7,6 +7,10 @@ selectors:
   - 'Review'
   - 'Select a worktree to continue.'
   - 'No changes'
+  - 'Briefing'
+  - 'You asked'
+  - 'The walkthrough'
+  - 'Continue at decision'
   - 'Open review overview'
   - 'Read agent summary'
   - 'Return to walkthrough'
@@ -26,6 +30,7 @@ tests:
   - packages/client/src/features/reviews/queries/publication.spec.ts
   - packages/client/src/features/reviews/commands/decisions.spec.ts
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
+  - apps/mobile/src/features/reviews/rules/briefing.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - GET /api/inventory
@@ -65,6 +70,14 @@ Precondition: `--fixture development`. Expect decisions in publication order: Ke
 1. Open each decision; Next/Previous move stops. Read a pointer: path/range/source numbers, Show whole file/Show relevant range. Open its diff then Back/iPad Review tab returns to that decision/pointer. Read agent summary shows supplied HTML without scripts/remote assets; Return to walkthrough restores the stop.
 2. Switch worktrees/back: same review restores its stop without leaks. A new revision starts its briefing; Branch/Uncommitted remain independent. No publication says No agent review; no decisions says No walkthrough decisions. Loading/failure shows state/Read again; Refresh review retries publication and expired summary links.
 3. On iPad fail/hold changed-file reads: saved decisions remain usable, with separate loading/error and Read again. Unknown coverage cannot look empty. Retry restores Not explained/diff links. Missing worktree shows saved-review diagnostics and disables code pointers.
+
+### Phone briefing
+
+1. Open a committed review with a verdict. The native title is Briefing; Recommendation (Merge or Hold) and every reason precede You asked and its links. Needs your decision shows the problem and opens the connected decision. Owners use the shared New, Changed and Removed classification and only linked owners are tappable.
+2. Expect one Proven at the seven-character published head card, failed checks before passing checks, optional output, and a stale-check notice after edits. No checks/assets says No proof was published. Open image proof: retained bytes render; hide it and reopen. A failed asset read offers Read again. Link assets open externally; videos explicitly open the exact published revision in the browser.
+3. Removed lists actual deleted paths with behavior and reason; Not proven lists every gap or says none were reported. The walkthrough lists decisions in publication order, then Not explained (including partial coverage), then Specs when present. No publication, no decisions and legacy verdict-free reviews retain their explicit empty states.
+4. Scroll from the first card through the last walkthrough row: Continue at decision n remains fixed above the tab bar. It opens the first unfinished decision (the first decision when all are complete or progress is unknown). Back/Overview returns to briefing; decision marking and code-pointer navigation remain available. Republish: the new revision starts at briefing and proof remains pinned to its head.
+5. Repeat Merge, Hold with a question, image proof with a removed file and Not proven, and a long title in Android light/dark. Check full accessible names, many entries and larger text. Compare with v0.71.1: Asked, Recommendation, Proven, Removed and assets were absent from its worktree briefing. iOS, physical LAN and remote connections require separate proof.
 
 ### Completion and progress
 

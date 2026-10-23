@@ -2,7 +2,7 @@ import { expect, test } from './fixtures.ts';
 import { openSettingsAtFirstEntry } from '../kit/settings.ts';
 
 for (const predecessor of [false, true]) {
-  for (const action of ['Back', 'Escape']) {
+  for (const action of ['Close Settings', 'Escape']) {
     test(`Settings direct-entry history: ${action} returns ${predecessor ? 'to the actual predecessor' : 'to the workspace without a predecessor'} after section navigation`, async ({
       pairedPage,
       app,
@@ -48,9 +48,9 @@ for (const predecessor of [false, true]) {
           .getByRole('navigation', { name: 'Settings sections', exact: true })
           .getByRole('button', { name: 'Computers', exact: true })
           .click();
-        if (action === 'Back')
+        if (action === 'Close Settings')
           await settings
-            .getByRole('button', { name: 'Back', exact: true })
+            .getByRole('button', { name: 'Close Settings', exact: true })
             .click();
         else await page.keyboard.press('Escape');
         await expect(settings).not.toBeAttached();

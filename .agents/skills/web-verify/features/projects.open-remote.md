@@ -7,7 +7,7 @@ selectors:
   - 'Computers'
   - 'Pairing link'
   - 'Add'
-  - 'Back'
+  - 'Close Settings'
   - 'Online'
   - 'Open project'
   - 'Open project on'
@@ -62,7 +62,7 @@ Required instance mode: `--desktop`.
 ### Case 1: open a project on the remote computer
 
 1. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: the navigator header names this computer. The former per-computer Settings shortcut buttons are absent; Settings → Computers owns those details. Projects remains available from its own navigator control.
+   Expect: the navigator header says Porcelain without a computer name. The former per-computer Settings shortcut buttons are absent; Settings → Computers owns those details. Projects remains available from its own navigator control.
 2. Click button `Open project`
    Expect: menu "Open project" with group "Open project on" holding menuitems "This computer" and "Remote journey computer".
 3. Click menuitem `Remote journey computer`

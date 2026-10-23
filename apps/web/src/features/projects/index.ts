@@ -5,7 +5,6 @@ export { useHiddenPaths, usePinnedPaths } from './queries/file-preferences';
 export { useInventory } from './queries/inventory';
 
 export type { WorktreeTarget } from './rules/worktree-target';
-export { NavigatorHeader } from './views/navigator-header';
 export { OpenProjectDialog } from './views/open-project-dialog';
 export { ProjectNavigator } from './views/project-navigator';
 export { RemoveProjectDialog } from './views/remove-project-dialog';

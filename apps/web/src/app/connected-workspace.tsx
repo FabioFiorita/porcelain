@@ -133,7 +133,6 @@ export function ConnectedWorkspace({
     void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
-    inventory: localInventory,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     onOpenProject: (entry: RemoteConnection | null) =>
@@ -143,7 +142,6 @@ export function ConnectedWorkspace({
           })
         : openHere(),
     onOpenSettings: () => openSettings(),
-    onOpenComputers: () => openSettings('computers'),
     onOpenRemotes: (environmentId: string) => {
       setOpenMobile(false);
       void navigate({

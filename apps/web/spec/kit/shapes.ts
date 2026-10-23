@@ -17,10 +17,15 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
   return {
     ...rest,
     initialBranch,
-    review: async (title: string) =>
+    review: async (title: string, asked?: string) =>
       Schema.decodeUnknownSync(reviewFixtureSchema)(
         JSON.parse(
-          await step({ kind: 'review-fixture', operation: 'publish', title }),
+          await step({
+            kind: 'review-fixture',
+            operation: 'publish',
+            title,
+            asked,
+          }),
         ),
       ),
     advanceReviewBranch: () =>

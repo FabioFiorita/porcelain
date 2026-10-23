@@ -1,7 +1,7 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('the owner names this computer in Settings, and the tab title, pairing and the navigator header show the name', async ({
+test('the owner names this computer in Settings, tab titles and pairing while the navigator stays generic', async ({
   pairedPage,
   app,
   server,
@@ -15,9 +15,8 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(
-    navigator.getByText(`Porcelain${host}`, { exact: true }),
-  ).toBeVisible();
+  await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
+  await expect(navigator.getByText(host, { exact: true })).not.toBeAttached();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
@@ -39,24 +38,27 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await expect
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: 'Workstation', custom: true });
-  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect(
     settings.getByText(/to connect it to Workstation\./),
   ).toBeVisible();
-  await openThisComputer(pairedPage);
   await expect(save).toBeDisabled();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect
     .poll(() => app.title())
     .toBe(`Changes — ${project} · Workstation`);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
-    navigator.getByText('PorcelainWorkstation', { exact: true }),
-  ).toBeVisible();
+    navigator.getByText('Workstation', { exact: true }),
+  ).not.toBeAttached();
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
@@ -68,7 +70,11 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: host, custom: false });
   await expect.poll(() => app.title()).toBe('Settings');
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await settings
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
 });

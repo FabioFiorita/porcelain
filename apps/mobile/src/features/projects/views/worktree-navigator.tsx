@@ -10,9 +10,6 @@ import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import {
   emptyReviewListFilter,
   reviewListGroups,
-  reviewListMeta,
-  reviewListSignal,
-  reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -21,7 +18,6 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { usePreferences } from '../../preferences/index';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
-import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -33,6 +29,7 @@ import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
+import { worktreeRow } from '../rules/worktree-row';
 
 export function WorktreeNavigator({
   onSelect,
@@ -261,18 +258,18 @@ export function WorktreeNavigator({
                           row.selected && row.worktree.id === entry.worktreeId,
                       ),
                   );
-                  const signal = reviewListSignal(entry);
-                  const context = reviewListRowContext(entry, multipleProjects);
-                  const signalIcon = {
-                    destructive: 'warning',
-                    primary: 'check',
-                    muted: 'info',
-                  } as const;
+                  const row = worktreeRow(entry, multipleProjects, selected);
+                  const { context } = row;
                   return (
                     <Item
                       key={entry.key}
                       title={entry.title}
                       titleNumberOfLines={1}
+                      leading={
+                        <Box className="self-start mt-0.5">
+                          <Icon name={row.icon} tone={row.tone} size="small" />
+                        </Box>
+                      }
                       titleTrailing={
                         entry.reviewId ? (
                           <Text variant="caption" tone="muted">
@@ -283,7 +280,7 @@ export function WorktreeNavigator({
                       size="xs"
                       selected={selected}
                       disabled={picker.disabled || (!closed && entry.disabled)}
-                      accessibilityLabel={`${entry.title}, ${reviewListMeta(entry, Date.now())}, ${entry.environmentName}${entry.reviewId ? `, ${entry.reviewed}/${entry.total} decisions reviewed, ${entry.badges.map((badge) => badge.label).join(', ')}` : ''}${selected ? ', current' : ''}${entry.disabled ? ', unavailable' : ''}`}
+                      accessibilityLabel={row.accessibilityLabel}
                       action={
                         entry.archivable ? (
                           <ArchiveAction entry={entry} projects={projects} />
@@ -292,48 +289,30 @@ export function WorktreeNavigator({
                       onPress={() => open(entry)}
                     >
                       <Box className="min-w-0 flex-row items-center" gap={1}>
-                        {signal ? (
-                          <Icon
-                            name={signalIcon[signal.tone]}
-                            tone={signal.tone}
-                            size="small"
-                          />
+                        {context.project ? (
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                            className={
+                              context.branch
+                                ? 'min-w-0 max-w-1/2 shrink'
+                                : 'min-w-0 flex-1'
+                            }
+                          >
+                            {context.project}
+                          </Text>
                         ) : null}
-                        <Box
-                          className="min-w-0 flex-1 flex-row items-center"
-                          gap={1}
-                        >
-                          {context.project ? (
-                            <Text
-                              variant="caption"
-                              tone="muted"
-                              numberOfLines={1}
-                              className={
-                                context.branch
-                                  ? 'min-w-0 max-w-1/2 shrink'
-                                  : 'min-w-0 flex-1'
-                              }
-                            >
-                              {context.project}
-                            </Text>
-                          ) : null}
-                          {context.branch ? (
-                            <Text
-                              variant="caption"
-                              tone="muted"
-                              numberOfLines={1}
-                              className="min-w-0 flex-1"
-                            >
-                              {context.branch}
-                            </Text>
-                          ) : null}
-                        </Box>
-                        <Badge
-                          label={entry.environmentName}
-                          labelNumberOfLines={1}
-                          variant="secondary"
-                          className="max-w-1/2"
-                        />
+                        {context.branch ? (
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                            className="min-w-0 flex-1"
+                          >
+                            {context.branch}
+                          </Text>
+                        ) : null}
                       </Box>
                     </Item>
                   );

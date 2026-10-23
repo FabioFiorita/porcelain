@@ -165,6 +165,180 @@ test('a page can read only the opaque health identity before pairing and needs a
   expect(preflight.headers['access-control-allow-origin']).toBeUndefined();
 });
 
+test('unvalidated bearer credentials never disclose the environment descriptor across origins', async ({
+  session,
+}) => {
+  const { cookie } = await pairBrowser(session);
+  const device = await pairDevice(session, 'Revoked descriptor reader');
+  await read(
+    session,
+    owner({
+      method: 'POST',
+      path: '/access/revoke',
+      body: { id: device.deviceId },
+    }),
+  );
+  const credentials = [
+    { name: 'fabricated', value: 'x' },
+    { name: 'empty', value: '' },
+    {
+      name: 'unknown',
+      value: `pcd_00000000-0000-4000-8000-000000000000_${'a'.repeat(43)}`,
+    },
+    { name: 'revoked', value: device.credential },
+  ];
+
+  for (const credential of credentials) {
+    for (const auth of ['none', { cookie }] as const) {
+      const response = await session.send({
+        method: 'GET',
+        path: '/api/environment',
+        headers: {
+          ...fromApp,
+          authorization: `Bearer ${credential.value}`,
+        },
+        auth,
+      });
+
+      expect(response.status, credential.name).toBe(401);
+      expect(response.body, credential.name).toStrictEqual(unauthenticated);
+      expect(
+        response.headers['access-control-allow-origin'],
+        credential.name,
+      ).toBeUndefined();
+    }
+  }
+});
+
+test('descriptor preflights allow authorization without granting access to the subsequent read', async ({
+  session,
+}) => {
+  const preflight = await session.send({
+    method: 'OPTIONS',
+    path: '/api/environment',
+    auth: 'none',
+    headers: {
+      ...fromApp,
+      'access-control-request-method': 'GET',
+      'access-control-request-headers': 'authorization',
+    },
+  });
+  expect(preflight.status).toBe(204);
+  expect(preflight.headers['access-control-allow-origin']).toBe('*');
+  expect(preflight.headers['access-control-allow-headers']).toBe(
+    'authorization, content-type',
+  );
+  expect(preflight.headers['access-control-allow-credentials']).toBeUndefined();
+
+  const response = await session.send({
+    method: 'GET',
+    path: '/api/environment',
+    headers: fromApp,
+    auth: { bearer: 'x' },
+  });
+  expect(response.status).toBe(401);
+  expect(response.body).toStrictEqual(unauthenticated);
+  expect(response.headers['access-control-allow-origin']).toBeUndefined();
+});
+
+test('descriptor route aliases also validate the bearer before granting cross-origin access', async ({
+  session,
+}) => {
+  for (const path of [
+    '/api/environment/',
+    '/api//environment',
+    '/api/Environment',
+    '/api/environment?probe=1',
+  ]) {
+    const response = await session.send({
+      method: 'GET',
+      path,
+      headers: fromApp,
+      auth: { bearer: 'x' },
+    });
+
+    expect(response.status, path).toBe(401);
+    expect(response.body, path).toStrictEqual(unauthenticated);
+    expect(
+      response.headers['access-control-allow-origin'],
+      path,
+    ).toBeUndefined();
+  }
+});
+
+test('public discovery stays available on the same origin and does not share cookie-authenticated metadata with another origin', async ({
+  session,
+}) => {
+  const { cookie } = await pairBrowser(session);
+  const paired = await session.send({
+    method: 'GET',
+    path: '/api/environment',
+  });
+  expect(paired.status).toBe(200);
+  for (const headers of [{}, { origin: session.address }]) {
+    const anonymous = await session.send({
+      method: 'GET',
+      path: '/api/environment',
+      headers,
+      auth: 'none',
+    });
+
+    expect(anonymous.status).toBe(200);
+    expect(anonymous.body).toStrictEqual(paired.body);
+    expect(anonymous.headers['access-control-allow-origin']).toBeUndefined();
+
+    const unknown = await session.send({
+      method: 'GET',
+      path: '/api/environment',
+      headers,
+      auth: { bearer: 'x' },
+    });
+    expect(unknown.status).toBe(200);
+    expect(unknown.body).toStrictEqual(paired.body);
+    expect(unknown.headers['access-control-allow-origin']).toBe('*');
+  }
+  const cookieOnly = await session.send({
+    method: 'GET',
+    path: '/api/environment',
+    headers: fromApp,
+    auth: { cookie },
+  });
+  expect(cookieOnly.status).toBe(200);
+  expect(cookieOnly.body).toStrictEqual(paired.body);
+  expect(cookieOnly.headers['access-control-allow-origin']).toBeUndefined();
+});
+
+test('health stays anonymous when a caller presents an invalid bearer', async ({
+  session,
+}) => {
+  for (const method of ['GET', 'HEAD'] as const) {
+    const response = await session.send({
+      method,
+      path: '/api/health',
+      headers: fromApp,
+      auth: { bearer: 'x' },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['access-control-allow-origin']).toBe('*');
+    if (method === 'GET')
+      expect(response.body).toEqual(
+        expect.schemaMatching(
+          Schema.toStandardSchemaV1(Schema.toEncoded(readHealthResponseSchema)),
+        ),
+      );
+    else expect(response.body).toBeUndefined();
+  }
+  const inventory = await session.send({
+    method: 'GET',
+    path: '/api/inventory',
+    headers: fromApp,
+    auth: { bearer: 'x' },
+  });
+  expect(inventory.status).toBe(401);
+  expect(inventory.body).toStrictEqual(unauthenticated);
+});
+
 test('a pairing redemption may be preflighted from another origin without allowing credentials', async ({
   session,
 }) => {
@@ -312,8 +486,8 @@ test('an empty or unknown bearer beside a valid cookie never authenticates by th
     }),
   );
 
-  expect(empty.status).toBe(403);
-  expect(empty.body).toStrictEqual(refusedFromApp);
+  expect(empty.status).toBe(401);
+  expect(empty.body).toStrictEqual(unauthenticated);
   expect(unknown.status).toBe(401);
   expect(unknown.body).toStrictEqual(unauthenticated);
   expect(here.status).toBe(401);
