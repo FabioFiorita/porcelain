@@ -127,14 +127,17 @@ export function ReviewPage({
   if (!data?.review || !data.revision)
     return (
       <div className="p-4">
-        <ReviewEmpty
-          title={data?.review ? 'Revision not found' : 'Review not found'}
-          description="This link does not identify an available review revision."
-        />
-        {data?.review && onRevision && (
-          <Button onClick={() => onRevision(undefined)}>
-            Open r{data.review.latestRevision}, the latest
-          </Button>
+        {revision === undefined ? (
+          <ReviewEmpty
+            title="Review not found"
+            description="This link does not identify an available review revision."
+          />
+        ) : (
+          <RevisionMissing
+            reviewId={reviewId}
+            context={context}
+            onRevision={onRevision}
+          />
         )}
         <Button variant="outline" onClick={onBack}>
           Back to workspace
@@ -518,7 +521,6 @@ function ReviewRevisionPage({
                         revision={revision}
                         record={record}
                         items={items}
-                        done={done}
                         threads={threads}
                         pullRequest={
                           pull?.kind === 'available'
@@ -528,13 +530,11 @@ function ReviewRevisionPage({
                         archivable={
                           record ? reviewArchivable(record, pull) : false
                         }
-                        group={
-                          reviewListStatus({
-                            revision,
-                            marks,
-                            status: worktree?.status,
-                          }).group
-                        }
+                        status={reviewListStatus({
+                          revision,
+                          marks,
+                          status: worktree?.status,
+                        })}
                         scope={scope}
                         context={context}
                         onGo={go}
@@ -558,6 +558,14 @@ function ReviewRevisionPage({
                           ? `Decision ${stop.number} of ${decisionCount}`
                           : stopName(stop)
                       }
+                      shortLabel={
+                        stop.kind === 'decision'
+                          ? `${stop.number} of ${decisionCount}`
+                          : ''
+                      }
+                      stops={stops}
+                      current={stop.key}
+                      onGo={go}
                       onPrevious={neighbour(-1)}
                       onNext={neighbour(1)}
                     >
@@ -578,6 +586,7 @@ function ReviewRevisionPage({
                           revision={revision}
                           files={revision.files.filter(
                             (file) =>
+                              file.newOid !== undefined &&
                               stop.paths.includes(file.path) &&
                               items.find((item) => item.path === file.path)
                                 ?.reviewStatus !== 'reviewed',
@@ -629,10 +638,9 @@ function MarginRowDock({ children }: { children: ReactNode }) {
 }
 
 function blobFiles(files: ReviewRevision['files']) {
-  return files.flatMap((file) => {
-    const headBlobOid = file.newOid ?? file.oldOid;
-    return headBlobOid ? [{ path: file.path, headBlobOid }] : [];
-  });
+  return files.flatMap((file) =>
+    file.newOid ? [{ path: file.path, headBlobOid: file.newOid }] : [],
+  );
 }
 
 function DecisionMark({
@@ -722,6 +730,35 @@ function FilesMark({
         <p role="alert" className="sr-only">
           Some files could not be marked reviewed. Try again.
         </p>
+      )}
+    </>
+  );
+}
+
+function RevisionMissing({
+  reviewId,
+  context,
+  onRevision,
+}: {
+  reviewId: string;
+  context: ConnectionContext;
+  onRevision: ReviewPageProps['onRevision'];
+}) {
+  const latest = Option.getOrUndefined(
+    AsyncResult.value(
+      useAtomValue(readReview({ connection: context.connection, reviewId })),
+    ),
+  )?.review;
+  return (
+    <>
+      <ReviewEmpty
+        title={latest ? 'Revision not found' : 'Review not found'}
+        description="This link does not identify an available review revision."
+      />
+      {latest && onRevision && (
+        <Button onClick={() => onRevision(undefined)}>
+          Open r{latest.latestRevision}, the latest
+        </Button>
       )}
     </>
   );

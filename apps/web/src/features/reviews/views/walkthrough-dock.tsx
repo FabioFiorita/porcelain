@@ -1,7 +1,17 @@
 import { formatForDisplay } from '@tanstack/react-hotkeys';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import {
   Tooltip,
@@ -9,14 +19,27 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import {
+  stopTitle,
+  type WalkthroughKey,
+  type WalkthroughStop,
+} from '@porcelain/client/reviews/rules';
 
 export function WalkthroughDock({
   label,
+  shortLabel,
+  stops,
+  current,
+  onGo,
   onPrevious,
   onNext,
   children,
 }: {
   label: string;
+  shortLabel: string;
+  stops: readonly WalkthroughStop[];
+  current: WalkthroughKey;
+  onGo: (key: WalkthroughKey) => void;
   onPrevious: (() => void) | undefined;
   onNext: (() => void) | undefined;
   children: ReactNode;
@@ -37,9 +60,37 @@ export function WalkthroughDock({
         <DockStep label="Next stop" keys={SHORTCUTS.nextStop} onClick={onNext}>
           <ChevronRightIcon />
         </DockStep>
-        <span className="min-w-0 truncate px-1.5 text-sm font-medium">
-          {label}
-        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="min-w-0"
+                aria-label={`${label}, jump to a stop`}
+              />
+            }
+          >
+            <span className="min-w-0 truncate tabular-nums">
+              <span className="@2xl/review:hidden">{shortLabel}</span>
+              <span className="hidden @2xl/review:inline">{label}</span>
+            </span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top">
+            {stops.map((stop) => (
+              <DropdownMenuItem
+                key={stop.key}
+                aria-current={stop.key === current ? 'step' : undefined}
+                onClick={() => onGo(stop.key)}
+              >
+                {stop.kind === 'briefing'
+                  ? 'Open the briefing'
+                  : stopTitle(stop)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <KbdGroup className="mr-1.5 hidden @2xl/review:inline-flex">
           <Kbd>{formatForDisplay(SHORTCUTS.previousStop)}</Kbd>
           <Kbd>{formatForDisplay(SHORTCUTS.nextStop)}</Kbd>

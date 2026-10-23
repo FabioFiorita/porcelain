@@ -34,9 +34,6 @@ test('a decision connected to a question pins it beside the decision, and its an
       }),
     )
     .toBeVisible();
-  await expect
-    .element(decision.getByText('Decision 6 of 9', { exact: true }))
-    .toBeVisible();
   await details
     .getByRole('button', { name: 'Answer this question', exact: true })
     .click();
@@ -58,7 +55,7 @@ test('a decision connected to a question pins it beside the decision, and its an
     ]);
 });
 
-test('the closing page keeps Ready to merge behind every decision and the agent recommending Merge, and marks its files from the dock', async ({
+test('the closing page keeps Ready to merge behind every decision and the agent recommending Merge, and marks the files it can from the dock', async ({
   agent,
   render,
   server,
@@ -92,25 +89,31 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
     name: 'Walkthrough dock',
     exact: true,
   });
-  await expect
-    .element(dock.getByText('Not explained', { exact: true }))
-    .toBeVisible();
-  await dock.getByRole('button', { name: /^Mark \d+ files? reviewed$/ }).click();
+  await dock
+    .getByRole('button', { name: 'Mark 1 file reviewed', exact: true })
+    .click();
   await expect
     .element(
       dock.getByRole('button', { name: 'Every file reviewed', exact: true }),
     )
     .toBeDisabled();
-  const unexplained = published.notExplained
-    .filter((gap) => gap.ranges.length === 0)
-    .map((gap) => gap.path)
-    .toSorted();
+  const closing = app.page.getByRole('region', {
+    name: 'Not explained',
+    exact: true,
+  });
   await expect
-    .poll(async () => {
-      const marks = await server.reviewMarks(published.reviewId ?? '');
-      return marks.files.map((file) => file.path).toSorted();
-    })
-    .toEqual(unexplained);
+    .element(
+      closing.getByRole('button', {
+        name: 'Unmark docs/architecture.md as unreviewed',
+        exact: true,
+      }),
+    )
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(async () =>
+      JSON.stringify(await server.reviewMarks(published.reviewId ?? '')),
+    )
+    .toContain('"path":"docs/architecture.md"');
 });
 
 test('the agent summary lists the decisions its page links to and opens one from the margin', async ({

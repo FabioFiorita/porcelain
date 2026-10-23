@@ -298,7 +298,7 @@ function RouteTable({
           {layer.steps.length} {layer.steps.length === 1 ? 'step' : 'steps'}
         </span>
         {route.length > 0 && (
-          <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 font-medium">
+          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 font-medium @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
             {route.map((lane, index) => (
               <li
                 key={`${lane}:${index}`}

@@ -82,20 +82,14 @@ export function SummaryFrame({
                         className="flex w-full items-start gap-2 py-2 text-left text-caption hover:bg-accent/50 disabled:text-muted-foreground disabled:hover:bg-transparent"
                       >
                         <span
+                          aria-hidden="true"
                           className={cn(
                             'grid size-5 shrink-0 place-items-center rounded-full border text-2xs tabular-nums',
                             reviewed &&
                               'border-graph-1 bg-graph-1 text-background',
                           )}
                         >
-                          {reviewed ? (
-                            <CheckIcon
-                              className="size-3"
-                              aria-label="Reviewed"
-                            />
-                          ) : (
-                            number
-                          )}
+                          {reviewed ? <CheckIcon className="size-3" /> : number}
                         </span>
                         <span className="min-w-0 wrap-anywhere">
                           {layer

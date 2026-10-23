@@ -35,7 +35,11 @@ type ClosingStop = Extract<
   WalkthroughStop,
   { kind: 'unexplained' } | { kind: 'specs' }
 >;
-type CompletionGroup = ReturnType<typeof reviewListStatus>['group'];
+type CompletionStatus = Pick<
+  ReturnType<typeof reviewListStatus>,
+  'group' | 'reviewed' | 'total'
+>;
+type CompletionGroup = CompletionStatus['group'];
 type LinkedPullRequest = { number: number; url: string; state: string };
 
 export function ClosingPage({
@@ -44,11 +48,10 @@ export function ClosingPage({
   revision,
   record,
   items,
-  done,
   threads,
   pullRequest,
   archivable,
-  group,
+  status,
   scope,
   context,
   onGo,
@@ -59,11 +62,10 @@ export function ClosingPage({
   revision: ReviewRevision;
   record: DurableReviewRead['review'];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
-  done: (stop: WalkthroughStop) => boolean;
   threads: readonly CommentThread[];
   pullRequest: LinkedPullRequest | undefined;
   archivable: boolean;
-  group: CompletionGroup;
+  status: CompletionStatus;
   scope: WalkthroughProps['scope'];
   context: ConnectionContext;
   onGo: (key: WalkthroughKey) => void;
@@ -95,11 +97,10 @@ export function ClosingPage({
             revision={revision}
             record={record}
             items={items}
-            done={done}
             threads={threads}
             pullRequest={pullRequest}
             archivable={archivable}
-            group={group}
+            status={status}
             scope={scope}
             context={context}
           />
@@ -247,11 +248,10 @@ function CompletionCard({
   revision,
   record,
   items,
-  done,
   threads,
   pullRequest,
   archivable,
-  group,
+  status,
   scope,
   context,
 }: {
@@ -259,20 +259,17 @@ function CompletionCard({
   revision: ReviewRevision;
   record: DurableReviewRead['review'];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
-  done: (stop: WalkthroughStop) => boolean;
   threads: readonly CommentThread[];
   pullRequest: LinkedPullRequest | undefined;
   archivable: boolean;
-  group: CompletionGroup;
+  status: CompletionStatus;
   scope: WalkthroughProps['scope'];
   context: ConnectionContext;
 }) {
   const [asking, setAsking] = useState(false);
   const [askButton, setAskButton] = useState<HTMLButtonElement | null>(null);
-  const decisionStops = stops.filter((stop) => stop.kind === 'decision');
-  const reviewed = decisionStops.filter((stop) => done(stop)).length;
-  const allDecisions =
-    decisionStops.length > 0 && reviewed === decisionStops.length;
+  const { group } = status;
+  const allDecisions = status.total > 0 && status.reviewed === status.total;
   const merge = revision.verdict.recommendation === 'merge';
   const files = filesReviewed(
     stops.flatMap((stop) => stop.paths),
@@ -299,7 +296,7 @@ function CompletionCard({
           <h3 className="text-sm font-semibold">
             {allDecisions
               ? 'Every decision is reviewed'
-              : `${reviewed} of ${decisionStops.length} decisions reviewed`}
+              : `${status.reviewed} of ${status.total} decisions reviewed`}
           </h3>
           <p className="text-muted-foreground tabular-nums">
             {files.reviewed} of {files.total} files reviewed
