@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ElementTarget } from '@/shared/hooks/use-element';
 import { useNavigate } from '@tanstack/react-router';
 import {
   settingsUpdateAvailable,
@@ -6,6 +7,8 @@ import {
   settingsUpdateBatchProgress,
   type SettingsUpdateEntry,
 } from '@porcelain/client/access';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -18,8 +21,22 @@ import {
 import { useSettingsUpdates } from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 
-export function UpdatesMenu() {
-  const { rows, targets, count, batch, run } = useSettingsUpdates();
+export function UpdatesMenu({
+  fallbackFocus,
+}: {
+  fallbackFocus: ElementTarget<HTMLButtonElement>;
+}) {
+  const {
+    rows,
+    targets,
+    count,
+    batch,
+    run,
+    failures,
+    checking,
+    refresh,
+    retry,
+  } = useSettingsUpdates();
   const navigate = useNavigate();
   const { setOpenMobile } = useSidebar();
   const [open, setOpen] = useState(false);
@@ -35,18 +52,52 @@ export function UpdatesMenu() {
   const progressLabel = progress.label
     ? `${progress.label}…`
     : 'Preparing updates…';
-  if (!settingsUpdatesVisible(targets, batch) && !open) return null;
+  const visible = settingsUpdatesVisible(targets, batch);
+  let title = 'Updates available';
+  if (!visible && batch.entries.length === 0) title = 'No updates available';
+  if (failures.length > 0) title = 'Could not check for updates';
+  if (!visible && !open) return null;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Badge render={<button type="button" />} />}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) refresh();
+      }}
+    >
+      <PopoverTrigger
+        className={cn(!visible && 'invisible')}
+        render={<Badge render={<button type="button" />} />}
+      >
         {batch.running ? 'Updating…' : 'Update'}
       </PopoverTrigger>
       <PopoverContent
         side="top"
         align="end"
-        className="w-88 max-w-[calc(100vw-1rem)]"
+        className="max-h-(--available-height) w-88 max-w-[calc(100vw-1rem)] overflow-y-auto"
+        finalFocus={visible ? true : () => fallbackFocus.element}
       >
-        <PopoverTitle>Updates available</PopoverTitle>
+        <PopoverTitle>{title}</PopoverTitle>
+        {failures.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTitle>The update check failed</AlertTitle>
+            <AlertDescription>
+              {failures.map((failure) => (
+                <p key={failure.id} className="wrap-anywhere">
+                  {failure.name}: {failure.message}
+                </p>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={checking}
+                onClick={retry}
+              >
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex max-h-[60svh] flex-col divide-y overflow-y-auto">
           {shown.map((row) => (
             <div key={`${row.target.kind}:${row.target.id}`} className="py-3">

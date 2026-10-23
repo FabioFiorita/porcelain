@@ -19,7 +19,10 @@ test('All changes shows the diffs of more tracked changes than one diff request 
     .toBe(count);
   const opened = await render.workspace();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await opened
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await opened
     .getByRole('button', { name: 'All changes', exact: true })
     .click();

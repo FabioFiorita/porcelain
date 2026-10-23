@@ -5,7 +5,7 @@ selectors:
   - "History"
   - "Copy commit id"
   - "Copy message"
-  - "Copy id"
+  - "Copy hash"
 tests:
   - apps/web/spec/integration/history-copy-commit.test.tsx
 api:
@@ -20,7 +20,7 @@ A commit's full id or its whole message (subject plus body) is copied from its H
 ## How to get to it (user POV)
 
 - Review → History → right-click (long-press on touch) a commit row → menuitem "Copy commit id" or "Copy message".
-- The commit document (click the row) → toolbar buttons "Copy id" and "Copy message".
+- The commit document (click the row) → toolbar buttons "Copy hash" and "Copy message".
 - The same row context menu exists on rows of the Commit graph document.
 
 ## Driving it with browser
@@ -49,10 +49,10 @@ Keep the 40-character id the second line prints; it is what the toasts must show
 6. Click menuitem `Copy message`
    Expect: a toast titled "Copied commit message" with the description "Explain the change to review".
 7. Click button `/^Explain the change to review/`
-   Expect: the sheet closes; heading "Explain the change to review"; title "<7-character id> — repository"; toolbar buttons "Copy id" and "Copy message".
+   Expect: the sheet closes; heading "Explain the change to review"; title "<7-character id> — repository"; toolbar buttons "Copy hash" and "Copy message".
 8. Click button `Copy message`
    Expect: a new toast "Copied commit message" with "Explain the change to review".
-9. Click button `Copy id`
+9. Click button `Copy hash`
    Expect: a new toast "Copied commit id" with the full id.
 
 ### Observable proof

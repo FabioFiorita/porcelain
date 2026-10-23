@@ -5,6 +5,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { cn } from '@/shared/lib/utils';
 import { useState } from 'react';
+import { useElement } from '@/shared/hooks/use-element';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
@@ -100,6 +101,7 @@ export function ProjectNavigator({
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
+  const settingsButton = useElement<HTMLButtonElement>();
   const { preferences, setPreference } = usePreferences();
   const connections = [
     connection,
@@ -547,6 +549,7 @@ export function ProjectNavigator({
                                       ) ?? connection
                                     }
                                     reviewId={entry.reviewId}
+                                    beforeLeave={() => setOpenMobile(false)}
                                   />
                                 ) : null}
                               </SidebarMenuItem>
@@ -589,7 +592,12 @@ export function ProjectNavigator({
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button variant="ghost" size="sm" onClick={onOpenSettings} />
+                <Button
+                  ref={(element) => settingsButton.attach(element)}
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenSettings}
+                />
               }
             >
               <SettingsIcon />
@@ -600,7 +608,7 @@ export function ProjectNavigator({
             </TooltipContent>
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <UpdatesMenu />
+            <UpdatesMenu fallbackFocus={settingsButton} />
             <Tooltip>
               <TooltipTrigger
                 render={

@@ -79,3 +79,84 @@ test.for([1280, 414])(
     }
   },
 );
+
+test.for([1440, 414])(
+  'an open update check drops its badge on failure and recovers with Try again at %i px',
+  async (width, { render, repo, server }) => {
+    await browserPage.viewport(width, 896);
+    const offered = await server.serviceUpdate();
+    try {
+      const page = await render.navigator();
+      const update = page.getByRole('button', { name: 'Update', exact: true });
+      await expect.element(update).toBeVisible();
+      const before = await server.serviceUpdateReads();
+      await repo.serviceUpdate('error');
+      await update.click();
+      await expect.poll(() => server.serviceUpdateReads()).toBe(before + 1);
+      await expect
+        .element(page.getByText('The update check failed', { exact: true }))
+        .toBeVisible();
+      await expect.element(update).not.toBeInTheDocument();
+      await expect
+        .element(page.getByText('Updates available', { exact: true }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(
+          page.getByRole('button', { name: 'Update all (0)', exact: true }),
+        )
+        .toBeDisabled();
+      await repo.serviceUpdate(offered);
+      await page
+        .getByRole('button', { name: 'Try again', exact: true })
+        .click();
+      await expect
+        .element(page.getByText('Updates available', { exact: true }))
+        .toBeVisible();
+      await expect.element(update).toBeVisible();
+      await expect
+        .element(
+          page.getByRole('button', { name: 'Update all (1)', exact: true }),
+        )
+        .toBeEnabled();
+      await expect.poll(() => server.serviceUpdateReads()).toBe(before + 2);
+    } finally {
+      await browserPage.viewport(414, 896);
+    }
+  },
+);
+
+test('Computers refreshes settled service status once and exposes recovery after a failed check', async ({
+  render,
+  repo,
+  server,
+}) => {
+  const offered = await server.serviceUpdate();
+  const app = await render.route('/');
+  await app.page
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await expect.poll(() => server.serviceUpdateReads()).toBe(1);
+  await repo.serviceUpdate('error');
+  await app.page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const settings = app.page.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await expect.element(settings).toBeVisible();
+  await settings
+    .getByRole('navigation', { name: 'Settings sections', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
+  await expect
+    .element(settings.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
+  await expect.poll(() => server.serviceUpdateReads()).toBe(2);
+  await repo.serviceUpdate(offered);
+  await settings
+    .getByRole('button', { name: 'Try again', exact: true })
+    .click();
+  await expect
+    .element(settings.getByText('Porcelain 1.0.0 → 1.1.0', { exact: true }))
+    .toBeVisible();
+  await expect.poll(() => server.serviceUpdateReads()).toBe(3);
+});

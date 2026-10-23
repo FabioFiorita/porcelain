@@ -49,7 +49,7 @@ Automated coverage: `settings-updates.spec.ts`, `settings-updates.spec.ts`.
 ## Gotchas
 
 - Phone Add computer opens a sheet; iPad opens the inline form. Cancel leaves saved computers unchanged.
-- Untrusted/unmanaged offers remain visible but are ineligible for Update all. The bundled Mac server updates through the Mac app.
+- Untrusted offers remain visible with zero eligible updates. Unmanaged computers retain their explanation in Computers but create no offer badge. The bundled Mac server updates through the Mac app.
 
 Missing SecureStore credentials keep a Needs pairing row with Pair again and Forget computer. Other computers and healthy alternate routes continue loading, and Add computer stays enabled. Pair again accepts only a missing connection address for that computer. A transient keychain read error keeps mutations disabled and offers Try again.
 

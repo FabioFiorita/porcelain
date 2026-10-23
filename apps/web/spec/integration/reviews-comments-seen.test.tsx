@@ -24,7 +24,10 @@ test('reading the comments clears the agent-replied flag, and a newer agent comm
   await expect.poll(status).toBe('replied');
 
   await review.click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: /^Comments/ }).click();
   await expect
     .element(comments.getByText(first, { exact: true }))

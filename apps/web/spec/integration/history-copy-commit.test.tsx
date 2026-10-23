@@ -42,6 +42,8 @@ test("copying a commit's id and message from its History row and its document", 
   await expect
     .element(workspace.getByText(subject, { exact: true }).last())
     .toBeVisible();
-  await workspace.getByRole('button', { name: 'Copy id', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Copy hash', exact: true })
+    .click();
   await expect.element(copied('commit id')).toBeVisible();
 });

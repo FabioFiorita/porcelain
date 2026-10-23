@@ -37,11 +37,11 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`, then click button `Review`, then click tab `Files`
    Expect: treeitem "README.md".
 2. Right-click treeitem `README.md`, then click menuitem `Open file`
-   Expect: tab "README.md Close README.md" selected; button "Edit".
+   Expect: tab "README.md" selected; button "Edit".
 3. Click button `Edit`, then replace the contents of textbox named `README.md` with 'Closed editor marker'
    Expect: status "Unsaved changes" (replacing the field contents replaces the editor's whole text).
 4. Click button `Close README.md`
-   Expect: tab "README.md Close README.md" gone; tab "Changes Close Changes" selected. Disk: `cat "$REPO/README.md"` prints `Closed editor marker`.
+   Expect: tab "README.md" gone; tab "Changes" selected. Disk: `cat "$REPO/README.md"` prints `Closed editor marker`.
 5. Without a full page load (a page load would drop the in-memory draft this step checks): Click button `Review`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`, then click button `Edit`
    Expect: before the click, the Reader's paragraph "Closed editor marker" and the button "Edit" (not "Resume edit"); after it, textbox "README.md" and status "Saves as you pause" (a fresh session whose starting text is the saved draft; the aria snapshot does not print the editor's text).
 6. Fill textbox `README.md` with 'Reopened editor marker', then click button `Done`
@@ -52,9 +52,9 @@ Preconditions: [surface baseline](README.md).
 Use fresh baseline state for each scenario.
 
 1. Navigate to `/`, click button `Review`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`
-   Expect: tab "README.md Close README.md" selected; button "Edit".
+   Expect: tab "README.md" selected; button "Edit".
 2. Right-click tab `/README.md/`, then click menuitem `/Open to the side/`
-   Expect: region "Left pane" and region "Right pane", each with a tab "README.md Close README.md" and an enabled button "Edit" (two matches).
+   Expect: region "Left pane" and region "Right pane", each with a tab "README.md" and an enabled button "Edit" (two matches).
 3. Click button `Edit` within region named `Left pane`
    Expect: region "Left pane" shows button "Done" and textbox "README.md"; the page now holds exactly one button "Edit", [disabled], in region "Right pane" (title "Editing in another pane").
 

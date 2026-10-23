@@ -34,7 +34,7 @@ A second write happens between steps 4 and 5.
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitem "notes.txt".
 2. Right-click treeitem `notes.txt`, then click menuitem `Open file`
-   Expect: tab "notes.txt Close notes.txt" selected; the code shows "needle one", "needle two", "needle three".
+   Expect: tab "notes.txt" selected; the code shows "needle one", "needle two", "needle three".
 3. Press `ControlOrMeta+f`, then replace the contents of textbox named `Find in file` with 'needle'
    Expect: status "1 of 3".
 4. Press `Enter`, then press `Enter`

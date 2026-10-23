@@ -26,7 +26,7 @@ export function AppProviders({
             },
           }}
         >
-          <TooltipProvider>
+          <TooltipProvider delay={400}>
             <WorkspaceProvider>
               <Toaster>{children}</Toaster>
             </WorkspaceProvider>

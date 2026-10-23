@@ -1,5 +1,7 @@
 import { expect, it } from 'vitest';
 import {
+  reviewArchivable,
+  reviewClosed,
   emptyReviewListFilter,
   filterReviewList,
   reviewListGroups,
@@ -419,3 +421,44 @@ it('adds project context only for multiple visible projects and avoids repeating
     ).multipleProjects,
   ).toBe(true);
 });
+
+it.each([
+  ['an open pull request', false, 'open', false],
+  ['a merged pull request', false, 'merged', true],
+  ['a closed pull request', false, 'closed', true],
+  ['an archived review', true, 'merged', false],
+] as const)(
+  'offers Archive for %s only once GitHub no longer has it open',
+  (_, archived, state, expected) => {
+    expect(
+      reviewArchivable(
+        { archived },
+        { kind: 'available', pullRequest: { state } },
+      ),
+    ).toBe(expected);
+  },
+);
+
+it('never offers Archive without a readable pull request', () => {
+  expect([
+    reviewArchivable({ archived: false }, undefined),
+    reviewArchivable({ archived: false }, { kind: 'not-linked' }),
+  ]).toEqual([false, false]);
+});
+
+it.each([
+  ['an open review with an open pull request', false, 'open', 'open', false],
+  ['a closed review', false, 'closed', 'open', true],
+  ['an archived review', true, 'open', 'open', true],
+  ['a merged pull request', false, 'open', 'merged', true],
+] as const)(
+  'treats %s as closed only once it leaves review',
+  (_, archived, state, pull, expected) => {
+    expect(
+      reviewClosed(
+        { archived, state },
+        { kind: 'available', pullRequest: { state: pull } },
+      ),
+    ).toBe(expected);
+  },
+);

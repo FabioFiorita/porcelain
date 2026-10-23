@@ -20,6 +20,7 @@ import { agentOn, projectHomeOn, sampleRepository } from '../kit/shapes.ts';
 import { World } from '../kit/world.ts';
 import { serverBuild } from './global-setup.ts';
 import {
+  capturePreviewRequests,
   failInventory,
   failRemoteStatus,
   failChangesRead,
@@ -193,6 +194,18 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
       await page.goto(address);
       return page;
     },
+    async restoreEmptyTabLayout() {
+      await page.evaluate(() => {
+        const key = Object.keys(localStorage).find((candidate) =>
+          candidate.startsWith('porcelain.tabs.'),
+        );
+        if (!key) throw new Error('The worktree tab layout was not saved.');
+        localStorage.setItem(
+          key,
+          JSON.stringify({ panes: [{ tabs: [], pinned: [] }], saved: true }),
+        );
+      });
+    },
     async reload() {
       await page.reload();
     },
@@ -201,6 +214,10 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
       return { path: url.pathname, query: url.search, fragment: url.hash };
     },
     title: () => page.title(),
+    previewColorScheme: (path: string) =>
+      page
+        .getByLabel(`${path} HTML preview`, { exact: true })
+        .getAttribute('style'),
     async follow(address: string) {
       await page.goto(address);
     },
@@ -270,6 +287,7 @@ type TestFixtures = {
     holdNextReviewRead: () => ReturnType<typeof holdNextReviewRead>;
     holdNextPost: (ending: string) => ReturnType<typeof holdNextPost>;
   };
+  previewRequests: Awaited<ReturnType<typeof capturePreviewRequests>>;
   app: Awaited<ReturnType<typeof appOf>>;
   pairedPage: Page;
   unpairedPage: Page;
@@ -427,6 +445,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       holdNextReviewRead: () => holdNextReviewRead(context),
       holdNextPost: (ending) => holdNextPost(context, ending),
     });
+  },
+  previewRequests: async ({ context }, use) => {
+    await use(await capturePreviewRequests(context));
   },
   app: async ({ page, world, live }, use) => {
     await use(await appOf(page, world, live));
