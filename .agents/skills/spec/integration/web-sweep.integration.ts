@@ -87,7 +87,7 @@ test(
     const seeds = list(
       record(JSON.parse(await readFile(`${folder}.json`, 'utf8'))).seeds,
     ).map(record);
-    expect(seeds.map((seed) => [seed.variant, seed.seeded])).toStrictEqual([
+    expect(seeds.map((seed) => [seed.variant, seed.applied])).toStrictEqual([
       ['long-text', true],
       ['many-items', true],
     ]);
@@ -122,7 +122,7 @@ test(
     expect(
       list(failedRecord.seeds)
         .map(record)
-        .map((seed) => seed.seeded),
+        .map((seed) => seed.applied),
     ).toStrictEqual([false, false]);
     expect(
       list(failedRecord.shots)

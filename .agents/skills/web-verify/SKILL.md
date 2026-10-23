@@ -40,11 +40,11 @@ Before handing off a view, run one sweep over the routes it touches; QA reruns t
 $C sweep reviews.page --board <Board>.png /settings/general --instance <id>
 ```
 
-- Pass routes as paths (`/settings/general`) or feature maps (`reviews.page`). A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance, `$reviewId` and `$layerId` from its published review; pass a concrete path for anything else. Start with `--desktop` for `shell: desktop` maps such as Settings.
+- Pass routes as paths (`/settings/general`) or feature maps (`reviews.page`). A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance, `$reviewId`, `$revision` and `$layerId` from the main worktree's published review; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
 - `--board <png>` after a route compares it with that board: its 1440 light capture beside the board, and the dark capture beside a `-D` or `-dark` sibling when one exists.
-- Each route is captured at 1440, 1080 and 414, light and dark, in three states: as-is, then after `$C agent seed long-text` (maximum-length titles, prose, file names, computer, project and device names), then after `$C agent seed many-items` (decisions, changed files, comment threads and devices). Seeds apply once per instance and stay; restart for a clean preview.
+- Each route is captured at 1440, 1080 and 414, light and dark, in three states: as-is, then after `$C agent seed long-text` (maximum-length titles, prose, file names, computer, project and device names), then after `$C agent seed many-items` (decisions, changed files, comment threads and devices). Seeds apply once per instance and stay: they commit any uncommitted fixture work, publish a new revision on the main worktree and rename the computer and project. Each sweep also pairs one more `Sweep browser` device. Restart for a clean preview.
 - Output goes to a numbered `NNN-sweep/` folder in the evidence directory: `index.md` (problems first, then a table per route), the PNGs, and `board-*.png` side-by-side images; `NNN-sweep.json` records the same results. Put the index in the PR body and attach the images.
-- The sweep exits 1 when any capture has a page error, a console error, a failed document response, horizontal overflow (it names the elements past the edge) or a theme that did not apply. It still writes the index.
+- The sweep exits 1 when any capture has a page error, a console error, a failed document response, a redirect, horizontal overflow (it names the elements past the edge) or a theme that did not apply, and when the sweep itself stops early. It still writes the index with everything captured so far.
 
 ## Inject browser failures
 

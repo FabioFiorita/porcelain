@@ -39,7 +39,8 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   sweep <route|feature map> [--board <png>] ...
                           capture each route at 1440, 1080 and 414, light and dark, as-is
                           and with the long-text and many-items seeds; write index.md; fail
-                          on a page error or horizontal overflow
+                          on a page or console error, an HTTP failure, a redirect,
+                          horizontal overflow or a theme that did not apply
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-architecture | seed long-text|many-items
   agent publish-revision "<title>" | advance-review-branch | remove-review-worktree
@@ -209,7 +210,8 @@ async function command(args: readonly string[]): Promise<string> {
       gitInterruption: values['git-interruption'],
     });
   if (name === 'doctor') return doctor();
-  if (name === undefined) throw new Usage(usage);
+  if (name === undefined || (values.board !== undefined && name !== 'sweep'))
+    throw new Usage(usage);
   if (name === 'stop') {
     const result = await registry.stopById(values.instance);
     return stopOutput(result);

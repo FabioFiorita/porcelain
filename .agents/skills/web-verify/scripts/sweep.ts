@@ -6,7 +6,10 @@ import { parseArgs } from 'node:util';
 import { pairingLink } from '@porcelain/contracts/access';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { Schema } from 'effect';
-import { ServerHandle } from '@porcelain/server/kit/isolated-server';
+import {
+  type Recorder,
+  ServerHandle,
+} from '@porcelain/server/kit/isolated-server';
 import type { Session } from '@porcelain/server/kit/session';
 import {
   seedStressSample,
@@ -23,13 +26,19 @@ const heights = { 1440: 900, 1080: 810, 414: 896 } as const;
 const settleMs = 5000;
 const pairedMs = 30_000;
 const features = new URL('../features/', import.meta.url);
+const withheld = 'A secret survived redaction, so this record was withheld.\n';
 
 type Width = (typeof sweepWidths)[number];
 type Theme = (typeof sweepThemes)[number];
 type State = (typeof sweepStates)[number];
 type Target = { entry: string; board?: string };
-type Review = { reviewId?: string | undefined; layerId?: string | undefined };
+type Review = {
+  reviewId?: string | undefined;
+  revision?: number | undefined;
+  layerId?: string | undefined;
+};
 type Shot = {
+  target: number;
   entry: string;
   state: State;
   theme: Theme;
@@ -39,18 +48,30 @@ type Shot = {
   problems: string[];
   skipped?: string;
 };
+type Composite = { target: number; file: string };
+
+function sweepTokens(args: readonly string[]) {
+  try {
+    return parseArgs({
+      args: [...args],
+      options: {
+        instance: { type: 'string' },
+        board: { type: 'string', multiple: true },
+      },
+      allowPositionals: true,
+      strict: true,
+      tokens: true,
+    }).tokens;
+  } catch (error) {
+    throw new Usage(
+      `sweep takes routes, --board <png> and --instance: ${firstLine(error)}`,
+      { cause: error },
+    );
+  }
+}
 
 function sweepTargets(args: readonly string[]): Target[] {
-  const { tokens } = parseArgs({
-    args: [...args],
-    options: {
-      instance: { type: 'string' },
-      board: { type: 'string', multiple: true },
-    },
-    allowPositionals: true,
-    strict: true,
-    tokens: true,
-  });
+  const tokens = sweepTokens(args);
   const targets: Target[] = [];
   const command = tokens.findIndex((item) => item.kind === 'positional');
   for (const token of tokens.filter((_, at) => at !== command)) {
@@ -89,6 +110,8 @@ function mapRoute(entry: string): string {
   return route;
 }
 
+const reviewValues = new Set(['reviewId', 'revision', 'layerId']);
+
 function resolved(
   instance: WebInstance,
   entry: string,
@@ -100,13 +123,14 @@ function resolved(
     worktreeId: instance.detail.worktreeId,
     environmentId: instance.detail.environmentId,
     reviewId: review.reviewId,
+    revision: review.revision?.toString(),
     layerId: review.layerId,
   };
   const route = mapRoute(entry);
   const missing = [...route.matchAll(/\$(\w*)/g)]
     .map((match) => match[1] ?? '')
     .filter((name) => values[name] === undefined);
-  if (missing.some((name) => name !== 'reviewId' && name !== 'layerId'))
+  if (missing.some((name) => !reviewValues.has(name)))
     throw new Usage(
       `${entry} routes to ${route}; pass a concrete path for ${missing.map((name) => `$${name}`).join(', ')}.`,
     );
@@ -115,9 +139,8 @@ function resolved(
   return route.replace(/\$(\w+)/g, (_, name: string) => values[name] ?? '');
 }
 
-async function sessionOf(instance: WebInstance) {
+async function sessionOf(instance: WebInstance, recorder: Recorder) {
   const handle = await ServerHandle.attach(instance.detail.manifest);
-  const recorder = registry.redactor(instance).recorder();
   recorder.secret(handle.credential);
   recorder.secret(handle.desktopCredential);
   return handle.session(recorder, {
@@ -134,16 +157,21 @@ async function latestReview(session: Session): Promise<Review> {
   const { review } = Schema.decodeUnknownSync(
     readPublishedReviewResponseSchema,
   )(response.body);
-  return { reviewId: review?.reviewId, layerId: review?.layers[0]?.id };
+  return {
+    reviewId: review?.reviewId,
+    revision: review?.revision,
+    layerId: review?.layers[0]?.id,
+  };
 }
 
-async function pair(page: Page, instance: WebInstance) {
+async function pair(page: Page, instance: WebInstance, recorder: Recorder) {
   const grant = await issuedLink(
     instance.detail.manifest,
     'Sweep browser',
     false,
-    registry.redactor(instance).recorder(),
+    recorder,
   );
+  recorder.secret(grant.code);
   await page.goto(
     `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`,
   );
@@ -179,15 +207,21 @@ const settledScript =
 const imagesLoadedScript =
   '[...document.images].every((image) => image.complete)';
 
+function firstLine(error: unknown) {
+  return error instanceof Error
+    ? (error.message.split('\n')[0] ?? '')
+    : String(error);
+}
+
 async function shoot(
   page: Page,
-  url: string,
+  url: URL,
   shot: Shot,
   file: string,
 ): Promise<void> {
   const record = (problem: string) => shot.problems.push(problem);
   const onPageError = (error: Error) =>
-    record(`page error: ${error.message.split('\n')[0] ?? ''}`);
+    record(`page error: ${firstLine(error)}`);
   const onConsole = (message: { type(): string; text(): string }) => {
     if (message.type() === 'error') record(`console error: ${message.text()}`);
   };
@@ -202,13 +236,16 @@ async function shoot(
       colorScheme: shot.theme,
       reducedMotion: 'reduce',
     });
-    const response = await page.goto(url, { waitUntil: 'load' });
+    const response = await page.goto(url.href, { waitUntil: 'load' });
     if (response !== null && !response.ok())
       record(`the page answered HTTP ${response.status()}`);
     await page
       .waitForLoadState('networkidle', { timeout: settleMs })
       .catch(() => undefined);
     await page.evaluate(settledScript);
+    const landed = new URL(page.url());
+    if (`${landed.pathname}${landed.search}` !== `${url.pathname}${url.search}`)
+      record(`landed on ${landed.pathname}${landed.search} instead`);
     const layout = Schema.decodeUnknownSync(layoutSchema)(
       await page.evaluate(layoutScript),
     );
@@ -269,21 +306,25 @@ function slug(entry: string, index: number) {
   return `${String(index + 1).padStart(2, '0')}-${name || 'root'}`;
 }
 
-function indexOf(
+function indexMarkdown(
   instance: WebInstance,
   folder: string,
   targets: readonly Target[],
   shots: readonly Shot[],
-  composites: readonly { entry: string; file: string }[],
+  composites: readonly Composite[],
   seeds: readonly unknown[],
+  failure: string | undefined,
 ) {
   const link = (file: string) => relative(folder, file);
-  const problems = shots.flatMap((shot) =>
-    shot.problems.map(
-      (problem) =>
-        `- \`${shot.path ?? shot.entry}\` ${shot.state} ${shot.theme} ${shot.width}: ${problem}`,
+  const problems = [
+    ...(failure === undefined ? [] : [`- The sweep stopped: ${failure}`]),
+    ...shots.flatMap((shot) =>
+      shot.problems.map(
+        (problem) =>
+          `- \`${shot.path ?? shot.entry}\` ${shot.state} ${shot.theme} ${shot.width}: ${problem}`,
+      ),
     ),
-  );
+  ];
   const cell = (shot: Shot | undefined) =>
     shot === undefined
       ? '—'
@@ -292,16 +333,16 @@ function indexOf(
         : shot.file === undefined
           ? 'not captured'
           : `[${shot.problems.length === 0 ? 'pass' : 'problem'}](${link(shot.file)})`;
-  const sections = targets.map((target) => {
+  const sections = targets.map((target, index) => {
+    const mine = shots.filter((shot) => shot.target === index);
     const rows = sweepStates.flatMap((state) =>
       sweepThemes.map(
         (theme) =>
           `| ${state} | ${theme} | ${sweepWidths
             .map((width) =>
               cell(
-                shots.find(
+                mine.find(
                   (shot) =>
-                    shot.entry === target.entry &&
                     shot.state === state &&
                     shot.theme === theme &&
                     shot.width === width,
@@ -313,13 +354,13 @@ function indexOf(
     );
     const paths = [
       ...new Set(
-        shots
-          .filter((shot) => shot.entry === target.entry && shot.path)
-          .map((shot) => `\`${shot.path}\``),
+        mine.flatMap((shot) =>
+          shot.path === undefined ? [] : [`\`${shot.path}\``],
+        ),
       ),
     ];
     const boards = composites
-      .filter((item) => item.entry === target.entry)
+      .filter((item) => item.target === index)
       .map((item) => `![${basename(item.file)}](${link(item.file)})`);
     return [
       `## ${target.entry}`,
@@ -349,106 +390,135 @@ function indexOf(
   ].join('\n')}\n`;
 }
 
+async function captureAll(
+  instance: WebInstance,
+  browser: Browser,
+  recorder: Recorder,
+  targets: readonly Target[],
+  folder: string,
+  found: { shots: Shot[]; composites: Composite[]; seeds: unknown[] },
+) {
+  const page = await (
+    await browser.newContext({ reducedMotion: 'reduce' })
+  ).newPage();
+  await pair(page, instance, recorder);
+  const session = await sessionOf(instance, recorder);
+  for (const state of sweepStates) {
+    if (state !== 'as-is')
+      found.seeds.push(await seedStressSample(session, state));
+    const review = await latestReview(session);
+    for (const [index, target] of targets.entries()) {
+      const path = resolved(instance, target.entry, review);
+      const directory = join(folder, slug(target.entry, index), state);
+      if (typeof path === 'string')
+        await mkdir(directory, { recursive: true, mode: 0o700 });
+      for (const theme of sweepThemes)
+        for (const width of sweepWidths) {
+          const shot: Shot = {
+            target: index,
+            entry: target.entry,
+            state,
+            theme,
+            width,
+            problems: [],
+          };
+          found.shots.push(shot);
+          if (typeof path !== 'string') {
+            shot.skipped = path.skipped;
+            continue;
+          }
+          shot.path = path;
+          await shoot(
+            page,
+            new URL(path, instance.detail.web),
+            shot,
+            join(directory, `${theme}-${width}.png`),
+          ).catch((error: unknown) => {
+            shot.problems.push(`not captured: ${firstLine(error)}`);
+          });
+        }
+      const boards = [
+        ['light', target.board],
+        ['dark', target.board && darkBoard(target.board)],
+      ] as const;
+      for (const [theme, board] of state === 'as-is' ? boards : []) {
+        const shot = found.shots.find(
+          (item) =>
+            item.target === index &&
+            item.state === state &&
+            item.theme === theme &&
+            item.width === 1440,
+        );
+        if (board === undefined || shot?.file === undefined) continue;
+        const file = join(directory, `board-${theme}-1440.png`);
+        await composite(
+          browser,
+          shot.file,
+          board,
+          `${shot.path ?? target.entry} · ${theme} · 1440`,
+          file,
+        );
+        found.composites.push({ target: index, file });
+      }
+    }
+  }
+}
+
 export async function sweep(
   instance: WebInstance,
   args: readonly string[],
 ): Promise<string> {
   const targets = sweepTargets(args);
-  for (const target of targets)
-    resolved(instance, target.entry, { reviewId: '', layerId: '' });
-  const evidence = registry.evidence(instance);
-  const record = await evidence.claim('sweep', 'json');
+  for (const target of targets) resolved(instance, target.entry, {});
+  const redactor = registry.redactor(instance);
+  const recorder = redactor.recorder();
+  const record = await registry.evidence(instance).claim('sweep', 'json');
   const folder = record.replace(/\.json$/, '');
-  const shots: Shot[] = [];
-  const composites: { entry: string; file: string }[] = [];
-  const seeds: unknown[] = [];
+  const found = {
+    shots: [] as Shot[],
+    composites: [] as Composite[],
+    seeds: [] as unknown[],
+  };
+  let failure: string | undefined;
   const browser = await chromium.launch();
   try {
-    const page = await (
-      await browser.newContext({ reducedMotion: 'reduce' })
-    ).newPage();
-    await pair(page, instance);
-    const session = await sessionOf(instance);
-    for (const state of sweepStates) {
-      if (state !== 'as-is') seeds.push(await seedStressSample(session, state));
-      const review = await latestReview(session);
-      for (const [index, target] of targets.entries()) {
-        const path = resolved(instance, target.entry, review);
-        const directory = join(folder, slug(target.entry, index), state);
-        if (typeof path === 'string')
-          await mkdir(directory, { recursive: true, mode: 0o700 });
-        for (const theme of sweepThemes)
-          for (const width of sweepWidths) {
-            const shot: Shot = {
-              entry: target.entry,
-              state,
-              theme,
-              width,
-              problems: [],
-            };
-            shots.push(shot);
-            if (typeof path !== 'string') {
-              shot.skipped = path.skipped;
-              continue;
-            }
-            shot.path = path;
-            await shoot(
-              page,
-              new URL(path, instance.detail.web).href,
-              shot,
-              join(directory, `${theme}-${width}.png`),
-            ).catch((error: unknown) => {
-              shot.problems.push(
-                `not captured: ${error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error)}`,
-              );
-            });
-          }
-        const boards = [
-          ['light', target.board],
-          ['dark', target.board && darkBoard(target.board)],
-        ] as const;
-        for (const [theme, board] of state === 'as-is' ? boards : []) {
-          const shot = shots.find(
-            (item) =>
-              item.entry === target.entry &&
-              item.state === state &&
-              item.theme === theme &&
-              item.width === 1440,
-          );
-          if (board === undefined || shot?.file === undefined) continue;
-          const file = join(directory, `board-${theme}-1440.png`);
-          await composite(
-            browser,
-            shot.file,
-            board,
-            `${shot.path ?? target.entry} · ${theme} · 1440`,
-            file,
-          );
-          composites.push({ entry: target.entry, file });
-        }
-      }
-    }
+    await captureAll(instance, browser, recorder, targets, folder, found);
+  } catch (error) {
+    failure = firstLine(error);
   } finally {
     await browser.close();
   }
+  const safe = (text: string) => {
+    const clean = redactor.text(recorder.scrub(text));
+    return recorder.leaks(clean) > 0 ? withheld : clean;
+  };
   const index = join(folder, 'index.md');
+  await mkdir(folder, { recursive: true, mode: 0o700 });
   await writeFile(
     index,
-    registry
-      .redactor(instance)
-      .text(indexOf(instance, folder, targets, shots, composites, seeds)),
+    safe(
+      indexMarkdown(
+        instance,
+        folder,
+        targets,
+        found.shots,
+        found.composites,
+        found.seeds,
+        failure,
+      ),
+    ),
     { mode: 0o600 },
   );
-  const problems = shots.reduce((sum, shot) => sum + shot.problems.length, 0);
   await writeFile(
     record,
-    registry.redactor(instance).text(
+    safe(
       `${JSON.stringify(
         {
           command: args,
           index,
-          seeds,
-          shots: shots.map((shot) => ({
+          failure,
+          seeds: found.seeds,
+          shots: found.shots.map((shot) => ({
             ...shot,
             file: shot.file && relative(folder, shot.file),
           })),
@@ -459,7 +529,10 @@ export async function sweep(
     ),
     { mode: 0o600 },
   );
-  const captured = shots.filter((shot) => shot.file !== undefined).length;
+  const problems =
+    found.shots.reduce((sum, shot) => sum + shot.problems.length, 0) +
+    (failure === undefined ? 0 : 1);
+  const captured = found.shots.filter((shot) => shot.file !== undefined).length;
   if (problems > 0)
     throw new Refusal(
       `The sweep found ${problems} problem${problems === 1 ? '' : 's'} in ${captured} captures; read ${index}`,

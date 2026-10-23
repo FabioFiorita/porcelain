@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
@@ -16,7 +17,7 @@ import {
   REVIEW_STEP_TEXT_LENGTH,
   REVIEW_TITLE_LENGTH,
 } from '@porcelain/contracts/shared';
-import { commitReviewFixture, pairDevice } from './requests.ts';
+import { commitReviewFixture, lineCount, pairDevice } from './requests.ts';
 import type { HttpRequest, Session } from './session.ts';
 
 export const stressVariants = ['long-text', 'many-items'] as const;
@@ -54,8 +55,12 @@ function filled(length: number, lead: string): string {
   return text.slice(0, length).trimEnd();
 }
 
-function marker(variant: StressVariant) {
+function notePath(variant: StressVariant) {
   return `porcelain-stress/${variant}.md`;
+}
+
+function appliedMarker(session: Session, variant: StressVariant) {
+  return join(session.projectHome, `.porcelain-stress-${variant}`);
 }
 
 function longTextPlan(): Plan {
@@ -63,7 +68,7 @@ function longTextPlan(): Plan {
   const nested = `porcelain-stress/long-text/${'deeply-nested-folder/'.repeat(8)}hold.ts`;
   const files = new Map([
     [
-      marker('long-text'),
+      notePath('long-text'),
       `# Long text\n\n${filled(REVIEW_PROSE_LENGTH, 'A paragraph long enough to wrap many times at phone width.')}\n\nhttps://example.invalid/${UNBROKEN.repeat(4)}\n`,
     ],
     [
@@ -124,7 +129,7 @@ function manyItemsPlan(): Plan {
     ),
   );
   const files = new Map([
-    [marker('many-items'), '# Many items\n'],
+    [notePath('many-items'), '# Many items\n'],
     ...paths.map((path, index): [string, string] => [
       path,
       `export const item${index + 1} = ${index + 1};\n`,
@@ -192,22 +197,16 @@ async function publishedReview(session: Session, worktreeId: string) {
   ).review;
 }
 
-function lineCount(text: string) {
-  return text.split('\n').length - 1;
-}
-
 export async function seedStressSample(
   session: Session,
   variant: StressVariant,
 ) {
   const { projectId, worktreeId } = await mainWorktree(session);
-  const seeded =
-    (await session.git('ls-files', '--', marker(variant))).trim() !== '';
-  if (seeded) {
+  if (existsSync(appliedMarker(session, variant))) {
     const review = await publishedReview(session, worktreeId);
     return {
       variant,
-      seeded: false,
+      applied: false,
       reviewId: review?.reviewId,
       revision: review?.revision,
       layerId: review?.layers[0]?.id,
@@ -220,7 +219,7 @@ export async function seedStressSample(
     await session.writeFile(path, text);
   }
   await session.git('add', '-A');
-  await session.git('commit', '-m', plan.commit);
+  await session.git('commit', '--allow-empty', '-m', plan.commit);
   const layers: Layer[] = plan.layers.map((layer) => ({
     id: randomUUID(),
     title: layer.title,
@@ -294,9 +293,10 @@ export async function seedStressSample(
       path: `/api/projects/${projectId}`,
       body: { name: plan.projectName },
     });
+  await writeFile(appliedMarker(session, variant), `${published?.reviewId}\n`);
   return {
     variant,
-    seeded: true,
+    applied: true,
     reviewId: published?.reviewId,
     revision: published?.revision,
     layerId: published?.layers[0]?.id,
