@@ -4,7 +4,7 @@ import {
   Effect,
   Exit,
   Layer,
-  PubSub,
+  Queue,
   Ref,
   Scope,
   Semaphore,
@@ -42,8 +42,7 @@ type Connection = {
   scope: Scope.Closeable;
   channel: LiveChannel;
   state: Ref.Ref<ClientState>;
-  subscription: PubSub.Subscription<Broadcast>;
-  subscriptionScope: Scope.Closeable;
+  notices: Queue.Queue<Broadcast>;
 };
 
 type Connections = {
@@ -101,7 +100,6 @@ export class LiveConnections extends Context.Service<
       Effect.gen(function* () {
         const loggerCapability = yield* Logger;
         const ownerScope = yield* Scope.make();
-        const broadcasts = yield* PubSub.bounded<Broadcast>(eventBuffer);
         const registry = yield* Ref.make<Connections>({
           closed: false,
           active: new Map(),
@@ -116,10 +114,46 @@ export class LiveConnections extends Context.Service<
                   error: Cause.squash(cause),
                 }),
               );
-        const broadcast = Effect.fn('LiveConnections.broadcast')(
-          (event: Broadcast) =>
-            PubSub.publish(broadcasts, event).pipe(Effect.asVoid),
-        );
+        const remove = (connection: Connection) =>
+          Effect.gen(function* () {
+            yield* Ref.update(connection.state, (state) => ({
+              ...state,
+              closed: true,
+            }));
+            yield* Ref.update(registry, (state) => {
+              state.active.delete(connection.scope);
+              return state;
+            });
+          });
+        const retire = (connection: Connection) =>
+          Effect.uninterruptible(
+            Effect.gen(function* () {
+              yield* remove(connection);
+              yield* Effect.forkIn(
+                connection.channel
+                  .terminate()
+                  .pipe(
+                    Effect.ensuring(Scope.close(connection.scope, Exit.void)),
+                    Effect.catchCause(report),
+                  ),
+                ownerScope,
+                { startImmediately: true },
+              );
+            }),
+          );
+        const broadcast = Effect.fn('LiveConnections.broadcast')(function* (
+          event: Broadcast,
+        ) {
+          const connections = yield* Ref.get(registry).pipe(
+            Effect.map((state) => [...state.active.values()]),
+          );
+          for (const connection of connections) {
+            const state = yield* Ref.get(connection.state);
+            if (selected(event, state) === undefined) continue;
+            if (!(yield* Queue.offer(connection.notices, event)))
+              yield* retire(connection);
+          }
+        });
         const close = yield* Effect.cached(
           Effect.uninterruptible(
             Effect.gen(function* () {
@@ -127,7 +161,6 @@ export class LiveConnections extends Context.Service<
                 Ref.update(registry, (state) => ({ ...state, closed: true })),
               );
               yield* Scope.close(ownerScope, Exit.void);
-              yield* PubSub.shutdown(broadcasts);
             }),
           ),
         );
@@ -152,32 +185,21 @@ export class LiveConnections extends Context.Service<
                     worktrees: new Map(),
                     answered: true,
                   });
-                  const subscriptionScope = yield* Scope.fork(connectionScope);
-                  const subscription = yield* PubSub.subscribe(broadcasts).pipe(
-                    Effect.provideService(Scope.Scope, subscriptionScope),
-                  );
+                  const notices = yield* Effect.acquireRelease(
+                    Queue.dropping<Broadcast>(eventBuffer),
+                    Queue.shutdown,
+                  ).pipe(Effect.provideService(Scope.Scope, connectionScope));
                   const current: Connection = {
                     scope: connectionScope,
                     channel,
                     state: clientState,
-                    subscription,
-                    subscriptionScope,
+                    notices,
                   };
                   yield* Effect.acquireRelease(
                     Effect.sync(() => {
                       state.active.set(connectionScope, current);
                     }),
-                    () =>
-                      Effect.gen(function* () {
-                        yield* Ref.update(clientState, (client) => ({
-                          ...client,
-                          closed: true,
-                        }));
-                        yield* Ref.update(registry, (latest) => {
-                          latest.active.delete(connectionScope);
-                          return latest;
-                        });
-                      }),
+                    () => remove(current),
                   ).pipe(Effect.provideService(Scope.Scope, connectionScope));
                   return current;
                 }),
@@ -188,7 +210,7 @@ export class LiveConnections extends Context.Service<
               yield* Effect.forkIn(
                 Effect.forever(
                   Effect.gen(function* () {
-                    const event = yield* PubSub.take(connection.subscription);
+                    const event = yield* Queue.take(connection.notices);
                     const notice = selected(
                       event,
                       yield* Ref.get(connection.state),
@@ -200,20 +222,9 @@ export class LiveConnections extends Context.Service<
                     report(cause).pipe(Effect.andThen(channel.terminate())),
                   ),
                   Effect.ensuring(
-                    Effect.gen(function* () {
-                      yield* Scope.close(
-                        connection.subscriptionScope,
-                        Exit.void,
-                      );
-                      yield* Ref.update(connection.state, (state) => ({
-                        ...state,
-                        closed: true,
-                      }));
-                      yield* Ref.update(registry, (state) => {
-                        state.active.delete(connectionScope);
-                        return state;
-                      });
-                    }),
+                    Queue.shutdown(connection.notices).pipe(
+                      Effect.andThen(remove(connection)),
+                    ),
                   ),
                 ),
                 connectionScope,

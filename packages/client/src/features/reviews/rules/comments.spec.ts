@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   anchorBase,
   commentBodyValid,
+  questionAnswer,
   commentIsStale,
   commentsSeenThrough,
   matchesCommentTarget,
@@ -9,6 +10,33 @@ import {
   retainIntent,
   type CommentThread,
 } from './comments.ts';
+
+describe('questionAnswer', () => {
+  it.each([
+    {
+      question: 'Keep both?',
+      answer: 'Use one owner.',
+      expected: '> Keep both?\n\nUse one owner.',
+    },
+    {
+      question: 'Keep both?\n\nWho owns the transaction?',
+      answer: 'The session owner.\nKeep the journal.',
+      expected:
+        '> Keep both?\n> \n> Who owns the transaction?\n\nThe session owner.\nKeep the journal.',
+    },
+    {
+      question: 'Keep `policy`?',
+      answer: '  Keep it.  ',
+      expected: '> Keep `policy`?\n\n  Keep it.  ',
+    },
+    { question: 'Keep both?', answer: '', expected: '> Keep both?\n\n' },
+  ])(
+    'quotes the complete question and preserves the answer: $question / $answer',
+    ({ question, answer, expected }) => {
+      expect(questionAnswer(question, answer)).toBe(expected);
+    },
+  );
+});
 
 describe('retainIntent', () => {
   it('reuses the ids of a failed attempt when the same text is sent again', () => {

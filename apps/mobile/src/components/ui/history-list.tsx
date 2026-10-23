@@ -5,7 +5,7 @@ import { CommitRow, type HistoryEntry } from './commit-row';
 import { Empty } from './empty';
 import { Loading } from './loading';
 import { Text } from './text';
-import { Separator } from './separator';
+import { Item } from './item';
 
 export function HistoryList({
   entries,
@@ -16,6 +16,8 @@ export function HistoryList({
   onLoadMore,
   footer,
   header,
+  uncommitted,
+  unavailable = false,
 }: {
   entries: readonly HistoryEntry[];
   selected?: string;
@@ -25,34 +27,63 @@ export function HistoryList({
   onLoadMore?: () => void;
   footer?: ReactNode;
   header?: ReactNode;
+  uncommitted?: string;
+  unavailable?: boolean;
 }) {
   const padding = useResolveClassNames('px-2');
   return (
     <FlatList
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={padding}
-      ListHeaderComponent={header === undefined ? undefined : <>{header}</>}
+      ListHeaderComponent={
+        <>
+          {header}
+          {uncommitted ? (
+            <View className="flex-row items-stretch">
+              <View
+                className="w-6 items-center"
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View className="h-4" />
+                <View className="size-2.5 rounded-full border border-dashed border-muted-foreground bg-background" />
+                <View
+                  className={`w-px flex-1 ${entries.length ? 'bg-graph-1' : ''}`}
+                />
+              </View>
+              <View className="min-w-0 flex-1 border-b border-border">
+                <Item
+                  title="Uncommitted changes"
+                  size="sm"
+                  trailing={
+                    <Text variant="caption" tone="muted">
+                      {uncommitted}
+                    </Text>
+                  }
+                />
+              </View>
+            </View>
+          ) : null}
+        </>
+      }
       data={entries}
       keyExtractor={(entry) => entry.id}
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <CommitRow
           entry={item}
           selected={selected === item.id}
+          connected={index > 0 || Boolean(uncommitted)}
+          last={index === entries.length - 1 && !hasMore}
           onPress={() => onSelect(item.id)}
         />
       )}
-      ItemSeparatorComponent={() => (
-        <View className="py-1">
-          <Separator />
-        </View>
-      )}
       ListEmptyComponent={
-        loading ? (
+        loading || unavailable ? (
           <></>
         ) : (
           <Empty
-            title="No commits"
-            description="This history has no commits to display."
+            title="No commits yet"
+            description="Commits will appear here once this worktree has history."
             icon="history"
           />
         )

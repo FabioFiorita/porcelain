@@ -9,6 +9,15 @@ export const reviewLayout = {
     const visible = viewport.getBoundingClientRect();
     return chip.left >= visible.left - 1 && chip.right <= visible.right + 1;
   },
+  titleLines(locator: Locator) {
+    const title = locator.element();
+    const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);
+    return {
+      withinThreeLines:
+        title.getBoundingClientRect().height <= lineHeight * 3 + 1,
+      clipped: title.scrollHeight > title.clientHeight,
+    };
+  },
   fitsViewport(locator: Locator) {
     const button = locator.element();
     const bounds = button.getBoundingClientRect();

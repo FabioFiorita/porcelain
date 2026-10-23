@@ -33,7 +33,7 @@ declare const document: {
   hasFocus(): boolean;
   readonly activeElement: { getAttribute(name: string): string | null } | null;
   addEventListener(
-    type: 'click',
+    type: 'click' | 'pointerover' | 'pointermove',
     listener: (event: {
       isTrusted: boolean;
       target: {
@@ -62,6 +62,7 @@ async function watchSummaryActivations(
   await page.evaluate((marker) => {
     const activations: unknown[] = [];
     Reflect.set(globalThis, 'porcelainSummaryActivations', activations);
+    Reflect.set(globalThis, 'porcelainSummaryPointer', undefined);
     addEventListener('message', (event) => {
       const data = event.data;
       if (
@@ -70,11 +71,31 @@ async function watchSummaryActivations(
         Reflect.get(data, 'source') === marker
       ) {
         const activation: unknown = Reflect.get(data, 'activation');
-        activations.push(activation);
+        if (activation !== undefined) activations.push(activation);
+        const pointer: unknown = Reflect.get(data, 'pointer');
+        if (pointer !== undefined)
+          Reflect.set(globalThis, 'porcelainSummaryPointer', pointer);
       }
     });
   }, marker);
   await frame.evaluate((marker) => {
+    for (const type of ['pointerover', 'pointermove'] as const)
+      document.addEventListener(
+        type,
+        (event) => {
+          parent.postMessage(
+            {
+              source: marker,
+              pointer: {
+                trusted: event.isTrusted,
+                href: event.target?.getAttribute?.('href'),
+              },
+            },
+            '*',
+          );
+        },
+        true,
+      );
     document.addEventListener(
       'click',
       (event) => {
@@ -103,6 +124,36 @@ function summaryActivations(page: Page): Promise<unknown> {
     );
     return activations;
   });
+}
+
+async function hoverSummaryLink(
+  page: Page,
+  link: ReturnType<Page['getByRole']>,
+  href: string,
+) {
+  await page.evaluate(() =>
+    Reflect.set(globalThis, 'porcelainSummaryPointer', undefined),
+  );
+  let alternate = false;
+  await expect
+    .poll(
+      async () => {
+        await link.hover({ position: { x: alternate ? 3 : 2, y: 2 } });
+        alternate = !alternate;
+        return page.evaluate(() => {
+          const pointer: unknown = Reflect.get(
+            globalThis,
+            'porcelainSummaryPointer',
+          );
+          return pointer;
+        });
+      },
+      {
+        intervals: [0],
+        message: `The sandboxed summary document must observe trusted pointer movement on ${href} before the click`,
+      },
+    )
+    .toEqual({ trusted: true, href });
 }
 
 async function focusSummaryLink(
@@ -173,68 +224,79 @@ async function publishSummary(page: Page, repository: string, title: string) {
   return { project, worktree, summaryUrl };
 }
 
-test('a local signed summary renders through the app origin in its sandbox, keeps the theme and opens its layer link', async ({
-  desktop,
-}) => {
-  const app = await desktop.launch();
-  const page = await app.window();
-  await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
-  ).toBeVisible();
-  const here = await publishSummary(page, desktop.repository, 'Local summary');
-  await page.goto(
-    `porcelain://app/${here.project.id}/${here.worktree.id}?entry=handoff`,
-  );
-  await expect(
-    page.getByRole('tab', { name: 'Walkthrough', exact: true }),
-  ).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
-  const summary = page.frameLocator('iframe[title="Review summary"]');
-  await expect(
-    summary.getByRole('heading', { name: 'Local summary', exact: true }),
-  ).toBeVisible();
-  expect(await responsePolicy(page, here.summaryUrl)).toBe(
-    `sandbox ${sandbox}`,
-  );
-  await expect(
-    summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
-  ).toHaveCount(1);
-  const frame = page
-    .frames()
-    .find((entry) =>
-      entry.url().startsWith('porcelain://app/review-summaries/'),
+for (const activation of ['pointer', 'keyboard'] as const) {
+  test(`a local signed summary renders through the app origin in its sandbox, keeps the theme and opens its layer link (${activation})`, async ({
+    desktop,
+  }) => {
+    const app = await desktop.launch();
+    const page = await app.window();
+    await expect(
+      page.getByRole('button', { name: 'Open project', exact: true }),
+    ).toBeVisible();
+    const here = await publishSummary(
+      page,
+      desktop.repository,
+      'Local summary',
     );
-  if (frame === undefined)
-    throw new Error('The local summary did not load through the app');
-  await frame.waitForLoadState('load');
-  await watchSummaryActivations(page, frame);
-  await app.electron.evaluate(({ app, BrowserWindow }) => {
-    app.focus({ steal: true });
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.focus();
-    view.webContents.focus();
-  });
-  await focusSummaryLink(frame, 'Open Local summary layer', '#layer-1');
-  await frame
-    .getByRole('link', { name: 'Open Local summary layer', exact: true })
-    .click();
-  await expect
-    .poll(() => summaryActivations(page))
-    .toContainEqual({
-      trusted: true,
-      href: '#layer-1',
-      focused: true,
+    await page.goto(
+      `porcelain://app/${here.project.id}/${here.worktree.id}?entry=handoff`,
+    );
+    await expect(
+      page.getByRole('tab', { name: 'Walkthrough', exact: true }),
+    ).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
+    const summary = page.frameLocator('iframe[title="Review summary"]');
+    await expect(
+      summary.getByRole('heading', { name: 'Local summary', exact: true }),
+    ).toBeVisible();
+    expect(await responsePolicy(page, here.summaryUrl)).toBe(
+      `sandbox ${sandbox}`,
+    );
+    await expect(
+      summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
+    ).toHaveCount(1);
+    const frame = page
+      .frames()
+      .find((entry) =>
+        entry.url().startsWith('porcelain://app/review-summaries/'),
+      );
+    if (frame === undefined)
+      throw new Error('The local summary did not load through the app');
+    await frame.waitForLoadState('load');
+    await watchSummaryActivations(page, frame);
+    await app.electron.evaluate(({ app, BrowserWindow }) => {
+      app.focus({ steal: true });
+      const view = BrowserWindow.getAllWindows()[0];
+      if (view === undefined) throw new Error('The app window is missing');
+      view.focus();
+      view.webContents.focus();
     });
-  await expect(
-    page.getByRole('region', {
-      name: '1. Local summary layer',
+    await focusSummaryLink(frame, 'Open Local summary layer', '#layer-1');
+    const link = frame.getByRole('link', {
+      name: 'Open Local summary layer',
       exact: true,
-    }),
-  ).toBeVisible();
-  expect(app.electron.windows()).toHaveLength(1);
-  expect(app.errors).toEqual([]);
-});
+    });
+    if (activation === 'pointer') {
+      await hoverSummaryLink(page, link, '#layer-1');
+      await link.click();
+    } else await page.keyboard.press('Enter');
+    await expect
+      .poll(() => summaryActivations(page))
+      .toContainEqual({
+        trusted: true,
+        href: '#layer-1',
+        focused: true,
+      });
+    await expect(
+      page.getByRole('region', {
+        name: '1. Local summary layer',
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(app.electron.windows()).toHaveLength(1);
+    expect(app.errors).toEqual([]);
+  });
+}
 
 test('a remote computer summary renders through the app from that computer, cannot reach the app, Node or the bridge, and cannot show a website', async ({
   desktop,

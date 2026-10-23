@@ -20,11 +20,11 @@ api:
 
 # access.environment-name
 
-The navigator header names the computer Porcelain runs on.
+Settings names the computer Porcelain runs on; the navigator header stays generic.
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → the navigator header shows "Porcelain" and the computer's name.
+- Workspace → `Toggle Sidebar` (phone width) → the navigator header shows only "Porcelain".
 - Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer` → textbox "Name of this computer" → `Save` (or `Enter` in the field).
 - Route: `/settings/computers/this-computer` (host-authorized browser or desktop).
 
@@ -32,7 +32,7 @@ The navigator header names the computer Porcelain runs on.
 
 Preconditions: [surface baseline](README.md).
 
-It shows the host name until the owner saves a name in Settings → Computers → This computer. The header, the tab title and the pairing instructions then show that name, and saving an empty name goes back to the host name.
+Computer details and pairing show the host name until the owner saves a name in Settings → Computers → This computer. The tab title and pairing instructions then show that name, and saving an empty name goes back to the host name. Sidebar headers, rows and footer chrome never show the computer name.
 
 Required instance mode: `--desktop`.
 
@@ -41,7 +41,7 @@ Required instance mode: `--desktop`.
 `HOST=$(hostname)`: the server reads the machine's own host name (the sandbox does not change it). That is the name shown until one is saved. The project is named `repository`.
 
 1. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" whose header shows "Porcelain" and the text `$HOST`.
+   Expect: navigation "Projects and worktrees" whose header shows "Porcelain" without `$HOST`.
 2. Click button `Settings`
    Expect: URL ends `/settings/general`; title "Settings".
 3. Click button `Computers`, then button named `Open This computer`
@@ -49,7 +49,7 @@ Required instance mode: `--desktop`.
 4. Fill textbox `Name of this computer` with 'Workstation'
    Expect: button "Save" enabled.
 5. Click button `Save`
-   Expect: title "Settings · Workstation"; the Settings header under "Porcelain" shows "Workstation"; button "Save" disabled again.
+   Expect: title "Settings · Workstation"; the computer name field holds "Workstation"; button "Save" disabled again.
    Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200. Then continue to Devices.
 
 6. Click button `Devices`
@@ -59,7 +59,7 @@ Required instance mode: `--desktop`.
 8. Click button `Back` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" header shows "Workstation" (no longer `$HOST`).
+   Expect: navigation "Projects and worktrees" header shows only "Porcelain", with neither "Workstation" nor `$HOST`.
 10. Click button `Settings`
     Expect: URL ends `/settings/general`; title "Settings · Workstation".
 11. Click button `Computers`, then button named `Open This computer`
@@ -67,7 +67,7 @@ Required instance mode: `--desktop`.
 12. Fill textbox `Name of this computer` with ''
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
-    Expect: title "Settings"; the Settings header shows `$HOST` again.
+    Expect: title "Settings"; the empty computer-name field uses `$HOST` as its placeholder.
 14. Click button `Back` twice
     Expect: title "Changes — repository".
 

@@ -16,11 +16,14 @@ import {
   renameSync,
   rmSync,
   statSync,
+  truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { Installer, InstallerOptions } from './installer.ts';
 
@@ -34,6 +37,7 @@ let rejectDownload: boolean;
 let rejectCandidate: boolean;
 let mutateDatabase: boolean;
 let rejectRetention: boolean;
+let rejectStart: boolean;
 let commands: string[];
 let searchPath: string;
 
@@ -46,6 +50,29 @@ const database = () => join(data, 'inventory.sqlite');
 const porcelainCommand = () => join(home, '.local/bin/porcelain');
 const runPorcelain = (...args: string[]) =>
   execFileSync(porcelainCommand(), args, { encoding: 'utf8' });
+
+function writeDatabase(file: string, value: string) {
+  for (const suffix of ['', '-wal', '-shm'])
+    rmSync(`${file}${suffix}`, { force: true });
+  const db = new DatabaseSync(file);
+  try {
+    db.exec(
+      "CREATE TABLE saved(value TEXT); CREATE TABLE porcelain_migrations(migration_id INTEGER PRIMARY KEY, name TEXT NOT NULL); INSERT INTO porcelain_migrations VALUES (1, 'adopt_legacy_schema')",
+    );
+    db.prepare('INSERT INTO saved VALUES (?)').run(value);
+  } finally {
+    db.close();
+  }
+}
+
+function readDatabase(file: string) {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    return db.prepare('SELECT value FROM saved').get()?.value;
+  } finally {
+    db.close();
+  }
+}
 
 function writeRuntime(prefix: string, version: string) {
   const folder = join(prefix, 'node_modules', packageName);
@@ -113,6 +140,8 @@ const command = Effect.fn('Test.installerCommand')(
         return ok();
       }
       if (args.includes('enable') || args.includes('start')) {
+        if (rejectStart)
+          return { code: 1, stdout: '', stderr: 'service startup failed' };
         await stopService();
         service = spawn(
           process.execPath,
@@ -125,7 +154,7 @@ const command = Effect.fn('Test.installerCommand')(
           mutateDatabase &&
           readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
         )
-          writeFileSync(database(), 'candidate changed the database');
+          writeDatabase(database(), 'candidate changed the database');
         if (
           rejectRetention &&
           readFileSync(manifest(runtime()), 'utf8').includes('2.0.0')
@@ -150,6 +179,7 @@ const execute = (
   version = '1.0.0',
   packageRoot = source,
   fileSystem?: FileSystem.FileSystem,
+  probe?: OwnerProbe['probe'],
 ) =>
   Effect.runPromise(
     Effect.gen(function* () {
@@ -182,7 +212,7 @@ const execute = (
                           pollMs: 1,
                         },
                       },
-                      health: { attempts: 1, intervalMs: 1 },
+                      health: { attempts: 3, intervalMs: 1 },
                     },
                     locks: { startupWaitMs: 25, pollMs: 1, staleTakeovers: 1 },
                     owner: {
@@ -194,29 +224,31 @@ const execute = (
                     },
                   },
                   ownerProbe: {
-                    probe: () =>
-                      Effect.sync(() => {
-                        if (service === undefined)
-                          return { kind: 'absent' as const };
-                        if (
-                          rejectCandidate &&
-                          readFileSync(manifest(runtime()), 'utf8').includes(
-                            '2.0.0',
+                    probe:
+                      probe ??
+                      (() =>
+                        Effect.sync(() => {
+                          if (service === undefined)
+                            return { kind: 'absent' as const };
+                          if (
+                            rejectCandidate &&
+                            readFileSync(manifest(runtime()), 'utf8').includes(
+                              '2.0.0',
+                            )
                           )
-                        )
+                            return {
+                              kind: 'unreadable' as const,
+                              reason: 'candidate cannot start',
+                            };
                           return {
-                            kind: 'unreadable' as const,
-                            reason: 'candidate cannot start',
+                            kind: 'running' as const,
+                            status: {
+                              address: 'http://127.0.0.1:4737',
+                              dataDirectory: data,
+                              pid: service.pid ?? 0,
+                            },
                           };
-                        return {
-                          kind: 'running' as const,
-                          status: {
-                            address: 'http://127.0.0.1:4737',
-                            dataDirectory: data,
-                            pid: service.pid ?? 0,
-                          },
-                        };
-                      }),
+                        })),
                   },
                 };
               }),
@@ -250,9 +282,7 @@ beforeEach(() => {
   source = join(home, 'package');
   mkdirSync(data);
   mkdirSync(source);
-  writeFileSync(database(), 'database before update');
-  writeFileSync(`${database()}-wal`, 'wal before update');
-  writeFileSync(`${database()}-shm`, 'shm before update');
+  writeDatabase(database(), 'database before update');
   writeFileSync(
     join(source, 'package.json'),
     JSON.stringify({ name: packageName, version: '1.0.0' }),
@@ -261,6 +291,7 @@ beforeEach(() => {
   rejectCandidate = false;
   mutateDatabase = false;
   rejectRetention = false;
+  rejectStart = false;
   commands = [];
   searchPath = '/usr/bin';
 });
@@ -269,6 +300,50 @@ afterEach(async () => {
   await stopService();
   rmSync(home, { recursive: true, force: true });
 });
+
+it.each(['corrupt', 'zero-byte'] as const)(
+  'failed initial install with %s preinstall data remains retryable and retains the data and backup',
+  async (state) => {
+    candidate();
+    rejectCandidate = true;
+    mutateDatabase = false;
+    const original = state === 'corrupt' ? 'corrupt SQLite data' : '';
+    writeFileSync(database(), original);
+    await expect(
+      execute(
+        { action: 'install', settings: { dataDirectory: data, port: 4737 } },
+        '2.0.0',
+      ),
+    ).rejects.toThrow('Could not prepare database backup');
+    expect(existsSync(runtime())).toBe(false);
+    expect(existsSync(join(root, 'installed.json'))).toBe(false);
+    expect(
+      existsSync(join(home, '.config/systemd/user/porcelain.service')),
+    ).toBe(false);
+    expect(readFileSync(database(), 'utf8')).toBe(original);
+    const backups = readdirSync(join(root, 'database-backups'));
+    expect(backups).toHaveLength(1);
+    expect(
+      readFileSync(
+        join(
+          root,
+          'database-backups',
+          backups[0] ?? 'missing-backup',
+          'inventory.sqlite',
+        ),
+        'utf8',
+      ),
+    ).toBe(original);
+    writeDatabase(database(), 'repaired data');
+    rejectCandidate = false;
+    await execute(
+      { action: 'install', settings: { dataDirectory: data, port: 4737 } },
+      '2.0.0',
+    );
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(readDatabase(database())).toBe('repaired data');
+  },
+);
 
 it('installs the runtime, private logs, unit and persistent records and updates only after backing up the database', async () => {
   await install();
@@ -294,18 +369,10 @@ it('installs the runtime, private logs, unit and persistent records and updates 
     '2.0.0',
   );
   if (updated.action !== 'update') throw new Error('Expected update result');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite'), 'utf8'),
-  ).toBe('database before update');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite-wal'), 'utf8'),
-  ).toBe('wal before update');
-  expect(
-    readFileSync(join(updated.result.backup, 'inventory.sqlite-shm'), 'utf8'),
-  ).toBe('shm before update');
-  expect(readFileSync(database(), 'utf8')).toBe(
-    'candidate changed the database',
+  expect(readDatabase(join(updated.result.backup, 'inventory.sqlite'))).toBe(
+    'database before update',
   );
+  expect(readDatabase(database())).toBe('candidate changed the database');
   expect(record('installed.json')).toEqual({ version: '2.0.0' });
   expect(record('update-record.json')).toEqual({
     from: '1.0.0',
@@ -343,9 +410,9 @@ it('restores the previous runtime and all database files when the replacement is
     execute({ action: 'update', allowDowngrade: false }, '2.0.0'),
   ).rejects.toThrow('the previous runtime and database were restored');
   expect(record('installed.json')).toEqual({ version: '1.0.0' });
-  expect(readFileSync(database(), 'utf8')).toBe('database before update');
-  expect(readFileSync(`${database()}-wal`, 'utf8')).toBe('wal before update');
-  expect(readFileSync(`${database()}-shm`, 'utf8')).toBe('shm before update');
+  expect(readDatabase(database())).toBe('database before update');
+  expect(existsSync(`${database()}-wal`)).toBe(false);
+  expect(existsSync(`${database()}-shm`)).toBe(false);
   expect(record('update-record.json')).toMatchObject({ stage: 'failed' });
   expect(readFileSync(join(root, 'update-record.json'), 'utf8')).toContain(
     'did not become healthy',
@@ -363,7 +430,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     await stopService();
     const backup = join(root, 'saved-database');
     mkdirSync(backup);
-    writeFileSync(join(backup, 'inventory.sqlite'), 'saved database');
+    writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
     if (plan !== 'restart-current') {
       renameSync(runtime(), join(root, 'runtime.previous'));
       writeRuntime(runtime(), '2.0.0');
@@ -372,7 +439,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
         JSON.stringify({ version: '2.0.0' }),
       );
     }
-    writeFileSync(database(), 'interrupted database');
+    writeDatabase(database(), 'interrupted database');
     writeFileSync(
       join(root, 'update.json'),
       JSON.stringify({
@@ -389,7 +456,7 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     expect(record('installed.json')).toEqual({
       version: plan === 'finish-update' ? '2.0.0' : '1.0.0',
     });
-    expect(readFileSync(database(), 'utf8')).toBe(
+    expect(readDatabase(database())).toBe(
       plan === 'finish-update' ? 'interrupted database' : 'saved database',
     );
     expect(record('update-record.json')).toMatchObject({
@@ -451,7 +518,7 @@ it('discards an obsolete previous runtime and uninstalls while retaining user da
   });
   expect(service).toBeUndefined();
   expect(existsSync(join(root, 'installed.json'))).toBe(false);
-  expect(readFileSync(database(), 'utf8')).toBe('database before update');
+  expect(readDatabase(database())).toBe('database before update');
   expect(
     commands.some((entry) => entry.includes('disable --now porcelain.service')),
   ).toBe(true);
@@ -463,7 +530,7 @@ it('refuses recovery without either runtime and retains the journal and backup',
   rmSync(runtime(), { recursive: true });
   const backup = join(root, 'saved-database');
   mkdirSync(backup);
-  writeFileSync(join(backup, 'inventory.sqlite'), 'saved database');
+  writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
   writeFileSync(
     join(root, 'update.json'),
     JSON.stringify({
@@ -476,9 +543,7 @@ it('refuses recovery without either runtime and retains the journal and backup',
     'neither the installed nor previous runtime',
   );
   expect(existsSync(join(root, 'update.json'))).toBe(true);
-  expect(readFileSync(join(backup, 'inventory.sqlite'), 'utf8')).toBe(
-    'saved database',
-  );
+  expect(readDatabase(join(backup, 'inventory.sqlite'))).toBe('saved database');
   expect(service).toBeUndefined();
 });
 
@@ -554,9 +619,9 @@ it('prunes older database backups only after the updated service is healthy', as
     ...saved.slice(2),
     outcome.result.backup.split('/').at(-1),
   ]);
-  expect(
-    readFileSync(join(outcome.result.backup, 'inventory.sqlite'), 'utf8'),
-  ).toBe('database before update');
+  expect(readDatabase(join(outcome.result.backup, 'inventory.sqlite'))).toBe(
+    'database before update',
+  );
 });
 
 it('retains every backup when an update must roll back', async () => {
@@ -752,3 +817,371 @@ it('refuses a designated updater if its parent never releases preparation owners
     expect(existsSync(join(root, 'updater.lock'))).toBe(true);
   });
 });
+
+it.each([
+  'missing',
+  'corrupt',
+  'zero-byte',
+  'truncated-1',
+  'truncated-99',
+  'truncated-page-minus-one',
+  'no-migrations',
+  'empty-migrations',
+  'copy-failure',
+  'promotion-failure',
+] as const)(
+  'retains both runtimes, current data, journal and backup after %s restore failure and allows retry',
+  async (failure) => {
+    await install();
+    await stopService();
+    renameSync(runtime(), join(root, 'runtime.previous'));
+    writeRuntime(runtime(), '2.0.0');
+    writeDatabase(database(), 'newer surviving data');
+    const currentBytes = readFileSync(database());
+    writeRuntime(join(root, 'runtime.next'), '2.0.0');
+    writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
+    const backup = join(root, 'saved-database');
+    if (failure !== 'missing') {
+      mkdirSync(backup);
+      if (failure === 'corrupt')
+        writeFileSync(join(backup, 'inventory.sqlite'), 'corrupt');
+      else writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+      if (failure === 'zero-byte')
+        writeFileSync(join(backup, 'inventory.sqlite'), '');
+      if (failure.startsWith('truncated-')) {
+        const file = join(backup, 'inventory.sqlite');
+        truncateSync(
+          file,
+          failure === 'truncated-1'
+            ? 1
+            : failure === 'truncated-99'
+              ? 99
+              : readFileSync(file).readUInt16BE(16) - 1,
+        );
+      }
+      if (failure === 'no-migrations' || failure === 'empty-migrations') {
+        const db = new DatabaseSync(join(backup, 'inventory.sqlite'));
+        try {
+          db.exec(
+            failure === 'no-migrations'
+              ? 'DROP TABLE porcelain_migrations'
+              : 'DELETE FROM porcelain_migrations',
+          );
+        } finally {
+          db.close();
+        }
+      }
+    }
+    const journal = JSON.stringify({
+      installed: { version: '1.0.0' },
+      backup,
+      target: '2.0.0',
+    });
+    writeFileSync(join(root, 'update.json'), journal);
+    const backupBytes =
+      failure === 'missing'
+        ? undefined
+        : readFileSync(join(backup, 'inventory.sqlite'));
+    let failRename = true;
+    const files = await Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        return {
+          ...fs,
+          copyFile: (from: string, to: string) =>
+            failure === 'copy-failure' && from.startsWith(backup)
+              ? fs.copyFile(join(root, 'missing-copy-source'), to)
+              : fs.copyFile(from, to),
+          rename: (from: string, to: string) => {
+            if (
+              failure === 'promotion-failure' &&
+              failRename &&
+              to === database()
+            ) {
+              failRename = false;
+              return fs.rename(join(root, 'missing-rename-source'), to);
+            }
+            return fs.rename(from, to);
+          },
+        };
+      }).pipe(Effect.provide(NodeServices.layer)),
+    );
+    const commandCount = commands.length;
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow(
+      failure === 'promotion-failure'
+        ? 'Could not promote database backup'
+        : 'Could not prepare database backup',
+    );
+    failRename = true;
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, files),
+    ).rejects.toThrow(
+      failure === 'promotion-failure'
+        ? 'Could not promote database backup'
+        : 'Could not prepare database backup',
+    );
+    expect(existsSync(database())).toBe(true);
+    expect(readFileSync(database())).toEqual(currentBytes);
+    expect(readDatabase(database())).toBe('newer surviving data');
+    expect(JSON.parse(readFileSync(manifest(runtime()), 'utf8'))).toMatchObject(
+      { version: '2.0.0' },
+    );
+    expect(
+      JSON.parse(
+        readFileSync(manifest(join(root, 'runtime.previous')), 'utf8'),
+      ),
+    ).toMatchObject({ version: '1.0.0' });
+    expect(
+      JSON.parse(readFileSync(manifest(join(root, 'runtime.next')), 'utf8')),
+    ).toMatchObject({ version: '2.0.0' });
+    expect(
+      commands
+        .slice(commandCount)
+        .filter((command) => command.includes(' start ')),
+    ).toEqual([]);
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(readFileSync(join(root, 'update.json'), 'utf8')).toBe(journal);
+    if (backupBytes !== undefined)
+      expect(readFileSync(join(backup, 'inventory.sqlite'))).toEqual(
+        backupBytes,
+      );
+    mkdirSync(backup, { recursive: true });
+    writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: true },
+    });
+    expect(readDatabase(database())).toBe('saved database');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: false },
+    });
+  },
+);
+
+function healthyJournal() {
+  renameSync(runtime(), join(root, 'runtime.previous'));
+  writeRuntime(runtime(), '2.0.0');
+  writeRuntime(join(root, 'runtime.next'), '2.0.0');
+  writeDatabase(database(), 'newer writes after healthy update');
+  writeFileSync(join(root, 'installed.json'), '{"version":"2.0.0"}');
+  const backup = join(root, 'saved-database');
+  mkdirSync(backup);
+  writeDatabase(join(backup, 'inventory.sqlite'), 'older snapshot');
+  const journal = JSON.stringify({
+    installed: { version: '1.0.0' },
+    backup,
+    target: '2.0.0',
+    healthy: true,
+  });
+  writeFileSync(join(root, 'update.json'), journal);
+  return { backup, journal };
+}
+
+const recoveryProbe =
+  (
+    failure: 'absent' | 'unreadable' | 'wrong-pid' | 'wrong-directory',
+  ): OwnerProbe['probe'] =>
+  () =>
+    Effect.sync(() => {
+      if (failure === 'absent') return { kind: 'absent' as const };
+      if (failure === 'unreadable')
+        return {
+          kind: 'unreadable' as const,
+          reason: 'owner response unavailable',
+        };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid:
+            failure === 'wrong-pid'
+              ? (service?.pid ?? 0) + 1
+              : (service?.pid ?? 0),
+          dataDirectory:
+            failure === 'wrong-directory' ? join(home, 'different-data') : data,
+        },
+      };
+    });
+
+it.each([
+  'absent',
+  'unreadable',
+  'wrong-pid',
+  'wrong-directory',
+  'startup-failure',
+] as const)(
+  'healthy journal restart must prove current readiness after %s and remain retryable',
+  async (failure) => {
+    await install();
+    await stopService();
+    const { backup, journal } = healthyJournal();
+    writeFileSync(
+      join(root, 'update-record.json'),
+      '{"from":"1.0.0","target":"2.0.0","stage":"restarting"}',
+    );
+    const probe =
+      failure === 'startup-failure' ? undefined : recoveryProbe(failure);
+    rejectStart = failure === 'startup-failure';
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    await expect(
+      execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    expect(readDatabase(database())).toBe('newer writes after healthy update');
+    expect(readDatabase(join(backup, 'inventory.sqlite'))).toBe(
+      'older snapshot',
+    );
+    expect(readFileSync(join(root, 'update.json'), 'utf8')).toBe(journal);
+    expect(existsSync(join(root, 'runtime.previous'))).toBe(true);
+    expect(existsSync(join(root, 'runtime.next'))).toBe(true);
+    expect(record('installed.json')).toEqual({ version: '2.0.0' });
+    expect(record('update-record.json')).toEqual({
+      from: '1.0.0',
+      target: '2.0.0',
+      stage: 'restarting',
+    });
+    rejectStart = false;
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: true },
+    });
+    expect(readDatabase(database())).toBe('newer writes after healthy update');
+    expect(existsSync(join(root, 'runtime.previous'))).toBe(false);
+    expect(existsSync(join(root, 'runtime.next'))).toBe(false);
+    expect(existsSync(join(root, 'update.json'))).toBe(false);
+    expect(record('update-record.json')).toEqual({
+      from: '1.0.0',
+      target: '2.0.0',
+      stage: 'updated',
+    });
+    expect(await execute({ action: 'recover' })).toEqual({
+      action: 'recover',
+      result: { recovered: false },
+    });
+  },
+);
+
+it('retains healthy recovery state until the expected owner eventually answers', async () => {
+  await install();
+  await stopService();
+  healthyJournal();
+  const observed: boolean[] = [];
+  const probe: OwnerProbe['probe'] = () =>
+    Effect.sync(() => {
+      observed.push(
+        existsSync(join(root, 'runtime.previous')) &&
+          existsSync(join(root, 'update.json')) &&
+          existsSync(join(root, 'runtime.next')),
+      );
+      if (observed.length < 3) return { kind: 'absent' as const };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid: service?.pid ?? 0,
+          dataDirectory: data,
+        },
+      };
+    });
+  expect(
+    await execute({ action: 'recover' }, '2.0.0', source, undefined, probe),
+  ).toEqual({ action: 'recover', result: { recovered: true } });
+  expect(observed).toEqual([true, true, true]);
+  expect(readDatabase(database())).toBe('newer writes after healthy update');
+  expect(existsSync(join(root, 'update.json'))).toBe(false);
+});
+
+it.each([
+  'absent',
+  'unreadable',
+  'wrong-pid',
+  'wrong-directory',
+  'startup-failure',
+] as const)(
+  'ordinary service recovery rejects %s instead of reporting readiness',
+  async (failure) => {
+    await install();
+    await stopService();
+    rejectStart = failure === 'startup-failure';
+    const probe =
+      failure === 'startup-failure' ? undefined : recoveryProbe(failure);
+    await expect(
+      execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    await expect(
+      execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+    ).rejects.toThrow(
+      failure === 'startup-failure'
+        ? 'service startup failed'
+        : 'did not become healthy',
+    );
+    expect(readDatabase(database())).toBe('database before update');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+    expect(existsSync(join(root, 'update.json'))).toBe(false);
+  },
+);
+
+it('reports ordinary recovery only after the restarted owner eventually answers', async () => {
+  await install();
+  await stopService();
+  let attempts = 0;
+  const probe: OwnerProbe['probe'] = () =>
+    Effect.sync(() => {
+      attempts++;
+      if (attempts < 3) return { kind: 'absent' as const };
+      return {
+        kind: 'running' as const,
+        status: {
+          address: 'http://127.0.0.1:4737',
+          pid: service?.pid ?? 0,
+          dataDirectory: data,
+        },
+      };
+    });
+  expect(
+    await execute({ action: 'recover' }, '1.0.0', source, undefined, probe),
+  ).toEqual({ action: 'recover', result: { recovered: true } });
+  expect(attempts).toBe(3);
+  expect(readDatabase(database())).toBe('database before update');
+  expect(await execute({ action: 'recover' })).toEqual({
+    action: 'recover',
+    result: { recovered: false },
+  });
+});
+
+it.each(['absent', 'unreadable', 'wrong-pid', 'wrong-directory'] as const)(
+  'already running service recovery rejects %s without restarting or changing data',
+  async (failure) => {
+    await install();
+    const pid = service?.pid;
+    await expect(
+      execute(
+        { action: 'recover' },
+        '1.0.0',
+        source,
+        undefined,
+        recoveryProbe(failure),
+      ),
+    ).rejects.toThrow('did not become healthy');
+    expect(service?.pid).toBe(pid);
+    expect(readDatabase(database())).toBe('database before update');
+    expect(record('installed.json')).toEqual({ version: '1.0.0' });
+  },
+);
