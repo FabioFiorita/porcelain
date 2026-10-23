@@ -918,6 +918,126 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...['icon', 'icon-sm', 'icon-xs', 'icon-lg'].flatMap((size) =>
+    [
+      `<Button size="${size}" aria-label="Save"><SaveIcon /></Button>`,
+      `<Tooltip><TooltipTrigger><Button size="${size}" aria-label="Save"><SaveIcon /></Button></TooltipTrigger><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" />} /><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" aria-label="" />} /><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" aria-label="Save" />} /><TooltipContent /></Tooltip>`,
+      `<Tooltip><Button size="${size}" aria-label="Save" /><TooltipTrigger /><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" aria-label={null} />} /><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" aria-label={undefined} />} /><TooltipContent>Save</TooltipContent></Tooltip>`,
+      `<Tooltip><TooltipTrigger render={<Button size="${size}" aria-label="Save" />} /><TooltipContent><SaveIcon /></TooltipContent></Tooltip>`,
+    ].map((invalid) => ({
+      rule: 'web-icon-button-tooltip',
+      path: 'apps/web/src/features/files/views/save-control.tsx',
+      valid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size="${size}" aria-label="Save" />}><SaveIcon /></TooltipTrigger><TooltipContent>Save</TooltipContent></Tooltip>;`,
+      invalid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = ${invalid};`,
+      errors: 1,
+    })),
+  ),
+  ...[
+    `<Tooltip><TooltipTrigger render={<Button size="icon" aria-label={label}><SaveIcon /></Button>} /><TooltipContent>{label}</TooltipContent></Tooltip>`,
+    `<Tooltip><TooltipTrigger render={<DropdownMenuTrigger render={<Button size="icon-sm" aria-label="Actions" />} />}><MoreIcon /></TooltipTrigger><TooltipContent>Actions</TooltipContent></Tooltip>`,
+    `<Button size="sm">Save</Button>`,
+    `<Tooltip><TooltipTrigger render={<Button size="icon" aria-label="Save" />} /><TooltipContent><span>Save</span></TooltipContent></Tooltip>`,
+    `<OtherButton size="icon" />`,
+  ].map((valid) => ({
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/features/files/views/save-control.tsx',
+    valid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = ${valid};`,
+    invalid: `import { Button } from '@/components/ui/button'; export const control = <Button size="icon" aria-label="Save" />;`,
+    errors: 1,
+  })),
+  {
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/features/files/views/save-control.tsx',
+    valid: `import { Button as Action } from '@/components/ui/button'; import * as Tip from '@/components/ui/tooltip'; export const control = <Tip.Tooltip><Tip.TooltipTrigger render={<Action size={'icon-sm'} aria-label="Save" />} /><Tip.TooltipContent>Save</Tip.TooltipContent></Tip.Tooltip>;`,
+    invalid: `import { Button as Action } from '@/components/ui/button'; export const control = <Action size={'icon-sm'} aria-label="Save" />;`,
+    errors: 1,
+  },
+  ...["compact ? 'icon-xs' : 'xs'", "suggested ? 'sm' : 'icon-sm'"].map(
+    (size) => ({
+      rule: 'web-icon-button-tooltip',
+      path: 'apps/web/src/features/files/views/save-control.tsx',
+      valid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size={${size}} aria-label="Save" />} /><TooltipContent>Save</TooltipContent></Tooltip>;`,
+      invalid: `import { Button } from '@/components/ui/button'; export const control = <Button size={${size}} aria-label="Save" />;`,
+      errors: 1,
+    }),
+  ),
+  {
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/features/files/views/save-control.tsx',
+    validPath: 'apps/web/src/components/ui/button.tsx',
+    valid: `import { Button } from '@/components/ui/button'; export const control = <Button size="icon" />;`,
+    invalid: `import { InputGroupButton } from '@/components/ui/input-group'; export const control = <InputGroupButton size="icon-xs" aria-label="Next" />;`,
+    errors: 1,
+  },
+  ...[
+    `import { tool } from './development-settings';`,
+    `import './development-settings';`,
+    `export { tool } from './development-settings';`,
+    `export * from './development-tools/index';`,
+    `const tool = import('./development-settings');`,
+    `const tool = __DEV__ ? null : import('./development-settings');`,
+    `const tool = require('./development-settings');`,
+    `const tool = __DEV__ && require('./development-settings');`,
+    `const tool = import.meta.env.DEV || import('./development-settings');`,
+  ].map((invalid) => ({
+    rule: 'development-imports',
+    path: 'apps/mobile/src/features/access/views/settings-screen.tsx',
+    valid: `const Tool = __DEV__ ? lazy(() => import('./development-settings')) : () => null;`,
+    invalid,
+    errors: 1,
+  })),
+  ...[
+    `const tool = import.meta.env.DEV ? import('./development-tools') : null;`,
+    `if (__DEV__) { void import('./development-tools'); }`,
+    `const tool = __DEV__ && enabled && import('./development-tools');`,
+    `import type { Tool } from './development-tools';`,
+    `import { type Tool } from './development-tools';`,
+    `export type { Tool } from './development-tools';`,
+    `export { type Tool } from './development-tools';`,
+    `import { tool } from './settings';`,
+  ].map((valid) => ({
+    rule: 'development-imports',
+    path: 'apps/web/src/features/access/views/settings-screen.tsx',
+    valid,
+    invalid: `import { tool } from './development-tools';`,
+    errors: 1,
+  })),
+  ...[
+    'apps/mobile/src/features/access/views/development-settings.tsx',
+    'apps/mobile/src/features/access/views/development-tools/settings.tsx',
+    'apps/mobile/src/features/access/views/settings.spec.tsx',
+    'apps/mobile/spec/bundle.spec.ts',
+  ].map((validPath) => ({
+    rule: 'development-imports',
+    path: 'apps/desktop/src/settings.ts',
+    validPath,
+    valid: `import { tool } from './development-tools';`,
+    invalid: `import { tool } from './development-tools';`,
+    errors: 1,
+  })),
+  ...[
+    'apps/mobile/src/app/(settings)/component-library.tsx',
+    'apps/mobile/src/app/(development-tools)/index.tsx',
+    'apps/mobile/src/app/(settings)/development-library.tsx',
+    'apps/mobile/src/app/(settings)/component.spec.tsx',
+  ].flatMap((path) =>
+    [
+      `import { Tool } from '../../features/development-tools';`,
+      `export { Tool as default } from '../../features/development-tools';`,
+      `const Tool = import('../../features/development-tools');`,
+    ].map((invalid) => ({
+      rule: 'development-imports',
+      path,
+      valid: `const Tool = __DEV__ ? lazy(() => import('../../features/development-tools')) : () => null;`,
+      invalid,
+      errors: 1,
+    })),
+  ),
   ...nativeLaneCases,
   ...[
     [

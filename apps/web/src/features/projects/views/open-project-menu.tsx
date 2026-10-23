@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import type { RemoteConnection } from '@porcelain/client/access';
 import { remoteStatusText } from '@porcelain/client/access/rules';
 import { MonitorIcon, PlusIcon, ServerIcon } from 'lucide-react';
@@ -20,24 +25,46 @@ export function OpenProjectMenu({
   remotes: readonly RemoteConnection[] | undefined;
   onOpenProject: (remote: RemoteConnection | null) => void;
 }) {
-  const plus = (onClick?: () => void) => (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className="ml-auto"
-      aria-label="Open project"
-      title="Open project"
-      onClick={onClick}
-    >
-      <PlusIcon />
-    </Button>
-  );
-  if (!remotes?.length) return plus(() => openProject(null));
+  if (!remotes?.length)
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="ml-auto"
+              aria-label="Open project"
+              onClick={() => openProject(null)}
+            />
+          }
+        >
+          <PlusIcon />
+        </TooltipTrigger>
+        <TooltipContent role="tooltip">Open project</TooltipContent>
+      </Tooltip>
+    );
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={plus()}>
-        <PlusIcon />
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto"
+                  aria-label="Open project"
+                />
+              }
+            />
+          }
+        >
+          <PlusIcon />
+        </TooltipTrigger>
+        <TooltipContent role="tooltip">Open project</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Open project on</DropdownMenuLabel>

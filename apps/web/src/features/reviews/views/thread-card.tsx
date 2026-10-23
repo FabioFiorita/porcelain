@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { relativeTime } from '@/shared/lib/relative-time';
@@ -114,18 +119,27 @@ function MessageMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Comment actions"
-              disabled={remove.result.waiting}
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Comment actions"
+                    disabled={remove.result.waiting}
+                  />
+                }
+              >
+                <EllipsisIcon />
+              </DropdownMenuTrigger>
+            }
+          />
+          <TooltipContent role="tooltip" className="break-all">
+            Comment actions
+          </TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>
             <PencilIcon />

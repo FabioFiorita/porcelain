@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { createPortal } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
@@ -17,7 +18,7 @@ import {
   MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
@@ -40,10 +41,8 @@ import { isFolded } from '../rules/code-folds';
 import { groupSpecPaths, isSpecPath } from '@porcelain/client/reviews/rules';
 import {
   anchorLabel,
-  commentIsStale,
   type FileCommentAnchor,
   type CommentThread,
-  matchesCommentTarget,
   rangeAnchor,
 } from '@porcelain/client/reviews/rules';
 import type { DocumentInteraction } from '../rules/documents';
@@ -51,7 +50,12 @@ import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
 import { useMarginStack } from '../adapters/margin-stack';
-import { InlineComposer } from './inline-composer';
+import {
+  codeCommentMatches,
+  codeCommentStale,
+} from '../rules/retained-comments';
+import { ReviewNotice } from './review-notice';
+import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -140,6 +144,7 @@ function CodeSurface({
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
+    draft: InlineCommentDraft;
   } | null>(null);
   const [selection, setSelection] = useState<CodeViewLineSelection | null>(
     null,
@@ -165,7 +170,11 @@ function CodeSurface({
   const openFileComment = (entry: CodeEntry | undefined) => {
     if (!entry?.comment) return;
     setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
-    setComposer({ id: entry.id, anchor: { ...entry.comment, kind: 'file' } });
+    setComposer({
+      id: entry.id,
+      anchor: { ...entry.comment, kind: 'file' },
+      draft: { body: '' },
+    });
     setSelection(null);
   };
   const closeComposer = () => {
@@ -184,7 +193,12 @@ function CodeSurface({
     reveal &&
     entries.find(
       (entry) =>
-        entry.comment && matchesCommentTarget(reveal.anchor, entry.comment),
+        entry.comment &&
+        codeCommentMatches(
+          reveal.anchor,
+          entry.comment,
+          scope.review !== undefined,
+        ),
     );
   const focusEntry = (index: number) => {
     const entry = entries[index];
@@ -201,17 +215,33 @@ function CodeSurface({
       ? threads
           .filter(
             (thread) =>
-              matchesCommentTarget(thread.anchor, target) &&
+              codeCommentMatches(
+                thread.anchor,
+                target,
+                scope.review !== undefined,
+              ) &&
               (thread.anchor.comparison ||
                 entries.find(
                   (candidate) =>
                     candidate.comment &&
-                    matchesCommentTarget(thread.anchor, candidate.comment),
+                    codeCommentMatches(
+                      thread.anchor,
+                      candidate.comment,
+                      scope.review !== undefined,
+                    ),
                 )?.id === entry.id),
           )
           .map((thread) => ({
             thread,
-            stale: commentIsStale(thread.anchor, target),
+            stale: codeCommentStale(
+              thread.anchor,
+              target,
+              scope.review && {
+                revision: scope.review.revision,
+                commentRevision: thread.review?.revision,
+                kind: entry.kind,
+              },
+            ),
           }))
       : [];
     for (const item of placed) {
@@ -301,7 +331,7 @@ function CodeSurface({
       }
       setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
       setRangeError(null);
-      setComposer({ id: entry.id, anchor });
+      setComposer({ id: entry.id, anchor, draft: { body: '' } });
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
@@ -486,7 +516,17 @@ function CodeSurface({
                 const anchor = reveal.anchor;
                 const stale =
                   revealEntry.comment &&
-                  commentIsStale(anchor, revealEntry.comment);
+                  codeCommentStale(
+                    anchor,
+                    revealEntry.comment,
+                    scope.review && {
+                      revision: scope.review.revision,
+                      commentRevision: threads.find(
+                        (thread) => thread.anchor === anchor,
+                      )?.review?.revision,
+                      kind: revealEntry.kind,
+                    },
+                  );
                 handle.scrollTo(
                   anchor.kind === 'codeRange' && !stale
                     ? {
@@ -533,13 +573,23 @@ function CodeSurface({
                 />
               );
             return note.kind === 'composer' ? (
-              <InlineComposer
-                key={JSON.stringify(note.anchor)}
-                scope={scope}
-                context={gitContext}
-                anchor={note.anchor}
-                onClose={closeComposer}
-              />
+              composer && composer.anchor === note.anchor && (
+                <InlineComposer
+                  key={JSON.stringify(note.anchor)}
+                  scope={scope}
+                  context={gitContext}
+                  anchor={note.anchor}
+                  draft={composer.draft}
+                  onDraftChange={(draft) =>
+                    setComposer((current) =>
+                      current?.anchor === note.anchor
+                        ? { ...current, draft }
+                        : current,
+                    )
+                  }
+                  onClose={closeComposer}
+                />
+              )
             ) : (
               <div
                 {...(threadMargin && note.lineNumber > 0
@@ -554,10 +604,40 @@ function CodeSurface({
               >
                 {note.threads.map(({ thread, stale }) => (
                   <div key={thread.id}>
-                    {stale && (
+                    {stale && !thread.review && (
                       <p className="mb-2 text-xs text-graph-4">
                         Code changed since this comment
                       </p>
+                    )}
+                    {stale && thread.review && (
+                      <ReviewNotice
+                        title="Code changed since this comment"
+                        action={
+                          <Link
+                            to="/reviews/$reviewId/$revision"
+                            params={{
+                              reviewId: thread.review.reviewId,
+                              revision: String(thread.review.revision),
+                            }}
+                            search={(previous) => ({
+                              environment: previous.environment,
+                              decision: undefined,
+                            })}
+                            className={cn(
+                              buttonVariants({
+                                variant: 'outline',
+                                size: 'xs',
+                              }),
+                            )}
+                          >
+                            Open r{thread.review.revision}
+                          </Link>
+                        }
+                      >
+                        {thread.review &&
+                          `Written on r${thread.review.revision}. `}
+                        Read the original code before acting on this thread.
+                      </ReviewNotice>
                     )}
                     <ThreadCard
                       scope={scope}

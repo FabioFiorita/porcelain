@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import type { ReactNode } from 'react';
 import {
   settingsUpdateAvailable,
@@ -120,14 +125,25 @@ export function SettingsUpdateRow({
               {trust.deviceId && (
                 <div className="flex min-w-0 items-center gap-2">
                   <code className="break-all">{trust.deviceId}</code>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label="Copy device ID"
-                    onClick={() => copyText(trust.deviceId ?? '', 'device ID')}
-                  >
-                    <CopyIcon />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          size="icon-xs"
+                          variant="ghost"
+                          aria-label="Copy device ID"
+                          onClick={() =>
+                            copyText(trust.deviceId ?? '', 'device ID')
+                          }
+                        >
+                          <CopyIcon />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent role="tooltip" className="break-all">
+                      Copy device ID
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </div>
