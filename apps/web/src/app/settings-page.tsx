@@ -57,7 +57,7 @@ export const defaultSettingsSection = settingsSections[0].id;
 
 function contentClass(wide = false) {
   return cn(
-    'settings-content mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pl-7 lg:pr-14',
+    'settings-content wrap-anywhere mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pl-7 lg:pr-14',
     wide ? 'max-w-5xl' : 'max-w-3xl',
   );
 }
@@ -171,8 +171,8 @@ export function SettingsPage({
             <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
           </TooltipContent>
         </Tooltip>
-        <Breadcrumb>
-          <BreadcrumbList>
+        <Breadcrumb className="min-w-0 flex-1">
+          <BreadcrumbList className="min-w-0 flex-nowrap">
             <BreadcrumbItem>Settings</BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -191,8 +191,10 @@ export function SettingsPage({
             {environmentId !== undefined && (
               <>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{detailName}</BreadcrumbPage>
+                <BreadcrumbItem className="min-w-0">
+                  <BreadcrumbPage className="min-w-0">
+                    {detailName}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </>
             )}

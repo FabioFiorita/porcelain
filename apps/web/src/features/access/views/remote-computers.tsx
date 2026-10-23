@@ -13,11 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import {
   Item,
   ItemContent,
@@ -187,7 +183,7 @@ export function RemoteComputers({
             <ItemContent>
               <ComputerLink
                 name={environment.name}
-                label="Open This computer"
+                label={`Open This computer: ${environment.name}`}
                 onOpen={() => onOpen('this-computer')}
                 icon={<MonitorIcon className="size-4 shrink-0" />}
                 badge={<Badge variant="secondary">This computer</Badge>}
@@ -247,28 +243,24 @@ function ComputerLink({
   onOpen: () => void;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={<Button variant="ghost" />}
-        className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
-        aria-label={label}
-        onClick={onOpen}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            {icon}
-            <span className="min-w-0 truncate font-medium">{name}</span>
-            {badge}
-          </span>
-          <span className="block break-all text-xs font-normal text-muted-foreground">
-            {description}
-          </span>
+    <FullValueTooltip
+      value={name}
+      render={<Button variant="ghost" />}
+      className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
+      aria-label={label}
+      onClick={onOpen}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-2">
+          {icon}
+          <span className="min-w-0 truncate font-medium">{name}</span>
+          {badge}
         </span>
-        <ChevronRightIcon className="shrink-0" />
-      </TooltipTrigger>
-      <TooltipContent role="tooltip" className="wrap-anywhere">
-        {name}
-      </TooltipContent>
-    </Tooltip>
+        <span className="block break-all text-xs font-normal text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      <ChevronRightIcon className="shrink-0" />
+    </FullValueTooltip>
   );
 }

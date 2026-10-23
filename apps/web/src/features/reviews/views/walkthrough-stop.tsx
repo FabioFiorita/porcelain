@@ -7,6 +7,7 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
@@ -357,10 +358,12 @@ function RouteRow({
   lane: string | undefined;
   onStep: (step: ReviewStep) => void;
 }) {
+  const value = [lane, step.pointer.path].filter(Boolean).join(' · ');
   return (
-    <button
-      type="button"
-      aria-label={`Go to step ${index + 1}: ${step.title}`}
+    <FullValueTooltip
+      value={value}
+      render={<button type="button" />}
+      aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
       onClick={() => onStep(step)}
       className={cn(
         'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
@@ -383,14 +386,11 @@ function RouteRow({
           {step.title}
           <StepMarker step={step} />
         </span>
-        <span
-          className="min-w-0 truncate font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2"
-          title={step.pointer.path}
-        >
+        <span className="min-w-0 truncate font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2">
           {step.pointer.path}
         </span>
       </span>
-    </button>
+    </FullValueTooltip>
   );
 }
 

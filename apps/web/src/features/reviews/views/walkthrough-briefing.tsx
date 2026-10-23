@@ -11,11 +11,7 @@ import {
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import { cn } from '@/shared/lib/utils';
 import {
   briefingTitle,
@@ -90,17 +86,11 @@ export function WalkthroughBriefing({
                 Briefing · Revision {review.revision}
               </p>
               <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span tabIndex={0} />}
-                    className="line-clamp-3 text-muted-foreground"
-                  >
+                <FullValueTooltip value={title} className="block min-w-0">
+                  <span className="line-clamp-3 text-muted-foreground">
                     {title}
-                  </TooltipTrigger>
-                  <TooltipContent role="tooltip" className="wrap-anywhere">
-                    {title}
-                  </TooltipContent>
-                </Tooltip>
+                  </span>
+                </FullValueTooltip>
                 <span className="block">
                   {briefingTitle(decisionStops.length)}.
                 </span>

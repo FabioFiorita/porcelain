@@ -106,7 +106,9 @@ test.for([414, 1080, 1440])(
         'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity'.repeat(
           3,
         );
-      const fixture = await repo.review(title, prose);
+      const path = `${'long-path-segment-'.repeat(12)}.ts`;
+      const lane = 'VeryLongUnbrokenClientResponsibility'.repeat(2);
+      const fixture = await repo.review(title, prose, { path, lane });
       const app = await render.route(`/reviews/${fixture.reviewId}`);
       const briefing = app.page.getByRole('region', {
         name: 'Briefing',
@@ -131,6 +133,21 @@ test.for([414, 1080, 1440])(
       await expect
         .element(decision.getByRole('heading', { name: title, exact: true }))
         .toBeVisible();
+      const route = decision.getByRole('button', {
+        name: /^Go to step 1: Read the retained revision/u,
+      });
+      await expect.element(route).toBeVisible();
+      await expect
+        .element(route)
+        .toHaveAccessibleName(
+          `Go to step 1: Read the retained revision · ${lane} · ${path}`,
+        );
+      reviewLayout.focus(route);
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect.element(route).toHaveFocus();
+      await expect
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(`${lane} · ${path}`);
       await expect
         .poll(() => reviewLayout.fitsViewport(decision))
         .toEqual({ insideViewport: true, contentFits: true });

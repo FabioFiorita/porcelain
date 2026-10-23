@@ -9,7 +9,7 @@ selectors:
   - 'Toggle Sidebar'
   - 'Settings'
   - 'Computers'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Disconnect this browser'
   - 'Save or discard unsaved file drafts before disconnecting.'
   - 'Close Settings'
@@ -30,8 +30,8 @@ Settings → Computers → This computer → "Disconnect this browser" ends this
 
 ## How to get to it (user POV)
 
-- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Computers` → `Open This computer` → `Disconnect this browser`.
-- `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Computers` → `Open This computer`.
+- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → `Computers` → `Open This computer: <name>` → `Disconnect this browser`.
+- `Alt+Shift+S` opens Settings (ignored while focus is in a text field or the file editor); then the `Computers` → `Open This computer: <name>`.
 - Route `/settings/computers/this-computer` opens the section directly (a full page load: it drops unsaved drafts, so do not use it for the refusal case).
 - Disconnect this browser is nested in This computer in web mode. The desktop app omits that browser-only action.
 
@@ -60,7 +60,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. Click button `Toggle Sidebar`, then click button `Settings`
    Expect: main "Settings", URL `/settings/general`, title "Settings".
-8. Click button `Computers`, then button named `Open This computer`
+8. Click button `Computers`, then button named `Open This computer: <name>`
    Expect: URL `/settings/computers/this-computer`; text "This browser"; button "Disconnect this browser".
 9. Click button `Disconnect this browser`
    Expect: an alert inside main "Settings" reading "Save or discard unsaved file drafts before disconnecting."; URL stays `/settings/computers/this-computer`.
@@ -73,7 +73,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
     Expect: main "Settings" is gone; the README.md document shows button "Resume edit" (the draft still differs from the saved text).
 11. Click button `Resume edit`, then click button `Reload`
     Expect: "Not saving: changed on disk" is gone; the editor closes (textbox "README.md" gone), the document shows the disk text "Changed on disk before the browser disconnects" and its button reads "Edit" again.
-12. Click button `Toggle Sidebar`, click button `Settings`, click button `Computers`, then button named `Open This computer`
+12. Click button `Toggle Sidebar`, click button `Settings`, click button `Computers`, then button named `Open This computer: <name>`
     Expect: button "Disconnect this browser".
 13. Click button `Disconnect this browser`, then wait for 'This browser is not paired'
     Expect: heading "This browser is not paired", the text `porcelain pair "This browser" --address http://127.0.0.1:<port>`, URL `/pair`.

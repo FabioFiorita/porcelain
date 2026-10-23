@@ -16,7 +16,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await settings
-    .getByRole('button', { name: 'Open This computer', exact: true })
+    .getByRole('button', { name: /^Open This computer:/u })
     .click();
   const version = await app.electron.evaluate(({ app }) => app.getVersion());
   await expect(

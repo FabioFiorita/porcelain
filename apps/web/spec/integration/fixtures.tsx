@@ -371,6 +371,18 @@ export const test = base
       await host.porcelainFixture('this'),
     ),
   )
+  .extend('remote', ({ world: _world }) => ({
+    rename: (name: string) =>
+      host.porcelainRepo({ kind: 'environment-name-fixture', name }, 'remote'),
+    pairingLink: async () => {
+      const grant = await host.porcelainPairingLink('Review device', 'remote');
+      return pairingLink({
+        addresses: [grant.address],
+        code: grant.code,
+        environmentId: grant.environmentId,
+      });
+    },
+  }))
   .extend('agent', ({ world: _world }) =>
     agentOn((step) => host.porcelainRepo(step, 'this')),
   )

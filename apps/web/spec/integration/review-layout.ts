@@ -10,6 +10,9 @@ function uncovered(element: Element) {
 }
 
 export const reviewLayout = {
+  focus(locator: Locator) {
+    locator.element().focus();
+  },
   titleLines(locator: Locator) {
     const title = locator.element();
     const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);

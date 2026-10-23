@@ -33,7 +33,7 @@ test('Settings obtains the local app executable and server directory through its
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await page
-    .getByRole('button', { name: 'Open This computer', exact: true })
+    .getByRole('button', { name: /^Open This computer:/u })
     .click();
   await expect(
     page.getByText(configuration.command, { exact: true }),

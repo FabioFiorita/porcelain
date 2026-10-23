@@ -7,7 +7,7 @@ export async function openThisComputer(page: Page) {
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
   await settings
-    .getByRole('button', { name: 'Open This computer', exact: true })
+    .getByRole('button', { name: /^Open This computer:/u })
     .click();
   return settings;
 }
