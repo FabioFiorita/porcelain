@@ -14,6 +14,7 @@ android {
 
 }
 dependencies {
+  implementation 'com.facebook.react:react-android'
   implementation 'androidx.exifinterface:exifinterface:1.4.2'
   implementation 'androidx.compose.foundation:foundation-android:1.10.6'
   implementation 'androidx.compose.ui:ui-android:1.10.6'
