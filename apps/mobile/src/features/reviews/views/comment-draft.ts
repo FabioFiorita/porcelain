@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type RefCallback } from 'react';
 import { usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { Alert } from 'react-native';
@@ -22,6 +22,8 @@ export type CommentWorkspace = Pick<Workspace, 'connection' | 'scope'>;
 export type ComposerTarget = {
   anchor: CommentAnchor;
   threadId?: string | undefined;
+  reviewId?: string | undefined;
+  reviewRevision?: number | undefined;
 };
 
 export function useCommentDraft(
@@ -51,7 +53,7 @@ export function useCommentDraft(
     reply.reset();
     complete();
   };
-  const confirmDiscard = (complete: () => void) => {
+  const askDiscard = (discard: () => void) => {
     if (pending) {
       Alert.alert(
         'Sending comment',
@@ -60,7 +62,7 @@ export function useCommentDraft(
       return;
     }
     if (!dirty) {
-      reset(complete);
+      discard();
       return;
     }
     Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
@@ -68,15 +70,32 @@ export function useCommentDraft(
       {
         text: 'Discard',
         style: 'destructive',
-        onPress: () => reset(complete),
+        onPress: discard,
       },
     ]);
   };
+  const confirmDiscard = (complete: () => void) =>
+    askDiscard(() => reset(complete));
   useDocumentLeave(leaveScope, dirty || pending ? confirmDiscard : undefined);
-  usePreventRemove(dirty || pending, ({ repeat }) => confirmDiscard(repeat));
+  const [leave, setLeave] = useState<{ go: () => void; cleared: boolean }>();
+  usePreventRemove(dirty || pending, ({ repeat }) =>
+    askDiscard(() => reset(() => setLeave({ go: repeat, cleared: false }))),
+  );
+  const leaveAnchor: RefCallback<unknown> | undefined = leave
+    ? (node) => {
+        if (!node) return;
+        if (!leave.cleared) {
+          setLeave({ ...leave, cleared: true });
+          return;
+        }
+        setLeave(undefined);
+        leave.go();
+      }
+    : undefined;
   return {
     body,
     pending,
+    leaveAnchor,
     error: invalid ?? failure,
     edit: (value: string) => {
       setBody(value);
@@ -104,13 +123,20 @@ export function useCommentDraft(
       const sent = () => reset(onClose);
       if (target.threadId)
         reply.send(
-          { threadId: target.threadId, messageId: input.messageId, body },
+          {
+            threadId: target.threadId,
+            reviewId: target.reviewId,
+            messageId: input.messageId,
+            body,
+          },
           sent,
         );
       else
         create.send(
           {
             threadId: input.threadId,
+            reviewId: target.reviewId,
+            reviewRevision: target.reviewRevision,
             messageId: input.messageId,
             body,
             anchor: target.anchor,

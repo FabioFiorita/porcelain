@@ -19,6 +19,7 @@ import {
   worktreePath,
 } from '@porcelain/server/kit/requests';
 import { readPublishedReview } from '@porcelain/client/reviews';
+import { threadWriteTarget } from '@porcelain/client/reviews/rules';
 import { readCommentThreads } from '@porcelain/client/reviews';
 import { readReviewedFiles, readLayerMarks } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
@@ -187,6 +188,75 @@ test('write the discussion through the shared owner and read each persisted edit
       await nativeRead(readCommentThreads({ scope, connection: connected }))
     ).some((entry) => entry.id === thread.id),
   ).toBe(false);
+});
+
+test('write a published review discussion through the worktree owner and read it from the review', async ({
+  server,
+  session,
+}) => {
+  await commitReviewFixture(session);
+  const published = await read(session, {
+    method: 'PUT',
+    path: worktreePath(session, '/review'),
+    body: sampleReview(
+      session,
+      0,
+      '75dc6a36-a001-4d00-b511-c45430b99403',
+      '75dc6a36-a001-4d00-b511-c45430b99404',
+    ),
+  });
+  const reviewId = text(published.reviewId);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+    execute,
+  } = await connection(server, session);
+  const commands = commentCommands({ scope, connection: connected });
+  const thread = await execute(commands.create, {
+    reviewId,
+    reviewRevision: 1,
+    anchor: { kind: 'change' },
+    body: 'On decision 1: keep one owner.',
+  });
+  expect(thread.review).toMatchObject({ reviewId, revision: 1 });
+  const target = threadWriteTarget(thread);
+  const replied = await execute(commands.reply, {
+    ...target,
+    body: 'And name it in the route.',
+  });
+  const messageId = replied.messages[1]?.id ?? '';
+  await execute(commands.edit, {
+    ...target,
+    messageId,
+    body: 'And name the owner in the route.',
+  });
+  expect(
+    (await execute(commands.resolve, { ...target, resolved: true })).resolved,
+  ).toBe(true);
+  const stored = await nativeRead(
+    readReviewComments({ connection: connected, reviewId }),
+  );
+  expect(
+    stored.map((entry) => ({
+      id: entry.id,
+      resolved: entry.resolved,
+      bodies: entry.messages.map((message) => message.body),
+    })),
+  ).toEqual([
+    {
+      id: thread.id,
+      resolved: true,
+      bodies: [
+        'On decision 1: keep one owner.',
+        'And name the owner in the route.',
+      ],
+    },
+  ]);
+  const removed = await execute(commands.remove, { ...target, messageId });
+  expect(removed.thread?.messages.map((message) => message.body)).toEqual([
+    'On decision 1: keep one owner.',
+  ]);
 });
 
 test('mark and unmark the actual changed file through the shared reviewed owner', async ({

@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import {
   ReviewCommentsScreen,
   decodeCommentAnchor,
+  decodeCommentReview,
   reviewComparison,
 } from '../../features/reviews';
 
@@ -15,6 +16,8 @@ function ReviewCommentsRoute() {
     base?: string;
     thread?: string;
     body?: string;
+    review?: string;
+    revision?: string;
   }>();
   return (
     <ReviewCommentsScreen
@@ -25,6 +28,7 @@ function ReviewCommentsRoute() {
       comparison={reviewComparison(params.comparison, params.base)}
       thread={params.thread}
       body={params.body}
+      review={decodeCommentReview(params.review, params.revision)}
     />
   );
 }

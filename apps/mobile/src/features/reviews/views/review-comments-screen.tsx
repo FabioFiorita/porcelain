@@ -13,6 +13,7 @@ import {
   matchesCommentTarget,
   type CommentTarget,
   threadStateLabel,
+  threadWriteTarget,
   type CommentAnchor,
   type CommentThread,
 } from '@porcelain/client/reviews/rules';
@@ -40,6 +41,7 @@ import {
 } from './comment-draft';
 import { useReviewSnapshot } from '../queries/review';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
+import type { CommentReview } from '../rules/navigation';
 
 export function ReviewCommentsScreen({
   workspaceKey,
@@ -49,6 +51,7 @@ export function ReviewCommentsScreen({
   comparison,
   thread,
   body,
+  review,
 }: {
   workspaceKey?: string | undefined;
   path?: string | undefined;
@@ -57,6 +60,7 @@ export function ReviewCommentsScreen({
   comparison: ReviewComparison;
   thread?: string | undefined;
   body?: string | undefined;
+  review?: CommentReview | undefined;
 }) {
   const router = useRouter();
   return (
@@ -101,6 +105,7 @@ export function ReviewCommentsScreen({
               compose={compose}
               comparison={comparison}
               initialBody={body}
+              review={review}
             />
           )
         }
@@ -119,6 +124,7 @@ export function CommentThreads({
   onComposerChange,
   leaveScope,
   initialBody = '',
+  review,
 }: {
   workspace: CommentWorkspace;
   path?: string | undefined;
@@ -129,6 +135,7 @@ export function CommentThreads({
   currentTarget?: CommentTarget | undefined;
   leaveScope?: string | undefined;
   onComposerChange?: ((anchor: CommentAnchor | undefined) => void) | undefined;
+  review?: CommentReview | undefined;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -137,9 +144,9 @@ export function CommentThreads({
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
   const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
-    compose && anchor ? { anchor } : undefined,
+    compose && anchor ? { ...review, anchor } : undefined,
   );
-  const draft = useCommentDraft(
+  const { leaveAnchor, ...draft } = useCommentDraft(
     workspace,
     target,
     () => {
@@ -175,7 +182,12 @@ export function CommentThreads({
     />
   ) : null;
   return (
-    <Box className="flex-1" surface="background" collapsable={false}>
+    <Box
+      ref={leaveAnchor}
+      className="flex-1"
+      surface="background"
+      collapsable={false}
+    >
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -213,7 +225,7 @@ export function CommentThreads({
           <Button
             label={newCommentLabel(anchor, path, comparison)}
             variant="outline"
-            onPress={() => open({ anchor })}
+            onPress={() => open({ ...review, anchor })}
           />
         ) : null}
         {AsyncResult.isSuccess(result) ? (
@@ -226,7 +238,7 @@ export function CommentThreads({
                 replying={replyTarget === thread.id}
                 currentTarget={currentTarget}
                 onReply={() =>
-                  open({ threadId: thread.id, anchor: thread.anchor })
+                  open({ ...threadWriteTarget(thread), anchor: thread.anchor })
                 }
               >
                 {replyTarget === thread.id ? composer : null}
@@ -299,7 +311,7 @@ function CommentComposer({
   target,
   showContext,
 }: {
-  draft: ReturnType<typeof useCommentDraft>;
+  draft: Omit<ReturnType<typeof useCommentDraft>, 'leaveAnchor'>;
   target: ComposerTarget;
   showContext: boolean;
 }) {
@@ -364,7 +376,10 @@ function CommentThreadView({
           pending={resolve.result.waiting}
           onPress={() => {
             if (!resolve.result.waiting)
-              resolve.send({ threadId: thread.id, resolved: !thread.resolved });
+              resolve.send({
+                ...threadWriteTarget(thread),
+                resolved: !thread.resolved,
+              });
           }}
         />
         {!thread.resolved ? (

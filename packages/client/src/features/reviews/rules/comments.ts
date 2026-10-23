@@ -110,6 +110,14 @@ export function anchorLabel(anchor: CommentAnchor): string {
     : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
 }
 
+export function threadWriteTarget(
+  thread: Pick<CommentThread, 'id' | 'review'>,
+) {
+  return thread.review
+    ? { threadId: thread.id, reviewId: thread.review.reviewId }
+    : { threadId: thread.id };
+}
+
 export function threadStarter(thread: CommentThread): CommentMessageAuthor {
   return thread.messages[0]?.author ?? 'reviewer';
 }

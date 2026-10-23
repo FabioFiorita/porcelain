@@ -15,6 +15,7 @@ export {
   threadStarter,
   threadState,
   threadStateLabel,
+  threadWriteTarget,
   type CommentAnchor,
   type CommentMessage,
   type CommentMessageAuthor,

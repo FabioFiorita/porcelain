@@ -4,6 +4,7 @@ import type {
   ReplyToCommentRequest,
   UpdateCommentThreadRequest,
   EditCommentMessageRequest,
+  DeleteCommentMessageQuery,
 } from '@porcelain/contracts/reviews';
 import { Effect, Option } from 'effect';
 import { Atom, AsyncResult, Reactivity } from 'effect/reactivity';
@@ -29,7 +30,9 @@ import {
 type ReplyCommentInput = { threadId: string } & ReplyToCommentRequest;
 type ResolveCommentInput = { threadId: string } & UpdateCommentThreadRequest;
 type EditCommentInput = { threadId: string } & EditCommentMessageRequest;
-type DeleteCommentInput = { threadId: string; messageId: string };
+type DeleteCommentInput = {
+  threadId: string;
+} & DeleteCommentMessageQuery;
 
 const commandSets = Atom.family(
   ({
@@ -104,15 +107,14 @@ const commandSets = Atom.family(
       reply: runtime.fn(
         Effect.fn('Reviews.replyToComment')(function* ({
           threadId,
-          body,
-          messageId,
+          ...payload
         }: ReplyCommentInput) {
           const client = yield* porcelainClient(connection);
           return yield* confirmThread(
             client.request((api) =>
               api.reviews.replyToComment({
                 params: { ...params, threadId },
-                payload: { body, messageId },
+                payload,
               }),
             ),
             true,
@@ -123,14 +125,14 @@ const commandSets = Atom.family(
       resolve: runtime.fn(
         Effect.fn('Reviews.resolveComment')(function* ({
           threadId,
-          resolved,
+          ...payload
         }: ResolveCommentInput) {
           const client = yield* porcelainClient(connection);
           return yield* confirmThread(
             client.request((api) =>
               api.reviews.updateCommentThread({
                 params: { ...params, threadId },
-                payload: { resolved },
+                payload,
               }),
             ),
           );
@@ -140,15 +142,14 @@ const commandSets = Atom.family(
       edit: runtime.fn(
         Effect.fn('Reviews.editComment')(function* ({
           threadId,
-          messageId,
-          body,
+          ...payload
         }: EditCommentInput) {
           const client = yield* porcelainClient(connection);
           return yield* confirmThread(
             client.request((api) =>
               api.reviews.editCommentMessage({
                 params: { ...params, threadId },
-                payload: { messageId, body },
+                payload,
               }),
             ),
           );
@@ -158,14 +159,14 @@ const commandSets = Atom.family(
       remove: runtime.fn(
         Effect.fn('Reviews.deleteComment')(function* ({
           threadId,
-          messageId,
+          ...query
         }: DeleteCommentInput) {
           return yield* confirmUpdate(
             Effect.gen(function* () {
               const answer = yield* requestApi(connection, (api) =>
                 api.reviews.deleteCommentMessage({
                   params: { ...params, threadId },
-                  query: { messageId },
+                  query,
                 }),
               );
               yield* currentAnswerEffect(

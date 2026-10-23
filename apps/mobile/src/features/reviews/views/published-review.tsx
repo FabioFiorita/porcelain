@@ -46,7 +46,7 @@ import {
 import { DecisionPage } from './decision-page';
 import { DecisionBar } from './decision-bar';
 import { Badge } from '../../../components/ui/badge';
-import { reviewParams } from '../rules/navigation';
+import { commentReviewParams, reviewParams } from '../rules/navigation';
 import type { Workspace } from '../../projects';
 
 export function PublishedReview({
@@ -264,7 +264,11 @@ function PublishedContent({
                   setPlace({ stop: stop.key, summary: false, step })
                 }
                 onComment={(body) =>
-                  openComments(router, workspace, { compose: true, body })
+                  openComments(router, workspace, {
+                    compose: true,
+                    body,
+                    review,
+                  })
                 }
                 onThread={(thread) =>
                   openComments(router, workspace, { thread: thread.id })
@@ -548,6 +552,7 @@ function PublishedContinue({
       <StopBar
         key={stop.key}
         workspace={workspace}
+        review={review}
         stops={stops}
         stop={stop}
         progress={progress}
@@ -562,6 +567,7 @@ function PublishedContinue({
 
 function StopBar({
   workspace,
+  review,
   stops,
   stop,
   progress,
@@ -569,6 +575,7 @@ function StopBar({
   go,
 }: {
   workspace: Workspace;
+  review: ReviewResponse;
   stops: readonly WalkthroughStop[];
   stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
   progress: ReturnType<typeof useWalkthroughProgress>;
@@ -596,6 +603,7 @@ function StopBar({
         openComments(router, workspace, {
           compose: true,
           body: stop.kind === 'decision' ? `On decision ${stop.number}: ` : '',
+          review,
         })
       }
     />
@@ -673,7 +681,9 @@ function stepVariant(current: boolean, reviewed: boolean) {
 function openComments(
   router: ReturnType<typeof useRouter>,
   workspace: Workspace,
-  input: { compose: true; body: string } | { thread: string },
+  input:
+    | { compose: true; body: string; review: ReviewResponse }
+    | { thread: string },
 ) {
   router.push({
     pathname: '/review-comments',
@@ -685,6 +695,7 @@ function openComments(
             anchor: JSON.stringify(changeAnchor(undefined)),
             compose: 'true',
             body: input.body,
+            ...commentReviewParams(input.review),
           }),
     },
   });

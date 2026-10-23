@@ -16,6 +16,7 @@ import {
   publishedLabel,
   reviewErrorMessage,
   threadStateLabel,
+  threadWriteTarget,
   type CommentMessage,
   type CommentThread,
   type ReviewLayer,
@@ -127,9 +128,9 @@ function ThreadSheet({
   const router = useRouter();
   const commands = useCommentCommands(workspace);
   const resolve = useCommentWrite(commands.resolve);
-  const draft = useCommentDraft(
+  const { leaveAnchor, ...draft } = useCommentDraft(
     workspace,
-    { threadId: thread.id, anchor: thread.anchor },
+    { ...threadWriteTarget(thread), anchor: thread.anchor },
     () => undefined,
   );
   const published = useAtomValue(
@@ -166,12 +167,20 @@ function ThreadSheet({
           pending: resolve.result.waiting,
           onPress: () => {
             if (!resolve.result.waiting)
-              resolve.send({ threadId: thread.id, resolved: !thread.resolved });
+              resolve.send({
+                ...threadWriteTarget(thread),
+                resolved: !thread.resolved,
+              });
           },
         }}
       />
       <KeyboardDock>
-        <Box className="flex-1" surface="background" collapsable={false}>
+        <Box
+          ref={leaveAnchor}
+          className="flex-1"
+          surface="background"
+          collapsable={false}
+        >
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentInsetAdjustmentBehavior="automatic"

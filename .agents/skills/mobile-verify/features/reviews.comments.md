@@ -1,16 +1,16 @@
 ---
 screen: /review-comments
 selectors:
-  - "Review comment"
-  - "Add comment"
-  - "Cancel"
-  - "Reply"
-  - "Resolve"
-  - "Reopen"
-  - "Done"
-  - "No comments"
-  - "Send reply"
-  - "Thread unavailable"
+  - 'Review comment'
+  - 'Add comment'
+  - 'Cancel'
+  - 'Reply'
+  - 'Resolve'
+  - 'Reopen'
+  - 'Done'
+  - 'No comments'
+  - 'Send reply'
+  - 'Thread unavailable'
 tests:
   - packages/client/src/features/reviews/rules/comments.spec.ts
 api:
@@ -40,9 +40,10 @@ Preconditions: [surface baseline](README.md).
 2. Add an agent reply through the fixture: it appears live. Reply, Resolve and Reopen. Global comments marks the displayed revision seen; file-filtered comments must not mark unseen threads elsewhere.
 3. Change the underlying file while composing: earlier-comparison notice appears and the draft retains the displayed fingerprint. Change workspace: Review unavailable. Done/checkmark or sheet gesture returns to the exact file/list underneath.
 
-4. Open one thread from a decision diff. The title names its line, Resolve/Reopen and Done sit in the sheet header (Android: Resolve/Reopen as an icon, back returns), and each message shows its author and "on rN" (the revision published before it was written). An agent reply naming stop n or decision n links to that decision when the thread's review and revision are the ones shown and that decision exists; the link closes the sheet on that decision. The reply field stays above the keyboard; Send reply posts and clears it. A resolved thread hides the reply field. A deleted thread says Thread unavailable.
+4. Open one thread from a decision diff. The title names its line, Resolve/Reopen and Done sit in the sheet header (Android: Resolve/Reopen as an icon, back returns), and each message shows its author and "on rN" (the revision published before it was written). An agent reply naming stop n or decision n links to that decision when the thread's review and revision are the ones shown and that decision exists; the link closes the sheet on that decision. The reply field and Send stay above the device's real keyboard (the driver's hidden test IME never covers them, so switch to the system keyboard); Send reply posts and clears it. A thread written on the published review replies and resolves on that review: read the message and resolution back through MCP `list_comments` with its `reviewId`. A resolved thread hides the reply field. A deleted thread says Thread unavailable.
+5. From a decision, Comment, change the prefilled text, then native Back: Discard comment? appears; Discard returns to the decision, Keep writing keeps the draft. Repeat from a thread reply. Sent decision comments belong to the published review and show "on rN".
 
-Automated coverage: `comments.spec.ts` (stop links and revision markers); retain the live action and readback evidence.
+Automated coverage: `comments.spec.ts` (stop links, revision markers, thread write target), `navigation.spec.ts` (review identity for new comments), `reviews.integration.ts` (review-owned writes through the worktree owner); retain the live action and readback evidence.
 
 ## Gotchas
 
