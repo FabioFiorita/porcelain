@@ -157,6 +157,9 @@ export const verifyPath = Effect.fn('verifyPath')(function* (
         : Effect.fail(error);
     }),
   );
-  if (!sameEvidence(before, after) || !unchanged(before.info, after.info))
+  if (
+    !sameEvidence(before, after) ||
+    (!before.info.isDirectory() && !unchanged(before.info, after.info))
+  )
     return yield* Effect.fail(pathRefused('changed'));
 });
