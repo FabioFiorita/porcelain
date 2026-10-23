@@ -158,7 +158,7 @@ test('a deleted-line thread stays at file level when its step opens the retained
   );
   await app.page
     .getByRole('button', {
-      name: `Go to step ${layer.steps.indexOf(step) + 1}: ${step.title}`,
+      name: `Go to step ${layer.steps.indexOf(step) + 1}: ${step.title} · Shared owners · packages/workspace/src/policy.ts`,
       exact: true,
     })
     .click();
