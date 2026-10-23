@@ -137,9 +137,7 @@ test('Computers refreshes settled service status once and exposes recovery after
     .click();
   await expect.poll(() => server.serviceUpdateReads()).toBe(1);
   await repo.serviceUpdate('error');
-  await app.page
-    .getByRole('button', { name: 'Settings', exact: true })
-    .click();
+  await app.page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = app.page.getByRole('main', {
     name: 'Settings',
     exact: true,
