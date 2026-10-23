@@ -9,7 +9,7 @@ for (const width of [1440, 414]) {
       const subjects = [
         'Explain the full sequence of decisions the reviewer must understand before approving this exceptionally long change',
         'ACommitSubjectWithoutAnyWordBreaksThatStillNeedsToRemainReadableWhenItIsClippedAtTheEdgeOfTheHistoryPanel',
-      ];
+      ] as const;
       for (const subject of subjects) {
         await repo.write('notes.md', `${subject}\n`);
         await repo.commit(subject);
