@@ -6,7 +6,7 @@ selectors:
   - "Compare against "
   - "the default branch"
   - "Find a base branch"
-  - "Comment on "
+  - "Document controls"
   - "Comment"
   - "Comments"
   - "Whole file"
@@ -28,7 +28,7 @@ A comment written in the branch review remembers the base it was compared agains
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" → tab "Comments" (named `Comments` plus the open-comment count) → the thread's location button (file name, "Whole file" or the line label, "in <short sha>"; title "Show in the code").
-- Writing the comment: open a branch file (button "<file> · <status>" in the Branch list), then button "Comment on <file> (<status>)" in the file's diff header, or right-click the file row → menuitem "Comment".
+- Writing the comment: open a branch file (button "<file> · <status>" in the Branch list), then the Document controls toolbar’s "Comment" button, or right-click the file row → menuitem "Comment".
 
 ## Driving it with browser
 
@@ -55,7 +55,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
    Expect: text "1 commit on feature since checkpoint"; the URL contains `base=refs%2Fheads%2Fcheckpoint`.
 6. Click button `notes.md · added`
    Expect: the sheet closes; title "notes.md — repository"; the document toolbar reads "notes.md" over "notes.md · on the branch"; text "first line"; the URL contains `entry=branch%3Anotes.md`.
-7. Click button `Comment on notes.md (added)`
+7. Click `Comment` in the Document controls toolbar
    Expect: textbox "Comment" and a button "Comment" (disabled while empty).
 8. Fill textbox `Comment` with 'Against the checkpoint'
    Expect: button "Comment" enabled.

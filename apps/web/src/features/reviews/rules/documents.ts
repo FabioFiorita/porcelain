@@ -100,6 +100,7 @@ export type OpenDocument = (
 ) => void;
 
 export type DocumentInteraction = {
+  toolbarTarget?: HTMLElement | null | undefined;
   active: boolean;
   worktreeId: string;
   entry: string;

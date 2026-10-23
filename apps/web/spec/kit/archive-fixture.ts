@@ -23,6 +23,7 @@ export async function archiveFixture(main: string) {
   git('branch', 'archive-base');
   git('worktree', 'add', '-qb', 'archive-fixture', tree);
   writeFileSync(join(tree, 'archive.txt'), 'A completed change.\n');
+  writeFileSync(join(tree, 'archive-notes.txt'), 'Archive fixture notes.\n');
   execFileSync('git', ['-C', tree, 'add', '--all']);
   execFileSync('git', [
     '-C',
@@ -32,7 +33,8 @@ export async function archiveFixture(main: string) {
     'Complete archive fixture',
   ]);
   execFileSync('git', ['-C', tree, 'push', '-qu', 'origin', 'archive-fixture']);
-  writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n');
+  writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n.env\n');
+  writeFileSync(join(tree, '.env'), 'LOCAL_ONLY=archive-fixture\n');
   mkdirSync(join(tree, 'node_modules'));
   writeFileSync(join(tree, 'node_modules/ignored.js'), 'Ignored dependency');
   const head = git('rev-parse', 'archive-fixture');
@@ -101,6 +103,7 @@ export async function archiveFixture(main: string) {
     unlock: () => git('worktree', 'unlock', tree),
     dirty: () => writeFileSync(join(tree, 'unsaved.txt'), 'Unsaved work'),
     exists: () => existsSync(tree),
+    ignoredFile: () => readFileSync(join(tree, '.env'), 'utf8'),
     remoteBranch: () =>
       execFileSync(
         'git',

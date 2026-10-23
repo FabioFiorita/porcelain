@@ -39,6 +39,7 @@ export function ReviewCodeDocument({
   focus,
   header,
   headerActions,
+  headerLeading,
   commentRequest,
   toolbar,
   agentNotes,
@@ -54,6 +55,7 @@ export function ReviewCodeDocument({
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: () => ReactNode;
   headerActions?: ReactNode;
+  headerLeading?: ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
@@ -225,6 +227,7 @@ export function ReviewCodeDocument({
       {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}
       {...(headerActions ? { headerActions } : {})}
+      {...(headerLeading ? { headerLeading } : {})}
       {...(toolbar ? { toolbar } : {})}
     />
   );

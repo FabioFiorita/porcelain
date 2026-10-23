@@ -36,7 +36,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 ```
 
 1. Navigate to `/`
-   Expect: title "Changes — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, a full reload of `/` reopens that tab; click tab "Changes Close Changes" first).
+   Expect: title "Changes — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, a full reload of `/` reopens that tab; click tab "Changes" first).
 2. Click button `Review`
    Expect: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
 3. Click button `All changes`

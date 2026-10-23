@@ -10,7 +10,7 @@ const variants = {
   small: 'text-2xs leading-4',
   heading: 'text-xl leading-7',
   subheading: 'text-sm leading-5',
-  code: 'text-ui leading-5 font-mono',
+  code: 'text-ui leading-5',
   link: 'text-ui leading-5 underline',
 };
 
@@ -56,6 +56,7 @@ export function Text({
       {...props}
       accessibilityRole={accessibilityRole ?? (heading ? 'header' : undefined)}
       className={[
+        variant === 'code' ? 'font-mono' : 'font-sans',
         variants[variant],
         tones[tone],
         weights[weight ?? defaultWeight],

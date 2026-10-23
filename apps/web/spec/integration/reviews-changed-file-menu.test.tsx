@@ -10,7 +10,10 @@ test('right-clicking a changed file marks it reviewed, starts a comment on it an
   const marked = async () =>
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${readme.replace('.', '\\.')}( · .+)?$`),
   });

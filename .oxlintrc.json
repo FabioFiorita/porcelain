@@ -107,6 +107,8 @@
     "porcelain/web-navigation-through-router": "error",
     "porcelain/web-no-empty-catch": "error",
     "porcelain/web-shadcn-wrapper": "error",
+    "porcelain/web-icon-button-tooltip": "error",
+    "porcelain/development-imports": "error",
     "porcelain/web-design-tokens": "error",
     "porcelain/web-journey-imports": "error",
     "porcelain/web-journey-asserts": "error",

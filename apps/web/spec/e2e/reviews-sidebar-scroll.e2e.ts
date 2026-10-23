@@ -91,11 +91,11 @@ test('both Changes lists keep rows outside the scrollbar lane', async ({
     await page.setViewportSize({ width, height: 896 });
     if (width === 414)
       await page.getByRole('button', { name: 'Review', exact: true }).click();
-    await page.getByRole('tab', { name: 'Changes', exact: true }).click();
     const sidebar = page.getByRole('complementary', {
       name: 'Review sidebar',
       exact: true,
     });
+    await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
     for (const scope of ['Uncommitted', 'Branch']) {
       const control = sidebar.getByRole('tab', { name: scope, exact: true });
       await control.click();

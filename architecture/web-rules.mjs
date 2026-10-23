@@ -520,6 +520,171 @@ function stringValue(node) {
 }
 
 export const webRules = {
+  'web-icon-button-tooltip': {
+    create(context) {
+      if (!webPath(context).startsWith(webSource) || !inWeb(webPath(context)))
+        return {};
+      let imports;
+      const name = (element) => {
+        const node = element?.openingElement?.name;
+        if (node?.type === 'JSXIdentifier')
+          return imports.locals.get(node.name);
+        if (
+          node?.type === 'JSXMemberExpression' &&
+          imports.namespaces.has(node.object.name)
+        )
+          return node.property.name;
+        return undefined;
+      };
+      const attribute = (element, key) =>
+        element.openingElement.attributes.find(
+          (item) => item.type === 'JSXAttribute' && item.name.name === key,
+        )?.value;
+      const value = (node) =>
+        node?.type === 'JSXExpressionContainer' ? node.expression : node;
+      const labelled = (node) =>
+        node &&
+        node.type !== 'JSXEmptyExpression' &&
+        (node.type !== 'Identifier' || node.name !== 'undefined') &&
+        (node.type !== 'Literal' ||
+          (typeof node.value === 'string' && node.value.trim() !== ''));
+      const iconSize = (node) =>
+        node?.type === 'Literal'
+          ? /^icon(?:-|$)/.test(node.value)
+          : node?.type === 'ConditionalExpression' &&
+            (iconSize(node.consequent) || iconSize(node.alternate));
+      const content = (element) =>
+        element.children.some((child) =>
+          child.type === 'JSXText'
+            ? child.value.trim() !== ''
+            : child.type === 'JSXExpressionContainer'
+              ? labelled(child.expression)
+              : (child.type === 'JSXElement' || child.type === 'JSXFragment') &&
+                content(child),
+        );
+      return {
+        Program(program) {
+          imports = importedFrom(program, (source) =>
+            /(?:^|\/)components\/ui\/(?:button|input-group|tooltip|dropdown-menu)(?:\.tsx?)?$/.test(
+              source,
+            ),
+          );
+        },
+        JSXElement(element) {
+          if (!['Button', 'InputGroupButton'].includes(name(element))) return;
+          const size = value(attribute(element, 'size'));
+          if (!iconSize(size)) return;
+          let trigger = false;
+          let tooltip;
+          for (let parent = element.parent; parent; parent = parent.parent) {
+            if (functionTypes.has(parent.type)) break;
+            if (
+              parent.type === 'JSXAttribute' &&
+              parent.name.name === 'render' &&
+              name(parent.parent.parent) === 'TooltipTrigger'
+            )
+              trigger = true;
+            if (name(parent) === 'Tooltip') {
+              tooltip = parent;
+              break;
+            }
+          }
+          if (
+            labelled(value(attribute(element, 'aria-label'))) &&
+            trigger &&
+            tooltip?.children.some(
+              (child) => name(child) === 'TooltipContent' && content(child),
+            )
+          )
+            return;
+          context.report({
+            node: element.openingElement,
+            message:
+              'Give an icon-only button an aria-label and compose it with the shared Tooltip, TooltipTrigger render prop and TooltipContent naming its action, because keyboard and sighted mouse users need a visible label for an icon-only control.',
+          });
+        },
+      };
+    },
+  },
+  'development-imports': {
+    create(context) {
+      const path = webPath(context);
+      const development = /(?:^|\/)development-[^/]+/;
+      const routerEntry = /^apps\/mobile\/src\/app\//.test(path);
+      if (
+        !/^(?:apps|packages)\/[^/]+\/src\//.test(path) ||
+        (!routerEntry &&
+          (/\.(?:spec|test)\.[cm]?[jt]sx?$/.test(path) ||
+            development.test(path)))
+      )
+        return {};
+      const devFlag = (node) =>
+        (node.type === 'Identifier' && node.name === '__DEV__') ||
+        (node.type === 'MemberExpression' &&
+          !node.computed &&
+          node.property.name === 'DEV' &&
+          node.object.type === 'MemberExpression' &&
+          node.object.property.name === 'env' &&
+          node.object.object.type === 'MetaProperty' &&
+          node.object.object.meta.name === 'import');
+      const positive = (node) =>
+        devFlag(node) ||
+        (node.type === 'LogicalExpression' &&
+          node.operator === '&&' &&
+          (positive(node.left) || positive(node.right)));
+      const guarded = (node) => {
+        for (
+          let child = node, parent = node.parent;
+          parent;
+          child = parent, parent = parent.parent
+        )
+          if (
+            ((parent.type === 'ConditionalExpression' ||
+              parent.type === 'IfStatement') &&
+              parent.consequent === child &&
+              positive(parent.test)) ||
+            (parent.type === 'LogicalExpression' &&
+              parent.operator === '&&' &&
+              parent.right === child &&
+              positive(parent.left))
+          )
+            return true;
+        return false;
+      };
+      const check = (node, source, dynamic = false) => {
+        if (!development.test(source ?? '')) return;
+        if (
+          node.importKind === 'type' ||
+          node.exportKind === 'type' ||
+          (node.specifiers?.length > 0 &&
+            node.specifiers.every(
+              (item) =>
+                item.importKind === 'type' || item.exportKind === 'type',
+            )) ||
+          (dynamic && guarded(node))
+        )
+          return;
+        context.report({
+          node,
+          message:
+            'Load development-* modules only with a dynamic import behind __DEV__ or import.meta.env.DEV, because anything a production entry (including every Expo Router app route) imports ships to every user, including development tools.',
+        });
+      };
+      return {
+        ImportDeclaration: (node) => check(node, sourceOf(node)),
+        ExportNamedDeclaration: (node) => check(node, sourceOf(node)),
+        ExportAllDeclaration: (node) => check(node, sourceOf(node)),
+        ImportExpression: (node) => check(node, sourceOf(node), true),
+        CallExpression(node) {
+          if (
+            node.callee.type === 'Identifier' &&
+            node.callee.name === 'require'
+          )
+            check(node, node.arguments[0]?.value);
+        },
+      };
+    },
+  },
   'client-platform-through-ports': {
     create(context) {
       const path = webPath(context);

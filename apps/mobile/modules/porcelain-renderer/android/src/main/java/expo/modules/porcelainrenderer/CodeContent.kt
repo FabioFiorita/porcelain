@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.*
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -28,7 +27,9 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
   val digits = remember(lines) { (lines.maxOfOrNull { maxOf(it.oldLine ?: 0, it.newLine ?: 0) } ?: 1).toString().length }
   val measurer = rememberTextMeasurer()
   val density = LocalDensity.current
-  val font = TextStyle(fontSize = tokens.codeSize.sp, fontFamily = FontFamily.Monospace)
+  val codeFamily = rememberRendererFontFamily("Geist Mono")
+  val sansFamily = rememberRendererFontFamily("Geist")
+  val font = TextStyle(fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
   val gutterWidth = with(density) { measurer.measure("0".repeat(digits), font).size.width.toDp() } + tokens.inset.dp
   val scrolling = if (options.wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())
   BoxWithConstraints(Modifier.fillMaxSize().background(options.background)) {
@@ -37,7 +38,7 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
     LazyColumn(Modifier.fillMaxHeight().then(if (options.wrap) Modifier.fillMaxWidth() else Modifier.widthIn(min = viewportWidth))) {
       items(lines, key = { it.id }) { line ->
         if (line.kind == "gap") {
-          TextButton(onClick = { expand(line.id) }) { Text(line.text, color = options.muted) }
+          TextButton(onClick = { expand(line.id) }) { Text(line.text, color = options.muted, fontFamily = sansFamily) }
         } else {
           val point = location(line)
           val side = point?.side
@@ -50,20 +51,20 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
               .semantics { contentDescription = "${line.kind} ${side ?: "file"} line ${number ?: 0}: ${line.text}"; customActions = listOf(CustomAccessibilityAction("Select for review") { if (selectable && number != null) { choose(line, true); true } else false }, CustomAccessibilityAction("Extend review selection") { if (selectable && number != null) { choose(line, false); true } else false }) }
               .padding(horizontal = tokens.spacing.dp, vertical = tokens.inset.dp), horizontalArrangement = Arrangement.spacedBy(tokens.spacing.dp)) {
               if (options.lineNumbers) {
-                if (line.oldLine != null || line.kind in listOf("added", "removed")) Text(line.oldLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = FontFamily.Monospace)
-                Text(line.newLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = FontFamily.Monospace)
+                if (line.oldLine != null || line.kind in listOf("added", "removed")) Text(line.oldLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
+                Text(line.newLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
               }
-              if (line.kind in listOf("added", "removed")) Text(if (line.kind == "added") "+" else "−", color = options.muted, fontSize = tokens.codeSize.sp)
+              if (line.kind in listOf("added", "removed")) Text(if (line.kind == "added") "+" else "−", color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
                 Text(buildAnnotatedString {
                   if (line.tokens.isEmpty()) append(line.text.ifEmpty { " " })
                   else line.tokens.forEach { token -> withStyle(SpanStyle(fontStyle = if (token.fontStyle and 1 != 0) FontStyle.Italic else FontStyle.Normal, fontWeight = if (token.fontStyle and 2 != 0) FontWeight.Bold else FontWeight.Normal, textDecoration = if (token.fontStyle and 4 != 0) TextDecoration.Underline else TextDecoration.None, color = token.color ?: options.foreground, background = if (token.changed) (if (line.kind == "removed") Color.Red else Color.Green).copy(alpha = 0.2f) else Color.Transparent)) { append(token.text) } }
-                }, color = options.foreground, fontSize = tokens.codeSize.sp, fontFamily = FontFamily.Monospace, softWrap = options.wrap)
+                }, color = options.foreground, fontSize = tokens.codeSize.sp, fontFamily = codeFamily, softWrap = options.wrap)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-              DropdownMenuItem(text = { Text("Copy line") }, onClick = { copy(line.text); menu = false })
+              DropdownMenuItem(text = { Text("Copy line", fontFamily = sansFamily) }, onClick = { copy(line.text); menu = false })
               if (selectable && number != null) {
-                DropdownMenuItem(text = { Text("Select for review") }, onClick = { choose(line, true); menu = false })
-                DropdownMenuItem(text = { Text("Extend review selection") }, onClick = { choose(line, false); menu = false })
+                DropdownMenuItem(text = { Text("Select for review", fontFamily = sansFamily) }, onClick = { choose(line, true); menu = false })
+                DropdownMenuItem(text = { Text("Extend review selection", fontFamily = sansFamily) }, onClick = { choose(line, false); menu = false })
               }
             }
           }

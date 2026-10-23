@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { relative } from 'node:path';
 import { Schema } from 'effect';
 import { fileURLToPath } from 'node:url';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath } from 'vite';
 import { devPair } from './dev-pair.ts';
 
 const packageInfo = Schema.decodeUnknownSync(
@@ -15,6 +17,13 @@ const packageInfo = Schema.decodeUnknownSync(
     readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
   ),
 );
+
+const require = createRequire(import.meta.url);
+const fontFiles = [
+  require.resolve('@fontsource-variable/geist/files/geist-latin-wght-normal.woff2'),
+  require.resolve('@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2'),
+];
+const webRoot = fileURLToPath(new URL('.', import.meta.url));
 
 const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target
@@ -37,6 +46,28 @@ export default defineConfig({
     'import.meta.env.PORCELAIN_VERSION': JSON.stringify(packageInfo.version),
   },
   plugins: [
+    {
+      name: 'porcelain-font-preloads',
+      transformIndexHtml: {
+        order: 'pre',
+        handler: (_html, context) =>
+          fontFiles.map((file) => {
+            const href = context.server
+              ? `/@fs/${normalizePath(file).replace(/^\/+/, '')}`
+              : normalizePath(relative(webRoot, file));
+            return {
+              tag: 'link',
+              attrs: {
+                rel: 'preload',
+                href,
+                as: 'font',
+                type: 'font/woff2',
+                crossorigin: '',
+              },
+            };
+          }),
+      },
+    },
     ...(pairing ? [pairing] : []),
     tanstackRouter({
       target: 'react',

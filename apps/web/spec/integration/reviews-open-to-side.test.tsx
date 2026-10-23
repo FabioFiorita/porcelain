@@ -15,7 +15,7 @@ test('invoking the right Review control chooses the source pane before opening a
     .click();
   await workspace
     .getByRole('tab', {
-      name: `${repo.readme.path} Close ${repo.readme.path}`,
+      name: `${repo.readme.path}`,
       exact: true,
     })
     .click({ button: 'right' });
@@ -38,7 +38,7 @@ test('invoking the right Review control chooses the source pane before opening a
     .getByRole('menuitem', { name: 'Open in the left pane', exact: true })
     .click();
   const destination = left.getByRole('tab', {
-    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    name: `${repo.readme.path}`,
     exact: true,
     selected: true,
   });
@@ -49,7 +49,7 @@ test('invoking the right Review control chooses the source pane before opening a
   await expect
     .element(
       right.getByRole('tab', {
-        name: `${repo.readme.path} Close ${repo.readme.path}`,
+        name: `${repo.readme.path}`,
         exact: true,
       }),
     )
@@ -57,7 +57,7 @@ test('invoking the right Review control chooses the source pane before opening a
   await expect
     .element(
       right.getByRole('tab', {
-        name: `${repo.readme.path} Close ${repo.readme.path}`,
+        name: `${repo.readme.path}`,
         exact: true,
       }),
     )
@@ -94,13 +94,11 @@ test('tree side menu preserves the source document and focuses the destination a
     exact: true,
   });
   const destination = right.getByRole('tab', {
-    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    name: `${repo.readme.path}`,
     exact: true,
   });
   await expect
-    .element(
-      left.getByRole('tab', { name: 'Changes Close Changes', exact: true }),
-    )
+    .element(left.getByRole('tab', { name: 'Changes', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(destination)
@@ -115,10 +113,9 @@ test('tree side menu preserves the source document and focuses the destination a
   await expect.element(right).not.toBeInTheDocument();
   await expect
     .element(
-      workspace.getByRole('tab', {
-        name: 'Changes Close Changes',
-        exact: true,
-      }),
+      workspace
+        .getByRole('tablist', { name: 'Open documents', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
 });
@@ -154,13 +151,11 @@ test('Alt-click on the already-selected unchanged tree file opens it once in the
     exact: true,
   });
   const destination = right.getByRole('tab', {
-    name: 'guide.txt Close guide.txt',
+    name: 'guide.txt',
     exact: true,
   });
   await expect
-    .element(
-      left.getByRole('tab', { name: 'guide.txt Close guide.txt', exact: true }),
-    )
+    .element(left.getByRole('tab', { name: 'guide.txt', exact: true }))
     .toHaveAttribute('data-entry', 'file:guide.txt');
   await expect
     .element(destination)
@@ -207,7 +202,7 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
     exact: true,
   });
   const rightTab = right.getByRole('tab', {
-    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    name: `${repo.readme.path}`,
     exact: true,
   });
   await expect
@@ -230,7 +225,7 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
   const leftTab = workspace
     .getByRole('region', { name: 'Left pane', exact: true })
     .getByRole('tab', {
-      name: `${repo.readme.path} Close ${repo.readme.path}`,
+      name: `${repo.readme.path}`,
       exact: true,
     });
   await expect
@@ -261,7 +256,10 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
   repo,
 }) => {
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${repo.readme.path.replace('.', '\\.')}( · .+)?$`),
   });
@@ -272,7 +270,7 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
   const rightTab = workspace
     .getByRole('region', { name: 'Right pane', exact: true })
     .getByRole('tab', {
-      name: `${repo.readme.path} Close ${repo.readme.path}`,
+      name: `${repo.readme.path}`,
       exact: true,
     });
   await expect
@@ -301,7 +299,7 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
   const leftTab = workspace
     .getByRole('region', { name: 'Left pane', exact: true })
     .getByRole('tab', {
-      name: `${repo.readme.path} Close ${repo.readme.path}`,
+      name: `${repo.readme.path}`,
       exact: true,
     });
   await expect
@@ -333,7 +331,7 @@ test('history side menu and Alt-click open the real commit identity', async ({
   await workspace
     .getByRole('menuitem', { name: 'Open to the side', exact: true })
     .click();
-  const name = `${initial.oid.slice(0, 7)} Close ${initial.oid.slice(0, 7)}`;
+  const name = `${initial.oid.slice(0, 7)}`;
   const rightTab = workspace
     .getByRole('region', { name: 'Right pane', exact: true })
     .getByRole('tab', { name, exact: true });
@@ -384,7 +382,10 @@ test('branch file side actions keep the branch document kind', async ({
   await repo.write('notes.md', 'Branch notes\n');
   await repo.commit('Add notes');
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Changes', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
   const row = workspace.getByRole('button', {
     name: 'notes.md · added',
@@ -396,7 +397,7 @@ test('branch file side actions keep the branch document kind', async ({
     .click();
   const destination = workspace
     .getByRole('region', { name: 'Right pane', exact: true })
-    .getByRole('tab', { name: 'notes.md Close notes.md', exact: true });
+    .getByRole('tab', { name: 'notes.md', exact: true });
   await expect
     .element(destination)
     .toHaveAttribute('data-entry', 'branch:notes.md');
@@ -439,10 +440,10 @@ test('graph commit rows offer a side menu and Alt-click without replacing the gr
     exact: true,
   });
   await expect
-    .element(left.getByRole('tab', { name: 'Graph Close Graph', exact: true }))
+    .element(left.getByRole('tab', { name: 'Graph', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   const destination = right.getByRole('tab', {
-    name: `${initial.oid.slice(0, 7)} Close ${initial.oid.slice(0, 7)}`,
+    name: `${initial.oid.slice(0, 7)}`,
     exact: true,
   });
   await expect
@@ -455,7 +456,7 @@ test('graph commit rows offer a side menu and Alt-click without replacing the gr
     .click();
   await userEvent.keyboard('{/Alt}');
   await expect
-    .element(left.getByRole('tab', { name: 'Graph Close Graph', exact: true }))
+    .element(left.getByRole('tab', { name: 'Graph', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(destination)
@@ -502,7 +503,7 @@ test('timeline commit side actions preserve the file comparison and leave the ti
     )
     .toBeVisible();
   const destination = right.getByRole('tab', {
-    name: `${initial.oid.slice(0, 7)} Close ${initial.oid.slice(0, 7)}`,
+    name: `${initial.oid.slice(0, 7)}`,
     exact: true,
   });
   await expect
@@ -556,10 +557,9 @@ test('closing the destination during sheet exit cancels its focus transfer and r
   await expect.element(sheet).not.toBeInTheDocument();
   await expect
     .element(
-      workspace.getByRole('tab', {
-        name: 'Changes Close Changes',
-        exact: true,
-      }),
+      workspace
+        .getByRole('tablist', { name: 'Open documents', exact: true })
+        .getByRole('tab', { name: 'Changes', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
   await expect.element(trigger).toHaveFocus();
@@ -600,14 +600,12 @@ test('switching to another tab during sheet exit cancels the older destination f
     exact: true,
   });
   const existing = right.getByRole('tab', {
-    name: `${repo.readme.path} Close ${repo.readme.path}`,
+    name: `${repo.readme.path}`,
     exact: true,
   });
   await expect.element(sheet).not.toBeInTheDocument();
   await expect.element(existing).toHaveFocus();
-  await left
-    .getByRole('tab', { name: 'Changes Close Changes', exact: true })
-    .click();
+  await left.getByRole('tab', { name: 'Changes', exact: true }).click();
   await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
   await workspace
     .getByRole('treeitem', { name: 'guide.txt', exact: true })
@@ -622,7 +620,7 @@ test('switching to another tab during sheet exit cancels the older destination f
   await expect
     .element(
       right.getByRole('tab', {
-        name: 'guide.txt Close guide.txt',
+        name: 'guide.txt',
         exact: true,
       }),
     )

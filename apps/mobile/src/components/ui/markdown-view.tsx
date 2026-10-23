@@ -53,7 +53,7 @@ export function MarkdownView({
       ) : (
         <NativeMarkdown
           data={data}
-          tokens={tokens}
+          tokens={JSON.stringify(tokens)}
           onLink={(event) => {
             if (externalLink(event.nativeEvent.url))
               onLink?.(event.nativeEvent.url);

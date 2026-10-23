@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@effect/atom-react": "4.0.1",
+    "@expo-google-fonts/geist": "0.4.2",
+    "@expo-google-fonts/geist-mono": "0.4.3",
     "@expo/material-symbols": "0.1.1",
     "@expo/ui": "58.0.9",
     "@pierre/diffs": "1.6.1",
@@ -30,6 +32,7 @@
     "expo-crypto": "58.0.3",
     "expo-dev-client": "58.0.9",
     "expo-device": "58.0.3",
+    "expo-font": "58.0.9",
     "expo-linking": "58.0.9",
     "expo-router": "58.0.10",
     "expo-secure-store": "58.0.1",
