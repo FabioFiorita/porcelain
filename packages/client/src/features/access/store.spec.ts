@@ -8,7 +8,10 @@ import { runGitActionRequestSchema } from '@porcelain/contracts/git-actions';
 import { Redacted, Effect, Fiber, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { AccessStore } from './store.ts';
-import { EnvironmentStorage } from '@porcelain/client/access';
+import {
+  EnvironmentStorage,
+  type EnvironmentSnapshot,
+} from '@porcelain/client/access';
 import {
   operationJournalKey,
   type Remote,
@@ -40,7 +43,11 @@ function fixture(storage: {
         EnvironmentStorage,
         promiseStorage({
           ...storage,
-          read: async () => [...(await storage.read())],
+          read: async () => ({
+            remotes: [...(await storage.read())],
+            missingCredentials: [],
+          }),
+          write: (snapshot) => storage.write(snapshot.remotes),
         }),
       ),
     ),
@@ -325,4 +332,108 @@ it('restores a pending Git request from the same journal after a preference chan
       (operation) => operation.requestId,
     ),
   ).toEqual(['33333333-3333-4333-8333-333333333333']);
+});
+
+function recoveryFixture(initial: EnvironmentSnapshot) {
+  let snapshot = initial;
+  const store = Effect.runSync(
+    AccessStore.pipe(
+      Effect.provide(AccessStore.layer),
+      Effect.provideService(EnvironmentStorage, {
+        read: () => Effect.succeed(snapshot),
+        write: (next) =>
+          Effect.sync(() => {
+            snapshot = next;
+          }),
+      }),
+    ),
+  );
+  return { store, saved: () => snapshot };
+}
+
+it.each(['second-primary', 'first-alternate'])(
+  'keeps recovery metadata through unrelated pairing and repairs only %s',
+  async (scenario) => {
+    const missing =
+      scenario === 'second-primary'
+        ? {
+            environmentId: second.environmentId,
+            name: second.name,
+            operationIdentity: 'stable-second',
+            routes: [{ address: second.address, deviceId: second.deviceId }],
+          }
+        : {
+            environmentId: first.environmentId,
+            name: first.name,
+            operationIdentity: 'stable-first',
+            routes: [
+              {
+                address: 'http://first-remote.local',
+                deviceId: 'alternate-device',
+              },
+            ],
+          };
+    const { store, saved } = recoveryFixture({
+      remotes: scenario === 'second-primary' ? [first] : [first, second],
+      missingCredentials: [missing],
+    });
+    await Effect.runPromise(store.load());
+    expect(store.state.value.status).toBe('ready');
+    expect(store.state.value.missingCredentials).toEqual([missing]);
+    const third = {
+      ...second,
+      environmentId: 'third',
+      address: 'http://third.local',
+    };
+    await Effect.runPromise(store.save(third));
+    expect(saved().missingCredentials).toEqual([missing]);
+    expect(saved().remotes[0]).toEqual(first);
+    const repaired = {
+      ...second,
+      environmentId: missing.environmentId,
+      address: missing.routes[0]?.address ?? '',
+      credential: Redacted.make('repaired'),
+      deviceId: 'repaired-device',
+    };
+    await Effect.runPromise(store.save(repaired));
+    expect(saved().missingCredentials).toEqual([]);
+    const recovered = saved().remotes.find(
+      (remote) => remote.environmentId === missing.environmentId,
+    );
+    expect(recovered?.operationIdentity).toBe(
+      scenario === 'second-primary'
+        ? 'stable-second'
+        : operationJournalKey(first),
+    );
+    if (scenario === 'first-alternate') {
+      expect(recovered?.credential).toEqual(first.credential);
+      expect(recovered?.deviceId).toBe('first-device');
+      expect(recovered?.alternateRoutes).toEqual([
+        {
+          address: 'http://first-remote.local',
+          credential: repaired.credential,
+          deviceId: 'repaired-device',
+        },
+      ]);
+    }
+    expect(saved().remotes).toContainEqual(third);
+  },
+);
+
+it('forgets only the selected missing record and keeps healthy computers and other missing routes', async () => {
+  const missing = [first, second].map((remote) => ({
+    environmentId: remote.environmentId,
+    name: remote.name,
+    routes: [{ address: remote.address, deviceId: remote.deviceId }],
+  }));
+  const { store, saved } = recoveryFixture({
+    remotes: [first],
+    missingCredentials: missing,
+  });
+  await Effect.runPromise(store.load());
+  await Effect.runPromise(store.forget(second.environmentId));
+  expect(saved()).toEqual({
+    remotes: [first],
+    missingCredentials: [missing[0]],
+  });
 });

@@ -1,3 +1,5 @@
+import type { MissingCredentialRemote } from '@porcelain/client/access';
+import { MissingCredentialRecovery } from './missing-credential-row';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { ComputerUpdate } from './computer-update';
@@ -21,9 +23,11 @@ import { useForgetEnvironment } from '../commands/forget-environment';
 export function EnvironmentRow({
   remote,
   disabled,
+  missing,
 }: {
   remote: Remote;
   disabled: boolean;
+  missing?: MissingCredentialRemote | undefined;
 }) {
   const [managing, setManaging] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -40,30 +44,40 @@ export function EnvironmentRow({
             : remote.address
         }
         trailing={
-          <Box className="flex-row" gap={1}>
-            <IconButton
-              icon="trash"
-              variant="destructive"
-              accessibilityLabel="Forget computer"
-              disabled={disabled || adding}
-              pending={command.result.waiting}
-              onPress={() => command.forget()}
-            />
-          </Box>
+          missing ? undefined : (
+            <Box className="flex-row" gap={1}>
+              <IconButton
+                icon="trash"
+                variant="destructive"
+                accessibilityLabel="Forget computer"
+                disabled={disabled || adding}
+                pending={command.result.waiting}
+                onPress={() => command.forget()}
+              />
+            </Box>
+          )
         }
       >
         <Box className="flex-row">
           <Badge
-            label={remoteStatusText(status)}
-            variant={status.kind === 'online' ? 'secondary' : 'outline'}
+            label={missing ? 'Needs pairing' : remoteStatusText(status)}
+            variant={
+              !missing && status.kind === 'online' ? 'secondary' : 'outline'
+            }
           />
         </Box>
+        {missing ? (
+          <MissingCredentialRecovery
+            remote={missing}
+            disabled={disabled || adding}
+          />
+        ) : null}
         {note ? (
           <Text variant="caption" tone="muted">
             {note}
           </Text>
         ) : null}
-        {AsyncResult.isFailure(command.result) ? (
+        {!missing && AsyncResult.isFailure(command.result) ? (
           <Text variant="ui" tone="destructive">
             {connectionErrorMessage(Cause.squash(command.result.cause))}
           </Text>

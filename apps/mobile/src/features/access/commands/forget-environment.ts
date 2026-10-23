@@ -14,7 +14,7 @@ const forgetEnvironment = Atom.family((environmentId: string) =>
   ),
 );
 
-export function useForgetEnvironment(remote: Remote) {
+export function useForgetEnvironment(remote: Pick<Remote, 'environmentId'>) {
   const [result, run] = useAtom(forgetEnvironment(remote.environmentId));
   return { result, forget: () => run(undefined) };
 }

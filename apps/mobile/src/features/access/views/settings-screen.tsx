@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { ScrollView } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
@@ -5,8 +6,11 @@ import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
 import { useEnvironments } from '../store';
-import { DevelopmentSettingsSection } from './development-settings';
 import { SettingsAbout } from './settings-about';
+
+const DevelopmentSettingsSection = __DEV__
+  ? lazy(() => import('./development-settings'))
+  : () => null;
 
 export function SettingsScreen({
   onOpenGeneral,
@@ -57,9 +61,11 @@ export function SettingsScreen({
           />
         </Card>
         {__DEV__ ? (
-          <DevelopmentSettingsSection
-            onOpenComponentLibrary={onOpenComponentLibrary}
-          />
+          <Suspense fallback={null}>
+            <DevelopmentSettingsSection
+              onOpenComponentLibrary={onOpenComponentLibrary}
+            />
+          </Suspense>
         ) : null}
         <Box className="flex-1" />
         <SettingsAbout />

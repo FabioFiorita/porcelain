@@ -68,8 +68,8 @@ function fixture(
               ? input.readEnvironments()
               : Promise.resolve(savedEnvironments),
           catch: (cause) => new Cause.UnknownError(cause),
-        }),
-      write: (value) =>
+        }).pipe(Effect.map((remotes) => ({ remotes, missingCredentials: [] }))),
+      write: ({ remotes: value }) =>
         Effect.tryPromise({
           try: async () => {
             writes.push('environments');
