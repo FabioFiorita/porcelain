@@ -5,6 +5,14 @@ import {
 } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
+  it('plays only app media and its own blobs', () => {
+    expect(
+      desktopContentSecurityPolicy('built')
+        .split('; ')
+        .find((directive) => directive.startsWith('media-src ')),
+    ).toBe("media-src 'self' blob:");
+  });
+
   it('allows connections to user-entered HTTP and HTTPS computers and their WS and WSS live sockets', () => {
     expect(
       desktopContentSecurityPolicy('built')
@@ -28,7 +36,8 @@ describe('desktop content security policy', () => {
         .filter(
           (directive) =>
             !directive.startsWith('connect-src ') &&
-            !directive.startsWith('frame-src '),
+            !directive.startsWith('frame-src ') &&
+            !directive.startsWith('media-src '),
         ),
     ).toEqual([
       "default-src 'self'",
@@ -53,7 +62,7 @@ describe('desktop content security policy', () => {
         ),
     );
     expect(desktopContentSecurityPolicy('development')).toBe(
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
     );
   });
 });

@@ -240,7 +240,7 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')} ${inventory.environment.name}`;
+  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -260,10 +260,10 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   );
   await expect(
     mainRow.getByText(inventory.environment.name, { exact: true }),
-  ).toBeVisible();
+  ).not.toBeAttached();
   await expect(
     topicRow.getByText(inventory.environment.name, { exact: true }),
-  ).toBeVisible();
+  ).not.toBeAttached();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search reviews and worktrees',
     exact: true,
@@ -330,7 +330,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
   await expect(projects).toHaveAttribute('aria-expanded', 'true');
-  await expect(sidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
+  await expect(sidebar).toHaveCSS('background-color', 'rgb(243, 243, 244)');
   await expect(noReview).toHaveAttribute('aria-expanded', 'true');
   await projects.click();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
@@ -353,9 +353,13 @@ test('sidebar groups remember independent choices across search, Settings and re
     name: 'Settings sections',
     exact: true,
   });
-  await expect(settingsSidebar).toHaveCSS('background-color', 'oklch(1 0 0)');
-  await expect(settingsSidebar).toHaveCSS('border-top-left-radius', '14px');
-  await pairedPage.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(settingsSidebar).toBeVisible();
+  await expect(sidebar).toBeVisible();
+  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(noReview).toHaveAttribute('aria-expanded', 'false');
+  await pairedPage
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
   await app.reload();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
   await expect(noReview).toHaveAttribute('aria-expanded', 'false');
@@ -364,7 +368,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('review rows stay two lines with trailing progress and tooltip-only reasons', async ({
+test('review rows stay two lines with trailing progress and keyboard accessible reasons', async ({
   pairedPage,
   repo,
   app,
@@ -380,12 +384,12 @@ test('review rows stay two lines with trailing progress and tooltip-only reasons
   const row = sidebar.getByRole('link', {
     name: /Read one committed review after checkout cleanup/,
   });
-  await expect(row).toHaveCSS('height', '48px');
+  await expect(row).toHaveCSS('height', '40px');
   await expect(row.getByText('0/1', { exact: true })).toBeVisible();
   await expect(row.getByText('durable-review', { exact: true })).toBeVisible();
   await expect(
     row.getByText((await server.inventory()).environment.name, { exact: true }),
-  ).toBeVisible();
+  ).not.toBeAttached();
   await expect(
     row.getByText('Proof failed', { exact: true }),
   ).not.toBeAttached();
@@ -395,7 +399,14 @@ test('review rows stay two lines with trailing progress and tooltip-only reasons
   await expect(
     row.getByText('Agent says hold', { exact: true }),
   ).not.toBeAttached();
-  await row.getByRole('img', { name: 'Review status', exact: true }).hover();
+  const status = sidebar.getByRole('button', {
+    name: 'Review status: Read one committed review after checkout cleanup',
+    exact: true,
+  });
+  await row.focus();
+  await pairedPage.keyboard.press('Shift+Tab');
+  await expect(status).toBeFocused();
+  await status.press('Enter');
   await expect(
     pairedPage.getByText('Proof failed', { exact: true }),
   ).toBeVisible();
@@ -405,13 +416,19 @@ test('review rows stay two lines with trailing progress and tooltip-only reasons
   await expect(
     pairedPage.getByText('Agent says hold', { exact: true }),
   ).toBeVisible();
+  await status.press('Escape');
+  await expect(pairedPage.getByRole('tooltip')).toHaveCount(0);
+  await expect(status).toBeFocused();
   await row.click();
   await expect(
-    pairedPage.getByRole('heading', { name: 'Review', exact: true }),
+    pairedPage.getByRole('heading', {
+      name: 'Read one committed review after checkout cleanup 1 decision shapes this change.',
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     pairedPage.getByRole('heading', {
-      name: 'Recommendation Hold',
+      name: 'Recommendation: Hold',
       exact: true,
     }),
   ).toBeVisible();
@@ -425,3 +442,142 @@ test('review rows stay two lines with trailing progress and tooltip-only reasons
     pairedPage.getByText('Not explained', { exact: true }).first(),
   ).toBeAttached();
 });
+
+for (const { width, colorScheme } of [
+  { width: 1440, colorScheme: 'light' as const },
+  { width: 1440, colorScheme: 'dark' as const },
+  { width: 414, colorScheme: 'light' as const },
+  { width: 414, colorScheme: 'dark' as const },
+]) {
+  test(`sidebar chrome and touch reasons stay compact at ${width}px in ${colorScheme}`, async ({
+    pairedPage,
+    repo,
+    app,
+    server,
+    browser,
+  }) => {
+    await repo.review('Sidebar touch fixture');
+    await repo.worktree(
+      'no-review-with-a-very-long-branch-name-that-must-not-wrap',
+    );
+    const context = await browser.newContext({
+      hasTouch: true,
+      colorScheme,
+      viewport: { width, height: 896 },
+    });
+    try {
+      const page = await context.newPage();
+      await page.goto(new URL(await app.link('this'), pairedPage.url()).href);
+      const sidebar = page.getByRole('navigation', {
+        name: 'Projects and worktrees',
+        exact: true,
+      });
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await expect(sidebar).toBeVisible();
+      const environment = (await server.inventory()).environment.name;
+      await expect(
+        sidebar.getByText(environment, { exact: true }),
+      ).not.toBeAttached();
+      const footer = sidebar.getByRole('group', {
+        name: 'Navigator controls',
+        exact: true,
+      });
+      await expect(
+        footer.getByRole('button', { name: 'Computers', exact: true }),
+      ).not.toBeAttached();
+      const topic = page.getByRole('button', {
+        name: /^no-review-with-a-very-long-branch/,
+      });
+      await expect(topic).toHaveCSS('height', '40px');
+      await expect(
+        topic.getByText(
+          'no-review-with-a-very-long-branch-name-that-must-not-wrap',
+          { exact: true },
+        ),
+      ).toHaveCount(1);
+      await topic.click();
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await expect(topic).toHaveAttribute('aria-current', 'page');
+      await page.mouse.move(width - 1, 0);
+      await sidebar
+        .getByRole('searchbox', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        })
+        .focus();
+      await expect(sidebar).toHaveCSS(
+        'background-color',
+        colorScheme === 'dark' ? 'rgb(11, 11, 12)' : 'rgb(243, 243, 244)',
+      );
+      const review = sidebar.getByRole('link', { name: /decisions reviewed/ });
+      const progress = review.getByLabel('0 of 1 decisions reviewed', {
+        exact: true,
+      });
+      await expect(progress).toHaveCSS(
+        'color',
+        colorScheme === 'dark' ? 'rgb(160, 160, 168)' : 'rgb(98, 98, 107)',
+      );
+      await sidebar
+        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .click();
+      await page
+        .getByRole('menuitem', { name: 'Worktrees', exact: true })
+        .click();
+      await page.getByRole('menuitemradio', { name: /durable-review/ }).click();
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await page.mouse.move(width - 1, 0);
+      await sidebar
+        .getByRole('searchbox', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        })
+        .focus();
+      await expect(review).toHaveAttribute('aria-current', 'page');
+      await expect(progress).toHaveCSS(
+        'color',
+        colorScheme === 'dark' ? 'rgb(126, 164, 255)' : 'rgb(43, 95, 217)',
+      );
+      const status = sidebar.getByRole('button', {
+        name: 'Review status: Read one committed review after checkout cleanup',
+        exact: true,
+      });
+      const before = new URL(page.url()).pathname;
+      await status.tap();
+      const tooltip = page.getByRole('tooltip');
+      await expect(tooltip).toContainText('Proof failed');
+      await expect(tooltip).toContainText('Agent says hold');
+      await expect(status).toHaveAccessibleDescription(/Proof failed/);
+      await expect.poll(() => new URL(page.url()).pathname).toBe(before);
+      await footer
+        .getByRole('button', { name: 'Keyboard shortcuts', exact: true })
+        .tap();
+      await expect(
+        page.getByRole('dialog', { name: 'Keyboard shortcuts', exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      const settings = footer.getByRole('button', {
+        name: 'Settings',
+        exact: true,
+      });
+      await settings.focus();
+      const settingsHint = page.getByRole('tooltip', { name: /^Settings/ });
+      await expect(settingsHint).toContainText('Settings');
+      await expect(settingsHint).toContainText('Shift');
+      await settings.press('Enter');
+      await expect(
+        page.getByRole('heading', { name: 'General', exact: true }),
+      ).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+}

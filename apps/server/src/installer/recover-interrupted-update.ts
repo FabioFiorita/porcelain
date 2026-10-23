@@ -8,6 +8,8 @@ import {
   restoreDatabase,
   pruneDatabaseBackupsAfterUpdate,
 } from './database-backup.ts';
+import { InstalledServiceUnhealthyError } from './errors/installed-service-unhealthy-error.ts';
+import { UpdatedServiceUnhealthyError } from './errors/updated-service-unhealthy-error.ts';
 import { InterruptedUpdateUnrecoverableError } from './errors/interrupted-update-unrecoverable-error.ts';
 import { RestoredServiceUnhealthyError } from './errors/restored-service-unhealthy-error.ts';
 import { exists, writeJsonFile } from './json-file.ts';
@@ -45,20 +47,22 @@ export const recoverInterruptedUpdate = Effect.fn(
     target: journal.target ?? '',
   };
   if (plan === 'finish-update') {
+    if (!(yield* systemd.probe()).running) yield* systemd.start();
+    if (!(yield* serviceIsHealthy(context, configuration.dataDirectory)))
+      return yield* Effect.fail(new UpdatedServiceUnhealthyError());
     yield* fs.remove(paths.previousRuntime, { recursive: true, force: true });
     yield* fs.remove(paths.nextRuntime, { recursive: true, force: true });
-    if (!(yield* systemd.probe()).running) yield* systemd.start();
     yield* fs.remove(paths.updateJournal, { force: true });
     yield* pruneDatabaseBackupsAfterUpdate(paths.backups);
     yield* writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
     return RECOVERED;
   }
   if ((yield* systemd.probe()).running) yield* systemd.stop();
+  yield* restoreDatabase(configuration.dataDirectory, journal.backup);
   if (plan === 'restore-previous') {
     yield* fs.remove(paths.runtime, { recursive: true, force: true });
     yield* fs.rename(paths.previousRuntime, paths.runtime);
   }
-  yield* restoreDatabase(configuration.dataDirectory, journal.backup);
   yield* writeJsonFile(paths.installed, journal.installed);
   yield* systemd.write(servicePlan(context, configuration));
   yield* systemd.start();
@@ -80,7 +84,12 @@ export const recoverService = Effect.fn('Installer.recoverService')(function* (
   const interrupted = yield* recoverInterruptedUpdate(context);
   if (interrupted.recovered) return interrupted;
   if (!(yield* exists(context.paths.installed))) return NOTHING_RECOVERED;
-  if ((yield* context.systemd.probe()).running) return NOTHING_RECOVERED;
-  yield* context.systemd.start();
-  return RECOVERED;
+  const running = (yield* context.systemd.probe()).running;
+  const configuration = yield* readServiceConfiguration(
+    context.paths.configuration,
+  );
+  if (!running) yield* context.systemd.start();
+  if (!(yield* serviceIsHealthy(context, configuration.dataDirectory)))
+    return yield* Effect.fail(new InstalledServiceUnhealthyError());
+  return running ? NOTHING_RECOVERED : RECOVERED;
 });

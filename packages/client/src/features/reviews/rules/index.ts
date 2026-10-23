@@ -4,6 +4,7 @@ export {
   anchorPath,
   changeAnchor,
   commentBodyValid,
+  questionAnswer,
   commentIsStale,
   matchesCommentTarget,
   rangeAnchor,
@@ -111,6 +112,7 @@ export { revisionReviewItems, revisionDecisionStates } from './revision.ts';
 
 export { parseReviewAppLink, type ReviewAppLink } from './app-link.ts';
 export {
+  reviewListTitle,
   reviewListView,
   reviewListGroups,
   reviewListMeta,

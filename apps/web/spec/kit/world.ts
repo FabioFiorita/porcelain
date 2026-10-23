@@ -115,7 +115,12 @@ export class World {
   async repo(step: RepoStep, server: ServerName): Promise<string> {
     const repository = await this.session(server);
     if (step.kind === 'review-fixture')
-      return durableReviewFixture(repository, step.operation, step.title);
+      return durableReviewFixture(
+        repository,
+        step.operation,
+        step.title,
+        step.asked,
+      );
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
       return '';

@@ -44,6 +44,15 @@ export function routingPromises() {
       await navigator
         .getByRole('button', { name: 'Settings', exact: true })
         .focus();
+      const settingsHint = pairedPage.getByRole('tooltip', {
+        name: /^Settings/,
+      });
+      await expect(settingsHint).toBeVisible();
+      await pairedPage.keyboard.press('Escape');
+      await expect(settingsHint).not.toBeVisible();
+      await expect(
+        pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+      ).toBeVisible();
       await pairedPage.keyboard.press('Escape');
       await expect(
         pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
@@ -92,7 +101,7 @@ export function routingPromises() {
         pairedPage.getByRole('main', { name: 'Settings', exact: true }),
       ).toBeVisible();
       await pairedPage
-        .getByRole('button', { name: 'Back', exact: true })
+        .getByRole('button', { name: 'Close Settings', exact: true })
         .click();
       await expect(
         pairedPage.getByText('Page not found', { exact: true }),

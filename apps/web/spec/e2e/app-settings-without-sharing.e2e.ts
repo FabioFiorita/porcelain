@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures.ts';
 import { openThisComputer } from '../kit/settings.ts';
 
-test('browser Settings uses the same five sections and exposes host-gated Devices and computer details', async ({
+test('browser Settings uses the same three sections and exposes host-gated Devices and computer details', async ({
   pairedPage,
   server,
   app,
@@ -15,9 +15,8 @@ test('browser Settings uses the same five sections and exposes host-gated Device
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(
-    navigator.getByText(`Porcelain${host}`, { exact: true }),
-  ).toBeVisible();
+  await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
+  await expect(navigator.getByText(host, { exact: true })).not.toBeAttached();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
@@ -34,9 +33,6 @@ test('browser Settings uses the same five sections and exposes host-gated Device
     'General',
     'Reviews & Git',
     'Computers',
-    'Devices',
-    'Integrations',
-    'Back',
   ]);
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),
@@ -51,7 +47,6 @@ test('browser Settings uses the same five sections and exposes host-gated Device
       exact: true,
     }),
   ).toBeVisible();
-  await sections.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect(
     settings.getByText('Paired devices', { exact: true }),
   ).toBeVisible();

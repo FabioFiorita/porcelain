@@ -10,6 +10,7 @@ import {
   anchorLabel,
   anchorPath,
   commentBodyValid,
+  questionAnswer,
   retainIntent,
 } from '@porcelain/client/reviews/rules';
 import {
@@ -23,11 +24,13 @@ export function InlineComposer({
   context,
   anchor,
   onClose,
+  quote,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor;
   onClose: () => void;
+  quote?: string | undefined;
 }) {
   const id = useId();
   const [body, setBody] = useState('');
@@ -37,14 +40,16 @@ export function InlineComposer({
   >(undefined);
   const anchorKey = JSON.stringify(anchor);
   const mutation = useCreateComment(scope, context);
-  const valid = commentBodyValid(body);
+  const message = quote === undefined ? body : questionAnswer(quote, body);
+  const quoteLength = message.length - body.length;
+  const valid = commentBodyValid(body) && commentBodyValid(message);
   const submit = () => {
     if (!valid || mutation.result.waiting) return;
     const intent = retainIntent(
       pending?.anchor === anchorKey ? pending : undefined,
-      body,
+      message,
       () => ({
-        body,
+        body: message,
         anchor: anchorKey,
         threadId: crypto.randomUUID(),
         messageId: crypto.randomUUID(),
@@ -54,7 +59,7 @@ export function InlineComposer({
     mutation.send(
       {
         anchor,
-        body,
+        body: message,
         threadId: intent.threadId,
         messageId: intent.messageId,
         ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
@@ -92,7 +97,7 @@ export function InlineComposer({
         aria-label="Comment"
         placeholder="Share feedback…"
         value={body}
-        maxLength={mutation.bodyLimit}
+        maxLength={Math.max(0, mutation.bodyLimit - quoteLength)}
         disabled={mutation.result.waiting}
         onChange={(event) => {
           setPending(undefined);

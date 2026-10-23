@@ -68,9 +68,6 @@ test('sidebar decisions return from an older revision or summary to the latest w
     .getByRole('button', { name: /^1 Latest decision/ });
   await row.click();
   await expect
-    .element(review.getByRole('button', { name: 'latest', exact: true }))
-    .toHaveAttribute('aria-pressed', 'true');
-  await expect
     .element(review.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
@@ -78,4 +75,10 @@ test('sidebar decisions return from an older revision or summary to the latest w
       review.getByRole('region', { name: '1. Latest decision', exact: true }),
     )
     .toBeVisible();
+  await review
+    .getByRole('button', { name: 'Open the briefing', exact: true })
+    .click();
+  await expect
+    .element(review.getByRole('button', { name: 'latest', exact: true }))
+    .toHaveAttribute('aria-pressed', 'true');
 });
