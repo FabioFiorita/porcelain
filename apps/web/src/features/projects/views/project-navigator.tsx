@@ -226,7 +226,7 @@ export function ProjectNavigator({
               >
                 <FilterIcon />
               </TooltipTrigger>
-              <TooltipContent role="tooltip">Filter and open</TooltipContent>
+              <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
               align="end"
