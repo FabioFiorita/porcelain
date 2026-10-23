@@ -80,38 +80,52 @@ for (const invalid of [
   });
 }
 
-test('checking a pairing link keeps the page and advances the route', async ({
-  page,
-  app,
-  fetchGate,
-}) => {
-  const held = await fetchGate.holdNextPost('/pair');
-  held.arm();
-  const opened = app.open(await app.link('this'));
-  try {
-    await held.requested;
+for (const initial of ['a fresh tab', 'an unpaired tab', 'a refused link']) {
+  test(`checking a pairing link from ${initial} keeps the page and advances the route`, async ({
+    page,
+    app,
+    fetchGate,
+  }) => {
+    if (initial !== 'a fresh tab') {
+      await app.open(
+        initial === 'a refused link' ? '/pair#missing-code' : '/pair',
+      );
+      await expect(
+        page.getByRole('button', { name: 'Copy the command', exact: true }),
+      ).toBeVisible();
+      if (initial === 'a refused link')
+        await expect(page.getByRole('alert')).toHaveText(
+          'That link carried no pairing code.',
+        );
+    }
+    const held = await fetchGate.holdNextPost('/pair');
+    held.arm();
+    const opened = app.open(await app.link('this'));
+    try {
+      await held.requested;
+      await expect(
+        page.getByRole('status').filter({
+          hasText: 'Checking the link with your computer',
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('heading', {
+          name: 'This browser is not paired',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('list', { name: 'How pairing works', exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByLabel('Step 2, current', { exact: true }),
+      ).toHaveAttribute('aria-current', 'step');
+    } finally {
+      held.release();
+    }
+    await opened;
     await expect(
-      page.getByRole('status').filter({
-        hasText: 'Checking the link with your computer',
-      }),
+      page.getByRole('region', { name: 'Review content', exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', {
-        name: 'This browser is not paired',
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('list', { name: 'How pairing works', exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByLabel('Step 2, current', { exact: true }),
-    ).toHaveAttribute('aria-current', 'step');
-  } finally {
-    held.release();
-  }
-  await opened;
-  await expect(
-    page.getByRole('region', { name: 'Review content', exact: true }),
-  ).toBeVisible();
-});
+  });
+}
