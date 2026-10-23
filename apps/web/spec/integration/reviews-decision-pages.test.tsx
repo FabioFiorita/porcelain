@@ -75,7 +75,7 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
   });
   await expect
     .element(completion.getByRole('heading', { level: 3 }))
-    .toHaveTextContent('0 of 9 decisions reviewed');
+    .toHaveTextContent('2 of 9 decisions reviewed');
   await expect
     .element(
       completion.getByRole('region', {

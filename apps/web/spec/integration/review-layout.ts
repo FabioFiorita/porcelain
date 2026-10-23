@@ -10,6 +10,20 @@ function uncovered(element: Element) {
 }
 
 export const reviewLayout = {
+  continuity(page: Locator) {
+    const mounted = page.element();
+    let reloaded = false;
+    const observer = new MutationObserver(() => {
+      reloaded ||= Array.from(
+        document.querySelectorAll('[role="status"]'),
+      ).some((status) => status.textContent === 'Loading review…');
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return {
+      read: () => ({ remounted: page.query() !== mounted, reloaded }),
+      stop: () => observer.disconnect(),
+    };
+  },
   tabInsideStrip(locator: Locator) {
     const tab = locator.element();
     const viewport = tab.closest('[role="tablist"]')?.parentElement;

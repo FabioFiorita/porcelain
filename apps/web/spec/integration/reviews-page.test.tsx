@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const title =
@@ -127,6 +127,49 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await expect
     .element(app.page.getByText('Review not found', { exact: true }))
     .toBeVisible();
+});
+
+test('keys pressed at once from the latest briefing move between its stops on one loaded page', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  const briefing = review.getByRole('region', {
+    name: 'Briefing',
+    exact: true,
+  });
+  await expect.element(briefing).toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('np');
+    await expect.element(briefing).toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await userEvent.keyboard('n');
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
 });
 
 test('an unpaired durable decision link survives pairing with its revision and query intact', async ({
