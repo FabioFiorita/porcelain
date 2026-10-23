@@ -30,6 +30,10 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-title-dim: var(--title-dim);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -65,6 +69,10 @@
       --popover-foreground: oklch(0.145 0 0);
       --primary: oklch(0.205 0 0);
       --primary-foreground: oklch(0.985 0 0);
+      --brand: #2b5fd9;
+      --brand-soft: #e9effc;
+      --brand-foreground: #ffffff;
+      --title-dim: #6e6e76;
       --secondary: oklch(0.97 0 0);
       --secondary-foreground: oklch(0.205 0 0);
       --muted: oklch(0.97 0 0);
@@ -101,6 +109,10 @@
       --popover-foreground: oklch(0.985 0 0);
       --primary: oklch(0.922 0 0);
       --primary-foreground: oklch(0.205 0 0);
+      --brand: #7ea4ff;
+      --brand-soft: #1c2642;
+      --brand-foreground: #0b0b0c;
+      --title-dim: #8a8a93;
       --secondary: oklch(0.269 0 0);
       --secondary-foreground: oklch(0.985 0 0);
       --muted: oklch(0.269 0 0);

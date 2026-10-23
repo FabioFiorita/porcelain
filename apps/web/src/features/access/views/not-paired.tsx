@@ -50,7 +50,7 @@ export function NotPaired({
           className={cn(
             'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
             pending
-              ? 'bg-[var(--brand-soft,var(--accent))] text-[color:var(--brand,var(--foreground))]'
+              ? 'bg-brand-soft text-brand'
               : 'bg-foreground text-background',
           )}
         >
@@ -63,7 +63,7 @@ export function NotPaired({
         <div className="text-4xl font-semibold leading-none tracking-tighter md:text-6xl">
           <h2
             aria-label="This browser is not paired"
-            className="text-[color:var(--title-dim,var(--muted-foreground))]"
+            className="text-title-dim"
           >
             This browser is not paired.
           </h2>
@@ -212,10 +212,8 @@ function PairingStep({
         aria-label={`Step ${number}${state}`}
         className={cn(
           'relative flex size-6 shrink-0 items-center justify-center rounded-full border bg-background text-xs tabular-nums text-muted-foreground',
-          current &&
-            'border-[color:var(--brand,var(--ring))] text-[color:var(--brand,var(--foreground))] ring-4 ring-[color:var(--brand-soft,var(--accent))]',
-          done &&
-            'border-[color:var(--brand,var(--primary))] bg-[var(--brand,var(--primary))] text-[color:var(--brand-foreground,var(--primary-foreground))]',
+          current && 'border-brand text-brand ring-4 ring-brand-soft',
+          done && 'border-brand bg-brand text-brand-foreground',
           failed && 'border-destructive text-destructive',
         )}
       >

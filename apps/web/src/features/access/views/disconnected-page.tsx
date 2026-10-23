@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 export function DisconnectedPage({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="pairing-page flex min-h-svh flex-col bg-background">
       <header className="flex h-16 shrink-0 items-center gap-2 px-6 md:px-8">
         <AppWindowIcon aria-hidden="true" className="size-6" />
         <h1 className="text-lg font-medium tracking-tight">Porcelain</h1>
