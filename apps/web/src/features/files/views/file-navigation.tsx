@@ -283,51 +283,53 @@ function ScopedFileNavigation({
       {actionsTarget &&
         createPortal(
           <>
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="Create file or folder"
-                        disabled={edit.result.waiting}
-                      />
-                    }
-                  >
-                    <PlusIcon className="text-muted-foreground" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setCreating({
-                          kind: 'file',
-                          folder: '',
-                          nonce: Date.now(),
-                        })
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="Create file or folder"
+                          disabled={edit.result.waiting}
+                        />
                       }
                     >
-                      <FilePlusIcon />
-                      New file
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setCreating({
-                          kind: 'directory',
-                          folder: '',
-                          nonce: Date.now(),
-                        })
-                      }
-                    >
-                      <FolderPlusIcon />
-                      New folder
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TooltipTrigger>
-              <TooltipContent>Create file or folder</TooltipContent>
-            </Tooltip>
+                      <PlusIcon className="text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                  }
+                />
+                <TooltipContent>Create file or folder</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() =>
+                    setCreating({
+                      kind: 'file',
+                      folder: '',
+                      nonce: Date.now(),
+                    })
+                  }
+                >
+                  <FilePlusIcon />
+                  New file
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setCreating({
+                      kind: 'directory',
+                      folder: '',
+                      nonce: Date.now(),
+                    })
+                  }
+                >
+                  <FolderPlusIcon />
+                  New folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Tooltip>
               <TooltipTrigger
                 render={

@@ -524,21 +524,23 @@ function ReviewRevisionPage({
                 </>
               )}
               <Tooltip>
-                <TooltipTrigger render={<span className="inline-flex" />}>
-                  <SheetTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="xl:hidden"
-                        aria-label={names.changes}
-                        aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                      />
-                    }
-                  >
-                    <PanelRightIcon />
-                  </SheetTrigger>
-                </TooltipTrigger>
+                <TooltipTrigger
+                  render={
+                    <SheetTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="xl:hidden"
+                          aria-label={names.changes}
+                          aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                        />
+                      }
+                    >
+                      <PanelRightIcon />
+                    </SheetTrigger>
+                  }
+                />
                 <TooltipContent>
                   {names.changes}{' '}
                   <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>

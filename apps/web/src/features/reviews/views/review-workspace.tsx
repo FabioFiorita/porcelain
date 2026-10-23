@@ -227,23 +227,25 @@ function ReviewWorkspaceContent({
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
       <GitButton scope={scope} context={context} />
       <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>
-          <SheetTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                ref={(element) => mobileTrigger.attach(element)}
-                className="xl:hidden"
-                aria-label="Review"
-                aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                onClick={() => layout.selectPane(pane)}
-              />
-            }
-          >
-            <PanelRightIcon />
-          </SheetTrigger>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  ref={(element) => mobileTrigger.attach(element)}
+                  className="xl:hidden"
+                  aria-label="Review"
+                  aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                  onClick={() => layout.selectPane(pane)}
+                />
+              }
+            >
+              <PanelRightIcon />
+            </SheetTrigger>
+          }
+        />
         <TooltipContent>
           Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
