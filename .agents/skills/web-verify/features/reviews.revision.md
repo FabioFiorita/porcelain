@@ -19,7 +19,7 @@ Numbered links keep each published revision readable after its publishing worktr
 
 ## How to get to it (user POV)
 
-- Review revision selector; `/reviews/<id>/1` and `/reviews/<id>/2` direct links.
+- Briefing margin → Review revisions; `/reviews/<id>/1` and `/reviews/<id>/2` direct links.
 
 ## Driving it with browser
 

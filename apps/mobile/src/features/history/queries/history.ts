@@ -4,7 +4,7 @@ import {
   readHistory,
   readHistoryWindow,
 } from '@porcelain/client/history';
-import { readCommitDiffs } from '@porcelain/client/changes';
+import { readCommitDiffs, readGitStatus } from '@porcelain/client/changes';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Option } from 'effect';
@@ -14,6 +14,11 @@ export type HistorySelection = {
   connection: RuntimeConnection;
   scope: HistoryScope;
 };
+
+export function useHistoryStatus(selection: HistorySelection) {
+  const query = readGitStatus(selection);
+  return { result: useAtomValue(query), retry: useAtomRefresh(query) };
+}
 
 export function useHistory(selection: HistorySelection) {
   const query = readHistory(selection);

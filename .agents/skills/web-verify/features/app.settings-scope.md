@@ -7,13 +7,16 @@ selectors:
   - 'General'
   - 'Reviews & Git'
   - 'Computers'
-  - 'Devices'
-  - 'Integrations'
+  - 'Documents open as'
+  - 'Agent'
+  - 'Pair a device'
   - 'Open This computer'
   - 'Ways in'
   - 'Local network'
 tests:
   - apps/web/spec/e2e/app-settings-scope.desktop.e2e.ts
+  - apps/web/spec/e2e/app-settings-documents.e2e.ts
+  - apps/web/spec/e2e/app-settings-model.desktop.e2e.ts
 api:
   - GET /api/remote-access
   - PATCH /api/remote-access
@@ -21,11 +24,11 @@ api:
 
 # app.settings-scope
 
-Desktop and browser show the same five sections in this order: General, Reviews & Git, Computers, Devices, Integrations. General is the default. No About or search section exists. The muted sidebar footer shows the app version and Esc to close.
+Desktop and browser show the same three sections in this order: General, Reviews & Git, Computers. General is the default. No About or search section exists. The muted sidebar footer shows the app version and Esc to close.
 
 ## How to get to it (user POV)
 
-- Workspace sidebar → Settings; choose General, Reviews & Git, Computers, Devices or Integrations.
+- Workspace sidebar → Settings; choose General, Reviews & Git or Computers.
 
 ## Driving it with browser
 
@@ -33,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 
 Start a desktop verification instance, pair the browser, open the workspace sidebar and click Settings. The URL is `/settings/general`; the page replaces the workspace. Click Computers, then Open This computer: `/settings/computers/this-computer` shows its name, connection, app or service updater, and Ways in. Local network, Tailscale and Cloudflare tunnel stay in that detail, rather than separate settings destinations. Do not change route switches during this navigation check.
 
-Click Devices: it shows Pair a device and Paired devices for a host-authorized browser. Click Integrations: it shows the copyable Porcelain MCP server command and retries a failed desktop configuration read. Click Reviews & Git: archive toggles, pull strategy and the grouped commit model selector appear, with the explicit per-device preference copy.
+This computer also shows Pair a device and Paired devices for a host-authorized browser, then Agents with the Claude Code / Codex switch and copyable Porcelain MCP command. A failed desktop configuration read offers Retry MCP configuration. Old `/settings/devices` and `/settings/integrations` links redirect here. Click Reviews & Git: Spec files, pull strategy and archive toggles appear, with explicit per-device preference copy. There is no Commit model setting: the commit dialog picker remembers its last choice after reload. General has one Documents open as choice for Markdown and HTML. A legacy Source choice for either format migrates to Source; a later Rendered selection persists and removes both old keys.
 
 Automated coverage: `app-settings-scope.desktop.e2e.ts`.
 

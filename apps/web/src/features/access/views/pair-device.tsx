@@ -22,6 +22,7 @@ import { PAIRING_LABEL_MAX_LENGTH } from '@/config/limits';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useIssuePairing } from '../commands/share';
+import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   pairingAddresses,
@@ -43,7 +44,13 @@ export function PairDevice({
   const [chosen, setChosen] = useState<string | null>(null);
   const [trusted, setTrusted] = useState(false);
   const [issue, createPairing] = useIssuePairing(connection);
-  const issued = AsyncResult.isSuccess(issue) ? issue.value : null;
+  const access = usePairedAccess(connection);
+  const issued =
+    AsyncResult.isSuccess(issue) &&
+    AsyncResult.isSuccess(access) &&
+    access.value.grants.some((grant) => grant.id === issue.value?.id)
+      ? issue.value
+      : null;
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
   if (target === undefined)
     return (
@@ -63,7 +70,7 @@ export function PairDevice({
   return (
     <div className="flex flex-col gap-3">
       <form
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        className="flex flex-col gap-2"
         onSubmit={(event) =>
           submitForm(event, async () =>
             createPairing({
@@ -85,7 +92,7 @@ export function PairDevice({
           />
         </Field>
         {addresses.length > 1 && (
-          <Field className="min-w-0 sm:w-56">
+          <Field className="min-w-0">
             <Label htmlFor="pairing-address">Opens through</Label>
             <Select
               items={addresses.map(({ route, url }) => ({

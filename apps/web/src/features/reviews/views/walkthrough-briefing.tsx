@@ -8,9 +8,14 @@ import {
   PlusIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import {
   briefingTitle,
@@ -18,8 +23,7 @@ import {
   type DecisionState,
   decisionRoute,
   filesReviewed,
-  proofLabel,
-  proofStatus,
+  type ReviewRevision,
   type ReviewChangeItem,
   type SystemPart,
   stopName,
@@ -28,7 +32,10 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { PROOF } from '../rules/documents';
+import { InlineComposer } from './inline-composer';
+import { ReviewVerdict } from './review-verdict';
+import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
+import { ReviewProof } from './review-proof';
 import { DecisionQuestion } from './walkthrough-question';
 import type { WalkthroughProps } from './walkthrough-props';
 
@@ -39,8 +46,17 @@ export function WalkthroughBriefing({
   decisions,
   done: isDone,
   onGo,
-  onOpen,
+  revision,
+  title,
+  margin,
+  proofCurrent,
+  scope,
+  context,
 }: WalkthroughProps & {
+  revision: ReviewRevision;
+  title: string;
+  margin: ReactNode;
+  proofCurrent: boolean;
   stops: readonly WalkthroughStop[];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
@@ -62,78 +78,89 @@ export function WalkthroughBriefing({
     (stop) => decisions.get(stop.layer.id)?.stale,
   ).length;
   const unexplained = stops.find((stop) => stop.kind === 'unexplained');
-  const proof = proofStatus(review.proof);
-  const attention = [
-    ...(parts.questions.length > 0
-      ? [`${parts.questions.length} to decide`]
-      : []),
-    ...(stale > 0 ? [`${stale} moved`] : []),
-    ...(unexplained ? ['unexplained changes'] : []),
-  ];
   const hasParts =
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto flex max-w-3xl flex-col gap-9 px-6 pt-8 pb-16">
-        <header className="flex flex-col gap-4">
-          <p className="text-2xs font-medium tracking-wide text-muted-foreground uppercase">
-            Briefing · revision {review.revision}
-          </p>
-          <h2 className="text-2xl leading-tight font-semibold text-balance">
-            {briefingTitle(decisionStops.length)}
-          </h2>
-          <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
-            Read each decision through its code and mark it reviewed. Every
-            changed file belongs to exactly one stop, and changes no decision
-            explains come last, so finishing the walkthrough means nothing was
-            left out.
-          </p>
-          <dl className="grid grid-cols-3 gap-2">
-            <Stat
-              label="Files reviewed"
-              value={`${total.reviewed} / ${total.total}`}
-              fraction={total.total === 0 ? 0 : total.reviewed / total.total}
-            />
-            <Stat
-              label="Decisions reviewed"
-              value={`${done} / ${decisionStops.length}`}
-              fraction={
-                decisionStops.length === 0 ? 0 : done / decisionStops.length
-              }
-            />
-            <Stat
-              label="Needs attention"
-              value={`${parts.questions.length + stale + (unexplained ? 1 : 0)}`}
-              caption={attention.join(' · ') || 'Nothing'}
-              tone={
-                parts.questions.length + stale > 0 || unexplained
-                  ? 'warning'
-                  : 'calm'
-              }
-            />
-          </dl>
-          <div className="flex flex-wrap items-center gap-2">
-            {next ? (
-              <Button
-                className="h-auto max-w-full min-w-0 text-left whitespace-normal"
-                onClick={() => onGo(next.key)}
-              >
-                {done === 0 && total.reviewed === 0
-                  ? 'Start with'
-                  : 'Continue with'}{' '}
-                {stopTitle(next)}
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
-            ) : (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
-                <CheckIcon className="size-4" /> Everything in this change is
-                reviewed
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 pb-16 @2xl/review:px-6">
+        <BriefingRow margin={margin}>
+          <div className="flex min-w-0 flex-col gap-8">
+            <header className="flex min-w-0 flex-col gap-5">
+              <p className="text-xs text-muted-foreground">
+                Briefing · Revision {review.revision}
               </p>
+              <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<span tabIndex={0} />}
+                    className="line-clamp-3 text-muted-foreground"
+                  >
+                    {title}
+                  </TooltipTrigger>
+                  <TooltipContent role="tooltip" className="wrap-anywhere">
+                    {title}
+                  </TooltipContent>
+                </Tooltip>
+                <span className="block">
+                  {briefingTitle(decisionStops.length)}.
+                </span>
+              </h2>
+              <ReviewVerdict revision={revision} />
+              <div className="flex flex-wrap items-center gap-3">
+                {next ? (
+                  <Button
+                    className="h-auto min-h-8 max-w-full min-w-0 text-left whitespace-normal"
+                    onClick={() => onGo(next.key)}
+                  >
+                    <span className="min-w-0 wrap-anywhere">
+                      {next.kind === 'decision'
+                        ? `Continue at decision ${next.number}`
+                        : `Continue at ${stopTitle(next)}`}
+                    </span>
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Button>
+                ) : (
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
+                    <CheckIcon className="size-4" />
+                    Everything in this change is reviewed
+                  </p>
+                )}
+                {stale > 0 && (
+                  <span className="text-xs text-graph-4">
+                    {stale} decisions have code moved
+                  </span>
+                )}
+                {unexplained && (
+                  <span className="text-xs text-muted-foreground">
+                    Changes remain not explained
+                  </span>
+                )}
+              </div>
+            </header>
+            {parts.questions.length > 0 && (
+              <section
+                aria-label="Needs your decision"
+                className="flex flex-col gap-3"
+              >
+                <SectionTitle id="briefing-questions">
+                  Needs your decision
+                </SectionTitle>
+                {parts.questions.map((part) => (
+                  <BriefingQuestion
+                    key={part.id}
+                    part={part}
+                    review={review}
+                    revision={revision}
+                    scope={scope}
+                    context={context}
+                    onGo={onGo}
+                  />
+                ))}
+              </section>
             )}
           </div>
-        </header>
-
-        {(hasParts || parts.questions.length > 0) && (
+        </BriefingRow>
+        <BriefingRow margin={<BriefingRemoved revision={revision} />}>
           <section
             aria-labelledby="briefing-system"
             className="flex flex-col gap-3"
@@ -141,17 +168,8 @@ export function WalkthroughBriefing({
             <SectionTitle id="briefing-system">
               What this adds to the system
             </SectionTitle>
-            {parts.questions.map((part) => (
-              <DecisionQuestion
-                key={`question:${part.id}`}
-                part={part}
-                action={
-                  <DecisionLink part={part} review={review} onGo={onGo} />
-                }
-              />
-            ))}
-            {hasParts && (
-              <div className="grid grid-cols-3 gap-2 max-narrow:grid-cols-1">
+            {hasParts ? (
+              <div className="flex flex-col divide-y border-y">
                 <PartGroup
                   title="New"
                   icon={<PlusIcon className="size-3.5 text-graph-2" />}
@@ -175,32 +193,53 @@ export function WalkthroughBriefing({
                   struck
                 />
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No system owners listed.
+              </p>
             )}
           </section>
-        )}
-
-        <section
-          aria-labelledby="briefing-decisions"
-          className="flex flex-col gap-2"
+        </BriefingRow>
+        <BriefingRow margin={<BriefingNotProven revision={revision} />}>
+          <ReviewProof
+            columns
+            revision={revision}
+            scope={scope}
+            context={context}
+            current={proofCurrent}
+            title={`Proven at ${revision.headOid.slice(0, 7)}`}
+          />
+        </BriefingRow>
+        <BriefingRow
+          margin={
+            <p className="text-xs text-muted-foreground">
+              Every changed file belongs to exactly one stop, and changes no
+              decision explains come last, so finishing the walkthrough means
+              nothing was left out.
+            </p>
+          }
         >
-          <SectionTitle id="briefing-decisions">The walkthrough</SectionTitle>
-          <ol className="flex flex-col divide-y rounded-xl border">
-            {decisionStops.map((stop) => {
-              const state = decisions.get(stop.layer.id);
-              const progress = filesReviewed(stop.paths, items);
-              return (
-                <li key={stop.key}>
-                  <button
-                    type="button"
-                    onClick={() => onGo(stop.key)}
-                    className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
-                  >
+          <section
+            aria-labelledby="briefing-decisions"
+            className="flex min-w-0 flex-col gap-2"
+          >
+            <SectionTitle id="briefing-decisions">The walkthrough</SectionTitle>
+            <p className="text-xs text-muted-foreground">
+              {done} of {decisionStops.length} decisions · {total.reviewed} of{' '}
+              {total.total} files reviewed
+            </p>
+            <ol className="flex flex-col divide-y border-y">
+              {decisionStops.map((stop) => {
+                const state = decisions.get(stop.layer.id);
+                const progress = filesReviewed(stop.paths, items);
+                return (
+                  <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
                     <StopMark done={isDone(stop)} label={`${stop.number}`} />
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-sm font-medium">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stop.layer.title}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate text-xs text-muted-foreground @2xl/review:max-w-1/2">
                         {decisionRoute(stop.layer).join(' → ') ||
                           'No changed code'}
                       </span>
@@ -216,19 +255,13 @@ export function WalkthroughBriefing({
                         </Badge>
                       )}
                     </span>
-                  </button>
-                </li>
-              );
-            })}
-            {after.map((stop) => {
-              const progress = filesReviewed(stop.paths, items);
-              return (
-                <li key={stop.key}>
-                  <button
-                    type="button"
-                    onClick={() => onGo(stop.key)}
-                    className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-accent/50"
-                  >
+                  </WalkthroughRow>
+                );
+              })}
+              {after.map((stop) => {
+                const progress = filesReviewed(stop.paths, items);
+                return (
+                  <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
                     <span
                       className={cn(
                         'grid size-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground',
@@ -242,8 +275,8 @@ export function WalkthroughBriefing({
                         <FlaskConicalIcon className="size-3.5" />
                       )}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-sm font-medium">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stopName(stop)}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -255,42 +288,28 @@ export function WalkthroughBriefing({
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                       {progress.reviewed}/{progress.total} files
                     </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-
-        <section
-          aria-labelledby="briefing-evidence"
-          className="flex flex-col gap-2"
-        >
-          <SectionTitle id="briefing-evidence">Evidence</SectionTitle>
-          <div className="flex items-center gap-3 rounded-xl border px-3.5 py-3">
-            <FlaskConicalIcon
-              className={cn(
-                'size-4 shrink-0 text-muted-foreground',
-                proof.failing > 0 && 'text-destructive',
-              )}
-            />
-            <p className="min-w-0 flex-1 text-sm">
-              Checks the agent ran ·{' '}
-              <span
-                className={cn(
-                  'text-muted-foreground',
-                  proof.failing > 0 && 'font-medium text-destructive',
-                )}
-              >
-                {proofLabel(proof)}
-              </span>
-            </p>
-            <Button variant="outline" size="sm" onClick={() => onOpen(PROOF)}>
-              Open proof
-            </Button>
-          </div>
-        </section>
+                  </WalkthroughRow>
+                );
+              })}
+            </ol>
+          </section>
+        </BriefingRow>
       </div>
+    </div>
+  );
+}
+
+function BriefingRow({
+  children,
+  margin,
+}: {
+  children: ReactNode;
+  margin?: ReactNode;
+}) {
+  return (
+    <div className="grid min-w-0 gap-8 @5xl/review:grid-cols-4">
+      <div className="min-w-0 @5xl/review:col-span-3">{children}</div>
+      {margin}
     </div>
   );
 }
@@ -303,42 +322,26 @@ function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  fraction,
-  caption,
-  tone = 'calm',
+function WalkthroughRow({
+  stop,
+  onGo,
+  children,
 }: {
-  label: string;
-  value: string;
-  fraction?: number;
-  caption?: string;
-  tone?: 'calm' | 'warning';
+  stop: WalkthroughStop;
+  onGo: (key: WalkthroughKey) => void;
+  children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border px-3.5 py-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          'text-xl font-semibold tabular-nums',
-          tone === 'warning' && 'text-graph-4',
-        )}
+    <li>
+      <button
+        type="button"
+        aria-label={stopTitle(stop)}
+        onClick={() => onGo(stop.key)}
+        className="flex w-full items-start gap-3 px-3.5 py-2 text-left hover:bg-accent/50"
       >
-        {value}
-      </dd>
-      {caption && (
-        <span className="text-2xs text-muted-foreground">{caption}</span>
-      )}
-      {fraction !== undefined && (
-        <span className="block h-1 overflow-hidden rounded-full bg-muted">
-          <span
-            className="block h-full rounded-full bg-graph-2"
-            style={{ width: `${Math.round(fraction * 100)}%` }}
-          />
-        </span>
-      )}
-    </div>
+        {children}
+      </button>
+    </li>
   );
 }
 
@@ -371,8 +374,8 @@ function PartGroup({
   struck?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border p-3">
-      <p className="flex items-center gap-1.5 text-xs font-medium">
+    <div className="flex min-w-0 flex-col gap-3 py-3 @2xl/review:flex-row">
+      <p className="flex shrink-0 items-start @2xl/review:w-20 gap-1 text-xs font-medium">
         {icon}
         {title}
         <span className="text-muted-foreground tabular-nums">
@@ -382,22 +385,28 @@ function PartGroup({
       {parts.length === 0 ? (
         <p className="text-xs text-muted-foreground">Nothing</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex min-w-0 flex-1 flex-col gap-2">
           {parts.map((part) => (
-            <li key={part.id} className="flex flex-col gap-0.5">
-              <span
-                className={cn(
-                  'text-sm font-medium',
-                  struck && 'text-muted-foreground line-through',
+            <li
+              key={part.id}
+              className="flex min-w-0 flex-col items-start gap-2 @2xl/review:flex-row @2xl/review:items-baseline"
+            >
+              <p className="min-w-0 flex-1 text-sm wrap-anywhere">
+                <strong
+                  className={cn(
+                    'font-medium',
+                    struck && 'text-muted-foreground line-through',
+                  )}
+                >
+                  {part.label}
+                </strong>
+                {part.detail && (
+                  <span className="text-xs text-muted-foreground">
+                    {' '}
+                    · {part.detail}
+                  </span>
                 )}
-              >
-                {part.label}
-              </span>
-              {part.detail && (
-                <span className="line-clamp-2 text-xs text-muted-foreground">
-                  {part.detail}
-                </span>
-              )}
+              </p>
               <DecisionLink part={part} review={review} onGo={onGo} inline />
             </li>
           ))}
@@ -431,5 +440,59 @@ function DecisionLink({
       Decision {part.decision}
       <ArrowRightIcon data-icon="inline-end" />
     </Button>
+  );
+}
+
+function BriefingQuestion({
+  part,
+  review,
+  revision,
+  scope,
+  context,
+  onGo,
+}: {
+  part: SystemPart;
+  review: WalkthroughProps['review'];
+  revision: ReviewRevision;
+  scope: WalkthroughProps['scope'];
+  context: WalkthroughProps['context'];
+  onGo: (key: WalkthroughKey) => void;
+}) {
+  const [answering, setAnswering] = useState(false);
+  const [answerButton, setAnswerButton] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  return (
+    <DecisionQuestion
+      part={part}
+      action={<DecisionLink part={part} review={review} onGo={onGo} />}
+    >
+      <Button
+        ref={setAnswerButton}
+        size="sm"
+        variant="ghost"
+        className="self-start"
+        aria-expanded={answering}
+        onClick={() => setAnswering(true)}
+      >
+        Answer this question
+      </Button>
+      {answering && (
+        <InlineComposer
+          scope={scope}
+          context={context}
+          quote={part.problem}
+          anchor={{
+            kind: 'change',
+            revision: revision.headOid,
+            comparison: { kind: 'branch', base: revision.base },
+          }}
+          onClose={() => {
+            setAnswering(false);
+            answerButton?.focus();
+          }}
+        />
+      )}
+    </DecisionQuestion>
   );
 }

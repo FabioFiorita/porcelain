@@ -17,3 +17,24 @@ export async function openSettingsAtFirstEntry(pairedPage: Page) {
   await page.goto('/settings/general');
   return page;
 }
+
+export async function seedPreferences(
+  page: Page,
+  preferences: Record<string, unknown>,
+) {
+  await page.evaluate((value) => {
+    localStorage.setItem(
+      'porcelain.prototype.preferences',
+      JSON.stringify(value),
+    );
+  }, preferences);
+}
+
+export async function savedPreferences(page: Page): Promise<unknown> {
+  return page.evaluate(() => {
+    const saved: unknown = JSON.parse(
+      localStorage.getItem('porcelain.prototype.preferences') ?? '{}',
+    );
+    return saved;
+  });
+}

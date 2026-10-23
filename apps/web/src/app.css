@@ -180,35 +180,48 @@
     0 1px 2px var(--workspace-edge);
 }
 
-/* Settings composes the installed Item primitives into divided cards. */
+.settings-content [data-slot='field-set'] {
+  gap: calc(var(--spacing) * 2);
+}
+
 .settings-content [data-slot='field-legend'] {
+  margin-bottom: calc(var(--spacing) * 1.5);
   color: var(--muted-foreground);
-  font-size: 0.8125rem;
+  font-size: var(--text-xs);
 }
 
 .settings-content [data-slot='item-group'] {
   gap: 0;
-  overflow: hidden;
-  border-width: 1px;
-  border-radius: var(--radius-2xl);
+  border-block-width: 1px;
 }
 
 .settings-content [data-slot='item-group'] > [data-slot='item'] {
   border-width: 0;
   border-radius: 0;
+  padding-inline: 0;
+  padding-block: calc(var(--spacing) * 2.5);
 }
 
 .settings-content
   [data-slot='item-group']
-  > [data-slot='item']:not(:last-child) {
-  border-bottom-width: 1px;
+  > [data-slot='item']
+  + [data-slot='item'] {
+  border-top-width: 1px;
 }
 
 .settings-content [data-slot='item-content'] {
   min-width: 0;
+  gap: calc(var(--spacing) * 0.5);
 }
 
 .settings-content [data-slot='item-description'] {
   display: block;
   overflow: visible;
+  font-size: var(--text-ui);
+}
+
+@media (min-width: 64rem) {
+  .settings-computer > [data-slot='field-set'] {
+    grid-column: span 2;
+  }
 }

@@ -1,8 +1,8 @@
 ---
 route: /pair
 selectors:
-  - "This browser is not paired"
-  - "Review content"
+  - 'This browser is not paired'
+  - 'Review content'
 tests:
   - apps/web/spec/e2e/access-pair-open-page.e2e.ts
 api:
@@ -18,7 +18,7 @@ A one-time link entered in a tab that already shows the not-paired page (`/pair`
 ## How to get to it (user POV)
 
 - The not-paired page is open at `/pair` → paste or follow the one-time link (`/pair#c=<code>&e=<installation id>`) in the same tab. Only the fragment changes, so the page's `hashchange` listener re-runs the pairing loader.
-- The link comes from `porcelain pair` on the host, or from Settings → Devices → "Create pairing link" in the desktop app.
+- The link comes from `porcelain pair` on the host, or from Settings → Computers → This computer → Pair a device → "Create pairing link" in the desktop app.
 
 ## Driving it with browser
 
@@ -44,4 +44,4 @@ Automated coverage: `access-pair-open-page.e2e.ts`.
 ## Gotchas
 
 - Start at `/pair` unpaired for same-tab entry; another starting route performs a full load. A paired browser opening `/pair` redirects to its workspace.
-- Settings → Devices → Create pairing link is another source for the same one-time link.
+- Settings → Computers → This computer → Pair a device → Create pairing link is another source for the same one-time link.

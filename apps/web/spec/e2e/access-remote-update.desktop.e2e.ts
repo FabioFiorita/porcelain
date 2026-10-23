@@ -48,7 +48,7 @@ test('Computers shows each remote computer’s update on its detail page, tells 
   if (!device) throw new Error('The remote computer paired no device');
   await expect(
     settings.getByText(
-      `Run porcelain trust ${device.id} on that computer, or allow it in the Mac app → Devices`,
+      `Run porcelain trust ${device.id} on that computer, or allow it in the Mac app → Computers → This computer → Paired devices`,
       { exact: true },
     ),
   ).toBeVisible();

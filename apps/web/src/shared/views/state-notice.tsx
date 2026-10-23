@@ -19,7 +19,7 @@ export function StateFrame({
 }) {
   if (!navigation) return children;
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         {navigation}
         <span className="text-ui font-medium">{title}</span>
@@ -89,10 +89,10 @@ export function StateSkeleton({ label }: { label: string }) {
       aria-label={label}
       className="flex w-full min-w-0 flex-col gap-3 p-6"
     >
-      <Skeleton className="h-5 w-2/3" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-4/5" />
-      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-5 w-2/3 bg-border" />
+      <Skeleton className="h-4 w-full bg-border" />
+      <Skeleton className="h-4 w-4/5 bg-border" />
+      <Skeleton className="h-4 w-1/2 bg-border" />
       <span className="sr-only">{label}…</span>
     </div>
   );

@@ -1,5 +1,4 @@
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
-import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
@@ -10,7 +9,6 @@ import { WorkspaceGate, type Workspace } from '../../projects';
 import { DocumentComments, savedFileCommentTarget } from '../../reviews';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { usePreferences } from '../../preferences';
-import { useDirectories } from '../queries/directory';
 import { useTextFile, type FileContents } from '../queries/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { useFileAsset } from '../queries/asset';
@@ -62,41 +60,6 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
 
 export function FileContent(props: ContentProps & { selected: Workspace }) {
   const { path, selected } = props;
-  const parent = path.split('/').slice(0, -1).join('/');
-  const directories = useDirectories({
-    connection: selected.connection,
-    scope: selected.scope,
-    paths: [parent],
-  });
-  const result = directories.results[0];
-  const data = result
-    ? Option.getOrUndefined(AsyncResult.value(result))
-    : undefined;
-  if (result && AsyncResult.isFailure(result) && !data)
-    return (
-      <ErrorState
-        message={fileErrorMessage(Cause.squash(result.cause))}
-        retry={{ label: 'Read folder again', onPress: directories.refresh }}
-      />
-    );
-  if (!data) return <Loading label="Reading file…" />;
-  const entry = data.entries.find(
-    (candidate) => candidate.name === path.split('/').at(-1),
-  );
-  if (!entry)
-    return (
-      <FileNotice
-        kind="unavailable"
-        description="This file is no longer in the worktree."
-      />
-    );
-  if (entry.kind !== 'file')
-    return (
-      <FileNotice
-        kind="unsupported"
-        description={unsupportedEntryDescription(entry)}
-      />
-    );
   return (
     <Box className="flex-1" surface="background">
       {!props.inlineComments || isNativeImagePath(path) ? (
@@ -109,16 +72,6 @@ export function FileContent(props: ContentProps & { selected: Workspace }) {
       )}
     </Box>
   );
-}
-
-function unsupportedEntryDescription(entry: {
-  readonly kind: FileTreeEntry['kind'];
-  readonly target?: string | undefined;
-}) {
-  if (entry.kind === 'symlink')
-    return `Not followed: symlink to ${entry.target ?? 'an unknown target'}.`;
-  if (entry.kind === 'submodule') return 'Not followed: submodule.';
-  return 'This entry is not a regular file.';
 }
 
 function FileImage({ path, selected }: { path: string; selected: Workspace }) {
@@ -236,7 +189,9 @@ function FileContentsPreview({
         key={path}
         source={text}
         onLink={onLink}
-        initialMode={preferences.markdownDefault}
+        initialMode={
+          preferences.documentsDefault === 'rendered' ? 'reader' : 'source'
+        }
         wrap={preferences.lineOverflow === 'wrap'}
         selection={selection}
         onSelect={onSelect}
@@ -253,7 +208,9 @@ function FileContentsPreview({
         <HtmlPreview
           html={text}
           onLink={onLink}
-          initialMode={preferences.htmlDefault}
+          initialMode={
+            preferences.documentsDefault === 'rendered' ? 'preview' : 'source'
+          }
           wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
           onSelect={onSelect}

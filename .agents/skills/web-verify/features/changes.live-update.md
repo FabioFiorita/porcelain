@@ -1,11 +1,11 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Source"
-  - "Changes"
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Source'
+  - 'Changes'
 tests:
   - apps/web/spec/integration/changes-live-update.test.tsx
 api:
@@ -22,7 +22,7 @@ While the page stays open, a file another writer rewrites, creates or removes on
 ## How to get to it (user POV)
 
 - Nothing to click: it happens on any open workspace when the worktree changes on disk.
-- To watch it: button "Review" → tab "Files" (shortcut `Alt+1`) shows the tree; tab "Changes" (`Alt+2`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless the Markdown default preference says Source; tab "Source" shows the raw text).
+- To watch it: button "Review" → tab "Files" (shortcut `Alt+1`) shows the tree; tab "Changes" (`Alt+2`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless Documents open as says Source; tab "Source" shows the raw text).
 
 ## Driving it with browser
 
