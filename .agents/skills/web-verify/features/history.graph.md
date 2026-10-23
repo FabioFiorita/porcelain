@@ -16,11 +16,11 @@ api:
 
 # history.graph
 
-Open graph opens the commit graph of the checked-out branch as a document tab ("Graph") with its lanes, merges and ref chips; the tab comes back after a reload, and clicking a commit in it opens that commit's document.
+Open graph opens the commit graph of the checked-out branch as a document tab ("Graph") with its lanes, merges and ref chips, one row per commit in columns: short id, subject with a HEAD badge on the checked-out commit and its ref chips, author (when the page is wide enough) and age; Porcelain's internal `refs/porcelain/` refs never show; the tab comes back after a reload, and clicking a commit in it opens that commit's document.
 
 ## How to get to it (user POV)
 
-- Review → History → button "Open graph" (in the History header, beside the branch name; shown once the branch has commits).
+- Review → History → button "Open graph" (at the bottom of the History panel; shown once the branch has commits).
 - The tab "Graph" in the "Open documents" tablist once opened; URL `entry=graph` on the workspace route.
 
 ## Driving it with browser

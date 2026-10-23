@@ -13,6 +13,7 @@ export {
   type SetHiddenInput,
   type SetPinnedInput,
   visibleFileTreePaths,
+  hiddenSummary,
 } from './file-preferences.ts';
 export {
   workspaceChoices,

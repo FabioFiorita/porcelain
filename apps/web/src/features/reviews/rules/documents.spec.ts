@@ -3,6 +3,7 @@ import {
   entryKey,
   parseEntry,
   publishedReviewTitle,
+  surfaceTitles,
   workspaceTitle,
 } from './documents.ts';
 
@@ -96,4 +97,12 @@ it('names the current publication independently of whether its code is still act
   expect(publishedReviewTitle({ active: false })).toBe('Review');
   expect(publishedReviewTitle(undefined)).toBeUndefined();
   expect(publishedReviewTitle(null)).toBeUndefined();
+});
+
+it('names the side panel views Files, Changes and History', () => {
+  expect(surfaceTitles).toEqual({
+    files: 'Files',
+    changes: 'Changes',
+    history: 'History',
+  });
 });

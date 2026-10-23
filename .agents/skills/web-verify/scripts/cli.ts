@@ -23,6 +23,7 @@ import {
 } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';
 import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
+import { sweep } from './sweep.ts';
 
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
@@ -35,8 +36,13 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   stop                    stop owned processes; keep evidence
   evidence                print the retained evidence folder
   pairing-link            mint a fresh one-time link to open in your browser
+  sweep <route|feature map> [--board <png>] ...
+                          capture each route at 1440, 1080 and 414, light and dark, as-is
+                          and with the long-text and many-items seeds; write index.md; fail
+                          on a page or console error, an HTTP failure, a redirect,
+                          horizontal overflow or a theme that did not apply
   agent publish-review "<title>" [--context] [--summary-html <html>]
-  agent publish-architecture
+  agent publish-architecture | seed long-text|many-items
   agent publish-revision "<title>" | advance-review-branch | remove-review-worktree
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
@@ -186,6 +192,7 @@ async function command(args: readonly string[]): Promise<string> {
       'coding-tool': { type: 'boolean', default: false },
       'review-sample': { type: 'boolean', default: false },
       'git-interruption': { type: 'boolean', default: false },
+      board: { type: 'string', multiple: true },
     },
     allowPositionals: true,
     strict: true,
@@ -203,7 +210,8 @@ async function command(args: readonly string[]): Promise<string> {
       gitInterruption: values['git-interruption'],
     });
   if (name === 'doctor') return doctor();
-  if (name === undefined) throw new Usage(usage);
+  if (name === undefined || (values.board !== undefined && name !== 'sweep'))
+    throw new Usage(usage);
   if (name === 'stop') {
     const result = await registry.stopById(values.instance);
     return stopOutput(result);
@@ -211,9 +219,15 @@ async function command(args: readonly string[]): Promise<string> {
   if (name === 'evidence') return `${registry.evidencePath(values.instance)}\n`;
   if (name === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
-  if (!['logs', 'agent', 'server', 'pairing-link', 'remote'].includes(name))
+  if (
+    !['logs', 'agent', 'server', 'pairing-link', 'remote', 'sweep'].includes(
+      name,
+    )
+  )
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
+  if (name === 'sweep')
+    return registry.drive(instance, args, () => sweep(instance, args));
   if (name === 'logs')
     return registry
       .redactor(instance)

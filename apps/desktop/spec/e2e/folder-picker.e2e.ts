@@ -94,14 +94,22 @@ test('the Open project button opens the chosen Git repository through the native
     name: 'Review',
     exact: true,
   });
-  const history = page.getByRole('tab', { name: 'History', exact: true });
-  await expect(reviewToggle.or(history).first()).toBeVisible();
-  if (await reviewToggle.isVisible()) await reviewToggle.click();
-  await history.click();
+  const rail = page.getByRole('navigation', {
+    name: 'Side panel',
+    exact: true,
+  });
+  await expect(reviewToggle.or(rail).first()).toBeVisible();
+  const sheet = await reviewToggle.isVisible();
+  const openView = (name: string) =>
+    sheet
+      ? page.getByRole('tab', { name, exact: true }).click()
+      : rail.getByRole('button', { name, exact: true }).click();
+  if (sheet) await reviewToggle.click();
+  await openView('History');
   await expect(
     page.getByRole('button', { name: 'Create smoke project', exact: false }),
   ).toBeVisible();
-  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await openView('Files');
   await page
     .getByRole('treeitem', { name: 'README.md', exact: true })
     .click({ button: 'right' });

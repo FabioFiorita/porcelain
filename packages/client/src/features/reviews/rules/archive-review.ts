@@ -6,6 +6,9 @@ export function archiveDescription(plan: ReviewArchivePlan) {
       ? 'The project’s main checkout and its branches are protected. Nothing will be deleted.'
       : undefined,
     plan.worktreePath ? `Delete worktree: ${plan.worktreePath}` : undefined,
+    plan.worktreePath
+      ? 'The entire worktree folder will be permanently deleted, including ignored files such as .env and local build output.'
+      : undefined,
     plan.detachWorktreePath
       ? `Keep worktree detached from its branch: ${plan.detachWorktreePath}`
       : undefined,

@@ -87,6 +87,9 @@ export const gitSubcommands = [
 
 export type GitSubcommand = (typeof gitSubcommands)[number];
 
+export const stressVariants = ['long-text', 'many-items'] as const;
+export type StressVariant = (typeof stressVariants)[number];
+
 export type Session = {
   fixture: Fixture;
   address: string;
@@ -126,6 +129,7 @@ export type ProofCheckStep = {
 
 export type AgentAction =
   | { kind: 'publish-architecture' }
+  | { kind: 'seed'; variant: StressVariant }
   | {
       kind: 'publish-review';
       title: string;

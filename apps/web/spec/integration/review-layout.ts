@@ -10,6 +10,11 @@ function uncovered(element: Element) {
 }
 
 export const reviewLayout = {
+  scrollToEnd(locator: Locator) {
+    const element = locator.element();
+    element.scrollTop = element.scrollHeight;
+  },
+  scrollTop: (locator: Locator) => locator.element().scrollTop,
   continuity(page: Locator) {
     const mounted = page.element();
     let reloaded = false;

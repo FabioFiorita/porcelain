@@ -1,14 +1,8 @@
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/components/ui/tooltip';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
-  EyeIcon,
   EyeOffIcon,
   FilePlusIcon,
   FolderPlusIcon,
@@ -16,6 +10,7 @@ import {
   PlusIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -28,6 +23,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -39,6 +39,7 @@ import { useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
+  hiddenSummary,
   visibleFileTreePaths,
 } from '@porcelain/client/projects/rules';
 import {
@@ -85,6 +86,7 @@ type Props = {
     anchor?: undefined,
     options?: { toSide?: boolean },
   ) => void;
+  actionsTarget: HTMLElement | null;
 };
 
 export function FileNavigation({
@@ -94,6 +96,7 @@ export function FileNavigation({
   selected,
   onOpen,
   sideLabel,
+  actionsTarget,
 }: Props) {
   const scopeKey = `${scope.projectId}:${scope.worktreeId}`;
   return (
@@ -105,6 +108,7 @@ export function FileNavigation({
       selected={selected}
       onOpen={onOpen}
       sideLabel={sideLabel}
+      actionsTarget={actionsTarget}
     />
   );
 }
@@ -116,6 +120,7 @@ function ScopedFileNavigation({
   selected,
   onOpen,
   sideLabel,
+  actionsTarget,
 }: Props) {
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
@@ -274,97 +279,82 @@ function ScopedFileNavigation({
           onChange={(event) => setFileQuery(event.target.value)}
           className="h-7 w-auto min-w-0 flex-1"
         />
-        {hidden.size > 0 && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-sm"
-                  variant={showHidden ? 'secondary' : 'ghost'}
-                  aria-pressed={showHidden}
-                  aria-label={
-                    showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
-                  }
-                  onClick={() => setShowHidden((current) => !current)}
-                >
-                  {showHidden ? (
-                    <EyeIcon className="text-muted-foreground" />
-                  ) : (
-                    <EyeOffIcon className="text-muted-foreground" />
-                  )}
-                </Button>
-              }
-            />
-            <TooltipContent role="tooltip" className="break-all">
-              {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
-            </TooltipContent>
-          </Tooltip>
-        )}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <DropdownMenuTrigger
+      </div>
+      {actionsTarget &&
+        createPortal(
+          <>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
                   render={
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="Create file or folder"
-                      disabled={edit.result.waiting}
-                    />
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="Create file or folder"
+                          disabled={edit.result.waiting}
+                        />
+                      }
+                    >
+                      <PlusIcon className="text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                  }
+                />
+                <TooltipContent role="tooltip" className="break-all">
+                  Create file or folder
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() =>
+                    setCreating({
+                      kind: 'file',
+                      folder: '',
+                      nonce: Date.now(),
+                    })
                   }
                 >
-                  <PlusIcon className="text-muted-foreground" />
-                </DropdownMenuTrigger>
-              }
-            />
-            <TooltipContent role="tooltip" className="break-all">
-              Create file or folder
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() =>
-                setCreating({ kind: 'file', folder: '', nonce: Date.now() })
-              }
-            >
-              <FilePlusIcon />
-              New file
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                setCreating({
-                  kind: 'directory',
-                  folder: '',
-                  nonce: Date.now(),
-                })
-              }
-            >
-              <FolderPlusIcon />
-              New folder
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={collapseLabel}
-                onClick={() => collapseAll()}
+                  <FilePlusIcon />
+                  New file
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setCreating({
+                      kind: 'directory',
+                      folder: '',
+                      nonce: Date.now(),
+                    })
+                  }
+                >
+                  <FolderPlusIcon />
+                  New folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={collapseLabel}
+                    onClick={() => collapseAll()}
+                  />
+                }
               >
                 <ListChevronsUpDownIcon className="text-muted-foreground" />
-              </Button>
-            }
-          />
-          <TooltipContent role="tooltip" className="break-all">
-            {collapseLabel}
-          </TooltipContent>
-        </Tooltip>
-      </div>
+              </TooltipTrigger>
+              <TooltipContent role="tooltip" className="break-all">
+                {collapseLabel}
+              </TooltipContent>
+            </Tooltip>
+          </>,
+          actionsTarget,
+        )}
       <PinnedFiles
         paths={pinned}
+        statuses={gitStatus}
         selected={selected}
         onOpen={openFile}
         onUnpin={(path) =>
@@ -436,6 +426,25 @@ function ScopedFileNavigation({
           onExpand={(paths) => setRequested((current) => union(current, paths))}
           onSelect={onSelect}
         />
+        {hidden.size > 0 && (
+          <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
+            <EyeOffIcon className="size-3.5 shrink-0" />
+            <span>
+              {hiddenSummary(
+                hidden,
+                (path) => kinds.get(path) ?? kinds.get(`${path}/`),
+              )}
+            </span>
+            <span aria-hidden="true">·</span>
+            <Button
+              variant="link"
+              size="xs"
+              onClick={() => setShowHidden((current) => !current)}
+            >
+              {showHidden ? 'Hide' : 'Show'}
+            </Button>
+          </div>
+        )}
       </section>
       <AlertDialog
         open={deleting !== null}

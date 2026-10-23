@@ -1,33 +1,19 @@
 import { ReviewNavigation } from './review-navigation';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { MessageSquarePlusIcon } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
-import {
-  MessageScroller,
-  MessageScrollerButton,
-  MessageScrollerContent,
-  MessageScrollerItem,
-  MessageScrollerProvider,
-  MessageScrollerViewport,
-} from '@/components/ui/message-scroller';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
-import { useVisibleComments } from '../commands/comments';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
-  type CommentAnchor,
   anchorPath,
   changeAnchor,
   type CommentThread,
@@ -51,10 +37,8 @@ import {
 import { useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
-import { DeleteResolved } from './delete-resolved';
-import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
-import { ThreadCard } from './thread-card';
+import { ChangeComment, CommentsView, ReviewViews } from './comments-view';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -161,29 +145,12 @@ export function ReviewIndex({
           onSelect={selectReadiness}
         />
       )}
-      <div className="shrink-0 px-2 pt-2">
-        <Tabs
-          value={view}
-          onValueChange={(value: unknown) => {
-            if (value === 'layers' || value === 'comments') setView(value);
-          }}
-          aria-label="Review views"
-        >
-          <TabsList className="h-8 w-full">
-            <TabsTrigger value="layers" className="flex-1">
-              {review && !branch ? 'Explore' : 'Changed files'}
-            </TabsTrigger>
-            <TabsTrigger value="comments" className="flex-1">
-              Comments
-              {openComments > 0 && (
-                <Badge variant="secondary" className="h-4 min-w-4">
-                  {openComments}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <ReviewViews
+        view={view}
+        onView={setView}
+        filesLabel={review && !branch ? 'Explore' : 'Changed files'}
+        openComments={openComments}
+      />
       {view === 'layers' && branch && (
         <BranchIndex
           scope={scope}
@@ -211,13 +178,42 @@ export function ReviewIndex({
       )}
       {view === 'comments' && (
         <CommentsView
-          list={list}
           threads={threads}
-          branch={branch}
-          base={base}
           scope={scope}
           context={context}
-          onOpen={onOpen}
+          composer={
+            branch ? (
+              <BranchChangeComment
+                scope={scope}
+                context={context}
+                base={base}
+              />
+            ) : (
+              <ChangeComment
+                scope={scope}
+                context={context}
+                anchor={changeAnchor(undefined)}
+              />
+            )
+          }
+          onReveal={(anchor) => {
+            if (anchor.kind === 'change') {
+              onOpen(
+                anchor.comparison?.kind === 'branch'
+                  ? BRANCH
+                  : { kind: 'handoff' },
+                anchor,
+              );
+              return;
+            }
+            onOpen(
+              anchorDocument(
+                anchor,
+                new Set(list.changes.map((entry) => entry.path)),
+              ),
+              anchor,
+            );
+          }}
         />
       )}
     </div>
@@ -369,43 +365,6 @@ function LayersView({
   );
 }
 
-function ChangeComment({
-  scope,
-  context,
-  anchor,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  anchor: CommentAnchor | undefined;
-}) {
-  const [open, setOpen] = useState(false);
-  const branch = anchor?.comparison?.kind === 'branch';
-  if (open && anchor)
-    return (
-      <InlineComposer
-        scope={scope}
-        context={context}
-        anchor={anchor}
-        onClose={() => setOpen(false)}
-      />
-    );
-  return (
-    <div className="shrink-0 px-2 pt-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-full"
-        disabled={anchor === null || anchor === undefined}
-        onClick={() => setOpen(true)}
-      >
-        <MessageSquarePlusIcon data-icon="inline-start" />
-        {branch ? 'Comment on the whole branch' : 'Comment on the whole change'}
-      </Button>
-    </div>
-  );
-}
-
 function BranchChangeComment({
   scope,
   context,
@@ -447,121 +406,4 @@ function anchorDocument(
     return { kind: 'change', path: anchor.filePath };
   }
   return { kind: 'file', path: anchor.filePath };
-}
-
-function CommentsView({
-  scope,
-  context,
-  list,
-  threads,
-  branch,
-  base,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  list: ChangeList;
-  threads: readonly CommentThread[];
-  branch: boolean;
-  base: string | undefined;
-  onOpen: OpenDocument;
-}) {
-  const [filter, setFilter] = useState<'open' | 'resolved'>('open');
-  const changed = new Set(list.changes.map((entry) => entry.path));
-  const visible = [...threads]
-    .filter((thread) => thread.resolved === (filter === 'resolved'))
-    .sort((left, right) =>
-      lastActivity(left).localeCompare(lastActivity(right)),
-    );
-  const openCount = threads.filter((thread) => !thread.resolved).length;
-  const resolvedCount = threads.length - openCount;
-  const counts = { open: openCount, resolved: resolvedCount };
-  const empty =
-    filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
-
-  useVisibleComments(scope, context, filter);
-
-  const reveal = (anchor: CommentAnchor) => {
-    if (anchor.kind === 'change') {
-      onOpen(
-        anchor.comparison?.kind === 'branch' ? BRANCH : { kind: 'handoff' },
-        anchor,
-      );
-      return;
-    }
-    onOpen(anchorDocument(anchor, changed), anchor);
-  };
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {branch ? (
-        <BranchChangeComment scope={scope} context={context} base={base} />
-      ) : (
-        <ChangeComment
-          scope={scope}
-          context={context}
-          anchor={changeAnchor(undefined)}
-        />
-      )}
-      <div className="flex shrink-0 gap-1 px-2 pt-2">
-        {(['open', 'resolved'] as const).map((value) => (
-          <button
-            type="button"
-            key={value}
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-            className={cn(
-              'rounded-md px-2 py-1 text-2xs capitalize text-muted-foreground transition-colors hover:bg-accent',
-              filter === value && 'bg-accent text-foreground',
-            )}
-          >
-            {value} <span className="tabular-nums">{counts[value]}</span>
-          </button>
-        ))}
-        {filter === 'resolved' && resolvedCount > 0 && (
-          <DeleteResolved scope={scope} context={context} threads={threads} />
-        )}
-      </div>
-
-      {visible.length === 0 ? (
-        <p className="px-4 py-6 text-center text-caption text-muted-foreground">
-          {empty}
-        </p>
-      ) : (
-        <MessageScrollerProvider
-          key={filter}
-          autoScroll
-          defaultScrollPosition="end"
-        >
-          <MessageScroller className="min-h-0 flex-1">
-            <MessageScrollerViewport aria-label="Comments">
-              <MessageScrollerContent
-                className={cn('', filter === 'open' ? '' : '')}
-              >
-                {visible.map((thread, index) => (
-                  <MessageScrollerItem
-                    key={thread.id}
-                    messageId={thread.id}
-                    scrollAnchor={index === visible.length - 1}
-                  >
-                    <ThreadCard
-                      thread={thread}
-                      scope={scope}
-                      context={context}
-                      onReveal={() => reveal(thread.anchor)}
-                    />
-                  </MessageScrollerItem>
-                ))}
-              </MessageScrollerContent>
-            </MessageScrollerViewport>
-            <MessageScrollerButton />
-          </MessageScroller>
-        </MessageScrollerProvider>
-      )}
-    </div>
-  );
-}
-
-function lastActivity(thread: CommentThread) {
-  return thread.messages.at(-1)?.createdAt ?? '';
 }

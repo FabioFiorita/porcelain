@@ -14,10 +14,19 @@ test.for([1280, 414])(
       const page = app.page;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page
-        .getByRole('complementary', { name: 'Review sidebar', exact: true })
-        .getByRole('tab', { name: 'Changes', exact: true })
-        .click();
+      if (width === 414)
+        await page
+          .getByRole('complementary', {
+            name: 'Review sidebar',
+            exact: true,
+          })
+          .getByRole('tab', { name: 'Changes', exact: true })
+          .click();
+      else
+        await page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'Changes', exact: true })
+          .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await page
         .getByRole('button', { name: 'notes.md · added', exact: true })
@@ -82,10 +91,19 @@ test.for([1280, 414])(
       const search = () => new URL(app.location(), 'http://test').searchParams;
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page
-        .getByRole('complementary', { name: 'Review sidebar', exact: true })
-        .getByRole('tab', { name: 'Changes', exact: true })
-        .click();
+      if (width === 414)
+        await page
+          .getByRole('complementary', {
+            name: 'Review sidebar',
+            exact: true,
+          })
+          .getByRole('tab', { name: 'Changes', exact: true })
+          .click();
+      else
+        await page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'Changes', exact: true })
+          .click();
       await page.getByRole('tab', { name: 'Branch', exact: true }).click();
       await expect
         .element(

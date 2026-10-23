@@ -47,9 +47,10 @@ test('History keeps the branch and graph header fixed and its rows outside the s
   const page = await app.open(await app.link('this'));
   for (const width of [414, 1440]) {
     await page.setViewportSize({ width, height: 896 });
-    if (width === 414)
+    if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
-    await page.getByRole('tab', { name: 'History', exact: true }).click();
+      await page.getByRole('tab', { name: 'History', exact: true }).click();
+    }
     const sidebar = page.getByRole('complementary', {
       name: 'Review sidebar',
       exact: true,
@@ -89,13 +90,14 @@ test('both Changes lists keep rows outside the scrollbar lane', async ({
   const page = await app.open(await app.link('this'));
   for (const width of [414, 1440]) {
     await page.setViewportSize({ width, height: 896 });
-    if (width === 414)
-      await page.getByRole('button', { name: 'Review', exact: true }).click();
     const sidebar = page.getByRole('complementary', {
       name: 'Review sidebar',
       exact: true,
     });
-    await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    if (width === 414) {
+      await page.getByRole('button', { name: 'Review', exact: true }).click();
+      await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    }
     for (const scope of ['Uncommitted', 'Branch']) {
       const control = sidebar.getByRole('tab', { name: scope, exact: true });
       await control.click();
@@ -150,7 +152,13 @@ for (const viewport of [
       name: 'Review sidebar',
       exact: true,
     });
-    await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    if (viewport.width < 1280)
+      await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    else
+      await page
+        .getByRole('navigation', { name: 'Side panel', exact: true })
+        .getByRole('button', { name: 'Changes', exact: true })
+        .click();
     await sidebar.getByRole('tab', { name: 'Comments', exact: true }).click();
     await sidebar
       .getByRole('button', {

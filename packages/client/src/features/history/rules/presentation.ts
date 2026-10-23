@@ -1,5 +1,8 @@
 import type { CommitFile, CommitSummary } from './commit.ts';
-import type { ListCommitsResponse } from '@porcelain/contracts/changes';
+import type {
+  ListCommitsResponse,
+  ReadChangesResponse,
+} from '@porcelain/contracts/changes';
 
 export function commitPaths(file: CommitFile): string[] {
   return [
@@ -20,6 +23,10 @@ export function shortOid(oid: string) {
 export function refLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
 }
+const INTERNAL_REF = /^refs\/porcelain\//u;
+export function shownRefs(refs: readonly string[]): string[] {
+  return refs.filter((ref) => !INTERNAL_REF.test(ref));
+}
 export function commitEntry(commit: CommitSummary) {
   return {
     id: commit.oid,
@@ -27,7 +34,7 @@ export function commitEntry(commit: CommitSummary) {
     author: commit.author.name,
     time: new Date(commit.author.timestamp).toLocaleString(),
     shortHash: shortOid(commit.oid),
-    refs: commit.refs.map(refLabel),
+    refs: shownRefs(commit.refs).map(refLabel),
   };
 }
 export function historyHeading(
@@ -52,4 +59,39 @@ export function historyBoundary(
     : boundary === 'wide'
       ? 'Too many branches meet here to continue past this point.'
       : 'Start of history.';
+}
+
+type BranchTracking = {
+  name: string;
+  counts: string | null;
+  upstream: string;
+};
+
+export function branchTracking(
+  branch: ReadChangesResponse['branch'],
+  snapshot: ListCommitsResponse['snapshot'] | null,
+): BranchTracking {
+  if (branch === null || branch === undefined)
+    return {
+      name: historyHeading(snapshot),
+      counts: null,
+      upstream: 'Branch status unavailable',
+    };
+  if (branch.name === null || branch.name === undefined)
+    return {
+      name: 'Detached HEAD',
+      counts: null,
+      upstream: 'No branch checked out',
+    };
+  if (branch.upstream === null || branch.upstream === undefined)
+    return {
+      name: refLabel(branch.name),
+      counts: null,
+      upstream: 'No upstream',
+    };
+  return {
+    name: refLabel(branch.name),
+    counts: `${branch.ahead} ahead · ${branch.behind} behind`,
+    upstream: `against ${refLabel(branch.upstream)}`,
+  };
 }

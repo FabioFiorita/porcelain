@@ -168,6 +168,44 @@ test('keys pressed at once from the latest briefing move between its stops on on
   }
 });
 
+test('moving between long review stops starts at the top of each stop', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  await page.viewport(414, 500);
+  try {
+    const longTitle = Array.from({ length: 2 }, () => title).join(' ');
+    const fixture = await repo.review(longTitle);
+    const app = await render.route(`/reviews/${fixture.reviewId}`);
+    const review = app.page.getByRole('region', {
+      name: 'Review walkthrough',
+      exact: true,
+    });
+    const briefing = review.getByRole('region', {
+      name: 'Briefing',
+      exact: true,
+    });
+    await expect.element(briefing).toBeVisible();
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('n');
+    await expect
+      .element(
+        review.getByRole('region', { name: `1. ${longTitle}`, exact: true }),
+      )
+      .toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
 test('a latest decision URL replaces the stop chosen with the keyboard without remounting', async ({
   repo,
   render,
@@ -237,7 +275,7 @@ test('an unpaired durable decision link survives pairing with its revision and q
   await expect.poll(() => app.pendingDestination()).toBeNull();
 });
 
-test('review-owned marks and comments persist, closing keeps the review readable, and Delete confirms before removing it', async ({
+test('review-owned marks persist, closing keeps the review readable, and Delete confirms before removing it', async ({
   repo,
   render,
   server,
@@ -268,29 +306,6 @@ test('review-owned marks and comments persist, closing keeps the review readable
   await expect
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { lastSeenRevision: 1 } });
-  await review.getByRole('tab', { name: 'Comments', exact: true }).click();
-  await review
-    .getByRole('button', { name: 'Comment on this review', exact: true })
-    .click();
-  await review
-    .getByRole('textbox', { name: 'Comment', exact: true })
-    .fill('Please retain this explanation across checkout cleanup.');
-  await review.getByRole('button', { name: 'Comment', exact: true }).click();
-  await expect
-    .poll(() => server.reviewComments(fixture.reviewId))
-    .toMatchObject([
-      {
-        review: {
-          reviewId: fixture.reviewId,
-          revision: 1,
-          headOid: fixture.headOid,
-        },
-        messages: [
-          { body: 'Please retain this explanation across checkout cleanup.' },
-        ],
-      },
-    ]);
-  await review.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await review.getByRole('button', { name: /, jump to a stop$/ }).click();
   await app.page
     .getByRole('menuitem', { name: 'Open the briefing', exact: true })
@@ -325,6 +340,141 @@ test('review-owned marks and comments persist, closing keeps the review readable
     )
     .toBeVisible();
   await expect.poll(() => server.reviewStatus(fixture.reviewId)).toBe(404);
+});
+
+test('the review page keeps whole-change and inline comments in its Review panel after the checkout is removed, where they can be answered and resolved', async ({
+  repo,
+  render,
+  server,
+}) => {
+  const inline = 'Name the revision owner in this file.';
+  const whole = 'Please retain this explanation across checkout cleanup.';
+  const answer = 'The owner is the project review.';
+  const saved = () => server.reviewComments(fixture.reviewId);
+  const thread = (
+    kind: 'file' | 'change',
+    resolved: boolean,
+    bodies: readonly string[],
+  ) => ({
+    review: {
+      reviewId: fixture.reviewId,
+      revision: 1,
+      headOid: fixture.headOid,
+    },
+    anchor: { kind },
+    resolved,
+    messages: bodies.map((body) => ({ body })),
+  });
+  await page.viewport(1440, 900);
+  const fixture = await repo.review(title);
+  try {
+    const app = await render.route(
+      `/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`,
+    );
+    const review = app.page.getByRole('region', {
+      name: 'Review walkthrough',
+      exact: true,
+    });
+    await review
+      .getByRole('button', { name: /^Comment on review-page\.ts \(/ })
+      .click();
+    await review
+      .getByRole('textbox', { name: 'Comment', exact: true })
+      .fill(inline);
+    await review.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect.poll(saved).toMatchObject([thread('file', false, [inline])]);
+
+    const panel = app.page.getByRole('complementary', {
+      name: 'Review sidebar',
+      exact: true,
+    });
+    await expect
+      .element(
+        app.page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'Review', exact: true }),
+      )
+      .toHaveAttribute('aria-pressed', 'true');
+    await expect
+      .element(panel.getByRole('region', { name: 'Readiness', exact: true }))
+      .toBeVisible();
+    await panel
+      .getByRole('button', { name: 'retired.ts', exact: true })
+      .click();
+    await expect
+      .element(
+        review.getByRole('button', {
+          name: 'Mark retired.ts as reviewed',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await panel.getByRole('tab', { name: /^Comments/ }).click();
+    await panel
+      .getByRole('button', { name: 'Comment on the whole branch', exact: true })
+      .click();
+    await panel
+      .getByRole('textbox', { name: 'Comment', exact: true })
+      .fill(whole);
+    await panel.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect
+      .poll(saved)
+      .toMatchObject([
+        thread('file', false, [inline]),
+        thread('change', false, [whole]),
+      ]);
+
+    await repo.removeReviewWorktree();
+    await app.navigate(`/reviews/${fixture.reviewId}`);
+    const comments = panel.getByRole('tab', { name: /^Comments/ });
+    await expect.element(comments).toHaveAttribute('aria-selected', 'true');
+    const threads = panel.getByRole('article', {
+      name: 'Comment thread',
+      exact: true,
+    });
+    const inlineThread = threads.filter({ hasText: inline });
+    const wholeThread = threads.filter({ hasText: whole });
+    await expect.element(inlineThread).toBeVisible();
+    await expect.element(wholeThread).toBeVisible();
+
+    await inlineThread
+      .getByRole('button', { name: 'Reply', exact: true })
+      .click();
+    await inlineThread
+      .getByRole('textbox', { name: 'Reply', exact: true })
+      .fill(answer);
+    await inlineThread
+      .getByRole('button', { name: 'Post reply', exact: true })
+      .click();
+    await wholeThread.getByRole('button', { name: /^Whole branch/ }).click();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await expect.element(comments).toHaveAttribute('aria-selected', 'true');
+    await wholeThread
+      .getByRole('button', { name: 'Resolve', exact: true })
+      .click();
+    await expect
+      .poll(saved)
+      .toMatchObject([
+        thread('file', false, [inline, answer]),
+        thread('change', true, [whole]),
+      ]);
+
+    await panel.getByRole('button', { name: /^resolved/i }).click();
+    await panel
+      .getByRole('button', { name: 'Delete resolved', exact: true })
+      .click();
+    await app.page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete', exact: true })
+      .click();
+    await expect
+      .poll(saved)
+      .toMatchObject([thread('file', false, [inline, answer])]);
+  } finally {
+    await page.viewport(414, 896);
+  }
 });
 
 test('durable routes warn when the live branch tip differs from the latest published revision', async ({
