@@ -28,6 +28,7 @@ type Box = NonNullable<
   PublishReviewRequest['diagram']
 >['after']['boxes'][number];
 type Plan = {
+  variant: StressVariant;
   files: ReadonlyMap<string, string>;
   commit: string;
   verdict: PublishReviewRequest['verdict'];
@@ -82,6 +83,7 @@ function longTextPlan(): Plan {
     ],
   ]);
   return {
+    variant: 'long-text',
     files,
     commit: filled(REVIEW_TITLE_LENGTH, 'Keep document holds visible'),
     verdict: {
@@ -141,6 +143,7 @@ function manyItemsPlan(): Plan {
     ]),
   ]);
   return {
+    variant: 'many-items',
     files,
     commit: 'Add many items',
     verdict: {
@@ -211,24 +214,19 @@ export async function seedStressSample(
   variant: StressVariant,
 ) {
   const { projectId, worktreeId } = await mainWorktree(session);
-  if (existsSync(appliedMarker(session, variant))) {
-    const review = await publishedReview(session, worktreeId);
-    return {
-      variant,
-      applied: false,
-      reviewId: review?.reviewId,
-      revision: review?.revision,
-      layerId: review?.layers[0]?.id,
-    };
-  }
+  const applied = !existsSync(appliedMarker(session, variant));
   const plan = variant === 'long-text' ? longTextPlan() : manyItemsPlan();
-  await commitReviewFixture(session);
-  for (const [path, text] of plan.files) {
-    await mkdir(dirname(join(session.repository, path)), { recursive: true });
-    await session.writeFile(path, text);
+  if (applied) {
+    await commitReviewFixture(session);
+    for (const [path, text] of plan.files) {
+      await mkdir(dirname(join(session.repository, path)), {
+        recursive: true,
+      });
+      await session.writeFile(path, text);
+    }
+    await session.git('add', '-A');
+    await session.git('commit', '--allow-empty', '-m', plan.commit);
   }
-  await session.git('add', '-A');
-  await session.git('commit', '--allow-empty', '-m', plan.commit);
   const deleted = (
     await session.git(
       'diff',
@@ -295,6 +293,22 @@ export async function seedStressSample(
       body,
     }),
   ).review;
+  if (applied) await applyOnce(session, plan, projectId, worktreeId);
+  return {
+    variant,
+    applied,
+    reviewId: published?.reviewId,
+    revision: published?.revision,
+    layerId: published?.layers[0]?.id,
+  };
+}
+
+async function applyOnce(
+  session: Session,
+  plan: Plan,
+  projectId: string,
+  worktreeId: string,
+) {
   for (const comment of plan.comments)
     await accepted(session, {
       method: 'POST',
@@ -317,12 +331,5 @@ export async function seedStressSample(
       path: `/api/projects/${projectId}`,
       body: { name: plan.projectName },
     });
-  await writeFile(appliedMarker(session, variant), `${published?.reviewId}\n`);
-  return {
-    variant,
-    applied: true,
-    reviewId: published?.reviewId,
-    revision: published?.revision,
-    layerId: published?.layers[0]?.id,
-  };
+  await writeFile(appliedMarker(session, plan.variant), `${plan.variant}\n`);
 }

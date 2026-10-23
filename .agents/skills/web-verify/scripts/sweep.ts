@@ -30,6 +30,9 @@ const sweepThemes = ['light', 'dark'] as const;
 const sweepStates = ['as-is', ...stressVariants] as const;
 const heights = { 1440: 900, 1080: 810, 414: 896 } as const;
 const networkIdleMs = 20_000;
+const tallestCapture = 12_000;
+const browserExhausted =
+  /ERR_INSUFFICIENT_RESOURCES|Target crashed|Unable to capture screenshot|has been closed/;
 const settledMs = 15_000;
 const stableReads = 3;
 const readEveryMs = 200;
@@ -58,6 +61,12 @@ type Shot = {
   skipped?: string;
 };
 type Composite = { target: number; file: string };
+type Found = {
+  shots: Shot[];
+  composites: Composite[];
+  seeds: unknown[];
+  notes: string[];
+};
 
 function sweepTokens(args: readonly string[]) {
   try {
@@ -246,6 +255,9 @@ const layoutSchema = Schema.Struct({
   sideways: Schema.Array(Schema.String),
 });
 const textScript = 'document.fonts.ready.then(() => document.body.innerText)';
+const hiddenHeightScript = `Math.max(0, ...[...document.body.querySelectorAll('*')]
+  .filter((element) => { const style = getComputedStyle(element); return (style.overflowY === 'auto' || style.overflowY === 'scroll') && element.clientHeight > 0; })
+  .map((element) => element.scrollHeight - element.clientHeight))`;
 const imagesLoadedScript =
   '[...document.images].every((image) => image.complete)';
 
@@ -321,6 +333,16 @@ async function shoot(
       );
     if (layout.dark !== (shot.theme === 'dark'))
       record(`the ${shot.theme} theme did not apply`);
+    const hidden = Schema.decodeUnknownSync(Schema.Number)(
+      await page.evaluate(hiddenHeightScript),
+    );
+    if (hidden > 0) {
+      await page.setViewportSize({
+        width: shot.width,
+        height: Math.min(heights[shot.width] + hidden, tallestCapture),
+      });
+      await settledText(page);
+    }
     await page.screenshot({ path: file, fullPage: true });
     shot.file = file;
   } finally {
@@ -378,11 +400,11 @@ function indexMarkdown(
   shots: readonly Shot[],
   composites: readonly Composite[],
   seeds: readonly unknown[],
-  failure: string | undefined,
+  notes: readonly string[],
 ) {
   const link = (file: string) => relative(folder, file);
   const problems = [
-    ...(failure === undefined ? [] : [`- The sweep stopped: ${failure}`]),
+    ...notes.map((note) => `- ${note}`),
     ...shots.flatMap((shot) =>
       shot.problems.map(
         (problem) =>
@@ -455,13 +477,57 @@ function indexMarkdown(
   ].join('\n')}\n`;
 }
 
+async function compareBoards(
+  browser: Browser,
+  targets: readonly Target[],
+  folder: string,
+  found: Found,
+) {
+  for (const [index, target] of targets.entries()) {
+    const boards = [
+      ['light', target.board],
+      ['dark', target.board && darkBoard(target.board)],
+    ] as const;
+    for (const [theme, board] of boards) {
+      if (board === undefined) continue;
+      const shot = found.shots.find(
+        (item) =>
+          item.target === index &&
+          item.theme === theme &&
+          item.width === 1440 &&
+          item.file !== undefined,
+      );
+      if (shot?.file === undefined) {
+        found.notes.push(
+          `${target.entry} has no ${theme} 1440 capture to compare with ${basename(board)}`,
+        );
+        continue;
+      }
+      const file = join(
+        folder,
+        slug(target.entry, index),
+        shot.state,
+        `board-${theme}-1440.png`,
+      );
+      await composite(
+        browser,
+        shot.file,
+        board,
+        `${shot.path ?? target.entry} · ${shot.state} · ${theme} · 1440`,
+        file,
+      );
+      found.composites.push({ target: index, file });
+    }
+  }
+}
+
 async function captureAll(
   instance: WebInstance,
   browser: Browser,
   recorder: Recorder,
   targets: readonly Target[],
   folder: string,
-  found: { shots: Shot[]; composites: Composite[]; seeds: unknown[] },
+  found: Found,
 ) {
   const pairing = await browser.newContext();
   const signed = await pair(await pairing.newPage(), instance, recorder).then(
@@ -494,38 +560,26 @@ async function captureAll(
             continue;
           }
           shot.path = path;
-          await shoot(
-            signed,
-            new URL(path, instance.detail.web),
-            shot,
-            join(directory, `${theme}-${width}.png`),
-          ).catch((error: unknown) => {
-            shot.problems.push(`not captured: ${firstLine(error)}`);
-          });
+          for (const attempt of [1, 2]) {
+            shot.problems = [];
+            await shoot(
+              signed,
+              new URL(path, instance.detail.web),
+              shot,
+              join(directory, `${theme}-${width}.png`),
+            ).catch((error: unknown) => {
+              shot.problems.push(`not captured: ${firstLine(error)}`);
+            });
+            if (
+              !shot.problems.some((problem) => browserExhausted.test(problem))
+            )
+              break;
+            if (attempt === 2)
+              shot.problems.push(
+                'the browser ran out of resources twice; check free memory and sweep again',
+              );
+          }
         }
-      const boards = [
-        ['light', target.board],
-        ['dark', target.board && darkBoard(target.board)],
-      ] as const;
-      for (const [theme, board] of state === 'as-is' ? boards : []) {
-        const shot = found.shots.find(
-          (item) =>
-            item.target === index &&
-            item.state === state &&
-            item.theme === theme &&
-            item.width === 1440,
-        );
-        if (board === undefined || shot?.file === undefined) continue;
-        const file = join(directory, `board-${theme}-1440.png`);
-        await composite(
-          browser,
-          shot.file,
-          board,
-          `${shot.path ?? target.entry} · ${theme} · 1440`,
-          file,
-        );
-        found.composites.push({ target: index, file });
-      }
     }
   }
 }
@@ -540,17 +594,13 @@ export async function sweep(
   const recorder = redactor.recorder();
   const record = await registry.evidence(instance).claim('sweep', 'json');
   const folder = record.replace(/\.json$/, '');
-  const found = {
-    shots: [] as Shot[],
-    composites: [] as Composite[],
-    seeds: [] as unknown[],
-  };
-  let failure: string | undefined;
+  const found: Found = { shots: [], composites: [], seeds: [], notes: [] };
   const browser = await chromium.launch();
   try {
     await captureAll(instance, browser, recorder, targets, folder, found);
+    await compareBoards(browser, targets, folder, found);
   } catch (error) {
-    failure = firstLine(error);
+    found.notes.push(`The sweep stopped: ${firstLine(error)}`);
   } finally {
     await browser.close();
   }
@@ -570,7 +620,7 @@ export async function sweep(
         found.shots,
         found.composites,
         found.seeds,
-        failure,
+        found.notes,
       ),
     ),
     { mode: 0o600 },
@@ -582,7 +632,7 @@ export async function sweep(
         {
           command: args,
           index,
-          failure,
+          notes: found.notes,
           seeds: found.seeds,
           shots: found.shots.map((shot) => ({
             ...shot,
@@ -597,7 +647,7 @@ export async function sweep(
   );
   const problems =
     found.shots.reduce((sum, shot) => sum + shot.problems.length, 0) +
-    (failure === undefined ? 0 : 1);
+    found.notes.length;
   const captured = found.shots.filter((shot) => shot.file !== undefined).length;
   if (problems > 0)
     throw new Refusal(
