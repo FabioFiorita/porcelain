@@ -1,3 +1,4 @@
+import { NavigatorRowMenu } from './navigator-row-menu';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -436,122 +437,138 @@ export function ProjectNavigator({
                                 key={entry.key}
                                 className="flex items-center"
                               >
-                                <div
-                                  className={cn(
-                                    'flex min-w-0 flex-1 items-center rounded-xl',
-                                    active && 'bg-sidebar-row shadow-row',
-                                  )}
+                                <NavigatorRowMenu
+                                  entry={entry}
+                                  connection={
+                                    connections.find(
+                                      (source) =>
+                                        source.environmentId ===
+                                        entry.environmentId,
+                                    ) ?? connection
+                                  }
+                                  onRetry={() => retry(undefined)}
+                                  beforeLeave={() => setOpenMobile(false)}
                                 >
-                                  <NavigatorStatus entry={entry} />
-                                  <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <SidebarMenuButton
-                                          size="lg"
-                                          className="h-10 min-w-0 flex-1"
-                                          aria-label={
-                                            entry.reviewId
-                                              ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                              : undefined
-                                          }
-                                          disabled={
-                                            !entry.reviewId && entry.disabled
-                                          }
-                                          aria-current={
-                                            active ? 'page' : undefined
-                                          }
-                                          onClick={() =>
-                                            entry.reviewId
-                                              ? setOpenMobile(false)
-                                              : openWorktree(entry)
-                                          }
-                                          render={
-                                            entry.reviewId ? (
-                                              <Link
-                                                to="/reviews/$reviewId"
-                                                params={{
-                                                  reviewId: entry.reviewId,
-                                                }}
-                                                search={{
-                                                  environment:
-                                                    entry.environmentId ===
-                                                    connection.environmentId
-                                                      ? undefined
-                                                      : entry.environmentId,
-                                                  decision: undefined,
-                                                }}
-                                              />
-                                            ) : undefined
-                                          }
-                                        />
-                                      }
-                                    >
-                                      <div className="min-w-0 flex-1 text-ui leading-4">
-                                        <div className="flex min-w-0 items-center gap-1">
-                                          <span className="min-w-0 flex-1 truncate">
-                                            {entry.title}
-                                          </span>
-                                          {entry.reviewId ? (
-                                            <span
-                                              className={cn(
-                                                'shrink-0 text-xs',
-                                                active
-                                                  ? 'text-brand'
-                                                  : 'text-muted-foreground',
-                                              )}
-                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                            >
-                                              {entry.reviewed}/{entry.total}
+                                  <div
+                                    className={cn(
+                                      'flex min-w-0 flex-1 items-center rounded-xl',
+                                      active && 'bg-sidebar-row shadow-row',
+                                    )}
+                                  >
+                                    <NavigatorStatus entry={entry} />
+                                    <Tooltip>
+                                      <TooltipTrigger
+                                        render={
+                                          <SidebarMenuButton
+                                            size="lg"
+                                            className="h-10 min-w-0 flex-1"
+                                            aria-label={
+                                              entry.reviewId
+                                                ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                                : undefined
+                                            }
+                                            disabled={
+                                              !entry.reviewId && entry.disabled
+                                            }
+                                            aria-current={
+                                              active ? 'page' : undefined
+                                            }
+                                            onClick={() =>
+                                              entry.reviewId
+                                                ? setOpenMobile(false)
+                                                : openWorktree(entry)
+                                            }
+                                            render={
+                                              entry.reviewId ? (
+                                                <Link
+                                                  to="/reviews/$reviewId"
+                                                  params={{
+                                                    reviewId: entry.reviewId,
+                                                  }}
+                                                  search={{
+                                                    environment:
+                                                      entry.environmentId ===
+                                                      connection.environmentId
+                                                        ? undefined
+                                                        : entry.environmentId,
+                                                    decision: undefined,
+                                                  }}
+                                                />
+                                              ) : undefined
+                                            }
+                                          />
+                                        }
+                                      >
+                                        <div className="min-w-0 flex-1 text-ui leading-4">
+                                          <div className="flex min-w-0 items-center gap-1">
+                                            <span className="min-w-0 flex-1 truncate">
+                                              {entry.title}
                                             </span>
-                                          ) : null}
-                                        </div>
-                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                          <div className="flex min-w-0 flex-1 items-center gap-1">
-                                            {context.project ? (
+                                            {entry.reviewId ? (
                                               <span
-                                                className={
-                                                  context.branch
-                                                    ? 'min-w-0 max-w-1/2 truncate'
-                                                    : 'min-w-0 flex-1 truncate'
-                                                }
+                                                className={cn(
+                                                  'shrink-0 text-xs',
+                                                  active
+                                                    ? 'text-brand'
+                                                    : 'text-muted-foreground',
+                                                )}
+                                                aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
                                               >
-                                                {context.project}
-                                              </span>
-                                            ) : null}
-                                            {context.branch ? (
-                                              <span className="min-w-0 flex-1 truncate">
-                                                {context.branch}
+                                                {entry.reviewed}/{entry.total}
                                               </span>
                                             ) : null}
                                           </div>
+                                          <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                            <div className="flex min-w-0 flex-1 items-center gap-1">
+                                              {context.project ? (
+                                                <span
+                                                  className={
+                                                    context.branch
+                                                      ? 'min-w-0 max-w-1/2 truncate'
+                                                      : 'min-w-0 flex-1 truncate'
+                                                  }
+                                                >
+                                                  {context.project}
+                                                </span>
+                                              ) : null}
+                                              {context.branch ? (
+                                                <span className="min-w-0 flex-1 truncate">
+                                                  {context.branch}
+                                                </span>
+                                              ) : null}
+                                            </div>
+                                          </div>
                                         </div>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" role="tooltip">
-                                      <div>
-                                        <p>{entry.title}</p>
-                                        <p>
-                                          {[context.project, context.branch]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                        </p>
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                                {entry.archivable && entry.reviewId ? (
-                                  <ArchiveReview
-                                    connection={
-                                      connections.find(
-                                        (source) =>
-                                          source.environmentId ===
-                                          entry.environmentId,
-                                      ) ?? connection
-                                    }
-                                    reviewId={entry.reviewId}
-                                    beforeLeave={() => setOpenMobile(false)}
-                                  />
-                                ) : null}
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="right"
+                                        role="tooltip"
+                                      >
+                                        <div>
+                                          <p>{entry.title}</p>
+                                          <p>
+                                            {[context.project, context.branch]
+                                              .filter(Boolean)
+                                              .join(' · ')}
+                                          </p>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  {entry.archivable && entry.reviewId ? (
+                                    <ArchiveReview
+                                      connection={
+                                        connections.find(
+                                          (source) =>
+                                            source.environmentId ===
+                                            entry.environmentId,
+                                        ) ?? connection
+                                      }
+                                      reviewId={entry.reviewId}
+                                      beforeLeave={() => setOpenMobile(false)}
+                                    />
+                                  ) : null}
+                                </NavigatorRowMenu>
                               </SidebarMenuItem>
                             );
                           })}
@@ -563,7 +580,7 @@ export function ProjectNavigator({
               },
             )}
           </div>
-          {!loading && rows.length === 0 && (
+          {!loading && messages.length === 0 && rows.length === 0 && (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyLabel}</EmptyTitle>
@@ -579,7 +596,11 @@ export function ProjectNavigator({
             </p>
           ))}
           {messages.length > 0 && (
-            <Button variant="ghost" onClick={() => retry(undefined)}>
+            <Button
+              variant="ghost"
+              disabled={loading}
+              onClick={() => retry(undefined)}
+            >
               Read again
             </Button>
           )}

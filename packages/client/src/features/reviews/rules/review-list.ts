@@ -1,5 +1,6 @@
 import type { ReviewMarks, ReviewRecord } from './review.ts';
 import type { ReviewRevision } from './verdict.ts';
+import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export const reviewListGroups = [
@@ -33,6 +34,7 @@ export type ReviewListEntry = {
   total: number;
   publishedAt?: string | undefined;
   pullRequestNumber?: string | undefined;
+  pullRequestIssue?: string | undefined;
   badges: readonly ReviewListBadge[];
   disabled: boolean;
 };
@@ -41,10 +43,12 @@ export function reviewListStatus({
   revision,
   marks,
   status,
+  pull,
 }: {
   revision: Pick<ReviewRevision, 'content' | 'verdict'> | undefined;
   marks: ReviewMarks | undefined;
   status: ReadInventoryResponse['projects'][number]['worktrees'][number]['status'];
+  pull?: ReviewPullState;
 }) {
   const layers = revision?.content.layers ?? [];
   const reviewed = layers.filter((layer) =>
@@ -56,14 +60,21 @@ export function reviewListStatus({
   const total = layers.length;
   const complete = marks !== undefined && total > 0 && reviewed === total;
   const replied = status === 'replied';
-  const group: ReviewListGroup = replied
-    ? 'Needs you'
-    : revision?.verdict.recommendation === 'merge' && complete
-      ? 'Ready to merge'
-      : status === 'reviewed' || complete
-        ? 'Waiting on agent'
-        : 'Needs you';
+  const notice = reviewPullRequestNotice(pull);
+  const group: ReviewListGroup =
+    notice || replied
+      ? 'Needs you'
+      : revision?.verdict.recommendation === 'merge' && complete
+        ? 'Ready to merge'
+        : status === 'reviewed' || complete
+          ? 'Waiting on agent'
+          : 'Needs you';
   const badges: ReviewListBadge[] = [];
+  if (notice)
+    badges.push({
+      label: notice,
+      variant: pull?.kind === 'loading' ? 'outline' : 'destructive',
+    });
   if (revision?.content.proof.checks.some((check) => check.result === 'fail'))
     badges.push({ label: 'Proof failed', variant: 'destructive' });
   const unexplained = revision?.content.notExplained.length ?? 0;
@@ -84,8 +95,26 @@ export function reviewListStatus({
 }
 
 type ReviewPullState =
-  | { kind: string; pullRequest?: { state: 'open' | 'closed' | 'merged' } }
+  | { kind: 'available'; pullRequest: { state: 'open' | 'closed' | 'merged' } }
+  | Exclude<ReadPullRequestResponse, { kind: 'available' }>
+  | { kind: 'loading' | 'failed' }
   | undefined;
+
+export function reviewPullRequestNotice(pull: ReviewPullState) {
+  if (pull?.kind === 'loading') return 'Reading pull request…';
+  if (pull?.kind === 'failed') return 'PR state unavailable: request failed.';
+  if (pull?.kind !== 'unavailable') return undefined;
+  const reasons = {
+    'gh-not-installed': 'GitHub CLI is not installed.',
+    'no-accounts': 'No GitHub account is signed in.',
+    'no-access': 'The GitHub account cannot access this repository.',
+    'not-github': 'This repository has no GitHub remote.',
+    'rate-limited': 'GitHub rate limit reached.',
+    offline: 'GitHub could not be reached.',
+    'invalid-response': 'GitHub returned an invalid response.',
+  };
+  return `PR state unavailable: ${reasons[pull.reason]}`;
+}
 
 export function reviewClosed(
   record: Pick<ReviewRecord, 'archived' | 'state'>,

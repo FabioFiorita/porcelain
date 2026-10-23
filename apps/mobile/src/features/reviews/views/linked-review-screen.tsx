@@ -1,3 +1,4 @@
+import { PullRequestState } from './pull-request-state';
 import { useState } from 'react';
 import { Stack, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { ScrollView, View } from 'react-native';
@@ -298,6 +299,10 @@ function LinkedReviewContent({
             <Text variant="caption" tone="muted">
               {revision.branch} · Revision {revision.revision}
             </Text>
+            <PullRequestState
+              connection={connection}
+              reviewId={revision.reviewId}
+            />
             {place !== stop.key ? (
               <ErrorState message="This decision is not in this revision." />
             ) : null}

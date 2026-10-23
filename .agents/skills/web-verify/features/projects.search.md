@@ -11,6 +11,7 @@ tests:
   - apps/web/spec/e2e/projects-search.e2e.ts
   - apps/web/spec/integration/worktrees-menu.test.tsx
   - apps/web/spec/e2e/review-archive.e2e.ts
+  - apps/web/spec/e2e/projects-pr-state.e2e.ts
 api:
   - GET /api/inventory
 ---
@@ -28,7 +29,7 @@ The sidebar shows one review list across projects and environments, with a compa
 
 Preconditions: [surface baseline](README.md).
 
-Main checkouts stay out of the status groups even with an active review. The search and optional project/environment checkbox filters intersect without changing the open workspace. Closed opens the separate closed-review view. No review contains non-main checkouts without an open review; Filter reviews contains a Worktrees submenu that keeps all checkouts reachable and a Projects submenu for project management actions. The footer keeps the labelled Settings button on the left, with the Update Badge (when offered) and Keyboard shortcuts together on the right in one row; it has no Projects or Worktrees buttons or Worktrees heading.
+Main checkouts stay out of the status groups even with an active review, except while a linked PR state is loading or unavailable: keep that review visible until GitHub can confirm its state. The search and optional project/environment checkbox filters intersect without changing the open workspace. Closed opens the separate closed-review view. No review contains non-main checkouts without an open review; Filter reviews contains a Worktrees submenu that keeps all checkouts reachable and a Projects submenu for project management actions. The footer keeps the labelled Settings button on the left, with the Update Badge (when offered) and Keyboard shortcuts together on the right in one row; it has no Projects or Worktrees buttons or Worktrees heading.
 
 1. Start a disposable instance with reviews in every status plus one closed review. At desktop width, check title fallback, single-line titles, trailing muted decision counts, and one status icon per review.
 2. Check Projects is above the status groups and No review is last. Select a main checkout and an unreviewed non-main checkout and verify the exact workspace. Search a review title, project, environment, PR number and branch; the Projects rows use the same search. Clear search and check that selection is unchanged.
@@ -50,3 +51,7 @@ Automated coverage: `projects-search.e2e.ts`, `worktrees-menu.test.tsx`, `review
 ## Gotchas
 
 - Checkout submenu search is temporary and independent of sidebar search/filters/Closed; restore filters before comparing the full list.
+
+### Unavailable pull request state
+
+Hold a linked review's PR read, then return each unavailable reason or fail the request. The navigator includes the pending read in its loading state. The review stays visible, including on main, under Needs you rather than Ready to merge; the status reason is available with Tab/Enter/Escape and touch. Errors show a persistent reason and Read again. The review row context menu also offers Read pull request again. Restore a merged or closed PR and retry without reloading: the review moves to Closed, its row and context menu offer Archive, and Archive opens its usual confirmation. Cancel leaves the checkout intact. The review page's PR link retains its target and shows the same unavailable reason with Read pull request again. Check 1440/414 in both themes.

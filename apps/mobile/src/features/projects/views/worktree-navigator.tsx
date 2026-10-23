@@ -320,7 +320,10 @@ export function WorktreeNavigator({
             </Box>
           );
         })}
-        {!initializing && !loading && rows.length === 0 ? (
+        {!initializing &&
+        !loading &&
+        messages.length === 0 &&
+        rows.length === 0 ? (
           <Empty
             title={closed ? 'No closed reviews' : 'No matching worktrees'}
             description="Try another search or clear the filters."
@@ -345,7 +348,7 @@ export function WorktreeNavigator({
           <Button
             label="Read projects again"
             variant="outline"
-            pending={reading}
+            pending={reading || loading}
             onPress={() => retry(undefined)}
           />
         ) : null}

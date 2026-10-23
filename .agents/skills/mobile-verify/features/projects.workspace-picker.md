@@ -62,3 +62,7 @@ Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspa
 
 - Merged/closed PR reviews and manually closed reviews without a PR appear only in Closed. Update offers are covered by [Updates](access.updates.md).
 - Selecting/archiving must retain document-leave protection. Tablet presentation requires its own proof.
+
+### Unavailable pull request state
+
+With a linked PR read pending, Worktrees shows Reading worktrees and keeps the review visible, including a main-checkout review. Fail that read or return a typed unavailable reason: the review stays in Needs you, its full accessibility label includes the reason, and the list displays the persistent reason with Read projects again. The review detail also explains the failure and offers Read pull request again. Restore a merged/closed PR and retry: Closed contains the recovered review with Archive, which opens the normal confirmation. Cancel keeps the checkout. Check both themes, long names, return navigation and the failure/retry path.
