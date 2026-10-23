@@ -206,7 +206,7 @@ test.for([
       const app = await render.route(`/reviews/${published.reviewId}`);
       await app.page
         .getByRole('button', {
-          name: '9. Establish the shared mutation boundary',
+          name: '9. Establish the shared mutation boundary · Shared owners',
           exact: true,
         })
         .click();

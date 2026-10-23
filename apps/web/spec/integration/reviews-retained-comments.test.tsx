@@ -74,7 +74,7 @@ test('an unchanged context file accepts a whole-file comment and keeps its revis
   const app = await render.route(`/reviews/${first.reviewId}`);
   await app.page
     .getByRole('button', {
-      name: '2. Revoke access across devices',
+      name: '2. Revoke access across devices · Entry points → Shared client → Server → Owners',
       exact: true,
     })
     .click();
