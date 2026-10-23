@@ -1,6 +1,5 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type { liveSubscriptionSchema } from '@porcelain/contracts/access';
-import type { StressVariant } from './stress-sample.ts';
 
 export type HttpRequest = {
   method: 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -86,6 +85,9 @@ export const gitSubcommands = [
 ] as const;
 
 export type GitSubcommand = (typeof gitSubcommands)[number];
+
+export const stressVariants = ['long-text', 'many-items'] as const;
+export type StressVariant = (typeof stressVariants)[number];
 
 export type Session = {
   fixture: Fixture;

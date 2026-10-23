@@ -16,11 +16,8 @@ import {
   type Recorder,
   ServerHandle,
 } from '@porcelain/server/kit/isolated-server';
-import type { Session } from '@porcelain/server/kit/session';
-import {
-  seedStressSample,
-  stressVariants,
-} from '@porcelain/server/kit/stress-sample';
+import { type Session, stressVariants } from '@porcelain/server/kit/session';
+import { seedStressSample } from '@porcelain/server/kit/stress-sample';
 import { Refusal, Usage } from '../../verify-core/cli.ts';
 import { issuedLink } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';

@@ -11,7 +11,7 @@ import type {
   Session,
 } from '@porcelain/server/kit/session';
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
-import { stressVariants } from '@porcelain/server/kit/stress-sample';
+import { stressVariants } from '@porcelain/server/kit/session';
 import { Usage } from './cli.ts';
 
 export const serverOptions = {

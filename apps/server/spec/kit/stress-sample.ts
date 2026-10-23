@@ -18,10 +18,7 @@ import {
   REVIEW_TITLE_LENGTH,
 } from '@porcelain/contracts/shared';
 import { commitReviewFixture, lineCount, pairDevice } from './requests.ts';
-import type { HttpRequest, Session } from './session.ts';
-
-export const stressVariants = ['long-text', 'many-items'] as const;
-export type StressVariant = (typeof stressVariants)[number];
+import type { HttpRequest, Session, StressVariant } from './session.ts';
 
 type Layer = PublishReviewRequest['layers'][number];
 type Box = NonNullable<
