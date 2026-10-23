@@ -246,7 +246,7 @@ function ReviewWorkspaceContent({
             </SheetTrigger>
           }
         />
-        <TooltipContent>
+        <TooltipContent role="tooltip" className="break-all">
           Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>
@@ -563,7 +563,7 @@ function PaneView({
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent role="tooltip" className="break-all">
                 Toggle Sidebar{' '}
                 <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
               </TooltipContent>

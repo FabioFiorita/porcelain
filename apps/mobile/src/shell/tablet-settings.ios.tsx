@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { TabletSurface } from '../components/ui/tablet-surface';
 import { Box } from '../components/ui/box';
@@ -17,7 +17,9 @@ import {
   ReviewsGitSettings,
   useAppSidebar,
 } from '../features/preferences';
-import { ComponentExplorer } from '../features/catalog';
+const ComponentExplorer = __DEV__
+  ? lazy(() => import('../features/development-catalog'))
+  : () => null;
 
 const categories = [
   {
@@ -115,6 +117,10 @@ function SettingsContent() {
     case 'computers':
       return <EnvironmentsSettings inlinePairing />;
     case 'development':
-      return __DEV__ ? <ComponentExplorer /> : null;
+      return __DEV__ ? (
+        <Suspense fallback={null}>
+          <ComponentExplorer />
+        </Suspense>
+      ) : null;
   }
 }

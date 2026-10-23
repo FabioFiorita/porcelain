@@ -301,7 +301,9 @@ function ScopedFileNavigation({
                     </DropdownMenuTrigger>
                   }
                 />
-                <TooltipContent>Create file or folder</TooltipContent>
+                <TooltipContent role="tooltip" className="break-all">
+                  Create file or folder
+                </TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
@@ -343,7 +345,9 @@ function ScopedFileNavigation({
               >
                 <ListChevronsUpDownIcon className="text-muted-foreground" />
               </TooltipTrigger>
-              <TooltipContent>{collapseLabel}</TooltipContent>
+              <TooltipContent role="tooltip" className="break-all">
+                {collapseLabel}
+              </TooltipContent>
             </Tooltip>
           </>,
           actionsTarget,

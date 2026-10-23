@@ -1,3 +1,8 @@
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -88,14 +93,24 @@ function RouteStatus({
           <span className="truncate font-mono text-xs text-muted-foreground">
             {url}
           </span>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            aria-label={`Copy ${url}`}
-            onClick={() => copyText(url, 'address')}
-          >
-            <CopyIcon />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Copy ${url}`}
+                  onClick={() => copyText(url, 'address')}
+                >
+                  <CopyIcon />
+                </Button>
+              }
+            />
+            <TooltipContent
+              role="tooltip"
+              className="break-all"
+            >{`Copy ${url}`}</TooltipContent>
+          </Tooltip>
         </div>
       ))}
     </div>
@@ -296,14 +311,23 @@ function TailnetSettings({
             <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
               {command}
             </code>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              aria-label="Copy the tailscale serve command"
-              onClick={() => copyText(command, 'command')}
-            >
-              <CopyIcon />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label="Copy the tailscale serve command"
+                    onClick={() => copyText(command, 'command')}
+                  >
+                    <CopyIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent role="tooltip" className="break-all">
+                Copy the tailscale serve command
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       )}

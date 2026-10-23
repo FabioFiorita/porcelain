@@ -127,7 +127,9 @@ export function PinnedFiles({
                           </span>
                         )}
                       </TooltipTrigger>
-                      <TooltipContent>{path}</TooltipContent>
+                      <TooltipContent role="tooltip" className="break-all">
+                        {path}
+                      </TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger
@@ -142,7 +144,10 @@ export function PinnedFiles({
                       >
                         <PinOffIcon />
                       </TooltipTrigger>
-                      <TooltipContent>Unpin</TooltipContent>
+                      <TooltipContent
+                        role="tooltip"
+                        className="break-all"
+                      >{`Unpin ${path}`}</TooltipContent>
                     </Tooltip>
                   </ContextMenuTrigger>
                   <ContextMenuContent finalFocus={!openingSide}>
