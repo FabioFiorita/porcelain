@@ -350,8 +350,7 @@ function RenderedFile({
       <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
         Sandboxed preview: scripts run, and cannot read Porcelain, your cookies
         or the review API, load anything from the network, submit a form, or
-        move the page around them. A script can still send what it sees out by
-        sending this frame to another address.
+        move the page around them.
       </p>
       <HtmlPreview
         scope={scope}

@@ -13,6 +13,29 @@ type ReadAssets = (
 const STYLE_REFERENCE =
   /url\(\s*(['"]?)([^)'"]+)\1\s*\)|@import\s+(['"])([^'"]+)\3/g;
 
+const PREVIEW_POLICY =
+  "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'";
+
+export function htmlFrameDocument(html: string) {
+  const document = window.document.implementation.createHTMLDocument();
+  const policy = document.createElement('meta');
+  policy.httpEquiv = 'Content-Security-Policy';
+  policy.content = PREVIEW_POLICY;
+  const style = document.createElement('style');
+  style.textContent =
+    'html, body { height: 100%; margin: 0; } iframe { display: block; width: 100%; height: 100%; border: 0; color-scheme: inherit; }';
+  document.head.replaceChildren(policy, style);
+  document.documentElement.style.colorScheme = 'light dark';
+  const frame = document.createElement('iframe');
+  frame.title = 'Preview content';
+  frame.setAttribute('aria-label', 'Preview content');
+  frame.sandbox.add('allow-scripts');
+  frame.referrerPolicy = 'no-referrer';
+  frame.srcdoc = html;
+  document.body.append(frame);
+  return `<!doctype html>${document.documentElement.outerHTML}`;
+}
+
 export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
   function* (html: string, path: string, readAssets: ReadAssets) {
     const origin = 'https://porcelain-preview.invalid/';
@@ -185,8 +208,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
 
     const policy = document.createElement('meta');
     policy.httpEquiv = 'Content-Security-Policy';
-    policy.content =
-      "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'";
+    policy.content = PREVIEW_POLICY;
     document.head.prepend(policy);
     return {
       html: `<!doctype html>${document.documentElement.outerHTML}`,
