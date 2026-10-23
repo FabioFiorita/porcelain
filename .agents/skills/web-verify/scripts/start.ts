@@ -33,6 +33,7 @@ import {
   type Life,
 } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
+import { verificationEnvironment } from '../../verify-core/environment.ts';
 import { agentActs } from '@porcelain/server/kit/agent';
 
 export const vite = join(root, 'apps/web/node_modules/.bin/vite');
@@ -156,7 +157,7 @@ export function serve(folder: string): Promise<void> {
       {
         cwd: join(root, 'apps/web'),
         env: {
-          ...process.env,
+          ...verificationEnvironment(process.env),
           PORCELAIN_API_TARGET: server.address,
           PORCELAIN_OWNER_SOCKET: server.socketPath,
         },
