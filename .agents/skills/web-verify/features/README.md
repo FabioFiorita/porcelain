@@ -25,6 +25,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 ## Proof and skip reporting
 
+- For long text, many items, the three widths and both themes, run [the sweep](../SKILL.md#sweep-the-standard-states) on the map's route (`$C sweep <map> [--board <png>]`) instead of driving those states by hand; its `index.md` is the proof.
 - Capture the action and result, with a fresh interactive snapshot and screenshot identifying the app and destination. Store driver actions, URL/title and diagnostics in the card's evidence directory; redact pairing fragments and credentials.
 - Verify mutations independently through the filesystem, Git, storage or the card's typed `$C server …` readbacks. A success toast alone is insufficient.
 - Report the map, entry points, platform, width and connection actually driven. Named automated tests, source review and live proof are separate results. An unmet precondition is a reported gap, never a reason to weaken the journey.
