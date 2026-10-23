@@ -19,14 +19,14 @@ export function WorkspacePending() {
           </div>
         ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col rounded-xl border bg-card">
+      <div className="flex min-w-0 flex-1 flex-col rounded-xl border bg-background">
         <div className="flex h-12 items-center border-b px-4">
           <Skeleton className="h-7 w-16" />
         </div>
         <p className="flex items-center gap-2 px-6 pt-4 text-ui text-muted-foreground">
           <Spinner className="size-3.5" /> Loading environment…
         </p>
-        <StateSkeleton label="Loading workspace" />
+        <StateSkeleton label="Loading workspace" caption={false} />
       </div>
     </div>
   );

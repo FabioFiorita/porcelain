@@ -101,20 +101,10 @@ export function ReviewPage({
   const retry = useAtomRefresh(query);
   const data = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isInitial(result))
-    return (
-      <StateFrame navigation={navigation} title="Review">
-        <StateSkeleton label="Loading review" />
-      </StateFrame>
-    );
+    return <ReviewLoading navigation={navigation} />;
   if (AsyncResult.isFailure(result))
     return (
-      <StateFrame navigation={navigation} title="Review">
-        <StateFailure
-          description="Review could not be loaded. Check the link and connection."
-          onRetry={retry}
-          onBack={onBack}
-        />
-      </StateFrame>
+      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
     );
   if (!data?.review || !data.revision)
     return (
@@ -166,20 +156,10 @@ export function ReviewMissing({
   const retry = useAtomRefresh(query);
   const latest = Option.getOrUndefined(AsyncResult.value(result))?.review;
   if (AsyncResult.isInitial(result))
-    return (
-      <StateFrame navigation={navigation} title="Review">
-        <StateSkeleton label="Loading review" />
-      </StateFrame>
-    );
+    return <ReviewLoading navigation={navigation} />;
   if (AsyncResult.isFailure(result))
     return (
-      <StateFrame navigation={navigation} title="Review">
-        <StateFailure
-          description="Review could not be loaded. Check the link and connection."
-          onRetry={retry}
-          onBack={onBack}
-        />
-      </StateFrame>
+      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
     );
   return (
     <StateFrame navigation={navigation} title="Review">
@@ -200,6 +180,30 @@ export function ReviewMissing({
           Back to workspace
         </Button>
       </StateNotice>
+    </StateFrame>
+  );
+}
+
+function ReviewLoading({ navigation }: Pick<ReviewPageProps, 'navigation'>) {
+  return (
+    <StateFrame navigation={navigation} title="Review">
+      <StateSkeleton label="Loading review" />
+    </StateFrame>
+  );
+}
+
+function ReviewFailure({
+  navigation,
+  retry,
+  onBack,
+}: Pick<ReviewPageProps, 'navigation' | 'onBack'> & { retry: () => void }) {
+  return (
+    <StateFrame navigation={navigation} title="Review">
+      <StateFailure
+        description="Review could not be loaded. Check the link and connection."
+        onRetry={retry}
+        onBack={onBack}
+      />
     </StateFrame>
   );
 }

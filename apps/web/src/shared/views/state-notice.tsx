@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CloudOffIcon, InfoIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -82,18 +83,29 @@ export function StateNotice({
   );
 }
 
-export function StateSkeleton({ label }: { label: string }) {
+export function StateSkeleton({
+  label,
+  caption = true,
+}: {
+  label: string;
+  caption?: boolean;
+}) {
   return (
     <div
       role="status"
       aria-label={label}
       className="flex w-full min-w-0 flex-col gap-3 p-6"
     >
-      <Skeleton className="h-5 w-2/3 bg-border" />
-      <Skeleton className="h-4 w-full bg-border" />
-      <Skeleton className="h-4 w-4/5 bg-border" />
-      <Skeleton className="h-4 w-1/2 bg-border" />
-      <span className="sr-only">{label}…</span>
+      {caption && (
+        <p className="flex items-center gap-2 text-ui text-muted-foreground">
+          <Spinner aria-hidden="true" className="size-3.5" /> {label}…
+        </p>
+      )}
+      <Skeleton className="h-5 w-2/3" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-4/5" />
+      <Skeleton className="h-4 w-1/2" />
+      {!caption && <span className="sr-only">{label}…</span>}
     </div>
   );
 }
