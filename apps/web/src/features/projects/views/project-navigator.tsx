@@ -4,7 +4,8 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { cn } from '@/shared/lib/utils';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { useElement } from '@/shared/hooks/use-element';
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
@@ -100,7 +101,7 @@ export function ProjectNavigator({
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
-  const settingsButton = useRef<HTMLButtonElement>(null);
+  const settingsButton = useElement<HTMLButtonElement>();
   const { preferences, setPreference } = usePreferences();
   const connections = [
     connection,
@@ -591,7 +592,7 @@ export function ProjectNavigator({
             <TooltipTrigger
               render={
                 <Button
-                  ref={settingsButton}
+                  ref={settingsButton.attach}
                   variant="ghost"
                   size="sm"
                   onClick={onOpenSettings}

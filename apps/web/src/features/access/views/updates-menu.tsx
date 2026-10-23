@@ -1,4 +1,5 @@
-import { useState, type RefObject } from 'react';
+import { useState } from 'react';
+import type { ElementTarget } from '@/shared/hooks/use-element';
 import { useNavigate } from '@tanstack/react-router';
 import {
   settingsUpdateAvailable,
@@ -23,7 +24,7 @@ import { SettingsUpdateRow } from './settings-update-row';
 export function UpdatesMenu({
   fallbackFocus,
 }: {
-  fallbackFocus: RefObject<HTMLButtonElement | null>;
+  fallbackFocus: ElementTarget<HTMLButtonElement>;
 }) {
   const {
     rows,
@@ -74,7 +75,7 @@ export function UpdatesMenu({
         side="top"
         align="end"
         className="max-h-(--available-height) w-88 max-w-[calc(100vw-1rem)] overflow-y-auto"
-        finalFocus={visible ? true : fallbackFocus}
+        finalFocus={visible ? true : () => fallbackFocus.element}
       >
         <PopoverTitle>{title}</PopoverTitle>
         {failures.length > 0 && (
