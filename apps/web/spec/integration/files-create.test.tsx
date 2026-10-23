@@ -16,7 +16,12 @@ test('New file and New folder open inline names at phone width and create entrie
   await opened
     .getByRole('textbox', { name: 'Search files', exact: true })
     .click();
-  await userEvent.keyboard('{Tab}');
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+  await expect
+    .element(opened.getByRole('button', { name: 'Collapse all', exact: true }))
+    .toHaveFocus();
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
   await expect.element(create).toHaveFocus();
   await userEvent.keyboard('{Enter}');
   const newFile = opened.getByRole('menuitem', {
@@ -56,7 +61,9 @@ test('New file and New folder open inline names at phone width and create entrie
   await opened
     .getByRole('textbox', { name: 'Search files', exact: true })
     .click();
-  await userEvent.keyboard('{Tab}');
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+  await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
   await expect.element(createFolder).toHaveFocus();
   await userEvent.keyboard('{Enter}{ArrowDown}');
   await expect
