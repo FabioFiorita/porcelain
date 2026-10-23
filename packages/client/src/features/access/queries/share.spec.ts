@@ -375,7 +375,10 @@ it('marks a successful service check as waiting until its refresh settles', asyn
   try {
     await arrived.promise;
     expect(registry.get(atom).waiting).toBe(true);
-    expect(serviceUpdateSnapshot(registry.get(atom))).toEqual(offered);
+    expect(serviceUpdateSnapshot(registry.get(atom))).toEqual({
+      ...offered,
+      last: undefined,
+    });
   } finally {
     refresh.resolve();
   }
