@@ -83,6 +83,23 @@ export function reviewListStatus({
   return { reviewed, total, group, badges };
 }
 
+export function reviewArchivable(
+  record: Pick<ReviewRecord, 'archived'>,
+  pull:
+    | {
+        kind: string;
+        pullRequest?: { state: 'open' | 'closed' | 'merged' };
+      }
+    | undefined,
+) {
+  return (
+    record.archived !== true &&
+    pull?.kind === 'available' &&
+    pull.pullRequest !== undefined &&
+    pull.pullRequest.state !== 'open'
+  );
+}
+
 export function reviewListTitle(
   record: Pick<ReviewRecord, 'branch'>,
   revision: Pick<ReviewRevision, 'verdict'> | undefined,

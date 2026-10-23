@@ -5,6 +5,7 @@ import { readInventory } from '../../projects/queries/inventory.ts';
 import type { Project } from '../../projects/rules/inventory.ts';
 import { worktreeLabel } from '../../projects/rules/inventory.ts';
 import {
+  reviewArchivable,
   reviewListStatus,
   reviewListTitle,
   type ReviewListEntry,
@@ -97,10 +98,7 @@ export const readReviewList = Atom.family(
               ),
               closed,
               archived: record.archived === true,
-              archivable:
-                !record.archived &&
-                pull?.kind === 'available' &&
-                pull.pullRequest.state !== 'open',
+              archivable: reviewArchivable(record, pull),
               publishedAt: revision?.publishedAt,
               pullRequestNumber: record.pullRequest
                 ?.split('/')

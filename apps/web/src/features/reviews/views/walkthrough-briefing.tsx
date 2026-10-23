@@ -8,7 +8,7 @@ import {
   PlusIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
@@ -27,11 +27,11 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { InlineComposer } from './inline-composer';
 import { ReviewVerdict } from './review-verdict';
 import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
-import { DecisionQuestion } from './walkthrough-question';
+import { AnswerableQuestion } from './walkthrough-question';
+import { MarginRow } from './margin-row';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function WalkthroughBriefing({
@@ -78,7 +78,7 @@ export function WalkthroughBriefing({
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 pb-16 @2xl/review:px-6">
-        <BriefingRow margin={margin}>
+        <MarginRow margin={margin}>
           <div className="flex min-w-0 flex-col gap-8">
             <header className="flex min-w-0 flex-col gap-5">
               <p className="text-xs text-muted-foreground">
@@ -131,21 +131,22 @@ export function WalkthroughBriefing({
                   Needs your decision
                 </SectionTitle>
                 {parts.questions.map((part) => (
-                  <BriefingQuestion
+                  <AnswerableQuestion
                     key={part.id}
                     part={part}
-                    review={review}
                     revision={revision}
                     scope={scope}
                     context={context}
-                    onGo={onGo}
+                    action={
+                      <DecisionLink part={part} review={review} onGo={onGo} />
+                    }
                   />
                 ))}
               </section>
             )}
           </div>
-        </BriefingRow>
-        <BriefingRow margin={<BriefingRemoved revision={revision} />}>
+        </MarginRow>
+        <MarginRow margin={<BriefingRemoved revision={revision} />}>
           <section
             aria-labelledby="briefing-system"
             className="flex flex-col gap-3"
@@ -184,8 +185,8 @@ export function WalkthroughBriefing({
               </p>
             )}
           </section>
-        </BriefingRow>
-        <BriefingRow margin={<BriefingNotProven revision={revision} />}>
+        </MarginRow>
+        <MarginRow margin={<BriefingNotProven revision={revision} />}>
           <ReviewProof
             columns
             revision={revision}
@@ -194,8 +195,8 @@ export function WalkthroughBriefing({
             current={proofCurrent}
             title={`Proven at ${revision.headOid.slice(0, 7)}`}
           />
-        </BriefingRow>
-        <BriefingRow
+        </MarginRow>
+        <MarginRow
           margin={
             <p className="text-xs text-muted-foreground">
               Every changed file belongs to exactly one stop, and changes no
@@ -278,23 +279,8 @@ export function WalkthroughBriefing({
               })}
             </ol>
           </section>
-        </BriefingRow>
+        </MarginRow>
       </div>
-    </div>
-  );
-}
-
-function BriefingRow({
-  children,
-  margin,
-}: {
-  children: ReactNode;
-  margin?: ReactNode;
-}) {
-  return (
-    <div className="grid min-w-0 gap-8 @5xl/review:grid-cols-4">
-      <div className="min-w-0 @5xl/review:col-span-3">{children}</div>
-      {margin}
     </div>
   );
 }
@@ -425,59 +411,5 @@ function DecisionLink({
       Decision {part.decision}
       <ArrowRightIcon data-icon="inline-end" />
     </Button>
-  );
-}
-
-function BriefingQuestion({
-  part,
-  review,
-  revision,
-  scope,
-  context,
-  onGo,
-}: {
-  part: SystemPart;
-  review: WalkthroughProps['review'];
-  revision: ReviewRevision;
-  scope: WalkthroughProps['scope'];
-  context: WalkthroughProps['context'];
-  onGo: (key: WalkthroughKey) => void;
-}) {
-  const [answering, setAnswering] = useState(false);
-  const [answerButton, setAnswerButton] = useState<HTMLButtonElement | null>(
-    null,
-  );
-  return (
-    <DecisionQuestion
-      part={part}
-      action={<DecisionLink part={part} review={review} onGo={onGo} />}
-    >
-      <Button
-        ref={setAnswerButton}
-        size="sm"
-        variant="ghost"
-        className="self-start"
-        aria-expanded={answering}
-        onClick={() => setAnswering(true)}
-      >
-        Answer this question
-      </Button>
-      {answering && (
-        <InlineComposer
-          scope={scope}
-          context={context}
-          quote={part.problem}
-          anchor={{
-            kind: 'change',
-            revision: revision.headOid,
-            comparison: { kind: 'branch', base: revision.base },
-          }}
-          onClose={() => {
-            setAnswering(false);
-            answerButton?.focus();
-          }}
-        />
-      )}
-    </DecisionQuestion>
   );
 }

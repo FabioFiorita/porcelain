@@ -586,6 +586,7 @@ export function ProjectNavigator({
                                       ) ?? connection
                                     }
                                     reviewId={entry.reviewId}
+                                    beforeLeave={() => setOpenMobile(false)}
                                   />
                                 ) : null}
                               </SidebarMenuItem>

@@ -15,4 +15,4 @@ export {
   ProjectWorkspaceProvider,
 } from './views/project-workspace';
 
-export { ArchiveReviewDialog } from './views/archive-review';
+export { ArchiveReview, ArchiveReviewDialog } from './views/archive-review';
