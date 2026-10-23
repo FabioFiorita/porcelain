@@ -1,41 +1,54 @@
+import { HISTORY_GRAPH_ROW_GAP, HISTORY_ROW_HEIGHT } from '@/config/limits';
 import { historyBoundary } from '@porcelain/client/history/rules';
+import { historyGraphWidth, layoutGraph } from '../rules/graph';
 import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { HistorySentinel } from '../adapters/history-sentinel';
 import type { useHistory } from '../queries/history';
 import { CommitRow } from './commit-row';
+import { HistoryGraph } from './history-graph';
 
 type History = ReturnType<typeof useHistory>;
 
-export function HistoryRows({
-  commits,
+export function GraphRows({
+  label,
   history,
   selected,
   onSelect,
   sideLabel,
 }: {
-  commits: History['commits'];
+  label: string;
   history: History;
   selected: string;
   onSelect: (oid: string, toSide?: boolean) => void;
   sideLabel: string;
 }) {
+  const rows = layoutGraph(history.commits);
+  const width = historyGraphWidth(rows);
   return (
-    <div className="py-2 pr-3 pl-1.5">
-      {commits.map((commit) => (
-        <CommitRow
-          key={commit.oid}
-          commit={commit}
-          selected={selected === commit.oid}
-          onSelect={(toSide) => onSelect(commit.oid, toSide)}
-          openToSide={{
-            label: sideLabel,
-            open: () => onSelect(commit.oid, true),
-          }}
-        />
-      ))}
-      <HistoryEnd history={history} />
+    <div className="relative px-1.5 py-2">
+      <HistoryGraph rows={rows} width={width} />
+      <ol aria-label={label} className="flex flex-col">
+        {rows.map(({ commit }) => (
+          <li key={commit.oid}>
+            <CommitRow
+              commit={commit}
+              selected={selected === commit.oid}
+              height={HISTORY_ROW_HEIGHT}
+              inset={width + HISTORY_GRAPH_ROW_GAP}
+              onSelect={(toSide) => onSelect(commit.oid, toSide)}
+              openToSide={{
+                label: sideLabel,
+                open: () => onSelect(commit.oid, true),
+              }}
+            />
+          </li>
+        ))}
+      </ol>
+      <div style={{ paddingLeft: width }}>
+        <HistoryEnd history={history} />
+      </div>
     </div>
   );
 }

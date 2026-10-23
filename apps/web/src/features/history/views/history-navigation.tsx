@@ -1,4 +1,11 @@
-import { GitBranchIcon, GitGraphIcon } from 'lucide-react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import {
+  ChevronRightIcon,
+  CircleDashedIcon,
+  GitBranchIcon,
+  GitGraphIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,8 +17,12 @@ import {
 } from '@/components/ui/empty';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
-import { historyHeading } from '@porcelain/client/history/rules';
-import { HistoryRows } from './history-rows';
+import {
+  branchTracking,
+  historyHeading,
+} from '@porcelain/client/history/rules';
+import { useReviewOverview } from '@/features/changes/index';
+import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function HistoryNavigation({
@@ -21,6 +32,7 @@ export function HistoryNavigation({
   onSelect,
   sideLabel,
   onOpenGraph,
+  onOpenChanges,
 }: {
   scope: HistoryScope;
   connection: Connection;
@@ -28,28 +40,62 @@ export function HistoryNavigation({
   onSelect: (oid: string, toSide?: boolean) => void;
   sideLabel: string;
   onOpenGraph: () => void;
+  onOpenChanges: () => void;
 }) {
   const history = useHistory(connection, scope);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
+  const tracking = branchTracking(overview?.branch, history.snapshot);
+  const uncommitted = overview?.changes.length ?? 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <HistoryHeading
-        history={history}
-        action={
-          history.commits.length > 0 ? (
-            <Button size="xs" variant="ghost" onClick={onOpenGraph}>
-              <GitGraphIcon />
-              Open graph
-            </Button>
-          ) : undefined
-        }
-      />
+      <section
+        aria-label="Branch"
+        className="flex shrink-0 items-start gap-2 border-b px-3.5 py-2.5"
+      >
+        <GitBranchIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="min-w-0 flex-1 font-mono text-caption font-medium wrap-anywhere">
+              {tracking.name}
+            </span>
+            {tracking.counts !== null && (
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                {tracking.counts}
+              </span>
+            )}
+          </div>
+          <span className="text-2xs text-muted-foreground wrap-anywhere">
+            {tracking.upstream}
+          </span>
+        </div>
+      </section>
+      <HistoryRestarted history={history} />
       <ScrollArea className="h-0 min-h-0 flex-1">
+        {uncommitted > 0 && (
+          <div className="px-1.5 pt-2">
+            <Button
+              variant="ghost"
+              className="h-9 w-full justify-start gap-2 px-2 font-normal"
+              onClick={onOpenChanges}
+            >
+              <CircleDashedIcon className="text-muted-foreground" />
+              <span className="flex-1 truncate text-left">
+                Uncommitted changes
+              </span>
+              <span className="text-2xs text-muted-foreground tabular-nums">
+                {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
+              </span>
+            </Button>
+          </div>
+        )}
         {history.commits.length === 0 ? (
           <NoCommits />
         ) : (
-          <HistoryRows
-            commits={history.commits}
+          <GraphRows
+            label="Commits"
             history={history}
             selected={selected}
             onSelect={onSelect}
@@ -57,6 +103,19 @@ export function HistoryNavigation({
           />
         )}
       </ScrollArea>
+      {history.commits.length > 0 && (
+        <div className="shrink-0 border-t p-1.5">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={onOpenGraph}
+          >
+            <GitGraphIcon />
+            Open graph
+            <ChevronRightIcon className="ml-auto text-muted-foreground" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -80,15 +139,24 @@ export function HistoryHeading({
           {action}
         </div>
       )}
-      {history.restarted && (
-        <p
-          role="status"
-          className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-2xs text-muted-foreground"
-        >
-          History changed. Showing it from the top.
-        </p>
-      )}
+      <HistoryRestarted history={history} />
     </>
+  );
+}
+
+function HistoryRestarted({
+  history,
+}: {
+  history: ReturnType<typeof useHistory>;
+}) {
+  if (!history.restarted) return null;
+  return (
+    <p
+      role="status"
+      className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-2xs text-muted-foreground"
+    >
+      History changed. Showing it from the top.
+    </p>
   );
 }
 
