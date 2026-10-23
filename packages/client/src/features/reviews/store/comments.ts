@@ -18,7 +18,8 @@ import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type CommentsFailure = Effect.Error<
-  ReturnType<PorcelainApi['reviews']['listCommentThreads']>
+  | ReturnType<PorcelainApi['reviews']['listCommentThreads']>
+  | ReturnType<PorcelainApi['reviews']['readPublishedReview']>
 >;
 
 export class CommentThreadsState extends Context.Service<
