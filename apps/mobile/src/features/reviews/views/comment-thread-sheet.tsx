@@ -303,7 +303,7 @@ function Messages({
               return layer && onDecision ? (
                 <Text
                   key={index}
-                  variant="ui"
+                  variant="link"
                   tone="primary"
                   weight="medium"
                   accessibilityRole="link"

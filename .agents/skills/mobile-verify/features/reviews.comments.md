@@ -25,7 +25,7 @@ api:
 
 # reviews.comments
 
-The native comments sheet supports feedback, replies, resolution and reopening without losing the underlying document.
+The native comments sheet supports feedback, replies, resolution and reopening without losing the underlying document. iOS presents it as a form sheet; Android pushes it as a page, because an Android form sheet has no header for Done and Resolve and sits under the tab bar.
 
 ## How to get to it (user POV)
 
