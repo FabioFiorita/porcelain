@@ -186,6 +186,7 @@ for (const width of [1440, 414]) {
         await expect(
           updates.getByText(`Mac app: ${message}`, { exact: true }),
         ).toBeVisible();
+        await expect(updates).toBeInViewport({ ratio: 1 });
         await expect
           .poll(() =>
             updates.evaluate(
@@ -195,12 +196,14 @@ for (const width of [1440, 414]) {
           .toBe(true);
         await retry.scrollIntoViewIfNeeded();
         await expect(retry).toBeInViewport();
+        await expect(updates).toBeInViewport({ ratio: 1 });
         const manage = updates.getByRole('button', {
           name: 'Manage computers',
           exact: true,
         });
         await manage.scrollIntoViewIfNeeded();
         await expect(manage).toBeInViewport();
+        await expect(updates).toBeInViewport({ ratio: 1 });
       }
       await page.screenshot({
         path: testInfo.outputPath('long-update-error.png'),
