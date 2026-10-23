@@ -31,6 +31,10 @@ const symbols = {
   trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
   split: { ios: 'rectangle.split.2x1', android: 'vertical_split' },
+  hidden: { ios: 'eye.slash', android: 'visibility_off' },
+  visible: { ios: 'eye', android: 'visibility' },
+  sliders: { ios: 'slider.horizontal.3', android: 'tune' },
+  checklist: { ios: 'checklist', android: 'checklist' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',
@@ -39,6 +43,7 @@ const tones = {
   primaryForeground: 'accent-primary-foreground',
   secondaryForeground: 'accent-secondary-foreground',
   primary: 'accent-primary',
+  brand: 'accent-brand',
 };
 export type IconName = keyof typeof symbols;
 export function Icon({

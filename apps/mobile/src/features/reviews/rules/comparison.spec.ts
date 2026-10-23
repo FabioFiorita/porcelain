@@ -8,6 +8,7 @@ import {
   fileReviewLabels,
   reviewFiles,
   reviewRange,
+  snapshotChangeMarks,
   type ReviewSnapshot,
 } from './comparison';
 
@@ -64,6 +65,40 @@ const file = {
   note: 'staged',
   reviewStatus: 'unreviewed' as const,
 };
+
+describe('Files navigation change marks', () => {
+  it('marks the worktree changes of an uncommitted comparison', () => {
+    const marks = snapshotChangeMarks(AsyncResult.success(worktree));
+    expect([...marks.files]).toEqual([['new.ts', 'renamed']]);
+    expect([...marks.folders]).toEqual([]);
+  });
+
+  it('marks the branch files of a branch comparison', () => {
+    const marks = snapshotChangeMarks(
+      AsyncResult.success({
+        ...branch,
+        answer: {
+          ...branch.answer,
+          files: [
+            {
+              ...branch.answer.files[0]!,
+              path: 'src/app.ts',
+              status: 'type-changed',
+            },
+          ],
+        },
+      }),
+    );
+    expect([...marks.files]).toEqual([['src/app.ts', 'modified']]);
+    expect([...marks.folders]).toEqual(['src']);
+  });
+
+  it('marks nothing until the comparison has been read', () => {
+    const marks = snapshotChangeMarks(AsyncResult.initial(true));
+    expect(marks.files.size).toBe(0);
+    expect(marks.folders.size).toBe(0);
+  });
+});
 
 describe('Files navigation review labels', () => {
   const marks = {
