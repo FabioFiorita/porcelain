@@ -31,8 +31,8 @@ export const simulatorSchema = Schema.Struct({
 export type Simulator = typeof simulatorSchema.Type;
 const poolDirectory = '/tmp/porcelain-simulator-pool';
 const poolNames: Record<Exclude<DeviceKind, 'android'>, readonly string[]> = {
-  iphone: ['iPhone 17', 'iPhone 18 Pro'],
-  ipad: ['iPad Pro 13-inch (M5)'],
+  iphone: ['iPhone'],
+  ipad: ['iPad'],
 };
 const execute = promisify(execFile);
 const language = 'en-US';
@@ -107,11 +107,12 @@ export async function bootSimulator(
   try {
     const available = Object.values(await devices()).flat();
     const missing = poolNames[kind].filter(
-      (name) => !available.some((device) => device.name === name),
+      (name) =>
+        !available.some((device) => device.name === name && device.isAvailable),
     );
     if (missing.length === poolNames[kind].length)
       throw new Error(
-        `No ${missing.join(' or ')} simulator exists. Create it once in Xcode > Window > Devices and Simulators; verification shares the Mac's existing simulators and never creates one.`,
+        `No available simulator named ${missing.join(' or ')}. Rename one of the Mac's available ${kind === 'ipad' ? 'iPad' : 'iPhone'} simulators with \`xcrun simctl rename <udid> '${missing.join("' or '")}'\`; verification shares the Mac's existing simulators and never creates one.`,
       );
     const unclaimed = [];
     for (const candidate of available) {
