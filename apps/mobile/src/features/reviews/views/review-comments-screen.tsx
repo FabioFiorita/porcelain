@@ -68,7 +68,10 @@ export function ReviewCommentsScreen({
       {thread ? null : (
         <>
           <Stack.Screen
-            options={{ title: path ? 'File comments' : 'Comments' }}
+            options={{
+              title: path ? 'File comments' : 'Comments',
+              headerBackButtonMenuEnabled: false,
+            }}
           />
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
@@ -146,7 +149,7 @@ export function CommentThreads({
   const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
     compose && anchor ? { ...review, anchor } : undefined,
   );
-  const { leaveAnchor, ...draft } = useCommentDraft(
+  const draft = useCommentDraft(
     workspace,
     target,
     () => {
@@ -182,12 +185,7 @@ export function CommentThreads({
     />
   ) : null;
   return (
-    <Box
-      ref={leaveAnchor}
-      className="flex-1"
-      surface="background"
-      collapsable={false}
-    >
+    <Box className="flex-1" surface="background" collapsable={false}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -311,7 +309,7 @@ function CommentComposer({
   target,
   showContext,
 }: {
-  draft: Omit<ReturnType<typeof useCommentDraft>, 'leaveAnchor'>;
+  draft: ReturnType<typeof useCommentDraft>;
   target: ComposerTarget;
   showContext: boolean;
 }) {

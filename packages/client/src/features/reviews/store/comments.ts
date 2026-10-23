@@ -41,10 +41,26 @@ export class CommentThreadsState extends Context.Service<
                 params: { worktreeId: scope.worktreeId },
               }),
             );
-            yield* currentAnswerEffect(
-              connection,
-              threads.every((thread) => thread.worktreeId === scope.worktreeId),
-            );
+            if (
+              threads.some((thread) => thread.worktreeId !== scope.worktreeId)
+            ) {
+              const { review } = yield* client.request((api) =>
+                api.reviews.readPublishedReview({
+                  params: { worktreeId: scope.worktreeId },
+                }),
+              );
+              yield* currentAnswerEffect(
+                connection,
+                review?.environmentId === connection.environmentId &&
+                  review.worktreeId === scope.worktreeId &&
+                  threads.every(
+                    (thread) =>
+                      thread.worktreeId === scope.worktreeId ||
+                      thread.review?.reviewId === review.reviewId,
+                  ),
+              );
+            }
+            yield* currentAnswerEffect(connection);
             return threads;
           }),
           Option.none(),

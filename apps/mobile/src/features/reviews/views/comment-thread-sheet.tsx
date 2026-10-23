@@ -92,7 +92,7 @@ function SheetHeader({
   const router = useRouter();
   return (
     <>
-      <Stack.Screen options={{ title }} />
+      <Stack.Screen options={{ title, headerBackButtonMenuEnabled: false }} />
       {resolve || sheetDismissButton ? (
         <Stack.Toolbar placement="right">
           {resolve ? (
@@ -128,7 +128,7 @@ function ThreadSheet({
   const router = useRouter();
   const commands = useCommentCommands(workspace);
   const resolve = useCommentWrite(commands.resolve);
-  const { leaveAnchor, ...draft } = useCommentDraft(
+  const draft = useCommentDraft(
     workspace,
     { ...threadWriteTarget(thread), anchor: thread.anchor },
     () => undefined,
@@ -175,12 +175,7 @@ function ThreadSheet({
         }}
       />
       <KeyboardDock>
-        <Box
-          ref={leaveAnchor}
-          className="flex-1"
-          surface="background"
-          collapsable={false}
-        >
+        <Box className="flex-1" surface="background" collapsable={false}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentInsetAdjustmentBehavior="automatic"

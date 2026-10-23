@@ -50,6 +50,7 @@ const commandSets = Atom.family(
     ]);
     function confirmThread<E>(
       operation: Effect.Effect<CommentThread, E>,
+      reviewId: string | undefined,
       refreshInventory = false,
     ) {
       return Effect.gen(function* () {
@@ -59,7 +60,9 @@ const commandSets = Atom.family(
             Effect.tap((thread) =>
               currentAnswerEffect(
                 connection,
-                thread.worktreeId === scope.worktreeId,
+                reviewId === undefined
+                  ? thread.worktreeId === scope.worktreeId
+                  : thread.review?.reviewId === reviewId,
               ),
             ),
           ),
@@ -100,6 +103,7 @@ const commandSets = Atom.family(
             client.request((api) =>
               api.reviews.createCommentThread({ params, payload: input }),
             ),
+            input.reviewId,
           );
         }),
         { concurrent: true },
@@ -117,6 +121,7 @@ const commandSets = Atom.family(
                 payload,
               }),
             ),
+            payload.reviewId,
             true,
           );
         }),
@@ -135,6 +140,7 @@ const commandSets = Atom.family(
                 payload,
               }),
             ),
+            payload.reviewId,
           );
         }),
         { concurrent: true },
@@ -152,6 +158,7 @@ const commandSets = Atom.family(
                 payload,
               }),
             ),
+            payload.reviewId,
           );
         }),
         { concurrent: true },
@@ -173,7 +180,9 @@ const commandSets = Atom.family(
                 connection,
                 answer.threadId === threadId &&
                   (!answer.thread ||
-                    answer.thread.worktreeId === scope.worktreeId),
+                    (query.reviewId === undefined
+                      ? answer.thread.worktreeId === scope.worktreeId
+                      : answer.thread.review?.reviewId === query.reviewId)),
               );
               return answer;
             }),

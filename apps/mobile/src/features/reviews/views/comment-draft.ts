@@ -1,4 +1,4 @@
-import { useState, type RefCallback } from 'react';
+import { useState } from 'react';
 import { usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { Alert } from 'react-native';
@@ -53,7 +53,7 @@ export function useCommentDraft(
     reply.reset();
     complete();
   };
-  const askDiscard = (discard: () => void) => {
+  const confirmDiscard = (complete: () => void) => {
     if (pending) {
       Alert.alert(
         'Sending comment',
@@ -62,7 +62,7 @@ export function useCommentDraft(
       return;
     }
     if (!dirty) {
-      discard();
+      reset(complete);
       return;
     }
     Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
@@ -70,32 +70,15 @@ export function useCommentDraft(
       {
         text: 'Discard',
         style: 'destructive',
-        onPress: discard,
+        onPress: () => reset(complete),
       },
     ]);
   };
-  const confirmDiscard = (complete: () => void) =>
-    askDiscard(() => reset(complete));
   useDocumentLeave(leaveScope, dirty || pending ? confirmDiscard : undefined);
-  const [leave, setLeave] = useState<{ go: () => void; cleared: boolean }>();
-  usePreventRemove(dirty || pending, ({ repeat }) =>
-    askDiscard(() => reset(() => setLeave({ go: repeat, cleared: false }))),
-  );
-  const leaveAnchor: RefCallback<unknown> | undefined = leave
-    ? (node) => {
-        if (!node) return;
-        if (!leave.cleared) {
-          setLeave({ ...leave, cleared: true });
-          return;
-        }
-        setLeave(undefined);
-        leave.go();
-      }
-    : undefined;
+  usePreventRemove(dirty || pending, ({ repeat }) => confirmDiscard(repeat));
   return {
     body,
     pending,
-    leaveAnchor,
     error: invalid ?? failure,
     edit: (value: string) => {
       setBody(value);
