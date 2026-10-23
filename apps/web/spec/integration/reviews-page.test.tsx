@@ -140,7 +140,7 @@ test('an unpaired durable decision link survives pairing with its revision and q
   await expect.poll(() => app.pendingDestination()).toBeNull();
 });
 
-test('review-owned marks and comments persist, closing keeps the review readable, and Delete confirms before removing it', async ({
+test('review-owned marks persist, closing keeps the review readable, and Delete confirms before removing it', async ({
   repo,
   render,
   server,

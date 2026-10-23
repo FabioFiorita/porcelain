@@ -27,7 +27,7 @@ export function GraphRows({
   const rows = layoutGraph(history.commits);
   const width = historyGraphWidth(rows);
   return (
-    <div className="relative px-1.5 py-2">
+    <div className="relative py-2 pr-3 pl-1.5">
       <HistoryGraph rows={rows} width={width} />
       <ol aria-label={label} className="flex flex-col">
         {rows.map(({ commit }) => (

@@ -22,7 +22,7 @@ New file and New folder create an entry through an inline tree field; a created 
 
 ## How to get to it (user POV)
 
-- Review (phone width; opens the sheet "Worktree review") → tab Files → button "Create file or folder" (+) beside "Search files" → menuitem "New file" or "New folder". These create at the worktree root.
+- Review (phone width; opens the sheet "Worktree review") → tab Files → button "Create file or folder" (+) in the panel header → menuitem "New file" or "New folder". These create at the worktree root.
 - Right-click a folder row in the tree → menuitem "New file" or "New folder": creates inside that folder.
 - Keyboard: `Alt+Shift+R` opens the review sheet at phone width, `Alt+1` selects the Files tab.
 

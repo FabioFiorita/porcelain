@@ -5,7 +5,6 @@ selectors:
   - "Review sidebar"
   - "Hide side panel"
   - "Show side panel"
-  - "Panel actions"
   - "Uncommitted changes"
   - "Open graph"
   - "Worktree review"

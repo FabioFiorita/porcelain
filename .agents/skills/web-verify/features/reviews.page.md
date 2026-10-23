@@ -23,6 +23,7 @@ api:
   - PUT /api/reviews/:reviewId/marks
   - POST /api/reviews/:reviewId/marks/removal
   - GET /api/reviews/:reviewId/comments
+  - POST /api/reviews/:reviewId/comments
   - PATCH /api/reviews/:reviewId
   - DELETE /api/reviews/:reviewId
 ---

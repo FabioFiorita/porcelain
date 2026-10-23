@@ -1,4 +1,8 @@
-import { ALL_CHANGES, publishedReviewTitle } from '../rules/documents';
+import {
+  ALL_CHANGES,
+  publishedReviewTitle,
+  surfaceTitles,
+} from '../rules/documents';
 import { useElement } from '@/shared/hooks/use-element';
 import {
   FileDiffIcon,
@@ -56,8 +60,6 @@ export function ReviewSidebar({
   const toolbar = (
     <div
       ref={setActionsTarget}
-      role="toolbar"
-      aria-label="Panel actions"
       className="ml-auto flex shrink-0 items-center gap-0.5"
     />
   );
@@ -77,7 +79,7 @@ export function ReviewSidebar({
             </h2>
             {toolbar}
           </header>
-          <div className="min-h-0 flex-1">{surface}</div>
+          <div className="min-h-0 flex-1 text-sm">{surface}</div>
         </>
       ) : (
         <Tabs
@@ -123,9 +125,8 @@ export function useSurfaceNames(
 ): Record<Surface, string> {
   const { review } = usePublishedReview(scope, context);
   return {
-    files: 'Files',
-    changes: publishedReviewTitle(review) ?? 'Changes',
-    history: 'History',
+    ...surfaceTitles,
+    changes: publishedReviewTitle(review) ?? surfaceTitles.changes,
   };
 }
 
