@@ -177,8 +177,11 @@ export function DecisionPage({
           <Summary text={layer.summary} />
         </header>
         {decision?.stale && (
-          <StateNotice role="status" title="Code moved since it was explained" description={<> Lines this decision points at changed after the agent explained
-            them. Read the diff below, or ask the agent to publish a revision. </>} />
+          <StateNotice
+            role="status"
+            title="Code moved since it was explained"
+            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+          />
         )}
         <RouteTable
           layer={layer}

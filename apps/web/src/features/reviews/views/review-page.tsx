@@ -824,7 +824,10 @@ function BranchTipNotice({
   const data = Option.getOrUndefined(AsyncResult.value(read.result));
   return data && data.head.oid !== headOid ? (
     <div className="px-4 pt-3">
-      <StateNotice role="status" title="The branch tip differs from this review. Publish a revision to include it." />
+      <StateNotice
+        role="status"
+        title="The branch tip differs from this review. Publish a revision to include it."
+      />
     </div>
   ) : null;
 }

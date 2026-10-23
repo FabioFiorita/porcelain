@@ -37,8 +37,11 @@ export function ReviewProof({
         {sections.proven.shortHead}
       </p>
       {!current && !empty && (
-        <StateNotice role="status" title="These checks ran before the latest changes" description={<> The code changed after the agent published this proof. Ask it to run
-          the checks again. </>} />
+        <StateNotice
+          role="status"
+          title="These checks ran before the latest changes"
+          description="The code changed after the agent published this proof. Ask it to run the checks again."
+        />
       )}
       {failures > 0 && (
         <div role="alert" className="text-sm text-destructive">
