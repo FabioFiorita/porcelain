@@ -22,7 +22,7 @@ Hiding a file from the Files tree's context menu takes it out of the tree and th
 ## How to get to it (user POV)
 
 - Workspace → `Review` (phone width; at desktop width the review sidebar stands beside the document) → tab `Files` → right-click a file → `Hide file`. A folder gets `Hide folder`.
-- With at least one hidden entry, region "All files" ends with a row naming them (`1 hidden file`, `3 hidden folders`, or `N hidden items` when mixed) and a toggle button `Show`; pressed, it reads `Hide` and the hidden entries reappear in the tree.
+- With at least one hidden entry, region "All files" ends with a row naming them (`1 hidden file`, `3 hidden folders`, or `N hidden items` when mixed) and a button `Show`; once clicked it reads `Hide` and the hidden entries reappear in the tree.
 - On a revealed hidden entry, right-click → `Show file` (`Show folder`; a file inside a hidden folder offers `Show <folder name>`).
 - `Alt+1` goes to the Files surface (the tree itself still needs the `Review` sheet at phone width).
 
@@ -57,7 +57,7 @@ Preconditions: [surface baseline](README.md).
 ### Show it again
 
 8. Click button `Show` in region "All files"
-   Expect: the button now reads `Hide` (pressed); treeitem "README.md" is back.
+   Expect: the button now reads `Hide`; treeitem "README.md" is back.
 9. Right-click treeitem `README.md`
    Expect: menuitem "Show file" where "Hide file" was.
 10. Click menuitem `Show file`

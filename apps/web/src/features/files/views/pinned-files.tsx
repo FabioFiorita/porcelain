@@ -1,3 +1,4 @@
+import type { GitStatus, GitStatusEntry } from '@pierre/trees';
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ChevronDownIcon, ChevronRightIcon, PinOffIcon } from 'lucide-react';
@@ -22,14 +23,24 @@ import type { TreeAction } from '@porcelain/client/files/rules';
 import { FileTreeMenuList } from './file-tree-menu';
 import { FileTypeIcon } from './file-type-icon';
 
+const STATUS_MARKS: Partial<Record<GitStatus, string>> = {
+  added: 'A',
+  deleted: 'D',
+  modified: 'M',
+  renamed: 'R',
+  untracked: 'U',
+};
+
 export function PinnedFiles({
   paths,
+  statuses,
   selected,
   onOpen,
   onUnpin,
   menuFor,
 }: {
   paths: readonly string[];
+  statuses: readonly GitStatusEntry[];
   selected: string;
   onOpen: (path: string, toSide?: boolean) => void;
   onUnpin: (path: string) => void;
@@ -43,6 +54,12 @@ export function PinnedFiles({
   const [expanded, setExpanded] = useState(true);
   if (paths.length === 0) return null;
   const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon;
+  const marks = new Map(
+    statuses.flatMap((entry) => {
+      const mark = STATUS_MARKS[entry.status];
+      return mark === undefined ? [] : [[entry.path, mark] as const];
+    }),
+  );
   return (
     <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
       <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -99,6 +116,11 @@ export function PinnedFiles({
                         {separator > 0 && (
                           <span className="min-w-0 shrink-[100] truncate text-muted-foreground">
                             {path.slice(0, separator - 1)}
+                          </span>
+                        )}
+                        {marks.has(path) && (
+                          <span className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground">
+                            {marks.get(path)}
                           </span>
                         )}
                       </TooltipTrigger>

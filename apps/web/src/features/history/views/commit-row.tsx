@@ -13,6 +13,7 @@ import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import {
   commitMessage,
+  refLabel,
   shortOid,
   shownRefs,
   type CommitSummary,
@@ -28,6 +29,7 @@ export function CommitRow({
   inset,
   layout = 'stacked',
   head = false,
+  headRef,
   onSelect,
   openToSide,
   children,
@@ -38,6 +40,7 @@ export function CommitRow({
   inset?: number | undefined;
   layout?: CommitRowLayout;
   head?: boolean;
+  headRef?: string | undefined;
   onSelect: (toSide?: boolean) => void;
   openToSide?: { label: string; open: () => void };
   children?: ReactNode;
@@ -45,7 +48,11 @@ export function CommitRow({
   const [openingSide, setOpeningSide] = useState(false);
   const select = (event: MouseEvent<HTMLButtonElement>) =>
     onSelect(openToSide !== undefined && event.altKey);
-  const refs = shownRefs(commit.refs);
+  const current = (ref: string) =>
+    headRef !== undefined && (ref === headRef || ref === refLabel(headRef));
+  const refs = shownRefs(commit.refs).toSorted(
+    (left, right) => Number(current(right)) - Number(current(left)),
+  );
   const subject = (
     <span className="flex min-w-0 items-center gap-1 text-caption leading-tight">
       {commit.parentOids.length > 1 && (
@@ -112,7 +119,7 @@ export function CommitRow({
                 aria-pressed={selected}
                 title={commit.subject}
                 onClick={select}
-                className="flex min-w-0 shrink-[4] items-center text-left before:absolute before:inset-0 before:rounded-lg"
+                className="flex max-w-3/5 min-w-0 shrink-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
               >
                 {subject}
                 <span className="sr-only">
@@ -120,7 +127,7 @@ export function CommitRow({
                 </span>
               </button>
               {head && <Badge className="relative h-4 shrink-0">HEAD</Badge>}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 {refs.length > 0 && (
                   <CommitRefs refs={refs} onOpenCommit={select} />
                 )}

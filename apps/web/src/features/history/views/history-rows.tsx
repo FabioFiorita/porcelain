@@ -35,6 +35,10 @@ export function GraphRows({
   const rowHeight =
     layout === 'columns' ? HISTORY_GRAPH_ROW_HEIGHT : HISTORY_ROW_HEIGHT;
   const tip = history.snapshot?.tipOid;
+  const headRef =
+    history.snapshot?.head.kind === 'attached'
+      ? history.snapshot.head.ref
+      : undefined;
   return (
     <div className="relative py-2 pr-3 pl-1.5">
       <HistoryGraph rows={rows} width={width} rowHeight={rowHeight} />
@@ -48,6 +52,7 @@ export function GraphRows({
               inset={width + HISTORY_GRAPH_ROW_GAP}
               layout={layout}
               head={layout === 'columns' && commit.oid === tip}
+              headRef={headRef}
               onSelect={(toSide) => onSelect(commit.oid, toSide)}
               openToSide={{
                 label: sideLabel,

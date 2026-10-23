@@ -29,7 +29,7 @@ test('hiding a file takes it out of the file tree and the server keeps it hidden
     .toBeVisible();
   await expect
     .element(allFiles.getByRole('button', { name: 'Show', exact: true }))
-    .toHaveAttribute('aria-pressed', 'false');
+    .toBeVisible();
   await expect.poll(hidden).toContain(readme);
 });
 

@@ -348,6 +348,7 @@ function ScopedFileNavigation({
         )}
       <PinnedFiles
         paths={pinned}
+        statuses={gitStatus}
         selected={selected}
         onOpen={openFile}
         onUnpin={(path) =>
@@ -432,7 +433,6 @@ function ScopedFileNavigation({
             <Button
               variant="link"
               size="xs"
-              aria-pressed={showHidden}
               onClick={() => setShowHidden((current) => !current)}
             >
               {showHidden ? 'Hide' : 'Show'}
