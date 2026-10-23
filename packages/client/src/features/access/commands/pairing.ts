@@ -138,6 +138,21 @@ export const pairEnvironment = Effect.fn('Environments.pairAndSave')(function* (
         message: 'Read saved environments before pairing.',
       }),
     );
+  const missing = store.state.value.missingCredentials.find(
+    (entry) => entry.environmentId === remoteLink(value)?.environmentId,
+  );
+  if (
+    missing &&
+    !missing.routes.some(
+      (route) => route.address === remoteLink(value)?.address,
+    )
+  )
+    return yield* Effect.fail(
+      new ConnectionError({
+        message:
+          'Use a pairing link for the connection whose credential is missing.',
+      }),
+    );
   const remote = yield* pairRemote(platform, value, expectedEnvironmentId);
   yield* store.save(remote);
   return remote;

@@ -11,15 +11,18 @@ export const environmentStorage = EnvironmentStorage.of({
         const credentials = desktopCredentials();
         if (!credentials) {
           const value = localStorage.getItem('porcelain.remotes');
-          return value === null ? [] : parseRemotes(JSON.parse(value));
+          return {
+            remotes: value === null ? [] : parseRemotes(JSON.parse(value)),
+            missingCredentials: [],
+          };
         }
         const saved = savedRemotes(await credentials.read());
         if (saved.kind === 'unreadable') throw new Error(saved.message);
-        return saved.remotes ?? [];
+        return { remotes: saved.remotes ?? [], missingCredentials: [] };
       },
       catch: (cause) => new Cause.UnknownError(cause),
     }),
-  write: (remotes) =>
+  write: ({ remotes }) =>
     Effect.tryPromise({
       try: async () => {
         const credentials = desktopCredentials();
