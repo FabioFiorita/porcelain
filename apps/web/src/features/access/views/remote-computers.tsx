@@ -262,7 +262,9 @@ function ComputerLink({
         </span>
         <ChevronRightIcon className="shrink-0" />
       </TooltipTrigger>
-      <TooltipContent className="wrap-anywhere">{name}</TooltipContent>
+      <TooltipContent role="tooltip" className="wrap-anywhere">
+        {name}
+      </TooltipContent>
     </Tooltip>
   );
 }
