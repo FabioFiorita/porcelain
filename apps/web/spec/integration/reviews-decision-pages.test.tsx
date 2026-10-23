@@ -165,12 +165,16 @@ test('the agent summary lists the decisions its page links to and opens one from
 });
 
 test.for([
-  [1440, 'margin'],
-  [900, 'inline'],
+  [1440, 'margin', 'hidden'],
+  [1440, 'inline', 'docked'],
+  [900, 'inline', 'hidden'],
 ] as const)(
-  'threads on neighbouring lines of a decision each stay readable and reachable at %i px, placed in the %s',
+  'threads on neighbouring lines of a decision each stay readable and reachable at %i px, placed in the %s with the panel %s',
   { timeout: 30_000 },
-  async ([width, placement], { agent, render, server, reviewLayout }) => {
+  async (
+    [width, placement, panel],
+    { agent, render, server, reviewLayout },
+  ) => {
     await browserPage.viewport(width, 896);
     try {
       await agent.publishArchitecture();
@@ -205,6 +209,10 @@ test.for([
           },
         });
       const app = await render.route(`/reviews/${published.reviewId}`);
+      if (width >= 1280 && panel === 'hidden')
+        await app.page
+          .getByRole('button', { name: 'Hide side panel', exact: true })
+          .click();
       await app.page
         .getByRole('button', {
           name: '9. Establish the shared mutation boundary',

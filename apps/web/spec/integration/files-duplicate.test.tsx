@@ -14,9 +14,10 @@ test.for([1280, 414])(
 
       const app = await render.route('/');
       const page = app.page;
-      if (width === 414)
+      if (width === 414) {
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Files', exact: true }).click();
+        await page.getByRole('tab', { name: 'Files', exact: true }).click();
+      }
       await page
         .getByRole('treeitem', { name: path, exact: true })
         .click({ button: 'right' });
@@ -32,9 +33,10 @@ test.for([1280, 414])(
         .toBe('Notes to copy\n');
       await expect.poll(() => app.title()).toBe(`notes copy.md — ${project}`);
 
-      if (width === 414)
+      if (width === 414) {
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Files', exact: true }).click();
+        await page.getByRole('tab', { name: 'Files', exact: true }).click();
+      }
       await expect
         .element(
           page.getByRole('treeitem', { name: 'notes copy.md', exact: true }),

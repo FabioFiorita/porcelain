@@ -396,9 +396,9 @@ test('durable review clients read revisions, proof, code and comments and apply 
     resolved: true,
   });
   expect(
-    await execute(commands.deleteResolved, {
-      threads: [{ threadId: thread.id, revision: resolved.revision }],
-    }),
+    await execute(commands.deleteResolved, [
+      { threadId: thread.id, revision: resolved.revision },
+    ]),
   ).toEqual({ deleted: [thread.id], skipped: [] });
   expect(await readAtom(comments)).toEqual([]);
   await execute(commands.close, undefined);

@@ -15,13 +15,13 @@ api:
 
 # history.list
 
-The History list gives each commit one row with its message, 7-character id, author, relative age and ref chips, without a graph beside it (the graph is a separate document behind "Open graph"), and marks a merge commit with a merge icon.
+The History list gives each commit one row with its message, 7-character id, author, relative age and ref chips, drawn on its graph line in a list named "Commits" (the full graph is a separate document behind "Open graph" at the bottom of the panel), and marks a merge commit with a merge icon.
 
 ## How to get to it (user POV)
 
 - Phone width: button "Review" → sheet "Worktree review" → tab "History".
-- Desktop width (1280 px and wider): tab "History" in the review sidebar ("Review sidebar").
-- Shortcut `Alt+3` selects the History surface (the sheet still needs "Review" at phone width); URL `?surface=history`.
+- Desktop width (1280 px and wider): button "History" in the rail (navigation "Side panel"); the panel "Review sidebar" opens on it.
+- Shortcut `Alt+3` opens History (the docked panel on desktop, the sheet at phone width); URL `?surface=history`.
 
 ## Driving it with browser
 
@@ -52,7 +52,7 @@ The last line prints `Merge branch 'topic'` and two parent ids.
    Look for, in the snapshot of the sheet:
    - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";
    - each row's name goes on with the 7-character id, "Porcelain Development" and the age;
-   - button "Open graph" in the header beside the branch name; no list "Commit graph"; text "Start of history." after the last row.
+   - region "Branch" naming the branch above the list; list "Commits"; no list "Commit graph"; text "Start of history." after the last row; button "Open graph" at the bottom of the panel.
 
 ### Observable proof
 

@@ -11,6 +11,7 @@ import type {
   Session,
 } from '@porcelain/server/kit/session';
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
+import { stressVariants } from '@porcelain/server/kit/session';
 import { Usage } from './cli.ts';
 
 export const serverOptions = {
@@ -110,6 +111,12 @@ async function actionOf(
 ): Promise<AgentAction | undefined> {
   const [kind, first, second] = rest;
   if (kind === 'publish-architecture') return { kind };
+  if (kind === 'seed') {
+    const variant = stressVariants.find((name) => name === first);
+    if (variant === undefined)
+      throw new Usage(`Name the seed: ${stressVariants.join(' or ')}.`);
+    return { kind, variant };
+  }
   if (kind === 'publish-review')
     return {
       kind,
@@ -155,11 +162,11 @@ export async function agentCommand(
   const action = await actionOf(handle, session, rest, values);
   if (action === undefined)
     throw new Usage(
-      'Use agent publish-review, agent publish-architecture, agent publish-proof, agent comment or agent reply.',
+      'Use agent publish-review, agent publish-architecture, agent publish-proof, agent seed, agent comment or agent reply.',
     );
   const result = await agentActs(session, action);
   const answer =
-    action.kind === 'publish-architecture'
+    action.kind === 'publish-architecture' || action.kind === 'seed'
       ? JSON.stringify(result)
       : toolText(result);
   return `the agent's ${action.kind} reached the server, which answered:\n${answer}\n`;

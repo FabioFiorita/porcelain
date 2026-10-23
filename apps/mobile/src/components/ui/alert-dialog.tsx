@@ -33,14 +33,19 @@ export function AlertDialog({
       snapPoints={['full']}
     >
       <RNHostView>
-        <Box paddingX={6} paddingY={8}>
-          <Box className="w-full" surface="background" padding={4} gap={4}>
+        <Box className="flex-1" paddingX={6} paddingY={8}>
+          <Box
+            className="min-h-0 w-full flex-1"
+            surface="background"
+            padding={4}
+            gap={4}
+          >
             <Text variant="subheading">{title}</Text>
-            <ScrollView>
+            <ScrollView className="min-h-0 flex-1">
               <Text>{description}</Text>
               {children}
             </ScrollView>
-            <Box className="flex-row justify-end" gap={2}>
+            <Box className="shrink-0 flex-row flex-wrap justify-end" gap={2}>
               <Button
                 label="Cancel"
                 variant="outline"

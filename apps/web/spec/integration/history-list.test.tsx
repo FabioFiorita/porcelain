@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for([414, 1280])(
-  'History lists each commit message without a graph beside it and marks a merge commit with a merge icon at %i px',
+  'History lists each commit on its graph line and marks a merge commit with a merge icon at %i px',
   async (width, { workspace, repo }) => {
     await page.viewport(width, 896);
     try {
@@ -18,13 +18,18 @@ test.for([414, 1280])(
       await repo.commit(long);
       await repo.merge('topic');
 
-      if (width === 414)
+      if (width === 414) {
         await workspace
           .getByRole('button', { name: 'Review', exact: true })
           .click();
-      await workspace
-        .getByRole('tab', { name: 'History', exact: true })
-        .click();
+        await workspace
+          .getByRole('tab', { name: 'History', exact: true })
+          .click();
+      } else
+        await workspace
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'History', exact: true })
+          .click();
       const sidebar = workspace.getByRole('complementary', {
         name: 'Review sidebar',
         exact: true,
@@ -50,10 +55,8 @@ test.for([414, 1280])(
         .element(sidebar.getByText('topic', { exact: true }))
         .toBeVisible();
       await expect
-        .element(
-          sidebar.getByRole('list', { name: 'Commit graph', exact: true }),
-        )
-        .not.toBeInTheDocument();
+        .element(sidebar.getByRole('list', { name: 'Commits', exact: true }))
+        .toBeVisible();
       await expect
         .element(
           sidebar.getByRole('button', { name: 'Open graph', exact: true }),
@@ -75,13 +78,18 @@ test.for([414, 1280])(
         await repo.commit(`Write step ${index}`);
       }
       const workspace = await render.workspace();
-      if (width === 414)
+      if (width === 414) {
         await workspace
           .getByRole('button', { name: 'Review', exact: true })
           .click();
-      await workspace
-        .getByRole('tab', { name: 'History', exact: true })
-        .click();
+        await workspace
+          .getByRole('tab', { name: 'History', exact: true })
+          .click();
+      } else
+        await workspace
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'History', exact: true })
+          .click();
       const sidebar = workspace.getByRole('complementary', {
         name: 'Review sidebar',
         exact: true,
@@ -160,13 +168,15 @@ test('every ref is reachable at a narrow width in the History list and graph', a
       .element(row.getByText(repo.initialCommit, { exact: true }))
       .toHaveFocus();
     await expect.poll(() => refChips.tooltipName()).toBe(repo.initialCommit);
-    await userEvent.keyboard('{Tab}');
-    await expect
-      .element(row.getByText('Porcelain Development', { exact: true }))
-      .toHaveFocus();
-    await expect
-      .poll(() => refChips.tooltipName())
-      .toBe('Porcelain Development');
+    if (surface === 'list') {
+      await userEvent.keyboard('{Tab}');
+      await expect
+        .element(row.getByText('Porcelain Development', { exact: true }))
+        .toHaveFocus();
+      await expect
+        .poll(() => refChips.tooltipName())
+        .toBe('Porcelain Development');
+    }
     await userEvent.keyboard('{Tab}{Tab}');
     await expect
       .element(scope.getByRole('button', { name: branches[2]!, exact: true }))

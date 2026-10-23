@@ -16,9 +16,14 @@ for (const width of [1440, 414]) {
       }
       await page.setViewportSize({ width, height: 896 });
       await page.emulateMedia({ colorScheme });
-      if (width === 414)
+      if (width === 414) {
         await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'History', exact: true }).click();
+        await page.getByRole('tab', { name: 'History', exact: true }).click();
+      } else
+        await page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'History', exact: true })
+          .click();
       const history = page.getByRole('complementary', {
         name: 'Review sidebar',
         exact: true,

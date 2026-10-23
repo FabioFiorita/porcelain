@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { NavigatorRowMenu } from './navigator-row-menu';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -225,7 +226,7 @@ export function ProjectNavigator({
               >
                 <FilterIcon />
               </TooltipTrigger>
-              <TooltipContent role="tooltip">Filter reviews</TooltipContent>
+              <TooltipContent role="tooltip">Filter and open</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
               align="end"
@@ -435,103 +436,118 @@ export function ProjectNavigator({
                                 key={entry.key}
                                 className="flex items-center"
                               >
-                                <div
-                                  className={cn(
-                                    'flex min-w-0 flex-1 items-center rounded-xl',
-                                    active && 'bg-sidebar-row shadow-row',
-                                  )}
+                                <NavigatorRowMenu
+                                  entry={entry}
+                                  connection={
+                                    connections.find(
+                                      (source) =>
+                                        source.environmentId ===
+                                        entry.environmentId,
+                                    ) ?? connection
+                                  }
+                                  onRetry={() => retry(undefined)}
+                                  beforeLeave={() => setOpenMobile(false)}
                                 >
-                                  <NavigatorStatus entry={entry} />
-                                  <SidebarMenuButton
-                                    size="lg"
-                                    className="h-10 min-w-0 flex-1"
-                                    aria-label={
-                                      entry.reviewId
-                                        ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                        : undefined
-                                    }
-                                    disabled={!entry.reviewId && entry.disabled}
-                                    aria-current={active ? 'page' : undefined}
-                                    onClick={() =>
-                                      entry.reviewId
-                                        ? setOpenMobile(false)
-                                        : openWorktree(entry)
-                                    }
-                                    render={
-                                      entry.reviewId ? (
-                                        <Link
-                                          to="/reviews/$reviewId"
-                                          params={{
-                                            reviewId: entry.reviewId,
-                                          }}
-                                          search={{
-                                            environment:
-                                              entry.environmentId ===
-                                              connection.environmentId
-                                                ? undefined
-                                                : entry.environmentId,
-                                            decision: undefined,
-                                          }}
-                                        />
-                                      ) : undefined
-                                    }
+                                  <div
+                                    className={cn(
+                                      'flex min-w-0 flex-1 items-center rounded-xl',
+                                      active && 'bg-sidebar-row shadow-row',
+                                    )}
                                   >
-                                    <div className="min-w-0 flex-1 text-ui leading-4">
-                                      <div className="flex min-w-0 items-center gap-1">
-                                        <TruncatedText
-                                          className="min-w-0 flex-1"
-                                          text={entry.title}
-                                        />
-                                        {entry.reviewId ? (
-                                          <span
-                                            className={cn(
-                                              'shrink-0 text-xs',
-                                              active
-                                                ? 'text-brand'
-                                                : 'text-muted-foreground',
-                                            )}
-                                            aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                          >
-                                            {entry.reviewed}/{entry.total}
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                        <div className="flex min-w-0 flex-1 items-center gap-1">
-                                          {context.project ? (
-                                            <TruncatedText
-                                              className={
-                                                context.branch
-                                                  ? 'min-w-0 max-w-1/2'
-                                                  : 'min-w-0 flex-1'
-                                              }
-                                              text={context.project}
-                                            />
-                                          ) : null}
-                                          {context.branch ? (
-                                            <TruncatedText
-                                              className="min-w-0 flex-1"
-                                              text={context.branch}
-                                            />
+                                    <NavigatorStatus entry={entry} />
+                                    <SidebarMenuButton
+                                      size="lg"
+                                      className="h-10 min-w-0 flex-1"
+                                      aria-label={
+                                        entry.reviewId
+                                          ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                          : undefined
+                                      }
+                                      disabled={
+                                        !entry.reviewId && entry.disabled
+                                      }
+                                      aria-current={active ? 'page' : undefined}
+                                      onClick={() =>
+                                        entry.reviewId
+                                          ? setOpenMobile(false)
+                                          : openWorktree(entry)
+                                      }
+                                      render={
+                                        entry.reviewId ? (
+                                          <Link
+                                            to="/reviews/$reviewId"
+                                            params={{
+                                              reviewId: entry.reviewId,
+                                            }}
+                                            search={{
+                                              environment:
+                                                entry.environmentId ===
+                                                connection.environmentId
+                                                  ? undefined
+                                                  : entry.environmentId,
+                                              decision: undefined,
+                                            }}
+                                          />
+                                        ) : undefined
+                                      }
+                                    >
+                                      <div className="min-w-0 flex-1 text-ui leading-4">
+                                        <div className="flex min-w-0 items-center gap-1">
+                                          <TruncatedText
+                                            className="min-w-0 flex-1"
+                                            text={entry.title}
+                                          />
+                                          {entry.reviewId ? (
+                                            <span
+                                              className={cn(
+                                                'shrink-0 text-xs',
+                                                active
+                                                  ? 'text-brand'
+                                                  : 'text-muted-foreground',
+                                              )}
+                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                            >
+                                              {entry.reviewed}/{entry.total}
+                                            </span>
                                           ) : null}
                                         </div>
+                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                          <div className="flex min-w-0 flex-1 items-center gap-1">
+                                            {context.project ? (
+                                              <TruncatedText
+                                                className={
+                                                  context.branch
+                                                    ? 'min-w-0 max-w-1/2 '
+                                                    : 'min-w-0 flex-1 '
+                                                }
+                                                text={context.project}
+                                              />
+                                            ) : null}
+                                            {context.branch ? (
+                                              <TruncatedText
+                                                className="min-w-0 flex-1"
+                                                text={context.branch}
+                                              />
+                                            ) : null}
+                                          </div>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </SidebarMenuButton>
-                                </div>
-                                {entry.archivable && entry.reviewId ? (
-                                  <ArchiveReview
-                                    connection={
-                                      connections.find(
-                                        (source) =>
-                                          source.environmentId ===
-                                          entry.environmentId,
-                                      ) ?? connection
-                                    }
-                                    reviewId={entry.reviewId}
-                                    beforeLeave={() => setOpenMobile(false)}
-                                  />
-                                ) : null}
+                                    </SidebarMenuButton>
+                                  </div>
+                                  {entry.archivable && entry.reviewId ? (
+                                    <ArchiveReview
+                                      connection={
+                                        connections.find(
+                                          (source) =>
+                                            source.environmentId ===
+                                            entry.environmentId,
+                                        ) ?? connection
+                                      }
+                                      reviewId={entry.reviewId}
+                                      beforeLeave={() => setOpenMobile(false)}
+                                    />
+                                  ) : null}
+                                </NavigatorRowMenu>
                               </SidebarMenuItem>
                             );
                           })}
@@ -543,7 +559,7 @@ export function ProjectNavigator({
               },
             )}
           </div>
-          {!loading && rows.length === 0 && (
+          {!loading && messages.length === 0 && rows.length === 0 && (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyLabel}</EmptyTitle>
@@ -559,7 +575,11 @@ export function ProjectNavigator({
             </p>
           ))}
           {messages.length > 0 && (
-            <Button variant="ghost" onClick={() => retry(undefined)}>
+            <Button
+              variant="ghost"
+              disabled={loading}
+              onClick={() => retry(undefined)}
+            >
               Read again
             </Button>
           )}

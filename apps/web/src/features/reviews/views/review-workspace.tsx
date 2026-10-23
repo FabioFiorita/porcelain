@@ -67,7 +67,8 @@ import { openToSideText } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
-import { ReviewSidebar } from './review-sidebar';
+import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
+import { SideRail } from './side-rail';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Worktree = Project['worktrees'][number];
@@ -100,11 +101,11 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
-  const desktopTrigger = useElement<HTMLButtonElement>();
+  const railToggle = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
   const {
@@ -140,13 +141,13 @@ function ReviewWorkspaceContent({
     setFocused: setFocusedPane,
     ready,
     focusBoundary: mobileSheet.element,
-    focusBoundaryOpen: mobileOpen,
+    focusBoundaryOpen: mobileOpen && !desktop,
   });
   const sideLabel = openToSideText(paneSide(layout.split, focusedPane));
 
   const toggleSidebar = () => {
-    if (sidebarOpen) desktopTrigger.element?.focus();
-    setSidebarOpen((open) => !open);
+    if (panelOpen) railToggle.element?.focus();
+    setPanelOpen((open) => !open);
   };
   useHotkey(
     SHORTCUTS.toggleSidebar,
@@ -185,17 +186,23 @@ function ReviewWorkspaceContent({
   const setSurface = (next: Surface) => {
     onSearch({ surface: next });
   };
-  useHotkey(SHORTCUTS.surfaceReview, () => setSurface('changes'), {
+  const showSurface = (next: Surface) => {
+    setSurface(next);
+    if (desktop) setPanelOpen(true);
+    else setMobileOpen(true);
+  };
+  useHotkey(SHORTCUTS.surfaceReview, () => showSurface('changes'), {
     ignoreInputs: true,
   });
-  useHotkey(SHORTCUTS.surfaceFiles, () => setSurface('files'), {
+  useHotkey(SHORTCUTS.surfaceFiles, () => showSurface('files'), {
     ignoreInputs: true,
   });
-  useHotkey(SHORTCUTS.surfaceHistory, () => setSurface('history'), {
+  useHotkey(SHORTCUTS.surfaceHistory, () => showSurface('history'), {
     ignoreInputs: true,
   });
-  const sidebar = (
+  const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
+      layout={layout}
       scope={scope}
       context={context}
       worktreePath={worktree.path}
@@ -219,33 +226,6 @@ function ReviewWorkspaceContent({
     <div data-review-controls="" className="contents">
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
       <GitButton scope={scope} context={context} />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              ref={(element) => desktopTrigger.attach(element)}
-              className="hidden xl:inline-flex"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={
-                sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
-              }
-              aria-expanded={sidebarOpen}
-              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-              onClick={() => {
-                layout.selectPane(pane);
-                toggleSidebar();
-              }}
-            >
-              <PanelRightIcon />
-            </Button>
-          }
-        />
-        <TooltipContent role="tooltip" className="break-all">
-          {sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}{' '}
-          <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
-        </TooltipContent>
-      </Tooltip>
       <Tooltip>
         <TooltipTrigger
           render={
@@ -275,56 +255,74 @@ function ReviewWorkspaceContent({
 
   return (
     <Sheet
-      open={mobileOpen}
+      open={mobileOpen && !desktop}
       onOpenChange={setMobileOpen}
       onOpenChangeComplete={(open) => {
         if (!open) layout.focusDestination();
       }}
     >
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel
-          id="review-document"
-          minSize={navigatorIsMobile ? 0 : 480}
+      <div className="flex min-h-0 flex-1">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="min-h-0 flex-1"
         >
-          <section
-            aria-label="Review content"
-            className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+          <ResizablePanel
+            id="review-document"
+            minSize={navigatorIsMobile ? 0 : 480}
           >
-            <InterruptedActionNotice scope={scope} context={context} />
-            <ConflictGuidance scope={scope} context={context} onOpen={open} />
-            <DocumentArea
-              reveal={reveal}
-              scope={scope}
-              context={context}
-              overview={overview}
-              published={published}
-              needsDefault={needsDefault}
-              layout={layout}
-              base={search.base}
-              focused={focusedPane}
-              onOpen={open}
-              navigationTrigger={navigationTrigger}
-              navigatorIsMobile={navigatorIsMobile}
-              navigatorOpen={navigatorOpen}
-              navigatorOpenMobile={navigatorOpenMobile}
-              tabControls={tabControls}
-            />
-          </section>
-        </ResizablePanel>
-        {sidebarOpen && desktop && (
-          <>
-            <ResizableHandle className="w-2 bg-transparent after:w-2" />
-            <ResizablePanel
-              id="review-sidebar"
-              defaultSize={320}
-              minSize={260}
-              maxSize={520}
+            <section
+              aria-label="Review content"
+              className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
             >
-              {sidebar}
-            </ResizablePanel>
-          </>
+              <InterruptedActionNotice scope={scope} context={context} />
+              <ConflictGuidance scope={scope} context={context} onOpen={open} />
+              <DocumentArea
+                reveal={reveal}
+                scope={scope}
+                context={context}
+                overview={overview}
+                published={published}
+                needsDefault={needsDefault}
+                layout={layout}
+                base={search.base}
+                focused={focusedPane}
+                onOpen={open}
+                navigationTrigger={navigationTrigger}
+                navigatorIsMobile={navigatorIsMobile}
+                navigatorOpen={navigatorOpen}
+                navigatorOpenMobile={navigatorOpenMobile}
+                tabControls={tabControls}
+              />
+            </section>
+          </ResizablePanel>
+          {panelOpen && desktop && (
+            <>
+              <ResizableHandle className="w-2 bg-transparent after:w-2" />
+              <ResizablePanel
+                id="review-sidebar"
+                defaultSize={320}
+                minSize={260}
+                maxSize={520}
+              >
+                {sidebar('docked')}
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+        {desktop && (
+          <SideRail
+            surfaces={SURFACES}
+            names={surfaceNames(published.review)}
+            published={Boolean(published.review)}
+            surface={surface}
+            open={panelOpen}
+            onSelect={showSurface}
+            onHide={() => setPanelOpen(false)}
+            onToggle={toggleSidebar}
+            toggleRef={(element) => railToggle.attach(element)}
+          />
         )}
-      </ResizablePanelGroup>
+      </div>
       <SheetContent
         ref={(element) => {
           mobileSheet.attach(element);
@@ -346,7 +344,7 @@ function ReviewWorkspaceContent({
             Choose a review surface and open a document.
           </SheetDescription>
         </SheetHeader>
-        {sidebar}
+        {!desktop && sidebar('sheet')}
       </SheetContent>
     </Sheet>
   );
@@ -565,7 +563,7 @@ function PaneView({
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent role="tooltip" className="break-all">
                 Toggle Sidebar{' '}
                 <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
               </TooltipContent>

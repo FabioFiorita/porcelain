@@ -16,6 +16,7 @@ tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - packages/client/src/features/projects/queries/inventory-state.spec.ts
   - packages/git/src/actions/commands/archive-review.spec.ts
+  - packages/client/src/features/reviews/rules/archive-review.spec.ts
   - packages/client/src/features/reviews/queries/review-list.spec.ts
   - apps/mobile/src/features/projects/rules/worktree-row.spec.ts
 api:
@@ -52,9 +53,10 @@ Preconditions: seed active checkouts, reviews in every status and one closed rev
 
 Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, When archiving a review has worktree/local branch/remote branch switches, all default on.
 
-1. Row Archive shows actual deletion targets. Cancel: no deletion. Keeping a worktree while deleting its branch explicitly detaches it; main checkout/branches stay protected.
+1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.
 3. Confirm for the selected worktree: selection leaves before deletion. Closed retains readable review and Archived in accessible label/detail. A kept worktree remains under No review (Projects for main). Capture before, confirmation, Closed and settings.
+4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
 
 Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspace-selection.spec.ts`, `inventory-state.spec.ts`, `archive-review.spec.ts`, `review-list.spec.ts`.
 
@@ -62,3 +64,9 @@ Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspa
 
 - Merged/closed PR reviews and manually closed reviews without a PR appear only in Closed. Update offers are covered by [Updates](access.updates.md).
 - Selecting/archiving must retain document-leave protection. Tablet presentation requires its own proof.
+
+### Unavailable pull request state
+
+With a linked PR read pending, Worktrees shows Reading worktrees and keeps the review visible, including a main-checkout review. Fail that read or return a typed unavailable reason: the review stays in Needs you, its full accessibility label includes the reason, and the list displays the persistent reason with Read projects again. The review detail also explains the failure and offers Read pull request again. Restore a merged/closed PR and retry: Closed contains the recovered review with Archive, which opens the normal confirmation. Cancel keeps the checkout. Check both themes, long names, return navigation and the failure/retry path.
+
+Retry also reads main-checkout PRs that previously succeeded as open and left the status groups. If a later read fails, the review returns to Needs you with its reason; if it becomes merged or closed, Closed offers Archive.

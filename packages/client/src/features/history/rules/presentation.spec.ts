@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  branchTracking,
   commitEntry,
   commitPath,
   commitPaths,
@@ -7,6 +8,7 @@ import {
   historyHeading,
   refLabel,
   shortOid,
+  shownRefs,
 } from './presentation.ts';
 const file = {
   status: 'modified' as const,
@@ -95,4 +97,64 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
     shortHash: '0123456',
     refs: ['origin/topic', 'v1'],
   });
+});
+
+it('names the branch and counts ahead and behind against its upstream', () => {
+  const attached = {
+    tipOid: undefined,
+    head: { kind: 'attached' as const, ref: 'refs/heads/feature' },
+  };
+  expect(
+    branchTracking(
+      {
+        name: 'refs/heads/review/revoke-access',
+        upstream: 'refs/remotes/origin/review/revoke-access',
+        ahead: 2,
+        behind: 0,
+      },
+      attached,
+    ),
+  ).toEqual({
+    name: 'review/revoke-access',
+    counts: '2 ahead · 0 behind',
+    upstream: 'against origin/review/revoke-access',
+  });
+  expect(
+    branchTracking(
+      { name: 'feature', upstream: undefined, ahead: 0, behind: 0 },
+      attached,
+    ),
+  ).toEqual({ name: 'feature', counts: null, upstream: 'No upstream' });
+  expect(
+    branchTracking(
+      { name: undefined, upstream: undefined, ahead: 0, behind: 0 },
+      attached,
+    ),
+  ).toEqual({
+    name: 'Detached HEAD',
+    counts: null,
+    upstream: 'No branch checked out',
+  });
+  expect(branchTracking(undefined, attached)).toEqual({
+    name: 'feature',
+    counts: null,
+    upstream: 'Branch status unavailable',
+  });
+});
+
+it('keeps branch, remote and tag refs and drops Porcelain internal refs', () => {
+  expect(
+    shownRefs([
+      'refs/heads/main',
+      'refs/porcelain/reviews/f3cb63e8-a489-4b2d-81e8-720b83bbabc0/1',
+      'refs/remotes/origin/main',
+      'refs/tags/v1.0.0',
+      'HEAD',
+    ]),
+  ).toEqual([
+    'refs/heads/main',
+    'refs/remotes/origin/main',
+    'refs/tags/v1.0.0',
+    'HEAD',
+  ]);
 });

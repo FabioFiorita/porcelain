@@ -82,9 +82,7 @@ for (const width of [1440, 414]) {
       );
     for (const [name] of variants) {
       const path = `preview-${name}.html`;
-      if (width === 414)
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Files', exact: true }).click();
+      await page.keyboard.press('Alt+1');
       await page.getByRole('treeitem', { name: path, exact: true }).click();
       await expect
         .poll(() =>
@@ -117,9 +115,7 @@ for (const width of [1440, 414]) {
       'interactive.html',
       `<!doctype html><h1>AUDIT_ONLY_CONTENT</h1><p id="local"></p><script src="interaction.js"></script><p id="parent"></p><p id="violations"></p><button onclick="this.textContent = 'Interaction works'">Try interaction</button><button onclick="fetch('https://audit-exfil.invalid/fetch').catch(() => {}); const image = new Image(); image.src = 'https://audit-exfil.invalid/image'; const frame = document.createElement('iframe'); frame.src = 'https://audit-exfil.invalid/frame'; document.body.append(frame)">Try network</button><script>console.log('AUDIT_ONLY_PREVIEW_EXECUTED'); try { parent.document.body; document.getElementById('parent').textContent = 'Parent exposed'; } catch { document.getElementById('parent').textContent = 'Parent isolated'; } document.addEventListener('securitypolicyviolation', event => { document.getElementById('violations').textContent += event.effectiveDirective + ' '; });</script>`,
     );
-    if (width === 414)
-      await page.getByRole('button', { name: 'Review', exact: true }).click();
-    await page.getByRole('tab', { name: 'Files', exact: true }).click();
+    await page.keyboard.press('Alt+1');
     await page
       .getByRole('treeitem', { name: 'interactive.html', exact: true })
       .click();

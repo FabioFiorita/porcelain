@@ -128,7 +128,11 @@ export function ChangeRow({
   );
 }
 
-function ReviewStatusIcon({ status }: { status: ReviewStatus | undefined }) {
+export function ReviewStatusIcon({
+  status,
+}: {
+  status: ReviewStatus | undefined;
+}) {
   const normalized = status ?? 'unreviewed';
   return (
     <span

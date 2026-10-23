@@ -23,9 +23,10 @@ test.for([1280, 414])(
     await repo.write(last, 'Last row\n');
     const page = await render.workspace();
     await page.viewport(width, 896);
-    if (width === 414)
+    if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
-    await page.getByRole('tab', { name: 'Files', exact: true }).click();
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
+    }
     const row = (name: string) =>
       page.getByRole('treeitem', { name, exact: true, includeHidden: true });
     const menu = (path: string) =>
@@ -122,7 +123,6 @@ test('an agent inserting a preceding file dismisses the menu before its row can 
   await repo.write('guide.md', 'Guide\n');
   const page = await render.workspace();
   await page.viewport(1280, 800);
-  await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: 'guide.md', exact: true })
     .click({ button: 'right' });
@@ -188,9 +188,10 @@ test.for(
     const held = fetchGate.holdNextDirectoryRead('beta');
     const page = await render.workspace();
     await page.viewport(width, 896);
-    if (width === 414)
+    if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
-    await page.getByRole('tab', { name: 'Files', exact: true }).click();
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
+    }
     held.arm();
     try {
       await page

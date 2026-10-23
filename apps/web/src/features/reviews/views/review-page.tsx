@@ -1,12 +1,23 @@
 import { createPortal } from 'react-dom';
-import { ListChecksIcon, FileTextIcon } from 'lucide-react';
+import { ListChecksIcon, FileTextIcon, PanelRightIcon } from 'lucide-react';
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { refLabel } from '@porcelain/client/history/rules';
-import { useHotkey } from '@tanstack/react-hotkeys';
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
+import { Kbd } from '@/components/ui/kbd';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { useElement } from '@/shared/hooks/use-element';
+import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   neighbourStop,
@@ -39,6 +50,7 @@ import {
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
+  reviewPullRequestNotice,
   stopName,
   stopTitle,
   walkthroughStops,
@@ -57,7 +69,7 @@ import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { reviewListTitle } from '@porcelain/client/reviews/rules';
 import { useReviewSummary } from '../queries/summary';
-import { useWalkthroughPlace } from '../store';
+import { useReviewPanelOpen, useWalkthroughPlace } from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
 import { BriefingMargin } from './briefing-margin';
@@ -72,8 +84,12 @@ import { SummaryFrame } from './summary-frame';
 import { WalkthroughDock } from './walkthrough-dock';
 import { useComments } from '../queries/comments';
 import { RevisionCode, RevisionFile } from './revision-code';
-import { ReviewComments } from './review-comments';
 import { ReviewEmpty } from './review-empty';
+import { ReviewBoundary } from './review-boundary';
+import { RevisionPanel } from './revision-panel';
+import { SidePanel, surfaceNames } from './review-sidebar';
+import { SideRail } from './side-rail';
+import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
   toolbarTarget?: HTMLElement | null | undefined;
@@ -261,10 +277,21 @@ function ReviewRevisionPage({
     `${revision.reviewId}:${revision.revision}`,
   );
   const [chosen, setChosen] = useState<string>();
-  const [view, setView] = useState<
-    'walkthrough' | 'summary' | 'comments' | 'proof'
-  >(initialView ?? 'walkthrough');
-  const [file, setFile] = useState<{ path: string; step?: ReviewStep }>();
+  const [view, setView] = useState<'walkthrough' | 'summary' | 'proof'>(
+    initialView ?? 'walkthrough',
+  );
+  const [file, setFile] = useState<{
+    path: string;
+    step?: ReviewStep;
+    change?: true;
+  }>();
+  const standalone = toolbarTarget === undefined;
+  const desktop = useDesktopReview();
+  const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
+    revision.reviewId,
+  );
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const railToggle = useElement<HTMLButtonElement>();
   const stops = walkthroughStops(
     review,
     revision.files.map((entry) => entry.path),
@@ -394,9 +421,18 @@ function ReviewRevisionPage({
   const latestReview = Option.getOrUndefined(
     AsyncResult.value(useAtomValue(readReview(titleInput))),
   );
-  const pull = Option.getOrUndefined(
-    AsyncResult.value(useAtomValue(readReviewPullRequest(titleInput))),
-  );
+  const pullQuery = readReviewPullRequest(titleInput);
+  const pullResult = useAtomValue(pullQuery);
+  const retryPull = useAtomRefresh(pullQuery);
+  const pullValue = AsyncResult.isFailure(pullResult)
+    ? { kind: 'failed' as const }
+    : (Option.getOrUndefined(AsyncResult.value(pullResult)) ?? {
+        kind: 'loading' as const,
+      });
+  const pull = data.review?.pullRequest ? pullValue : undefined;
+  const pullNotice = data.review?.pullRequest
+    ? reviewPullRequestNotice(pull)
+    : undefined;
   const title = reviewListTitle(
     data.review ?? revision,
     latestReview?.revision ?? revision,
@@ -404,7 +440,65 @@ function ReviewRevisionPage({
   );
   const record = data.review;
   const { threads } = useComments(scope, context);
-  return (
+  const showPanel = () => {
+    if (desktop) setPanelOpen(true);
+    else setSheetOpen(true);
+  };
+  const togglePanel = () => {
+    if (!desktop) {
+      setSheetOpen((open) => !open);
+      return;
+    }
+    if (panelOpen) railToggle.element?.focus();
+    setPanelOpen((open) => !open);
+  };
+  const reveal = (next: () => void) => {
+    next();
+    setSheetOpen(false);
+  };
+  const names = surfaceNames(revision.content);
+  const panel = (layout: 'docked' | 'sheet') => (
+    <SidePanel
+      layout={layout}
+      surfaces={PANEL}
+      names={names}
+      published
+      surface="changes"
+      onSurface={showPanel}
+    >
+      {() => (
+        <ReviewBoundary connection={context.connection} scope={scope}>
+          <RevisionPanel
+            revision={revision}
+            scope={scope}
+            context={context}
+            marks={marks}
+            file={file?.path}
+            onFile={(path) =>
+              reveal(() => {
+                setView('walkthrough');
+                setFile({ path });
+              })
+            }
+            onChange={(path) =>
+              reveal(() => {
+                setView('walkthrough');
+                setFile({ path, change: true });
+              })
+            }
+            onStop={(key) => reveal(() => go(key))}
+            onProof={() =>
+              reveal(() => {
+                setView('proof');
+                setFile(undefined);
+              })
+            }
+          />
+        </ReviewBoundary>
+      )}
+    </SidePanel>
+  );
+  const page = (
     <section
       aria-label="Review walkthrough"
       className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card"
@@ -439,6 +533,29 @@ function ReviewRevisionPage({
                   <GitButton scope={currentScope} context={context} />
                 </>
               )}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <SheetTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="xl:hidden"
+                          aria-label={names.changes}
+                          aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+                        />
+                      }
+                    >
+                      <PanelRightIcon />
+                    </SheetTrigger>
+                  }
+                />
+                <TooltipContent>
+                  {names.changes}{' '}
+                  <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+                </TooltipContent>
+              </Tooltip>
             </>
           }
           onActivate={() => {}}
@@ -478,6 +595,22 @@ function ReviewRevisionPage({
           )}
         </h1>
       </header>
+      {pullNotice && (
+        <div className="px-4 py-2">
+          <ReviewNotice title={pullNotice}>
+            {pull?.kind !== 'loading' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pullResult.waiting}
+                onClick={retryPull}
+              >
+                Read pull request again
+              </Button>
+            )}
+          </ReviewNotice>
+        </div>
+      )}
       {currentScope && (
         <BranchTipNotice
           scope={currentScope}
@@ -503,7 +636,6 @@ function ReviewRevisionPage({
           if (
             value === 'walkthrough' ||
             value === 'summary' ||
-            value === 'comments' ||
             value === 'proof'
           ) {
             setView(value);
@@ -520,7 +652,6 @@ function ReviewRevisionPage({
             <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
           )}
           <TabsTrigger value="proof">Proof</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
       </Tabs>
       <Suspense
@@ -569,14 +700,25 @@ function ReviewRevisionPage({
                   >
                     Back to decision
                   </Button>
-                  <RevisionFile
-                    revision={revision}
-                    scope={scope}
-                    context={context}
-                    path={file.path}
-                    step={file.step}
-                    active={active}
-                  />
+                  {file.change ? (
+                    <RevisionCode
+                      revision={revision}
+                      paths={[file.path]}
+                      scope={scope}
+                      context={context}
+                      active={active}
+                      marks={marks ?? { files: [], decisions: [] }}
+                    />
+                  ) : (
+                    <RevisionFile
+                      revision={revision}
+                      scope={scope}
+                      context={context}
+                      path={file.path}
+                      step={file.step}
+                      active={active}
+                    />
+                  )}
                 </>
               )}
               {view === 'walkthrough' && !file && stop.kind === 'briefing' && (
@@ -671,6 +813,7 @@ function ReviewRevisionPage({
                                   revision,
                                   marks,
                                   status: worktree?.status,
+                                  pull,
                                 }),
                                 group: 'Closed',
                               }
@@ -678,6 +821,7 @@ function ReviewRevisionPage({
                                 revision,
                                 marks,
                                 status: worktree?.status,
+                                pull,
                               })
                         }
                         scope={scope}
@@ -758,20 +902,57 @@ function ReviewRevisionPage({
             />
           </div>
         )}
-        {view === 'comments' && (
-          <ReviewComments
-            scope={scope}
-            context={context}
-            revision={revision}
-            onReveal={(path) => {
-              setFile({ path });
-              setView('walkthrough');
-            }}
-          />
-        )}
       </Suspense>
     </section>
   );
+  if (!standalone) return page;
+  return (
+    <Sheet open={sheetOpen && !desktop} onOpenChange={setSheetOpen}>
+      <PanelKeys onShow={showPanel} onToggle={togglePanel} />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {page}
+        {desktop && panelOpen && (
+          <div className="ml-2 w-80 shrink-0">{panel('docked')}</div>
+        )}
+        {desktop && (
+          <SideRail
+            surfaces={PANEL}
+            names={names}
+            published
+            surface="changes"
+            open={panelOpen}
+            onSelect={showPanel}
+            onHide={() => setPanelOpen(false)}
+            onToggle={togglePanel}
+            toggleRef={(element) => railToggle.attach(element)}
+          />
+        )}
+      </div>
+      <SheetContent className="w-[min(90vw,22rem)]!" showCloseButton={false}>
+        <SheetHeader className="sr-only">
+          <SheetTitle>{names.changes}</SheetTitle>
+          <SheetDescription>
+            Readiness, changed files and comments of this review.
+          </SheetDescription>
+        </SheetHeader>
+        {!desktop && panel('sheet')}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+const PANEL: readonly Surface[] = ['changes'];
+
+function PanelKeys({
+  onShow,
+  onToggle,
+}: {
+  onShow: () => void;
+  onToggle: () => void;
+}) {
+  useHotkey(SHORTCUTS.surfaceReview, onShow, { ignoreInputs: true });
+  useHotkey(SHORTCUTS.toggleSidebar, onToggle, { ignoreInputs: true });
+  return null;
 }
 
 function MarginRowDock({ children }: { children: ReactNode }) {

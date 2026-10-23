@@ -118,7 +118,7 @@ export function publishedReviewTitle(
 
 type Surface = 'changes' | 'files' | 'history';
 
-const surfaceTitles: Record<Surface, string> = {
+export const surfaceTitles: Record<Surface, string> = {
   changes: 'Changes',
   files: 'Files',
   history: 'History',
