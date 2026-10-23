@@ -7,6 +7,7 @@ import {
   reviewListGroups,
   reviewListStatus,
   reviewListTitle,
+  reviewPullRequestNotice,
   reviewListMeta,
   reviewListSignal,
   reviewListRowContext,
@@ -462,3 +463,56 @@ it.each([
     ).toBe(expected);
   },
 );
+
+it.each([
+  [
+    'merged',
+    { kind: 'available', pullRequest: { state: 'merged' } },
+    'Closed',
+    true,
+  ],
+  [
+    'closed',
+    { kind: 'available', pullRequest: { state: 'closed' } },
+    'Closed',
+    true,
+  ],
+  [
+    'open',
+    { kind: 'available', pullRequest: { state: 'open' } },
+    'Ready to merge',
+    false,
+  ],
+  [
+    'unavailable',
+    { kind: 'unavailable', reason: 'offline' },
+    'Needs you',
+    false,
+  ],
+  ['failed', { kind: 'failed' }, 'Needs you', false],
+  ['loading', { kind: 'loading' }, 'Needs you', false],
+  ['none', { kind: 'not-linked' }, 'Ready to merge', false],
+] as const)(
+  'keeps %s PR grouping and Archive honest',
+  (_, pull, expected, archivable) => {
+    const record = { state: 'open' as const, archived: false };
+    const status = reviewListStatus({
+      revision: {
+        ...revision,
+        verdict: { ...revision.verdict, recommendation: 'merge' },
+      },
+      marks: allMarks,
+      status: 'reviewed',
+      pull,
+    });
+    expect(reviewClosed(record, pull) ? 'Closed' : status.group).toBe(expected);
+    expect(reviewArchivable(record, pull)).toBe(archivable);
+  },
+);
+
+it('explains a GitHub failure without treating it as a known pull request state', () => {
+  expect(
+    reviewPullRequestNotice({ kind: 'unavailable', reason: 'offline' }),
+  ).toBe('PR state unavailable: GitHub could not be reached.');
+  expect(reviewPullRequestNotice({ kind: 'not-linked' })).toBeUndefined();
+});

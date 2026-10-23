@@ -1,3 +1,4 @@
+import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
 import { expect, it } from 'vitest';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { refreshReviewList } from '../commands/review-list.ts';
@@ -216,3 +217,204 @@ async function publishedEntries(
     stop();
   }
 }
+
+it.each([
+  ['offline', 'GitHub could not be reached.'],
+  ['no-accounts', 'No GitHub account is signed in.'],
+  ['rate-limited', 'GitHub rate limit reached.'],
+  ['gh-not-installed', 'GitHub CLI is not installed.'],
+  ['no-access', 'The GitHub account cannot access this repository.'],
+  ['not-github', 'This repository has no GitHub remote.'],
+  ['invalid-response', 'GitHub returned an invalid response.'],
+  ['failed', 'request failed.'],
+] as const)(
+  'keeps a main-checkout review visible when its PR is %s and recovers on retry',
+  async (reason, explanation) => {
+    let recovering = false;
+    const { client, connections, list, stop } = linkedReviewClient(() =>
+      Promise.resolve(
+        recovering
+          ? Response.json(mergedPull)
+          : reason === 'failed'
+            ? new Response('Unavailable', { status: 503 })
+            : Response.json({ kind: 'unavailable', reason }),
+      ),
+    );
+    const reviewId = linkedReviewId;
+    try {
+      await expect
+        .poll(() => client.registry.get(list).messages)
+        .toEqual([`main: PR state unavailable: ${explanation}`]);
+      expect(
+        client.registry
+          .get(list)
+          .entries.find((entry) => entry.reviewId === reviewId),
+      ).toMatchObject({
+        group: 'Needs you',
+        closed: false,
+        archivable: false,
+        pullRequestIssue: `PR state unavailable: ${explanation}`,
+        disabled: false,
+      });
+      recovering = true;
+      client.registry.set(refreshReviewList(connections), undefined);
+      await expect
+        .poll(
+          () =>
+            client.registry
+              .get(list)
+              .entries.find((entry) => entry.reviewId === reviewId)?.group,
+        )
+        .toBe('Closed');
+      expect(client.registry.get(list).messages).toEqual([]);
+      expect(
+        client.registry
+          .get(list)
+          .entries.find((entry) => entry.reviewId === reviewId),
+      ).toMatchObject({
+        archivable: true,
+        pullRequestIssue: undefined,
+      });
+    } finally {
+      stop();
+    }
+  },
+);
+
+const mergedPull = {
+  kind: 'available',
+  account: 'fixture',
+  pullRequest: {
+    number: 42,
+    title: 'Recovered pull request',
+    url: 'https://github.com/example/project/pull/42',
+    state: 'merged',
+    draft: false,
+    headBranch: 'main',
+    updatedAt: '2026-10-23T00:00:00Z',
+    checksTruncated: false,
+    description: '',
+    baseBranch: 'main',
+    headSha: 'a'.repeat(40),
+    matchesReviewHead: true,
+    mergeable: 'MERGEABLE',
+    labels: [],
+    checks: [],
+    timeline: [],
+    truncated: false,
+  },
+} satisfies ReadPullRequestResponse;
+
+it('includes a pending linked PR in loading without hiding its main-checkout review', async () => {
+  let release = (_: Response) => {};
+  const response = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const { client, list, stop } = linkedReviewClient(() => response);
+  const reviewId = linkedReviewId;
+  try {
+    await expect
+      .poll(
+        () =>
+          client.registry
+            .get(list)
+            .entries.find((entry) => entry.reviewId === reviewId)?.badges ?? [],
+      )
+      .toContainEqual({ label: 'Reading pull request…', variant: 'outline' });
+    expect(client.registry.get(list).loading).toBe(true);
+    expect(client.registry.get(list).messages).toEqual([]);
+    release(Response.json(mergedPull));
+    await expect.poll(() => client.registry.get(list).loading).toBe(false);
+    expect(
+      client.registry
+        .get(list)
+        .entries.find((entry) => entry.reviewId === reviewId),
+    ).toMatchObject({ group: 'Closed', archivable: true });
+  } finally {
+    release(Response.json(mergedPull));
+    stop();
+  }
+});
+
+const linkedReviewId = '40000000-0000-4000-8000-000000000001';
+function linkedReviewClient(pull: () => Promise<Response>) {
+  const inventory = inventoryAnswer(ids[0]!, 0);
+  const client = create(
+    (path) => {
+      if (path.endsWith('/pull-request')) return pull();
+      const answer = path.startsWith('/api/inventory')
+        ? inventory
+        : path.endsWith('/reviews')
+          ? [
+              {
+                reviewId: linkedReviewId,
+                projectId: inventory.projects[0]!.id,
+                branch: 'main',
+                state: 'open',
+                archived: false,
+                latestRevision: 1,
+                lastSeenRevision: 0,
+                pullRequest: 'https://github.com/example/project/pull/42',
+              },
+            ]
+          : path.endsWith('/marks')
+            ? { files: [], decisions: [] }
+            : { review: null, revision: null, revisions: [] };
+      return Promise.resolve(Response.json(answer));
+    },
+    undefined,
+    1000,
+    ids[0],
+  );
+  const connections = [client.connection];
+  const list = readReviewList(connections);
+  return { client, connections, list, stop: client.registry.mount(list) };
+}
+
+it('refreshes a main-checkout PR after an open read removes its review from the navigator', async () => {
+  let answer: ReadPullRequestResponse = {
+    ...mergedPull,
+    pullRequest: { ...mergedPull.pullRequest, state: 'open' },
+  };
+  let reads = 0;
+  const fixture = linkedReviewClient(() => {
+    reads++;
+    return Promise.resolve(Response.json(answer));
+  });
+  const snapshot = () => fixture.client.registry.get(fixture.list);
+  const refresh = () =>
+    fixture.client.registry.set(
+      refreshReviewList(fixture.connections),
+      undefined,
+    );
+  try {
+    await expect.poll(() => snapshot().loading).toBe(false);
+    expect(snapshot().entries.map((entry) => entry.group)).toEqual([
+      'Projects',
+    ]);
+    expect(reads).toBe(1);
+    answer = { kind: 'unavailable', reason: 'offline' };
+    refresh();
+    await expect
+      .poll(() => snapshot().messages)
+      .toEqual(['main: PR state unavailable: GitHub could not be reached.']);
+    expect(
+      snapshot().entries.find((entry) => entry.reviewId === linkedReviewId),
+    ).toMatchObject({ group: 'Needs you', closed: false });
+    answer = mergedPull;
+    refresh();
+    await expect
+      .poll(
+        () =>
+          snapshot().entries.find((entry) => entry.reviewId === linkedReviewId)
+            ?.archivable,
+      )
+      .toBe(true);
+    expect(
+      snapshot().entries.find((entry) => entry.reviewId === linkedReviewId),
+    ).toMatchObject({ group: 'Closed', closed: true, archivable: true });
+    expect(reads).toBe(3);
+  } finally {
+    fixture.stop();
+  }
+});

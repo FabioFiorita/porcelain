@@ -1,3 +1,4 @@
+import { PullRequestState } from './pull-request-state';
 import { ReviewBriefing } from './review-briefing';
 import { BriefingContinue } from './briefing-continue';
 import { briefingContinuation } from '../rules/briefing';
@@ -172,6 +173,12 @@ function PublishedContent({
       <Text variant="caption" tone="muted">
         Revision {review.revision}
       </Text>
+      {review.reviewId && (
+        <PullRequestState
+          connection={workspace.connection}
+          reviewId={review.reviewId}
+        />
+      )}
       <WalkthroughProgress stops={stops} progress={progress} />
       {review.diagnostics === 'unavailable' ? (
         <Text variant="ui">

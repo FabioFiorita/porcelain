@@ -50,6 +50,7 @@ import {
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
+  reviewPullRequestNotice,
   stopName,
   stopTitle,
   walkthroughStops,
@@ -420,9 +421,18 @@ function ReviewRevisionPage({
   const latestReview = Option.getOrUndefined(
     AsyncResult.value(useAtomValue(readReview(titleInput))),
   );
-  const pull = Option.getOrUndefined(
-    AsyncResult.value(useAtomValue(readReviewPullRequest(titleInput))),
-  );
+  const pullQuery = readReviewPullRequest(titleInput);
+  const pullResult = useAtomValue(pullQuery);
+  const retryPull = useAtomRefresh(pullQuery);
+  const pullValue = AsyncResult.isFailure(pullResult)
+    ? { kind: 'failed' as const }
+    : (Option.getOrUndefined(AsyncResult.value(pullResult)) ?? {
+        kind: 'loading' as const,
+      });
+  const pull = data.review?.pullRequest ? pullValue : undefined;
+  const pullNotice = data.review?.pullRequest
+    ? reviewPullRequestNotice(pull)
+    : undefined;
   const title = reviewListTitle(
     data.review ?? revision,
     latestReview?.revision ?? revision,
@@ -585,6 +595,22 @@ function ReviewRevisionPage({
           )}
         </h1>
       </header>
+      {pullNotice && (
+        <div className="px-4 py-2">
+          <ReviewNotice title={pullNotice}>
+            {pull?.kind !== 'loading' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pullResult.waiting}
+                onClick={retryPull}
+              >
+                Read pull request again
+              </Button>
+            )}
+          </ReviewNotice>
+        </div>
+      )}
       {currentScope && (
         <BranchTipNotice
           scope={currentScope}
@@ -787,6 +813,7 @@ function ReviewRevisionPage({
                                   revision,
                                   marks,
                                   status: worktree?.status,
+                                  pull,
                                 }),
                                 group: 'Closed',
                               }
@@ -794,6 +821,7 @@ function ReviewRevisionPage({
                                 revision,
                                 marks,
                                 status: worktree?.status,
+                                pull,
                               })
                         }
                         scope={scope}
