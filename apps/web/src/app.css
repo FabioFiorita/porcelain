@@ -156,10 +156,12 @@
 
 .workspace-choice[aria-pressed='true'],
 .workspace-choice[data-selected] {
-  background: var(--workspace-selected);
-  box-shadow:
+  background: var(--sidebar-row, var(--workspace-selected));
+  box-shadow: var(
+    --shadow-row,
     inset 0 0 0 1px var(--workspace-edge),
-    0 1px 2px var(--workspace-edge);
+    0 1px 2px var(--workspace-edge)
+  );
 }
 
 /* Settings composes the installed Item primitives into divided cards. */
