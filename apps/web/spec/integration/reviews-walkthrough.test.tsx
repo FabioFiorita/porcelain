@@ -13,7 +13,7 @@ test('the briefing keeps system owners and questions, the decisions open retaine
   await expect
     .element(
       review.getByRole('heading', {
-        name: '9 decisions shape this change',
+        name: /9 decisions shape this change\./,
         exact: true,
       }),
     )
