@@ -52,7 +52,7 @@ import {
   codeCommentStale,
 } from '../rules/retained-comments';
 import { ReviewNotice } from './review-notice';
-import { InlineComposer } from './inline-composer';
+import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -141,6 +141,7 @@ function CodeSurface({
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
+    draft: InlineCommentDraft;
   } | null>(null);
   const [selection, setSelection] = useState<CodeViewLineSelection | null>(
     null,
@@ -166,7 +167,11 @@ function CodeSurface({
   const openFileComment = (entry: CodeEntry | undefined) => {
     if (!entry?.comment) return;
     setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
-    setComposer({ id: entry.id, anchor: { ...entry.comment, kind: 'file' } });
+    setComposer({
+      id: entry.id,
+      anchor: { ...entry.comment, kind: 'file' },
+      draft: { body: '' },
+    });
     setSelection(null);
   };
   const closeComposer = () => {
@@ -323,7 +328,7 @@ function CodeSurface({
       }
       setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
       setRangeError(null);
-      setComposer({ id: entry.id, anchor });
+      setComposer({ id: entry.id, anchor, draft: { body: '' } });
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
@@ -535,13 +540,23 @@ function CodeSurface({
                 />
               );
             return note.kind === 'composer' ? (
-              <InlineComposer
-                key={JSON.stringify(note.anchor)}
-                scope={scope}
-                context={gitContext}
-                anchor={note.anchor}
-                onClose={closeComposer}
-              />
+              composer && composer.anchor === note.anchor && (
+                <InlineComposer
+                  key={JSON.stringify(note.anchor)}
+                  scope={scope}
+                  context={gitContext}
+                  anchor={note.anchor}
+                  draft={composer.draft}
+                  onDraftChange={(draft) =>
+                    setComposer((current) =>
+                      current?.anchor === note.anchor
+                        ? { ...current, draft }
+                        : current,
+                    )
+                  }
+                  onClose={closeComposer}
+                />
+              )
             ) : (
               <div
                 {...(threadMargin && note.lineNumber > 0

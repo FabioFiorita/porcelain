@@ -178,3 +178,66 @@ test('a deleted-line thread stays at file level when its step opens the retained
     )
     .toBeVisible();
 });
+
+test.for([
+  { size: 'short', body: 'Keep this draft while another discussion arrives.' },
+  {
+    size: 'long',
+    body: 'Keep this draft while another discussion arrives. '.repeat(60),
+  },
+])(
+  'a retained context draft survives incoming discussion and can still be posted ($size)',
+  async ({ body }, { agent, render, server }) => {
+    await agent.publishArchitecture();
+    const published = (await server.publishedReview()).review;
+    const layer = published?.layers[1];
+    if (!published?.reviewId || !published.headOid || !published.base || !layer)
+      throw new Error('The fixture must include a retained context decision');
+    const app = await render.route(
+      `/reviews/${published.reviewId}/1/decisions/${layer.id}`,
+    );
+    const context = app.page.getByRole('region', {
+      name: 'Existing code it relies on',
+      exact: true,
+    });
+    await context
+      .getByRole('button', {
+        name: /^Comment on packages\/workspace\/src\/actor\.ts/,
+      })
+      .click();
+    const draft = context.getByRole('textbox', {
+      name: 'Comment',
+      exact: true,
+    });
+    await draft.fill(body);
+    await agent.comment(
+      'packages/workspace/src/actor.ts',
+      'Another retained actor discussion',
+      {
+        reviewId: published.reviewId,
+        reviewRevision: published.revision,
+        anchor: {
+          kind: 'file',
+          filePath: 'packages/workspace/src/actor.ts',
+          revision: published.headOid,
+          comparison: { kind: 'branch', base: published.base },
+        },
+      },
+    );
+    await expect
+      .element(
+        context.getByText('Another retained actor discussion', { exact: true }),
+      )
+      .toBeVisible();
+    await expect.element(draft).toHaveValue(body);
+    await context.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect
+      .element(context.getByText(body, { exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(async () =>
+        JSON.stringify(await server.reviewComments(published.reviewId ?? '')),
+      )
+      .toContain(JSON.stringify(body));
+  },
+);
