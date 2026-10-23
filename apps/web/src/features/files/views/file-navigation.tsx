@@ -280,21 +280,30 @@ function ScopedFileNavigation({
           className="h-7 w-auto min-w-0 flex-1"
         />
         {hidden.size > 0 && (
-          <Button
-            size="icon-sm"
-            variant={showHidden ? 'secondary' : 'ghost'}
-            aria-pressed={showHidden}
-            aria-label={
-              showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
-            }
-            onClick={() => setShowHidden((current) => !current)}
-          >
-            {showHidden ? (
-              <EyeIcon className="text-muted-foreground" />
-            ) : (
-              <EyeOffIcon className="text-muted-foreground" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant={showHidden ? 'secondary' : 'ghost'}
+                  aria-pressed={showHidden}
+                  aria-label={
+                    showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
+                  }
+                  onClick={() => setShowHidden((current) => !current)}
+                />
+              }
+            >
+              {showHidden ? (
+                <EyeIcon className="text-muted-foreground" />
+              ) : (
+                <EyeOffIcon className="text-muted-foreground" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent>
+              {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
       {actionsTarget &&

@@ -7,6 +7,11 @@ import {
   ContextMenuContent,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import type { TreeAction } from '@porcelain/client/files/rules';
 import { FileTreeMenuList } from './file-tree-menu';
@@ -50,33 +55,47 @@ export function PinnedFiles({
               <ContextMenuTrigger
                 render={<li className="flex items-center gap-0.5" />}
               >
-                <button
-                  type="button"
-                  aria-current={path === selected ? 'page' : undefined}
-                  title={path}
-                  className={cn(
-                    'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
-                    path === selected && 'bg-accent',
-                  )}
-                  onClick={(event) => onOpen(path, event.altKey)}
-                >
-                  <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-                  <span className="shrink-0">{path.slice(separator)}</span>
-                  {separator > 0 && (
-                    <span className="truncate text-muted-foreground">
-                      {path.slice(0, separator - 1)}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-current={path === selected ? 'page' : undefined}
+                        className={cn(
+                          'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
+                          path === selected && 'bg-accent',
+                        )}
+                        onClick={(event) => onOpen(path, event.altKey)}
+                      />
+                    }
+                  >
+                    <FileTypeIcon path={path} className="size-3.5 shrink-0" />
+                    <span className="min-w-0 truncate">
+                      {path.slice(separator)}
                     </span>
-                  )}
-                </button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Unpin ${path}`}
-                  title="Unpin"
-                  onClick={() => onUnpin(path)}
-                >
-                  <PinOffIcon />
-                </Button>
+                    {separator > 0 && (
+                      <span className="min-w-0 shrink-[100] truncate text-muted-foreground">
+                        {path.slice(0, separator - 1)}
+                      </span>
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>{path}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        aria-label={`Unpin ${path}`}
+                        onClick={() => onUnpin(path)}
+                      />
+                    }
+                  >
+                    <PinOffIcon />
+                  </TooltipTrigger>
+                  <TooltipContent>Unpin</TooltipContent>
+                </Tooltip>
               </ContextMenuTrigger>
               <ContextMenuContent finalFocus={!openingSide}>
                 <FileTreeMenuList
