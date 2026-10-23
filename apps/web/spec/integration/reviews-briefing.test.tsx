@@ -123,9 +123,17 @@ test.for([414, 1080, 1440])(
       await expect
         .poll(() => reviewLayout.fitsViewport(briefing))
         .toEqual({ insideViewport: true, contentFits: true });
-      await briefing
-        .getByRole('button', { name: 'Continue at decision 1', exact: true })
-        .click();
+      const row = briefing.getByRole('button', {
+        name: new RegExp(`^1\\. ${title}(?: · .*)?$`, 'u'),
+      });
+      await expect.element(row).toHaveAccessibleName(`1. ${title} · ${lane}`);
+      reviewLayout.focus(row);
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect.element(row).toHaveFocus();
+      await expect
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(lane);
+      await userEvent.keyboard('{Enter}');
       const decision = app.page.getByRole('region', {
         name: `1. ${title}`,
         exact: true,
