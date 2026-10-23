@@ -44,4 +44,4 @@ Automated coverage: `settings-updates.spec.ts`, `settings-updates.spec.ts`.
 ## Gotchas
 
 - Phone Add computer opens a sheet; iPad opens the inline form. Cancel leaves saved computers unchanged.
-- Untrusted/unmanaged offers remain visible but are ineligible for Update all. The bundled Mac server updates through the Mac app.
+- Untrusted offers remain visible with zero eligible updates. Unmanaged computers retain their explanation in Computers but create no offer badge. The bundled Mac server updates through the Mac app.
