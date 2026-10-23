@@ -11,6 +11,7 @@ import {
   PlusIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,6 +23,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +86,7 @@ type Props = {
     anchor?: undefined,
     options?: { toSide?: boolean },
   ) => void;
+  actionsTarget: HTMLElement | null;
 };
 
 export function FileNavigation({
@@ -89,6 +96,7 @@ export function FileNavigation({
   selected,
   onOpen,
   sideLabel,
+  actionsTarget,
 }: Props) {
   const scopeKey = `${scope.projectId}:${scope.worktreeId}`;
   return (
@@ -100,6 +108,7 @@ export function FileNavigation({
       selected={selected}
       onOpen={onOpen}
       sideLabel={sideLabel}
+      actionsTarget={actionsTarget}
     />
   );
 }
@@ -111,6 +120,7 @@ function ScopedFileNavigation({
   selected,
   onOpen,
   sideLabel,
+  actionsTarget,
 }: Props) {
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
@@ -286,6 +296,12 @@ function ScopedFileNavigation({
             )}
           </Button>
         )}
+      </div>
+      {actionsTarget &&
+        createPortal(
+          <>
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex" />}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -293,7 +309,6 @@ function ScopedFileNavigation({
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Create file or folder"
-                title="Create file or folder"
                 disabled={edit.result.waiting}
               />
             }
@@ -323,16 +338,27 @@ function ScopedFileNavigation({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label={collapseLabel}
-          title={collapseLabel}
-          onClick={() => collapseAll()}
-        >
-          <ListChevronsUpDownIcon className="text-muted-foreground" />
-        </Button>
-      </div>
+          </TooltipTrigger>
+          <TooltipContent>Create file or folder</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={collapseLabel}
+                onClick={() => collapseAll()}
+              />
+            }
+          >
+            <ListChevronsUpDownIcon className="text-muted-foreground" />
+          </TooltipTrigger>
+          <TooltipContent>{collapseLabel}</TooltipContent>
+        </Tooltip>
+          </>,
+          actionsTarget,
+        )}
       <PinnedFiles
         paths={pinned}
         selected={selected}

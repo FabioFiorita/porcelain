@@ -110,7 +110,7 @@ function mountTree(
   }
   const model = new FileTree({
     paths: read().paths,
-    density: 'compact',
+    density: 'default',
     flattenEmptyDirectories: true,
     initialExpansion: 'closed',
     icons: treeIconsFor(read().links),
