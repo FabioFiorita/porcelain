@@ -25,6 +25,7 @@ export type RepoStep =
         | 'advance'
         | 'remove-repository';
       title: string;
+      asked?: string | undefined;
     }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }

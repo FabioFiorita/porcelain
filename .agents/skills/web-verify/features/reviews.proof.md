@@ -10,6 +10,7 @@ selectors:
   - "Attachments"
 tests:
   - apps/web/spec/integration/reviews-proof.test.tsx
+  - apps/desktop/src/rules/content-security-policy.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/review/proof
 ---
@@ -22,7 +23,7 @@ The checks and attachments the agent published with its review open as a Proof d
 
 - Review (sheet at phone width) → tab "Review" → nav "Walkthrough"'s proof row, named `Proof · <status>` (for example "Proof · 1 failing").
 - Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the same document.
-- The walkthrough's briefing: section "Evidence" → button "Open proof".
+- The walkthrough's briefing: section "Proven at <head>" shows all checks, output and image/video/link attachments directly, including stale-proof and failed-check notices. The Proof tab also remains available.
 - Inside a decision stop, the checks attached to that decision show in list "Checks for this decision" below its steps.
 
 ## Driving it with browser
@@ -49,3 +50,4 @@ Automated coverage: `reviews-proof.test.tsx`.
 ## Gotchas
 
 - Match status-dependent names: Proof · no checks / passed / all 2 passed / outdated. Wait beyond Loading image… for actual attachment bytes.
+- In Porcelain Dev's `porcelain://app` renderer, verify retained video bytes decode and play. The desktop media policy admits app/blob sources; a direct HTTP media URL must still produce a `media-src` refusal. HTTP-browser playback alone does not cover this policy.

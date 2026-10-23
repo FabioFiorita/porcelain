@@ -25,8 +25,9 @@ import {
 } from '../rules/comparison';
 import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
+import { useReviewNavigation } from '../store';
 import { ComparisonMenu } from './comparison-menu';
-import { PublishedReview } from './published-review';
+import { PublishedReview, PublishedReviewContinue } from './published-review';
 
 export function ReviewScreen() {
   return (
@@ -180,6 +181,7 @@ function ReviewNavigationList({
   overviewSelected: boolean;
   inlineOverview: boolean;
 }) {
+  const navigation = useReviewNavigation();
   const router = useRouter();
   const marks = useReviewMarks(workspace, snapshot);
   const commentsQuery = readCommentThreads({
@@ -194,98 +196,108 @@ function ReviewNavigationList({
     ? reviewFiles(snapshot, marks.result.value)
     : [];
   return (
-    <ScrollView
-      className="flex-1"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerClassName="grow gap-3 p-4"
-    >
-      {inlineOverview ? (
-        <ReviewOverview
-          workspace={workspace}
-          comparison={comparison}
-          onFile={onFile}
-        />
-      ) : (
-        <Item
-          title="Overview"
-          description={
-            snapshot.kind === 'worktree'
-              ? 'Agent explanation and proof'
-              : 'Branch comparison'
+    <Box className="flex-1">
+      <ScrollView
+        ref={(view) => navigation.scroll(view)}
+        className="flex-1"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="grow gap-3 p-4"
+      >
+        {inlineOverview ? (
+          <ReviewOverview
+            workspace={workspace}
+            comparison={comparison}
+            onFile={onFile}
+          />
+        ) : (
+          <Item
+            title="Overview"
+            description={
+              snapshot.kind === 'worktree'
+                ? 'Agent explanation and proof'
+                : 'Branch comparison'
+            }
+            leading={<Icon name="review" />}
+            selected={overviewSelected}
+            onPress={onOverview}
+          />
+        )}
+        <Button
+          label={
+            AsyncResult.isSuccess(comments)
+              ? `Comments · ${comments.value.filter((thread) => !thread.resolved).length} open`
+              : 'Comments'
           }
-          leading={<Icon name="review" />}
-          selected={overviewSelected}
-          onPress={onOverview}
+          variant="outline"
+          onPress={() =>
+            router.push({
+              pathname: '/review-comments',
+              params: {
+                ...reviewParams(workspace.key, comparison),
+                ...(anchor ? { anchor: JSON.stringify(anchor) } : {}),
+              },
+            })
+          }
         />
-      )}
-      <Button
-        label={
-          AsyncResult.isSuccess(comments)
-            ? `Comments · ${comments.value.filter((thread) => !thread.resolved).length} open`
-            : 'Comments'
-        }
-        variant="outline"
-        onPress={() =>
-          router.push({
-            pathname: '/review-comments',
-            params: {
-              ...reviewParams(workspace.key, comparison),
-              ...(anchor ? { anchor: JSON.stringify(anchor) } : {}),
-            },
-          })
-        }
-      />
-      {AsyncResult.isFailure(comments) ? (
-        <ReviewReadState result={comments} refresh={refreshComments} />
+        {AsyncResult.isFailure(comments) ? (
+          <ReviewReadState result={comments} refresh={refreshComments} />
+        ) : null}
+        {AsyncResult.isSuccess(marks.result) ? (
+          <>
+            <Text variant="caption" tone="muted">
+              Changed files · {files.length}
+            </Text>
+            {files.map((file) => (
+              <Item
+                key={file.path}
+                title={
+                  inlineOverview
+                    ? file.path
+                    : (file.path.split('/').at(-1) ?? file.path)
+                }
+                description={
+                  inlineOverview
+                    ? file.note
+                    : `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
+                }
+                leading={inlineOverview ? undefined : <FileIcon />}
+                size={inlineOverview ? 'default' : 'sm'}
+                selected={!inlineOverview && selectedPath === file.path}
+                accessibilityLabel={`Review ${file.path}`}
+                trailing={
+                  inlineOverview ? (
+                    <Badge
+                      label={reviewStatusLabel(file.reviewStatus)}
+                      variant="secondary"
+                    />
+                  ) : undefined
+                }
+                onPress={() => onFile(file.path)}
+              />
+            ))}
+            {files.length === 0 ? (
+              <Empty
+                title="No changes"
+                description={
+                  snapshot.kind === 'branch'
+                    ? 'This branch has no changed files against this base.'
+                    : 'This worktree has no uncommitted changes.'
+                }
+              />
+            ) : null}
+          </>
+        ) : (
+          <ReviewReadState result={marks.result} refresh={marks.refresh} />
+        )}
+      </ScrollView>
+      {inlineOverview && snapshot.kind === 'worktree' ? (
+        <PublishedReviewContinue
+          workspace={workspace}
+          snapshot={snapshot}
+          onContinue={navigation.scrollToStart}
+        />
       ) : null}
-      {AsyncResult.isSuccess(marks.result) ? (
-        <>
-          <Text variant="caption" tone="muted">
-            Changed files · {files.length}
-          </Text>
-          {files.map((file) => (
-            <Item
-              key={file.path}
-              title={
-                inlineOverview
-                  ? file.path
-                  : (file.path.split('/').at(-1) ?? file.path)
-              }
-              description={
-                inlineOverview
-                  ? file.note
-                  : `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
-              }
-              leading={inlineOverview ? undefined : <FileIcon />}
-              size={inlineOverview ? 'default' : 'sm'}
-              selected={!inlineOverview && selectedPath === file.path}
-              accessibilityLabel={`Review ${file.path}`}
-              trailing={
-                inlineOverview ? (
-                  <Badge
-                    label={reviewStatusLabel(file.reviewStatus)}
-                    variant="secondary"
-                  />
-                ) : undefined
-              }
-              onPress={() => onFile(file.path)}
-            />
-          ))}
-          {files.length === 0 ? (
-            <Empty
-              title="No changes"
-              description={
-                snapshot.kind === 'branch'
-                  ? 'This branch has no changed files against this base.'
-                  : 'This worktree has no uncommitted changes.'
-              }
-            />
-          ) : null}
-        </>
-      ) : (
-        <ReviewReadState result={marks.result} refresh={marks.refresh} />
-      )}
-    </ScrollView>
+    </Box>
   );
 }
 

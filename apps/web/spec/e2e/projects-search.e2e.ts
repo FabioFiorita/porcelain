@@ -330,7 +330,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
   await expect(projects).toHaveAttribute('aria-expanded', 'true');
-  await expect(sidebar).toHaveCSS('background-color', 'oklch(0.97 0 0)');
+  await expect(sidebar).toHaveCSS('background-color', 'rgb(243, 243, 244)');
   await expect(noReview).toHaveAttribute('aria-expanded', 'true');
   await projects.click();
   await expect(projects).toHaveAttribute('aria-expanded', 'false');
@@ -421,11 +421,14 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   await expect(status).toBeFocused();
   await row.click();
   await expect(
-    pairedPage.getByRole('heading', { name: 'Review', exact: true }),
+    pairedPage.getByRole('heading', {
+      name: 'Read one committed review after checkout cleanup 1 decision shapes this change.',
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     pairedPage.getByRole('heading', {
-      name: 'Recommendation Hold',
+      name: 'Recommendation: Hold',
       exact: true,
     }),
   ).toBeVisible();
@@ -485,7 +488,7 @@ for (const { width, colorScheme } of [
       await expect(
         footer.getByRole('button', { name: 'Computers', exact: true }),
       ).not.toBeAttached();
-      const topic = sidebar.getByRole('button', {
+      const topic = page.getByRole('button', {
         name: /^no-review-with-a-very-long-branch/,
       });
       await expect(topic).toHaveCSS('height', '40px');
@@ -495,6 +498,54 @@ for (const { width, colorScheme } of [
           { exact: true },
         ),
       ).toHaveCount(1);
+      await topic.click();
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await expect(topic).toHaveAttribute('aria-current', 'page');
+      await page.mouse.move(width - 1, 0);
+      await sidebar
+        .getByRole('searchbox', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        })
+        .focus();
+      await expect(sidebar).toHaveCSS(
+        'background-color',
+        colorScheme === 'dark' ? 'rgb(11, 11, 12)' : 'rgb(243, 243, 244)',
+      );
+      const review = sidebar.getByRole('link', { name: /decisions reviewed/ });
+      const progress = review.getByLabel('0 of 1 decisions reviewed', {
+        exact: true,
+      });
+      await expect(progress).toHaveCSS(
+        'color',
+        colorScheme === 'dark' ? 'rgb(160, 160, 168)' : 'rgb(98, 98, 107)',
+      );
+      await sidebar
+        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .click();
+      await page
+        .getByRole('menuitem', { name: 'Worktrees', exact: true })
+        .click();
+      await page.getByRole('menuitemradio', { name: /durable-review/ }).click();
+      if (width === 414)
+        await page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      await page.mouse.move(width - 1, 0);
+      await sidebar
+        .getByRole('searchbox', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        })
+        .focus();
+      await expect(review).toHaveAttribute('aria-current', 'page');
+      await expect(progress).toHaveCSS(
+        'color',
+        colorScheme === 'dark' ? 'rgb(126, 164, 255)' : 'rgb(43, 95, 217)',
+      );
       const status = sidebar.getByRole('button', {
         name: 'Review status: Read one committed review after checkout cleanup',
         exact: true,

@@ -144,6 +144,13 @@ export function threadStateLabel(thread: CommentThread): string {
   }
 }
 
+export function questionAnswer(question: string, answer: string): string {
+  return `${question
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n')}\n\n${answer}`;
+}
+
 export function commentBodyValid(body: string) {
   return (
     body.trim().length > 0 &&
