@@ -29,7 +29,7 @@ test.runIf(process.platform === 'darwin')(
     const simulatorCount = await simulators();
     const first = await bootSimulator('iphone', owner);
     expect(await simulators()).toBe(simulatorCount);
-    expect(['iPhone 17', 'iPhone 18 Pro']).toContain(first.name);
+    expect(first.name).toBe('iPhone');
     let active = true;
     onTestFinished(async () => {
       if (active) await releaseSimulator(first);
