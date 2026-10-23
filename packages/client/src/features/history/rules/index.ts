@@ -11,7 +11,9 @@ export {
   commitEntry,
   shortOid,
   refLabel,
+  shownRefs,
   historyHeading,
   historyBoundary,
+  branchTracking,
 } from './presentation.ts';
 export { type HistoryScope } from './connection.ts';

@@ -22,7 +22,7 @@ Editing a file in the browser writes it to disk: after a 3 second pause in typin
 
 ## How to get to it (user POV)
 
-- Review (phone) or the review sidebar (desktop) → Files tab → right-click a changed file → Open file → Edit (pencil button in the file toolbar; its label is "Resume edit" when an unsaved draft is kept).
+- Review (phone) → Files tab, or the rail's Files button (desktop) → right-click a changed file → Open file → Edit (pencil button in the file toolbar; its label is "Resume edit" when an unsaved draft is kept).
 - For an unchanged file the tree menu item is "Open" instead of "Open file"; a single click on a changed (non-image, non-HTML) file opens its diff, not the file.
 - In the editor: `Mod+S` saves now; Done saves and leaves the editor; closing the tab (`Close <name>` on the tab, or `Alt+W`) saves; moving focus out of the editor saves.
 

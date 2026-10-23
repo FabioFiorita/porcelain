@@ -17,7 +17,7 @@ function useCommentWrite<Input, A, E>(command: Atom.AtomResultFn<Input, A, E>) {
 export function useVisibleComments(
   scope: ReviewScope,
   context: ConnectionContext,
-  filter: 'open' | 'resolved',
+  filter: 'open' | 'resolved' | undefined,
 ) {
   const owner = useId();
   useAtomMount(
@@ -105,7 +105,13 @@ export function useDeleteResolvedComments(
   context: ConnectionContext,
 ) {
   const [result, send] = useAtom(
-    commentCommands({ scope, connection: context.connection }).removeResolved,
+    scope.review
+      ? reviewCommands({
+          reviewId: scope.review.reviewId,
+          connection: context.connection,
+        }).deleteResolved
+      : commentCommands({ scope, connection: context.connection })
+          .removeResolved,
   );
   return { result, send, reset: () => send(Atom.Reset) };
 }

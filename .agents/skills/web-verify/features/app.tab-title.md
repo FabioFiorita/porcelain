@@ -22,7 +22,7 @@ The browser tab (document title) names what is shown: the open document, or the 
 
 ## How to get to it (user POV)
 
-- It follows every navigation in the workspace: opening a document tab (Changes list, Files tree, History list), switching tabs, switching surface with the sidebar tabs or `Alt+1` / `Alt+2` / `Alt+3`, opening Settings.
+- It follows every navigation in the workspace: opening a document tab (Changes list, Files tree, History list), switching tabs, switching surface with the sheet's tabs, the rail's buttons or `Alt+1` / `Alt+2` / `Alt+3`, opening Settings.
 - Read the browser document title after each settled step, using the selected driver.
 
 ## Driving it with browser
