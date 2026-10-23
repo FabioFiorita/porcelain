@@ -124,12 +124,18 @@ function ReviewWorkspaceContent({
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
+  const defaultEntry =
+    Boolean(published.review) ||
+    (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
+      0
+      ? entryKey({ kind: 'handoff' })
+      : null;
   const layout = useTabLayout({
     worktreeId: worktree.id,
     entry: search.entry,
     side: search.side,
     onSearch,
-    fallback: entryKey({ kind: 'handoff' }),
+    fallback: defaultEntry,
     focused: focusedPane,
     setFocused: setFocusedPane,
     ready,

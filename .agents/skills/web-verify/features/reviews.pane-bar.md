@@ -39,6 +39,7 @@ Each pane has one 48px bar. Review, or Changes without a publication, stays firs
 ## Gotchas
 
 - A duplicated Review remains permanent in its pane. Use the tab context menu’s Close pane to collapse a split without closing the primary Review.
+- A fresh empty worktree displays Changes without adding a default-document navigation to its address.
 - Review/Changes cannot be unpinned or removed by Close others or Close unpinned. Previously saved empty primary panes acquire this tab.
 - The existing right panel and sheet behavior is unchanged. Open documents from that sheet closes it and returns focus to the document.
 - Desktop uses this same renderer; native bridge proof belongs to desktop verification.

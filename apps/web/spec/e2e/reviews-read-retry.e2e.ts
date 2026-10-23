@@ -197,3 +197,21 @@ test('restoring an empty saved layout brings back the permanent Changes tab', as
   ).not.toBeAttached();
   await waitChanges(pairedPage);
 });
+
+test('an empty worktree opens Changes without another navigation', async ({
+  page,
+  app,
+  repo,
+}) => {
+  await repo.commit('Settle the sample change');
+  await app.open(await app.link('this'));
+  await expect(
+    page
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByRole('tab', { name: 'Changes', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('0 files', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => new URLSearchParams(app.address().query).get('entry'))
+    .toBeNull();
+});
