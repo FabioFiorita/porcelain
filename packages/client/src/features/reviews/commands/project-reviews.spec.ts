@@ -54,3 +54,49 @@ it.each([false, true])(
     ]);
   },
 );
+
+it('marks each file in order and stops at the first file that fails', async () => {
+  const sent: unknown[] = [];
+  const subject = create((path, init) => {
+    expect(path).toBe(`/api/reviews/${reviewId}/marks`);
+    const body = init?.body;
+    const payload: unknown =
+      body instanceof Uint8Array
+        ? JSON.parse(new TextDecoder().decode(body))
+        : null;
+    sent.push(payload);
+    const refused =
+      typeof payload === 'object' &&
+      payload !== null &&
+      'path' in payload &&
+      payload.path === 'moved.ts';
+    return Promise.resolve(
+      Response.json(
+        refused ? { message: 'The selected blob changed' } : { updated: true },
+        { status: refused ? 409 : 200 },
+      ),
+    );
+  });
+  const command = reviewCommands({
+    connection: subject.connection,
+    reviewId,
+  }).markFiles;
+  subject.registry.set(command, {
+    revision: 3,
+    files: [
+      { path: 'row.tsx', headBlobOid: 'b'.repeat(40) },
+      { path: 'moved.ts', headBlobOid: 'c'.repeat(40) },
+      { path: 'never.css', headBlobOid: 'd'.repeat(40) },
+    ],
+  });
+  await expect(readClientAtom(subject.registry, command)).rejects.toThrow();
+  expect(sent).toEqual([
+    { kind: 'file', revision: 3, path: 'row.tsx', headBlobOid: 'b'.repeat(40) },
+    {
+      kind: 'file',
+      revision: 3,
+      path: 'moved.ts',
+      headBlobOid: 'c'.repeat(40),
+    },
+  ]);
+});

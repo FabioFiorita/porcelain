@@ -54,6 +54,16 @@ export function createPierreFileOptions(
   };
 }
 
+export const PIERRE_MARGIN_THREAD_CSS = `
+code {
+  contain: none !important;
+}
+[data-line-annotation],
+[data-annotation-content] {
+  position: static !important;
+}
+`;
+
 export const PIERRE_COMMENT_CSS = `
 [data-line-annotation] {
   margin-left: calc(-1 * var(--diffs-column-number-width, 0px));

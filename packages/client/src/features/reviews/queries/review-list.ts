@@ -5,6 +5,8 @@ import { readInventory } from '../../projects/queries/inventory.ts';
 import type { Project } from '../../projects/rules/inventory.ts';
 import { worktreeLabel } from '../../projects/rules/inventory.ts';
 import {
+  reviewArchivable,
+  reviewClosed,
   reviewListStatus,
   reviewListTitle,
   type ReviewListEntry,
@@ -69,10 +71,7 @@ export const readReviewList = Atom.family(
                 worktreeLabel(row.branch) === record.branch &&
                 (!revision || row.path === revision.worktreePath),
             );
-            const closed =
-              record.archived === true ||
-              record.state === 'closed' ||
-              (pull?.kind === 'available' && pull.pullRequest.state !== 'open');
+            const closed = reviewClosed(record, pull);
             if (worktree && !closed) reviewedWorktrees.add(worktree.id);
             if (!closed && worktree?.main) continue;
             if (
@@ -97,10 +96,7 @@ export const readReviewList = Atom.family(
               ),
               closed,
               archived: record.archived === true,
-              archivable:
-                !record.archived &&
-                pull?.kind === 'available' &&
-                pull.pullRequest.state !== 'open',
+              archivable: reviewArchivable(record, pull),
               publishedAt: revision?.publishedAt,
               pullRequestNumber: record.pullRequest
                 ?.split('/')
