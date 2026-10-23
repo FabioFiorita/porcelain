@@ -255,9 +255,13 @@ for (const moved of [false, true])
         body: 'On decision 1: keep one owner.',
       });
       expect(thread.review).toMatchObject({ reviewId, revision: 1 });
+      const reader = await connection(server, session);
       expect(
-        await nativeRead(
-          readCommentThreads({ scope: commentScope, connection: connected }),
+        await reader.read(
+          readCommentThreads({
+            scope: commentScope,
+            connection: reader.connected,
+          }),
         ),
       ).toContainEqual(thread);
       const target = threadWriteTarget(thread);
