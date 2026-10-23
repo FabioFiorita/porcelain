@@ -170,9 +170,16 @@ export function DocumentTabs({
                   '[role="tab"][aria-selected="true"]',
                 )
                 ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-            const observer = new ResizeObserver(reveal);
+            let frame = 0;
+            const observer = new ResizeObserver(() => {
+              cancelAnimationFrame(frame);
+              frame = requestAnimationFrame(reveal);
+            });
             observer.observe(viewport);
-            return () => observer.disconnect();
+            return () => {
+              cancelAnimationFrame(frame);
+              observer.disconnect();
+            };
           }}
         >
           <div
