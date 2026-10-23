@@ -356,62 +356,47 @@ it.each([
   },
 );
 
-it('marks a successful service check as waiting until its refresh settles', async () => {
-  let reads = 0;
-  const refresh = Promise.withResolvers<void>();
-  const arrived = Promise.withResolvers<void>();
-  const { connection, registry } = fixture(async () => {
-    reads += 1;
-    if (reads === 2) {
-      arrived.resolve();
-      await refresh.promise;
-    }
-    return Response.json(offered);
-  });
-  const atom = readServiceUpdate(connection);
-  registry.mount(atom);
-  await Effect.runPromise(AtomRegistry.getResult(registry, atom));
-  registry.refresh(atom);
-  try {
-    await arrived.promise;
-    expect(registry.get(atom).waiting).toBe(true);
-    expect(serviceUpdateSnapshot(registry.get(atom))).toEqual({
-      ...offered,
-      last: undefined,
+it.each([
+  { history: 'successful', failedBeforeRefresh: false },
+  { history: 'failed', failedBeforeRefresh: true },
+])(
+  'marks a $history service check as waiting until its refresh settles',
+  async ({ failedBeforeRefresh }) => {
+    let reads = 0;
+    const pendingRead = failedBeforeRefresh ? 3 : 2;
+    const refresh = Promise.withResolvers<void>();
+    const arrived = Promise.withResolvers<void>();
+    const { connection, registry } = fixture(async () => {
+      reads += 1;
+      if (failedBeforeRefresh && reads === 2)
+        return new Response(null, { status: 503 });
+      if (reads === pendingRead) {
+        arrived.resolve();
+        await refresh.promise;
+      }
+      return Response.json(offered);
     });
-  } finally {
-    refresh.resolve();
-  }
-  await expect.poll(() => registry.get(atom).waiting).toBe(false);
-  expect(reads).toBe(2);
-});
-
-it('marks a failed service check as waiting until its retry settles', async () => {
-  let reads = 0;
-  const retry = Promise.withResolvers<void>();
-  const arrived = Promise.withResolvers<void>();
-  const { connection, registry } = fixture(async () => {
-    reads += 1;
-    if (reads === 2) return new Response(null, { status: 503 });
-    if (reads === 3) {
-      arrived.resolve();
-      await retry.promise;
+    const atom = readServiceUpdate(connection);
+    registry.mount(atom);
+    await Effect.runPromise(AtomRegistry.getResult(registry, atom));
+    if (failedBeforeRefresh) {
+      registry.refresh(atom);
+      await expect
+        .poll(() => AsyncResult.isFailure(registry.get(atom)))
+        .toBe(true);
     }
-    return Response.json(offered);
-  });
-  const atom = readServiceUpdate(connection);
-  registry.mount(atom);
-  await Effect.runPromise(AtomRegistry.getResult(registry, atom));
-  registry.refresh(atom);
-  await expect.poll(() => AsyncResult.isFailure(registry.get(atom))).toBe(true);
-  registry.refresh(atom);
-  try {
-    await arrived.promise;
-    expect(registry.get(atom).waiting).toBe(true);
-  } finally {
-    retry.resolve();
-  }
-  await expect.poll(() => AsyncResult.isSuccess(registry.get(atom))).toBe(true);
-  expect(registry.get(atom).waiting).toBe(false);
-  expect(reads).toBe(3);
-});
+    registry.refresh(atom);
+    try {
+      await arrived.promise;
+      expect(registry.get(atom).waiting).toBe(true);
+      expect(serviceUpdateSnapshot(registry.get(atom))).toEqual(
+        failedBeforeRefresh ? undefined : { ...offered, last: undefined },
+      );
+    } finally {
+      refresh.resolve();
+    }
+    await expect.poll(() => registry.get(atom).waiting).toBe(false);
+    expect(AsyncResult.isSuccess(registry.get(atom))).toBe(true);
+    expect(reads).toBe(pendingRead);
+  },
+);
