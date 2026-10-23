@@ -5,10 +5,8 @@ selectors:
   - "Branch"
   - "Uncommitted"
   - " · on the branch"
-  - "Mark reviewed"
-  - "Unmark "
-  - " as unreviewed"
-  - "Comment on "
+  - "Reviewed"
+  - "Document controls"
   - "Comment"
   - "Waiting for the agent"
 tests:
@@ -36,7 +34,7 @@ The branch review lists every file committed on the checked-out branch since it 
 ## How to get to it (user POV)
 
 - Workspace → button "Review" → tab "Changes" → tab "Branch" (next to "Uncommitted"; the address gains `scope=branch`) → button "<file> · <status>" opens that file's branch diff (`entry=branch:<path>`); button "All branch changes" opens every file.
-- In the file's document: toolbar button "Mark <file> as reviewed" (text "Mark reviewed"), and button "Comment on <file> (<status>)" in the diff header.
+- In the file's document: Document controls toolbar buttons "Reviewed" (R) and "Comment" (C).
 - Right-click a file row → menu "Mark as reviewed", "Comment", "Open diff", "Open file", "Show timeline", "Copy relative path".
 
 ## Driving it with browser
@@ -65,12 +63,12 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 
 ### 2. Marking it reviewed keeps the mark in the branch review
 
-5. Click text 'Mark reviewed'
-   Expect: the toolbar button reads "Reviewed"; the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]`, enabled. `$C server reviewed-files refs/heads/feature` lists notes.md; `$C server reviewed-files` (the uncommitted review) lists none.
+5. Click `Reviewed` in the Document controls toolbar
+   Expect: the toolbar’s `Reviewed` button is pressed and enabled. `$C server reviewed-files refs/heads/feature` lists notes.md; `$C server reviewed-files` (the uncommitted review) lists none.
 
 ### 3. A comment on it is saved against the branch
 
-6. Click button `Comment on notes.md (added)`
+6. Click `Comment` in the Document controls toolbar
    Expect: textbox "Comment"; button "Comment" disabled.
 7. Fill textbox `Comment` with 'Why a second line?'
    Expect: button "Comment" enabled.
@@ -85,5 +83,5 @@ Automated coverage: `changes-review-branch.test.tsx`, `changes-branch-marks.test
 
 ## Gotchas
 
-- Scope duplicate Mark notes.md as reviewed controls to toolbar, or use Branch row menu. add --all includes initial README; clean Uncommitted is expected.
+- Use the Document controls toolbar for Reviewed and Comment, or the Branch row menu for its corresponding actions. add --all includes initial README; clean Uncommitted is expected.
 - Setup leaves feature, marks and comments; reset before another map.

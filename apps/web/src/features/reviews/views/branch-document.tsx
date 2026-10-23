@@ -1,3 +1,5 @@
+import { HistoryIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
@@ -20,7 +22,7 @@ import {
 import { shortOid } from '@porcelain/client/history/rules';
 import type { CodeEntry } from '../adapters/code-entries';
 import { useReviewedMarks } from '../queries/reviewed';
-import type { DocumentInteraction } from '../rules/documents';
+import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import {
   basename,
   type BranchChangeItem,
@@ -44,6 +46,7 @@ type Props = {
   context: ConnectionContext;
   interaction: DocumentInteraction;
   base: string | undefined;
+  onOpen: OpenDocument;
 };
 
 export function BranchDocument(props: Props) {
@@ -63,6 +66,7 @@ function BranchCode({
   interaction,
   base,
   path,
+  onOpen,
 }: Props & { path: string | undefined }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
@@ -96,6 +100,7 @@ function BranchCode({
         scope={scope}
         context={context}
         interaction={interaction}
+        onOpen={onOpen}
         branch={changes.result.value}
         path={path}
       />
@@ -117,7 +122,9 @@ function BranchMarkedCode({
   interaction,
   branch,
   path,
+  onOpen,
 }: {
+  onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -146,6 +153,7 @@ function BranchMarkedCode({
       scope={scope}
       context={context}
       interaction={interaction}
+      onOpen={onOpen}
       range={range}
       items={items}
       single={path !== null && path !== undefined}
@@ -168,7 +176,9 @@ function BranchDiffs({
   items,
   single,
   branch,
+  onOpen,
 }: {
+  onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -250,6 +260,15 @@ function BranchDiffs({
         context={context}
         interaction={interaction}
         range={range}
+        headerActions={
+          single && first ? (
+            <BarAction
+              label="Timeline"
+              icon={HistoryIcon}
+              onClick={() => onOpen({ kind: 'timeline', path: first.path })}
+            />
+          ) : undefined
+        }
         {...(interaction.reveal?.compose
           ? { commentRequest: interaction.reveal.nonce }
           : {})}
@@ -257,6 +276,8 @@ function BranchDiffs({
         toolbar={(collapseControl) =>
           single && first ? (
             <DocumentToolbar
+              target={interaction.toolbarTarget}
+              barActions={null}
               title={basename(first.path)}
               subtitle={`${first.path} · on the branch`}
             >
@@ -264,6 +285,8 @@ function BranchDiffs({
             </DocumentToolbar>
           ) : (
             <DocumentToolbar
+              target={interaction.toolbarTarget}
+              barActions={null}
               title="Branch"
               subtitle={`${items.length} ${items.length === 1 ? 'file' : 'files'} changed`}
             >

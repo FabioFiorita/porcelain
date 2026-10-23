@@ -88,7 +88,7 @@ Required instance mode: `--desktop`.
 
 8. `$C agent publish-review "Remote review layer" --remote --summary-html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`
    Expect: "the agent's publish-review reached the server".
-9. Click tab `Review Close Review`, then navigate to `$REMOTE_PAGE`
+9. Click tab `Review`, then navigate to `$REMOTE_PAGE`
    Expect: the handoff tab "Review" shows region "Review walkthrough" with tab "Walkthrough" selected. Click the "Agent summary" tab; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP traffic lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
 10. Click link named `Open remote layer` inside frame 'Review summary'
     Expect: tab "Walkthrough" selected again and region "1. Remote review layer" visible; URL still `…?entry=handoff`; title "Changes — remote-sample · Remote journey computer".

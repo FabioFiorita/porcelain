@@ -154,7 +154,7 @@ function Workspace({ connection }: { connection: Connection }) {
   const worktree = project?.worktrees.find((entry) => entry.main);
   if (project === undefined || worktree === undefined) return null;
   return (
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-svh min-h-0 w-full flex-col">
       <ReviewWorkspace
         worktree={worktree}
         projectId={project.id}
@@ -455,7 +455,7 @@ export const test = base
             );
             await mounted.router.invalidate({ sync: true });
           },
-          location: () => mounted.router.state.location.href,
+          location: () => mounted.router.state.resolvedLocation?.href ?? '',
           title: () => document.title,
           pendingDestination: () =>
             sessionStorage.getItem('porcelain.pairing.destination'),

@@ -80,7 +80,8 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
     )
     .toBeVisible();
   await workspace
-    .getByRole('tab', { name: 'Review Close Review', exact: true })
+    .getByRole('tablist', { name: 'Open documents', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
     .click({ button: 'right' });
   await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
   const right = workspace.getByRole('region', {
@@ -91,9 +92,7 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
     name: 'Left pane',
     exact: true,
   });
-  await right
-    .getByRole('tab', { name: 'Review Close Review', exact: true })
-    .click();
+  await right.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect
     .poll(() => tabShortcuts.registered(['N', 'P', 'R']))
     .toEqual([
@@ -110,9 +109,7 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
       }),
     )
     .toBeVisible();
-  await left
-    .getByRole('tab', { name: 'Review Close Review', exact: true })
-    .click();
+  await left.getByRole('tab', { name: 'Review', exact: true }).click();
   await userEvent.keyboard('p');
   await expect
     .element(
@@ -129,4 +126,18 @@ test('split published reviews keep one walkthrough shortcut owner as focus chang
       ['P', 'error'],
       ['R', 'error'],
     ]);
+  await right
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Close pane', exact: true })
+    .click();
+  await expect.element(right).not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace
+        .getByRole('tablist', { name: 'Open documents', exact: true })
+        .getByRole('tab', { name: 'Review', exact: true }),
+    )
+    .toBeVisible();
 });

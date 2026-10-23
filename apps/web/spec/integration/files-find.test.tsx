@@ -29,7 +29,7 @@ test('finding in a long file brings a match far below the fold into view in the 
   await expect
     .element(
       workspace.getByRole('tab', {
-        name: 'long.txt Close long.txt',
+        name: 'long.txt',
         exact: true,
       }),
     )

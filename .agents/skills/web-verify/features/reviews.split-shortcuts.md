@@ -36,13 +36,13 @@ Opening the split registers the tab shortcuts once; development builds reject du
 1. Navigate to `/`, then click button `Review`, then click tab `Files`
    Expect: in the dialog, treeitem "README.md".
 2. Right-click treeitem `README.md`, then click menuitem `Open file`
-   Expect: the sheet closes; tab "README.md Close README.md" selected in tablist "Open documents".
+   Expect: the sheet closes; tab "README.md" selected in tablist "Open documents".
 3. Right-click tab `/README.md/`, then click menuitem `/Open to the side/`
-   Expect: regions "Left pane" and "Right pane"; tablists "Open documents, left pane" (tabs "Changes Close Changes", "README.md Close README.md") and "Open documents, right pane" (tab "README.md Close README.md"). URL carries `side=`.
+   Expect: regions "Left pane" and "Right pane"; tablists "Open documents, left pane" (tabs "Changes", "README.md") and "Open documents, right pane" (tab "README.md"). URL carries `side=`.
 4. Click button `Review`, then press `Escape`
    Expect: the sheet opens and closes; focus returns to the "Review" button, which only the right pane shows while split, so the right pane is now focused.
 5. Press `Alt+w`
-   Expect: regions "Left pane" and "Right pane" gone; one tablist "Open documents" with tabs "Changes Close Changes" and "README.md Close README.md" (the left pane's README.md tab survived).
+   Expect: regions "Left pane" and "Right pane" gone; one tablist "Open documents" with tabs "Changes" and "README.md" (the left pane's README.md tab survived).
 6. Inspect console
    Expect: no hotkey conflict errors.
 

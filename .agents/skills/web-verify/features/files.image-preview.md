@@ -41,7 +41,7 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitems "logo.svg", "pixel.png" and "data.bin".
 2. Click treeitem `logo.svg`
-   Expect: the sheet closes; tab "logo.svg Close logo.svg" selected; heading "logo.svg"; img "logo.svg"; buttons "Timeline" and "Copy path" (no "Edit"). The screenshot shows a teal square.
+   Expect: the sheet closes; tab "logo.svg" selected; heading "logo.svg"; img "logo.svg"; buttons "Timeline" and "Copy path" (no "Edit"). The screenshot shows a teal square.
 3. Click button `Review`, then click treeitem named `pixel.png`
    Expect: img "pixel.png" (a 1 by 1 pixel PNG).
 4. Inspect HTTP traffic
@@ -52,7 +52,7 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 1. Click button `Review`, then right-click treeitem named `data.bin`
    Expect: menuitems "Open diff" and "Open file".
 2. Click menuitem `Open file`
-   Expect: tab "data.bin Close data.bin" selected; heading "data.bin"; the text "Not shown" with "This file is binary or uses an unsupported text encoding." under it; no button "Edit".
+   Expect: tab "data.bin" selected; heading "data.bin"; the text "Not shown" with "This file is binary or uses an unsupported text encoding." under it; no button "Edit".
 3. Inspect HTTP traffic
    Expect: `GET /api/worktrees/<id>/text?path=data.bin` answered 422.
 

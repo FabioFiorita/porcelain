@@ -13,6 +13,14 @@ export const reviewLayout = {
   focus(locator: Locator) {
     locator.element().focus();
   },
+  tabInsideStrip(locator: Locator) {
+    const tab = locator.element();
+    const viewport = tab.closest('[role="tablist"]')?.parentElement;
+    if (!viewport) return false;
+    const chip = tab.getBoundingClientRect();
+    const visible = viewport.getBoundingClientRect();
+    return chip.left >= visible.left - 1 && chip.right <= visible.right + 1;
+  },
   titleLines(locator: Locator) {
     const title = locator.element();
     const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);

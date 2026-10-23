@@ -25,6 +25,13 @@ test.for(['keyboard', 'toolbar'] as const)(
     await expect
       .element(stop.getByText('Reviewed', { exact: true }))
       .toBeVisible();
+    await expect
+      .element(
+        workspace
+          .getByRole('tablist', { name: 'Open documents', exact: true })
+          .getByRole('tab', { name: 'Review', exact: true }),
+      )
+      .toHaveTextContent('Review1/1');
     if (entry === 'keyboard') await userEvent.keyboard('r');
     else
       await stop
@@ -39,6 +46,13 @@ test.for(['keyboard', 'toolbar'] as const)(
     await expect
       .element(stop.getByText('Reviewed', { exact: true }))
       .not.toBeInTheDocument();
+    await expect
+      .element(
+        workspace
+          .getByRole('tablist', { name: 'Open documents', exact: true })
+          .getByRole('tab', { name: 'Review', exact: true }),
+      )
+      .toHaveTextContent('Review0/1');
     await stop
       .getByRole('button', { name: 'Mark decision reviewed', exact: true })
       .click();

@@ -8,6 +8,7 @@ selectors:
   - "The agent reads this when you ask it to check its comments."
 tests:
   - apps/web/spec/integration/reviews-comment.test.tsx
+  - apps/web/spec/integration/reviews-retained-comments.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
@@ -52,6 +53,12 @@ Preconditions: [surface baseline](README.md).
 Reload: Please explain this change persists in Comment thread under README. Exactly one comment POST/200.
 
 Automated coverage: `reviews-comment.test.tsx`.
+
+## Retained context code
+
+Publish a decision with changed code and an unchanged context step (`agent publish-architecture` includes `packages/workspace/src/actor.ts`). Open a decision and its `Existing code it relies on` section. Post a whole-file comment from the file header, then a selected-line comment from the gutter. Both must save without an anchor error. Through MCP, list comments with `reviewId`, reply and resolve; the anchors keep the selected head and branch base, and the thread keeps its review revision after another publication.
+
+Repeat at 1440 and 414 in light and dark. A failed request keeps the draft and retry posts one thread. Ordinary worktree branch comments retain their existing matching behavior.
 
 ## Gotchas
 

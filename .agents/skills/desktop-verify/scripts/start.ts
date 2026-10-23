@@ -5,9 +5,10 @@ import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { ownerStatus } from '@porcelain/server/kit/owner';
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync } from 'node:fs';
-import { cp, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verificationEnvironment } from '../../verify-core/environment.ts';
 import { buildFingerprint } from '../../verify-core/fingerprint.ts';
 import { _electron } from 'playwright';
 import { freePort, onPath } from '../../verify-core/cli.ts';
@@ -80,6 +81,7 @@ export async function startDesktop(input: {
   folder: string;
   evidenceDirectory: string;
   sourceFingerprint?: string;
+  codingToolDirectory?: string;
   own?: (pid: number) => void;
   onStop?: (stop: () => Promise<void>) => void;
 }) {
@@ -155,6 +157,12 @@ export async function startDesktop(input: {
       projectHome: repositoryPath,
       switches: [`--remote-debugging-port=${port}`],
     });
+    const home = join(workspace, 'home');
+    await mkdir(home);
+    options.env = verificationEnvironment(
+      { ...options.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config') },
+      input.codingToolDirectory,
+    );
     const launchOptionsFile = join(input.folder, 'electron-launch.json');
     await writeFile(
       launchOptionsFile,
