@@ -413,7 +413,7 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
     pairedPage.getByText('Agent says hold', { exact: true }),
   ).toBeVisible();
   await status.press('Escape');
-  await expect(pairedPage.getByRole('tooltip')).not.toBeVisible();
+  await expect(pairedPage.getByRole('tooltip')).toHaveCount(0);
   await expect(status).toBeFocused();
   await row.click();
   await expect(
