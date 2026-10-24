@@ -67,13 +67,13 @@ Preconditions: [surface baseline](README.md).
 8. On disk: `printf 'A note the review leaves out.\n' > "$REPO/notes.md"`, then wait for button `0 of 2 files reviewed`
    Expect: line "0 of 2 files reviewed".
 9. `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`, then wait for button `1 of 2 checks failing`
-   Expect: lines "0 of 2 files reviewed", "1 mark changed since reviewed", "1 line in 1 file not explained", "1 comment waiting on the agent" and "1 of 2 checks failing"; header button "Readiness 5 things to check".
+   Expect: lines "No changed files", "No marks went stale", "2 lines in 2 files not explained", "1 comment waiting on the agent" and "1 of 2 checks failing"; header button "Readiness 3 things to check". Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
 10. Click button `1 of 2 checks failing`
     Expect: the sheet closes; title "Proof — repository"; region "Proof" with heading "Proof" and alert "1 check failed The agent reported this work as not passing yet.".
 
 ### Observable proof
 
-Check each readiness line/count ending at 5 things to check; comment POST/mark PUT answer 200.
+Check each readiness line/count: 5 things before publication, then 3 after the committed review and proof; comment POST/mark PUT answer 200.
 
 Automated coverage: `reviews-readiness.test.tsx`.
 
