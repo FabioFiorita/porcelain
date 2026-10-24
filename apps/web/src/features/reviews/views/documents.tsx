@@ -301,6 +301,7 @@ function ChangeDocument({
                 <Button
                   variant="ghost"
                   size="xs"
+                  aria-label="Open file"
                   onClick={() => onOpen({ kind: 'file', path })}
                 >
                   <FileIcon />

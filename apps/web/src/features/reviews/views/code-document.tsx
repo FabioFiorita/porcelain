@@ -77,6 +77,7 @@ type Props = {
   interaction: DocumentInteraction;
   header?: () => ReactNode;
   footer?: () => ReactNode;
+  emptyActions?: ReactNode;
   headerLeading?: ReactNode;
   headerActions?: ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
@@ -122,6 +123,7 @@ function CodeSurface({
   footer,
   headerLeading,
   headerActions,
+  emptyActions,
   toolbar,
   threads,
   commentRequest,
@@ -375,29 +377,33 @@ function CodeSurface({
     interaction.toolbarTarget !== undefined &&
     /^(file|change|branch):/.test(interaction.entry);
   const focusedEntry = entries[focused] ?? entries[0];
-  const paneActions = paneFile && (
-    <>
-      <BarAction
-        label="Reviewed"
-        variant="outline"
-        icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
-        shortcut={SHORTCUTS.toggleReviewed}
-        disabled={!focusedEntry?.review?.fingerprint}
-        pressed={focusedEntry?.review?.reviewed}
-        onClick={() => {
-          if (focusedEntry) onToggleReviewed(focusedEntry);
-        }}
-      />
-      <BarAction
-        label="Comment"
-        icon={MessageSquarePlusIcon}
-        shortcut={SHORTCUTS.commentOnFile}
-        disabled={!focusedEntry?.comment}
-        onClick={() => openFileComment(focusedEntry)}
-      />
-      {headerActions}
-    </>
-  );
+  const paneActions =
+    paneFile &&
+    (focusedEntry ? (
+      <>
+        <BarAction
+          label="Reviewed"
+          variant="outline"
+          icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
+          shortcut={SHORTCUTS.toggleReviewed}
+          disabled={!focusedEntry?.review?.fingerprint}
+          pressed={focusedEntry?.review?.reviewed}
+          onClick={() => {
+            if (focusedEntry) onToggleReviewed(focusedEntry);
+          }}
+        />
+        <BarAction
+          label="Comment"
+          icon={MessageSquarePlusIcon}
+          shortcut={SHORTCUTS.commentOnFile}
+          disabled={!focusedEntry?.comment}
+          onClick={() => openFileComment(focusedEntry)}
+        />
+        {headerActions}
+      </>
+    ) : (
+      (emptyActions ?? headerActions)
+    ));
   const selectionAnchor = selectedRangeAnchor(
     selection,
     composer !== null && composer !== undefined,
@@ -409,7 +415,7 @@ function CodeSurface({
       {interaction.toolbarTarget &&
         paneActions &&
         createPortal(paneActions, interaction.toolbarTarget)}
-      {interaction.active && (
+      {interaction.active && entries.length > 0 && (
         <CodeShortcuts
           next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
           previous={() => focusEntry(Math.max(focused - 1, 0))}
@@ -474,9 +480,14 @@ function CodeSurface({
           className="min-h-0 flex-1 overflow-auto"
           data-testid="empty-code-document"
         >
+          {headerLeading && (
+            <div className="flex items-center gap-1 px-3.5 py-2">
+              {headerLeading}
+            </div>
+          )}
           {header?.()}
           {footer?.()}
-          {headerActions && (
+          {!paneFile && headerActions && (
             <div className="flex justify-end px-3.5 py-2">
               <ButtonGroup>{headerActions}</ButtonGroup>
             </div>
