@@ -101,6 +101,17 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
   const reviewId = text(first.reviewId);
   const headOid = git('rev-parse', 'HEAD');
   expect(first).toMatchObject({ revision: 1, headOid });
+  const links = record(first.links);
+  expect(links.kind).toBe('available');
+  const destination = new URL(text(record(links.revision).web));
+  expect(destination.protocol).toBe('http:');
+  expect(destination.pathname).toBe(`/reviews/${reviewId}/1`);
+  const app = new URL(text(record(list(links.decisions)[0]).app));
+  expect(app.searchParams.get('protocol')).toBe('http');
+  expect(app.searchParams.get('host')).toBe(destination.host);
+  expect(app.searchParams.get('revision')).toBe('1');
+  expect(app.searchParams.get('decision')).toBe(layerId);
+
   const basePath = `/api/reviews/${reviewId}`;
   expect(
     (await read(session, { method: 'GET', path: basePath })).review,

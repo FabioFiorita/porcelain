@@ -56,7 +56,8 @@ import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-re
 import { ReviewLinkOptions } from '../ports/review-link-options.ts';
 import {
   RemoteAccessStore,
-  NetworkAddressReader,
+  RouteStateStore,
+  RuntimeStatusReader,
 } from '@porcelain/access/ports';
 import { BranchRangeReader } from '@porcelain/changes/ports';
 import { ReadRepositoryOriginService } from '@porcelain/projects/services';
@@ -165,7 +166,7 @@ type ReviewsDependencies = {
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
   findWorktreeByPath: FindWorktreeByPathUseCasePort;
-  networkAddressReader: NetworkAddressReader;
+  runtimeStatusReader: RuntimeStatusReader;
 };
 
 export function composeReviews(
@@ -197,11 +198,10 @@ export function composeReviews(
     Layer.succeed(BranchReviewReader, shared.branchReviewReader),
     Layer.succeed(BranchRangeReader, shared.branchRangeReader),
     Layer.succeed(RemoteAccessStore, stores.remoteAccess),
-    Layer.succeed(NetworkAddressReader, dependencies.networkAddressReader),
+    Layer.succeed(RouteStateStore, stores.routeStates),
+    Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
     Layer.succeed(ReviewLinkOptions, {
       hubOrigin: context.settings.reviewHubOrigin,
-      localHost: context.settings.host,
-      localPort: context.settings.port,
     }),
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),

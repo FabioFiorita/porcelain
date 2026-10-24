@@ -1,6 +1,6 @@
 import { isoDateTimeSchema } from '../shared/schema.ts';
 import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
-import { Schema, SchemaTransformation } from 'effect';
+import { Effect, Schema, SchemaTransformation } from 'effect';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import {
@@ -209,7 +209,10 @@ const reviewVerdictSchema = Schema.Struct({
     }),
   ),
 });
-const reviewLinksSchema = Schema.Struct({
+const availableReviewLinksSchema = Schema.Struct({
+  kind: Schema.Literal('available').pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed('available')),
+  ),
   web: Schema.String,
   app: Schema.String,
   revision: Schema.Struct({ web: Schema.String, app: Schema.String }),
@@ -221,6 +224,14 @@ const reviewLinksSchema = Schema.Struct({
     }),
   ),
 });
+const reviewLinksSchema = Schema.Union([
+  availableReviewLinksSchema,
+  Schema.Struct({
+    kind: Schema.Literal('unavailable'),
+    reason: Schema.Literal('no-reachable-route'),
+  }),
+]);
+export const reviewAppLinkProtocolSchema = Schema.Literals(['http', 'https']);
 const revisionMetadataSchema = Schema.Struct({
   reviewId: reviewIdSchema,
   projectId: Schema.String,
