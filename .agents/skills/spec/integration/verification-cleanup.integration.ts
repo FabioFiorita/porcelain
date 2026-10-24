@@ -46,12 +46,11 @@ test('cleanup reports success after confirmed SIGKILL and refuses a stale child 
   expect(outcome.alive).toBe(false);
 });
 
-test('every surface can read retained evidence and repeat a confirmed stop without starting an instance', async ({
-  onTestFinished,
-}) => {
-  const copy = await checkoutCopy(onTestFinished);
-  const id = 'abc12345';
-  for (const surface of ['server', 'web', 'desktop', 'mobile']) {
+test.for(['server', 'web', 'desktop', 'mobile'])(
+  '%s can read retained evidence and repeat a confirmed stop without starting an instance',
+  async (surface, { onTestFinished }) => {
+    const copy = await checkoutCopy(onTestFinished);
+    const id = 'abc12345';
     const path = `.agents/skills/${surface}-verify/scripts/cli`;
     const home = resolve(instanceFile(copy, surface, id), '../../..');
     const evidence = join(home, 'evidence', id);
@@ -65,9 +64,9 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
     const retained = await cli(copy, path, 'evidence', '--instance', id);
     const repeated = await cli(copy, path, 'stop', '--instance', id);
 
-    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.code, retained.stderr).toBe(0);
     expect(retained.stdout).toContain(evidence);
-    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.code, repeated.stderr).toBe(0);
     expect(repeated.stdout).toContain(`already stopped ${id}`);
     for (const selector of ['00000000', `../${id}`]) {
       const refusedEvidence = await cli(
@@ -78,19 +77,17 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
         selector,
       );
       const refusedStop = await cli(copy, path, 'stop', '--instance', selector);
-      expect(refusedEvidence.code, surface).toBe(1);
-      expect(refusedEvidence.stdout, surface).toBe('');
-      expect(refusedStop.code, surface).toBe(1);
-      expect(refusedStop.stdout, surface).not.toMatch(
+      expect(refusedEvidence.code, selector).toBe(1);
+      expect(refusedEvidence.stdout, selector).toBe('');
+      expect(refusedStop.code, selector).toBe(1);
+      expect(refusedStop.stdout, selector).not.toMatch(
         /(?:^|\n)(?:already )?stopped /,
       );
     }
-    expect(existsSync(join(home, 'instances')), surface).toBe(false);
-    expect(await readdir(evidence), surface).toStrictEqual([
-      'stop-result.json',
-    ]);
-  }
-});
+    expect(existsSync(join(home, 'instances'))).toBe(false);
+    expect(await readdir(evidence)).toStrictEqual(['stop-result.json']);
+  },
+);
 
 test('web and desktop retained evidence and repeated stop work without an installed browser driver', async ({
   onTestFinished,
