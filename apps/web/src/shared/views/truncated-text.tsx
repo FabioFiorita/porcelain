@@ -34,6 +34,12 @@ type Label = HTMLAttributes<HTMLElement> & {
   'data-clipped'?: '' | undefined;
 };
 
+type Cut = 'end' | 'start';
+
+function cutContent(cut: Cut, content: ReactNode) {
+  return cut === 'start' ? <bdi dir="ltr">{content}</bdi> : content;
+}
+
 function isClipped(element: Element, lines: 1 | 3) {
   return lines === 3
     ? element.scrollHeight > element.clientHeight
@@ -49,6 +55,7 @@ export function TruncatedText({
   propagateEscape = false,
   lines = 1,
   disclose = 'clipped',
+  cut = 'end',
 }: {
   text: string;
   children?: ReactNode;
@@ -57,9 +64,10 @@ export function TruncatedText({
   propagateEscape?: boolean;
   lines?: 1 | 3;
   disclose?: 'clipped' | 'always';
+  cut?: Cut;
   renderTrigger?: (
     label: ReactElement,
-    clip: (value: string, className?: string) => ReactElement,
+    clip: (value: string, className?: string, cut?: Cut) => ReactElement,
   ) => ReactElement<{ children?: ReactNode }>;
 }) {
   const id = useId();
@@ -124,9 +132,17 @@ export function TruncatedText({
   });
 
   const standalone = !triggered && !owned;
-  const clip = (value: string, styles?: string) => (
-    <span className={cn('min-w-0 truncate', styles)} data-truncated={id}>
-      {value}
+  const clip = (value: string, styles?: string, edge: Cut = 'end') => (
+    <span
+      dir={edge === 'start' ? 'rtl' : undefined}
+      className={cn(
+        'min-w-0 truncate',
+        edge === 'start' && 'text-left',
+        styles,
+      )}
+      data-truncated={id}
+    >
+      {cutContent(edge, value)}
     </span>
   );
   const element: ReactElement<Label> = render ?? <span />;
@@ -134,17 +150,19 @@ export function TruncatedText({
     element,
     {
       tabIndex: standalone && disclosed ? 0 : undefined,
+      dir: cut === 'start' ? 'rtl' : undefined,
       'aria-label': standalone ? text : undefined,
       'data-truncated': id,
       'data-clipped': !triggered && disclosed ? '' : undefined,
       className: cn(
         'relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate',
+        cut === 'start' && 'text-left',
         render?.props.className,
         className,
       ),
     },
-    children ?? text,
+    cutContent(cut, children ?? text),
   );
   const trigger = renderTrigger?.(label, clip) ?? label;
   return (

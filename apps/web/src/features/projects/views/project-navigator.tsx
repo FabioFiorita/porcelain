@@ -24,6 +24,7 @@ import {
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
+  reviewListCheckout,
   reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
@@ -104,6 +105,8 @@ export function ProjectNavigator({
 }: Props) {
   const { connection } = useConnectedContext();
   const settingsButton = useElement<HTMLButtonElement>();
+  const firstCheckout = useElement<HTMLDivElement>();
+  const lastCheckout = useElement<HTMLDivElement>();
   const { preferences, setPreference } = usePreferences();
   const connections = [
     connection,
@@ -141,6 +144,8 @@ export function ProjectNavigator({
       selected?.worktreeId === entry.worktreeId &&
       (selected?.remote ?? connection.environmentId) === entry.environmentId,
   );
+  const firstCheckoutKey = checkouts.find((entry) => !entry.disabled)?.key;
+  const lastCheckoutKey = checkouts.findLast((entry) => !entry.disabled)?.key;
   const setQuery = (query: string) =>
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
@@ -324,10 +329,20 @@ export function ProjectNavigator({
                         onChange={(event) => setMenuQuery(event.target.value)}
                         onKeyDown={(event) => {
                           if (
-                            !['Escape', 'ArrowDown', 'ArrowUp', 'Tab'].includes(
-                              event.key,
-                            )
-                          )
+                            event.key === 'ArrowDown' ||
+                            event.key === 'ArrowUp'
+                          ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const target =
+                              event.key === 'ArrowDown' ||
+                              firstCheckoutKey === lastCheckoutKey
+                                ? firstCheckout.element
+                                : lastCheckout.element;
+                            if (firstCheckoutKey !== undefined) target?.focus();
+                            return;
+                          }
+                          if (!['Escape', 'Tab'].includes(event.key))
                             event.stopPropagation();
                         }}
                       />
@@ -336,29 +351,58 @@ export function ProjectNavigator({
                       </InputGroupAddon>
                     </InputGroup>
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
-                      {checkouts.map((entry) => (
-                        <TruncatedText
-                          propagateEscape
-                          key={entry.key}
-                          text={`${entry.branch} · ${entry.projectName} · ${entry.environmentName}`}
-                          className="min-w-0 flex-1"
-                          renderTrigger={(label, clip) => (
-                            <DropdownMenuRadioItem
-                              value={entry.key}
-                              closeOnClick
-                              disabled={entry.disabled}
-                              onClick={() => openWorktree(entry)}
-                            >
-                              {label}
-                              <Badge variant="secondary" className="max-w-1/2">
-                                {clip(entry.environmentName)}
-                              </Badge>
-                            </DropdownMenuRadioItem>
-                          )}
-                        >
-                          {entry.branch} · {entry.projectName}
-                        </TruncatedText>
-                      ))}
+                      {checkouts.map((entry) => {
+                        const checkoutTarget =
+                          entry.key === firstCheckoutKey
+                            ? firstCheckout
+                            : lastCheckout;
+                        const attach =
+                          entry.key === firstCheckoutKey ||
+                          entry.key === lastCheckoutKey
+                            ? checkoutTarget.attach
+                            : undefined;
+                        const checkout = reviewListCheckout(entry);
+                        const full = `${checkout.full} · ${entry.projectName}`;
+                        return (
+                          <TruncatedText
+                            propagateEscape
+                            key={entry.key}
+                            text={`${full} · ${entry.environmentName}`}
+                            disclose={checkout.parent ? 'always' : 'clipped'}
+                            className="max-w-full shrink-0"
+                            renderTrigger={(label, clip) => (
+                              <DropdownMenuRadioItem
+                                ref={attach}
+                                value={entry.key}
+                                closeOnClick
+                                disabled={entry.disabled}
+                                aria-label={`${full} ${entry.environmentName}`}
+                                onClick={() => openWorktree(entry)}
+                              >
+                                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                  {label}
+                                  {clip(`· ${entry.projectName}`)}
+                                  {checkout.parent
+                                    ? clip(
+                                        checkout.parent,
+                                        'flex-1 text-muted-foreground',
+                                        'start',
+                                      )
+                                    : null}
+                                </span>
+                                <Badge
+                                  variant="secondary"
+                                  className="max-w-1/2"
+                                >
+                                  {clip(entry.environmentName)}
+                                </Badge>
+                              </DropdownMenuRadioItem>
+                            )}
+                          >
+                            {checkout.name}
+                          </TruncatedText>
+                        );
+                      })}
                     </DropdownMenuRadioGroup>
                     {!loading && checkouts.length === 0 ? (
                       <Empty>
@@ -438,6 +482,10 @@ export function ProjectNavigator({
                               entry,
                               multipleProjects,
                             );
+                            const checkout = reviewListCheckout(entry);
+                            const detachedLabel = context.location
+                              ? `${checkout.full} ${entry.projectName}`
+                              : undefined;
                             const active =
                               !closed &&
                               entry.worktreeId !== undefined &&
@@ -474,7 +522,7 @@ export function ProjectNavigator({
                                       aria-label={
                                         entry.reviewId
                                           ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                          : undefined
+                                          : detachedLabel
                                       }
                                       disabled={
                                         !entry.reviewId && entry.disabled
@@ -529,7 +577,8 @@ export function ProjectNavigator({
                                             {context.project ? (
                                               <TruncatedText
                                                 className={
-                                                  context.branch
+                                                  context.branch ||
+                                                  context.location
                                                     ? 'min-w-0 max-w-1/2 '
                                                     : 'min-w-0 flex-1 '
                                                 }
@@ -541,6 +590,16 @@ export function ProjectNavigator({
                                                 className="min-w-0 flex-1"
                                                 text={context.branch}
                                               />
+                                            ) : null}
+                                            {context.location ? (
+                                              <TruncatedText
+                                                cut="start"
+                                                disclose="always"
+                                                className="min-w-0 flex-1"
+                                                text={checkout.full}
+                                              >
+                                                {context.location}
+                                              </TruncatedText>
                                             ) : null}
                                           </div>
                                         </div>
