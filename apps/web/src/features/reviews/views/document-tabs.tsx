@@ -291,6 +291,7 @@ function DocumentTab({
         <TruncatedText
           className={cn('min-w-0', tabKey.startsWith('file:') && 'italic')}
           text={pinned ? `${hint} · pinned` : hint}
+          disclose="always"
           renderTrigger={(label) => (
             <ContextMenuTrigger
               render={

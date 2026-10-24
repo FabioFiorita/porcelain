@@ -48,6 +48,7 @@ export function TruncatedText({
   renderTrigger,
   propagateEscape = false,
   lines = 1,
+  disclose = 'clipped',
 }: {
   text: string;
   children?: ReactNode;
@@ -55,6 +56,7 @@ export function TruncatedText({
   render?: ReactElement<HTMLAttributes<HTMLElement>>;
   propagateEscape?: boolean;
   lines?: 1 | 3;
+  disclose?: 'clipped' | 'always';
   renderTrigger?: (
     label: ReactElement,
     clip: (value: string, className?: string) => ReactElement,
@@ -65,7 +67,7 @@ export function TruncatedText({
   const [owned, setOwned] = useState(false);
   const [selfOpen, setSelfOpen] = useState(false);
   const [ownerOpen, setOwnerOpen] = useState(false);
-  const disclosed = text.trim() !== '' && clipped;
+  const disclosed = text.trim() !== '' && (clipped || disclose === 'always');
   const triggered = renderTrigger !== undefined;
 
   function attach(element: HTMLElement | null) {

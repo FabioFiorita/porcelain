@@ -100,6 +100,10 @@ for (const width of [1440, 414]) {
         await page.keyboard.press(key);
         await expect(commitTab).toHaveAttribute('aria-selected', 'true');
       }
+      await commitTab.hover();
+      await expect(
+        page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40}$/ }),
+      ).toBeVisible();
     });
   }
 }
