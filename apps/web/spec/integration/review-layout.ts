@@ -9,6 +9,16 @@ function uncovered(element: Element) {
   return hit !== null && element.contains(hit);
 }
 
+function highlightedLines(locator: Locator) {
+  return [...locator.element().querySelectorAll('diffs-container')].flatMap(
+    (host) => [
+      ...(host.shadowRoot?.querySelectorAll(
+        '[data-code] [data-selected-line]',
+      ) ?? []),
+    ],
+  );
+}
+
 export const reviewLayout = {
   scrollToEnd(locator: Locator) {
     const element = locator.element();
@@ -100,5 +110,27 @@ export const reviewLayout = {
         box.right <= window.innerWidth,
       fits: outer.scrollWidth <= outer.clientWidth,
     };
+  },
+  paneWidth(locator: Locator) {
+    return (
+      locator
+        .element()
+        .closest('[aria-label="Review walkthrough"]')
+        ?.getBoundingClientRect().width ?? 0
+    );
+  },
+  hasAnchor(locator: Locator) {
+    return locator.query() !== null;
+  },
+  highlightedCode(locator: Locator) {
+    return highlightedLines(locator)
+      .map((line) => line.textContent)
+      .join('\n');
+  },
+  highlightVisible(locator: Locator) {
+    return highlightedLines(locator).some((line) => {
+      const box = line.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= window.innerHeight;
+    });
   },
 };
