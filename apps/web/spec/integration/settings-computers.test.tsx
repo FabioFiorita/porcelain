@@ -47,9 +47,14 @@ test.for([414, 1080, 1440])(
       reviewLayout.focus(open);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
       await expect.element(open).toHaveFocus();
-      await expect
-        .element(app.page.getByRole('tooltip'))
-        .toHaveTextContent(name);
+      if (width === 1440)
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .not.toBeInTheDocument();
+      else
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .toHaveTextContent(name);
       await open.click();
       await expect
         .element(
@@ -107,12 +112,16 @@ test.for([414, 1080, 1440])(
         .getByRole('navigation', { name: 'breadcrumb', exact: true })
         .getByLabelText(remoteName, { exact: true });
       await expect.element(breadcrumb).toHaveAccessibleName(remoteName);
-      reviewLayout.focus(breadcrumb);
-      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
-      await expect.element(breadcrumb).toHaveFocus();
-      await expect
-        .element(app.page.getByRole('tooltip'))
-        .toHaveTextContent(remoteName);
+      if (width === 1440)
+        await expect.element(breadcrumb).not.toHaveAttribute('tabindex');
+      else {
+        reviewLayout.focus(breadcrumb);
+        await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+        await expect.element(breadcrumb).toHaveFocus();
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .toHaveTextContent(remoteName);
+      }
       await app.page
         .getByRole('button', { name: 'Close Settings', exact: true })
         .click();

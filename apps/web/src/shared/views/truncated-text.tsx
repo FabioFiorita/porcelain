@@ -18,7 +18,7 @@ const owners = [
   'button',
   'summary',
   '[role="button"]',
-  '[role="link"]',
+  '[role="link"]:not([aria-disabled="true"])',
   '[role="tab"]',
   '[role="option"]',
   '[role="checkbox"]',

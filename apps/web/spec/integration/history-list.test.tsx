@@ -163,18 +163,6 @@ test('every ref is reachable at a narrow width in the History list and graph', a
         countInsideRow: true,
       });
     refChips.focus(row);
-    await userEvent.keyboard('{Tab}');
-    await expect
-      .element(row.getByText(repo.initialCommit, { exact: true }))
-      .toHaveFocus();
-    await expect.poll(() => refChips.tooltipName()).toBe(repo.initialCommit);
-    await userEvent.keyboard('{Tab}');
-    await expect
-      .element(row.getByText('Porcelain Development', { exact: true }))
-      .toHaveFocus();
-    await expect
-      .poll(() => refChips.tooltipName())
-      .toBe('Porcelain Development');
     await userEvent.keyboard('{Tab}{Tab}');
     await expect
       .element(scope.getByRole('button', { name: branches[2]!, exact: true }))
