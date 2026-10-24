@@ -197,6 +197,12 @@ test.for(
       await expect.element(tooltip).toHaveTextContent(`Close ${name}Alt+W`);
       await tabs.getByRole('tab', { name: 'Changes', exact: true }).click();
       await expect.element(close).not.toBeInTheDocument();
+      await userEvent.hover(
+        app.page.getByRole('heading', { name: 'Changes', exact: true }),
+      );
+      await expect
+        .element(app.page.getByText('All changes', { exact: true }))
+        .not.toBeInTheDocument();
       await userEvent.hover(unpin);
       await expect.element(tooltip).toHaveTextContent(`Unpin ${name}`);
       await unpin.click();
