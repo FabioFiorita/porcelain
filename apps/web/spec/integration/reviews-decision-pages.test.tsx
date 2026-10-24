@@ -60,10 +60,14 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
   render,
   server,
 }) => {
-  await agent.publishArchitecture();
+  await agent.publishArchitecture({ reviewed: false });
   const published = (await server.publishedReview()).review;
   if (!published?.reviewId)
     throw new Error('The published fixture has no review');
+  await expect(server.reviewMarks(published.reviewId)).resolves.toEqual({
+    files: [],
+    decisions: [],
+  });
   const app = await render.route(`/reviews/${published.reviewId}`);
   await app.page
     .getByRole('button', { name: 'Not explained', exact: true })

@@ -175,7 +175,10 @@ async function accepted(
   return response.body;
 }
 
-export async function seedArchitectureSample(session: Session) {
+export async function seedArchitectureSample(
+  session: Session,
+  reviewed = true,
+) {
   const inventory = Schema.decodeUnknownSync(readInventoryResponseSchema)(
     await accepted(session, { method: 'GET', path: '/api/inventory' }),
   );
@@ -538,12 +541,17 @@ export async function seedArchitectureSample(session: Session) {
   const result = Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
     await accepted(session, { method: 'PUT', path: reviewPath, body }),
   );
-  for (const item of result.review?.layers.slice(0, 2) ?? [])
-    await accepted(session, {
-      method: 'PUT',
-      path: `/api/worktrees/${worktree.id}/reviewed-layers`,
-      body: { layerId: item.id, fingerprint: item.fingerprint, reviewed: true },
-    });
+  if (reviewed)
+    for (const item of result.review?.layers.slice(0, 2) ?? [])
+      await accepted(session, {
+        method: 'PUT',
+        path: `/api/worktrees/${worktree.id}/reviewed-layers`,
+        body: {
+          layerId: item.id,
+          fingerprint: item.fingerprint,
+          reviewed: true,
+        },
+      });
   const stalePath = 'packages/workspace/src/revoke-access.ts';
   await session.writeFile(
     stalePath,

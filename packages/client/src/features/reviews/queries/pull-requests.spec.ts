@@ -17,6 +17,8 @@ it('reads the selected review and project through the shared connection and pres
       timeoutMs: 10000,
       transport: async (path, init) => {
         calls.push(`${init?.method ?? 'GET'} ${path}`);
+        if (path === '/api/reviews/10000000-0000-4000-8000-000000000001')
+          return Response.json({ review: null, revisions: [], revision: null });
         if (init?.method === 'PUT') {
           bodies.push(await new Response(init.body).json());
           return Response.json({
@@ -73,6 +75,7 @@ it('reads the selected review and project through the shared connection and pres
       ),
     ).toMatchObject({ choice: { account: 'personal', source: 'detected' } });
     expect(calls).toEqual([
+      'GET /api/reviews/10000000-0000-4000-8000-000000000001',
       'GET /api/reviews/10000000-0000-4000-8000-000000000001/pull-request',
       'GET /api/projects/project/pull-requests',
       'GET /api/projects/project/github-account',
