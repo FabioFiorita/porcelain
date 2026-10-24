@@ -192,7 +192,9 @@ function ThreadSheet({
               </Text>
               {AsyncResult.isFailure(resolve.result) ? (
                 <ErrorState
-                  message={reviewErrorMessage(Cause.squash(resolve.result.cause))}
+                  message={reviewErrorMessage(
+                    Cause.squash(resolve.result.cause),
+                  )}
                 />
               ) : null}
               {thread.review ? (
