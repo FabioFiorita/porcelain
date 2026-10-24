@@ -57,10 +57,20 @@ for (const width of [1440, 414]) {
           }),
         ).toBeVisible();
       for (const [index, target] of targets.entries()) {
-        await filter.click();
-        await pairedPage
-          .getByRole('menuitem', { name: 'Worktrees', exact: true })
-          .click();
+        const submenu = pairedPage.getByRole('menuitem', {
+          name: 'Worktrees',
+          exact: true,
+        });
+        if (index === 0) {
+          await filter.focus();
+          await filter.press('Enter');
+          await pairedPage.keyboard.press('w');
+          await expect(submenu).toBeFocused();
+          await submenu.press('ArrowRight');
+        } else {
+          await filter.click();
+          await submenu.click();
+        }
         const result = pairedPage.getByRole('menuitemradio', {
           name: `${target.path} · ${project.name} ${computer}`,
           exact: true,
@@ -77,14 +87,22 @@ for (const width of [1440, 414]) {
           exact: true,
         });
         await expect(search).toHaveValue('');
+        await search.click();
         await search.fill('NO-MATCH');
         await expect(
           pairedPage.getByText('No matching worktrees', { exact: true }),
         ).toBeVisible();
+        await search.press('ArrowDown');
+        await expect(search).toBeFocused();
+        await search.press('ArrowUp');
+        await expect(search).toBeFocused();
         await search.fill(target.path);
         await expect(pairedPage.getByRole('menuitemradio')).toHaveCount(1);
         if (index === 0) {
           await search.press('ArrowDown');
+          await expect(result).toBeFocused();
+          await search.click();
+          await search.press('ArrowUp');
           await expect(result).toBeFocused();
           await result.press('Enter');
         } else await result.click();

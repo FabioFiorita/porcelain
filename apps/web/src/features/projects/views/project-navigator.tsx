@@ -103,6 +103,8 @@ export function ProjectNavigator({
 }: Props) {
   const { connection } = useConnectedContext();
   const settingsButton = useElement<HTMLButtonElement>();
+  const firstCheckout = useElement<HTMLDivElement>();
+  const lastCheckout = useElement<HTMLDivElement>();
   const { preferences, setPreference } = usePreferences();
   const connections = [
     connection,
@@ -140,6 +142,8 @@ export function ProjectNavigator({
       selected?.worktreeId === entry.worktreeId &&
       (selected?.remote ?? connection.environmentId) === entry.environmentId,
   );
+  const firstCheckoutKey = checkouts.find((entry) => !entry.disabled)?.key;
+  const lastCheckoutKey = checkouts.findLast((entry) => !entry.disabled)?.key;
   const setQuery = (query: string) =>
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
@@ -310,10 +314,20 @@ export function ProjectNavigator({
                         onChange={(event) => setMenuQuery(event.target.value)}
                         onKeyDown={(event) => {
                           if (
-                            !['Escape', 'ArrowDown', 'ArrowUp', 'Tab'].includes(
-                              event.key,
-                            )
-                          )
+                            event.key === 'ArrowDown' ||
+                            event.key === 'ArrowUp'
+                          ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const target =
+                              event.key === 'ArrowDown' ||
+                              firstCheckoutKey === lastCheckoutKey
+                                ? firstCheckout.element
+                                : lastCheckout.element;
+                            if (firstCheckoutKey !== undefined) target?.focus();
+                            return;
+                          }
+                          if (!['Escape', 'Tab'].includes(event.key))
                             event.stopPropagation();
                         }}
                       />
@@ -323,6 +337,15 @@ export function ProjectNavigator({
                     </InputGroup>
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
                       {checkouts.map((entry) => {
+                        const checkoutTarget =
+                          entry.key === firstCheckoutKey
+                            ? firstCheckout
+                            : lastCheckout;
+                        const attach =
+                          entry.key === firstCheckoutKey ||
+                          entry.key === lastCheckoutKey
+                            ? checkoutTarget.attach
+                            : undefined;
                         const label =
                           entry.branch === 'Detached HEAD'
                             ? (entry.path ?? entry.title)
@@ -330,6 +353,7 @@ export function ProjectNavigator({
                         return (
                           <DropdownMenuRadioItem
                             key={entry.key}
+                            ref={attach}
                             value={entry.key}
                             closeOnClick
                             disabled={entry.disabled}
