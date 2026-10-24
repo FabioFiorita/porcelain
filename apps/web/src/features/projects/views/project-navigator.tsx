@@ -1,6 +1,7 @@
 import { NavigatorRowMenu } from './navigator-row-menu';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
+import { HeadTruncatedText } from '@/shared/views/head-truncated-text';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -23,6 +24,7 @@ import {
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
+  reviewListCheckout,
   reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
@@ -346,35 +348,57 @@ export function ProjectNavigator({
                           entry.key === lastCheckoutKey
                             ? checkoutTarget.attach
                             : undefined;
-                        const label =
-                          entry.branch === 'Detached HEAD'
-                            ? (entry.path ?? entry.title)
-                            : entry.branch;
+                        const checkout = reviewListCheckout(entry);
+                        const full = `${checkout.full} · ${entry.projectName}`;
                         return (
-                          <DropdownMenuRadioItem
+                          <Tooltip
                             key={entry.key}
-                            ref={attach}
-                            value={entry.key}
-                            closeOnClick
-                            disabled={entry.disabled}
-                            onClick={() => openWorktree(entry)}
+                            disableHoverablePopup
+                            onOpenChange={(_open, details) => {
+                              if (details.reason === 'escape-key')
+                                details.allowPropagation();
+                            }}
                           >
-                            <span
-                              className="min-w-0 flex-1 truncate"
-                              title={`${label} · ${entry.projectName}`}
+                            <TooltipTrigger
+                              render={
+                                <DropdownMenuRadioItem
+                                  ref={attach}
+                                  value={entry.key}
+                                  closeOnClick
+                                  disabled={entry.disabled}
+                                  aria-label={`${full} ${entry.environmentName}`}
+                                  onClick={() => openWorktree(entry)}
+                                />
+                              }
                             >
-                              {label} · {entry.projectName}
-                            </span>
-                            <Badge
-                              variant="secondary"
-                              className="max-w-1/2"
-                              title={entry.environmentName}
-                            >
-                              <span className="truncate">
-                                {entry.environmentName}
+                              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                <span className="min-w-0 truncate">
+                                  {checkout.name} · {entry.projectName}
+                                </span>
+                                {checkout.parent ? (
+                                  <HeadTruncatedText
+                                    text={checkout.parent}
+                                    className="flex-1 text-muted-foreground"
+                                  />
+                                ) : null}
                               </span>
-                            </Badge>
-                          </DropdownMenuRadioItem>
+                              <Badge
+                                variant="secondary"
+                                className="max-w-1/2"
+                                title={entry.environmentName}
+                              >
+                                <span className="truncate">
+                                  {entry.environmentName}
+                                </span>
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              role="tooltip"
+                              className="wrap-anywhere"
+                            >
+                              {full}
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       })}
                     </DropdownMenuRadioGroup>
@@ -456,6 +480,10 @@ export function ProjectNavigator({
                               entry,
                               multipleProjects,
                             );
+                            const checkout = reviewListCheckout(entry);
+                            const detachedLabel = context.location
+                              ? `${checkout.full} ${entry.projectName}`
+                              : undefined;
                             const active =
                               !closed &&
                               entry.worktreeId !== undefined &&
@@ -495,7 +523,7 @@ export function ProjectNavigator({
                                             aria-label={
                                               entry.reviewId
                                                 ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                                : undefined
+                                                : detachedLabel
                                             }
                                             disabled={
                                               !entry.reviewId && entry.disabled
@@ -553,7 +581,8 @@ export function ProjectNavigator({
                                               {context.project ? (
                                                 <span
                                                   className={
-                                                    context.branch
+                                                    context.branch ||
+                                                    context.location
                                                       ? 'min-w-0 max-w-1/2 truncate'
                                                       : 'min-w-0 flex-1 truncate'
                                                   }
@@ -565,6 +594,12 @@ export function ProjectNavigator({
                                                 <span className="min-w-0 flex-1 truncate">
                                                   {context.branch}
                                                 </span>
+                                              ) : null}
+                                              {context.location ? (
+                                                <HeadTruncatedText
+                                                  text={context.location}
+                                                  className="flex-1"
+                                                />
                                               ) : null}
                                             </div>
                                           </div>
@@ -581,6 +616,11 @@ export function ProjectNavigator({
                                               .filter(Boolean)
                                               .join(' · ')}
                                           </p>
+                                          {context.location ? (
+                                            <p className="wrap-anywhere">
+                                              {checkout.full}
+                                            </p>
+                                          ) : null}
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>

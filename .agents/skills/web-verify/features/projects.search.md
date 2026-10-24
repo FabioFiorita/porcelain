@@ -52,7 +52,7 @@ Automated coverage: `projects-search.e2e.ts`, `worktrees-menu.test.tsx`, `review
 ## Gotchas
 
 - Checkout submenu search is temporary and independent of sidebar search/filters/Closed; restore filters before comparing the full list.
-- Retain two detached checkouts in the same project at different paths. Both the sidebar and Filter reviews → Worktrees identify each by its full path, including in the accessible name and menu label's title. Search each path and select one with ArrowDown/Enter and the other with the pointer. Verify the exact workspace, selected checkmark, both menu levels closing and an empty temporary search when reopened. Check long paths at 1440 and 414 in light and dark; labels stay on one line.
+- Retain two detached checkouts side by side in one folder (`…/worktrees/qa-531`, `…/worktrees/qa-532`). The sidebar and Filter reviews → Worktrees show each folder name first, then the muted parent path cut at its start (`…/worktrees`); the full path is in the accessible name and the tooltip. Search each path and select one with ArrowDown/Enter and the other with the pointer. Verify the exact workspace, selected checkmark, both menu levels closing and an empty temporary search when reopened. Check long parent paths at 1440 and 414 in light and dark; the folder names stay whole and labels stay on one line.
 - Open Filter reviews with Enter, reach Worktrees by keyboard and open it with ArrowRight, then click its search input and filter to one path. ArrowDown and ArrowUp from the input reach the first and last enabled result even after the menu has already highlighted an item; Enter selects that exact checkout. Repeat after opening with the pointer.
 
 ### Unavailable pull request state

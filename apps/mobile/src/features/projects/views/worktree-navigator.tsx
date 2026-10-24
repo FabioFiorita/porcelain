@@ -295,7 +295,7 @@ export function WorktreeNavigator({
                             tone="muted"
                             numberOfLines={1}
                             className={
-                              context.branch
+                              context.branch || context.location
                                 ? 'min-w-0 max-w-1/2 shrink'
                                 : 'min-w-0 flex-1'
                             }
@@ -311,6 +311,17 @@ export function WorktreeNavigator({
                             className="min-w-0 flex-1"
                           >
                             {context.branch}
+                          </Text>
+                        ) : null}
+                        {context.location ? (
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                            ellipsizeMode="head"
+                            className="min-w-0 flex-1"
+                          >
+                            {context.location}
                           </Text>
                         ) : null}
                       </Box>

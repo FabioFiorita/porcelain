@@ -11,6 +11,7 @@ const entry: ReviewListEntry = {
   worktreeId: 'worktree',
   reviewId: 'review',
   branch: 'feat/pinned-files',
+  detached: false,
   title: 'Pin files in large repositories',
   group: 'Needs you',
   closed: false,
@@ -133,3 +134,30 @@ it('keeps detached and zero-decision rows readable without absent metadata', () 
   );
   expect(row.context).toEqual({ project: undefined, branch: '' });
 });
+
+it.each(['qa-531', 'qa-532'])(
+  'shows the parent folder of detached checkout %s and announces its full path',
+  (name) => {
+    const row = worktreeRow(
+      {
+        ...entry,
+        title: name,
+        branch: 'Detached HEAD',
+        detached: true,
+        path: `/home/dev/code/porcelain-worktrees/${name}`,
+        group: 'No review',
+        reviewId: undefined,
+      },
+      false,
+      false,
+    );
+    expect(row.context).toEqual({
+      project: 'Porcelain',
+      branch: undefined,
+      location: '/home/dev/code/porcelain-worktrees',
+    });
+    expect(row.accessibilityLabel).toBe(
+      `${name}, Porcelain, /home/dev/code/porcelain-worktrees/${name}, No review`,
+    );
+  },
+);

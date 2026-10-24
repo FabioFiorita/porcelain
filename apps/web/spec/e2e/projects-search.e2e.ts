@@ -3,7 +3,7 @@ import { replaceEditorContent } from '../kit/editor.ts';
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`detached checkouts keep distinct paths through search and selection at ${width}px in ${colorScheme}`, async ({
+    test(`sibling detached checkouts show distinct folder names through search and selection at ${width}px in ${colorScheme}`, async ({
       pairedPage,
       repo,
       server,
@@ -11,10 +11,7 @@ for (const width of [1440, 414]) {
     }) => {
       await pairedPage.setViewportSize({ width, height: 896 });
       await pairedPage.emulateMedia({ colorScheme });
-      const names = [
-        'retained-checkout-with-a-long-path-that-must-stay-identifiable-first',
-        'retained-checkout-with-a-long-path-that-must-stay-identifiable-second',
-      ];
+      const names = ['detached-531', 'detached-532'];
       for (const name of names) await repo.worktree(name);
       await expect
         .poll(async () => {
@@ -49,13 +46,20 @@ for (const width of [1440, 414]) {
         await pairedPage
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
-      for (const target of targets)
-        await expect(
-          sidebar.getByRole('button', {
-            name: `${target.path} ${project.name}`,
-            exact: true,
-          }),
-        ).toBeVisible();
+      for (const [index, target] of targets.entries()) {
+        const row = sidebar.getByRole('button', {
+          name: `${target.path} ${project.name}`,
+          exact: true,
+        });
+        await expect(row).toBeVisible();
+        const folder = row.getByText(names[index] ?? '', { exact: true });
+        await expect(folder).toBeVisible();
+        await expect
+          .poll(() =>
+            folder.evaluate((node) => node.scrollWidth <= node.clientWidth),
+          )
+          .toBe(true);
+      }
       for (const [index, target] of targets.entries()) {
         const submenu = pairedPage.getByRole('menuitem', {
           name: 'Worktrees',
@@ -77,11 +81,15 @@ for (const width of [1440, 414]) {
         });
         await expect(result).toBeVisible();
         await expect(result).toHaveCSS('height', '32px');
-        await expect(
-          result.getByText(`${target.path} · ${project.name}`, {
-            exact: true,
-          }),
-        ).toHaveAttribute('title', `${target.path} · ${project.name}`);
+        const label = result.getByText(`${names[index]} · ${project.name}`, {
+          exact: true,
+        });
+        await expect(label).toBeVisible();
+        await expect
+          .poll(() =>
+            label.evaluate((node) => node.scrollWidth <= node.clientWidth),
+          )
+          .toBe(true);
         const search = pairedPage.getByRole('searchbox', {
           name: 'Search worktrees',
           exact: true,
@@ -120,6 +128,10 @@ for (const width of [1440, 414]) {
           .click();
         await expect(search).toHaveValue('');
         await expect(result).toHaveAttribute('aria-checked', 'true');
+        await result.hover();
+        await expect(pairedPage.getByRole('tooltip')).toHaveText(
+          `${target.path} · ${project.name}`,
+        );
         await result.click();
         await expect(pairedPage.getByRole('menu')).toHaveCount(0);
         if (width === 414)
