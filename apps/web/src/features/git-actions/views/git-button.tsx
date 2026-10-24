@@ -66,6 +66,8 @@ import {
 } from '@porcelain/client/git-actions/rules';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
+import { BranchTracking } from '@/features/history/index';
+import { branchTracking } from '@porcelain/client/history/rules';
 import { GitActionError, GitActionMessage } from './git-action-message';
 
 export function GitButton({
@@ -280,19 +282,13 @@ export function GitButton({
           </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center">
-                <GitBranchIcon className="size-3.5 shrink-0" />
-                <TruncatedText
-                  text={
-                    branch
-                      ? (branch.name?.replace(/^refs\/heads\//, '') ??
-                        'Detached HEAD')
-                      : 'Git actions'
-                  }
-                />
-                {branch && (
-                  <span className="ml-auto shrink-0 tabular-nums">
-                    {branch.ahead} ahead · {branch.behind} behind
+              <DropdownMenuLabel>
+                {branch ? (
+                  <BranchTracking tracking={branchTracking(branch, null)} />
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <GitBranchIcon className="size-3.5 shrink-0" />
+                    Git actions
                   </span>
                 )}
               </DropdownMenuLabel>
