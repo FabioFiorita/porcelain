@@ -655,7 +655,7 @@ function ReviewRevisionPage({
       </header>
       {pullNotice && (
         <div className="px-4 py-2">
-          <ReviewNotice title={pullNotice}>
+          <StateNotice role="status" title={pullNotice}>
             {pull?.kind !== 'loading' && (
               <Button
                 variant="outline"
@@ -666,7 +666,7 @@ function ReviewRevisionPage({
                 Read pull request again
               </Button>
             )}
-          </ReviewNotice>
+          </StateNotice>
         </div>
       )}
       {currentScope && (
