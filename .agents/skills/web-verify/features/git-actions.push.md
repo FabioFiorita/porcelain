@@ -50,5 +50,5 @@ Automated coverage: `git-actions-push.test.tsx`.
 
 ## Gotchas
 
-- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. While Reading the configured upstream., Push/Pull/Fetch disable; reopen after it settles if needed.
+- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. The menu shows Reading Git status… until the branch status arrives, then lists every action at once.
 - Remove the fixture remote afterward with `git -C "$REPO" remote remove origin`.
