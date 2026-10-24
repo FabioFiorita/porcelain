@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { TabletSurface } from '../components/ui/tablet-surface';
+import { TabletSurface } from './tablet-surface';
 import { Box } from '../components/ui/box';
 import { ChromeButton } from '../components/ui/chrome-button';
 import { Item } from '../components/ui/item';

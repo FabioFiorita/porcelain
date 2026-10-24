@@ -18,7 +18,7 @@ export function TabletSidebar({ windowed }: { windowed: boolean }) {
   return (
     <StyledSafeAreaView
       edges={['top', 'left', 'bottom']}
-      className="flex-1 bg-muted/40"
+      className="flex-1 bg-sidebar"
     >
       <Box {...(windowed ? { paddingTop: 8 } : {})}>
         <Box paddingX={4} paddingY={4}>

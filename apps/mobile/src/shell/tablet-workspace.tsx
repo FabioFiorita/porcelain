@@ -1,15 +1,12 @@
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
-import { TabletSurface } from '../components/ui/tablet-surface';
+import { ScrollView, useWindowDimensions } from 'react-native';
+import { TabletSurface } from './tablet-surface';
 import { Box } from '../components/ui/box';
 import { ChromeButton } from '../components/ui/chrome-button';
 import { DocumentTabs } from '../components/ui/document-tabs';
-import { Empty } from '../components/ui/empty';
 import { IconButton } from '../components/ui/icon-button';
 import { Separator } from '../components/ui/separator';
-import { WorkspaceModeTabs } from '../components/ui/workspace-mode-tabs';
-import { WorkspacePanes } from '../components/ui/workspace-panes';
 import { FilesNavigation, FileContent } from '../features/files';
 import {
   HistoryNavigation,
@@ -20,6 +17,7 @@ import {
   ReviewNavigation,
   ReviewOverview,
   ReviewFileContent,
+  useReviewTab,
 } from '../features/reviews';
 import { useAppSidebar } from '../features/preferences';
 import {
@@ -29,6 +27,7 @@ import {
   type Workspace,
 } from '../features/projects';
 import { visiblePanes } from '../shared/rules/document-panes';
+import type { ReviewComparison } from '../shared/rules/review-comparison';
 import { selectedDocument } from '../shared/rules/workspace-session';
 import {
   documentTab,
@@ -36,6 +35,13 @@ import {
   type WorkspaceDocument,
   type WorkspaceTab,
 } from '../shared/rules/workspace-documents';
+import {
+  DockedPanel,
+  PanelButtons,
+  PanelSheet,
+  TabletRail,
+  panelEntries,
+} from './tablet-panel';
 
 export function TabletWorkspace({
   initialMode = 'files',
@@ -93,10 +99,19 @@ function SelectedWorkspace({
     changeDocuments,
     open,
     openBeside,
+    showReview,
     focus,
   } = useWorkspaceSession(workspace.key, initialMode);
+  const reviewTab = useReviewTab(workspace);
+  const window = useWindowDimensions();
+  const landscape = window.width > window.height;
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [contentWidth, setContentWidth] = useState(0);
   const panes = visiblePanes(session, contentWidth);
+  const entries = panelEntries(reviewTab.title);
+  const panelTitle =
+    entries.find((entry) => entry.mode === session.mode)?.title ?? 'Files';
+  const reviewShown = session.left.active === null;
   const fileSelection = selectedDocument(session, 'files');
   const historySelection = selectedDocument(session, 'history');
   const reviewSelection = selectedDocument(session, 'review');
@@ -110,11 +125,20 @@ function SelectedWorkspace({
       }).key
       ? reviewSelection.path
       : undefined;
-  const overviewSelected =
-    reviewSelection?.key ===
-    documentTab({ kind: 'review-overview', comparison: session.comparison })
-      .key;
   const scope = (pane: 'left' | 'right') => `${workspace.key}:${pane}`;
+  const showContent = () => {
+    if (!landscape) setSheetOpen(false);
+  };
+  const choosePanel = (mode: InspectorMode) => {
+    if (landscape) {
+      const closing = session.inspectorOpen && session.mode === mode;
+      if (!closing) changeMode(mode);
+      changeInspector(!closing);
+    } else {
+      changeMode(mode);
+      setSheetOpen(true);
+    }
+  };
   const changePaneDocuments = (
     pane: 'left' | 'right',
     change: Parameters<typeof changeDocuments>[1],
@@ -122,7 +146,7 @@ function SelectedWorkspace({
     const documents = session[pane];
     if (!documents) return;
     const next = change(documents);
-    const folded = session.right !== null && next.tabs.length === 0;
+    const folded = pane === 'right' && next.tabs.length === 0;
     if (folded || documents.active !== next.active)
       requestDocumentLeave(
         () => changeDocuments(pane, change),
@@ -148,22 +172,82 @@ function SelectedWorkspace({
       scope(destination),
     );
   };
+  const openReview = () => {
+    if (reviewShown) showReview();
+    else requestDocumentLeave(showReview, scope('left'));
+  };
+  const openFromPanel = (document: WorkspaceDocument) => {
+    openDocument(document);
+    showContent();
+  };
+  const panel = (
+    <Box className="min-w-0 flex-1">
+      <Box className={session.mode === 'files' ? 'flex-1' : 'hidden'}>
+        <FilesNavigation
+          selected={workspace}
+          comparison={session.comparison}
+          sidebar={sidebar}
+          embedded
+          activePath={
+            fileSelection?.kind === 'file' ? fileSelection.path : undefined
+          }
+          onOpen={(path) => openFromPanel({ kind: 'file', path })}
+          onOpenToSide={(path) => {
+            openSide({ kind: 'file', path });
+            showContent();
+          }}
+        />
+      </Box>
+      <Box className={session.mode === 'review' ? 'flex-1' : 'hidden'}>
+        <ReviewNavigation
+          workspace={workspace}
+          comparison={session.comparison}
+          onComparison={changeComparison}
+          selectedPath={selectedReviewPath}
+          overviewSelected={reviewShown}
+          onOverview={() => {
+            openReview();
+            showContent();
+          }}
+          onFile={(path) =>
+            openFromPanel({
+              kind: 'review-file',
+              path,
+              comparison: session.comparison,
+            })
+          }
+        />
+      </Box>
+      <Box className={session.mode === 'history' ? 'flex-1' : 'hidden'}>
+        <HistoryNavigation
+          selection={workspace}
+          workspace={workspace.key}
+          selected={
+            historySelection?.kind === 'commit' ||
+            historySelection?.kind === 'diff'
+              ? historySelection.oid
+              : undefined
+          }
+          onOpen={(oid) => openFromPanel({ kind: 'commit', oid, parent: 1 })}
+        />
+      </Box>
+    </Box>
+  );
   return (
-    <WorkspacePanes
-      navigationVisible={session.inspectorOpen}
-      onNavigationVisibleChange={changeInspector}
-      header={(showContent) => (
+    <Box className="min-w-0 flex-1 flex-row" gap={2}>
+      <Box className="min-w-0 flex-1" surface="panel">
         <Box
-          className="min-w-0 flex-row items-center"
-          gap={2}
-          paddingX={4}
-          paddingY={2}
+          className="h-13 min-w-0 flex-row items-center"
+          gap={1}
+          paddingX={2}
           divider="bottom"
         >
           {sidebar ? (
-            <ChromeButton
+            <IconButton
               icon="sidebar"
-              label={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
+              accessibilityLabel={
+                sidebar.visible ? 'Hide sidebar' : 'Show sidebar'
+              }
               onPress={sidebar.toggle}
             />
           ) : null}
@@ -174,15 +258,24 @@ function SelectedWorkspace({
                 focused={session.focused === pane}
                 documents={session[pane] ?? session.left}
                 label={`${pane === 'left' ? 'Left' : 'Right'} pane documents`}
+                pinned={
+                  pane === 'left'
+                    ? {
+                        title: reviewTab.title,
+                        icon:
+                          reviewTab.title === 'Review' ? 'checklist' : 'review',
+                        detail: reviewTab.progress,
+                        selected: reviewShown,
+                        onPress: () => {
+                          focus('left');
+                          openReview();
+                        },
+                      }
+                    : undefined
+                }
                 onChange={(change) => changePaneDocuments(pane, change)}
-                onSelect={() => {
-                  focus(pane);
-                  showContent();
-                }}
-                onOpenToSide={(document) => {
-                  openSide(document, pane);
-                  showContent();
-                }}
+                onSelect={() => focus(pane)}
+                onOpenToSide={(document) => openSide(document, pane)}
               />
             </Box>
           ))}
@@ -195,150 +288,135 @@ function SelectedWorkspace({
               }
             />
           ) : null}
-          <ChromeButton
-            icon="inspector"
-            label={session.inspectorOpen ? 'Hide inspector' : 'Show inspector'}
-            onPress={() => changeInspector(!session.inspectorOpen)}
-          />
+          {landscape ? null : (
+            <>
+              <Separator orientation="vertical" />
+              <PanelButtons
+                entries={entries}
+                mode={session.mode}
+                open={sheetOpen}
+                onPress={choosePanel}
+              />
+            </>
+          )}
         </Box>
-      )}
-      navigation={(showContent) => {
-        const openFromInspector = (document: WorkspaceDocument) => {
-          openDocument(document);
-          showContent();
-        };
-        return (
-          <Box className="min-w-0 flex-1">
-            <Box
-              className="flex-row"
-              gap={1}
-              paddingX={4}
-              paddingY={2}
-              divider="bottom"
-            >
-              <WorkspaceModeTabs value={session.mode} onChange={changeMode} />
-            </Box>
-            <Box className={session.mode === 'files' ? 'flex-1' : 'hidden'}>
-              <FilesNavigation
-                selected={workspace}
-                comparison={session.comparison}
-                sidebar={sidebar}
-                embedded
-                activePath={
-                  fileSelection?.kind === 'file'
-                    ? fileSelection.path
-                    : undefined
-                }
-                onOpen={(path) => openFromInspector({ kind: 'file', path })}
-                onOpenToSide={(path) => {
-                  openSide({ kind: 'file', path });
-                  showContent();
-                }}
-              />
-            </Box>
-            <Box className={session.mode === 'review' ? 'flex-1' : 'hidden'}>
-              <ReviewNavigation
-                workspace={workspace}
-                comparison={session.comparison}
-                onComparison={changeComparison}
-                selectedPath={selectedReviewPath}
-                overviewSelected={overviewSelected}
-                onOverview={() =>
-                  openFromInspector({
-                    kind: 'review-overview',
-                    comparison: session.comparison,
-                  })
-                }
-                onFile={(path) =>
-                  openFromInspector({
-                    kind: 'review-file',
-                    path,
-                    comparison: session.comparison,
-                  })
-                }
-              />
-            </Box>
-            <Box className={session.mode === 'history' ? 'flex-1' : 'hidden'}>
-              <HistoryNavigation
-                selection={workspace}
-                workspace={workspace.key}
-                selected={
-                  historySelection?.kind === 'commit' ||
-                  historySelection?.kind === 'diff'
-                    ? historySelection.oid
-                    : undefined
-                }
-                onOpen={(oid) =>
-                  openFromInspector({ kind: 'commit', oid, parent: 1 })
-                }
-              />
-            </Box>
-          </Box>
-        );
-      }}
-    >
-      <Box
-        className="min-w-0 flex-1 flex-row"
-        onLayout={({ nativeEvent: { layout } }) =>
-          setContentWidth(layout.width)
-        }
-      >
-        {(['left', 'right'] as const).map((pane) => {
-          const documents = session[pane];
-          if (!documents) return null;
-          const active = documents.tabs.find(
-            (tab) => tab.key === documents.active,
-          );
-          return (
-            <Box
-              key={pane}
-              className={
-                panes.includes(pane) ? 'min-w-0 flex-1 flex-row' : 'hidden'
-              }
-            >
-              {pane === 'right' && panes.length === 2 ? (
-                <Separator orientation="vertical" />
-              ) : null}
+        <Box
+          className="min-w-0 flex-1 flex-row"
+          onLayout={({ nativeEvent: { layout } }) =>
+            setContentWidth(layout.width)
+          }
+        >
+          {(['left', 'right'] as const).map((pane) => {
+            const documents = session[pane];
+            if (!documents) return null;
+            const active = documents.tabs.find(
+              (tab) => tab.key === documents.active,
+            );
+            return (
               <Box
-                className="min-w-0 flex-1"
-                accessibilityLabel={`${pane === 'left' ? 'Left' : 'Right'} document pane`}
-                onPointerDown={() => {
-                  if (session.focused !== pane) focus(pane);
-                }}
-                onTouchStart={() => {
-                  if (session.focused !== pane) focus(pane);
-                }}
+                key={pane}
+                className={
+                  panes.includes(pane) ? 'min-w-0 flex-1 flex-row' : 'hidden'
+                }
               >
-                {active ? (
-                  <WorkspaceDocumentContent
-                    key={active.key}
-                    document={active}
-                    leaveScope={scope(pane)}
-                    workspace={workspace}
-                    onOpen={(document) => openDocument(document, pane)}
-                    onParentChange={(parent) =>
-                      changeDocuments(pane, (current) => ({
-                        ...current,
-                        tabs: current.tabs.map((tab) =>
-                          tab.key === active.key && tab.kind === 'commit'
-                            ? documentTab({ ...tab, parent })
-                            : tab,
-                        ),
-                      }))
-                    }
-                  />
-                ) : (
-                  <Empty
-                    title="Choose a document"
-                    description="Open a file, review or commit from the inspector."
-                  />
-                )}
+                {pane === 'right' && panes.length === 2 ? (
+                  <Separator orientation="vertical" />
+                ) : null}
+                <Box
+                  className="min-w-0 flex-1"
+                  accessibilityLabel={`${pane === 'left' ? 'Left' : 'Right'} document pane`}
+                  onPointerDown={() => {
+                    if (session.focused !== pane) focus(pane);
+                  }}
+                  onTouchStart={() => {
+                    if (session.focused !== pane) focus(pane);
+                  }}
+                >
+                  {active ? (
+                    <WorkspaceDocumentContent
+                      key={active.key}
+                      document={active}
+                      leaveScope={scope(pane)}
+                      workspace={workspace}
+                      onOpen={(document) => openDocument(document, pane)}
+                      onParentChange={(parent) =>
+                        changeDocuments(pane, (current) => ({
+                          ...current,
+                          tabs: current.tabs.map((tab) =>
+                            tab.key === active.key && tab.kind === 'commit'
+                              ? documentTab({ ...tab, parent })
+                              : tab,
+                          ),
+                        }))
+                      }
+                    />
+                  ) : null}
+                  {!active && pane === 'left' ? (
+                    <ReviewPage
+                      workspace={workspace}
+                      comparison={session.comparison}
+                      onFile={(path) =>
+                        openDocument(
+                          {
+                            kind: 'review-file',
+                            path,
+                            comparison: session.comparison,
+                          },
+                          'left',
+                        )
+                      }
+                    />
+                  ) : null}
+                </Box>
               </Box>
-            </Box>
-          );
-        })}
+            );
+          })}
+        </Box>
       </Box>
-    </WorkspacePanes>
+      {landscape && session.inspectorOpen ? (
+        <DockedPanel title={panelTitle}>{panel}</DockedPanel>
+      ) : null}
+      {landscape ? (
+        <TabletRail
+          entries={entries}
+          mode={session.mode}
+          open={session.inspectorOpen}
+          onPress={choosePanel}
+          onToggle={() => changeInspector(!session.inspectorOpen)}
+        />
+      ) : null}
+      <PanelSheet
+        title={panelTitle}
+        presented={!landscape && sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      >
+        {panel}
+      </PanelSheet>
+    </Box>
+  );
+}
+
+function ReviewPage({
+  workspace,
+  comparison,
+  onFile,
+}: {
+  workspace: Workspace;
+  comparison: ReviewComparison;
+  onFile: (path: string) => void;
+}) {
+  return (
+    <ScrollView
+      className="flex-1"
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerClassName="grow gap-3 p-4"
+    >
+      <ReviewOverview
+        workspace={workspace}
+        comparison={comparison}
+        onFile={onFile}
+      />
+    </ScrollView>
   );
 }
 
@@ -374,26 +452,6 @@ function WorkspaceDocumentContent({
           inlineComments
           leaveScope={leaveScope}
         />
-      );
-    case 'review-overview':
-      return (
-        <ScrollView
-          className="flex-1"
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="grow gap-3 p-4"
-        >
-          <ReviewOverview
-            workspace={workspace}
-            comparison={document.comparison}
-            onFile={(path) =>
-              onOpen({
-                kind: 'review-file',
-                path,
-                comparison: document.comparison,
-              })
-            }
-          />
-        </ScrollView>
       );
     case 'commit':
       return (

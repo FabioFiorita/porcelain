@@ -46,6 +46,7 @@ export function restoreWorkspace(
 ): WorkspaceSession {
   const restoreTabs = (
     pane: typeof tabsSchema.Type,
+    fallback: 'first' | 'review',
   ): DocumentTabsState<WorkspaceTab> => {
     const tabs = [
       ...new Map(
@@ -59,17 +60,15 @@ export function restoreWorkspace(
       tabs,
       active:
         tabs.find((tab) => tab.key === pane.active)?.key ??
-        tabs[0]?.key ??
+        (fallback === 'first' ? tabs[0]?.key : undefined) ??
         null,
     };
   };
-  const left = restoreTabs(snapshot.left);
-  const right = snapshot.right ? restoreTabs(snapshot.right) : null;
+  const left = restoreTabs(snapshot.left, 'review');
+  const right = snapshot.right ? restoreTabs(snapshot.right, 'first') : null;
   const panes =
     right && right.tabs.length > 0
-      ? left.tabs.length === 0
-        ? { left: right, right: null, focused: 'left' as const }
-        : { left, right, focused: snapshot.focused }
+      ? { left, right, focused: snapshot.focused }
       : { left, right: null, focused: 'left' as const };
   return {
     ...panes,
@@ -83,6 +82,14 @@ export function workspaceSnapshot(
   session: WorkspaceSession,
 ): WorkspaceSnapshot {
   return { version: 1, ...session };
+}
+
+export function showReview(session: WorkspaceSession): WorkspaceSession {
+  return {
+    ...session,
+    left: { ...session.left, active: null },
+    focused: 'left',
+  };
 }
 
 export function selectedDocument(

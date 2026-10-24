@@ -9,7 +9,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Box } from './box';
-import { Separator } from './separator';
 import { transitionSidebar } from '../../shared/rules/sidebar-transition';
 
 export function SidebarPane({
@@ -55,10 +54,7 @@ export function SidebarPane({
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
     >
-      <Box className={`${compact ? 'w-48' : 'w-64'} flex-1 flex-row`}>
-        <Box className="min-w-0 flex-1">{children}</Box>
-        <Separator orientation="vertical" />
-      </Box>
+      <Box className={`${compact ? 'w-48' : 'w-64'} flex-1`}>{children}</Box>
     </Animated.View>
   );
 }

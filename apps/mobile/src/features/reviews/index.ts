@@ -14,6 +14,7 @@ export {
   reviewComparison,
 } from './rules/navigation';
 export { useFileReview } from './queries/review';
+export { useReviewTab } from './queries/review-tab';
 
 export {
   DocumentComments,

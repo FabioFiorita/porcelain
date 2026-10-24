@@ -6,10 +6,6 @@ const parentSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
 export const workspaceDocumentSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal('file'), path: Schema.String }),
   Schema.Struct({
-    kind: Schema.Literal('review-overview'),
-    comparison: reviewComparisonSchema,
-  }),
-  Schema.Struct({
     kind: Schema.Literal('review-file'),
     path: Schema.String,
     comparison: reviewComparisonSchema,
@@ -48,7 +44,6 @@ export function documentTab(document: WorkspaceDocument): WorkspaceTab {
         label: document.path,
         closable: true,
       };
-    case 'review-overview':
     case 'review-file': {
       const comparison =
         document.comparison.kind === 'worktree'
@@ -58,12 +53,11 @@ export function documentTab(document: WorkspaceDocument): WorkspaceTab {
         document.comparison.kind === 'worktree'
           ? 'Uncommitted'
           : `Branch · ${document.comparison.base ?? 'Default base'}`;
-      const path = document.kind === 'review-file' ? document.path : undefined;
       return {
         ...document,
-        key: JSON.stringify([document.kind, comparison, path ?? null]),
-        title: path ? (path.split('/').at(-1) ?? path) : 'Review',
-        label: `${path ?? 'Review overview'} · ${comparisonLabel}`,
+        key: JSON.stringify([document.kind, comparison, document.path]),
+        title: document.path.split('/').at(-1) ?? document.path,
+        label: `${document.path} · ${comparisonLabel}`,
         closable: true,
       };
     }
@@ -95,7 +89,6 @@ export function documentMode(document: WorkspaceDocument): InspectorMode {
   switch (document.kind) {
     case 'file':
       return 'files';
-    case 'review-overview':
     case 'review-file':
       return 'review';
     case 'commit':
