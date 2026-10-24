@@ -26,7 +26,8 @@ import {
   gitErrorMessage,
   receiptFailed,
 } from '@porcelain/client/git-actions/rules';
-import { BranchTracking } from './branch-tracking';
+import { BranchTracking } from '@/features/history/index';
+import { branchTracking } from '@porcelain/client/history/rules';
 import { GitActionError } from './git-action-message';
 import { useCommitForm } from '../commands/commit-form';
 import type { CommitFormProps } from '@porcelain/client/git-actions/rules';
@@ -91,7 +92,10 @@ export function CommitForm(
         </DialogDescription>
       </DialogHeader>
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-caption">
-        <BranchTracking branch={liveBranch} />
+        <BranchTracking
+          tracking={branchTracking(liveBranch ?? undefined, null)}
+          focusable={false}
+        />
       </div>
       {status.inProgress !== 'merge' && (
         <Tabs value={mode} onValueChange={form.setMode}>

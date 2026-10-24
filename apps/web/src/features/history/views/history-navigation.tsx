@@ -7,12 +7,6 @@ import {
   GitGraphIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Empty,
@@ -27,6 +21,7 @@ import {
   historyHeading,
 } from '@porcelain/client/history/rules';
 import { useReviewOverview } from '@/features/changes/index';
+import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -58,24 +53,9 @@ export function HistoryNavigation({
     <div className="flex h-full min-h-0 flex-col">
       <section
         aria-label="Branch"
-        className="flex shrink-0 items-start gap-2 border-b px-3.5 py-2.5"
+        className="flex shrink-0 border-b px-3.5 py-2.5"
       >
-        <GitBranchIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <FullText className="min-w-0 flex-1 font-mono text-caption font-medium">
-              {tracking.name}
-            </FullText>
-            {tracking.counts !== null && (
-              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                {tracking.counts}
-              </span>
-            )}
-          </div>
-          <FullText className="text-2xs text-muted-foreground">
-            {tracking.upstream}
-          </FullText>
-        </div>
+        <BranchTracking tracking={tracking} focusable />
       </section>
       <HistoryRestarted history={history} />
       <ScrollArea className="h-0 min-h-0 flex-1">
@@ -121,25 +101,6 @@ export function HistoryNavigation({
         </div>
       )}
     </div>
-  );
-}
-
-function FullText({
-  className,
-  children,
-}: {
-  className: string;
-  children: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={<span tabIndex={0} className={cn('truncate', className)} />}
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent className="break-all">{children}</TooltipContent>
-    </Tooltip>
   );
 }
 
