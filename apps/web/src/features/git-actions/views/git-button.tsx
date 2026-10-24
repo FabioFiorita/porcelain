@@ -136,6 +136,8 @@ export function GitButton({
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
+  const reading = detailsLive && AsyncResult.isInitial(details.result);
+  const shownGroups = reading ? gitActionGroups.slice(0, 1) : gitActionGroups;
 
   const choose = (next: GitAction) => {
     if (isNetworkAction(next)) {
@@ -280,7 +282,7 @@ export function GitButton({
               Git actions
             </TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="end" className="w-76">
+          <DropdownMenuContent align="end" className="w-76" aria-busy={reading}>
             <DropdownMenuGroup>
               <DropdownMenuLabel>
                 {branch ? (
@@ -294,16 +296,11 @@ export function GitButton({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {gitActionGroups.map((group, index) => (
+            {shownGroups.map((group, index) => (
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker =
-                      isNetworkAction(candidate.id) &&
-                      detailsLive &&
-                      AsyncResult.isInitial(details.result)
-                        ? 'Reading the configured upstream.'
-                        : gitActionBlocker(candidate.id, status);
+                    const blocker = gitActionBlocker(candidate.id, status);
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
@@ -338,12 +335,20 @@ export function GitButton({
                     );
                   })}
                 </DropdownMenuGroup>
-                {index < gitActionGroups.length - 1 && (
+                {(reading || index < shownGroups.length - 1) && (
                   <DropdownMenuSeparator />
                 )}
               </Fragment>
             ))}
-            {(branch?.discarded?.length ?? 0) > 0 && (
+            {reading && (
+              <p
+                role="status"
+                className="px-2 py-1 text-xs text-muted-foreground"
+              >
+                Reading Git status…
+              </p>
+            )}
+            {!reading && (branch?.discarded?.length ?? 0) > 0 && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
