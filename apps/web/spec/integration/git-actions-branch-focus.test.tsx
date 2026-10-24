@@ -12,16 +12,13 @@ test('opening the Git menu focuses the menu, not the branch label', async ({
     .element(menu.getByText('No upstream', { exact: true }))
     .toBeVisible();
   await expect.element(menu).toHaveFocus();
-  await expect
-    .element(menu.getByRole('menuitem', { name: /^Commit/ }))
-    .toBeVisible();
   await userEvent.keyboard('{ArrowDown}');
   await expect
     .element(menu.getByRole('menuitem', { name: /^Commit/ }))
     .toHaveFocus();
 });
 
-test('the Git menu lists its actions only once the branch status is read, so no row moves under the pointer', async ({
+test('with changes to commit, the Git menu offers Commit at once and adds the rows that depend on the branch status together, so no row moves under the pointer', async ({
   render,
   fetchGate,
 }) => {
@@ -34,7 +31,15 @@ test('the Git menu lists its actions only once the branch status is read, so no 
   await expect
     .element(menu.getByRole('status'))
     .toHaveTextContent('Reading Git status…');
-  await expect.element(menu.getByRole('menuitem')).not.toBeInTheDocument();
+  await expect
+    .element(menu.getByRole('menuitem', { name: 'Commit…', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(menu.getByRole('menuitem', { name: /^Push/ }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(menu.getByRole('menuitem', { name: /^Stash changes/ }))
+    .not.toBeInTheDocument();
   held.release();
   await expect
     .element(menu.getByRole('menuitem', { name: /^Stash changes/ }))

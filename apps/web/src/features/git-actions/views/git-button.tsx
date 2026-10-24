@@ -137,6 +137,7 @@ export function GitButton({
   const branch = branchStatus(status);
   const running = menu.running;
   const reading = detailsLive && AsyncResult.isInitial(details.result);
+  const shownGroups = reading ? gitActionGroups.slice(0, 1) : gitActionGroups;
 
   const choose = (next: GitAction) => {
     if (isNetworkAction(next)) {
@@ -295,95 +296,88 @@ export function GitButton({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {reading ? (
-              <DropdownMenuGroup>
-                <DropdownMenuLabel role="status" aria-hidden={false}>
-                  Reading Git status…
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-            ) : (
+            {shownGroups.map((group, index) => (
+              <Fragment key={group.id}>
+                <DropdownMenuGroup>
+                  {group.actions.map((candidate) => {
+                    const blocker = gitActionBlocker(candidate.id, status);
+                    const reason =
+                      blocker ?? gitActionReason(candidate.id, status);
+                    return (
+                      <Tooltip
+                        key={candidate.id}
+                        onOpenChange={(_open, details) => {
+                          if (details.reason === 'escape-key')
+                            details.allowPropagation();
+                        }}
+                      >
+                        <TooltipTrigger render={<span className="block" />}>
+                          <DropdownMenuItem
+                            disabled={blocker !== null && blocker !== undefined}
+                            onClick={() => choose(candidate.id)}
+                          >
+                            <GitActionIcon action={candidate.id} />
+                            <span className="flex min-w-0 flex-col">
+                              <TruncatedText text={candidate.label} />
+                              {blocker && (
+                                <span className="text-xs whitespace-normal text-muted-foreground">
+                                  {blocker}
+                                </span>
+                              )}
+                            </span>
+                          </DropdownMenuItem>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {candidate.description}
+                          {reason && ` ${reason}`}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </DropdownMenuGroup>
+                {(reading || index < shownGroups.length - 1) && (
+                  <DropdownMenuSeparator />
+                )}
+              </Fragment>
+            ))}
+            {reading && (
+              <p
+                role="status"
+                className="px-2 py-1 text-xs text-muted-foreground"
+              >
+                Reading Git status…
+              </p>
+            )}
+            {!reading && (branch?.discarded?.length ?? 0) > 0 && (
               <>
-                {gitActionGroups.map((group, index) => (
-                  <Fragment key={group.id}>
-                    <DropdownMenuGroup>
-                      {group.actions.map((candidate) => {
-                        const blocker = gitActionBlocker(candidate.id, status);
-                        const reason =
-                          blocker ?? gitActionReason(candidate.id, status);
-                        return (
-                          <Tooltip
-                            key={candidate.id}
-                            onOpenChange={(_open, details) => {
-                              if (details.reason === 'escape-key')
-                                details.allowPropagation();
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Discarded</DropdownMenuLabel>
+                  {branch?.discarded?.map((item) => {
+                    const label =
+                      item.kind === 'rename'
+                        ? `Restore discarded rename of ${item.path}`
+                        : `Restore discarded hunk of ${item.path}`;
+                    return (
+                      <Tooltip key={item.oid}>
+                        <TooltipTrigger render={<span className="block" />}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setMenuOpen(false);
+                              menu.restoreDiscarded(item);
                             }}
                           >
-                            <TooltipTrigger render={<span className="block" />}>
-                              <DropdownMenuItem
-                                disabled={
-                                  blocker !== null && blocker !== undefined
-                                }
-                                onClick={() => choose(candidate.id)}
-                              >
-                                <GitActionIcon action={candidate.id} />
-                                <span className="flex min-w-0 flex-col">
-                                  <TruncatedText text={candidate.label} />
-                                  {blocker && (
-                                    <span className="text-xs whitespace-normal text-muted-foreground">
-                                      {blocker}
-                                    </span>
-                                  )}
-                                </span>
-                              </DropdownMenuItem>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {candidate.description}
-                              {reason && ` ${reason}`}
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
-                    </DropdownMenuGroup>
-                    {index < gitActionGroups.length - 1 && (
-                      <DropdownMenuSeparator />
-                    )}
-                  </Fragment>
-                ))}
-                {(branch?.discarded?.length ?? 0) > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Discarded</DropdownMenuLabel>
-                      {branch?.discarded?.map((item) => {
-                        const label =
-                          item.kind === 'rename'
-                            ? `Restore discarded rename of ${item.path}`
-                            : `Restore discarded hunk of ${item.path}`;
-                        return (
-                          <Tooltip key={item.oid}>
-                            <TooltipTrigger render={<span className="block" />}>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setMenuOpen(false);
-                                  menu.restoreDiscarded(item);
-                                }}
-                              >
-                                <Undo2Icon />
-                                <TruncatedText
-                                  className="min-w-0"
-                                  text={label}
-                                />
-                              </DropdownMenuItem>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {label} · Kept until you restore it
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
-                    </DropdownMenuGroup>
-                  </>
-                )}
+                            <Undo2Icon />
+                            <TruncatedText className="min-w-0" text={label} />
+                          </DropdownMenuItem>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {label} · Kept until you restore it
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </DropdownMenuGroup>
               </>
             )}
           </DropdownMenuContent>
