@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { PlusIcon, SparklesIcon } from 'lucide-react';
@@ -94,7 +95,6 @@ export function CommitForm(
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-caption">
         <BranchTracking
           tracking={branchTracking(liveBranch ?? undefined, null)}
-          focusable={false}
         />
       </div>
       {status.inProgress !== 'merge' && (
@@ -254,7 +254,7 @@ function CommitFiles({ form }: { form: CommitFormState }) {
           const body = (
             <>
               <FileTypeIcon path={file.path} className="size-3.5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{file.path}</span>
+              <TruncatedText className="min-w-0 flex-1" text={file.path} />
               <span className="shrink-0 text-muted-foreground">
                 {fileState(file.kind, included, commitAction)}
               </span>
@@ -457,7 +457,7 @@ function CommitGroups({ form }: { form: CommitFormState }) {
                 key={file.path}
                 className="flex min-w-0 items-center gap-2 text-xs"
               >
-                <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                <TruncatedText className="min-w-0 flex-1" text={file.path} />
                 <Select
                   items={assignments}
                   value={group.id}
@@ -495,7 +495,7 @@ function CommitGroups({ form }: { form: CommitFormState }) {
               key={file.path}
               className="flex min-w-0 items-center gap-2 text-xs"
             >
-              <span className="min-w-0 flex-1 truncate">{file.path}</span>
+              <TruncatedText className="min-w-0 flex-1" text={file.path} />
               <Select
                 items={assignments}
                 value="uncommitted"

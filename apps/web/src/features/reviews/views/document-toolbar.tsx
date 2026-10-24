@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/shared/lib/utils';
@@ -13,12 +14,13 @@ export function DocumentToolbar({
 }: {
   target?: HTMLElement | null | undefined;
   barActions?: ReactNode;
-  title: ReactNode;
-  titleLabel?: string;
-  subtitle?: ReactNode;
+  subtitle?: string;
   children?: ReactNode;
   className?: string;
-}) {
+} & (
+  | { title: string; titleLabel?: string }
+  | { title: ReactNode; titleLabel: string }
+)) {
   if (target !== undefined)
     return (
       <>
@@ -28,12 +30,13 @@ export function DocumentToolbar({
             target,
           )}
         <div className="shrink-0 px-3.5 py-2">
-          <h1
-            aria-label={titleLabel}
-            className="truncate text-ui font-semibold"
+          <TruncatedText
+            text={titleLabel ?? (typeof title === 'string' ? title : '')}
+            render={<h1 />}
+            className="text-ui font-semibold"
           >
             {title}
-          </h1>
+          </TruncatedText>
           {subtitle && (
             <p className="text-2xs text-muted-foreground">{subtitle}</p>
           )}
@@ -54,16 +57,19 @@ export function DocumentToolbar({
       )}
     >
       <div className="flex min-w-0 flex-auto flex-col">
-        <h1
-          aria-label={titleLabel}
-          className="truncate text-ui leading-tight font-semibold"
+        <TruncatedText
+          text={titleLabel ?? (typeof title === 'string' ? title : '')}
+          render={<h1 />}
+          className="text-ui leading-tight font-semibold"
         >
           {title}
-        </h1>
+        </TruncatedText>
         {subtitle !== null && subtitle !== undefined && (
-          <p className="truncate text-2xs leading-tight text-muted-foreground">
-            {subtitle}
-          </p>
+          <TruncatedText
+            text={subtitle}
+            render={<p />}
+            className="text-2xs leading-tight text-muted-foreground"
+          />
         )}
       </div>
       <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ChevronsUpDownIcon, GitBranchIcon } from 'lucide-react';
@@ -69,10 +70,10 @@ export function BranchBasePicker({
       >
         <span className="flex min-w-0 items-center gap-1.5">
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">
+          <TruncatedText text={`Against ${label}`}>
             <span className="text-muted-foreground">Against </span>
             {label}
-          </span>
+          </TruncatedText>
         </span>
         <ChevronsUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
@@ -113,7 +114,7 @@ export function BranchBasePicker({
                     data-checked={entry.ref === chosen}
                     onSelect={() => choose(entry.ref)}
                   >
-                    <span className="truncate">{entry.name}</span>
+                    <TruncatedText text={entry.name} />
                     {entry.ref === defaultRef && (
                       <span className="text-xs text-muted-foreground">
                         default

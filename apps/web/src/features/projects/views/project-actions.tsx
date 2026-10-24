@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   CopyIcon,
   FolderGit2Icon,
@@ -33,10 +34,16 @@ export function ProjectActions({
   const target = { project, remote: environmentId };
   return (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
-        <FolderGit2Icon />
-        <span className="truncate">{project.name}</span>
-      </DropdownMenuSubTrigger>
+      <TruncatedText
+        propagateEscape
+        text={project.name}
+        renderTrigger={(label) => (
+          <DropdownMenuSubTrigger>
+            <FolderGit2Icon />
+            {label}
+          </DropdownMenuSubTrigger>
+        )}
+      />
       <DropdownMenuSubContent className="min-w-44">
         {!project.available && (
           <DropdownMenuGroup>

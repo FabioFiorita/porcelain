@@ -219,9 +219,14 @@ test.for([
         )
         .toMatchTextContent(`You asked: ${asked}`);
       await userEvent.hover(title);
-      await expect
-        .element(app.page.getByRole('tooltip'))
-        .toHaveTextContent(asked);
+      if (clipped)
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .toHaveTextContent(asked);
+      else
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .not.toBeInTheDocument();
     } finally {
       await page.viewport(414, 896);
     }

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -55,7 +56,7 @@ export function HistoryNavigation({
         aria-label="Branch"
         className="flex shrink-0 border-b px-3.5 py-2.5"
       >
-        <BranchTracking tracking={tracking} focusable />
+        <BranchTracking tracking={tracking} />
       </section>
       <HistoryRestarted history={history} />
       <ScrollArea className="h-0 min-h-0 flex-1">
@@ -67,7 +68,7 @@ export function HistoryNavigation({
               className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-caption transition-colors hover:bg-accent"
             >
               <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate">Uncommitted changes</span>
+              <TruncatedText className="flex-1" text="Uncommitted changes" />
               <span className="text-2xs text-muted-foreground tabular-nums">
                 {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
               </span>
@@ -114,9 +115,10 @@ export function HistoryHeading({
       {history.snapshot !== null && history.snapshot !== undefined && (
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate">
-            {historyHeading(history.snapshot)}
-          </span>
+          <TruncatedText
+            className="min-w-0 flex-1"
+            text={historyHeading(history.snapshot)}
+          />
         </div>
       )}
       <HistoryRestarted history={history} />

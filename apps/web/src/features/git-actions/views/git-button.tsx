@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
@@ -229,9 +230,11 @@ export function GitButton({
                       running.operation.receipt.progress
                         .slice(-4)
                         .map((line) => (
-                          <li key={line} className="truncate" title={line}>
-                            {line}
-                          </li>
+                          <TruncatedText
+                            key={line}
+                            render={<li />}
+                            text={line}
+                          />
                         ))
                     ) : (
                       <li className="text-muted-foreground">
@@ -281,10 +284,7 @@ export function GitButton({
             <DropdownMenuGroup>
               <DropdownMenuLabel>
                 {branch ? (
-                  <BranchTracking
-                    tracking={branchTracking(branch, null)}
-                    focusable={false}
-                  />
+                  <BranchTracking tracking={branchTracking(branch, null)} />
                 ) : (
                   <span className="flex items-center gap-2">
                     <GitBranchIcon className="size-3.5 shrink-0" />
@@ -321,9 +321,7 @@ export function GitButton({
                           >
                             <GitActionIcon action={candidate.id} />
                             <span className="flex min-w-0 flex-col">
-                              <span className="truncate">
-                                {candidate.label}
-                              </span>
+                              <TruncatedText text={candidate.label} />
                               {blocker && (
                                 <span className="text-xs whitespace-normal text-muted-foreground">
                                   {blocker}
@@ -365,7 +363,7 @@ export function GitButton({
                             }}
                           >
                             <Undo2Icon />
-                            <span className="min-w-0 truncate">{label}</span>
+                            <TruncatedText className="min-w-0" text={label} />
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>

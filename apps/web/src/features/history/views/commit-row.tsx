@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
 import { useState, type MouseEvent, type ReactNode } from 'react';
@@ -61,7 +62,7 @@ export function CommitRow({
           className="size-3.5 shrink-0 text-muted-foreground"
         />
       )}
-      <span className="truncate">{commit.subject}</span>
+      <TruncatedText text={commit.subject} />
     </span>
   );
   const age = relativeTime(commit.author.timestamp);
@@ -91,14 +92,13 @@ export function CommitRow({
             <button
               type="button"
               aria-pressed={selected}
-              title={commit.subject}
               onClick={select}
               className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span className="flex gap-1.5 text-2xs text-muted-foreground">
                 <code className="font-mono">{shortOid(commit.oid)}</code>
-                <span className="truncate">{commit.author.name}</span>
+                <TruncatedText text={commit.author.name} />
                 <span aria-hidden="true">·</span>
                 <span className="shrink-0">{age}</span>
               </span>
@@ -117,7 +117,6 @@ export function CommitRow({
               <button
                 type="button"
                 aria-pressed={selected}
-                title={commit.subject}
                 onClick={select}
                 className="flex max-w-3/5 min-w-0 shrink-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
               >
@@ -133,12 +132,10 @@ export function CommitRow({
                 )}
               </div>
             </div>
-            <span
-              aria-hidden="true"
-              className="hidden w-28 shrink-0 truncate text-2xs text-muted-foreground @2xl/graph:block"
-            >
-              {commit.author.name}
-            </span>
+            <TruncatedText
+              className="hidden w-28 shrink-0 text-2xs text-muted-foreground @2xl/graph:block"
+              text={commit.author.name}
+            />
             <span
               aria-hidden="true"
               className="shrink-0 text-right text-2xs whitespace-nowrap text-muted-foreground tabular-nums"

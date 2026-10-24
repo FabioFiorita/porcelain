@@ -3,11 +3,7 @@ import { CloudOffIcon, InfoIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TruncatedText } from '@/shared/views/truncated-text';
 
 export function StateFrame({
   navigation,
@@ -37,7 +33,7 @@ export function StateNotice({
   children,
   role,
 }: {
-  title: ReactNode;
+  title: string;
   description?: ReactNode;
   icon?: ReactNode;
   children?: ReactNode;
@@ -55,21 +51,11 @@ export function StateNotice({
         >
           {icon ?? <InfoIcon />}
         </span>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <h2
-                tabIndex={0}
-                className="min-w-0 truncate text-base font-semibold"
-              >
-                {title}
-              </h2>
-            }
-          />
-          <TooltipContent className="max-w-sm break-words">
-            {title}
-          </TooltipContent>
-        </Tooltip>
+        <TruncatedText
+          text={title}
+          render={<h2 />}
+          className="text-base font-semibold"
+        />
       </div>
       {description && (
         <div className="text-ui leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
