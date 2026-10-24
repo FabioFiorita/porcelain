@@ -15,7 +15,6 @@ import { list, record, text } from '@porcelain/server/kit/session';
 import {
   repositoryRoot,
   SERVER_CLI,
-  WEB_CLI,
   cli,
   instanceFile,
   started,
@@ -93,7 +92,7 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
   }
 });
 
-test('web retained evidence and repeated stop work without an installed browser driver', async ({
+test('web and desktop retained evidence and repeated stop work without an installed browser driver', async ({
   onTestFinished,
 }) => {
   const copy = await checkoutCopy(onTestFinished);
@@ -105,30 +104,35 @@ test('web retained evidence and repeated stop work without an installed browser 
     for (const name of packages.filter((name) => name !== 'playwright'))
       await symlink(join(repositoryRoot, path, name), join(dependencies, name));
   }
-  const id = 'abc12345';
-  const home = resolve(instanceFile(copy, 'web', id), '../../..');
-  const evidence = join(home, 'evidence', id);
-  onTestFinished(() => rm(home, { recursive: true, force: true }));
-  await mkdir(evidence, { recursive: true, mode: 0o700 });
-  await writeFile(
-    join(evidence, 'stop-result.json'),
-    JSON.stringify({ complete: true, report: [] }),
-    { mode: 0o600 },
-  );
-
-  const retained = await cli(copy, WEB_CLI, 'evidence', '--instance', id);
-  const repeated = await cli(copy, WEB_CLI, 'stop', '--instance', id);
-
   expect(existsSync(join(copy, 'node_modules/playwright'))).toBe(false);
   expect(existsSync(join(copy, '.agents/skills/node_modules/playwright'))).toBe(
     false,
   );
-  expect(retained.code, retained.stderr).toBe(0);
-  expect(retained.stdout).toContain(evidence);
-  expect(repeated.code, repeated.stderr).toBe(0);
-  expect(repeated.stdout).toContain(`already stopped ${id}`);
-  expect(existsSync(join(home, 'instances'))).toBe(false);
-  expect(await readdir(evidence)).toStrictEqual(['stop-result.json']);
+  const id = 'abc12345';
+  for (const surface of ['web', 'desktop']) {
+    const path = `.agents/skills/${surface}-verify/scripts/cli`;
+    const home = resolve(instanceFile(copy, surface, id), '../../..');
+    const evidence = join(home, 'evidence', id);
+    onTestFinished(() => rm(home, { recursive: true, force: true }));
+    await mkdir(evidence, { recursive: true, mode: 0o700 });
+    await writeFile(
+      join(evidence, 'stop-result.json'),
+      JSON.stringify({ complete: true, report: [] }),
+      { mode: 0o600 },
+    );
+
+    const retained = await cli(copy, path, 'evidence', '--instance', id);
+    const repeated = await cli(copy, path, 'stop', '--instance', id);
+
+    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.stdout).toContain(evidence);
+    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.stdout).toContain(`already stopped ${id}`);
+    expect(existsSync(join(home, 'instances')), surface).toBe(false);
+    expect(await readdir(evidence), surface).toStrictEqual([
+      'stop-result.json',
+    ]);
+  }
 });
 
 test('a throwing cleanup stays incomplete after its supervisor exits and redacts its secret', async ({
