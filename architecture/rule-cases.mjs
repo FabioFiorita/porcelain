@@ -1755,6 +1755,12 @@ export const saveBoth = Atom.writable(
     'apps/web/spec/integration/sample.test.tsx',
     'apps/web/spec/e2e/sample.e2e.ts',
     'apps/desktop/spec/e2e/sample.e2e.ts',
+    'apps/web/spec/kit/sample.ts',
+    'apps/mobile/spec/kit/sample.ts',
+    'apps/server/spec/fakes/sample.ts',
+    '.agents/skills/spec/integration/sample.integration.ts',
+    'apps/web/src/features/files/views/sample.test.tsx',
+    'apps/mobile/src/features/files/rules/sample.test.ts',
   ].flatMap((path) => [
     ...[
       ['Date.now();', 1],
@@ -1778,11 +1784,10 @@ export const saveBoth = Atom.writable(
       errors,
     })),
     ...[
-      'apps/web/spec/kit/sample.ts',
-      'apps/desktop/spec/kit/sample.ts',
-      'apps/server/spec/kit/sample.ts',
-      'apps/mobile/spec/kit/sample.ts',
       'apps/web/src/features/files/commands/sample.ts',
+      'architecture/spec-gaps.mjs',
+      'apps/mobile/spec/kit/metro.ts',
+      'apps/server/spec/fakes/scripted-service-update-runner.ts',
     ].map((validPath) => ({
       rule: 'spec-no-clock',
       path,
@@ -1932,7 +1937,7 @@ export const saveBoth = Atom.writable(
     errors: 3,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid:
       'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10));',
@@ -1940,7 +1945,7 @@ export const saveBoth = Atom.writable(
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid:
       'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10)); new Promise(r => setTimeout(() => notify(), 10));',
@@ -1948,6 +1953,44 @@ export const saveBoth = Atom.writable(
       'new Promise((r) => setTimeout(() => r(undefined), 10)); new Promise((resolve) => setTimeout(() => { resolve(); }, 10)); new Promise((resolve) => setTimeout(function () { return resolve(); }, 10));',
     errors: 3,
   },
+  ...[
+    'packages/git/src/history/commands/sample.spec.ts',
+    'apps/web/src/features/files/views/sample.test.tsx',
+    'apps/desktop/spec/e2e/fixtures.ts',
+    'apps/mobile/spec/kit/sample.ts',
+    '.agents/skills/spec/integration/sample.integration.ts',
+  ].map((path) => ({
+    rule: 'spec-no-waits',
+    path,
+    valid: 'await expect.poll(() => existsSync(marker)).toBe(true);',
+    invalid:
+      "import { setTimeout as sleep } from 'node:timers/promises'; await new Promise((resolve) => setTimeout(resolve, 10)); await sleep(10); await Effect.runPromise(Effect.sleep('50 millis'));",
+    errors: 3,
+  })),
+  ...[
+    "import { TestClock } from 'effect/testing';",
+    "import * as TestClock from 'effect/testing/TestClock';",
+  ].map((clock) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/features/projects/commands/sample.spec.ts',
+    valid: `${clock} const fiber = Effect.runFork(Effect.sleep('1 second')); await Effect.runPromise(TestClock.adjust('1 second'));`,
+    invalid: `import { TestServices } from 'effect/testing'; const fiber = Effect.runFork(Effect.sleep('1 second'));`,
+    errors: 1,
+  })),
+  ...[
+    'apps/web/src/features/files/commands/sample.ts',
+    'apps/mobile/spec/kit/simulator.ts',
+    'apps/server/spec/fakes/scripted-service-update-runner.ts',
+    'apps/web/spec/integration/sample.test.tsx',
+  ].map((validPath) => ({
+    rule: 'spec-no-waits',
+    path: 'apps/server/spec/fakes/sample.ts',
+    validPath,
+    valid:
+      "import { setTimeout as sleep } from 'node:timers/promises'; await sleep(10); await Effect.runPromise(Effect.sleep('50 millis'));",
+    invalid: "await Effect.runPromise(Effect.sleep('50 millis'));",
+    errors: 1,
+  })),
   {
     rule: 'spec-no-mocking',
     path: 'packages/client/src/rules/sample.spec.ts',
@@ -1990,21 +2033,21 @@ export const saveBoth = Atom.writable(
     errors: 2,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/integration/sample.integration.ts',
     valid: 'await connection.next(notice => notice.type === "subscribed");',
     invalid: 'await delay(600);',
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/src/adapters/sample.spec.ts',
     valid: 'await expect.poll(() => pipeHasReader(head)).toBe(true);',
     invalid: 'await Effect.sleep(300);',
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid: 'await once(child, "exit");',
     invalid:

@@ -135,7 +135,7 @@
     "porcelain/interfaces-only-in-ports": "error",
     "eqeqeq": "error",
     "porcelain/spec-no-clock": "error",
-    "porcelain/server-spec-no-waits": "error"
+    "porcelain/spec-no-waits": "error"
   },
   "overrides": [
     {
