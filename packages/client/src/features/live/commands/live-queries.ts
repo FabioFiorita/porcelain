@@ -51,7 +51,11 @@ function liveSubscription(
       paths: new Set(),
     });
   }
-  for (const read of reads) {
+  const activeReads = [...reads];
+  for (const read of [
+    ...activeReads.filter((read) => !read.reviewId),
+    ...activeReads.filter((read) => read.reviewId),
+  ]) {
     if (read.projectId === undefined) continue;
     if (
       read.reviewId &&

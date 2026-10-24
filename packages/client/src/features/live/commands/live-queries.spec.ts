@@ -7,9 +7,10 @@ import {
   readProjectReviews,
 } from '@porcelain/client/reviews';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
-import { readFilePreferences } from '@porcelain/client/projects';
+import { readFilePreferences, readInventory } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Crypto, Equal, Layer } from 'effect';
+import { Crypto, Equal, Layer, Scope } from 'effect';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 import { Effect } from 'effect';
 import { expect, it } from 'vitest';
@@ -124,6 +125,14 @@ async function setup(
 }
 
 it('keeps pending operations subscribed within the server limit and retains their active paths', async () => {
+  const background = Array.from({ length: 32 }, (_, index) => ({
+    id: `f${index.toString(16).padStart(31, '0')}`,
+    path: `/retained/${index}`,
+    main: false,
+    available: true,
+    branch: null,
+    status: null,
+  }));
   const capped = Promise.withResolvers<void>();
   const subject = await setup(
     (path) => {
@@ -132,7 +141,14 @@ it('keeps pending operations subscribed within the server limit and retains thei
           Response.json({
             environmentId,
             environment: { name: 'Live', custom: false },
-            projects: [],
+            projects: [
+              {
+                id: projectId,
+                name: 'Background reviews',
+                available: true,
+                worktrees: background,
+              },
+            ],
           }),
         );
       const url = new URL(path, 'http://localhost');
@@ -157,6 +173,21 @@ it('keeps pending operations subscribed within the server limit and retains thei
   const unsubscribe: (() => void)[] = [];
   const pendingTree = '00000000000000000000000000000020';
   try {
+    await readClientAtom(subject.registry, readInventory(subject.connection));
+    await subject.connection.runtime.runPromise(
+      Effect.gen(function* () {
+        const subscriptions = yield* ReadSubscriptions;
+        for (const [index, worktree] of background.entries())
+          yield* subscriptions.retain({
+            projectId,
+            worktreeId: worktree.id,
+            paths: [],
+            reviewId: `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`,
+            surface: 'review',
+            settled: Effect.void,
+          });
+      }).pipe(Effect.provideService(Scope.Scope, subject.connection.scope)),
+    );
     for (let index = 0; index < 33; index += 1) {
       const worktreeId = index.toString(16).padStart(32, '0');
       const query = readTextFile({
@@ -176,6 +207,11 @@ it('keeps pending operations subscribed within the server limit and retains thei
     );
     await capped.promise;
     expect(subject.sent.at(-1)?.worktrees).toHaveLength(32);
+    expect(
+      subject.sent
+        .at(-1)
+        ?.worktrees.some((entry) => entry.worktreeId.startsWith('f')),
+    ).toBe(false);
     expect(subject.sent.at(-1)?.worktrees[0]).toEqual({
       ...scope,
       paths: ['file-32.ts'],
