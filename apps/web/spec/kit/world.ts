@@ -1,4 +1,7 @@
-import { durableReviewFixture } from './review-fixture.ts';
+import {
+  detachWorktreeFixture,
+  durableReviewFixture,
+} from './review-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { agentActs } from '@porcelain/server/kit/agent';
@@ -176,15 +179,8 @@ export class World {
         step.name,
         join(repository.projectHome, step.name),
       );
-    if (step.kind === 'detach-worktree') {
-      await repository.git(
-        '-C',
-        join(repository.projectHome, step.name),
-        'switch',
-        '--detach',
-      );
-      return repository.git('branch', '-D', step.name);
-    }
+    if (step.kind === 'detach-worktree')
+      return detachWorktreeFixture(repository, step.name);
     return repository.git('switch', step.name);
   }
 
