@@ -331,7 +331,7 @@ function DocumentTab({
               {label}
               {tabKey === 'handoff' && reviewCount}
               {tabKey !== 'handoff' && pinned && (
-                <Tooltip>
+                <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
                       <button
@@ -351,7 +351,7 @@ function DocumentTab({
                 </Tooltip>
               )}
               {tabKey !== 'handoff' && active && (
-                <Tooltip>
+                <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
                       <button
