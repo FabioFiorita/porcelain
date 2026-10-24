@@ -1,6 +1,118 @@
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
+for (const width of [1440, 414]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`detached checkouts keep distinct paths through search and selection at ${width}px in ${colorScheme}`, async ({
+      pairedPage,
+      repo,
+      server,
+      app,
+    }) => {
+      await pairedPage.setViewportSize({ width, height: 896 });
+      await pairedPage.emulateMedia({ colorScheme });
+      const names = [
+        'retained-checkout-with-a-long-path-that-must-stay-identifiable-first',
+        'retained-checkout-with-a-long-path-that-must-stay-identifiable-second',
+      ];
+      for (const name of names) await repo.worktree(name);
+      await expect
+        .poll(async () => {
+          const project = await server.project();
+          return names.every((name) =>
+            project.worktrees.some(
+              (row) => row.branch === `refs/heads/${name}`,
+            ),
+          );
+        })
+        .toBe(true);
+      const project = await server.project();
+      const computer = (await server.inventory()).environment.name;
+      const targets = names.map((name) => {
+        const worktree = project.worktrees.find(
+          (row) => row.branch === `refs/heads/${name}`,
+        );
+        if (!worktree) throw new Error(`Missing checkout ${name}`);
+        return worktree;
+      });
+      for (const name of names) await repo.detachWorktree(name);
+      await app.reload();
+      const sidebar = pairedPage.getByRole('navigation', {
+        name: 'Projects and worktrees',
+        exact: true,
+      });
+      const filter = sidebar.getByRole('button', {
+        name: 'Filter reviews',
+        exact: true,
+      });
+      if (width === 414)
+        await pairedPage
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      for (const target of targets)
+        await expect(
+          sidebar.getByRole('button', {
+            name: `${target.path} ${project.name}`,
+            exact: true,
+          }),
+        ).toBeVisible();
+      for (const [index, target] of targets.entries()) {
+        await filter.click();
+        await pairedPage
+          .getByRole('menuitem', { name: 'Worktrees', exact: true })
+          .click();
+        const result = pairedPage.getByRole('menuitemradio', {
+          name: `${target.path} · ${project.name} ${computer}`,
+          exact: true,
+        });
+        await expect(result).toBeVisible();
+        await expect(result).toHaveCSS('height', '32px');
+        await expect(
+          result.getByText(`${target.path} · ${project.name}`, {
+            exact: true,
+          }),
+        ).toHaveAttribute('title', `${target.path} · ${project.name}`);
+        const search = pairedPage.getByRole('searchbox', {
+          name: 'Search worktrees',
+          exact: true,
+        });
+        await expect(search).toHaveValue('');
+        await search.fill('NO-MATCH');
+        await expect(
+          pairedPage.getByText('No matching worktrees', { exact: true }),
+        ).toBeVisible();
+        await search.fill(target.path);
+        await expect(pairedPage.getByRole('menuitemradio')).toHaveCount(1);
+        if (index === 0) {
+          await search.press('ArrowDown');
+          await expect(result).toBeFocused();
+          await result.press('Enter');
+        } else await result.click();
+        await expect
+          .poll(() => app.address().path)
+          .toBe(`/${project.id}/${target.id}`);
+        await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+        if (width === 414)
+          await pairedPage
+            .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+            .click();
+        await filter.click();
+        await pairedPage
+          .getByRole('menuitem', { name: 'Worktrees', exact: true })
+          .click();
+        await expect(search).toHaveValue('');
+        await expect(result).toHaveAttribute('aria-checked', 'true');
+        await result.click();
+        await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+        if (width === 414)
+          await pairedPage
+            .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+            .click();
+      }
+    });
+  }
+}
+
 test('the flat worktree menu searches checkouts without reviews and selects the exact workspace', async ({
   pairedPage,
   repo,

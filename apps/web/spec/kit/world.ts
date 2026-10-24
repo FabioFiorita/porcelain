@@ -176,6 +176,15 @@ export class World {
         step.name,
         join(repository.projectHome, step.name),
       );
+    if (step.kind === 'detach-worktree') {
+      await repository.git(
+        '-C',
+        join(repository.projectHome, step.name),
+        'switch',
+        '--detach',
+      );
+      return repository.git('branch', '-D', step.name);
+    }
     return repository.git('switch', step.name);
   }
 

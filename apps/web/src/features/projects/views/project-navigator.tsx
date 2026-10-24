@@ -322,31 +322,37 @@ export function ProjectNavigator({
                       </InputGroupAddon>
                     </InputGroup>
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
-                      {checkouts.map((entry) => (
-                        <DropdownMenuRadioItem
-                          key={entry.key}
-                          value={entry.key}
-                          closeOnClick
-                          disabled={entry.disabled}
-                          onClick={() => openWorktree(entry)}
-                        >
-                          <span
-                            className="min-w-0 flex-1 truncate"
-                            title={`${entry.branch} · ${entry.projectName}`}
+                      {checkouts.map((entry) => {
+                        const label =
+                          entry.branch === 'Detached HEAD'
+                            ? (entry.path ?? entry.title)
+                            : entry.branch;
+                        return (
+                          <DropdownMenuRadioItem
+                            key={entry.key}
+                            value={entry.key}
+                            closeOnClick
+                            disabled={entry.disabled}
+                            onClick={() => openWorktree(entry)}
                           >
-                            {entry.branch} · {entry.projectName}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="max-w-1/2"
-                            title={entry.environmentName}
-                          >
-                            <span className="truncate">
-                              {entry.environmentName}
+                            <span
+                              className="min-w-0 flex-1 truncate"
+                              title={`${label} · ${entry.projectName}`}
+                            >
+                              {label} · {entry.projectName}
                             </span>
-                          </Badge>
-                        </DropdownMenuRadioItem>
-                      ))}
+                            <Badge
+                              variant="secondary"
+                              className="max-w-1/2"
+                              title={entry.environmentName}
+                            >
+                              <span className="truncate">
+                                {entry.environmentName}
+                              </span>
+                            </Badge>
+                          </DropdownMenuRadioItem>
+                        );
+                      })}
                     </DropdownMenuRadioGroup>
                     {!loading && checkouts.length === 0 ? (
                       <Empty>

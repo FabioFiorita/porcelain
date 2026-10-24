@@ -52,6 +52,7 @@ Automated coverage: `projects-search.e2e.ts`, `worktrees-menu.test.tsx`, `review
 ## Gotchas
 
 - Checkout submenu search is temporary and independent of sidebar search/filters/Closed; restore filters before comparing the full list.
+- Retain two detached checkouts in the same project at different paths. Both the sidebar and Filter reviews → Worktrees identify each by its full path, including in the accessible name and menu label's title. Search each path and select one with ArrowDown/Enter and the other with the pointer. Verify the exact workspace, selected checkmark, both menu levels closing and an empty temporary search when reopened. Check long paths at 1440 and 414 in light and dark; labels stay on one line.
 
 ### Unavailable pull request state
 
