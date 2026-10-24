@@ -9,4 +9,6 @@ export type HeaderIconName =
   | 'compareParent'
   | 'sidebar'
   | 'inspector'
-  | 'add';
+  | 'add'
+  | 'resolve'
+  | 'reopen';

@@ -110,6 +110,14 @@ export function anchorLabel(anchor: CommentAnchor): string {
     : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
 }
 
+export function threadWriteTarget(
+  thread: Pick<CommentThread, 'id' | 'review'>,
+) {
+  return thread.review
+    ? { threadId: thread.id, reviewId: thread.review.reviewId }
+    : { threadId: thread.id };
+}
+
 export function threadStarter(thread: CommentThread): CommentMessageAuthor {
   return thread.messages[0]?.author ?? 'reviewer';
 }
@@ -191,4 +199,42 @@ export function mergeCommentThreads(
   for (const thread of updated) byId.set(thread.id, thread);
   for (const threadId of removed) byId.delete(threadId);
   return [...byId.values()];
+}
+
+export type CommentSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'decision'; text: string; decision: number };
+
+export function decisionMentions(
+  body: string,
+  decisions: number,
+): CommentSegment[] {
+  const segments: CommentSegment[] = [];
+  let rest = 0;
+  for (const match of body.matchAll(/\b(?:stop|decision)\s+(\d+)\b/gi)) {
+    const decision = Number(match[1]);
+    if (decision < 1 || decision > decisions) continue;
+    if (match.index > rest)
+      segments.push({ kind: 'text', text: body.slice(rest, match.index) });
+    segments.push({ kind: 'decision', text: match[0], decision });
+    rest = match.index + match[0].length;
+  }
+  if (rest < body.length)
+    segments.push({ kind: 'text', text: body.slice(rest) });
+  return segments;
+}
+
+export function messageRevision(
+  message: Pick<CommentMessage, 'createdAt'>,
+  revisions: readonly { revision: number; publishedAt: string }[],
+): number | undefined {
+  if (!message.createdAt) return undefined;
+  const written = Date.parse(message.createdAt);
+  let found: { revision: number; at: number } | undefined;
+  for (const entry of revisions) {
+    const at = Date.parse(entry.publishedAt);
+    if (at <= written && (!found || at >= found.at))
+      found = { revision: entry.revision, at };
+  }
+  return found?.revision;
 }

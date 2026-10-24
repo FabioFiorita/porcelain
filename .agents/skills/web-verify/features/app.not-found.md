@@ -10,6 +10,7 @@ selectors:
   - 'Projects and worktrees'
   - 'Settings'
 tests:
+  - apps/web/spec/integration/workspace-selection.test.tsx
   - apps/web/spec/e2e/app-routing.e2e.ts
 api:
   - GET /api/inventory

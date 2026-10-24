@@ -57,7 +57,13 @@ export function LinkedReviewScreen() {
   const navigation = useReviewNavigation();
   const params = useLocalSearchParams();
   const query = new URLSearchParams();
-  for (const key of ['environment', 'host', 'revision', 'decision']) {
+  for (const key of [
+    'environment',
+    'host',
+    'protocol',
+    'revision',
+    'decision',
+  ]) {
     const value = params[key];
     if (value === undefined) continue;
     for (const entry of Array.isArray(value) ? value : [value])

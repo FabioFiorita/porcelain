@@ -10,6 +10,7 @@
   --color-graph-5: var(--graph-5);
   --color-graph-6: var(--graph-6);
 
+  --color-skeleton: var(--skeleton);
   --color-frame: var(--frame);
   --color-foreground-2: var(--foreground-2);
   --color-title-dim: var(--title-dim);
@@ -69,6 +70,7 @@
 @layer theme {
   :root {
     --radius: 0.625rem;
+    --skeleton: var(--border-strong);
 
     @variant light {
       --graph-1: #5075cf;

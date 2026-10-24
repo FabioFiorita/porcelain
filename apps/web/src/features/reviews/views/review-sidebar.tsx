@@ -26,7 +26,7 @@ import {
   type Surface,
 } from '@/shared/workspace/search';
 import { ReviewBoundary } from './review-boundary';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice } from '@/shared/views/state-notice';
 import { ReviewIndex } from './review-index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -207,7 +207,7 @@ function SidebarSurface({
             Review
           </Button>
         )}
-        <ReviewEmpty
+        <StateNotice
           title="Worktree unavailable"
           description="Restore the checkout and return to Porcelain to browse its files and Git state."
         />

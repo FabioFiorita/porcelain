@@ -1,13 +1,10 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { AsyncResult } from 'effect/reactivity';
-import { Cause } from 'effect';
+import { BranchState } from './branch-state';
+import type { AsyncResult } from 'effect/reactivity';
 import { GitBranchIcon } from 'lucide-react';
-import { Suspense } from 'react';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { branchErrorMessage } from '@porcelain/client/changes/rules';
 import { refLabel } from '@porcelain/client/history/rules';
-import { useBranchChanges } from '@/features/changes/index';
+import type { useBranchChanges } from '@/features/changes/index';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
@@ -24,7 +21,6 @@ import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
-import { ReviewEmpty } from './review-empty';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -88,58 +84,20 @@ function BranchFiles({
   onOpen: OpenDocument;
   sideLabel: string;
 }) {
-  const { connection } = context;
-  const changes = useBranchChanges(scope, connection, base);
-  if (AsyncResult.isFailure(changes.result))
-    return (
-      <div role="alert" className="p-3 text-xs text-muted-foreground">
-        <span className="block">
-          {branchErrorMessage(
-            AsyncResult.isFailure(changes.result)
-              ? Cause.squash(changes.result.cause)
-              : undefined,
-          )}
-        </span>
-        <Button
-          variant="outline"
-          size="xs"
-          className="mt-2"
-          onClick={changes.refresh}
-        >
-          Try again
-        </Button>
-      </div>
-    );
-  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base === undefined)
-    return (
-      <div className="p-3">
-        <ReviewEmpty
-          title="No default branch"
-          description="Choose the branch this one is compared against."
+  return (
+    <BranchState scope={scope} context={context} base={base}>
+      {(branch) => (
+        <BranchFileList
+          scope={scope}
+          context={context}
+          branch={branch}
+          activeEntry={activeEntry}
+          threads={threads}
+          onOpen={onOpen}
+          sideLabel={sideLabel}
         />
-      </div>
-    );
-  return (
-    <Suspense fallback={<ComparingBranch />}>
-      <BranchFileList
-        scope={scope}
-        context={context}
-        branch={changes.result.value}
-        activeEntry={activeEntry}
-        threads={threads}
-        onOpen={onOpen}
-        sideLabel={sideLabel}
-      />
-    </Suspense>
-  );
-}
-
-function ComparingBranch() {
-  return (
-    <p role="status" className="p-3 text-xs text-muted-foreground">
-      Comparing the branch…
-    </p>
+      )}
+    </BranchState>
   );
 }
 

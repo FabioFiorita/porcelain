@@ -1,6 +1,5 @@
-import { SafeAreaView } from 'react-native-screens/experimental';
-import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
+import { ReviewBottomBar } from './review-bottom-bar';
 
 export function BriefingContinue({
   label,
@@ -10,14 +9,8 @@ export function BriefingContinue({
   onPress: () => void;
 }) {
   return (
-    <SafeAreaView
-      edges={{ bottom: true }}
-      insetType="system"
-      style={{ flex: 0 }}
-    >
-      <Box paddingX={4} paddingY={3} surface="background">
-        <Button label={label} onPress={onPress} />
-      </Box>
-    </SafeAreaView>
+    <ReviewBottomBar>
+      <Button label={label} onPress={onPress} />
+    </ReviewBottomBar>
   );
 }

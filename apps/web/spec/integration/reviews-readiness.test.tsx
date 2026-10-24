@@ -5,6 +5,7 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   workspace,
   repo,
   agent,
+  server,
 }) => {
   const readme = repo.readme.path;
   const sidebar = workspace.getByRole('dialog');
@@ -74,7 +75,13 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
     ],
     screenshot: 'Saved notice',
   });
-  await expect.element(line('1 line in 1 file not explained')).toBeVisible();
+  await expect
+    .poll(async () => (await server.publishedReview()).review?.notExplained)
+    .toEqual([
+      { path: readme, ranges: [{ startLine: 4, endLine: 4 }] },
+      { path: 'notes.md', ranges: [{ startLine: 1, endLine: 1 }] },
+    ]);
+  await expect.element(line('2 lines in 2 files not explained')).toBeVisible();
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
   await expect
     .element(readiness.getByRole('button', { name: /^Readiness/ }))

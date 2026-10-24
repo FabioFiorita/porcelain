@@ -1,22 +1,19 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { BranchState } from './branch-state';
 import { HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
-import { type ReactNode, Suspense, useState } from 'react';
+import { Option } from 'effect';
+import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import {
-  type BranchFile,
-  branchErrorMessage,
-  branchRange,
-} from '@porcelain/client/changes/rules';
+import { type BranchFile, branchRange } from '@porcelain/client/changes/rules';
 import {
   commitEntry,
-  useBranchChanges,
+  type useBranchChanges,
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';
@@ -39,7 +36,7 @@ import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
-import { ReviewEmpty } from './review-empty';
+import { StateNotice } from '@/shared/views/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -69,51 +66,19 @@ function BranchCode({
   path,
   onOpen,
 }: Props & { path: string | undefined }) {
-  const { connection } = context;
-  const changes = useBranchChanges(scope, connection, base);
-  if (AsyncResult.isFailure(changes.result))
-    return (
-      <div className="flex flex-col items-center p-4">
-        <ReviewEmpty
-          title="Branch could not be compared"
-          description={branchErrorMessage(
-            AsyncResult.isFailure(changes.result)
-              ? Cause.squash(changes.result.cause)
-              : undefined,
-          )}
+  return (
+    <BranchState scope={scope} context={context} base={base}>
+      {(branch) => (
+        <BranchMarkedCode
+          scope={scope}
+          context={context}
+          interaction={interaction}
+          onOpen={onOpen}
+          branch={branch}
+          path={path}
         />
-        <Button variant="outline" onClick={changes.refresh}>
-          Compare again
-        </Button>
-      </div>
-    );
-  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
-  if (changes.result.value.base === undefined)
-    return (
-      <ReviewEmpty
-        title="No default branch"
-        description="Choose the branch this one is compared against in the Branch list."
-      />
-    );
-  return (
-    <Suspense fallback={<ComparingBranch />}>
-      <BranchMarkedCode
-        scope={scope}
-        context={context}
-        interaction={interaction}
-        onOpen={onOpen}
-        branch={changes.result.value}
-        path={path}
-      />
-    </Suspense>
-  );
-}
-
-function ComparingBranch() {
-  return (
-    <p role="status" className="p-4 text-sm">
-      Comparing the branch…
-    </p>
+      )}
+    </BranchState>
   );
 }
 
@@ -144,7 +109,7 @@ function BranchMarkedCode({
   );
   if (path !== null && path !== undefined && items.length === 0)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="Not changed on this branch"
         description={`${path} has no committed change since ${refLabel(branch.base.ref)}.`}
       />

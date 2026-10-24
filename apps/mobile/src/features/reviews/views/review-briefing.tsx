@@ -287,8 +287,10 @@ function ProofAsset({
     (layer) => layer.id === asset.layerId,
   );
   const target = decision < 0 ? '' : ` · Decision ${decision + 1}`;
-  const url =
-    asset.kind === 'link' ? asset.url : revision.content.links?.revision.web;
+  const links = revision.content.links;
+  const revisionUrl =
+    links?.kind === 'available' ? links.revision.web : undefined;
+  const url = asset.kind === 'link' ? asset.url : revisionUrl;
   let onPress: (() => void) | undefined;
   let action = 'Open proof';
   if (asset.kind === 'image') {

@@ -55,7 +55,7 @@ import {
   codeCommentMatches,
   codeCommentStale,
 } from '../rules/retained-comments';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
@@ -611,34 +611,31 @@ function CodeSurface({
                       </p>
                     )}
                     {stale && thread.review && (
-                      <ReviewNotice
+                      <StateNotice
+                        role="status"
                         title="Code changed since this comment"
-                        action={
-                          <Link
-                            to="/reviews/$reviewId/$revision"
-                            params={{
-                              reviewId: thread.review.reviewId,
-                              revision: String(thread.review.revision),
-                            }}
-                            search={(previous) => ({
-                              environment: previous.environment,
-                              decision: undefined,
-                            })}
-                            className={cn(
-                              buttonVariants({
-                                variant: 'outline',
-                                size: 'xs',
-                              }),
-                            )}
-                          >
-                            Open r{thread.review.revision}
-                          </Link>
-                        }
+                        description={`Written on r${thread.review.revision}. Read the original code before acting on this thread.`}
                       >
-                        {thread.review &&
-                          `Written on r${thread.review.revision}. `}
-                        Read the original code before acting on this thread.
-                      </ReviewNotice>
+                        <Link
+                          to="/reviews/$reviewId/$revision"
+                          params={{
+                            reviewId: thread.review.reviewId,
+                            revision: String(thread.review.revision),
+                          }}
+                          search={(previous) => ({
+                            environment: previous.environment,
+                            decision: undefined,
+                          })}
+                          className={cn(
+                            buttonVariants({
+                              variant: 'outline',
+                              size: 'xs',
+                            }),
+                          )}
+                        >
+                          Open r{thread.review.revision}
+                        </Link>
+                      </StateNotice>
                     )}
                     <ThreadCard
                       scope={scope}

@@ -123,7 +123,6 @@
   "packages/reviews/src/rules/comment-threads.ts#unchangedResolvedThread",
   "packages/reviews/src/rules/comment-threads.ts#waitsForAgent",
   "packages/reviews/src/rules/resolve-review.ts#publishedLayerFingerprint",
-  "packages/reviews/src/rules/review-diagnostics.ts#reviewDiagnostics",
   "packages/reviews/src/rules/review-evidence.ts#reviewChanges",
   "packages/reviews/src/rules/review-evidence.ts#reviewPatches",
   "packages/reviews/src/rules/review-evidence.ts#textLines",

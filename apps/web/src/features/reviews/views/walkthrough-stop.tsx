@@ -18,11 +18,11 @@ import {
   checkResultLabel,
   decisionKey,
   decisionLinks,
+  decisionQuestions,
   decisionRoute,
   filesReviewed,
   orderedChecks,
   proofOnLayer,
-  systemChanges,
   type DecisionLink,
   type DecisionState,
   type ReviewChangeItem,
@@ -34,7 +34,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -68,15 +68,7 @@ export function DecisionPage({
 }) {
   const { layer } = stop;
   const links = decisionLinks(review, layer.id);
-  const questions = [
-    ...systemChanges(review).questions.filter(
-      (part) => part.decision === stop.number,
-    ),
-    ...links.flatMap((link) => (link.part.problem ? [link.part] : [])),
-  ].filter(
-    (part, index, all) =>
-      all.findIndex((other) => other.id === part.id) === index,
-  );
+  const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   const progress = filesReviewed(stop.paths, items);
   return (
@@ -178,10 +170,11 @@ export function DecisionPage({
           <Summary text={layer.summary} />
         </header>
         {decision?.stale && (
-          <ReviewNotice title="Code moved since it was explained">
-            Lines this decision points at changed after the agent explained
-            them. Read the diff below, or ask the agent to publish a revision.
-          </ReviewNotice>
+          <StateNotice
+            role="status"
+            title="Code moved since it was explained"
+            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+          />
         )}
         <RouteTable
           layer={layer}

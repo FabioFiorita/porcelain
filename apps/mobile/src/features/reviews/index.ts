@@ -8,7 +8,11 @@ export {
   ReviewFileContent,
 } from './views/review-file-screen';
 export { ReviewCommentsScreen } from './views/review-comments-screen';
-export { decodeCommentAnchor, reviewComparison } from './rules/navigation';
+export {
+  decodeCommentAnchor,
+  decodeCommentReview,
+  reviewComparison,
+} from './rules/navigation';
 export { useFileReview } from './queries/review';
 
 export {

@@ -98,6 +98,119 @@ describe('CreateCommentThreadService', () => {
   });
 
   const ids = { threadId: 'thread-1', messageId: 'message-1' };
+  const firstReview = {
+    reviewId: 'review-1',
+    revision: 1,
+    headOid: 'a'.repeat(40),
+  };
+  const secondReview = {
+    ...firstReview,
+    revision: 2,
+    headOid: 'b'.repeat(40),
+  };
+  const retainedAnchor: CommentAnchor = {
+    kind: 'change',
+    comparison: { kind: 'branch', base: 'refs/heads/main' },
+    revision: firstReview.headOid,
+  };
+  const retainedAnchors: CommentAnchor[] = [
+    retainedAnchor,
+    { ...retainedAnchor, kind: 'file', filePath: 'README.md' },
+    {
+      ...retainedAnchor,
+      kind: 'codeRange',
+      filePath: 'README.md',
+      startLine: 1,
+      endLine: 2,
+      side: 'additions',
+    },
+  ];
+  it.each(
+    retainedAnchors.flatMap((anchor) => [
+      { anchor, review: secondReview, selection: 'latest' },
+      { anchor, review: firstReview, selection: 'explicit historical' },
+    ]),
+  )(
+    'keeps a retried $anchor.kind thread on its original revision with $selection selection',
+    async ({ anchor, review }) => {
+      const { service, store } = await setup();
+      const request = input({ ...ids, anchor, review: firstReview });
+      const first = Effect.runSync(service.execute(request));
+      expect(Effect.runSync(service.execute({ ...request, review }))).toEqual(
+        first,
+      );
+      expect(first.review).toEqual(firstReview);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+        first,
+      ]);
+    },
+  );
+
+  it.each<{ name: string; changes: Partial<CreateCommentThreadInput> }>([
+    { name: 'body', changes: { body: 'Changed feedback' } },
+    {
+      name: 'anchor',
+      changes: {
+        anchor: { ...retainedAnchor, revision: secondReview.headOid },
+      },
+    },
+    { name: 'author', changes: { writer: { kind: 'agent' } } },
+    { name: 'message id', changes: { messageId: 'message-2' } },
+    {
+      name: 'review owner',
+      changes: { review: { ...secondReview, reviewId: 'review-2' } },
+    },
+    { name: 'missing review owner', changes: { review: undefined } },
+  ])(
+    'refuses a retained thread id reused with another $name after republishing',
+    async ({ changes }) => {
+      const { service, store } = await setup();
+      const request = input({
+        ...ids,
+        anchor: retainedAnchor,
+        review: firstReview,
+      });
+      const first = Effect.runSync(service.execute(request));
+      expect(() =>
+        Effect.runSync(
+          service.execute({ ...request, review: secondReview, ...changes }),
+        ),
+      ).toThrow(CommentIdentityConflictError);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+        first,
+      ]);
+    },
+  );
+
+  it('refuses a new stale review comment but permits current and explicit historical comments', async () => {
+    const { service, store } = await setup();
+    expect(() =>
+      Effect.runSync(
+        service.execute(
+          input({ anchor: retainedAnchor, review: secondReview }),
+        ),
+      ),
+    ).toThrow(CommentRevisionMismatchError);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
+    const current = Effect.runSync(
+      service.execute(
+        input({
+          anchor: { ...retainedAnchor, revision: secondReview.headOid },
+          review: secondReview,
+        }),
+      ),
+    );
+    const historical = Effect.runSync(
+      service.execute(input({ anchor: retainedAnchor, review: firstReview })),
+    );
+    expect(current.review).toEqual(secondReview);
+    expect(historical.review).toEqual(firstReview);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+      current,
+      historical,
+    ]);
+  });
+
   it.each([
     {
       name: 'different content',
