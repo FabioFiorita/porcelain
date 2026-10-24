@@ -279,17 +279,17 @@ export function GitButton({
           </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center gap-2">
+              <DropdownMenuLabel>
                 {branch ? (
                   <BranchTracking
                     tracking={branchTracking(branch, null)}
                     focusable={false}
                   />
                 ) : (
-                  <>
+                  <span className="flex items-center gap-2">
                     <GitBranchIcon className="size-3.5 shrink-0" />
                     Git actions
-                  </>
+                  </span>
                 )}
               </DropdownMenuLabel>
             </DropdownMenuGroup>
