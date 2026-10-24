@@ -18,7 +18,8 @@ import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type CommentsFailure = Effect.Error<
-  ReturnType<PorcelainApi['reviews']['listCommentThreads']>
+  | ReturnType<PorcelainApi['reviews']['listCommentThreads']>
+  | ReturnType<PorcelainApi['reviews']['readPublishedReview']>
 >;
 
 export class CommentThreadsState extends Context.Service<
@@ -43,8 +44,32 @@ export class CommentThreadsState extends Context.Service<
             );
             yield* currentAnswerEffect(
               connection,
-              threads.every((thread) => thread.worktreeId === scope.worktreeId),
+              threads.every(
+                (thread) =>
+                  thread.worktreeId === scope.worktreeId ||
+                  thread.review !== undefined,
+              ),
             );
+            if (
+              threads.some((thread) => thread.worktreeId !== scope.worktreeId)
+            ) {
+              const { review } = yield* client.request((api) =>
+                api.reviews.readPublishedReview({
+                  params: { worktreeId: scope.worktreeId },
+                }),
+              );
+              yield* currentAnswerEffect(
+                connection,
+                review?.environmentId === connection.environmentId &&
+                  review.worktreeId === scope.worktreeId &&
+                  threads.every(
+                    (thread) =>
+                      thread.worktreeId === scope.worktreeId ||
+                      thread.review?.reviewId === review.reviewId,
+                  ),
+              );
+            }
+            yield* currentAnswerEffect(connection);
             return threads;
           }),
           Option.none(),

@@ -5,9 +5,12 @@ import {
   questionAnswer,
   commentIsStale,
   commentsSeenThrough,
+  decisionMentions,
+  messageRevision,
   matchesCommentTarget,
   mergeCommentThreads,
   retainIntent,
+  threadWriteTarget,
   type CommentThread,
 } from './comments.ts';
 
@@ -192,4 +195,83 @@ it('confirmed deletion removes only the acknowledged discussion and retains skip
   expect(mergeCommentThreads([deleted, skipped], [], ['deleted'])).toEqual([
     skipped,
   ]);
+});
+
+describe('decisionMentions', () => {
+  it.each([
+    {
+      body: 'Covered in stop 3.',
+      expected: [
+        { kind: 'text', text: 'Covered in ' },
+        { kind: 'decision', text: 'stop 3', decision: 3 },
+        { kind: 'text', text: '.' },
+      ],
+    },
+    {
+      body: 'Decision 1 and decision 9 both read it',
+      expected: [
+        { kind: 'decision', text: 'Decision 1', decision: 1 },
+        { kind: 'text', text: ' and ' },
+        { kind: 'decision', text: 'decision 9', decision: 9 },
+        { kind: 'text', text: ' both read it' },
+      ],
+    },
+    {
+      body: 'See stop 12, stop 0 and nonstop 3.',
+      expected: [{ kind: 'text', text: 'See stop 12, stop 0 and nonstop 3.' }],
+    },
+    {
+      body: 'stop 2',
+      expected: [{ kind: 'decision', text: 'stop 2', decision: 2 }],
+    },
+    { body: '', expected: [] },
+  ])('links only decisions the review has: $body', ({ body, expected }) => {
+    expect(decisionMentions(body, 9)).toEqual(expected);
+  });
+});
+
+describe('messageRevision', () => {
+  const revisions = [
+    { revision: 1, publishedAt: '2026-10-22T10:00:00.000Z' },
+    { revision: 3, publishedAt: '2026-10-22T12:00:00.000Z' },
+    { revision: 2, publishedAt: '2026-10-22T11:00:00.000Z' },
+  ];
+  it.each([
+    { createdAt: '2026-10-22T11:20:00.000Z', expected: 2 },
+    { createdAt: '2026-10-22T12:00:00.000Z', expected: 3 },
+    { createdAt: '2026-10-22T13:00:00.000Z', expected: 3 },
+    { createdAt: '2026-10-22T09:59:59.000Z', expected: undefined },
+    { createdAt: undefined, expected: undefined },
+  ])(
+    'names the latest revision published by $createdAt',
+    ({ createdAt, expected }) => {
+      expect(messageRevision(createdAt ? { createdAt } : {}, revisions)).toBe(
+        expected,
+      );
+    },
+  );
+  it('names no revision for a review without revisions', () => {
+    expect(
+      messageRevision({ createdAt: '2026-10-22T13:00:00.000Z' }, []),
+    ).toBeUndefined();
+  });
+});
+
+describe('threadWriteTarget', () => {
+  const id = 'bb6a4c6a-4898-426c-ac20-bf4f53fc47d7';
+  const reviewId = '92825267-1e53-4a39-a954-9c6920e57ffa';
+  it.each([
+    {
+      owner: 'its review',
+      thread: { id, review: { reviewId, revision: 2, headOid: 'abc123' } },
+      expected: { threadId: id, reviewId },
+    },
+    {
+      owner: 'the worktree',
+      thread: { id },
+      expected: { threadId: id },
+    },
+  ])('writes to a thread owned by $owner', ({ thread, expected }) => {
+    expect(threadWriteTarget(thread)).toStrictEqual(expected);
+  });
 });

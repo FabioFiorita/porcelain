@@ -8,7 +8,7 @@ selectors:
   - 'Closed reviews'
   - 'No matching worktrees'
   - 'Clear search'
-  - 'Current'
+  - 'current'
   - 'Read projects again'
 tests:
   - packages/client/src/features/reviews/rules/review-list.spec.ts

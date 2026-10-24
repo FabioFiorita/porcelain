@@ -296,3 +296,23 @@ export function reviewStepLines(step: ReviewStep) {
       return location satisfies never;
   }
 }
+
+export function decisionQuestions(
+  review: Pick<ReviewResponse, 'diagram' | 'layers'>,
+  stop: Pick<
+    Extract<WalkthroughStop, { kind: 'decision' }>,
+    'number' | 'layer'
+  >,
+): SystemPart[] {
+  const parts = [
+    ...systemChanges(review).questions.filter(
+      (part) => part.decision === stop.number,
+    ),
+    ...decisionLinks(review, stop.layer.id).flatMap((link) =>
+      link.part.problem ? [link.part] : [],
+    ),
+  ];
+  return parts.filter(
+    (part, index) => parts.findIndex((other) => other.id === part.id) === index,
+  );
+}

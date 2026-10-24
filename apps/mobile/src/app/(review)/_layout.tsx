@@ -1,5 +1,6 @@
 import { DestinationLayout } from '../../shell/destination-layout';
 import { Stack } from 'expo-router';
+import { sheetPresentation } from '../../shared/navigation/sheet-presentation';
 
 export const unstable_settings = { anchor: 'review' };
 
@@ -17,12 +18,7 @@ function ReviewLayout() {
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
       <Stack.Screen
         name="review-comments"
-        options={{
-          title: 'Comments',
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.75, 1],
-          sheetGrabberVisible: true,
-        }}
+        options={{ title: 'Comments', ...sheetPresentation }}
       />
     </DestinationLayout>
   );

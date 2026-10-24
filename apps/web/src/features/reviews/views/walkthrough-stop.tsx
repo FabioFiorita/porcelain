@@ -18,11 +18,11 @@ import {
   checkResultLabel,
   decisionKey,
   decisionLinks,
+  decisionQuestions,
   decisionRoute,
   filesReviewed,
   orderedChecks,
   proofOnLayer,
-  systemChanges,
   type DecisionLink,
   type DecisionState,
   type ReviewChangeItem,
@@ -68,15 +68,7 @@ export function DecisionPage({
 }) {
   const { layer } = stop;
   const links = decisionLinks(review, layer.id);
-  const questions = [
-    ...systemChanges(review).questions.filter(
-      (part) => part.decision === stop.number,
-    ),
-    ...links.flatMap((link) => (link.part.problem ? [link.part] : [])),
-  ].filter(
-    (part, index, all) =>
-      all.findIndex((other) => other.id === part.id) === index,
-  );
+  const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   const progress = filesReviewed(stop.paths, items);
   return (
