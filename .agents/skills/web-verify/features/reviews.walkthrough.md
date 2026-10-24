@@ -34,6 +34,8 @@ api:
 
 # reviews.walkthrough
 
+The briefing walkthrough rows expose their complete lane route in the keyboard tooltip and action name.
+
 The briefing is the first stop and the only view with the verdict. Its two-tone title uses the navigator name and the decision count sentence. A vertical spine follows published decision order, then Not explained and Specs when present; a nine-decision review with both closing stops has twelve stops. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
 
 ## How to get to it (user POV)

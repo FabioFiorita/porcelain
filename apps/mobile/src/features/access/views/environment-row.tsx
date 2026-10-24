@@ -24,10 +24,12 @@ export function EnvironmentRow({
   remote,
   disabled,
   missing,
+  onOpenComputer,
 }: {
   remote: Remote;
   disabled: boolean;
   missing?: MissingCredentialRemote | undefined;
+  onOpenComputer: () => void;
 }) {
   const [managing, setManaging] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -85,6 +87,13 @@ export function EnvironmentRow({
       </Item>
       <Box paddingX={4} paddingY={3} gap={3}>
         <ComputerUpdate environmentId={remote.environmentId} />
+        <Button
+          variant="outline"
+          label="This computer"
+          accessibilityLabel={`Open This computer, ${remote.name}`}
+          onPress={onOpenComputer}
+          disabled={disabled || Boolean(missing)}
+        />
         <Button
           variant="ghost"
           label={managing ? 'Hide connections' : 'Manage connections'}

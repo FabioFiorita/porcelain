@@ -124,12 +124,23 @@ export class World {
       else await writeFile(path, JSON.stringify(step.state));
       return '';
     }
+    if (step.kind === 'environment-name-fixture') {
+      const response = await repository.send({
+        method: 'PUT',
+        path: '/api/environment/name',
+        body: { name: step.name },
+      });
+      if (response.status !== 200)
+        throw new Error('The computer name fixture could not be saved');
+      return '';
+    }
     if (step.kind === 'review-fixture')
       return durableReviewFixture(
         repository,
         step.operation,
         step.title,
         step.asked,
+        step.route,
       );
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);

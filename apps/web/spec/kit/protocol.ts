@@ -27,11 +27,13 @@ export type RepoStep =
         | 'remove-repository';
       title: string;
       asked?: string | undefined;
+      route?: { path: string; lane: string } | undefined;
     }
   | {
       kind: 'service-update-fixture';
       state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;
     }
+  | { kind: 'environment-name-fixture'; name: string }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
   | { kind: 'read'; path: string }

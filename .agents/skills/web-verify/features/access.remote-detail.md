@@ -3,7 +3,7 @@ route: /settings/$section/$environmentId
 selectors:
   - 'Computers'
   - 'Computers list'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Computer settings'
   - 'Overview'
   - 'Address'

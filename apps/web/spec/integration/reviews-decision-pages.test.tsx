@@ -16,8 +16,7 @@ test('a decision connected to a question pins it beside the decision, and its an
   const app = await render.route(`/reviews/${published.reviewId}`);
   await app.page
     .getByRole('button', {
-      name: '6. Retry delivery without duplicate messages',
-      exact: true,
+      name: /^6\. Retry delivery without duplicate messages · /u,
     })
     .click();
   const decision = app.page.getByRole('region', {
@@ -215,7 +214,7 @@ test.for([
           .click();
       await app.page
         .getByRole('button', {
-          name: '9. Establish the shared mutation boundary',
+          name: '9. Establish the shared mutation boundary · Shared owners',
           exact: true,
         })
         .click();

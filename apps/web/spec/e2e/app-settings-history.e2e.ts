@@ -33,7 +33,7 @@ for (const predecessor of [false, true]) {
           settings.getByRole('heading', { name: 'Computers', exact: true }),
         ).toBeVisible();
         await settings
-          .getByRole('button', { name: 'Open This computer', exact: true })
+          .getByRole('button', { name: /^Open This computer:/u })
           .click();
         await expect(
           settings

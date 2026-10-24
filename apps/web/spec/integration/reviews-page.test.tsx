@@ -392,8 +392,7 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     .toBeVisible();
   await app.page
     .getByRole('button', {
-      name: 'Go to step 1: Read the retained revision',
-      exact: true,
+      name: /^Go to step 1: Read the retained revision ·/u,
     })
     .click();
   await expect

@@ -43,6 +43,9 @@ export function DestinationLayout({
           title,
           headerBackVisible: false,
           ...(isTablet && name === 'settings' ? { headerShown: false } : {}),
+          ...(!isTablet && name === 'settings'
+            ? { headerLargeTitleEnabled: true }
+            : {}),
         }}
       />
       {name !== 'settings' ? (

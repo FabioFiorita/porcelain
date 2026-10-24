@@ -310,15 +310,15 @@ function RouteTable({
             {route.map((lane, index) => (
               <li
                 key={`${lane}:${index}`}
-                className="flex items-center gap-1.5"
+                className="flex min-w-0 items-center gap-1.5"
               >
                 {index > 0 && (
                   <ArrowRightIcon
-                    className="size-3 text-muted-foreground"
+                    className="size-3 shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
                 )}
-                {lane}
+                <span className="min-w-0">{lane}</span>
               </li>
             ))}
           </ol>
@@ -358,39 +358,45 @@ function RouteRow({
   lane: string | undefined;
   onStep: (step: ReviewStep) => void;
 }) {
+  const value = [lane, step.pointer.path].filter(Boolean).join(' · ');
   return (
-    <button
-      type="button"
-      aria-label={`Go to step ${index + 1}: ${step.title}`}
-      onClick={() => onStep(step)}
-      className={cn(
-        'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
-        lane !== undefined && index > 0 && 'border-t',
+    <TruncatedText
+      text={value}
+      renderTrigger={(_label, clip) => (
+        <button
+          type="button"
+          aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
+          onClick={() => onStep(step)}
+          className={cn(
+            'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
+            lane !== undefined && index > 0 && 'border-t',
+          )}
+        >
+          {clip(
+            lane ?? '',
+            'hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block',
+          )}
+          <span
+            className={cn(
+              'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
+              step.kind === 'context' && 'border-dashed text-muted-foreground',
+            )}
+          >
+            {index + 1}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+            <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+              {step.title}
+              <StepMarker step={step} />
+            </span>
+            {clip(
+              step.pointer.path,
+              'font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2',
+            )}
+          </span>
+        </button>
       )}
-    >
-      <TruncatedText
-        className="hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block"
-        text={lane ?? ''}
-      />
-      <span
-        className={cn(
-          'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
-          step.kind === 'context' && 'border-dashed text-muted-foreground',
-        )}
-      >
-        {index + 1}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-        <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
-          {step.title}
-          <StepMarker step={step} />
-        </span>
-        <TruncatedText
-          className="min-w-0 font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2"
-          text={step.pointer.path}
-        />
-      </span>
-    </button>
+    />
   );
 }
 

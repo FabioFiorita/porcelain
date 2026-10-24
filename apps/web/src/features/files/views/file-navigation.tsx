@@ -34,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/toast';
-import { type Change, changePath } from '@porcelain/client/changes/rules';
+import { changePath } from '@porcelain/client/changes/rules';
 import { useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
@@ -60,6 +60,7 @@ import {
   surfaceErrorMessage,
 } from '@porcelain/client/files/rules';
 import {
+  changeStatus,
   fileTreeAncestors,
   mergeFileTreeEntries,
 } from '@porcelain/client/files/rules';
@@ -167,7 +168,7 @@ function ScopedFileNavigation({
       .flatMap((entry) => entry.comparisons)
       .map((change): GitStatusEntry => ({
         path: changePath(change),
-        status: treeStatus(change),
+        status: changeStatus(change),
       })),
   ];
   const changed = new Set<string>(
@@ -523,11 +524,4 @@ function union(left: readonly string[], right: readonly string[]) {
     merged.every((entry, index) => entry === left[index])
     ? left
     : merged;
-}
-
-function treeStatus(change: Change): GitStatusEntry['status'] {
-  if (change.scope === 'untracked') return 'untracked';
-  if (change.scope === 'unmerged' || change.kind === 'type-changed')
-    return 'modified';
-  return change.kind;
 }

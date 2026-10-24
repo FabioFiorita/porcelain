@@ -19,3 +19,10 @@ export {
 } from './file-tree.ts';
 export { quickOpenMatches } from './quick-open.ts';
 export { isImagePath } from './image-path.ts';
+export {
+  branchChangeMarks,
+  changeStatus,
+  changeStatusMarks,
+  worktreeChangeMarks,
+  type FileChangeMarks,
+} from './change-marks.ts';

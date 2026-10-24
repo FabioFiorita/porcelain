@@ -8,10 +8,14 @@ import { FileIcon } from './file-icon';
 import { Icon } from './icon';
 import { Badge } from './badge';
 import { Empty } from './empty';
+import { ChangeMark } from './change-mark';
 
 import {
+  changeStatusMarks,
   entryName,
+  fileTreeAncestors,
   visibleFileTreeRows,
+  type FileChangeMarks,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
 import { isNativeImagePath } from '../../shared/rules/file-tree';
@@ -28,6 +32,7 @@ export function FileTree({
   loaded,
   flat = false,
   annotations,
+  changes,
 }: {
   nodes: readonly FileTreeEntry[];
   expanded: ReadonlySet<string>;
@@ -39,6 +44,7 @@ export function FileTree({
   loaded: boolean;
   flat?: boolean;
   annotations?: ReadonlyMap<string, string>;
+  changes?: FileChangeMarks | undefined;
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
@@ -48,6 +54,7 @@ export function FileTree({
       contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={<>{header}</>}
       keyboardShouldPersistTaps="handled"
+      removeClippedSubviews={false}
       contentContainerStyle={padding}
       data={
         flat
@@ -72,12 +79,27 @@ export function FileTree({
         const busy = node.kind === 'directory' && Boolean(loading?.has(path));
         const annotation =
           node.kind === 'directory' ? undefined : annotations?.get(path);
+        const status =
+          node.kind === 'directory' ? undefined : changes?.files.get(path);
+        const mark = status ? changeStatusMarks[status] : undefined;
+        const containsChanges =
+          node.kind === 'directory' && Boolean(changes?.folders.has(path));
+        const parent = flat ? fileTreeAncestors(path).at(-1) : undefined;
         const item: ItemProps = {
-          title: flat ? node.path : entryName(node.path),
-          ...(annotation ? { description: annotation } : {}),
+          title: entryName(node.path),
+          ...(parent ? { detail: parent } : {}),
+          titleNumberOfLines: 1,
           size: 'sm',
           selected: path === selected,
-          accessibilityLabel: `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${path}${busy ? ', loading' : ''}${annotation ? `, ${annotation}` : ''}`,
+          accessibilityLabel: [
+            `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${path}`,
+            busy ? 'loading' : undefined,
+            mark?.label,
+            containsChanges ? 'contains changes' : undefined,
+            annotation,
+          ]
+            .filter(Boolean)
+            .join(', '),
           leading: (
             <View
               className="flex-row items-center gap-2"
@@ -103,19 +125,31 @@ export function FileTree({
             node.kind === 'symlink' ||
             node.kind === 'submodule' ||
             node.kind === 'other' ||
-            node.ignored ? (
-              <Badge
-                label={
-                  node.kind === 'symlink'
-                    ? 'Symlink'
-                    : node.kind === 'submodule'
-                      ? 'Submodule'
-                      : node.kind === 'other'
-                        ? 'Unsupported'
-                        : 'Ignored'
-                }
-                variant="outline"
-              />
+            node.ignored ||
+            mark ||
+            containsChanges ? (
+              <View className="flex-row items-center gap-2">
+                {node.kind === 'symlink' ||
+                node.kind === 'submodule' ||
+                node.kind === 'other' ||
+                node.ignored ? (
+                  <Badge
+                    label={
+                      node.kind === 'symlink'
+                        ? 'Symlink'
+                        : node.kind === 'submodule'
+                          ? 'Submodule'
+                          : node.kind === 'other'
+                            ? 'Unsupported'
+                            : 'Ignored'
+                    }
+                    variant="outline"
+                  />
+                ) : null}
+                {mark || containsChanges ? (
+                  <ChangeMark letter={mark?.letter} />
+                ) : null}
+              </View>
             ) : undefined,
           onPress: () =>
             node.kind === 'directory' ? onToggle(path) : onSelect(path),

@@ -8,7 +8,7 @@ selectors:
   - 'This computer'
   - 'Name of this computer'
   - 'Save'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'connect it to'
   - 'Close Settings'
 tests:
@@ -25,7 +25,7 @@ Settings names the computer Porcelain runs on; the navigator header stays generi
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → the navigator header shows only "Porcelain".
-- Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer` → textbox "Name of this computer" → `Save` (or `Enter` in the field).
+- Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer: <name>` → textbox "Name of this computer" → `Save` (or `Enter` in the field).
 - Route: `/settings/computers/this-computer` (host-authorized browser or desktop).
 
 ## Driving it with browser
@@ -44,7 +44,7 @@ Required instance mode: `--desktop`.
    Expect: navigation "Projects and worktrees" whose header shows "Porcelain" without `$HOST`.
 2. Click button `Settings`
    Expect: URL ends `/settings/general`; title "Settings".
-3. Click button `Computers`, then button named `Open This computer`
+3. Click button `Computers`, then button named `Open This computer: <name>`
    Expect: URL ends `/settings/computers/this-computer`; textbox "Name of this computer" empty (its placeholder is `$HOST`); button "Save" disabled.
 4. Fill textbox `Name of this computer` with 'Workstation'
    Expect: button "Save" enabled.
@@ -54,7 +54,7 @@ Required instance mode: `--desktop`.
 
 6. Stay on This computer and scroll to Pair a device
    Expect: the text "Open the link or scan the code on the other device to connect it to Workstation. Each link works once, for a few minutes."
-7. Click button `Computers`, then button named `Open This computer`
+7. Click button `Computers`, then button named `Open This computer: <name>`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
 8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
@@ -62,7 +62,7 @@ Required instance mode: `--desktop`.
    Expect: navigation "Projects and worktrees" header shows only "Porcelain", with neither "Workstation" nor `$HOST`.
 10. Click button `Settings`
     Expect: URL ends `/settings/general`; title "Settings · Workstation".
-11. Click button `Computers`, then button named `Open This computer`
+11. Click button `Computers`, then button named `Open This computer: <name>`
     Expect: textbox "Name of this computer" holds "Workstation".
 12. Fill textbox `Name of this computer` with ''
     Expect: textbox empty; button "Save" enabled.

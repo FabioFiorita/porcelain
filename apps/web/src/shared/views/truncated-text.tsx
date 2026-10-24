@@ -18,12 +18,14 @@ export function TruncatedText({
   render,
   renderTrigger,
   propagateEscape = false,
+  lines = 1,
 }: {
   text: string;
   children?: ReactNode;
   className?: string;
   render?: ReactElement<HTMLAttributes<HTMLElement>>;
   propagateEscape?: boolean;
+  lines?: 1 | 3;
   renderTrigger?: (
     label: ReactElement,
     clip: (value: string, className?: string) => ReactElement,
@@ -43,7 +45,8 @@ export function TruncatedText({
       tabIndex: renderTrigger ? undefined : focusIndex,
       'aria-label': text,
       className: cn(
-        'relative min-w-0 truncate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        'relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate',
         render?.props.className,
         className,
       ),
