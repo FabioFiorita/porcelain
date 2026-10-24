@@ -10,7 +10,8 @@ for (const width of [1440, 414]) {
         'Explain the full sequence of decisions the reviewer must understand before approving this exceptionally long change',
         'ACommitSubjectWithoutAnyWordBreaksThatStillNeedsToRemainReadableWhenItIsClippedAtTheEdgeOfTheHistoryPanel',
       ] as const;
-      for (const subject of subjects) {
+      const short = 'Short note';
+      for (const subject of [short, ...subjects]) {
         await repo.write('notes.md', `${subject}\n`);
         await repo.commit(subject);
       }
@@ -28,10 +29,11 @@ for (const width of [1440, 414]) {
         name: 'Review sidebar',
         exact: true,
       });
+      const row = (subject: string) =>
+        history.getByRole('button', { name: new RegExp(`^${subject}`) });
       for (const subject of subjects) {
         const label = history.getByText(subject, { exact: true });
-        await expect(label).toHaveAccessibleName(subject);
-        await expect(label).toHaveAttribute('tabindex', '0');
+        await expect(label).not.toHaveAttribute('tabindex');
         await label.hover();
         const tooltip = page.getByRole('tooltip', {
           name: subject,
@@ -39,14 +41,30 @@ for (const width of [1440, 414]) {
         });
         await expect(tooltip).toBeVisible();
         await page.mouse.move(1, 1);
-        await label.focus();
+        await expect(tooltip).not.toBeVisible();
+        await row(subject).focus();
         await page.keyboard.press('Shift+Tab');
         await page.keyboard.press('Tab');
-        await expect(label).toBeFocused();
+        await expect(row(subject)).toBeFocused();
         await expect(tooltip).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(tooltip).not.toBeVisible();
-        await expect(label).toBeFocused();
+        await expect(row(subject)).toBeFocused();
+      }
+      const shortLabel = history.getByText(short, { exact: true });
+      await expect(shortLabel).not.toHaveAttribute('tabindex');
+      await shortLabel.hover();
+      await row(short).focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(row(short)).toBeFocused();
+      await expect(page.getByRole('tooltip')).toHaveCount(0);
+      await row(subjects[0]).focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      for (const subject of [subjects[0], short]) {
+        await expect(row(subject)).toBeFocused();
+        await page.keyboard.press('Tab');
       }
       if (width === 414) {
         const historyTab = page.getByRole('tab', {
@@ -55,9 +73,7 @@ for (const width of [1440, 414]) {
         });
         await historyTab.focus();
         await expect(historyTab).toBeFocused();
-        await expect(
-          page.getByRole('tooltip', { name: 'History', exact: true }),
-        ).toBeVisible();
+        await expect(page.getByRole('tooltip')).toHaveCount(0);
         await page.keyboard.press('Escape');
         await expect(history).not.toBeVisible();
         const review = page.getByRole('button', {

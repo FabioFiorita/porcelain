@@ -659,7 +659,7 @@ export const webRules = {
           context.report({
             node,
             message:
-              'Use TruncatedText from shared/views/truncated-text instead of the bare truncate utility, because clipped text needs its full accessible name and a Tooltip reachable on hover and keyboard focus.',
+              'Use TruncatedText from shared/views/truncated-text instead of the bare truncate utility, because clipped text needs its full accessible name and a Tooltip reachable on hover and keyboard focus. Multi-line line-clamp is left to views that pair it with their own expand control, because those already reveal the full text in place.',
           });
         }
       };
