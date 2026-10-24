@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
@@ -246,27 +247,19 @@ export function ConnectedWorkspace({
                       <p className="text-sm text-muted-foreground">
                         First that needs you
                       </p>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Link
-                              className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
-                              to="/$projectId/$worktreeId"
-                              params={{
-                                projectId: recovery.projectId,
-                                worktreeId: recovery.worktree.id,
-                              }}
-                            >
-                              <span className="truncate font-medium">
-                                {recoveryLabel}
-                              </span>
-                            </Link>
-                          }
+                      <Link
+                        className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
+                        to="/$projectId/$worktreeId"
+                        params={{
+                          projectId: recovery.projectId,
+                          worktreeId: recovery.worktree.id,
+                        }}
+                      >
+                        <TruncatedText
+                          text={recoveryLabel}
+                          className="font-medium"
                         />
-                        <TooltipContent className="max-w-sm break-words">
-                          {recoveryLabel}
-                        </TooltipContent>
-                      </Tooltip>
+                      </Link>
                     </div>
                   )}
                   {notice === 'missing-worktree' && recovery && (
