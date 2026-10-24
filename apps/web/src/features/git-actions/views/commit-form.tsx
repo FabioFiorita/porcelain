@@ -1,6 +1,6 @@
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
-import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
+import { PlusIcon, SparklesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DialogDescription,
@@ -26,6 +26,8 @@ import {
   gitErrorMessage,
   receiptFailed,
 } from '@porcelain/client/git-actions/rules';
+import { BranchTracking } from '@/features/history/index';
+import { branchTracking } from '@porcelain/client/history/rules';
 import { GitActionError } from './git-action-message';
 import { useCommitForm } from '../commands/commit-form';
 import type { CommitFormProps } from '@porcelain/client/git-actions/rules';
@@ -90,16 +92,10 @@ export function CommitForm(
         </DialogDescription>
       </DialogHeader>
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-caption">
-        <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate font-medium">
-          {liveBranch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
-        </span>
-        {liveBranch?.upstream !== null &&
-          liveBranch?.upstream !== undefined && (
-            <span className="ml-auto shrink-0 text-muted-foreground">
-              {liveBranch.ahead} ahead · {liveBranch.behind} behind
-            </span>
-          )}
+        <BranchTracking
+          tracking={branchTracking(liveBranch ?? undefined, null)}
+          focusable={false}
+        />
       </div>
       {status.inProgress !== 'merge' && (
         <Tabs value={mode} onValueChange={form.setMode}>

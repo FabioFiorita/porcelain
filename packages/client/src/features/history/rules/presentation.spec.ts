@@ -87,7 +87,11 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
       bodyTruncated: false,
       parentOids: [],
       author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
-      refs: ['refs/remotes/origin/topic', 'refs/tags/v1'],
+      refs: [
+        'refs/remotes/origin/topic',
+        'refs/tags/v1',
+        'refs/porcelain/reviews/internal/1',
+      ],
     }),
   ).toEqual({
     id: '0123456789',
@@ -99,46 +103,78 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
   });
 });
 
-it('names the branch and counts ahead and behind against its upstream', () => {
-  const attached = {
-    tipOid: undefined,
-    head: { kind: 'attached' as const, ref: 'refs/heads/feature' },
-  };
+const attached = {
+  tipOid: undefined,
+  head: { kind: 'attached' as const, ref: 'refs/heads/feature' },
+};
+const tracked = {
+  name: 'refs/heads/topic',
+  upstream: 'refs/remotes/origin/topic',
+  ahead: 0,
+  behind: 0,
+};
+it.each([
+  [2, 0, '2 ahead · 0 behind'],
+  [0, 3, '0 ahead · 3 behind'],
+  [2, 3, '2 ahead · 3 behind'],
+  [0, 0, '0 ahead · 0 behind'],
+])(
+  'compares %i ahead and %i behind against the labelled upstream',
+  (ahead, behind, counts) => {
+    expect(branchTracking({ ...tracked, ahead, behind }, attached)).toEqual({
+      name: 'topic',
+      counts,
+      upstream: 'against origin/topic',
+    });
+  },
+);
+it.each([undefined, ''])('hides counts without upstream %s', (upstream) => {
   expect(
-    branchTracking(
-      {
-        name: 'refs/heads/review/revoke-access',
-        upstream: 'refs/remotes/origin/review/revoke-access',
-        ahead: 2,
-        behind: 0,
-      },
-      attached,
-    ),
+    branchTracking({ ...tracked, upstream, ahead: 2, behind: 3 }, attached),
   ).toEqual({
-    name: 'review/revoke-access',
-    counts: '2 ahead · 0 behind',
-    upstream: 'against origin/review/revoke-access',
+    name: 'topic',
+    counts: null,
+    upstream: 'No upstream',
   });
+});
+it.each([undefined, ''])('hides counts for detached branch name %s', (name) => {
   expect(
-    branchTracking(
-      { name: 'feature', upstream: undefined, ahead: 0, behind: 0 },
-      attached,
-    ),
-  ).toEqual({ name: 'feature', counts: null, upstream: 'No upstream' });
-  expect(
-    branchTracking(
-      { name: undefined, upstream: undefined, ahead: 0, behind: 0 },
-      attached,
-    ),
+    branchTracking({ ...tracked, name, ahead: 2, behind: 3 }, attached),
   ).toEqual({
     name: 'Detached HEAD',
     counts: null,
     upstream: 'No branch checked out',
   });
-  expect(branchTracking(undefined, attached)).toEqual({
-    name: 'feature',
-    counts: null,
-    upstream: 'Branch status unavailable',
+});
+it.each([
+  [{ kind: 'attached' as const, ref: 'refs/heads/main' }, 'main'],
+  [{ kind: 'unborn' as const, ref: 'refs/heads/new' }, 'No commits yet on new'],
+  [{ kind: 'detached' as const }, 'Detached HEAD'],
+])(
+  'keeps the snapshot heading when branch status is unavailable: %s',
+  (head, name) => {
+    expect(branchTracking(undefined, { tipOid: undefined, head })).toEqual({
+      name,
+      counts: null,
+      upstream: 'Branch status unavailable',
+    });
+  },
+);
+it('retains complete long branch and upstream names', () => {
+  const name = `topic/${'long-'.repeat(40)}branch`;
+  expect(
+    branchTracking(
+      {
+        ...tracked,
+        name: `refs/heads/${name}`,
+        upstream: `refs/remotes/origin/${name}`,
+      },
+      null,
+    ),
+  ).toEqual({
+    name,
+    counts: '0 ahead · 0 behind',
+    upstream: `against origin/${name}`,
   });
 });
 
