@@ -4,7 +4,7 @@ shell: desktop
 selectors:
   - 'Toggle Sidebar'
   - 'Settings'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Ways in'
   - 'Local network'
   - 'Device name'
@@ -34,8 +34,8 @@ On the computer that runs Porcelain, Settings → Computers → This computer �
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer`.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer`.
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer: <name>`.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer: <name>`.
 - Route: `/settings/devices` (host-authorized browser or desktop).
 - Controls: textbox "Device name" + `Create pairing link` (or `Enter` in the field); `Copy link`; `Revoke <device>`; `Cancel the link for <device>`.
 
@@ -56,7 +56,7 @@ None on disk. The default server has two paired devices, both bound to "This com
    - breadcrumb "This computer";
    - the text "Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer." (no "Device name" field yet);
    - list "Paired devices and links" with listitems "Development setup" and "Verification browser".
-2. Click button `Computers`, then button named `Open This computer`
+2. Click button `Computers`, then button named `Open This computer: <name>`
    Expect: URL ends `/settings/computers/this-computer#ways-in`; switch "Local network" not checked.
 3. Click switch named `Local network`
    Expect: switch "Local network" checked and the text `http://192.168.1.20:<port>`. A badge "Starting" may show first; inspect the accessibility tree again after a second.

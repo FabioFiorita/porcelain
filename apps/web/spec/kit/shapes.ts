@@ -29,7 +29,11 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
             ? state
             : Schema.encodeSync(readServiceUpdateResponseSchema)(state),
       }),
-    review: async (title: string, asked?: string) =>
+    review: async (
+      title: string,
+      asked?: string,
+      route?: { path: string; lane: string },
+    ) =>
       Schema.decodeUnknownSync(reviewFixtureSchema)(
         JSON.parse(
           await step({
@@ -37,6 +41,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
             operation: 'publish',
             title,
             asked,
+            route,
           }),
         ),
       ),

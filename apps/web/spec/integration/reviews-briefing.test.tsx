@@ -110,6 +110,79 @@ test.for([414, 1440])(
 
 const longRequest = `Keep a very long filename readable: ${'very-long-path-segment-'.repeat(18)}`;
 
+test.for([414, 1080, 1440])(
+  'long unbroken briefing prose fits the reading pane at width %s',
+  async (width, { repo, render, reviewLayout }) => {
+    await page.viewport(width, 896);
+    try {
+      const prose = `Asked: ${'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity'.repeat(8)}`;
+      const title =
+        'documentHoldEscalationAcknowledgementWithoutAnyBreakOpportunity'.repeat(
+          3,
+        );
+      const path = `${'long-path-segment-'.repeat(12)}.ts`;
+      const lane = 'VeryLongUnbrokenClientResponsibility'.repeat(2);
+      const fixture = await repo.review(title, prose, { path, lane });
+      const app = await render.route(`/reviews/${fixture.reviewId}`);
+      const briefing = app.page.getByRole('region', {
+        name: 'Briefing',
+        exact: true,
+      });
+      await expect.element(briefing).toBeVisible();
+      await expect
+        .element(
+          briefing.getByRole('region', { name: 'You asked', exact: true }),
+        )
+        .toMatchTextContent(prose);
+      await expect
+        .poll(() => reviewLayout.fitsViewport(briefing))
+        .toEqual({ insideViewport: true, contentFits: true });
+      const row = briefing.getByRole('button', {
+        name: new RegExp(`^1\\. ${title}(?: · .*)?$`, 'u'),
+      });
+      await expect.element(row).toHaveAccessibleName(`1. ${title} · ${lane}`);
+      reviewLayout.focus(row);
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect.element(row).toHaveFocus();
+      await expect
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(lane);
+      const rendered = app.whenRendered(
+        `/reviews/${fixture.reviewId}/${fixture.revision}/decisions/${fixture.layerId}`,
+      );
+      await userEvent.keyboard('{Enter}');
+      await rendered;
+      const decision = app.page.getByRole('region', {
+        name: `1. ${title}`,
+        exact: true,
+      });
+      await expect
+        .element(decision.getByRole('heading', { name: title, exact: true }))
+        .toBeVisible();
+      const route = decision.getByRole('button', {
+        name: /^Go to step 1: Read the retained revision/u,
+      });
+      await expect.element(route).toBeVisible();
+      await expect
+        .element(route)
+        .toHaveAccessibleName(
+          `Go to step 1: Read the retained revision · ${lane} · ${path}`,
+        );
+      reviewLayout.focus(route);
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect.element(route).toHaveFocus();
+      await expect
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(`${lane} · ${path}`);
+      await expect
+        .poll(() => reviewLayout.fitsViewport(decision))
+        .toEqual({ insideViewport: true, contentFits: true });
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
+
 test.for([
   { width: 414, asked: longRequest, clipped: true },
   { width: 1440, asked: longRequest, clipped: true },

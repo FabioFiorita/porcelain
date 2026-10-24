@@ -11,11 +11,7 @@ import {
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import { cn } from '@/shared/lib/utils';
 import {
   briefingTitle,
@@ -90,17 +86,11 @@ export function WalkthroughBriefing({
                 Briefing · Revision {review.revision}
               </p>
               <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span tabIndex={0} />}
-                    className="line-clamp-3 text-muted-foreground"
-                  >
+                <FullValueTooltip value={title} className="block min-w-0">
+                  <span className="line-clamp-3 text-muted-foreground">
                     {title}
-                  </TooltipTrigger>
-                  <TooltipContent role="tooltip" className="wrap-anywhere">
-                    {title}
-                  </TooltipContent>
-                </Tooltip>
+                  </span>
+                </FullValueTooltip>
                 <span className="block">
                   {briefingTitle(decisionStops.length)}.
                 </span>
@@ -233,16 +223,22 @@ export function WalkthroughBriefing({
               {decisionStops.map((stop) => {
                 const state = decisions.get(stop.layer.id);
                 const progress = filesReviewed(stop.paths, items);
+                const route =
+                  decisionRoute(stop.layer).join(' → ') || 'No changed code';
                 return (
-                  <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
+                  <WalkthroughRow
+                    key={stop.key}
+                    stop={stop}
+                    onGo={onGo}
+                    detail={route}
+                  >
                     <StopMark done={isDone(stop)} label={`${stop.number}`} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
                       <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
                         {stop.layer.title}
                       </span>
                       <span className="min-w-0 truncate text-xs text-muted-foreground @2xl/review:max-w-1/2">
-                        {decisionRoute(stop.layer).join(' → ') ||
-                          'No changed code'}
+                        {route}
                       </span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
@@ -312,21 +308,26 @@ function WalkthroughRow({
   stop,
   onGo,
   children,
+  detail,
 }: {
   stop: WalkthroughStop;
   onGo: (key: WalkthroughKey) => void;
   children: ReactNode;
+  detail?: string;
 }) {
+  const name =
+    detail === undefined ? stopTitle(stop) : `${stopTitle(stop)} · ${detail}`;
   return (
     <li>
-      <button
-        type="button"
-        aria-label={stopTitle(stop)}
+      <FullValueTooltip
+        value={detail ?? stopTitle(stop)}
+        render={<button type="button" />}
+        aria-label={name}
         onClick={() => onGo(stop.key)}
         className="flex w-full items-start gap-3 px-3.5 py-2 text-left hover:bg-accent/50"
       >
         {children}
-      </button>
+      </FullValueTooltip>
     </li>
   );
 }

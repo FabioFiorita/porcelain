@@ -15,7 +15,7 @@ test('later uncommitted and unreadable paths do not enter a retained decision or
     exact: true,
   });
   await review
-    .getByRole('button', { name: '1. Readable decision', exact: true })
+    .getByRole('button', { name: '1. Readable decision · Docs', exact: true })
     .click();
   const stop = review.getByRole('region', {
     name: '1. Readable decision',

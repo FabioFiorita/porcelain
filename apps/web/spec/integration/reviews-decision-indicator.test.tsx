@@ -13,7 +13,7 @@ test.for(['keyboard', 'toolbar'] as const)(
       exact: true,
     });
     await review
-      .getByRole('button', { name: '1. Readme decision', exact: true })
+      .getByRole('button', { name: '1. Readme decision · Docs', exact: true })
       .click();
     const stop = review.getByRole('region', {
       name: '1. Readme decision',
