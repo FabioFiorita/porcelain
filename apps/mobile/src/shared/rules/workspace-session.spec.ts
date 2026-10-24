@@ -8,6 +8,7 @@ import {
   readWorkspaceSnapshot,
   restoreWorkspace,
   selectedDocument,
+  showReview,
   workspaceSnapshot,
   workspaceSnapshotSchema,
 } from './workspace-session';
@@ -55,18 +56,34 @@ it('normalizes stale active keys, duplicates, and a focus pointing to a missing 
     },
     'review',
   );
-  expect(restored.left).toEqual({
+  expect(restored.left).toEqual({ tabs: [documentTab(file)], active: null });
+  expect(restored.focused).toBe('left');
+  expect(restored.mode).toBe('review');
+  const side = restoreWorkspace(
+    { ...initial, right: { tabs: [file], active: 'old' }, focused: 'right' },
+    'files',
+  );
+  expect(side.left).toEqual({ tabs: [], active: null });
+  expect(side.right).toEqual({
     tabs: [documentTab(file)],
     active: '["file","README.md"]',
   });
-  expect(restored.focused).toBe('left');
-  expect(restored.mode).toBe('review');
-  expect(
-    restoreWorkspace(
-      { ...initial, right: { tabs: [file], active: 'old' }, focused: 'right' },
-      'files',
-    ).left,
-  ).toEqual(restored.left);
+  expect(side.focused).toBe('right');
+});
+
+it('returns to the Review tab without closing documents in either pane', () => {
+  const initial = restoreWorkspace(initialWorkspaceSnapshot(), 'files');
+  const file = documentTab({ kind: 'file', path: 'README.md' });
+  const commit = documentTab({ kind: 'commit', oid: 'abc', parent: 1 });
+  const split = {
+    ...initial,
+    ...openInPane(openInPane(initial, file), commit, 'right'),
+  };
+  const review = showReview(split);
+  expect(review.left).toEqual({ tabs: [file], active: null });
+  expect(review.right).toEqual({ tabs: [commit], active: commit.key });
+  expect(review.focused).toBe('left');
+  expect(selectedDocument(review, 'files')?.label).toBe('README.md');
 });
 
 it('starts with a clean layout when saved structure or parent selection is invalid', () => {

@@ -31,13 +31,8 @@ export function changePane<T extends { key: string }>(
   const current = state[pane];
   if (!current) return state;
   const documents = change(current);
-  if (documents.tabs.length === 0 && state.right) {
-    return {
-      left: pane === 'left' ? state.right : state.left,
-      right: null,
-      focused: 'left',
-    };
-  }
+  if (pane === 'right' && documents.tabs.length === 0)
+    return { left: state.left, right: null, focused: 'left' };
   return { ...state, [pane]: documents, focused: pane };
 }
 

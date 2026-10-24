@@ -1,11 +1,16 @@
 import { View, type ViewProps } from 'react-native';
 
 const gaps = { 1: 'gap-1', 2: 'gap-2', 3: 'gap-3', 4: 'gap-4', 6: 'gap-6' };
-const paddings = { 4: 'p-4', 6: 'p-6' };
-const horizontal = { 4: 'px-4', 6: 'px-6' };
-const vertical = { 2: 'py-2', 3: 'py-3', 4: 'py-4', 8: 'py-8' };
+const paddings = { 2: 'p-2', 4: 'p-4', 6: 'p-6' };
+const horizontal = { 2: 'px-2', 4: 'px-4', 6: 'px-6' };
+const vertical = { 1: 'py-1', 2: 'py-2', 3: 'py-3', 4: 'py-4', 8: 'py-8' };
 const tops = { 2: 'pt-2', 8: 'pt-8' };
 const bottoms = { 8: 'pb-8' };
+const surfaces = {
+  background: 'bg-background',
+  sidebar: 'bg-sidebar',
+  panel: 'overflow-hidden rounded-xl border border-border bg-background',
+};
 
 export type BoxProps = Omit<ViewProps, 'style'> & {
   gap?: keyof typeof gaps;
@@ -14,7 +19,7 @@ export type BoxProps = Omit<ViewProps, 'style'> & {
   paddingY?: keyof typeof vertical;
   paddingTop?: keyof typeof tops;
   paddingBottom?: keyof typeof bottoms;
-  surface?: 'background';
+  surface?: keyof typeof surfaces;
   divider?: 'bottom';
 };
 
@@ -40,7 +45,7 @@ export function Box({
         paddingY && vertical[paddingY],
         paddingTop && tops[paddingTop],
         paddingBottom && bottoms[paddingBottom],
-        surface && 'bg-background',
+        surface && surfaces[surface],
         divider && 'border-b border-border',
         className,
       ]

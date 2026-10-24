@@ -37,6 +37,8 @@ const symbols = {
   visible: { ios: 'eye', android: 'visibility' },
   sliders: { ios: 'slider.horizontal.3', android: 'tune' },
   checklist: { ios: 'checklist', android: 'checklist' },
+  sidebar: { ios: 'sidebar.left', android: 'left_panel_open' },
+  panel: { ios: 'sidebar.right', android: 'right_panel_open' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

@@ -21,7 +21,7 @@ export function TabletLayout() {
   return (
     <Box
       className="flex-1 flex-row"
-      surface="background"
+      surface="sidebar"
       onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
     >
       <SidebarPane

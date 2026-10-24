@@ -54,7 +54,6 @@ it('keeps the same path distinct across source files and review comparisons', ()
       path: 'README.md',
       comparison: { kind: 'branch', base: 'refs/heads/main' },
     },
-    { kind: 'review-overview', comparison: { kind: 'worktree' } },
   ];
   let state = emptyDocuments<ReturnType<typeof documentTab>>();
   for (const document of documents)
@@ -64,7 +63,6 @@ it('keeps the same path distinct across source files and review comparisons', ()
     '["review-file",["worktree"],"README.md"]',
     '["review-file",["branch",null],"README.md"]',
     '["review-file",["branch","refs/heads/main"],"README.md"]',
-    '["review-overview",["worktree"],null]',
   ]);
   expect(state.tabs[3]).toEqual({
     kind: 'review-file',
@@ -111,7 +109,6 @@ it.each([
     },
     'review',
   ],
-  [{ kind: 'review-overview', comparison: { kind: 'branch' } }, 'review'],
   [{ kind: 'commit', oid: '0123456', parent: 1 }, 'history'],
   [{ kind: 'diff', oid: '0123456', parent: 1, path: 'README.md' }, 'history'],
 ] satisfies readonly (readonly [WorkspaceDocument, string])[])(

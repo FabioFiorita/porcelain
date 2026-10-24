@@ -28,7 +28,7 @@ it('opens to the side without replacing the source and routes later opens to the
   expect(openToSide(split, css, 'right').left.tabs).toEqual([css]);
 });
 
-it('closes tabs in their own pane and folds an empty pane while keeping the other selection', () => {
+it('closes tabs in their own pane and folds only an emptied side pane', () => {
   const split = openToSide(openInPane(emptyPanes<typeof css>(), css), readme);
   const added = openInPane(split, history);
   const closed = changePane(added, 'right', (tabs) =>
@@ -39,8 +39,8 @@ it('closes tabs in their own pane and folds an empty pane while keeping the othe
   expect(
     changePane(closed, 'left', (tabs) => closeDocument(tabs, 'src/app.css')),
   ).toEqual({
-    left: { tabs: [history], active: 'commit:abc' },
-    right: null,
+    left: { tabs: [], active: null },
+    right: { tabs: [history], active: 'commit:abc' },
     focused: 'left',
   });
   expect(
