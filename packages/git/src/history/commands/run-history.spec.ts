@@ -62,13 +62,7 @@ describe('runHistory', () => {
       ).pipe(Effect.provide(NodeServices.layer)),
     );
     try {
-      for (
-        let attempts = 0;
-        attempts < 100 && !existsSync(marker);
-        attempts += 1
-      )
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(existsSync(marker)).toBe(true);
+      await expect.poll(() => existsSync(marker)).toBe(true);
       const pid = Number(readFileSync(marker, 'utf8').trim());
       expect(pid).toBeGreaterThan(0);
       process.kill(pid, 0);

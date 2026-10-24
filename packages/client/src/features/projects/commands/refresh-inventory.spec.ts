@@ -31,6 +31,12 @@ async function seed(
   );
 }
 
+async function idleAtomsSwept(fixture: ReturnType<typeof create>) {
+  await new Promise<void>((resolve) =>
+    fixture.registry.schedulerAsync.makeDispatcher().scheduleTask(resolve, 0),
+  );
+}
+
 async function retry(fixture: ReturnType<typeof create>) {
   const command = refreshInventory(fixture.connection);
   fixture.registry.set(command, undefined);
@@ -418,7 +424,7 @@ it('publishes a retried inventory when only the refreshInventories setter is mou
   onTestFinished(fixture.registry.mount(retryAll));
   fixture.registry.set(retryAll, undefined);
   await expect.poll(() => pending.length).toBe(1);
-  await Effect.runPromise(Effect.sleep('50 millis'));
+  await idleAtomsSwept(fixture);
   pending.shift()?.(Response.json(recovered));
   await expect.poll(() => fixture.registry.get(inventory).waiting).toBe(false);
   expect(
