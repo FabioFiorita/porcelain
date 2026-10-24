@@ -177,6 +177,7 @@ function ThreadSheet({
       <KeyboardDock>
         <Box className="flex-1" surface="background" collapsable={false}>
           <ScrollView
+            className="overflow-hidden"
             keyboardShouldPersistTaps="handled"
             contentInsetAdjustmentBehavior="automatic"
             contentContainerClassName="gap-4 p-4"
