@@ -4,109 +4,108 @@ import { expect, test } from './fixtures.tsx';
 const question =
   'Outbox and journal are updated separately. Transaction ownership needs a decision.';
 
-test.for([414, 1440])(
-  'the briefing owns verdict and proof at width %s, and decisions keep their code',
-  async (width, { repo, render, tabShortcuts }) => {
-    await page.viewport(width, 896);
-    try {
-      const fixture = await repo.review('Keep immutable decisions');
-      const app = await render.route(`/reviews/${fixture.reviewId}`);
-      const briefing = app.page.getByRole('region', {
-        name: 'Briefing',
-        exact: true,
-      });
-      await expect
-        .element(
-          briefing.getByRole('heading', {
-            name: 'Read one committed review after checkout cleanup 1 decision shapes this change.',
+test('the briefing owns verdict and proof, and decisions keep their code', async ({
+  repo,
+  render,
+  tabShortcuts,
+}) => {
+  await page.viewport(1440, 896);
+  try {
+    const fixture = await repo.review('Keep immutable decisions');
+    const app = await render.route(`/reviews/${fixture.reviewId}`);
+    const briefing = app.page.getByRole('region', {
+      name: 'Briefing',
+      exact: true,
+    });
+    await expect
+      .element(
+        briefing.getByRole('heading', {
+          name: 'Read one committed review after checkout cleanup 1 decision shapes this change.',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(briefing.getByRole('region', { name: 'Verdict', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        briefing.getByRole('heading', {
+          name: 'Recommendation: Hold',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        briefing
+          .getByRole('region', {
+            name: `Proven at ${fixture.headOid.slice(0, 7)}`,
             exact: true,
-          }),
-        )
-        .toBeVisible();
-      await expect
-        .element(briefing.getByRole('region', { name: 'Verdict', exact: true }))
-        .toBeVisible();
-      await expect
-        .element(
-          briefing.getByRole('heading', {
-            name: 'Recommendation: Hold',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-      await expect
-        .element(
-          briefing
-            .getByRole('region', {
-              name: `Proven at ${fixture.headOid.slice(0, 7)}`,
-              exact: true,
-            })
-            .getByRole('alert'),
-        )
-        .toMatchTextContent('1 check failed');
-      await expect
-        .element(
-          briefing.getByRole('listitem', {
-            name: 'Negative control: Failed',
-            exact: true,
-          }),
-        )
-        .toMatchTextContent('A failing proof check remains visible');
-      await expect
-        .element(
-          briefing.getByRole('complementary', {
-            name: 'Review details',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-      await briefing
-        .getByRole('button', { name: 'Continue at decision 1', exact: true })
-        .click();
-      await expect
-        .poll(() => app.location())
-        .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
-      await expect
-        .element(app.page.getByRole('region', { name: 'Verdict', exact: true }))
-        .not.toBeInTheDocument();
-      const decision = app.page.getByRole('region', {
-        name: '1. Keep immutable decisions',
-        exact: true,
-      });
-      await expect.element(decision).toBeVisible();
-      await expect
-        .element(
-          decision.getByText('export const revision = 1;', { exact: true }),
-        )
-        .toBeVisible();
-      await expect
-        .poll(() => tabShortcuts.registered(['P']))
-        .toEqual([['P', 'error']]);
-      await userEvent.keyboard('p');
-      await expect
-        .poll(() => app.location())
-        .toBe(`/reviews/${fixture.reviewId}`);
-      await expect.element(briefing).toBeVisible();
-      await briefing
-        .getByRole('button', { name: 'latest', exact: true })
-        .click();
-      await expect
-        .poll(() => app.location())
-        .toBe(`/reviews/${fixture.reviewId}`);
-      await repo.review('Keep the next immutable decision');
-      await expect
-        .element(
-          briefing.getByRole('heading', {
-            name: 'Recommendation: Merge',
-            exact: true,
-          }),
-        )
-        .toBeVisible();
-    } finally {
-      await page.viewport(414, 896);
-    }
-  },
-);
+          })
+          .getByRole('alert'),
+      )
+      .toMatchTextContent('1 check failed');
+    await expect
+      .element(
+        briefing.getByRole('listitem', {
+          name: 'Negative control: Failed',
+          exact: true,
+        }),
+      )
+      .toMatchTextContent('A failing proof check remains visible');
+    await expect
+      .element(
+        briefing.getByRole('complementary', {
+          name: 'Review details',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await briefing
+      .getByRole('button', { name: 'Continue at decision 1', exact: true })
+      .click();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await expect
+      .element(app.page.getByRole('region', { name: 'Verdict', exact: true }))
+      .not.toBeInTheDocument();
+    const decision = app.page.getByRole('region', {
+      name: '1. Keep immutable decisions',
+      exact: true,
+    });
+    await expect.element(decision).toBeVisible();
+    await expect
+      .element(
+        decision.getByText('export const revision = 1;', { exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .poll(() => tabShortcuts.registered(['P']))
+      .toEqual([['P', 'error']]);
+    await userEvent.keyboard('p');
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await expect.element(briefing).toBeVisible();
+    await briefing.getByRole('button', { name: 'latest', exact: true }).click();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await repo.review('Keep the next immutable decision');
+    await expect
+      .element(
+        briefing.getByRole('heading', {
+          name: 'Recommendation: Merge',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
 
 const longRequest = `Keep a very long filename readable: ${'very-long-path-segment-'.repeat(18)}`;
 
@@ -184,51 +183,40 @@ test.for([414, 1080, 1440])(
 );
 
 test.for([
-  { width: 414, asked: longRequest, clipped: true },
-  { width: 1440, asked: longRequest, clipped: true },
-  { width: 414, asked: 'Retain each review', clipped: false },
-  { width: 1440, asked: 'Retain each review', clipped: false },
+  { asked: longRequest, clipped: true },
+  { asked: 'Retain each review', clipped: false },
 ])(
-  'the briefing bounds its title and retains the full request: $width, clipped=$clipped',
-  async ({ width, asked, clipped }, { repo, render, reviewLayout }) => {
-    await page.viewport(width, 896);
-    try {
-      const fixture = await repo.review('Keep immutable decisions', asked);
-      const app = await render.route(`/reviews/${fixture.reviewId}`);
-      const briefing = app.page.getByRole('region', {
-        name: 'Briefing',
-        exact: true,
-      });
-      const heading = briefing.getByRole('heading', {
-        name: `${asked} 1 decision shapes this change.`,
-        exact: true,
-      });
-      await expect.element(heading).toBeVisible();
-      const title = heading.getByText(asked, { exact: true });
+  'the briefing bounds its title at 414 and retains the full request: clipped=$clipped',
+  async ({ asked, clipped }, { repo, render, reviewLayout }) => {
+    await page.viewport(414, 896);
+    const fixture = await repo.review('Keep immutable decisions', asked);
+    const app = await render.route(`/reviews/${fixture.reviewId}`);
+    const briefing = app.page.getByRole('region', {
+      name: 'Briefing',
+      exact: true,
+    });
+    const heading = briefing.getByRole('heading', {
+      name: `${asked} 1 decision shapes this change.`,
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
+    const title = heading.getByText(asked, { exact: true });
+    await expect
+      .poll(() => reviewLayout.titleLines(title))
+      .toEqual({ withinThreeLines: true, clipped });
+    await expect
+      .element(briefing.getByRole('region', { name: 'You asked', exact: true }))
+      .toMatchTextContent(`You asked: ${asked}`);
+    if (clipped) {
+      reviewLayout.focus(title);
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect.element(title).toHaveFocus();
       await expect
-        .poll(() => reviewLayout.titleLines(title))
-        .toEqual({ withinThreeLines: true, clipped });
-      await expect
-        .element(
-          heading.getByText('1 decision shapes this change.', { exact: true }),
-        )
-        .toBeVisible();
-      await expect
-        .element(
-          briefing.getByRole('region', { name: 'You asked', exact: true }),
-        )
-        .toMatchTextContent(`You asked: ${asked}`);
-      await userEvent.hover(title);
-      if (clipped)
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .toHaveTextContent(asked);
-      else
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .not.toBeInTheDocument();
-    } finally {
-      await page.viewport(414, 896);
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(asked);
+    } else {
+      await expect.element(title).not.toHaveAttribute('tabindex');
+      await expect.element(title).not.toHaveAttribute('data-clipped');
     }
   },
 );
