@@ -962,7 +962,7 @@ function PanelKeys({
 
 function MarginRowDock({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-4 pb-4 @2xl/review:px-6">
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-2 pb-4 @md/review:px-4 @2xl/review:px-6">
       <MarginRow>{children}</MarginRow>
     </div>
   );
