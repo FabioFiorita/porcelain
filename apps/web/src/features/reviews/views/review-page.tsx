@@ -99,7 +99,7 @@ type ReviewPageProps = {
   decision?: string | undefined;
   context: ConnectionContext;
   onRevision?: ((revision: number | undefined) => void) | undefined;
-  onDecision?: ((revision: number, layerId: string) => void) | undefined;
+  onStop?: ((layerId: string | undefined) => void) | undefined;
   active?: boolean | undefined;
   onBack: () => void;
   onDeleted?: (() => void) | undefined;
@@ -116,7 +116,7 @@ export function ReviewPage({
   decision,
   context,
   onRevision,
-  onDecision,
+  onStop,
   onBack,
   onDeleted,
   liveScope,
@@ -174,7 +174,7 @@ export function ReviewPage({
     );
   return (
     <ReviewRevisionPage
-      key={`${reviewId}:${data.revision.revision}:${decision ?? ''}`}
+      key={`${reviewId}:${data.revision.revision}`}
       navigation={navigation}
       toolbarTarget={toolbarTarget}
       data={data}
@@ -183,7 +183,7 @@ export function ReviewPage({
       decision={decision}
       latest={revision === undefined}
       onRevision={onRevision}
-      onDecision={onDecision}
+      onStop={onStop}
       onBack={onBack}
       onDeleted={onDeleted}
       liveScope={liveScope}
@@ -203,7 +203,7 @@ function ReviewRevisionPage({
   decision,
   latest,
   onRevision,
-  onDecision,
+  onStop,
   onBack,
   onDeleted,
   liveScope,
@@ -292,6 +292,14 @@ function ReviewRevisionPage({
   );
   const [sheetOpen, setSheetOpen] = useState(false);
   const railToggle = useElement<HTMLButtonElement>();
+  const scroller = useElement<HTMLElement>();
+  const [routed, setRouted] = useState(decision);
+  if (routed !== decision) {
+    setRouted(decision);
+    setChosen(undefined);
+    setView('walkthrough');
+    setFile(undefined);
+  }
   const stops = walkthroughStops(
     review,
     revision.files.map((entry) => entry.path),
@@ -319,13 +327,12 @@ function ReviewRevisionPage({
     return next ? () => go(next.key) : undefined;
   };
   const go = (key: WalkthroughKey) => {
+    scroller.element?.scrollTo({ top: 0 });
     setChosen(key);
     place.setPlace(key);
     setView('walkthrough');
     setFile(undefined);
-    const layer = review.layers.find((entry) => decisionKey(entry.id) === key);
-    if (layer) onDecision?.(revision.revision, layer.id);
-    else if (onDecision) onRevision?.(revision.revision);
+    onStop?.(review.layers.find((entry) => decisionKey(entry.id) === key)?.id);
   };
   const interaction = {
     active,
@@ -500,6 +507,7 @@ function ReviewRevisionPage({
   );
   const page = (
     <section
+      ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
       className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-xl border bg-card wrap-anywhere"
       style={{ containerName: 'pane review' }}

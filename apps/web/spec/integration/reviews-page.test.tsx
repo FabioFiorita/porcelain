@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const title =
@@ -127,6 +127,128 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await expect
     .element(app.page.getByText('Review not found', { exact: true }))
     .toBeVisible();
+});
+
+test('keys pressed at once from the latest briefing move between its stops on one loaded page', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  const briefing = review.getByRole('region', {
+    name: 'Briefing',
+    exact: true,
+  });
+  await expect.element(briefing).toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('np');
+    await userEvent.keyboard('n');
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
+});
+
+test('moving between long review stops starts at the top of each stop', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  await page.viewport(414, 500);
+  try {
+    const longTitle = Array.from({ length: 2 }, () => title).join(' ');
+    const fixture = await repo.review(longTitle);
+    const app = await render.route(`/reviews/${fixture.reviewId}`);
+    const review = app.page.getByRole('region', {
+      name: 'Review walkthrough',
+      exact: true,
+    });
+    const briefing = review.getByRole('region', {
+      name: 'Briefing',
+      exact: true,
+    });
+    await expect.element(briefing).toBeVisible();
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('n');
+    await expect
+      .element(
+        review.getByRole('region', { name: `1. ${longTitle}`, exact: true }),
+      )
+      .toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('a latest decision URL replaces the stop chosen with the keyboard without remounting', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await expect
+    .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+    .toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('n');
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await app.navigate(`/reviews/${fixture.reviewId}?decision=unknown`);
+    await expect
+      .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        review.getByText('That decision is not in this revision.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await app.navigate(
+      `/reviews/${fixture.reviewId}?decision=${fixture.layerId}`,
+    );
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
 });
 
 test('an unpaired durable decision link survives pairing with its revision and query intact', async ({
@@ -327,7 +449,7 @@ test('the review page keeps whole-change and inline comments in its Review panel
     await wholeThread.getByRole('button', { name: /^Whole branch/ }).click();
     await expect
       .poll(() => app.location())
-      .toBe(`/reviews/${fixture.reviewId}/1`);
+      .toBe(`/reviews/${fixture.reviewId}`);
     await expect.element(comments).toHaveAttribute('aria-selected', 'true');
     await wholeThread
       .getByRole('button', { name: 'Resolve', exact: true })

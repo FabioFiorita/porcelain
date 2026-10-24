@@ -95,12 +95,25 @@ export function ReviewRoute({
               search: { environment, decision: undefined },
             });
         }}
-        onDecision={(selected, layerId) => {
-          void navigate({
-            to: '/reviews/$reviewId/$revision/decisions/$layerId',
-            params: { reviewId, revision: String(selected), layerId },
-            search: { environment, decision: undefined },
-          });
+        onStop={(layerId) => {
+          if (number === undefined)
+            void navigate({
+              to: '/reviews/$reviewId',
+              params: { reviewId },
+              search: { environment, decision: layerId },
+            });
+          else if (layerId === undefined)
+            void navigate({
+              to: '/reviews/$reviewId/$revision',
+              params: { reviewId, revision: String(number) },
+              search: { environment, decision: undefined },
+            });
+          else
+            void navigate({
+              to: '/reviews/$reviewId/$revision/decisions/$layerId',
+              params: { reviewId, revision: String(number), layerId },
+              search: { environment, decision: undefined },
+            });
         }}
       />
     </ConnectedWorkspace>
