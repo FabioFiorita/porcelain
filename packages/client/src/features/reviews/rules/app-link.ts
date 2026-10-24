@@ -1,4 +1,5 @@
 import * as Schema from 'effect/Schema';
+import { reviewAppLinkProtocolSchema } from '@porcelain/contracts/reviews';
 
 const segment = Schema.String.check(Schema.isUUID());
 const revisionNumber = Schema.FiniteFromString.check(Schema.isInt()).check(
@@ -8,6 +9,7 @@ const destinationSchema = Schema.Struct({
   reviewId: segment,
   environmentId: Schema.NonEmptyString,
   host: Schema.NonEmptyString,
+  protocol: Schema.optional(reviewAppLinkProtocolSchema),
   revision: Schema.optional(revisionNumber),
   decision: Schema.optional(segment),
 });
@@ -26,7 +28,13 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
       !/^\/open\/reviews\/[^/]+$/.test(url.pathname)
     )
       return undefined;
-    const allowed = new Set(['environment', 'host', 'revision', 'decision']);
+    const allowed = new Set([
+      'environment',
+      'host',
+      'protocol',
+      'revision',
+      'decision',
+    ]);
     for (const key of url.searchParams.keys()) {
       if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1)
         return undefined;
@@ -37,6 +45,9 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
       reviewId: decodeURIComponent(url.pathname.slice('/open/reviews/'.length)),
       environmentId: url.searchParams.get('environment'),
       host: url.searchParams.get('host'),
+      ...(url.searchParams.has('protocol')
+        ? { protocol: url.searchParams.get('protocol') }
+        : {}),
       ...(revision === null ? {} : { revision }),
       ...(url.searchParams.has('decision')
         ? { decision: url.searchParams.get('decision') }
@@ -48,10 +59,14 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
       )
     )
       return undefined;
-    const host = new URL(`https://${result.host}`);
+    const protocol = result.protocol ?? 'https';
+    const host = new URL(`${protocol}://${result.host}`);
     if (
       host.host !== result.host.toLowerCase() &&
-      host.host !== result.host.toLowerCase().replace(/:443$/, '')
+      host.host !==
+        result.host
+          .toLowerCase()
+          .replace(protocol === 'http' ? /:80$/ : /:443$/, '')
     )
       return undefined;
     return { ...result, webUrl: reviewAppLinkWebUrl(result) };
@@ -63,7 +78,7 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
 function reviewAppLinkWebUrl(link: Destination): string {
   const url = new URL(
     `/reviews/${encodeURIComponent(link.reviewId)}`,
-    `https://${link.host}`,
+    `${link.protocol ?? 'https'}://${link.host}`,
   );
   if (link.revision !== undefined) url.pathname += `/${link.revision}`;
   if (link.decision !== undefined) {

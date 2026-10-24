@@ -12,10 +12,8 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { documentCommentAnchor } from '../rules/document-comment';
-import {
-  CommentThreads,
-  type CommentWorkspace,
-} from './review-comments-screen';
+import { CommentThreads } from './review-comments-screen';
+import type { CommentWorkspace } from './comment-draft';
 
 export type DocumentCodeSelection = {
   selection: ReviewRange | undefined;

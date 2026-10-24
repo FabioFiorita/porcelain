@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
@@ -65,6 +66,8 @@ import {
 } from '@porcelain/client/git-actions/rules';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
+import { BranchTracking } from '@/features/history/index';
+import { branchTracking } from '@porcelain/client/history/rules';
 import { GitActionError, GitActionMessage } from './git-action-message';
 
 export function GitButton({
@@ -227,9 +230,11 @@ export function GitButton({
                       running.operation.receipt.progress
                         .slice(-4)
                         .map((line) => (
-                          <li key={line} className="truncate" title={line}>
-                            {line}
-                          </li>
+                          <TruncatedText
+                            key={line}
+                            render={<li />}
+                            text={line}
+                          />
                         ))
                     ) : (
                       <li className="text-muted-foreground">
@@ -277,17 +282,13 @@ export function GitButton({
           </Tooltip>
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center">
-                <GitBranchIcon className="size-3.5 shrink-0" />
-                <span className="truncate">
-                  {branch
-                    ? (branch.name?.replace(/^refs\/heads\//, '') ??
-                      'Detached HEAD')
-                    : 'Git actions'}
-                </span>
-                {branch && (
-                  <span className="ml-auto shrink-0 tabular-nums">
-                    {branch.ahead} ahead · {branch.behind} behind
+              <DropdownMenuLabel>
+                {branch ? (
+                  <BranchTracking tracking={branchTracking(branch, null)} />
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <GitBranchIcon className="size-3.5 shrink-0" />
+                    Git actions
                   </span>
                 )}
               </DropdownMenuLabel>
@@ -320,9 +321,7 @@ export function GitButton({
                           >
                             <GitActionIcon action={candidate.id} />
                             <span className="flex min-w-0 flex-col">
-                              <span className="truncate">
-                                {candidate.label}
-                              </span>
+                              <TruncatedText text={candidate.label} />
                               {blocker && (
                                 <span className="text-xs whitespace-normal text-muted-foreground">
                                   {blocker}
@@ -364,7 +363,7 @@ export function GitButton({
                             }}
                           >
                             <Undo2Icon />
-                            <span className="min-w-0 truncate">{label}</span>
+                            <TruncatedText className="min-w-0" text={label} />
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>

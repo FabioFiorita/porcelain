@@ -1,8 +1,7 @@
 import { Box } from '../../../components/ui/box';
 import { useState, type ReactNode } from 'react';
-import { Stack, useRouter, usePreventRemove } from 'expo-router';
-import { randomUUID } from 'expo-crypto';
-import { Alert, ScrollView } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
@@ -10,12 +9,11 @@ import { readCommentThreads } from '@porcelain/client/reviews';
 import {
   anchorLabel,
   anchorPath,
-  commentBodyValid,
   commentIsStale,
   matchesCommentTarget,
   type CommentTarget,
-  retainIntent,
   threadStateLabel,
+  threadWriteTarget,
   type CommentAnchor,
   type CommentThread,
 } from '@porcelain/client/reviews/rules';
@@ -27,21 +25,23 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
+import { WorkspaceGate } from '../../projects';
 import {
-  WorkspaceGate,
-  useDocumentLeave,
-  type Workspace,
-} from '../../projects';
-import {
-  commentBodyLimit,
   useCommentCommands,
   useVisibleComments,
   useCommentWrite,
 } from '../commands/comments';
 import { documentCommentContext } from '../rules/document-comment';
 import { ReviewReadState } from './read-state';
+import { CommentThreadSheet } from './comment-thread-sheet';
+import {
+  useCommentDraft,
+  type CommentWorkspace,
+  type ComposerTarget,
+} from './comment-draft';
 import { useReviewSnapshot } from '../queries/review';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
+import type { CommentReview } from '../rules/navigation';
 
 export function ReviewCommentsScreen({
   workspaceKey,
@@ -49,24 +49,39 @@ export function ReviewCommentsScreen({
   anchor,
   compose,
   comparison,
+  thread,
+  body,
+  review,
 }: {
   workspaceKey?: string | undefined;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
   comparison: ReviewComparison;
+  thread?: string | undefined;
+  body?: string | undefined;
+  review?: CommentReview | undefined;
 }) {
   const router = useRouter();
   return (
     <>
-      <Stack.Screen options={{ title: path ? 'File comments' : 'Comments' }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon={headerIcon('done')}
-          accessibilityLabel="Done"
-          onPress={() => router.back()}
-        />
-      </Stack.Toolbar>
+      {thread ? null : (
+        <>
+          <Stack.Screen
+            options={{
+              title: path ? 'File comments' : 'Comments',
+              headerBackButtonMenuEnabled: false,
+            }}
+          />
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button
+              icon={headerIcon('done')}
+              accessibilityLabel="Done"
+              onPress={() => router.back()}
+            />
+          </Stack.Toolbar>
+        </>
+      )}
       <WorkspaceGate
         title="Review"
         expectedWorkspace={workspaceKey ?? ''}
@@ -77,24 +92,30 @@ export function ReviewCommentsScreen({
           />
         }
       >
-        {(workspace) => (
-          <CommentThreads
-            key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
-            workspace={workspace}
-            path={path}
-            anchor={anchor}
-            compose={compose}
-            comparison={comparison}
-          />
-        )}
+        {(workspace) =>
+          thread ? (
+            <CommentThreadSheet
+              key={`${workspace.key}:${thread}`}
+              workspace={workspace}
+              threadId={thread}
+            />
+          ) : (
+            <CommentThreads
+              key={`${workspace.key}:${path}:${JSON.stringify(anchor)}`}
+              workspace={workspace}
+              path={path}
+              anchor={anchor}
+              compose={compose}
+              comparison={comparison}
+              initialBody={body}
+              review={review}
+            />
+          )
+        }
       </WorkspaceGate>
     </>
   );
 }
-
-export type CommentWorkspace = Pick<Workspace, 'connection' | 'scope'>;
-
-type ComposerTarget = { anchor: CommentAnchor; threadId?: string | undefined };
 
 export function CommentThreads({
   workspace,
@@ -105,15 +126,19 @@ export function CommentThreads({
   currentTarget,
   onComposerChange,
   leaveScope,
+  initialBody = '',
+  review,
 }: {
   workspace: CommentWorkspace;
   path?: string | undefined;
   anchor?: CommentAnchor | undefined;
   compose: boolean;
+  initialBody?: string | undefined;
   comparison?: ReviewComparison | undefined;
   currentTarget?: CommentTarget | undefined;
   leaveScope?: string | undefined;
   onComposerChange?: ((anchor: CommentAnchor | undefined) => void) | undefined;
+  review?: CommentReview | undefined;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -122,7 +147,7 @@ export function CommentThreads({
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
   const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
-    compose && anchor ? { anchor } : undefined,
+    compose && anchor ? { ...review, anchor } : undefined,
   );
   const draft = useCommentDraft(
     workspace,
@@ -132,6 +157,7 @@ export function CommentThreads({
       onComposerChange?.(undefined);
     },
     leaveScope,
+    initialBody,
   );
   const open = (next: ComposerTarget) =>
     draft.confirmDiscard(() => {
@@ -197,7 +223,7 @@ export function CommentThreads({
           <Button
             label={newCommentLabel(anchor, path, comparison)}
             variant="outline"
-            onPress={() => open({ anchor })}
+            onPress={() => open({ ...review, anchor })}
           />
         ) : null}
         {AsyncResult.isSuccess(result) ? (
@@ -210,7 +236,7 @@ export function CommentThreads({
                 replying={replyTarget === thread.id}
                 currentTarget={currentTarget}
                 onReply={() =>
-                  open({ threadId: thread.id, anchor: thread.anchor })
+                  open({ ...threadWriteTarget(thread), anchor: thread.anchor })
                 }
               >
                 {replyTarget === thread.id ? composer : null}
@@ -276,109 +302,6 @@ function AnchorFreshness({
       comparison.
     </Text>
   ) : null;
-}
-
-function useCommentDraft(
-  workspace: CommentWorkspace,
-  target: ComposerTarget | undefined,
-  onClose: () => void,
-  leaveScope?: string,
-) {
-  const commands = useCommentCommands(workspace);
-  const create = useCommentWrite(commands.create);
-  const reply = useCommentWrite(commands.reply);
-  const result = target?.threadId ? reply.result : create.result;
-  const pending = target !== undefined && result.waiting;
-  const [body, setBody] = useState('');
-  const [invalid, setInvalid] = useState<string>();
-  const [intent, setIntent] = useState<
-    { body: string; threadId: string; messageId: string } | undefined
-  >(undefined);
-  const failure = target ? writeFailure(result) : undefined;
-  const reset = (complete: () => void) => {
-    setBody('');
-    setInvalid(undefined);
-    setIntent(undefined);
-    create.reset();
-    reply.reset();
-    complete();
-  };
-  const confirmDiscard = (complete: () => void) => {
-    if (pending) {
-      Alert.alert(
-        'Sending comment',
-        'Wait for the comment to finish sending before closing.',
-      );
-      return;
-    }
-    if (body.length === 0) {
-      reset(complete);
-      return;
-    }
-    Alert.alert('Discard comment?', 'Your unsent comment will be lost.', [
-      { text: 'Keep writing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => reset(complete),
-      },
-    ]);
-  };
-  useDocumentLeave(
-    leaveScope,
-    body.length > 0 || pending ? confirmDiscard : undefined,
-  );
-  usePreventRemove(body.length > 0 || pending, ({ repeat }) =>
-    confirmDiscard(repeat),
-  );
-  return {
-    body,
-    pending,
-    error: invalid ?? failure,
-    edit: (value: string) => {
-      setBody(value);
-      setInvalid(undefined);
-    },
-    cancel: () => confirmDiscard(onClose),
-    submit: () => {
-      if (!target || pending) return;
-      if (!commentBodyValid(body)) {
-        setInvalid(
-          `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
-        );
-        return;
-      }
-      const input = retainIntent(intent, body, () => ({
-        body,
-        threadId: target.threadId ?? randomUUID(),
-        messageId: randomUUID(),
-      }));
-      setIntent(input);
-      const sent = () => reset(onClose);
-      if (target.threadId)
-        reply.send(
-          { threadId: target.threadId, messageId: input.messageId, body },
-          sent,
-        );
-      else
-        create.send(
-          {
-            threadId: input.threadId,
-            messageId: input.messageId,
-            body,
-            anchor: target.anchor,
-          },
-          sent,
-        );
-    },
-    confirmDiscard,
-  };
-}
-
-function writeFailure(result: AsyncResult.AsyncResult<unknown, unknown>) {
-  return AsyncResult.isFailure(result)
-    ? reviewErrorMessage(Cause.squash(result.cause))
-    : undefined;
 }
 
 function CommentComposer({
@@ -451,7 +374,10 @@ function CommentThreadView({
           pending={resolve.result.waiting}
           onPress={() => {
             if (!resolve.result.waiting)
-              resolve.send({ threadId: thread.id, resolved: !thread.resolved });
+              resolve.send({
+                ...threadWriteTarget(thread),
+                resolved: !thread.resolved,
+              });
           }}
         />
         {!thread.resolved ? (

@@ -65,7 +65,7 @@ test.for([414, 1440])(
         .click();
       await expect
         .poll(() => app.location())
-        .toBe(`/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`);
+        .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
       await expect
         .element(app.page.getByRole('region', { name: 'Verdict', exact: true }))
         .not.toBeInTheDocument();
@@ -85,7 +85,7 @@ test.for([414, 1440])(
       await userEvent.keyboard('p');
       await expect
         .poll(() => app.location())
-        .toBe(`/reviews/${fixture.reviewId}/1`);
+        .toBe(`/reviews/${fixture.reviewId}`);
       await expect.element(briefing).toBeVisible();
       await briefing
         .getByRole('button', { name: 'latest', exact: true })
@@ -148,7 +148,7 @@ test.for([414, 1080, 1440])(
         .element(app.page.getByRole('tooltip'))
         .toHaveTextContent(lane);
       const rendered = app.whenRendered(
-        `/reviews/${fixture.reviewId}/${fixture.revision}/decisions/${fixture.layerId}`,
+        `/reviews/${fixture.reviewId}?decision=${fixture.layerId}`,
       );
       await userEvent.keyboard('{Enter}');
       await rendered;
@@ -219,9 +219,14 @@ test.for([
         )
         .toMatchTextContent(`You asked: ${asked}`);
       await userEvent.hover(title);
-      await expect
-        .element(app.page.getByRole('tooltip'))
-        .toHaveTextContent(asked);
+      if (clipped)
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .toHaveTextContent(asked);
+      else
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .not.toBeInTheDocument();
     } finally {
       await page.viewport(414, 896);
     }

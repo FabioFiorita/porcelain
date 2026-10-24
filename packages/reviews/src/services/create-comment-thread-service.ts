@@ -73,12 +73,6 @@ export class CreateCommentThreadService extends Context.Service<
           | CommentRevisionMismatchError
           | UnsupportedCommentComparisonError
         > {
-          if (
-            input.review !== undefined &&
-            input.anchor.revision !== undefined &&
-            input.anchor.revision !== input.review.headOid
-          )
-            return yield* Effect.fail(new CommentRevisionMismatchError());
           const problem = commentAnchorProblem(input.anchor);
           if (problem) return yield* Effect.fail(operationFailure(problem));
           const threadId = input.threadId ?? idSourceCapability.next();
@@ -102,6 +96,12 @@ export class CreateCommentThreadService extends Context.Service<
               return yield* Effect.fail(new CommentIdentityConflictError());
             return existing;
           }
+          if (
+            input.review !== undefined &&
+            input.anchor.revision !== undefined &&
+            input.anchor.revision !== input.review.headOid
+          )
+            return yield* Effect.fail(new CommentRevisionMismatchError());
           if (yield* commentsCapability.findMessage({ messageId }))
             return yield* Effect.fail(new CommentIdentityConflictError());
           const content: CommentContent = {

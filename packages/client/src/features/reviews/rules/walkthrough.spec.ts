@@ -4,6 +4,7 @@ import {
   briefingTitle,
   currentStop,
   decisionLinks,
+  decisionQuestions,
   decisionRoute,
   decisionStates,
   filesReviewed,
@@ -474,6 +475,51 @@ describe('system changes', () => {
         'delivery',
       ),
     ).toEqual([]);
+  });
+});
+
+describe('decision questions', () => {
+  it('asks each question once on the decision it belongs to and on every decision linked to it', () => {
+    const review: Pick<ReviewResponse, 'diagram' | 'layers'> = {
+      layers: [
+        layer('revoke', [step('a.ts')]),
+        layer('policy', [step('b.ts')]),
+        layer('cache', [step('c.ts')]),
+      ],
+      diagram: {
+        after: {
+          boxes: [
+            { id: 'd1', decision: true, label: 'Revoke', layerId: 'revoke' },
+            { id: 'd3', decision: true, label: 'Cache', layerId: 'cache' },
+            {
+              id: 'policy',
+              label: 'Workspace policy',
+              change: 'changed',
+              problem: 'Checked twice',
+              layerId: 'policy',
+            },
+            { id: 'journal', label: 'Revision journal', change: 'new' },
+          ],
+          arrows: [
+            { from: 'd1', to: 'policy', label: 'authorizes through' },
+            { from: 'd1', to: 'policy', label: 'reads' },
+            { from: 'd3', to: 'journal', label: 'writes events' },
+          ],
+        },
+      },
+    };
+    const asked = (id: string, number: number) =>
+      decisionQuestions(review, {
+        number,
+        layer: review.layers[number - 1] ?? layer(id, []),
+      }).map((part) => [part.label, part.problem, part.decision]);
+    expect(asked('revoke', 1)).toEqual([
+      ['Workspace policy', 'Checked twice', 2],
+    ]);
+    expect(asked('policy', 2)).toEqual([
+      ['Workspace policy', 'Checked twice', 2],
+    ]);
+    expect(asked('cache', 3)).toEqual([]);
   });
 });
 

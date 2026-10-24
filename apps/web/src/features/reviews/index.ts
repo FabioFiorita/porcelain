@@ -4,5 +4,5 @@ export * from './rules/tab-strip';
 export { PierreWorkers } from './adapters/pierre-workers';
 export { ReviewWorkspace } from './views/review-workspace';
 
-export { ReviewPage } from './views/review-page';
+export { ReviewPage, ReviewMissing } from './views/review-page';
 export { reviewRouteSearch } from './rules/review-route';

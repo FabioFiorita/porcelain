@@ -164,6 +164,9 @@ test('every ref is reachable at a narrow width in the History list and graph', a
       });
     refChips.focus(row);
     await userEvent.keyboard('{Tab}{Tab}');
+    await expect
+      .element(scope.getByRole('button', { name: branches[2]!, exact: true }))
+      .toHaveFocus();
     await expect.poll(() => refChips.tooltipName()).toBe(branches[2]!);
     await userEvent.keyboard('{Escape}');
 
@@ -186,10 +189,12 @@ test('every ref is reachable at a narrow width in the History list and graph', a
         .click();
     }
   }
-  await workspace
+  const ref = workspace
     .getByRole('list', { name: 'Commit graph', exact: true })
-    .getByRole('button', { name: repo.initialBranch, exact: true })
-    .click();
+    .getByRole('button', { name: repo.initialBranch, exact: true });
+  refChips.focus(ref);
+  await expect.element(ref).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
   await expect
     .element(
       workspace.getByRole('heading', { name: 'Initial commit', exact: true }),

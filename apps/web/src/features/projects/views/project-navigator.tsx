@@ -1,7 +1,7 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
-import { HeadTruncatedText } from '@/shared/views/head-truncated-text';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -157,6 +157,17 @@ export function ProjectNavigator({
     : 'No matching worktrees';
   const emptyLabel =
     projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
+  let emptyDescription = closed
+    ? 'Closed reviews will appear here.'
+    : 'Open a project to see its worktrees.';
+  if (
+    query.trim() ||
+    filter.projects !== undefined ||
+    filter.environments !== undefined
+  )
+    emptyDescription = 'Try another search or clear the filters.';
+  if (projects.length === 0)
+    emptyDescription = 'Open a Git repository to get started.';
   const { rows, filters, multipleProjects } = reviewListView(
     entries,
     query,
@@ -231,7 +242,7 @@ export function ProjectNavigator({
               >
                 <FilterIcon />
               </TooltipTrigger>
-              <TooltipContent role="tooltip">Filter and open</TooltipContent>
+              <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
               align="end"
@@ -241,21 +252,23 @@ export function ProjectNavigator({
                 <DropdownMenuGroup key={section.key}>
                   <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
                   {section.items.map((option) => (
-                    <DropdownMenuCheckboxItem
+                    <TruncatedText
+                      propagateEscape
                       key={option.id}
-                      checked={option.checked}
-                      closeOnClick={false}
-                      onCheckedChange={() =>
-                        setFilter({ ...filter, [section.key]: option.next })
-                      }
-                    >
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        title={option.label}
-                      >
-                        {option.label}
-                      </span>
-                    </DropdownMenuCheckboxItem>
+                      text={option.label}
+                      className="min-w-0 flex-1"
+                      renderTrigger={(label) => (
+                        <DropdownMenuCheckboxItem
+                          checked={option.checked}
+                          closeOnClick={false}
+                          onCheckedChange={() =>
+                            setFilter({ ...filter, [section.key]: option.next })
+                          }
+                        >
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    />
                   ))}
                   <DropdownMenuSeparator />
                 </DropdownMenuGroup>
@@ -351,57 +364,43 @@ export function ProjectNavigator({
                         const checkout = reviewListCheckout(entry);
                         const full = `${checkout.full} · ${entry.projectName}`;
                         return (
-                          <Tooltip
+                          <TruncatedText
+                            propagateEscape
                             key={entry.key}
-                            disableHoverablePopup
-                            onOpenChange={(_open, details) => {
-                              if (details.reason === 'escape-key')
-                                details.allowPropagation();
-                            }}
-                          >
-                            <TooltipTrigger
-                              render={
-                                <DropdownMenuRadioItem
-                                  ref={attach}
-                                  value={entry.key}
-                                  closeOnClick
-                                  disabled={entry.disabled}
-                                  aria-label={`${full} ${entry.environmentName}`}
-                                  onClick={() => openWorktree(entry)}
-                                />
-                              }
-                            >
-                              <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                                <span className="max-w-full shrink-0 truncate">
-                                  {checkout.name}
-                                </span>
-                                <span className="min-w-0 truncate">
-                                  · {entry.projectName}
-                                </span>
-                                {checkout.parent ? (
-                                  <HeadTruncatedText
-                                    text={checkout.parent}
-                                    className="flex-1 text-muted-foreground"
-                                  />
-                                ) : null}
-                              </span>
-                              <Badge
-                                variant="secondary"
-                                className="max-w-1/2"
-                                title={entry.environmentName}
+                            text={`${full} · ${entry.environmentName}`}
+                            disclose={checkout.parent ? 'always' : 'clipped'}
+                            className="max-w-full shrink-0"
+                            renderTrigger={(label, clip) => (
+                              <DropdownMenuRadioItem
+                                ref={attach}
+                                value={entry.key}
+                                closeOnClick
+                                disabled={entry.disabled}
+                                aria-label={`${full} ${entry.environmentName}`}
+                                onClick={() => openWorktree(entry)}
                               >
-                                <span className="truncate">
-                                  {entry.environmentName}
+                                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                  {label}
+                                  {clip(`· ${entry.projectName}`)}
+                                  {checkout.parent
+                                    ? clip(
+                                        checkout.parent,
+                                        'flex-1 text-muted-foreground',
+                                        'start',
+                                      )
+                                    : null}
                                 </span>
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              role="tooltip"
-                              className="wrap-anywhere"
-                            >
-                              {full}
-                            </TooltipContent>
-                          </Tooltip>
+                                <Badge
+                                  variant="secondary"
+                                  className="max-w-1/2"
+                                >
+                                  {clip(entry.environmentName)}
+                                </Badge>
+                              </DropdownMenuRadioItem>
+                            )}
+                          >
+                            {checkout.name}
+                          </TruncatedText>
                         );
                       })}
                     </DropdownMenuRadioGroup>
@@ -517,116 +516,95 @@ export function ProjectNavigator({
                                     )}
                                   >
                                     <NavigatorStatus entry={entry} />
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        render={
-                                          <SidebarMenuButton
-                                            size="lg"
-                                            className="h-10 min-w-0 flex-1"
-                                            aria-label={
-                                              entry.reviewId
-                                                ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                                : detachedLabel
-                                            }
-                                            disabled={
-                                              !entry.reviewId && entry.disabled
-                                            }
-                                            aria-current={
-                                              active ? 'page' : undefined
-                                            }
-                                            onClick={() =>
-                                              entry.reviewId
-                                                ? setOpenMobile(false)
-                                                : openWorktree(entry)
-                                            }
-                                            render={
-                                              entry.reviewId ? (
-                                                <Link
-                                                  to="/reviews/$reviewId"
-                                                  params={{
-                                                    reviewId: entry.reviewId,
-                                                  }}
-                                                  search={{
-                                                    environment:
-                                                      entry.environmentId ===
-                                                      connection.environmentId
-                                                        ? undefined
-                                                        : entry.environmentId,
-                                                    decision: undefined,
-                                                  }}
-                                                />
-                                              ) : undefined
-                                            }
+                                    <SidebarMenuButton
+                                      size="lg"
+                                      className="h-10 min-w-0 flex-1"
+                                      aria-label={
+                                        entry.reviewId
+                                          ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                          : detachedLabel
+                                      }
+                                      disabled={
+                                        !entry.reviewId && entry.disabled
+                                      }
+                                      aria-current={active ? 'page' : undefined}
+                                      onClick={() =>
+                                        entry.reviewId
+                                          ? setOpenMobile(false)
+                                          : openWorktree(entry)
+                                      }
+                                      render={
+                                        entry.reviewId ? (
+                                          <Link
+                                            to="/reviews/$reviewId"
+                                            params={{
+                                              reviewId: entry.reviewId,
+                                            }}
+                                            search={{
+                                              environment:
+                                                entry.environmentId ===
+                                                connection.environmentId
+                                                  ? undefined
+                                                  : entry.environmentId,
+                                              decision: undefined,
+                                            }}
                                           />
-                                        }
-                                      >
-                                        <div className="min-w-0 flex-1 text-ui leading-4">
-                                          <div className="flex min-w-0 items-center gap-1">
-                                            <span className="min-w-0 flex-1 truncate">
-                                              {entry.title}
+                                        ) : undefined
+                                      }
+                                    >
+                                      <div className="min-w-0 flex-1 text-ui leading-4">
+                                        <div className="flex min-w-0 items-center gap-1">
+                                          <TruncatedText
+                                            className="min-w-0 flex-1"
+                                            text={entry.title}
+                                          />
+                                          {entry.reviewId ? (
+                                            <span
+                                              className={cn(
+                                                'shrink-0 text-xs',
+                                                active
+                                                  ? 'text-brand'
+                                                  : 'text-muted-foreground',
+                                              )}
+                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                            >
+                                              {entry.reviewed}/{entry.total}
                                             </span>
-                                            {entry.reviewId ? (
-                                              <span
-                                                className={cn(
-                                                  'shrink-0 text-xs',
-                                                  active
-                                                    ? 'text-brand'
-                                                    : 'text-muted-foreground',
-                                                )}
-                                                aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
-                                              >
-                                                {entry.reviewed}/{entry.total}
-                                              </span>
-                                            ) : null}
-                                          </div>
-                                          <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                            <div className="flex min-w-0 flex-1 items-center gap-1">
-                                              {context.project ? (
-                                                <span
-                                                  className={
-                                                    context.branch ||
-                                                    context.location
-                                                      ? 'min-w-0 max-w-1/2 truncate'
-                                                      : 'min-w-0 flex-1 truncate'
-                                                  }
-                                                >
-                                                  {context.project}
-                                                </span>
-                                              ) : null}
-                                              {context.branch ? (
-                                                <span className="min-w-0 flex-1 truncate">
-                                                  {context.branch}
-                                                </span>
-                                              ) : null}
-                                              {context.location ? (
-                                                <HeadTruncatedText
-                                                  text={context.location}
-                                                  className="flex-1"
-                                                />
-                                              ) : null}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent
-                                        side="right"
-                                        role="tooltip"
-                                      >
-                                        <div>
-                                          <p>{entry.title}</p>
-                                          <p>
-                                            {[context.project, context.branch]
-                                              .filter(Boolean)
-                                              .join(' · ')}
-                                          </p>
-                                          {context.location ? (
-                                            <p className="wrap-anywhere">
-                                              {checkout.full}
-                                            </p>
                                           ) : null}
                                         </div>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                          <div className="flex min-w-0 flex-1 items-center gap-1">
+                                            {context.project ? (
+                                              <TruncatedText
+                                                className={
+                                                  context.branch ||
+                                                  context.location
+                                                    ? 'min-w-0 max-w-1/2 '
+                                                    : 'min-w-0 flex-1 '
+                                                }
+                                                text={context.project}
+                                              />
+                                            ) : null}
+                                            {context.branch ? (
+                                              <TruncatedText
+                                                className="min-w-0 flex-1"
+                                                text={context.branch}
+                                              />
+                                            ) : null}
+                                            {context.location ? (
+                                              <TruncatedText
+                                                cut="start"
+                                                disclose="always"
+                                                className="min-w-0 flex-1"
+                                                text={checkout.full}
+                                              >
+                                                {context.location}
+                                              </TruncatedText>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </SidebarMenuButton>
                                   </div>
                                   {entry.archivable && entry.reviewId ? (
                                     <ArchiveReview
@@ -657,9 +635,7 @@ export function ProjectNavigator({
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyLabel}</EmptyTitle>
-                <EmptyDescription>
-                  Try another search or clear the filters.
-                </EmptyDescription>
+                <EmptyDescription>{emptyDescription}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}

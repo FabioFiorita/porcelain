@@ -28,6 +28,7 @@ export {
 export {
   type DeleteReviewResponse,
   publishReviewResponseSchema,
+  reviewAppLinkProtocolSchema,
   readPublishedReviewResponseSchema,
   type PublishReviewRequest,
   type ReadPublishedReviewResponse,

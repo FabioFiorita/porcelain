@@ -17,6 +17,7 @@ import { page } from 'vitest/browser';
 import '@/app.css';
 import { AppProviders } from '@/app/app-providers';
 import { PairedShell } from '@/app/paired-shell';
+import { ConnectedWorkspace } from '@/app/connected-workspace';
 import {
   pairBrowser,
   restoreSession,
@@ -56,6 +57,7 @@ export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
   workspace: () => Promise<typeof page>;
+  selection: () => Promise<typeof page>;
   route: (
     path: string,
     options?: { unpaired?: boolean },
@@ -407,6 +409,10 @@ export const test = base
       unmount = mounted.unmount;
     };
     const render: Render = {
+      async selection() {
+        await show(() => <ConnectedWorkspace />);
+        return page;
+      },
       async route(path, options) {
         if (unmount !== undefined)
           throw new Error('A test renders one feature once.');

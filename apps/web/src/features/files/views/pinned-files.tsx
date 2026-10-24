@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import type { GitStatus, GitStatusEntry } from '@pierre/trees';
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -90,47 +91,43 @@ export function PinnedFiles({
                   <ContextMenuTrigger
                     render={<li className="flex items-center gap-0.5" />}
                   >
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <button
-                            type="button"
-                            aria-current={
-                              path === selected ? 'page' : undefined
-                            }
-                            className={cn(
-                              'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
-                              path === selected && 'bg-accent',
-                            )}
-                            onClick={(event) => onOpen(path, event.altKey)}
+                    <TruncatedText
+                      text={path}
+                      className="min-w-0"
+                      renderTrigger={(label, clip) => (
+                        <button
+                          type="button"
+                          aria-label={path}
+                          aria-current={path === selected ? 'page' : undefined}
+                          className={cn(
+                            'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-caption hover:bg-accent',
+                            path === selected && 'bg-accent',
+                          )}
+                          onClick={(event) => onOpen(path, event.altKey)}
+                        >
+                          <FileTypeIcon
+                            path={path}
+                            className="size-3.5 shrink-0"
                           />
-                        }
-                      >
-                        <FileTypeIcon
-                          path={path}
-                          className="size-3.5 shrink-0"
-                        />
-                        <span className="min-w-0 truncate">
-                          {path.slice(separator)}
-                        </span>
-                        {separator > 0 && (
-                          <span className="min-w-0 shrink-[100] truncate text-muted-foreground">
-                            {path.slice(0, separator - 1)}
-                          </span>
-                        )}
-                        {marks.has(path) && (
-                          <span
-                            aria-hidden="true"
-                            className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground"
-                          >
-                            {marks.get(path)}
-                          </span>
-                        )}
-                      </TooltipTrigger>
-                      <TooltipContent role="tooltip" className="break-all">
-                        {path}
-                      </TooltipContent>
-                    </Tooltip>
+                          {label}
+                          {separator > 0 &&
+                            clip(
+                              path.slice(0, separator - 1),
+                              'shrink-[100] text-muted-foreground',
+                            )}
+                          {marks.has(path) && (
+                            <span
+                              aria-hidden="true"
+                              className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground"
+                            >
+                              {marks.get(path)}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                    >
+                      {path.slice(separator)}
+                    </TruncatedText>
                     <Tooltip>
                       <TooltipTrigger
                         render={

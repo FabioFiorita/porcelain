@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ArrowUpIcon, FolderIcon } from 'lucide-react';
@@ -91,7 +92,7 @@ function FolderEntries({
           disabled={disabled}
         >
           <FolderIcon data-icon="inline-start" />
-          <span className="truncate">{directory.name}</span>
+          <TruncatedText text={directory.name} />
         </Button>
       ))}
       {!current.directories.length && (

@@ -1,6 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { expect } from 'vitest';
 import { test } from '@porcelain/server/kit/server-test';
@@ -78,6 +85,49 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
         /(?:^|\n)(?:already )?stopped /,
       );
     }
+    expect(existsSync(join(home, 'instances')), surface).toBe(false);
+    expect(await readdir(evidence), surface).toStrictEqual([
+      'stop-result.json',
+    ]);
+  }
+});
+
+test('web and desktop retained evidence and repeated stop work without an installed browser driver', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  for (const path of ['node_modules', '.agents/skills/node_modules']) {
+    const dependencies = join(copy, path);
+    const packages = await readdir(dependencies);
+    await rm(dependencies);
+    await mkdir(dependencies);
+    for (const name of packages.filter((name) => name !== 'playwright'))
+      await symlink(join(repositoryRoot, path, name), join(dependencies, name));
+  }
+  expect(existsSync(join(copy, 'node_modules/playwright'))).toBe(false);
+  expect(existsSync(join(copy, '.agents/skills/node_modules/playwright'))).toBe(
+    false,
+  );
+  const id = 'abc12345';
+  for (const surface of ['web', 'desktop']) {
+    const path = `.agents/skills/${surface}-verify/scripts/cli`;
+    const home = resolve(instanceFile(copy, surface, id), '../../..');
+    const evidence = join(home, 'evidence', id);
+    onTestFinished(() => rm(home, { recursive: true, force: true }));
+    await mkdir(evidence, { recursive: true, mode: 0o700 });
+    await writeFile(
+      join(evidence, 'stop-result.json'),
+      JSON.stringify({ complete: true, report: [] }),
+      { mode: 0o600 },
+    );
+
+    const retained = await cli(copy, path, 'evidence', '--instance', id);
+    const repeated = await cli(copy, path, 'stop', '--instance', id);
+
+    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.stdout).toContain(evidence);
+    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.stdout).toContain(`already stopped ${id}`);
     expect(existsSync(join(home, 'instances')), surface).toBe(false);
     expect(await readdir(evidence), surface).toStrictEqual([
       'stop-result.json',

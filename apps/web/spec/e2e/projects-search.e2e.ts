@@ -128,7 +128,7 @@ for (const width of [1440, 414]) {
         await expect(result).toHaveAttribute('aria-checked', 'true');
         await result.hover();
         await expect(pairedPage.getByRole('tooltip')).toHaveText(
-          `${target.path} · ${project.name}`,
+          `${target.path} · ${project.name} · ${computer}`,
         );
         await result.click();
         await expect(pairedPage.getByRole('menu')).toHaveCount(0);

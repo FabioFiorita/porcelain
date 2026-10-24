@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -7,7 +8,6 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
@@ -18,11 +18,11 @@ import {
   checkResultLabel,
   decisionKey,
   decisionLinks,
+  decisionQuestions,
   decisionRoute,
   filesReviewed,
   orderedChecks,
   proofOnLayer,
-  systemChanges,
   type DecisionLink,
   type DecisionState,
   type ReviewChangeItem,
@@ -34,7 +34,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -68,15 +68,7 @@ export function DecisionPage({
 }) {
   const { layer } = stop;
   const links = decisionLinks(review, layer.id);
-  const questions = [
-    ...systemChanges(review).questions.filter(
-      (part) => part.decision === stop.number,
-    ),
-    ...links.flatMap((link) => (link.part.problem ? [link.part] : [])),
-  ].filter(
-    (part, index, all) =>
-      all.findIndex((other) => other.id === part.id) === index,
-  );
+  const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   const progress = filesReviewed(stop.paths, items);
   return (
@@ -178,10 +170,11 @@ export function DecisionPage({
           <Summary text={layer.summary} />
         </header>
         {decision?.stale && (
-          <ReviewNotice title="Code moved since it was explained">
-            Lines this decision points at changed after the agent explained
-            them. Read the diff below, or ask the agent to publish a revision.
-          </ReviewNotice>
+          <StateNotice
+            role="status"
+            title="Code moved since it was explained"
+            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+          />
         )}
         <RouteTable
           layer={layer}
@@ -200,7 +193,7 @@ export function DecisionPage({
                 className="max-w-full"
                 onClick={() => onGo(file.stop)}
               >
-                <span className="truncate">{basename(file.path)}</span>
+                <TruncatedText text={basename(file.path)} />
                 <span className="text-muted-foreground">
                   {file.stop === 'specs'
                     ? '· in Specs'
@@ -360,37 +353,43 @@ function RouteRow({
 }) {
   const value = [lane, step.pointer.path].filter(Boolean).join(' · ');
   return (
-    <FullValueTooltip
-      value={value}
-      render={<button type="button" />}
-      aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
-      onClick={() => onStep(step)}
-      className={cn(
-        'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
-        lane !== undefined && index > 0 && 'border-t',
+    <TruncatedText
+      text={value}
+      renderTrigger={(_label, clip) => (
+        <button
+          type="button"
+          aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
+          onClick={() => onStep(step)}
+          className={cn(
+            'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
+            lane !== undefined && index > 0 && 'border-t',
+          )}
+        >
+          {clip(
+            lane ?? '',
+            'hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block',
+          )}
+          <span
+            className={cn(
+              'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
+              step.kind === 'context' && 'border-dashed text-muted-foreground',
+            )}
+          >
+            {index + 1}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+            <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+              {step.title}
+              <StepMarker step={step} />
+            </span>
+            {clip(
+              step.pointer.path,
+              'font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2',
+            )}
+          </span>
+        </button>
       )}
-    >
-      <span className="hidden w-24 shrink-0 truncate text-xs text-muted-foreground @2xl/review:block">
-        {lane}
-      </span>
-      <span
-        className={cn(
-          'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
-          step.kind === 'context' && 'border-dashed text-muted-foreground',
-        )}
-      >
-        {index + 1}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-        <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
-          {step.title}
-          <StepMarker step={step} />
-        </span>
-        <span className="min-w-0 truncate font-mono text-xs text-muted-foreground @2xl/review:max-w-1/2">
-          {step.pointer.path}
-        </span>
-      </span>
-    </FullValueTooltip>
+    />
   );
 }
 

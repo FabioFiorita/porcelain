@@ -233,6 +233,8 @@
         "apps/marketing/tsconfig.json",
         "apps/marketing/src/**",
         "apps/marketing/public/**",
+        "packages/client/src/**",
+        "packages/contracts/src/**",
         "apps/web/public/icon-512.png",
         "packages/theme/src/**",
         "pnpm-lock.yaml"
