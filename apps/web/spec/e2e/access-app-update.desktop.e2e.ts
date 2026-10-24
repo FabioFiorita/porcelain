@@ -336,7 +336,7 @@ for (const recovery of ['available', 'idle'] as const) {
       .getByRole('button', { name: 'Manage computers', exact: true })
       .click();
     await expect(
-      page.getByRole('button', { name: 'Open This computer', exact: true }),
+      page.getByRole('button', { name: /^Open This computer:/u }),
     ).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => window.updateFixture.checks))

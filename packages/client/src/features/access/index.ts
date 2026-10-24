@@ -60,6 +60,7 @@ export {
   settingsUpdateVersion,
   settingsUpdateTrust,
   settingsUpdateCount,
+  computersSummary,
   settingsUpdateBatchProgress,
   type SettingsUpdateEntry,
   type SettingsUpdateBatch,

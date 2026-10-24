@@ -26,10 +26,7 @@ export function CommitModelSetting() {
     (entry) => entry.remote.environmentId === selection.currentEnvironmentId,
   );
   return current ? (
-    <ConnectedCommitModel
-      connection={current.connection}
-      name={current.remote.name}
-    />
+    <ConnectedCommitModel connection={current.connection} />
   ) : (
     <Item
       title="Commit model"
@@ -41,10 +38,8 @@ export function CommitModelSetting() {
 
 function ConnectedCommitModel({
   connection,
-  name,
 }: {
   connection: RuntimeConnection;
-  name: string;
 }) {
   const atom = readCommitModels(connection);
   const models = useAtomValue(atom);
@@ -59,7 +54,8 @@ function ConnectedCommitModel({
     <Box gap={2}>
       <Text variant="subheading">Commit model</Text>
       <Text variant="caption" tone="muted">
-        Models from {name}. Saves the default for commit drafts on this device.
+        Models installed for the selected workspace. Saves the default for
+        commit drafts on this device.
       </Text>
       {AsyncResult.isInitial(models) ? (
         <Loading label="Loading models…" />
@@ -87,8 +83,8 @@ function ConnectedCommitModel({
       ))}
       {!models.waiting && choices && groups.length === 0 ? (
         <Text variant="caption" tone="muted">
-          Install and sign in to Codex or Claude Code on {name} to generate
-          drafts.
+          Install and sign in to Codex or Claude Code on the computer running
+          this workspace to generate drafts.
         </Text>
       ) : null}
     </Box>

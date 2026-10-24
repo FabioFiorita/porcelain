@@ -6,6 +6,7 @@ import type {
   ServiceUpdateTarget,
 } from '../commands/settings-updates.ts';
 import {
+  computersSummary,
   settingsUpdateAvailable,
   settingsUpdateBatchProgress,
   settingsUpdateCount,
@@ -200,3 +201,15 @@ it('numbers the current row, including earlier failures, and has no updating lab
     label: undefined,
   });
 });
+
+it.each([
+  [0, 0, { paired: 'No computers paired', updates: undefined }],
+  [1, 0, { paired: '1 paired', updates: undefined }],
+  [3, 1, { paired: '3 paired', updates: '1 update ready' }],
+  [3, 2, { paired: '3 paired', updates: '2 updates ready' }],
+])(
+  'summarizes %i paired computers with %i ready updates',
+  (paired, updates, summary) => {
+    expect(computersSummary(paired, updates)).toEqual(summary);
+  },
+);

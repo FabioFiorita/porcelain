@@ -37,6 +37,9 @@ export const reviewLayout = {
       stop: () => observer.disconnect(),
     };
   },
+  focus(locator: Locator) {
+    locator.element().focus();
+  },
   tabInsideStrip(locator: Locator) {
     const tab = locator.element();
     const viewport = tab.closest('[role="tablist"]')?.parentElement;

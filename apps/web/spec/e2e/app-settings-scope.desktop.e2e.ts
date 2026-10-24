@@ -60,7 +60,7 @@ test('desktop Settings uses the shared three sections and nests this computer an
       .getByRole('listitem'),
   ).toHaveCount(1);
   await expect(
-    settings.getByRole('button', { name: 'Open This computer', exact: true }),
+    settings.getByRole('button', { name: /^Open This computer:/u }),
   ).toBeVisible();
   await openThisComputer(pairedPage);
   await expect(

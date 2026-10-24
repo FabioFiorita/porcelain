@@ -6,7 +6,7 @@ selectors:
   - 'Settings'
   - 'Ways in'
   - 'Local network'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Paired devices and links'
   - 'can update Porcelain'
   - 'Device name'
@@ -30,10 +30,10 @@ On Settings → Computers → This computer → Pair a device the owner lets a p
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer` → the switch "<device> can update Porcelain" in the device's row.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer`.
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer: <name>` → the switch "<device> can update Porcelain" in the device's row.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer: <name>`.
 - Route: `/settings/devices` (both shells; administration is host-gated).
-- For a new device: `Computers` → `Open This computer` → Ways in → turn on a way in → `Computers` → `Open This computer` → "Device name" → switch "The paired device can update Porcelain" → `Create pairing link`.
+- For a new device: `Computers` → `Open This computer: <name>` → Ways in → turn on a way in → `Computers` → `Open This computer: <name>` → "Device name" → switch "The paired device can update Porcelain" → `Create pairing link`.
 
 ## Driving it with browser
 

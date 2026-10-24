@@ -4,7 +4,7 @@ selectors:
   - 'This browser is not paired'
   - 'porcelain pair'
   - 'Computers'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Disconnect this browser'
 tests:
   - apps/web/spec/e2e/app-routing.e2e.ts

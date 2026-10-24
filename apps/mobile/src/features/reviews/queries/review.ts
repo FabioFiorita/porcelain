@@ -6,6 +6,7 @@ import { readReviewedFiles } from '@porcelain/client/reviews';
 import { WORKTREE_RANGE } from '@porcelain/client/reviews/rules';
 import type { Workspace } from '../../projects';
 import {
+  snapshotChangeMarks,
   fileReviewLabels,
   reviewRange,
   type ReviewSnapshot,
@@ -94,6 +95,7 @@ export function useFileReview(
   ];
   return {
     labels: fileReviewLabels(snapshot.result, marks.result),
+    changes: snapshotChangeMarks(snapshot.result),
     unavailable: results.some(AsyncResult.isFailure),
     pending: results.some(
       (result) => AsyncResult.isInitial(result) || result.waiting,

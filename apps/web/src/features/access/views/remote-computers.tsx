@@ -1,7 +1,7 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { KeyRoundIcon, MonitorIcon, ChevronRightIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   connectionErrorMessage,
   remoteStatusText,
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
 import {
   Item,
   ItemContent,
@@ -50,21 +51,12 @@ function RemoteRow({
   return (
     <Item size="sm" role="listitem" aria-label={name}>
       <ItemContent>
-        <Button
-          variant="ghost"
-          className="h-auto w-full justify-between whitespace-normal text-left"
-          aria-label={`Open ${name}`}
-          onClick={() => onOpen(remote.environmentId)}
-        >
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{name}</span>
-            <span className="block break-all text-xs font-normal text-muted-foreground">
-              {remoteStatusText(status)} · {remote.address} ·{' '}
-              {remote.environmentId.slice(0, 8)}
-            </span>
-          </span>
-          <ChevronRightIcon className="shrink-0" />
-        </Button>
+        <ComputerLink
+          name={name}
+          label={`Open ${name}`}
+          onOpen={() => onOpen(remote.environmentId)}
+          description={`${remoteStatusText(status)} · ${remote.address} · ${remote.environmentId.slice(0, 8)}`}
+        />
       </ItemContent>
       {showUpdates && update && (
         <ItemFooter>
@@ -183,26 +175,20 @@ export function RemoteComputers({
           </Button>
         </div>
         <ItemGroup aria-label="Computers">
-          <Item size="sm" role="listitem" aria-label="This computer">
+          <Item
+            size="sm"
+            role="listitem"
+            aria-label={`This computer: ${environment.name}`}
+          >
             <ItemContent>
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-between whitespace-normal text-left"
-                aria-label="Open This computer"
-                onClick={() => onOpen('this-computer')}
-              >
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <MonitorIcon className="size-4" />
-                    {environment.name}
-                    <Badge variant="secondary">This computer</Badge>
-                  </span>
-                  <span className="block text-xs font-normal text-muted-foreground">
-                    Online · Connected computer
-                  </span>
-                </span>
-                <ChevronRightIcon className="shrink-0" />
-              </Button>
+              <ComputerLink
+                name={environment.name}
+                label={`Open This computer: ${environment.name}`}
+                onOpen={() => onOpen('this-computer')}
+                icon={<MonitorIcon className="size-4 shrink-0" />}
+                badge={<Badge variant="secondary">This computer</Badge>}
+                description="Online · Connected computer"
+              />
             </ItemContent>
             {showUpdates && (
               <ItemFooter>
@@ -238,5 +224,43 @@ export function RemoteComputers({
         </ItemGroup>
       </FieldSet>
     </>
+  );
+}
+
+function ComputerLink({
+  name,
+  label,
+  description,
+  icon,
+  badge,
+  onOpen,
+}: {
+  name: string;
+  label: string;
+  description: string;
+  icon?: ReactNode;
+  badge?: ReactNode;
+  onOpen: () => void;
+}) {
+  return (
+    <FullValueTooltip
+      value={name}
+      render={<Button variant="ghost" />}
+      className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
+      aria-label={label}
+      onClick={onOpen}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-2">
+          {icon}
+          <span className="min-w-0 truncate font-medium">{name}</span>
+          {badge}
+        </span>
+        <span className="block break-all text-xs font-normal text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      <ChevronRightIcon className="shrink-0" />
+    </FullValueTooltip>
   );
 }

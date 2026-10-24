@@ -15,7 +15,7 @@ test('marking a retained decision marks its files, live edits preserve them, and
     exact: true,
   });
   await review
-    .getByRole('button', { name: '1. Readme layer', exact: true })
+    .getByRole('button', { name: '1. Readme layer · Docs', exact: true })
     .click();
   const stop = review.getByRole('region', {
     name: '1. Readme layer',

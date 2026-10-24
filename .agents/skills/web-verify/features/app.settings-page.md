@@ -7,7 +7,7 @@ selectors:
   - 'General'
   - 'Reviews & Git'
   - 'Computers'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Name of this computer'
   - 'Documents open as'
   - 'Close Settings'
@@ -33,7 +33,7 @@ Section navigation replaces the current entry; opening a computer detail adds a 
 
 Start a desktop verification instance and open Settings from the workspace sidebar. Expect heading General and no Review content region. Choose Reviews & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title.
 
-Reopen Settings, click Computers and Open This computer. Focus Name of this computer and press Escape: remain on detail. Click General and press Escape: return to the review. From detail without switching sections, Escape returns to the focusable Computers list; another Escape leaves Settings.
+Reopen Settings, click Computers and Open This computer: <name>. Focus Name of this computer and press Escape: remain on detail. Click General and press Escape: return to the review. From detail without switching sections, Escape returns to the focusable Computers list; another Escape leaves Settings.
 
 For direct-entry history, open `/settings/general` in a fresh tab of the paired browser, open Computers → This computer, then select General and Computers again. Close and Escape return to the workspace even though Settings had no predecessor. As a negative control, enter Settings from a distinct not-found URL and repeat: both controls return to that exact predecessor.
 

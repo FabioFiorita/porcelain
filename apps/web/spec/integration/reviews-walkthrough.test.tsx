@@ -30,7 +30,7 @@ test('the briefing keeps system owners and questions, the decisions open retaine
     .toBeVisible();
   await review
     .getByRole('button', {
-      name: '2. Revoke access across devices',
+      name: '2. Revoke access across devices · Entry points → Shared client → Server → Owners',
       exact: true,
     })
     .click();
