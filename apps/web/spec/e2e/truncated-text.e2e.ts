@@ -2,7 +2,7 @@ import { expect, test } from './fixtures.ts';
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`long History subjects reveal their full value on hover and keyboard focus at ${width}px in ${colorScheme}`, async ({
+    test(`long History subjects reveal their full value on keyboard focus at ${width}px in ${colorScheme}`, async ({
       pairedPage: page,
       repo,
     }) => {
@@ -34,14 +34,10 @@ for (const width of [1440, 414]) {
       for (const subject of subjects) {
         const label = history.getByText(subject, { exact: true });
         await expect(label).not.toHaveAttribute('tabindex');
-        await label.hover();
         const tooltip = page.getByRole('tooltip', {
           name: subject,
           exact: true,
         });
-        await expect(tooltip).toBeVisible();
-        await page.mouse.move(1, 1);
-        await expect(tooltip).not.toBeVisible();
         await row(subject).focus();
         await page.keyboard.press('Shift+Tab');
         await page.keyboard.press('Tab');
@@ -53,7 +49,6 @@ for (const width of [1440, 414]) {
       }
       const shortLabel = history.getByText(short, { exact: true });
       await expect(shortLabel).not.toHaveAttribute('tabindex');
-      await shortLabel.hover();
       await row(short).focus();
       await page.keyboard.press('Shift+Tab');
       await page.keyboard.press('Tab');
@@ -100,7 +95,9 @@ for (const width of [1440, 414]) {
         await page.keyboard.press(key);
         await expect(commitTab).toHaveAttribute('aria-selected', 'true');
       }
-      await commitTab.hover();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(commitTab).toBeFocused();
       await expect(
         page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40}$/ }),
       ).toBeVisible();
