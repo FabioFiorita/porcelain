@@ -1,8 +1,8 @@
 import { KeyboardAvoidingView } from 'react-native';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import type { KeyboardDockProps } from './keyboard-dock-props';
+import type { ReactNode } from 'react';
 
-export function KeyboardDock({ children }: KeyboardDockProps) {
+export function KeyboardDock({ children }: { children: ReactNode }) {
   return (
     <KeyboardAvoidingView
       behavior="padding"

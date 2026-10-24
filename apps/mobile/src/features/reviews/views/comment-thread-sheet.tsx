@@ -176,41 +176,45 @@ function ThreadSheet({
       />
       <KeyboardDock>
         <Box className="flex-1" surface="background" collapsable={false}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerClassName="gap-4 p-4"
-          >
-            {path ? (
-              <Text variant="code" tone="muted" selectable>
-                {path}
+          <Box className="flex-1 overflow-hidden" collapsable={false}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentInsetAdjustmentBehavior="automatic"
+              contentContainerClassName="gap-4 p-4"
+            >
+              {path ? (
+                <Text variant="code" tone="muted" selectable>
+                  {path}
+                </Text>
+              ) : null}
+              <Text variant="caption" weight="medium">
+                {threadStateLabel(thread)}
               </Text>
-            ) : null}
-            <Text variant="caption" weight="medium">
-              {threadStateLabel(thread)}
-            </Text>
-            {AsyncResult.isFailure(resolve.result) ? (
-              <ErrorState
-                message={reviewErrorMessage(Cause.squash(resolve.result.cause))}
-              />
-            ) : null}
-            {thread.review ? (
-              <RevisionMessages
-                workspace={workspace}
-                reviewId={thread.review.reviewId}
-                messages={thread.messages}
-                layers={review?.layers ?? []}
-                onDecision={openDecision}
-              />
-            ) : (
-              <Messages
-                messages={thread.messages}
-                revisions={[]}
-                layers={review?.layers ?? []}
-                onDecision={openDecision}
-              />
-            )}
-          </ScrollView>
+              {AsyncResult.isFailure(resolve.result) ? (
+                <ErrorState
+                  message={reviewErrorMessage(
+                    Cause.squash(resolve.result.cause),
+                  )}
+                />
+              ) : null}
+              {thread.review ? (
+                <RevisionMessages
+                  workspace={workspace}
+                  reviewId={thread.review.reviewId}
+                  messages={thread.messages}
+                  layers={review?.layers ?? []}
+                  onDecision={openDecision}
+                />
+              ) : (
+                <Messages
+                  messages={thread.messages}
+                  revisions={[]}
+                  layers={review?.layers ?? []}
+                  onDecision={openDecision}
+                />
+              )}
+            </ScrollView>
+          </Box>
           {thread.resolved && !draft.body ? null : <Separator />}
           {thread.resolved && !draft.body ? null : (
             <Box paddingX={4} paddingY={3} gap={2}>
