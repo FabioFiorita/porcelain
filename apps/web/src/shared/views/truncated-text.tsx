@@ -64,7 +64,7 @@ export function TruncatedText({
       }}
     >
       <TooltipTrigger render={trigger}>{trigger.props.children}</TooltipTrigger>
-      <TooltipContent role="tooltip" className="break-all">
+      <TooltipContent role="tooltip" className="wrap-anywhere">
         {text}
       </TooltipContent>
     </Tooltip>
