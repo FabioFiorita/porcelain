@@ -26,14 +26,19 @@ function patchLineChanges(patch: string): {
   const changed = new Set<number>();
   const deleted = new Set<number>();
   let line = 0;
+  let inHunk = false;
   for (const value of patch.split('\n')) {
+    if (value.startsWith('diff --git ')) inHunk = false;
     const header = HUNK_HEADER.exec(value)?.groups;
     if (header) {
+      inHunk = true;
       line = Number(header.newStart);
-    } else if (value.startsWith('+') && !value.startsWith('+++')) {
+    } else if (!inHunk) {
+      continue;
+    } else if (value.startsWith('+')) {
       changed.add(Math.max(1, line));
       line += 1;
-    } else if (value.startsWith('-') && !value.startsWith('---')) {
+    } else if (value.startsWith('-')) {
       const at = Math.max(1, line);
       changed.add(at);
       deleted.add(at);
@@ -47,9 +52,12 @@ function patchLineChanges(patch: string): {
 function mapOldLine(patch: string, target: number): number | undefined {
   let oldLine = 1;
   let newLine = 1;
+  let inHunk = false;
   for (const value of patch.split('\n')) {
+    if (value.startsWith('diff --git ')) inHunk = false;
     const header = HUNK_HEADER.exec(value)?.groups;
     if (header) {
+      inHunk = true;
       const oldCount =
         header.oldCount === undefined ? 1 : Number(header.oldCount);
       const newCount =
@@ -59,10 +67,12 @@ function mapOldLine(patch: string, target: number): number | undefined {
       if (target < nextOld) return target + (newLine - oldLine);
       oldLine = nextOld;
       newLine = nextNew;
-    } else if (value.startsWith('-') && !value.startsWith('---')) {
+    } else if (!inHunk) {
+      continue;
+    } else if (value.startsWith('-')) {
       if (target === oldLine) return undefined;
       oldLine += 1;
-    } else if (value.startsWith('+') && !value.startsWith('+++')) {
+    } else if (value.startsWith('+')) {
       newLine += 1;
     } else if (value.startsWith(' ')) {
       if (target === oldLine) return newLine;
