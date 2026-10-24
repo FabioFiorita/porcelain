@@ -7,8 +7,7 @@ import { seedDevelopmentSample } from '@porcelain/server/kit/development-sample'
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
 import { Schema } from 'effect';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, inject, test } from 'vitest';
@@ -29,7 +28,6 @@ function readersOf(environment: Environment) {
 test('the mobile development fixture exposes nested files, a merge, two distinct dirty worktrees and a review conversation', async ({
   onTestFinished,
 }) => {
-  const started = performance.now();
   const environment = await Environment.start({
     build: inject('serverBuild'),
     title: 'Sample proof',
@@ -37,7 +35,6 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
     workspace: false,
     fixture: 'development',
   });
-  const elapsedMs = Math.round(performance.now() - started);
   onTestFinished(async () => {
     await environment.stop();
   });
@@ -183,30 +180,6 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
     seedDevelopmentSample(environment.server, environment.recorder),
   ).rejects.toThrow('fresh disposable fixture');
   expect(await session.git('status', '--porcelain')).toBe(statusBefore);
-  const evidence = await mkdtemp(
-    join(tmpdir(), 'porcelain-development-sample-proof-'),
-  );
-  await writeFile(
-    join(evidence, 'sample.json'),
-    JSON.stringify(
-      environment.recorder.redact({
-        elapsedMs,
-        project,
-        paths,
-        changes,
-        commits,
-        offlineChanges,
-        review,
-        comments,
-        steps: environment.recorder.steps,
-      }),
-      null,
-      2,
-    ),
-  );
-  console.log(
-    `Development sample startup and seed: ${elapsedMs}ms; evidence ${evidence}/sample.json`,
-  );
 });
 
 test('focused mobile verification keeps its one-README fixture with no published review or comments', async ({
