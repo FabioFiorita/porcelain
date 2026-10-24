@@ -70,18 +70,18 @@ export function TruncatedText({
   const disclosed = text.trim() !== '' && (clipped || disclose === 'always');
   const triggered = renderTrigger !== undefined;
 
-  function attach(element: HTMLElement | null) {
+  const [attach] = useState(() => (element: HTMLElement | null) => {
     if (!element) return;
-    const pieces = [
-      element,
-      ...element.querySelectorAll('[data-truncated]'),
-    ].filter((piece) => piece.getAttribute('data-truncated') === id);
+    const pieces = () =>
+      [element, ...element.querySelectorAll('[data-truncated]')].filter(
+        (piece) => piece.getAttribute('data-truncated') === id,
+      );
     const owner = triggered
       ? null
       : (element.parentElement?.closest<HTMLElement>(owners) ?? null);
     let active = true;
     const measure = () => {
-      if (active) setClipped(pieces.some((piece) => isClipped(piece, lines)));
+      if (active) setClipped(pieces().some((piece) => isClipped(piece, lines)));
     };
     const show = () => {
       if (
@@ -102,7 +102,13 @@ export function TruncatedText({
     setOwned(owner !== null);
     measure();
     const observer = new ResizeObserver(measure);
-    for (const piece of pieces) observer.observe(piece);
+    for (const piece of pieces()) observer.observe(piece);
+    const content = new MutationObserver(measure);
+    content.observe(element, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
     void document.fonts.ready.then(measure);
     owner?.addEventListener('focus', show);
     owner?.addEventListener('blur', hide);
@@ -110,11 +116,12 @@ export function TruncatedText({
     return () => {
       active = false;
       observer.disconnect();
+      content.disconnect();
       owner?.removeEventListener('focus', show);
       owner?.removeEventListener('blur', hide);
       owner?.removeEventListener('keydown', dismiss);
     };
-  }
+  });
 
   const standalone = !triggered && !owned;
   const clip = (value: string, styles?: string) => (
