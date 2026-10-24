@@ -1,6 +1,6 @@
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
-import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
+import { ChevronDownIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import {
   useGitStatus,
@@ -63,6 +63,7 @@ import {
   statusFromChanges,
   suggestedCount,
 } from '@porcelain/client/git-actions/rules';
+import { BranchTracking } from './branch-tracking';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
 import { GitActionError, GitActionMessage } from './git-action-message';
@@ -278,18 +279,7 @@ export function GitButton({
           <DropdownMenuContent align="end" className="w-76">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center">
-                <GitBranchIcon className="size-3.5 shrink-0" />
-                <span className="truncate">
-                  {branch
-                    ? (branch.name?.replace(/^refs\/heads\//, '') ??
-                      'Detached HEAD')
-                    : 'Git actions'}
-                </span>
-                {branch && (
-                  <span className="ml-auto shrink-0 tabular-nums">
-                    {branch.ahead} ahead · {branch.behind} behind
-                  </span>
-                )}
+                <BranchTracking branch={branch} />
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
