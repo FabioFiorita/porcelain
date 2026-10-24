@@ -372,8 +372,11 @@ export function ProjectNavigator({
                               }
                             >
                               <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                <span className="max-w-full shrink-0 truncate">
+                                  {checkout.name}
+                                </span>
                                 <span className="min-w-0 truncate">
-                                  {checkout.name} · {entry.projectName}
+                                  · {entry.projectName}
                                 </span>
                                 {checkout.parent ? (
                                   <HeadTruncatedText

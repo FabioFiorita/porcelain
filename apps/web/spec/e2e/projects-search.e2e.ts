@@ -81,9 +81,7 @@ for (const width of [1440, 414]) {
         });
         await expect(result).toBeVisible();
         await expect(result).toHaveCSS('height', '32px');
-        const label = result.getByText(`${names[index]} · ${project.name}`, {
-          exact: true,
-        });
+        const label = result.getByText(names[index] ?? '', { exact: true });
         await expect(label).toBeVisible();
         await expect
           .poll(() =>
