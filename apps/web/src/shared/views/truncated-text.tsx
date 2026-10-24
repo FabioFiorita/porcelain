@@ -17,11 +17,13 @@ export function TruncatedText({
   className,
   render,
   renderTrigger,
+  propagateEscape = false,
 }: {
   text: string;
   children?: ReactNode;
   className?: string;
   render?: ReactElement<HTMLAttributes<HTMLElement>>;
+  propagateEscape?: boolean;
   renderTrigger?: (
     label: ReactElement,
     clip: (value: string, className?: string) => ReactElement,
@@ -54,7 +56,7 @@ export function TruncatedText({
       disabled={!hasText}
       disableHoverablePopup
       onOpenChange={(_open, details) => {
-        if (renderTrigger && details.reason === 'escape-key')
+        if (propagateEscape && details.reason === 'escape-key')
           details.allowPropagation();
       }}
     >

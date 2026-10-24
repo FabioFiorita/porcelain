@@ -52,6 +52,7 @@ function RemoteRow({
     <Item size="sm" role="listitem" aria-label={name}>
       <ItemContent>
         <TruncatedText
+          propagateEscape
           text={name}
           className="block font-medium"
           renderTrigger={(label) => (

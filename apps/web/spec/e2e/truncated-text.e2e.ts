@@ -48,6 +48,25 @@ for (const width of [1440, 414]) {
         await expect(tooltip).not.toBeVisible();
         await expect(label).toBeFocused();
       }
+      if (width === 414) {
+        const historyTab = page.getByRole('tab', {
+          name: 'History',
+          exact: true,
+        });
+        await historyTab.focus();
+        await expect(historyTab).toBeFocused();
+        await expect(
+          page.getByRole('tooltip', { name: 'History', exact: true }),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(history).not.toBeVisible();
+        const review = page.getByRole('button', {
+          name: 'Review',
+          exact: true,
+        });
+        await expect(review).toBeFocused();
+        await review.click();
+      }
       await history.getByText(subjects[0], { exact: true }).click();
       await expect(
         page.getByRole('heading', { name: subjects[0], exact: true }),

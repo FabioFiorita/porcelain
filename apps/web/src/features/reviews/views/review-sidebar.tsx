@@ -130,6 +130,7 @@ export function SidePanel({
             <TabsList className="h-8 min-w-0 flex-1">
               {surfaces.map((value) => (
                 <TruncatedText
+                  propagateEscape
                   key={value}
                   text={names[value]}
                   renderTrigger={(label) => (

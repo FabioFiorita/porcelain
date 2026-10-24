@@ -237,6 +237,7 @@ export function ProjectNavigator({
                   <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
                   {section.items.map((option) => (
                     <TruncatedText
+                      propagateEscape
                       key={option.id}
                       text={option.label}
                       className="min-w-0 flex-1"
@@ -326,6 +327,7 @@ export function ProjectNavigator({
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
                       {checkouts.map((entry) => (
                         <TruncatedText
+                          propagateEscape
                           key={entry.key}
                           text={`${entry.branch} · ${entry.projectName} · ${entry.environmentName}`}
                           className="min-w-0 flex-1"

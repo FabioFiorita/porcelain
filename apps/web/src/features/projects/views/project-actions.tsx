@@ -35,6 +35,7 @@ export function ProjectActions({
   return (
     <DropdownMenuSub>
       <TruncatedText
+        propagateEscape
         text={project.name}
         renderTrigger={(label) => (
           <DropdownMenuSubTrigger>
