@@ -264,7 +264,7 @@ it('a file notice invalidates only the connected environment', async () => {
   try {
     subject.live()?.onNotice({ type: 'worktree', ...scope, change: 'files' });
     await Promise.resolve();
-    expect(inventoryRefreshes).toBe(1);
+    expect(inventoryRefreshes).toBe(0);
     expect(currentRefreshes).toBe(1);
     expect(otherRefreshes).toBe(0);
   } finally {
