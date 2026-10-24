@@ -2,9 +2,10 @@
 route: /pair
 selectors:
   - "Review content"
-  - "Pairing this browser"
+  - "Checking the link with your computer"
   - "This pairing link is not usable. Ask for a new one."
 tests:
+  - apps/web/spec/e2e/access-pairing-states.e2e.ts
   - apps/web/spec/e2e/access-pairing.e2e.ts
   - apps/web/spec/e2e/access-pair-open-page.e2e.ts
 api:
@@ -35,6 +36,7 @@ A browser with a valid session goes to its workspace when it opens `/pair` witho
    Expect: URL `/pair` and heading "This browser is not paired".
 2. Run `$C pairing-link` and navigate this same tab to its fresh one-time link, then wait for region named `Review content`
    Expect: the local `pairing-link` output names `/pair#c=<one-time code>&e=<environmentId>`; the workspace shows within a few seconds.
+   With `POST /api/pair` held, the same page says "Checking the link with your computer" and marks step 2 current. This also applies when the tab already showed an unpaired page or a refused link. Releasing the request opens the workspace.
 3. Click button `Review`
    Expect: URL `/<projectId>/<worktreeId>?entry=handoff` with no `#c=` fragment, title "Changes — repository".
 4. Inspect HTTP traffic (before any reload)
@@ -52,7 +54,7 @@ A browser with a valid session goes to its workspace when it opens `/pair` witho
 
 Reload: workspace remains without `#c=`; `$C server devices` contains Verification browser.
 
-Automated coverage: `access-pairing.e2e.ts`, `access-pair-open-page.e2e.ts`.
+Automated coverage: `access-pairing.e2e.ts`, `access-pair-open-page.e2e.ts`, and the fresh/unpaired/refused tab cases in `access-pairing-states.e2e.ts`.
 
 ## Gotchas
 

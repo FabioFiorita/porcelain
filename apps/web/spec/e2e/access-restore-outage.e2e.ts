@@ -17,7 +17,7 @@ test('a reload while the server cannot answer keeps the address and shows the wo
   await app.reload();
 
   await expect(
-    opened.getByText('Could not display the workspace.', { exact: true }),
+    opened.getByText('Could not display the workspace', { exact: true }),
   ).toBeVisible();
   await expect(
     opened.getByRole('heading', {
@@ -50,7 +50,7 @@ test('the pairing page opened while the server cannot answer does not claim the 
   await app.open('/pair');
 
   await expect(
-    pairedPage.getByText('Could not display the workspace.', { exact: true }),
+    pairedPage.getByText('Could not display the workspace', { exact: true }),
   ).toBeVisible();
   await expect(
     pairedPage.getByRole('heading', {

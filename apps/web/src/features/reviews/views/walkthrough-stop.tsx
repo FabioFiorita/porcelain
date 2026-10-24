@@ -34,7 +34,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -170,10 +170,11 @@ export function DecisionPage({
           <Summary text={layer.summary} />
         </header>
         {decision?.stale && (
-          <ReviewNotice title="Code moved since it was explained">
-            Lines this decision points at changed after the agent explained
-            them. Read the diff below, or ask the agent to publish a revision.
-          </ReviewNotice>
+          <StateNotice
+            role="status"
+            title="Code moved since it was explained"
+            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+          />
         )}
         <RouteTable
           layer={layer}

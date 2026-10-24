@@ -12,8 +12,9 @@ import {
   useConnectedContext,
   useRemoteConnections,
 } from '@/features/access/index';
-import { ReviewPage } from '@/features/reviews/index';
+import { ReviewPage, ReviewMissing } from '@/features/reviews/index';
 import { ConnectedWorkspace } from './connected-workspace';
+import { StateFrame, StateNotice } from '@/shared/views/state-notice';
 import { Button } from '@/components/ui/button';
 
 export function ReviewRoute({
@@ -39,20 +40,50 @@ export function ReviewRoute({
   if (environment && !remote)
     return (
       <ConnectedWorkspace>
-        <div className="p-4">
-          <p>This review's remote computer is not paired here.</p>
-          <Button onClick={back}>Back to workspace</Button>
-        </div>
+        <StateFrame
+          navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
+          title="Review"
+        >
+          <StateNotice
+            title="Computer not paired"
+            description="This review's remote computer is not paired here."
+          >
+            <Button
+              variant="outline"
+              onClick={() =>
+                void navigate({
+                  to: '/settings/$section',
+                  params: { section: 'computers' },
+                })
+              }
+            >
+              Computer settings
+            </Button>
+            <Button variant="ghost" onClick={back}>
+              Back to workspace
+            </Button>
+          </StateNotice>
+        </StateFrame>
       </ConnectedWorkspace>
     );
   const number = revision === undefined ? undefined : Number(revision);
   if (number !== undefined && (!Number.isSafeInteger(number) || number < 1))
     return (
       <ConnectedWorkspace>
-        <div className="p-4">
-          <p>Revision not found.</p>
-          <Button onClick={back}>Back to workspace</Button>
-        </div>
+        <ReviewMissing
+          navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
+          reviewId={reviewId}
+          revision={revision}
+          context={context}
+          onBack={back}
+          onRevision={() =>
+            void navigate({
+              to: '/reviews/$reviewId',
+              params: { reviewId },
+              search: { environment, decision: undefined },
+            })
+          }
+        />
       </ConnectedWorkspace>
     );
   return (

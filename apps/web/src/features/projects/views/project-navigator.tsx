@@ -151,6 +151,17 @@ export function ProjectNavigator({
     : 'No matching worktrees';
   const emptyLabel =
     projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
+  let emptyDescription = closed
+    ? 'Closed reviews will appear here.'
+    : 'Open a project to see its worktrees.';
+  if (
+    query.trim() ||
+    filter.projects !== undefined ||
+    filter.environments !== undefined
+  )
+    emptyDescription = 'Try another search or clear the filters.';
+  if (projects.length === 0)
+    emptyDescription = 'Open a Git repository to get started.';
   const { rows, filters, multipleProjects } = reviewListView(
     entries,
     query,
@@ -584,9 +595,7 @@ export function ProjectNavigator({
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyLabel}</EmptyTitle>
-                <EmptyDescription>
-                  Try another search or clear the filters.
-                </EmptyDescription>
+                <EmptyDescription>{emptyDescription}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
