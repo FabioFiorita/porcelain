@@ -110,6 +110,79 @@ describe('review archive deletion settings', () => {
     },
   );
 });
+describe.each([true, false])('push remote reachable=%s', (reachable) => {
+  it.each(combinations)(
+    'preserves archive safety with worktree=%s local=%s remote=%s',
+    async (deleteWorktree, deleteLocalBranch, deleteRemoteBranch) => {
+      writeFileSync(join(tree, 'file.txt'), 'local commit\n');
+      git(tree, 'commit', '-qam', 'Local only');
+      writeFileSync(join(tree, 'unsaved.txt'), 'unsaved work\n');
+      const request = {
+        ...input(),
+        options: { deleteWorktree, deleteLocalBranch, deleteRemoteBranch },
+      };
+      const cleanup = deleteWorktree || deleteLocalBranch || deleteRemoteBranch;
+      const unavailable = join(root, 'unavailable.git');
+      if (!reachable)
+        git(main, 'remote', 'set-url', '--push', 'origin', unavailable);
+      if (!reachable && cleanup) {
+        await expect(run(archiveReview(request, gitLimits))).rejects.toThrow();
+        expect(existsSync(tree)).toBe(true);
+        expect(git(main, 'rev-parse', 'feature')).toBe(
+          git(tree, 'rev-parse', 'HEAD'),
+        );
+        expect(git(remote, 'log', '-1', '--format=%s', 'feature')).toBe('Base');
+        git(main, 'remote', 'set-url', '--push', 'origin', remote);
+      }
+      const plan = await run(archiveReview(request, gitLimits));
+      expect(plan.unpushed).toBe(cleanup);
+      expect(plan.dirty).toBe(deleteWorktree);
+      if (cleanup) {
+        await expect(
+          run(
+            archiveReview(
+              { ...request, confirmation: { plan, discardChanges: false } },
+              gitLimits,
+            ),
+          ),
+        ).rejects.toThrow('Explicitly confirm');
+        expect(existsSync(tree)).toBe(true);
+      } else {
+        git(main, 'remote', 'set-url', '--push', 'origin', unavailable);
+      }
+      await run(
+        archiveReview(
+          { ...request, confirmation: { plan, discardChanges: cleanup } },
+          gitLimits,
+        ),
+      );
+      expect(existsSync(tree)).toBe(!deleteWorktree);
+      expect(
+        git(
+          main,
+          'for-each-ref',
+          '--format=%(refname)',
+          'refs/heads/feature',
+        ) !== '',
+      ).toBe(!deleteLocalBranch);
+      expect(
+        git(
+          remote,
+          'for-each-ref',
+          '--format=%(refname)',
+          'refs/heads/feature',
+        ) !== '',
+      ).toBe(!deleteRemoteBranch);
+      if (!deleteWorktree) {
+        expect(git(tree, 'log', '-1', '--format=%s')).toBe('Local only');
+        expect(existsSync(join(tree, 'unsaved.txt'))).toBe(true);
+        expect(git(tree, 'branch', '--show-current')).toBe(
+          deleteLocalBranch ? '' : 'feature',
+        );
+      }
+    },
+  );
+});
 it('requires explicit confirmation before discarding dirty files', async () => {
   writeFileSync(join(tree, 'untracked.txt'), 'unsaved');
   const plan = await run(archiveReview(input(), gitLimits));
