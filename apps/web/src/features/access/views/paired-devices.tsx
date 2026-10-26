@@ -47,7 +47,7 @@ export function PairedDevices({
             aria-label={device.label}
           >
             <ItemContent className="min-w-0">
-              <ItemTitle>
+              <ItemTitle className="flex-wrap">
                 {device.label}
                 {device.current && (
                   <Badge variant="secondary">This browser</Badge>
@@ -68,7 +68,7 @@ export function PairedDevices({
                 </ItemDescription>
               )}
             </ItemContent>
-            <ItemActions>
+            <ItemActions className="w-full flex-wrap sm:w-auto">
               <DeviceTrustControl
                 connection={connection}
                 id={device.id}

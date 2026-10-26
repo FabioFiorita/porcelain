@@ -5,6 +5,7 @@ import {
   Effect,
   Exit,
   Option,
+  Predicate,
   Ref,
   Schedule,
   Stream,
@@ -102,7 +103,8 @@ function accessObservation<A, E, R>(
 function deniedAsNull<A, E, R>(request: Effect.Effect<A, E, R>) {
   return request.pipe(
     Effect.catch((error) =>
-      error instanceof RequestError && error.status === 403
+      (error instanceof RequestError && error.status === 403) ||
+      Predicate.isTagged(error, 'WaysInPermissionRequiredError')
         ? Effect.succeed(null)
         : Effect.fail(error),
     ),

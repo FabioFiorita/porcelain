@@ -63,6 +63,27 @@ it('treats ways in and paired devices this device may not see as unavailable her
       ),
     ),
   ).toBeNull();
+  const refused = fixture(() =>
+    Promise.resolve(
+      Response.json(
+        {
+          statusCode: 403,
+          error: 'Forbidden',
+          message:
+            'An owner must let this device edit ways in on the computer that runs Porcelain before it can see or change them',
+        },
+        { status: 403 },
+      ),
+    ),
+  );
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(
+        refused.registry,
+        readRemoteAccess(refused.connection),
+      ),
+    ),
+  ).toBeNull();
   const failed = fixture(() =>
     Promise.resolve(new Response(null, { status: 503 })),
   );
