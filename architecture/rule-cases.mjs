@@ -2009,6 +2009,90 @@ export const saveBoth = Atom.writable(
       errors: 2,
     };
   }),
+  ...[
+    'it.effect',
+    'it.effect.skip',
+    'it.effect.only',
+    'it.effect.each([1])',
+    'check.effect',
+  ].map((test) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid: `import { it, it as check } from '@effect/vitest'; const callback = () => Effect.sleep(100); ${test}('virtual', callback);`,
+    invalid: `import { it, it as check } from '@effect/vitest'; const callback = () => Effect.sleep(100); ${test}('virtual', callback); it.live('live', callback);`,
+    errors: 1,
+  })),
+  ...[
+    'it.layer(Layer.empty)',
+    'it.layer(Layer.empty, { excludeTestServices: false })',
+    'check.layer(Layer.empty)',
+    'tests.it.layer(Layer.empty)',
+    'layer(Layer.empty)',
+  ].flatMap((layer) =>
+    ['', "'suite', "].map((name) => ({
+      rule: 'spec-no-waits',
+      path: 'packages/client/src/rules/sample.spec.ts',
+      valid: `import { it, it as check, layer } from '@effect/vitest'; import * as tests from '@effect/vitest'; ${layer}(${name}(test) => { const callback = () => Effect.sleep(100); test.effect('virtual', callback); test.effect('inline', () => Effect.sleep(100)); });`,
+      invalid: `import { it, it as check, layer } from '@effect/vitest'; import * as tests from '@effect/vitest'; ${layer}(${name}(test) => { test.effect('live runtime', () => Effect.promise(() => Effect.runPromise(Effect.sleep(100)))); });`,
+      errors: 1,
+    })),
+  ),
+  ...[
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((outer) => { outer.layer(Layer.empty)('nested', (inner) => { inner.effect('virtual', () => Effect.sleep(100)); }); });",
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty, { excludeTestServices: true })((outer) => { outer.layer(Layer.empty)((inner) => { inner.effect('live', () => Effect.sleep(100)); }); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty, { excludeTestServices: true })((test) => { test.effect('live', () => Effect.sleep(100)); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty, options)((test) => { test.effect('unknown clock', () => Effect.sleep(100)); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from 'vitest'; it.layer(Layer.empty)((test) => { test.effect('unknown clock', () => Effect.sleep(100)); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; const callback = () => Effect.sleep(100); const alias = callback; it.effect('virtual', alias);",
+      "import { it } from '@effect/vitest'; const callback = () => Effect.sleep(100); it.effect('virtual', callback); Effect.runPromise(callback());",
+    ],
+    [
+      "import { it } from '@effect/vitest'; const callback = function () { return Effect.sleep(100); }; it.effect('virtual', callback);",
+      "import { it } from '@effect/vitest'; const callback = () => Effect.sleep(100); it.effect('not a callback', callback());",
+    ],
+    [
+      "import { it } from '@effect/vitest'; function callback() { return Effect.sleep(100); } it.effect('virtual', callback);",
+      "import { it } from '@effect/vitest'; function callback() { return Effect.sleep(100); } it.effect('virtual', callback); it.live('live', callback);",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.effect('virtual', () => { function wait() { return Effect.sleep(100); } return wait(); });",
+      "import { it } from '@effect/vitest'; it.effect('live runtime', () => { function wait() { return Effect.sleep(100); } return Effect.promise(() => Effect.runPromise(wait())); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; import { TestClock } from 'effect/testing'; it.effect('virtual', () => Effect.promise(() => Effect.sleep(100).pipe(Effect.provide(TestClock.layer()), Effect.runPromise)));",
+      "import { it } from '@effect/vitest'; it.effect('live runtime', () => Effect.promise(() => Effect.sleep(100).pipe(Effect.runPromise)));",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from '@effect/vitest'; import { TestClock } from 'effect/testing'; it.layer(Layer.empty)((test) => { test.effect('live override', () => Effect.sleep(100).pipe(TestClock.withLive)); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { const other = (test) => test.effect('unknown clock', () => Effect.sleep(100)); other(api); });",
+    ],
+    [
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
+      "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test = api; test.effect('unknown clock', () => Effect.sleep(100)); });",
+    ],
+  ].map(([valid, invalid]) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid,
+    invalid,
+    errors: 1,
+  })),
   {
     rule: 'spec-no-waits',
     path: 'packages/client/src/rules/sample.spec.ts',
@@ -2052,6 +2136,16 @@ export const saveBoth = Atom.writable(
     errors,
   })),
   ...[
+    [
+      "vi.useRealTimers(); it('virtual', () => Date.now()); vi.useFakeTimers();",
+      "vi.useFakeTimers(); it('live', () => Date.now()); vi.useRealTimers();",
+      1,
+    ],
+    [
+      "describe('virtual', () => { vi.useFakeTimers(); it('virtual', () => Date.now()); });",
+      "describe('live', () => { vi.useFakeTimers(); it('live', () => Date.now()); }); vi.useRealTimers();",
+      1,
+    ],
     [
       "it('virtual', () => { vi.useFakeTimers(); Date.now(); new Date(); Date(); vi.useRealTimers(); });",
       "it('live', () => { Date.now(); vi.useFakeTimers(); });",

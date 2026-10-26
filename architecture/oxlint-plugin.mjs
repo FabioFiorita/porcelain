@@ -679,8 +679,8 @@ function timingPath(node, context) {
     return owner && name !== undefined ? `${owner}.${name}` : undefined;
   }
   if (node?.type !== 'Identifier') return undefined;
-  const definition = findVariable(context.sourceCode.getScope(node), node.name)
-    ?.defs[0];
+  const variable = findVariable(context.sourceCode.getScope(node), node.name);
+  const definition = variable?.defs[0];
   if (definition?.type === 'ImportBinding') {
     if (
       typeOnlyImport(definition.parent) ||
@@ -701,21 +701,56 @@ function timingPath(node, context) {
     if (source === 'effect/Effect') return 'Effect';
     if (source === 'effect/testing/TestClock') return 'TestClock';
   }
+  if (definition?.type === 'Parameter') {
+    const callback = definition.node;
+    const registration = callback.parent;
+    const layer = registration?.callee;
+    if (
+      callback.params[0]?.type === 'Identifier' &&
+      callback.params[0].name === node.name &&
+      !variable.references.some((reference) => reference.isWrite()) &&
+      registration?.type === 'CallExpression' &&
+      registration.arguments.includes(callback) &&
+      layer?.type === 'CallExpression' &&
+      /^effect-test\.(?:(?:it|test)\.)?layer$/.test(
+        timingPath(layer.callee, context) ?? '',
+      )
+    ) {
+      const options = layer.arguments[1];
+      if (
+        options === undefined ||
+        (options.type === 'ObjectExpression' &&
+          options.properties.every(
+            (property) =>
+              property.type === 'Property' &&
+              propertyName(property, context) !== undefined &&
+              (propertyName(property, context) !== 'excludeTestServices' ||
+                (property.value.type === 'Literal' &&
+                  property.value.value === false)),
+          ))
+      )
+        return 'effect-test.it';
+    }
+  }
   if (definition) return `local.${node.name}`;
   if (['vi', 'vitest'].includes(node.name)) return 'vitest.vi';
   if (node.name === 'TestClock') return undefined;
   return node.name;
 }
 
+const effectRuntime =
+  /^Effect\.run|\.run(?:Promise(?:Exit)?|Sync(?:Exit)?|Fork|Callback)$/;
+
 function testClockSleep(node, context, seen = new Set()) {
   if (seen.has(node)) return false;
   seen.add(node);
   for (let current = node.parent; current; current = current.parent) {
     if (
-      current.type === 'VariableDeclarator' &&
-      current.id.type === 'Identifier' &&
-      !['YieldExpression', 'AwaitExpression'].includes(current.init?.type) &&
-      current.parent.kind === 'const'
+      current.id?.type === 'Identifier' &&
+      ((current.type === 'VariableDeclarator' &&
+        !['YieldExpression', 'AwaitExpression'].includes(current.init?.type) &&
+        current.parent.kind === 'const') ||
+        current.type === 'FunctionDeclaration')
     ) {
       const references =
         findVariable(
@@ -735,6 +770,8 @@ function testClockSleep(node, context, seen = new Set()) {
     if (path?.endsWith('.pipe')) {
       for (const argument of current.arguments) {
         if (timingPath(argument, context) === 'TestClock.withLive')
+          return false;
+        if (effectRuntime.test(timingPath(argument, context) ?? ''))
           return false;
         if (
           argument.type === 'CallExpression' &&
@@ -760,18 +797,14 @@ function testClockSleep(node, context, seen = new Set()) {
         )
     )
       return true;
-    if (
-      /^Effect\.run|\.run(?:Promise(?:Exit)?|Sync(?:Exit)?|Fork|Callback)$/.test(
-        path ?? '',
-      )
-    )
-      return false;
+    if (effectRuntime.test(path ?? '')) return false;
     if (/^effect-test\.(?:it|test)\.effect(?:\.|$)/.test(path ?? ''))
       return current.arguments.some(
         (argument) =>
-          ['ArrowFunctionExpression', 'FunctionExpression'].includes(
+          (['ArrowFunctionExpression', 'FunctionExpression'].includes(
             argument.type,
-          ) &&
+          ) ||
+            argument === node) &&
           argument.range[0] <= node.range[0] &&
           argument.range[1] >= node.range[1],
       );
@@ -868,13 +901,13 @@ function fakeClock(node, context, clock) {
           : controlsTimers(value, functions)),
     );
   };
-  const applyBody = (body, before) => {
+  const applyBody = (body, before, after = -Infinity) => {
     if (body?.type !== 'BlockStatement' && body?.type !== 'Program') {
-      if (body?.range[0] < before) apply(body);
+      if (body?.range[0] < before && body.range[0] >= after) apply(body);
       return;
     }
     for (const statement of body.body) {
-      if (statement.range[1] > before) continue;
+      if (statement.range[1] > before || statement.range[0] < after) continue;
       const call =
         statement.type === 'ExpressionStatement'
           ? statement.expression
@@ -909,6 +942,12 @@ function fakeClock(node, context, clock) {
     const suites = scopes.slice(0, index + 1);
     const bodyOf = (suite) =>
       ['Program', 'BlockStatement'].includes(suite.type) ? suite : suite.body;
+    for (let suiteIndex = suites.length - 1; suiteIndex >= 0; suiteIndex--)
+      applyBody(
+        bodyOf(suites[suiteIndex]),
+        Infinity,
+        (suites[suiteIndex + 1] ?? next).range[1],
+      );
     const callbacks = (call) =>
       call.arguments.filter((argument) =>
         ['ArrowFunctionExpression', 'FunctionExpression'].includes(
