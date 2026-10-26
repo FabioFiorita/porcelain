@@ -176,12 +176,208 @@ it.each([
   },
 );
 
+function reviewResponse(lastSeenRevision: number | null) {
+  return Response.json({
+    review:
+      lastSeenRevision === null
+        ? null
+        : {
+            reviewId,
+            projectId: '20000000-0000-4000-8000-000000000001',
+            branch: 'main',
+            state: 'open',
+            latestRevision: 2,
+            lastSeenRevision,
+          },
+    revisions: [],
+    revision: null,
+  });
+}
+
+it.each([
+  { lastSeenRevision: null, revision: 1, updated: false },
+  { lastSeenRevision: 0, revision: 1, updated: true },
+  { lastSeenRevision: 1, revision: 1, updated: false },
+  { lastSeenRevision: 2, revision: 1, updated: false },
+  { lastSeenRevision: 1, revision: 2, updated: true },
+])(
+  'records r$revision at last seen $lastSeenRevision only when it advances the review',
+  async ({ lastSeenRevision, revision, updated }) => {
+    const writes: string[] = [];
+    const subject = create((path) => {
+      if (path.endsWith('/seen')) {
+        writes.push(path);
+        return Promise.resolve(Response.json({ updated: true }));
+      }
+      return Promise.resolve(reviewResponse(lastSeenRevision));
+    });
+    const seen = observeReviewSeen({
+      connection: subject.connection,
+      reviewId,
+      revision,
+    });
+    expect(await readClientAtom(subject.registry, seen)).toEqual({ updated });
+    expect(writes).toEqual(updated ? [`/api/reviews/${reviewId}/seen`] : []);
+  },
+);
+
+it('allows a failed seen acknowledgement to be retried', async () => {
+  let attempts = 0;
+  const subject = create((path) => {
+    if (path.endsWith('/seen')) {
+      attempts += 1;
+      return attempts === 1
+        ? Promise.reject(new TypeError('Connection lost'))
+        : Promise.resolve(Response.json({ updated: true }));
+    }
+    return Promise.resolve(reviewResponse(0));
+  });
+  const seen = observeReviewSeen({
+    connection: subject.connection,
+    reviewId,
+    revision: 1,
+  });
+  const stop = subject.registry.mount(seen);
+  try {
+    await expect(readClientAtom(subject.registry, seen)).rejects.toMatchObject({
+      _tag: 'ConnectionError',
+    });
+    subject.registry.refresh(seen);
+    expect(await readClientAtom(subject.registry, seen)).toEqual({
+      updated: true,
+    });
+    expect(attempts).toBe(2);
+  } finally {
+    stop();
+  }
+});
+
+it('keeps one seen acknowledgement in flight while review metadata refreshes', async () => {
+  const started = Promise.withResolvers<void>();
+  const held = Promise.withResolvers<Response>();
+  let writes = 0;
+  let metadataReads = 0;
+  const subject = create((path) => {
+    if (path.endsWith('/seen')) {
+      writes += 1;
+      started.resolve();
+      return held.promise;
+    }
+    metadataReads += 1;
+    return Promise.resolve(reviewResponse(0));
+  });
+  const metadata = readReview({ connection: subject.connection, reviewId });
+  const seen = observeReviewSeen({
+    connection: subject.connection,
+    reviewId,
+    revision: 1,
+  });
+  const stopMetadata = subject.registry.mount(metadata);
+  const stopSeen = subject.registry.mount(seen);
+  try {
+    await started.promise;
+    const beforeMetadata = metadataReads;
+    await subject.connection.runtime.runPromise(
+      Reactivity.invalidate([queryKeys.inventory('environment')]),
+    );
+    await readClientAtom(subject.registry, metadata);
+    expect(metadataReads - beforeMetadata).toBe(1);
+    expect(writes).toBe(1);
+    held.resolve(Response.json({ updated: true }));
+    expect(await readClientAtom(subject.registry, seen)).toEqual({
+      updated: true,
+    });
+  } finally {
+    held.resolve(Response.json({ updated: true }));
+    stopSeen();
+    stopMetadata();
+  }
+});
+
+it('keeps one seen acknowledgement in flight while the review is reopened', async () => {
+  const started = Promise.withResolvers<void>();
+  const held = Promise.withResolvers<Response>();
+  let writes = 0;
+  const subject = create((path) => {
+    if (path.endsWith('/seen')) {
+      writes += 1;
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(reviewResponse(0));
+  });
+  const metadata = readReview({ connection: subject.connection, reviewId });
+  const seen = observeReviewSeen({
+    connection: subject.connection,
+    reviewId,
+    revision: 1,
+  });
+  const stopMetadata = subject.registry.mount(metadata);
+  let stopSeen = subject.registry.mount(seen);
+  try {
+    await started.promise;
+    stopSeen();
+    stopSeen = subject.registry.mount(seen);
+    subject.registry.get(seen);
+    await readClientAtom(subject.registry, metadata);
+    expect(writes).toBe(1);
+    held.resolve(Response.json({ updated: true }));
+    expect(await readClientAtom(subject.registry, seen)).toEqual({
+      updated: true,
+    });
+  } finally {
+    held.resolve(Response.json({ updated: true }));
+    stopSeen();
+    stopMetadata();
+  }
+});
+
+it('rechecks canonical seen state on reconnect without repeating an acknowledged write', async () => {
+  let lastSeenRevision = 0;
+  let writes = 0;
+  const subject = create((path) => {
+    if (path.endsWith('/seen')) {
+      writes += 1;
+      lastSeenRevision = 1;
+      return Promise.resolve(Response.json({ updated: true }));
+    }
+    return Promise.resolve(reviewResponse(lastSeenRevision));
+  });
+  const seen = observeReviewSeen({
+    connection: subject.connection,
+    reviewId,
+    revision: 1,
+  });
+  const stop = subject.registry.mount(seen);
+  try {
+    expect(await readClientAtom(subject.registry, seen)).toEqual({
+      updated: true,
+    });
+    await subject.connection.runtime.runPromise(
+      Reactivity.invalidate([queryKeys.environment('environment')]),
+    );
+    expect(await readClientAtom(subject.registry, seen)).toEqual({
+      updated: false,
+    });
+    expect(writes).toBe(1);
+  } finally {
+    stop();
+  }
+});
+
 it('records seeing a revision once without writing again when inventory reads refresh', async () => {
   const sent: string[] = [];
+  let lastSeenRevision = 0;
   const subject = create((path) => {
     sent.push(path);
+    if (path.endsWith('/seen')) {
+      lastSeenRevision = 1;
+      return Promise.resolve(Response.json({ updated: true }));
+    }
     return Promise.resolve(
-      Response.json(path.endsWith('/seen') ? { updated: true } : []),
+      path === `/api/reviews/${reviewId}`
+        ? reviewResponse(lastSeenRevision)
+        : Response.json([]),
     );
   });
   const seen = observeReviewSeen({

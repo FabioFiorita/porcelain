@@ -9,6 +9,7 @@ import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 type ReviewInput = { connection: RuntimeConnection; reviewId: string };
 type RevisionInput = ReviewInput & { revision: number };
+type ReviewReadInput = ReviewInput & { revision?: number };
 function query<A, E>(
   connection: RuntimeConnection,
   request: (api: PorcelainApi) => Effect.Effect<A, E>,
@@ -43,74 +44,84 @@ function reactive(input: ReviewInput, watch = false) {
     });
   };
 }
-export const readReview = Atom.family(
-  (input: ReviewInput & { revision?: number }) => {
-    const read = query(
-      input.connection,
-      (api) =>
-        (input.revision === undefined
-          ? api.reviews.readReview({ params: { reviewId: input.reviewId } })
-          : api.reviews.readReviewRevision({
-              params: { reviewId: input.reviewId, revision: input.revision },
-            })
-        ).pipe(
-          Effect.catchTag('ReviewNotFoundError', () =>
-            Effect.succeed({
-              review: undefined,
-              revisions: [],
-              revision: undefined,
-            }),
-          ),
-        ),
-      (answer) =>
-        (answer.review === undefined ||
-          answer.review.reviewId === input.reviewId) &&
-        (answer.revision === undefined ||
-          ((input.revision === undefined ||
-            answer.revision.revision === input.revision) &&
-            answer.revision.content.environmentId ===
-              input.connection.environmentId)),
-    ).pipe(
-      input.connection.atoms.withReactivity([
-        queryKeys.durableReview(input.connection.environmentId, input.reviewId),
-      ]),
+function requestReview(input: ReviewReadInput, api: PorcelainApi) {
+  return (
+    input.revision === undefined
+      ? api.reviews.readReview({ params: { reviewId: input.reviewId } })
+      : api.reviews.readReviewRevision({
+          params: { reviewId: input.reviewId, revision: input.revision },
+        })
+  ).pipe(
+    Effect.catchTag('ReviewNotFoundError', () =>
+      Effect.succeed({
+        review: undefined,
+        revisions: [],
+        revision: undefined,
+      }),
+    ),
+  );
+}
+
+function acceptsReview(
+  input: ReviewReadInput,
+  answer: Effect.Success<ReturnType<typeof requestReview>>,
+) {
+  return (
+    (answer.review === undefined ||
+      answer.review.reviewId === input.reviewId) &&
+    (answer.revision === undefined ||
+      ((input.revision === undefined ||
+        answer.revision.revision === input.revision) &&
+        answer.revision.content.environmentId ===
+          input.connection.environmentId))
+  );
+}
+
+export const readReview = Atom.family((input: ReviewReadInput) => {
+  const read = query(
+    input.connection,
+    (api) => requestReview(input, api),
+    (answer) => acceptsReview(input, answer),
+  ).pipe(
+    input.connection.atoms.withReactivity([
+      queryKeys.durableReview(input.connection.environmentId, input.reviewId),
+    ]),
+  );
+  const watched = clientRuntime(input.connection)
+    .atom((get) =>
+      Effect.gen(function* () {
+        const result = get(read);
+        const answer = Option.getOrUndefined(AsyncResult.value(result));
+        const reads = yield* ReadSubscriptions;
+        const registration = {
+          reviewId: input.reviewId,
+          surface: 'review',
+          settled: AtomRegistry.getResult(get.registry, read, {
+            suspendOnWaiting: true,
+          }).pipe(Effect.ignore, Effect.asVoid),
+        };
+        if (!answer) yield* reads.retain(registration);
+        if (
+          answer?.review?.state === 'open' &&
+          !answer.review.archived &&
+          answer.revision
+        ) {
+          yield* reads.retain({
+            ...registration,
+            projectId: answer.review.projectId,
+            worktreeId: answer.revision.content.worktreeId,
+            paths: [],
+          });
+        }
+        return result;
+      }),
+    )
+    .pipe(
+      Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
+      Atom.setIdleTTL(0),
     );
-    const watched = clientRuntime(input.connection)
-      .atom((get) =>
-        Effect.gen(function* () {
-          const result = get(read);
-          const answer = Option.getOrUndefined(AsyncResult.value(result));
-          const reads = yield* ReadSubscriptions;
-          const registration = {
-            reviewId: input.reviewId,
-            surface: 'review',
-            settled: AtomRegistry.getResult(get.registry, read, {
-              suspendOnWaiting: true,
-            }).pipe(Effect.ignore, Effect.asVoid),
-          };
-          if (!answer) yield* reads.retain(registration);
-          if (
-            answer?.review?.state === 'open' &&
-            !answer.review.archived &&
-            answer.revision
-          ) {
-            yield* reads.retain({
-              ...registration,
-              projectId: answer.review.projectId,
-              worktreeId: answer.revision.content.worktreeId,
-              paths: [],
-            });
-          }
-          return result;
-        }),
-      )
-      .pipe(
-        Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
-        Atom.setIdleTTL(0),
-      );
-    return Atom.transform(read, (get) => get(watched)).pipe(Atom.setIdleTTL(0));
-  },
-);
+  return Atom.transform(read, (get) => get(watched)).pipe(Atom.setIdleTTL(0));
+});
 export const readProjectReviews = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) => {
     const read = query(
@@ -260,12 +271,37 @@ export const readProjectGitHubAccount = Atom.family(
     ),
 );
 export const observeReviewSeen = Atom.family((input: RevisionInput) =>
-  clientRuntime(input.connection).atom(
-    requestApi(input.connection, (api) =>
-      api.reviews.setReviewSeen({
-        params: { reviewId: input.reviewId },
-        payload: { revision: input.revision },
+  clientRuntime(input.connection)
+    .atom(
+      Effect.gen(function* () {
+        const selection = {
+          connection: input.connection,
+          reviewId: input.reviewId,
+        };
+        const current = yield* requestApi(input.connection, (api) =>
+          requestReview(selection, api),
+        );
+        yield* currentAnswerEffect(
+          input.connection,
+          acceptsReview(selection, current),
+        );
+        if (
+          !current.review ||
+          current.review.lastSeenRevision >= input.revision
+        )
+          return { updated: false };
+        return yield* requestApi(input.connection, (api) =>
+          api.reviews.setReviewSeen({
+            params: { reviewId: input.reviewId },
+            payload: { revision: input.revision },
+          }),
+        );
       }),
+    )
+    .pipe(
+      input.connection.atoms.withReactivity([
+        queryKeys.environment(input.connection.environmentId),
+      ]),
+      Atom.keepAlive,
     ),
-  ),
 );

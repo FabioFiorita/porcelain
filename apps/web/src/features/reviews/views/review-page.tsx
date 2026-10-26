@@ -63,6 +63,7 @@ import {
 import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
@@ -302,20 +303,13 @@ function ReviewRevisionPage({
     url: summaryUrl,
     available: showSummary,
   } = useReviewSummary(scope, context, review.summary);
-  useAtomMount(
-    observeReviewSeen({
-      connection: context.connection,
-      reviewId: revision.reviewId,
-      revision: revision.revision,
-    }),
-  );
-  const seen = useAtomValue(
-    observeReviewSeen({
-      connection: context.connection,
-      reviewId: revision.reviewId,
-      revision: revision.revision,
-    }),
-  );
+  const seenQuery = observeReviewSeen({
+    connection: context.connection,
+    reviewId: revision.reviewId,
+    revision: revision.revision,
+  });
+  const seen = useAtomValue(seenQuery);
+  const retrySeen = useAtomRefresh(seenQuery);
   useAtomMount(
     readReviewComments({
       connection: context.connection,
@@ -685,9 +679,23 @@ function ReviewRevisionPage({
         />
       )}
       {AsyncResult.isFailure(seen) && (
-        <p role="status" className="px-4 py-2 text-sm">
-          This revision could not be recorded as seen.
-        </p>
+        <div className="px-4 py-2">
+          <Alert variant="destructive">
+            <AlertDescription>
+              This revision could not be recorded as seen.
+            </AlertDescription>
+            <AlertAction>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={seen.waiting}
+                onClick={retrySeen}
+              >
+                Try again
+              </Button>
+            </AlertAction>
+          </Alert>
+        </div>
       )}
       {missingDecision && (
         <div className="px-4 pt-3">
