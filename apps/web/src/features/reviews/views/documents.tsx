@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
+import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
@@ -187,7 +188,34 @@ function HandoffDocument(props: DocumentProps) {
         active={props.interaction.active}
       />
     );
-  return <PlainChangesDocument {...props} />;
+  return (
+    <PlainChangesDocument
+      {...props}
+      intro={AsyncResult.isSuccess(published.result) && !published.review}
+    />
+  );
+}
+
+function NoReviewIntro({ branch }: { branch: string | undefined }) {
+  return (
+    <header className="flex min-w-0 flex-col gap-3 px-4 pt-8 pb-6">
+      {branch && (
+        <TruncatedText
+          text={branch}
+          className="text-xs text-muted-foreground"
+        />
+      )}
+      <h2 className="text-briefing-title font-semibold tracking-tight">
+        No review yet
+      </h2>
+      <p className="max-w-prose text-base text-muted-foreground">
+        The agent has not published a review for this worktree. Ask it to
+        publish one (it calls{' '}
+        <code className="font-mono text-foreground">publish_review</code>{' '}
+        through Porcelain&rsquo;s MCP server), or read the changes below.
+      </p>
+    </header>
+  );
 }
 
 function changesTitle(specsOnly: boolean, entry: string) {
@@ -202,7 +230,8 @@ function PlainChangesDocument({
   interaction,
   onBrowse,
   specsOnly = false,
-}: DocumentProps & { specsOnly?: boolean }) {
+  intro = false,
+}: DocumentProps & { specsOnly?: boolean; intro?: boolean }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
   const { preferences } = usePreferences();
@@ -262,6 +291,9 @@ function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
+        {...(intro
+          ? { header: () => <NoReviewIntro branch={list.branch?.name} /> }
+          : {})}
         {...(review
           ? {
               files: story,
