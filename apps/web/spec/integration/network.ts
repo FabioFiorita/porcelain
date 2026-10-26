@@ -133,6 +133,12 @@ export function createFetchGate(filePath: string) {
           (directory === undefined ||
             url.searchParams.get('path') === directory),
       ),
+    holdNextGitStatusRead: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/git/status'),
+      ),
     holdNextPost: (pathEnding: string) =>
       holdNextFetch(
         (url, init) =>

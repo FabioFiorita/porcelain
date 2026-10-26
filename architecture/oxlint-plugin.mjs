@@ -656,6 +656,21 @@ function antiFlakeSpec(context) {
   );
 }
 
+const timedExternalProcesses = new Set([
+  'apps/mobile/spec/kit/metro.ts',
+  'apps/mobile/spec/kit/simulator.ts',
+  'apps/server/spec/fakes/scripted-service-update-runner.ts',
+]);
+
+function timedTest(context) {
+  const path = repositoryPath(context);
+  return (
+    (/\.(?:spec|test)\.[cm]?[jt]sx?$/.test(path) ||
+      /(?:^|\/)spec\//.test(path)) &&
+    !timedExternalProcesses.has(path)
+  );
+}
+
 function browserWaits(context) {
   const original = webRules['web-journey-no-waits'].create(context);
   if (!browserSpec(context)) return original;
@@ -2349,9 +2364,9 @@ export default {
     },
     'spec-no-clock': {
       create(context) {
-        if (!antiFlakeSpec(context)) return {};
+        if (!timedTest(context)) return {};
         const message =
-          'Specs use fixed instants or an injected clock, because wall clocks make fixtures drift and elapsed-time assertions measure host contention as well as code.';
+          'Tests await the event that marks the milestone, never time: use fixed instants, the TestClock, Vitest fake timers or a clock passed through the port, because wall clocks make fixtures drift and elapsed-time assertions measure host load as well as code.';
         function clockPath(node) {
           if (node.type === 'Identifier') return node.name;
           if (node.type !== 'MemberExpression') return undefined;
@@ -2386,17 +2401,13 @@ export default {
         };
       },
     },
-    'server-spec-no-waits': {
+    'spec-no-waits': {
       create(context) {
-        if (
-          !/(?:^|\/)(?:apps\/server\/spec\/(?:integration|kit)\/|apps\/server\/.*\.spec\.ts$|\.agents\/skills\/spec\/)/.test(
-            context.filename,
-          )
-        )
-          return {};
+        if (!timedTest(context) || browserSpec(context)) return {};
         const message =
-          'Server specs and kits wait for an observable event or state, because fixed sleeps race machines with different speeds.';
+          'Tests await the event that marks the milestone, never time: await a Deferred, a stream notice, a process event or expect.poll, or advance the TestClock, because fixed sleeps race machines with different speeds.';
         const delays = new Set(['delay', 'sleep', 'waitForTimeout']);
+        let virtualTime = false;
         function callsResolver(node, name) {
           if (!node || typeof node !== 'object') return false;
           if (
@@ -2416,6 +2427,15 @@ export default {
         return {
           ImportDeclaration(node) {
             if (
+              /^effect\/testing(?:\/TestClock)?$/.test(node.source.value) &&
+              node.specifiers.some(
+                (specifier) =>
+                  specifier.type !== 'ImportSpecifier' ||
+                  specifier.imported.name === 'TestClock',
+              )
+            )
+              virtualTime = true;
+            if (
               ['node:timers/promises', 'timers/promises'].includes(
                 node.source.value,
               )
@@ -2431,7 +2451,14 @@ export default {
                 : node.callee.type === 'MemberExpression'
                   ? memberName(node.callee)
                   : undefined;
-            if (delays.has(name)) context.report({ node, message });
+            if (
+              delays.has(name) &&
+              !(
+                virtualTime &&
+                memberPath(node.callee)?.join('.') === 'Effect.sleep'
+              )
+            )
+              context.report({ node, message });
             if (name !== 'setTimeout') return;
             let executor = node.parent;
             while (

@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
 import { useReviewPanelView } from '../store';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,9 +86,10 @@ export function RevisionPanel({
                     path={item.path}
                     className="size-3.5 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {basename(item.path)}
-                  </span>
+                  <TruncatedText
+                    className="min-w-0 flex-1 "
+                    text={basename(item.path)}
+                  />
                 </SidebarDocumentRow>
               ))}
             </SidebarGroup>

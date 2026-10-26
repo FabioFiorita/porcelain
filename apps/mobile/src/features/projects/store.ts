@@ -4,6 +4,7 @@ import {
   type DocumentLeaveGuard,
 } from '../../shared/rules/document-leave';
 import { useAtom, useAtomRef, useAtomMount } from '@effect/atom-react';
+import { worktreeNavigatorState } from '@porcelain/client/projects';
 import {
   sameRemoteConnection,
   type Remote,
@@ -42,6 +43,18 @@ import {
 
 export function useProjectSelection() {
   return useAtomRef(selectionState);
+}
+
+export function useWorktreeNavigator() {
+  const [state, setState] = useAtom(worktreeNavigatorState);
+  return {
+    ...state,
+    setQuery: (query: string) => setState((current) => ({ ...current, query })),
+    setFilter: (filter: typeof state.filter) =>
+      setState((current) => ({ ...current, filter })),
+    setClosed: (closed: boolean) =>
+      setState((current) => ({ ...current, closed })),
+  };
 }
 
 export function useProjectConnection(remote: Remote | undefined) {

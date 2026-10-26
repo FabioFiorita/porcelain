@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
   TooltipTrigger,
@@ -323,7 +324,7 @@ export function ThreadCard({
         className="flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
       >
         {thread.anchor.kind !== 'change' && (
-          <span className="truncate">{basename(thread.anchor.filePath)}</span>
+          <TruncatedText text={basename(thread.anchor.filePath)} />
         )}
         <span className="shrink-0 font-sans text-muted-foreground">
           {anchorLabel(thread.anchor)}
@@ -523,9 +524,10 @@ export function ThreadCard({
                 {location || listed ? where : <ThreadStarter thread={thread} />}
                 {menu}
               </div>
-              <span className="min-w-0 flex-1 truncate">
-                {thread.messages[0]?.body}
-              </span>
+              <TruncatedText
+                className="min-w-0 flex-1"
+                text={thread.messages[0]?.body ?? ''}
+              />
               {resolveControl}
             </article>
           );

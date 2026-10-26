@@ -1,6 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { expect } from 'vitest';
 import { test } from '@porcelain/server/kit/server-test';
@@ -39,12 +46,11 @@ test('cleanup reports success after confirmed SIGKILL and refuses a stale child 
   expect(outcome.alive).toBe(false);
 });
 
-test('every surface can read retained evidence and repeat a confirmed stop without starting an instance', async ({
-  onTestFinished,
-}) => {
-  const copy = await checkoutCopy(onTestFinished);
-  const id = 'abc12345';
-  for (const surface of ['server', 'web', 'desktop', 'mobile']) {
+test.for(['server', 'web', 'desktop', 'mobile'])(
+  '%s can read retained evidence and repeat a confirmed stop without starting an instance',
+  async (surface, { onTestFinished }) => {
+    const copy = await checkoutCopy(onTestFinished);
+    const id = 'abc12345';
     const path = `.agents/skills/${surface}-verify/scripts/cli`;
     const home = resolve(instanceFile(copy, surface, id), '../../..');
     const evidence = join(home, 'evidence', id);
@@ -58,9 +64,9 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
     const retained = await cli(copy, path, 'evidence', '--instance', id);
     const repeated = await cli(copy, path, 'stop', '--instance', id);
 
-    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.code, retained.stderr).toBe(0);
     expect(retained.stdout).toContain(evidence);
-    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.code, repeated.stderr).toBe(0);
     expect(repeated.stdout).toContain(`already stopped ${id}`);
     for (const selector of ['00000000', `../${id}`]) {
       const refusedEvidence = await cli(
@@ -71,13 +77,54 @@ test('every surface can read retained evidence and repeat a confirmed stop witho
         selector,
       );
       const refusedStop = await cli(copy, path, 'stop', '--instance', selector);
-      expect(refusedEvidence.code, surface).toBe(1);
-      expect(refusedEvidence.stdout, surface).toBe('');
-      expect(refusedStop.code, surface).toBe(1);
-      expect(refusedStop.stdout, surface).not.toMatch(
+      expect(refusedEvidence.code, selector).toBe(1);
+      expect(refusedEvidence.stdout, selector).toBe('');
+      expect(refusedStop.code, selector).toBe(1);
+      expect(refusedStop.stdout, selector).not.toMatch(
         /(?:^|\n)(?:already )?stopped /,
       );
     }
+    expect(existsSync(join(home, 'instances'))).toBe(false);
+    expect(await readdir(evidence)).toStrictEqual(['stop-result.json']);
+  },
+);
+
+test('web and desktop retained evidence and repeated stop work without an installed browser driver', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  for (const path of ['node_modules', '.agents/skills/node_modules']) {
+    const dependencies = join(copy, path);
+    const packages = await readdir(dependencies);
+    await rm(dependencies);
+    await mkdir(dependencies);
+    for (const name of packages.filter((name) => name !== 'playwright'))
+      await symlink(join(repositoryRoot, path, name), join(dependencies, name));
+  }
+  expect(existsSync(join(copy, 'node_modules/playwright'))).toBe(false);
+  expect(existsSync(join(copy, '.agents/skills/node_modules/playwright'))).toBe(
+    false,
+  );
+  const id = 'abc12345';
+  for (const surface of ['web', 'desktop']) {
+    const path = `.agents/skills/${surface}-verify/scripts/cli`;
+    const home = resolve(instanceFile(copy, surface, id), '../../..');
+    const evidence = join(home, 'evidence', id);
+    onTestFinished(() => rm(home, { recursive: true, force: true }));
+    await mkdir(evidence, { recursive: true, mode: 0o700 });
+    await writeFile(
+      join(evidence, 'stop-result.json'),
+      JSON.stringify({ complete: true, report: [] }),
+      { mode: 0o600 },
+    );
+
+    const retained = await cli(copy, path, 'evidence', '--instance', id);
+    const repeated = await cli(copy, path, 'stop', '--instance', id);
+
+    expect(retained.code, `${surface}: ${retained.stderr}`).toBe(0);
+    expect(retained.stdout).toContain(evidence);
+    expect(repeated.code, `${surface}: ${repeated.stderr}`).toBe(0);
+    expect(repeated.stdout).toContain(`already stopped ${id}`);
     expect(existsSync(join(home, 'instances')), surface).toBe(false);
     expect(await readdir(evidence), surface).toStrictEqual([
       'stop-result.json',

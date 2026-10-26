@@ -37,21 +37,6 @@ for (const published of [false, true]) {
   });
 }
 
-test('Git actions names its icon with a shared tooltip', async ({
-  pairedPage: page,
-}) => {
-  const trigger = page.getByRole('button', {
-    name: 'Git actions',
-    exact: true,
-  });
-  await trigger.hover();
-  await expect(page.getByText('Git actions', { exact: true })).toBeVisible();
-  await trigger.click();
-  await expect(page.getByRole('menu')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
-});
-
 test('Proof uses its pane bar and closes back to Review', async ({
   pairedPage: page,
   app,

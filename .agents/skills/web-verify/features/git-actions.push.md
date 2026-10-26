@@ -50,5 +50,5 @@ Automated coverage: `git-actions-push.test.tsx`.
 
 ## Gotchas
 
-- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. While Reading the configured upstream., Push/Pull/Fetch disable; reopen after it settles if needed.
+- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. Until the branch status arrives the menu lists Commit… and Amend last commit… above Reading Git status…; Push, Pull, Fetch and the stash rows then appear together.
 - Remove the fixture remote afterward with `git -C "$REPO" remote remove origin`.

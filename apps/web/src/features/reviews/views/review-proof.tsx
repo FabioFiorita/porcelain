@@ -6,7 +6,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ProofList } from './proof-list';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 
 export function ReviewProof({
   revision,
@@ -37,10 +37,11 @@ export function ReviewProof({
         {sections.proven.shortHead}
       </p>
       {!current && !empty && (
-        <ReviewNotice title="These checks ran before the latest changes">
-          The code changed after the agent published this proof. Ask it to run
-          the checks again.
-        </ReviewNotice>
+        <StateNotice
+          role="status"
+          title="These checks ran before the latest changes"
+          description="The code changed after the agent published this proof. Ask it to run the checks again."
+        />
       )}
       {failures > 0 && (
         <div role="alert" className="text-sm text-destructive">

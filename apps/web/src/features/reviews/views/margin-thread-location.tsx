@@ -1,9 +1,5 @@
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   anchorLabel,
   basename,
@@ -26,24 +22,24 @@ export function MarginThreadLocation({
       <span className="group-data-[displaced=true]/margin-thread:hidden">
         {anchorLabel(anchor)}
       </span>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="xs"
-              className="hidden min-w-0 shrink group-data-[displaced=true]/margin-thread:inline-flex"
-              aria-label={`Show ${location} in the code`}
-              onClick={(event) => onReveal(event.currentTarget)}
-            />
-          }
-        >
-          <span className="truncate font-mono">
-            {basename(anchor.filePath)}:{lines}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{location}</TooltipContent>
-      </Tooltip>
+      <TruncatedText
+        text={`Show ${location} in the code`}
+        disclose="always"
+        className="font-mono"
+        renderTrigger={(label) => (
+          <Button
+            variant="ghost"
+            size="xs"
+            className="hidden min-w-0 shrink group-data-[displaced=true]/margin-thread:inline-flex"
+            aria-label={`Show ${location} in the code`}
+            onClick={(event) => onReveal(event.currentTarget)}
+          >
+            {label}
+          </Button>
+        )}
+      >
+        {basename(anchor.filePath)}:{lines}
+      </TruncatedText>
     </>
   );
 }

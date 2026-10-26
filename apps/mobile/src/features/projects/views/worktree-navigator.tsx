@@ -30,6 +30,7 @@ import { Text } from '../../../components/ui/text';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { worktreeRow } from '../rules/worktree-row';
+import { useWorktreeNavigator } from '../store';
 
 export function WorktreeNavigator({
   onSelect,
@@ -45,11 +46,10 @@ export function WorktreeNavigator({
     readReviewList(connections),
   );
   const retry = useAtomSet(refreshReviewList(connections));
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState(emptyReviewListFilter);
+  const { query, setQuery, filter, setFilter, closed, setClosed } =
+    useWorktreeNavigator();
   const [updates, setUpdates] = useState(false);
   const updateIndicator = useUpdatesIndicator();
-  const [closed, setClosed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
   const { preferences, setPreferences } = usePreferences();
@@ -295,7 +295,7 @@ export function WorktreeNavigator({
                             tone="muted"
                             numberOfLines={1}
                             className={
-                              context.branch
+                              context.branch || context.location
                                 ? 'min-w-0 max-w-1/2 shrink'
                                 : 'min-w-0 flex-1'
                             }
@@ -311,6 +311,17 @@ export function WorktreeNavigator({
                             className="min-w-0 flex-1"
                           >
                             {context.branch}
+                          </Text>
+                        ) : null}
+                        {context.location ? (
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                            ellipsizeMode="head"
+                            className="min-w-0 flex-1"
+                          >
+                            {context.location}
                           </Text>
                         ) : null}
                       </Box>

@@ -5,7 +5,7 @@ selectors:
   - "repository"
   - "Remove from Porcelain"
   - "No projects registered"
-  - "Select a worktree"
+  - "Open your first project"
   - "Worktree not found"
   - "Open project"
   - "Folder path"
@@ -24,7 +24,7 @@ Opening a repository that has a linked worktree from the empty workspace (no pro
 
 ## How to get to it (user POV)
 
-- Empty workspace `/` ("Select a worktree") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open <folder>`.
+- Empty workspace `/` ("Open your first project") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open <folder>`.
 - The empty workspace exists only when no project is registered; with this fixture that means removing the sample project first (`projects.remove`).
 
 ## Driving it with browser
@@ -50,11 +50,11 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 3. Click button `Remove from Porcelain`
    Expect: the alertdialog is gone; text "No projects registered" in the sheet; URL `/?worktree=<old worktreeId>`; text "Worktree not found"; title "Porcelain".
 4. Navigate to `/`
-   Expect: after the full reload, URL stays `/`; text "Select a worktree"; button "Toggle Sidebar".
+   Expect: after the full reload, URL stays `/`; text "Open your first project"; button "Toggle Sidebar".
 
 ### Open the repository again
 
-5. Click button `Toggle Sidebar`, then click button `Open project`
+5. Click button `Open project` inside the first-project notice
    Expect: dialog "Open project"; navigation "Folder path"; folder buttons "repository" and "linked" (both are worktrees of one repository).
 6. Click button `repository`
    Expect: text "Every worktree appears in the sidebar."; button "Open repository" enabled.

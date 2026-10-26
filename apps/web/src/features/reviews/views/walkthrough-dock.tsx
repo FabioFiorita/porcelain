@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   ChevronDownIcon,
@@ -73,13 +74,16 @@ export function WalkthroughDock({
               />
             }
           >
-            <span className="min-w-0 truncate tabular-nums">
+            <TruncatedText
+              className="min-w-0 tabular-nums"
+              text={`${label}, jump to a stop`}
+            >
               <span className="@md/review:hidden">{compactLabel}</span>
               <span className="hidden @md/review:inline @2xl/review:hidden">
                 {shortLabel}
               </span>
               <span className="hidden @2xl/review:inline">{label}</span>
-            </span>
+            </TruncatedText>
             <ChevronDownIcon
               className="hidden @md/review:block"
               data-icon="inline-end"

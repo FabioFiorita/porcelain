@@ -1,10 +1,11 @@
 ---
 route: /
 selectors:
-  - "All changes"
-  - "Collapse all"
-  - "Expand all"
-  - "Mark all"
+  - 'All changes'
+  - 'Collapse all'
+  - 'Expand all'
+  - 'Mark all'
+  - 'No changes to review'
 tests:
   - apps/web/spec/integration/reviews-all-changes.test.tsx
 api:
@@ -47,6 +48,14 @@ It includes unexplained files, deleted files and specs. With a review published,
 Read independent server marks after each bulk action; Specs-document marking must exclude ordinary files.
 
 Automated coverage: `reviews-all-changes.test.tsx`.
+
+### Clean worktree
+
+With the default fixture and no review published, commit the sample edit in the disposable repository before loading the page. The permanent Changes tab shows "No changes to review" and the branch name followed by "matches its last commit. Browse files or history from the right." It cannot close with Alt+W and has no Close Changes button.
+
+Use the Files or History button inside the notice. Its shortcut hint comes from the shared shortcuts. The selected panel opens even when it was hidden. Escape closes the phone sheet and returns focus to the notice button that opened it. At desktop width, Files and History remain in the docked panel. Repeat at 1440 and 414, light and dark.
+
+Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Changes open and reaches Files/History from its notice".
 
 ## Gotchas
 

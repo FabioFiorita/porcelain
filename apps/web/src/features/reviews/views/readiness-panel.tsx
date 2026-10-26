@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ChevronDownIcon,
   CircleAlertIcon,
@@ -148,14 +149,13 @@ function ReadinessCard({
         >
           <ToneIcon tone={tone} />
           <span className="font-medium">Readiness</span>
-          <span
+          <TruncatedText
             className={cn(
-              'ml-auto truncate text-2xs text-muted-foreground',
+              'ml-auto text-2xs text-muted-foreground',
               tone === 'failing' && 'text-destructive',
             )}
-          >
-            {readinessSummary(items)}
-          </span>
+            text={readinessSummary(items)}
+          />
           <ChevronDownIcon
             aria-hidden
             className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-closed/readiness:-rotate-90"
@@ -174,7 +174,7 @@ function ReadinessCard({
                   onClick={() => onSelect(item.key)}
                 >
                   <ToneIcon tone={item.tone} />
-                  <span className="min-w-0 truncate">{item.label}</span>
+                  <TruncatedText className="min-w-0" text={item.label} />
                 </button>
               </li>
             ))}

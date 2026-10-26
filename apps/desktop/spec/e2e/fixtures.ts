@@ -37,7 +37,6 @@ type PickerSelection = { canceled: boolean; filePaths: string[] };
 
 const quitWithinMs = 15_000;
 const launchWithinMs = 30_000;
-const pickerWithinMs = 10_000;
 
 export function processAlive(pid: number): boolean {
   try {
@@ -144,13 +143,18 @@ export class DesktopApp {
           typeof options === 'object' && options !== null
             ? Reflect.get(options, name)
             : undefined;
-        Reflect.set(dialog, 'porcelainPickerRequest', {
+        const request = {
           ownerIsAppWindow: args[0] === BrowserWindow.getAllWindows()[0],
           title: read('title'),
           buttonLabel: read('buttonLabel'),
           defaultPath: read('defaultPath'),
           properties: read('properties'),
-        });
+        };
+        const waiting: unknown = Reflect.get(dialog, 'porcelainPickerWaiting');
+        Reflect.deleteProperty(dialog, 'porcelainPickerWaiting');
+        if (typeof waiting === 'function')
+          Reflect.apply(waiting, dialog, [request]);
+        else Reflect.set(dialog, 'porcelainPickerRequest', request);
         return new Promise<{ canceled: boolean; filePaths: string[] }>(
           (resolve) => {
             Reflect.set(dialog, 'porcelainPickerAnswer', resolve);
@@ -161,19 +165,19 @@ export class DesktopApp {
   }
 
   async pickerRequest(): Promise<PickerRequest> {
-    const deadline = performance.now() + pickerWithinMs;
-    for (;;) {
-      const request = await this.electron.evaluate(({ dialog }) => {
-        const asked: unknown = Reflect.get(dialog, 'porcelainPickerRequest');
-        if (asked === undefined) return undefined;
-        Reflect.deleteProperty(dialog, 'porcelainPickerRequest');
-        return asked;
-      });
-      if (isPickerRequest(request)) return request;
-      if (performance.now() > deadline)
-        throw new Error('The native project picker did not open');
-      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-    }
+    const request = await this.electron.evaluate(({ dialog }) => {
+      const asked: unknown = Reflect.get(dialog, 'porcelainPickerRequest');
+      Reflect.deleteProperty(dialog, 'porcelainPickerRequest');
+      return (
+        asked ??
+        new Promise<unknown>((resolve) => {
+          Reflect.set(dialog, 'porcelainPickerWaiting', resolve);
+        })
+      );
+    });
+    if (!isPickerRequest(request))
+      throw new Error('The native project picker sent an unknown request');
+    return request;
   }
 
   async answerPicker(selection: PickerSelection): Promise<void> {
