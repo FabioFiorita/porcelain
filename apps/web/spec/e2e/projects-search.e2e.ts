@@ -17,18 +17,14 @@ for (const width of [1440, 414]) {
         .poll(async () => {
           const project = await server.project();
           return names.every((name) =>
-            project.worktrees.some(
-              (row) => row.branch === `refs/heads/${name}`,
-            ),
+            project.worktrees.some((row) => row.branch === name),
           );
         })
         .toBe(true);
       const project = await server.project();
       const computer = (await server.inventory()).environment.name;
       const targets = names.map((name) => {
-        const worktree = project.worktrees.find(
-          (row) => row.branch === `refs/heads/${name}`,
-        );
+        const worktree = project.worktrees.find((row) => row.branch === name);
         if (!worktree) throw new Error(`Missing checkout ${name}`);
         return worktree;
       });
@@ -152,9 +148,7 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   await repo.worktree(branch);
   await app.reload();
   const project = await server.project();
-  const target = project.worktrees.find(
-    (row) => row.branch === `refs/heads/${branch}`,
-  );
+  const target = project.worktrees.find((row) => row.branch === branch);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -212,7 +206,7 @@ for (const width of [1280, 414]) {
     await pairedPage.setViewportSize({ width, height: 896 });
     const project = await server.project();
     const target = project.worktrees.find(
-      (row) => row.branch === 'refs/heads/menu-dismissal',
+      (row) => row.branch === 'menu-dismissal',
     );
     if (width === 414)
       await pairedPage
@@ -330,7 +324,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .getByRole('menuitemradio', { name: /other-workspace/ })
     .click();
   const other = project.worktrees.find(
-    (row) => row.branch === 'refs/heads/other-workspace',
+    (row) => row.branch === 'other-workspace',
   );
   await expect
     .poll(() => app.address().path)
@@ -344,12 +338,10 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
-  await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
+  await search.fill(current?.branch ?? 'missing');
   await pairedPage
     .getByRole('menuitemradio', {
-      name: new RegExp(
-        current?.branch?.replace('refs/heads/', '') ?? 'missing',
-      ),
+      name: new RegExp(current?.branch ?? 'missing'),
     })
     .click();
   await expect.poll(() => app.address().path).toBe(original);
@@ -367,7 +359,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .toBe('Independent disk change\n');
 });
 
-test('Projects pins main checkouts, No review keeps other checkouts, and search and filters cover both', async ({
+test('No review keeps main and other checkouts reachable through search, filters and selection', async ({
   pairedPage,
   repo,
   server,
@@ -380,15 +372,15 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')}`;
+  const meta = `${project.name} ${main.branch}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await expect(
     pairedPage.getByText('Projects · 1', { exact: true }),
-  ).toBeVisible();
+  ).not.toBeAttached();
   await expect(
-    pairedPage.getByText('No review · 1', { exact: true }),
+    pairedPage.getByText('No review · 2', { exact: true }),
   ).toBeVisible();
   const mainRow = pairedPage.getByRole('button', { name: meta, exact: true });
   const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
@@ -404,12 +396,15 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   await expect(
     topicRow.getByText(inventory.environment.name, { exact: true }),
   ).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Search reviews and worktrees', exact: true })
+    .click();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search reviews and worktrees',
     exact: true,
   });
   await search.fill(
-    `${project.name} ${inventory.environment.name} ${main.branch?.replace('refs/heads/', '')}`,
+    `${project.name} ${inventory.environment.name} ${main.branch}`,
   );
   await expect(mainRow).toBeVisible();
   await expect(topicRow).not.toBeAttached();
@@ -444,6 +439,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   repo,
   app,
 }) => {
+  await repo.review('Group persistence fixture');
   await repo.worktree('collapsed-topic');
   await app.reload();
   await pairedPage.setViewportSize({ width: 1280, height: 800 });
@@ -460,23 +456,31 @@ test('sidebar groups remember independent choices across search, Settings and re
   await expect(
     sidebar.getByRole('button', { name: 'Worktrees', exact: true }),
   ).not.toBeAttached();
-  const projects = sidebar.getByRole('button', {
-    name: 'Projects · 1',
+  const needsYou = sidebar.getByRole('button', {
+    name: 'Needs you · 1',
     exact: true,
   });
   const noReview = sidebar.getByRole('button', {
-    name: 'No review · 1',
+    name: 'No review · 2',
     exact: true,
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
-  await expect(projects).toHaveAttribute('aria-expanded', 'true');
+  await expect(
+    sidebar.getByRole('button', {
+      name: /^(Needs you ·|No review ·|Closed reviews$)/,
+    }),
+  ).toHaveText(['Needs you · 1', 'No review · 2', 'Closed · 0']);
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'true');
   await expect(sidebar).toHaveCSS('background-color', 'rgb(243, 243, 244)');
   await expect(noReview).toHaveAttribute('aria-expanded', 'true');
-  await projects.click();
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await needsYou.click();
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'false');
   await expect(topic).toBeVisible();
   await noReview.press('Enter');
   await expect(topic).not.toBeVisible();
+  await sidebar
+    .getByRole('button', { name: 'Search reviews and worktrees', exact: true })
+    .click();
   const search = sidebar.getByRole('searchbox', {
     name: 'Search reviews and worktrees',
     exact: true,
@@ -484,7 +488,7 @@ test('sidebar groups remember independent choices across search, Settings and re
   await expect(search).toHaveAttribute('placeholder', 'Search');
   await search.fill('NO-MATCH');
   await search.fill('');
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'false');
   await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(
     pairedPage.getByRole('heading', { name: 'General', exact: true }),
@@ -495,17 +499,17 @@ test('sidebar groups remember independent choices across search, Settings and re
   });
   await expect(settingsSidebar).toBeVisible();
   await expect(sidebar).toBeVisible();
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'false');
   await expect(noReview).toHaveAttribute('aria-expanded', 'false');
   await pairedPage
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();
   await app.reload();
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'false');
   await expect(noReview).toHaveAttribute('aria-expanded', 'false');
   await noReview.click();
   await expect(topic).toBeVisible();
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
+  await expect(needsYou).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('review rows stay two lines with trailing progress and keyboard accessible reasons', async ({
@@ -645,6 +649,11 @@ for (const { width, colorScheme } of [
           .click();
       await expect(topic).toHaveAttribute('aria-current', 'page');
       await page.mouse.move(width - 1, 0);
+      const searchToggle = sidebar.getByRole('button', {
+        name: 'Search reviews and worktrees',
+        exact: true,
+      });
+      if (await searchToggle.isVisible()) await searchToggle.tap();
       await sidebar
         .getByRole('searchbox', {
           name: 'Search reviews and worktrees',
@@ -675,6 +684,7 @@ for (const { width, colorScheme } of [
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
       await page.mouse.move(width - 1, 0);
+      if (await searchToggle.isVisible()) await searchToggle.tap();
       await sidebar
         .getByRole('searchbox', {
           name: 'Search reviews and worktrees',
@@ -692,7 +702,9 @@ for (const { width, colorScheme } of [
       });
       const before = new URL(page.url()).pathname;
       await status.tap();
+      await expect(status).toBeFocused();
       const tooltip = page.getByRole('tooltip');
+      await expect(tooltip).toBeVisible();
       await expect(tooltip).toContainText('Proof failed');
       await expect(tooltip).toContainText('Agent says hold');
       await expect(status).toHaveAccessibleDescription(/Proof failed/);

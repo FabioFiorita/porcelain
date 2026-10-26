@@ -15,7 +15,7 @@ const inventory: Inventory = {
           id: 'main',
           path: '/repo',
           main: true,
-          branch: 'refs/heads/main',
+          branch: 'main',
           available: true,
           status: undefined,
         },

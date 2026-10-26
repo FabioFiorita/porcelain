@@ -1,3 +1,4 @@
+import { expectationFor } from './feedback.ts';
 import { describe, expect, it } from 'vitest';
 import { networkInput, networkTarget } from './network.ts';
 
@@ -48,7 +49,7 @@ describe('networkTarget', () => {
 
 describe('networkInput', () => {
   const branch = {
-    name: 'refs/heads/main',
+    name: 'main',
     upstream: 'origin/main',
     ahead: 1,
     behind: 0,
@@ -94,7 +95,7 @@ describe('networkInput', () => {
         'push',
         {
           ...branch,
-          name: 'refs/heads/topic',
+          name: 'topic',
           upstream: undefined,
           remoteName: undefined,
           sourceRef: undefined,
@@ -109,3 +110,33 @@ describe('networkInput', () => {
     });
   });
 });
+
+it.each([
+  ['topic/nested', 'refs/heads/topic/nested'],
+  ['refs/heads/topic', 'refs/heads/refs/heads/topic'],
+  ['refs/tags/release', 'refs/heads/refs/tags/release'],
+] as const)(
+  'keeps branch %s in expectations and full push targets',
+  (name, destinationRef) => {
+    const branch = {
+      name,
+      upstream: undefined,
+      ahead: 1,
+      behind: 0,
+      remoteName: undefined,
+      sourceRef: undefined,
+      upstreamOid: undefined,
+      stashes: [],
+      discarded: [],
+    };
+    expect(
+      expectationFor({ statusToken: 'token', changes: [], branch }).branch,
+    ).toBe(name);
+    expect(networkInput('push', branch, 'merge')).toEqual({
+      action: 'push',
+      remoteName: 'origin',
+      destinationRef,
+      allowCreate: true,
+    });
+  },
+);

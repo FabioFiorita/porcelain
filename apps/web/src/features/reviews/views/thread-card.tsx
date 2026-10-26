@@ -16,7 +16,7 @@ import {
   Trash2Icon,
   UserIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -290,11 +290,13 @@ export function ThreadCard({
   scope,
   context,
   onReveal,
+  location,
 }: {
   thread: CommentThread;
   scope: ReviewScope;
   context: ConnectionContext;
   onReveal?: () => void;
+  location?: ReactNode;
 }) {
   const [replying, setReplying] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -308,31 +310,35 @@ export function ThreadCard({
   const listed = onReveal !== null && onReveal !== undefined;
   const owner = { scope, context, threadId: thread.id };
 
-  const where = listed ? (
-    <button
-      type="button"
-      onClick={onReveal}
-      title={
-        thread.anchor.kind === 'change' ? 'Show the change' : 'Show in the code'
-      }
-      className="flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
-    >
-      {thread.anchor.kind !== 'change' && (
-        <TruncatedText text={basename(thread.anchor.filePath)} />
-      )}
-      <span className="shrink-0 font-sans text-muted-foreground">
-        {anchorLabel(thread.anchor)}
-      </span>
-      {thread.anchor.revision !== null &&
-        thread.anchor.revision !== undefined && (
-          <span className="shrink-0 text-muted-foreground">
-            in {shortOid(thread.anchor.revision)}
-          </span>
+  const where =
+    location ??
+    (listed ? (
+      <button
+        type="button"
+        onClick={onReveal}
+        title={
+          thread.anchor.kind === 'change'
+            ? 'Show the change'
+            : 'Show in the code'
+        }
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
+      >
+        {thread.anchor.kind !== 'change' && (
+          <TruncatedText text={basename(thread.anchor.filePath)} />
         )}
-    </button>
-  ) : (
-    <span>{anchorLabel(thread.anchor)}</span>
-  );
+        <span className="shrink-0 font-sans text-muted-foreground">
+          {anchorLabel(thread.anchor)}
+        </span>
+        {thread.anchor.revision !== null &&
+          thread.anchor.revision !== undefined && (
+            <span className="shrink-0 text-muted-foreground">
+              in {shortOid(thread.anchor.revision)}
+            </span>
+          )}
+      </button>
+    ) : (
+      <span>{anchorLabel(thread.anchor)}</span>
+    ));
 
   const resolveButton = (
     <Button
@@ -515,7 +521,7 @@ export function ThreadCard({
             >
               <div className="flex w-full min-w-0 items-center gap-2">
                 <CheckIcon className="size-3.5 shrink-0 text-graph-2" />
-                {listed ? where : <ThreadStarter thread={thread} />}
+                {location || listed ? where : <ThreadStarter thread={thread} />}
                 {menu}
               </div>
               <TruncatedText
@@ -535,7 +541,7 @@ export function ThreadCard({
             <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
               <ThreadStarter thread={thread} />
               <span aria-hidden>·</span>
-              <span className="min-w-0">{where}</span>
+              <span className="min-w-0 max-w-full">{where}</span>
               {menu}
               <Badge
                 variant={state === 'agent-replied' ? 'secondary' : 'outline'}
