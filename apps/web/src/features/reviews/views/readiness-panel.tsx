@@ -265,6 +265,9 @@ function usePublishedProgress({
   const result = useAtomValue(query);
   const markResult = useAtomValue(markQuery);
   const refresh = useAtomRefresh(query);
+  const refreshLatest = useAtomRefresh(
+    readReview({ connection: context.connection, reviewId }),
+  );
   const refreshMarks = useAtomRefresh(markQuery);
   const { preferences } = usePreferences();
   const snapshot = Option.getOrUndefined(AsyncResult.value(result))?.revision;
@@ -283,6 +286,7 @@ function usePublishedProgress({
     failed,
     retry: () => {
       refresh();
+      refreshLatest();
       refreshMarks();
     },
   };
@@ -425,7 +429,6 @@ function ReadinessRow({
   return (
     <TruncatedText
       text={label}
-      disclose="always"
       renderTrigger={(_, clip) => (
         <button
           type="button"

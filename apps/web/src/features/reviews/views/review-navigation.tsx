@@ -235,6 +235,13 @@ export function RevisionNavigation({
                       className="min-w-0 flex-1 text-left"
                       text={stopName(stop)}
                     />
+                    {stop.kind !== 'decision' &&
+                      stop.kind !== 'briefing' &&
+                      progress.total > 0 && (
+                        <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
+                          {progress.reviewed}/{progress.total}
+                        </span>
+                      )}
                     {stop.kind === 'decision' &&
                       (active ? (
                         <ChevronDownIcon className="size-3 shrink-0" />
