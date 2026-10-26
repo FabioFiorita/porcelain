@@ -22,15 +22,15 @@ export function SidebarPane({
   const style = useAnimatedStyle(() => {
     const target = visible ? width : 0;
     return {
-      width: reduceMotion ? target : withTiming(target, {
-        duration: 200,
-        easing: Easing.bezier(0.23, 1, 0.32, 1),
-        reduceMotion: ReduceMotion.Never,
-      }),
+      width: reduceMotion
+        ? target
+        : withTiming(target, {
+            duration: 200,
+            easing: Easing.bezier(0.23, 1, 0.32, 1),
+            reduceMotion: ReduceMotion.Never,
+          }),
     };
   });
-  return () => cancelAnimation(extent);
-  }, [extent, visible, width, reduceMotion]);
   return (
     <Animated.View
       className="shrink-0 overflow-hidden"
