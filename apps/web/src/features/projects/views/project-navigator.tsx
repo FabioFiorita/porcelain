@@ -198,6 +198,59 @@ export function ProjectNavigator({
         <NavigatorHeader>
           <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
         </NavigatorHeader>
+        <div className="px-2 pt-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between"
+                >
+                  Manage projects
+                  <ChevronDownIcon />
+                </Button>
+              }
+            />
+            <DropdownMenuContent
+              align="end"
+              className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+            >
+              {projects.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>No projects registered</EmptyTitle>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                projects.map((source) => (
+                  <div
+                    role="group"
+                    aria-label={
+                      source.connection.environmentId ===
+                      connection.environmentId
+                        ? 'This computer'
+                        : source.environmentName
+                    }
+                    key={`${source.connection.environmentId}/${source.project.id}`}
+                  >
+                    <ProjectActions
+                      key={`${source.connection.environmentId}/${source.project.id}`}
+                      environmentId={
+                        source.connection.environmentId ===
+                        connection.environmentId
+                          ? null
+                          : source.connection.environmentId
+                      }
+                      project={source.project}
+                      onRetry={() => retry(undefined)}
+                    />
+                  </div>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="flex gap-1 p-2">
           <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
@@ -273,43 +326,6 @@ export function ProjectNavigator({
                   <DropdownMenuSeparator />
                 </DropdownMenuGroup>
               ))}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>Projects</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto">
-                  {projects.length === 0 ? (
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle>No projects registered</EmptyTitle>
-                      </EmptyHeader>
-                    </Empty>
-                  ) : (
-                    projects.map((source) => (
-                      <div
-                        role="group"
-                        aria-label={
-                          source.connection.environmentId ===
-                          connection.environmentId
-                            ? 'This computer'
-                            : source.environmentName
-                        }
-                        key={`${source.connection.environmentId}/${source.project.id}`}
-                      >
-                        <ProjectActions
-                          key={`${source.connection.environmentId}/${source.project.id}`}
-                          environmentId={
-                            source.connection.environmentId ===
-                            connection.environmentId
-                              ? null
-                              : source.connection.environmentId
-                          }
-                          project={source.project}
-                          onRetry={() => retry(undefined)}
-                        />
-                      </div>
-                    ))
-                  )}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
               <DropdownMenuSub
                 highlightItemOnHover={false}
                 onOpenChange={(open) => {
