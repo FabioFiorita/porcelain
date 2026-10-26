@@ -2299,6 +2299,21 @@ export const saveBoth = Atom.writable(
       "vi.useFakeTimers(); it('live', () => Date.now()); describe('later collector', () => { vi.useRealTimers(); });",
       1,
     ],
+    [
+      "beforeEach(() => vi.useFakeTimers()); const restore = () => vi.useRealTimers(); const read = () => Date.now(); it('first', restore); it('virtual', read);",
+      "beforeAll(() => vi.useFakeTimers()); const restore = () => vi.useRealTimers(); const read = () => Date.now(); it('first', restore); it('live', read);",
+      1,
+    ],
+    [
+      "beforeEach(() => vi.useFakeTimers()); function first() { it('restore', () => vi.useRealTimers()); } describe('first', first); it('virtual', () => Date.now());",
+      "beforeAll(() => vi.useFakeTimers()); function first() { it('restore', () => vi.useRealTimers()); } describe('first', first); it('live', () => Date.now());",
+      1,
+    ],
+    [
+      "beforeEach(() => vi.useFakeTimers()); function restore() { vi.useRealTimers(); } const read = () => Date.now(); it('first', () => restore()); it('virtual', read);",
+      "beforeAll(() => vi.useFakeTimers()); function restore() { vi.useRealTimers(); } const read = () => Date.now(); it('first', () => restore()); it('live', read);",
+      1,
+    ],
   ].map(([valid, invalid, errors]) => ({
     rule: 'spec-no-clock',
     path: 'packages/client/src/rules/sample.spec.ts',

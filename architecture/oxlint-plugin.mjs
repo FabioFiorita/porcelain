@@ -772,6 +772,31 @@ function callbackSites(callback, context) {
     : [];
 }
 
+function timingCallback(node, context) {
+  if (node?.type === 'Identifier') {
+    const variable = findVariable(context.sourceCode.getScope(node), node.name);
+    if (
+      variable?.references.some(
+        (reference) => reference.isWrite() && !reference.init,
+      )
+    )
+      return undefined;
+    const definition = variable?.defs[0];
+    node =
+      definition?.node.type === 'VariableDeclarator' &&
+      definition.parent.kind === 'const'
+        ? definition.node.init
+        : definition?.node;
+  }
+  return [
+    'ArrowFunctionExpression',
+    'FunctionExpression',
+    'FunctionDeclaration',
+  ].includes(node?.type)
+    ? node
+    : undefined;
+}
+
 const effectRuntime =
   /^Effect\.run|\.run(?:Promise(?:Exit)?|Sync(?:Exit)?|Fork|Callback)$/;
 
@@ -923,7 +948,7 @@ function fakeClock(node, context, clock, sites = new Map()) {
         toNotFake.elements.every((element) => element?.type === 'Literal') &&
         !toNotFake.elements.some((element) => element?.value === clock);
   };
-  const controlsTimers = (part, functions = false) => {
+  const controlsTimers = (part, functions = false, seen = new Set()) => {
     if (!part || typeof part !== 'object') return false;
     if (
       !functions &&
@@ -941,18 +966,27 @@ function fakeClock(node, context, clock, sites = new Map()) {
       )
     )
       return true;
+    if (part.type === 'CallExpression') {
+      const callback = timingCallback(part.callee, context);
+      if (
+        callback &&
+        (seen.has(callback) ||
+          controlsTimers(callback.body, true, new Set(seen).add(callback)))
+      )
+        return true;
+    }
     return Object.entries(part).some(
       ([key, value]) =>
         key !== 'parent' &&
         (Array.isArray(value)
-          ? value.some((child) => controlsTimers(child, functions))
-          : controlsTimers(value, functions)),
+          ? value.some((child) => controlsTimers(child, functions, seen))
+          : controlsTimers(value, functions, seen)),
     );
   };
   const callbacks = (call) =>
-    call.arguments.filter((argument) =>
-      ['ArrowFunctionExpression', 'FunctionExpression'].includes(argument.type),
-    );
+    call.arguments
+      .map((argument) => timingCallback(argument, context))
+      .filter((callback) => callback !== undefined);
   const applyBody = (body, before, after = -Infinity) => {
     if (body?.type !== 'BlockStatement' && body?.type !== 'Program') {
       if (body?.range[0] < before && body.range[0] >= after) apply(body);
@@ -1043,11 +1077,13 @@ function fakeClock(node, context, clock, sites = new Map()) {
         );
       if (previous.length === 0) continue;
       if (
-        previous.some((call) =>
-          callbacks(call).some((callback) =>
-            controlsTimers(callback.body, true),
-          ),
-        )
+        previous.some((call) => {
+          const bodies = callbacks(call);
+          return (
+            bodies.length === 0 ||
+            bodies.some((callback) => controlsTimers(callback.body, true))
+          );
+        })
       )
         fake = false;
       for (const owner of suites.slice(0, suiteIndex + 1).toReversed())
