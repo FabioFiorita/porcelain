@@ -58,6 +58,21 @@ export const reviewLayout = {
     const visible = viewport.getBoundingClientRect();
     return chip.left >= visible.left - 1 && chip.right <= visible.right + 1;
   },
+  tabStripResized(locator: Locator) {
+    const viewport = locator
+      .element()
+      .closest('[role="tablist"]')?.parentElement;
+    if (!viewport) throw new Error('The tab has no strip viewport');
+    const width = viewport.clientWidth;
+    return new Promise<void>((resolve) => {
+      const observer = new ResizeObserver(() => {
+        if (viewport.clientWidth === width) return;
+        observer.disconnect();
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      observer.observe(viewport);
+    });
+  },
   titleLines(locator: Locator) {
     const title = locator.element();
     const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);

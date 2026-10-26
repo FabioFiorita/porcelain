@@ -395,6 +395,56 @@ test('long displaced locations fit open and resolved cards and reveal their code
   }
 });
 
+test('resizing the tab strip preserves the review reading position', async ({
+  agent,
+  render,
+  server,
+  reviewLayout,
+}) => {
+  await browserPage.viewport(1440, 896);
+  try {
+    await agent.publishArchitecture();
+    const published = (await server.publishedReview()).review;
+    if (!published?.reviewId) throw new Error('The fixture has no review');
+    const app = await render.route(`/reviews/${published.reviewId}`);
+    await app.page
+      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      .click();
+    await app.page
+      .getByRole('button', {
+        name: '9. Establish the shared mutation boundary · Shared owners',
+        exact: true,
+      })
+      .click();
+    const review = app.page.getByRole('region', {
+      name: 'Review walkthrough',
+      exact: true,
+    });
+    const tab = review.getByRole('tab', { name: 'Review', exact: true });
+    await expect
+      .element(
+        review.getByRole('button', {
+          name: 'Comment on packages/workspace/src/sessions.ts (added)',
+          exact: true,
+        }),
+      )
+      .toBeInTheDocument();
+    reviewLayout.scrollToEnd(review);
+    await expect
+      .poll(() => reviewLayout.scrollTop(review))
+      .toBeGreaterThan(500);
+    const before = reviewLayout.scrollTop(review);
+    const resized = reviewLayout.tabStripResized(tab);
+    await browserPage.viewport(1430, 896);
+    await resized;
+    await expect
+      .poll(() => reviewLayout.scrollTop(review))
+      .toBeGreaterThan(before - 1);
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});
+
 test.for([414, 360])(
   'the dock keeps its primary action whole at %i px',
   async (width, { agent, render, server, reviewLayout }) => {
