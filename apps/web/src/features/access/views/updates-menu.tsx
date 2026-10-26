@@ -65,12 +65,14 @@ export function UpdatesMenu({
         if (next) refresh();
       }}
     >
-      <PopoverTrigger
-        className={cn(!visible && 'invisible')}
-        render={<Badge render={<button type="button" />} />}
-      >
-        {batch.running ? 'Updating…' : 'Update'}
-      </PopoverTrigger>
+      <span className="[--primary:var(--brand-soft)] [--primary-foreground:var(--brand)]">
+        <PopoverTrigger
+          className={cn(!visible && 'invisible')}
+          render={<Badge render={<button type="button" />} />}
+        >
+          {batch.running ? 'Updating…' : 'Update'}
+        </PopoverTrigger>
+      </span>
       <PopoverContent
         side="top"
         align="end"
