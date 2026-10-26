@@ -541,7 +541,7 @@ export function ThreadCard({
             <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
               <ThreadStarter thread={thread} />
               <span aria-hidden>·</span>
-              <span className="min-w-0">{where}</span>
+              <span className="min-w-0 max-w-full">{where}</span>
               {menu}
               <Badge
                 variant={state === 'agent-replied' ? 'secondary' : 'outline'}

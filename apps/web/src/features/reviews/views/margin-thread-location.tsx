@@ -30,7 +30,7 @@ export function MarginThreadLocation({
           <Button
             variant="ghost"
             size="xs"
-            className="hidden min-w-0 shrink group-data-[displaced=true]/margin-thread:inline-flex"
+            className="hidden min-w-0 max-w-full shrink group-data-[displaced=true]/margin-thread:inline-flex"
             aria-label={`Show ${location} in the code`}
             onClick={(event) => onReveal(event.currentTarget)}
           >

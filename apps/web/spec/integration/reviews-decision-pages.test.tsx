@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const question =
@@ -313,6 +313,87 @@ test.for([
     }
   },
 );
+
+test('long displaced locations fit open and resolved cards and reveal their code', async ({
+  agent,
+  render,
+  repo,
+  reviewLayout,
+}) => {
+  await browserPage.viewport(1440, 896);
+  try {
+    const path = `${'session-'.repeat(20)}recovery.ts`;
+    const published = await repo.review('Long file locations', undefined, {
+      path,
+      lane: 'Client',
+    });
+    for (const body of ['First shared anchor', 'Second shared anchor'])
+      await agent.comment(path, body, {
+        reviewId: published.reviewId,
+        reviewRevision: published.revision,
+        anchor: {
+          kind: 'codeRange',
+          filePath: path,
+          startLine: 2,
+          endLine: 2,
+          side: 'additions',
+          revision: published.headOid,
+          comparison: { kind: 'branch', base: 'refs/heads/review-page-base' },
+        },
+      });
+    const app = await render.route(`/reviews/${published.reviewId}`);
+    await app.page
+      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      .click();
+    await app.page
+      .getByRole('button', {
+        name: '1. Long file locations · Client',
+        exact: true,
+      })
+      .click();
+    const decision = app.page.getByRole('region', {
+      name: '1. Long file locations',
+      exact: true,
+    });
+    const card = decision
+      .getByRole('article', { name: 'Comment thread', exact: true })
+      .filter({ hasText: 'Second shared anchor' });
+    const name = `Show ${path}:2 in the code`;
+    const location = card.getByRole('button', { name, exact: true });
+    await expect.element(location).toBeVisible();
+    await expect
+      .poll(() => reviewLayout.holds(card, location))
+      .toEqual({ inside: true, fits: true });
+    await expect.poll(() => reviewLayout.reachable(location)).toBe(true);
+    await location.hover();
+    await expect
+      .element(app.page.getByRole('tooltip', { name, exact: true }))
+      .toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await location.click();
+    await expect
+      .poll(() => reviewLayout.highlightedCode(decision))
+      .toContain('export const title = "Long file locations";');
+    await expect.poll(() => reviewLayout.highlightVisible(decision)).toBe(true);
+    await card.getByRole('button', { name: 'Resolve', exact: true }).click();
+    const resolved = decision
+      .getByRole('article', { name: 'Resolved comment thread', exact: true })
+      .filter({ hasText: 'Second shared anchor' });
+    const resolvedLocation = resolved.getByRole('button', {
+      name,
+      exact: true,
+    });
+    await expect.element(resolvedLocation).toBeVisible();
+    await expect
+      .poll(() => reviewLayout.holds(resolved, resolvedLocation))
+      .toEqual({ inside: true, fits: true });
+    reviewLayout.focus(resolvedLocation);
+    await userEvent.keyboard('{Enter}');
+    await expect.poll(() => reviewLayout.highlightVisible(decision)).toBe(true);
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});
 
 test.for([414, 360])(
   'the dock keeps its primary action whole at %i px',
