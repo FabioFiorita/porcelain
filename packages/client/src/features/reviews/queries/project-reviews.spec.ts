@@ -252,85 +252,57 @@ it('allows a failed seen acknowledgement to be retried', async () => {
   }
 });
 
-it('keeps one seen acknowledgement in flight while review metadata refreshes', async () => {
-  const started = Promise.withResolvers<void>();
-  const held = Promise.withResolvers<Response>();
-  let writes = 0;
-  let metadataReads = 0;
-  const subject = create((path) => {
-    if (path.endsWith('/seen')) {
-      writes += 1;
-      started.resolve();
-      return held.promise;
-    }
-    metadataReads += 1;
-    return Promise.resolve(reviewResponse(0));
-  });
-  const metadata = readReview({ connection: subject.connection, reviewId });
-  const seen = observeReviewSeen({
-    connection: subject.connection,
-    reviewId,
-    revision: 1,
-  });
-  const stopMetadata = subject.registry.mount(metadata);
-  const stopSeen = subject.registry.mount(seen);
-  try {
-    await started.promise;
-    const beforeMetadata = metadataReads;
-    await subject.connection.runtime.runPromise(
-      Reactivity.invalidate([queryKeys.inventory('environment')]),
-    );
-    await readClientAtom(subject.registry, metadata);
-    expect(metadataReads - beforeMetadata).toBe(1);
-    expect(writes).toBe(1);
-    held.resolve(Response.json({ updated: true }));
-    expect(await readClientAtom(subject.registry, seen)).toEqual({
-      updated: true,
+it.each(['metadata refreshes', 'is reopened'])(
+  'keeps one seen acknowledgement in flight while the review %s',
+  async (change) => {
+    const started = Promise.withResolvers<void>();
+    const held = Promise.withResolvers<Response>();
+    let writes = 0;
+    let metadataReads = 0;
+    const subject = create((path) => {
+      if (path.endsWith('/seen')) {
+        writes += 1;
+        started.resolve();
+        return held.promise;
+      }
+      metadataReads += 1;
+      return Promise.resolve(reviewResponse(0));
     });
-  } finally {
-    held.resolve(Response.json({ updated: true }));
-    stopSeen();
-    stopMetadata();
-  }
-});
-
-it('keeps one seen acknowledgement in flight while the review is reopened', async () => {
-  const started = Promise.withResolvers<void>();
-  const held = Promise.withResolvers<Response>();
-  let writes = 0;
-  const subject = create((path) => {
-    if (path.endsWith('/seen')) {
-      writes += 1;
-      started.resolve();
-      return held.promise;
-    }
-    return Promise.resolve(reviewResponse(0));
-  });
-  const metadata = readReview({ connection: subject.connection, reviewId });
-  const seen = observeReviewSeen({
-    connection: subject.connection,
-    reviewId,
-    revision: 1,
-  });
-  const stopMetadata = subject.registry.mount(metadata);
-  let stopSeen = subject.registry.mount(seen);
-  try {
-    await started.promise;
-    stopSeen();
-    stopSeen = subject.registry.mount(seen);
-    subject.registry.get(seen);
-    await readClientAtom(subject.registry, metadata);
-    expect(writes).toBe(1);
-    held.resolve(Response.json({ updated: true }));
-    expect(await readClientAtom(subject.registry, seen)).toEqual({
-      updated: true,
+    const metadata = readReview({ connection: subject.connection, reviewId });
+    const seen = observeReviewSeen({
+      connection: subject.connection,
+      reviewId,
+      revision: 1,
     });
-  } finally {
-    held.resolve(Response.json({ updated: true }));
-    stopSeen();
-    stopMetadata();
-  }
-});
+    const stopMetadata = subject.registry.mount(metadata);
+    let stopSeen = subject.registry.mount(seen);
+    try {
+      await started.promise;
+      if (change === 'metadata refreshes') {
+        const beforeMetadata = metadataReads;
+        await subject.connection.runtime.runPromise(
+          Reactivity.invalidate([queryKeys.inventory('environment')]),
+        );
+        await readClientAtom(subject.registry, metadata);
+        expect(metadataReads - beforeMetadata).toBe(1);
+      } else {
+        stopSeen();
+        stopSeen = subject.registry.mount(seen);
+        subject.registry.get(seen);
+        await readClientAtom(subject.registry, metadata);
+      }
+      expect(writes).toBe(1);
+      held.resolve(Response.json({ updated: true }));
+      expect(await readClientAtom(subject.registry, seen)).toEqual({
+        updated: true,
+      });
+    } finally {
+      held.resolve(Response.json({ updated: true }));
+      stopSeen();
+      stopMetadata();
+    }
+  },
+);
 
 it('rechecks canonical seen state on reconnect without repeating an acknowledged write', async () => {
   let lastSeenRevision = 0;
