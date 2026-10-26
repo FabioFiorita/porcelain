@@ -8,7 +8,6 @@ import { Item } from '../../../components/ui/item';
 import { useCommit, type HistorySelection } from '../queries/history';
 import {
   commitPath,
-  refLabel,
   shortOid,
   shownRefs,
 } from '@porcelain/client/history/rules';
@@ -75,11 +74,7 @@ export function CommitContent({
                 ) : null}
                 <Box className="flex-row flex-wrap" gap={1}>
                   {shownRefs(value.commit.refs).map((ref) => (
-                    <Badge
-                      key={ref}
-                      label={refLabel(ref)}
-                      variant="secondary"
-                    />
+                    <Badge key={ref} label={ref} variant="secondary" />
                   ))}
                 </Box>
                 <Text

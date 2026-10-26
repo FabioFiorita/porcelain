@@ -120,9 +120,7 @@ for (const width of [1440, 414]) {
       await page.setViewportSize({ width, height: 896 });
       await page.emulateMedia({ colorScheme });
       const project = await server.project();
-      const target = project.worktrees.find(
-        (row) => row.branch === `refs/heads/${branch}`,
-      );
+      const target = project.worktrees.find((row) => row.branch === branch);
       if (width === 414)
         await page
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })

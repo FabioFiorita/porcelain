@@ -27,7 +27,7 @@ const registered = (session: Session, available: boolean) => ({
       id: session.worktreeId,
       path: session.repository,
       main: true,
-      branch: `refs/heads/${session.fixture.branch}`,
+      branch: session.fixture.branch,
       available,
       status: null,
     },

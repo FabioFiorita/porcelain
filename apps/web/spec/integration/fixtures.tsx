@@ -319,6 +319,24 @@ export const test = base
   })
   .extend('server', ({ world: _world }) => ({
     ...readersOf('this'),
+    gitStatusReadWorktrees: async () => {
+      const [inventory, hits] = await Promise.all([
+        readersOf('this').inventory(),
+        host.porcelainHits('this'),
+      ]);
+      return inventory.projects.flatMap((project) =>
+        project.worktrees
+          .filter((worktree) =>
+            hits.some(
+              (hit) =>
+                !hit.kit &&
+                hit.method === 'GET' &&
+                hit.path === `/api/worktrees/${worktree.id}/git/status`,
+            ),
+          )
+          .map(({ path, branch }) => ({ path, branch })),
+      );
+    },
     branchReviewMarks: async () => {
       const published = await readersOf('this').publishedReview();
       const reviewId = published.review?.reviewId;

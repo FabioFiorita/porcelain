@@ -27,6 +27,7 @@ export type RepoStep =
         | 'remove-repository';
       title: string;
       asked?: string | undefined;
+      branch?: string | undefined;
       route?: { path: string; lane: string } | undefined;
     }
   | {

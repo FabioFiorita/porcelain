@@ -52,6 +52,7 @@ export const readCommitFiles = Effect.fn('Git.readCommitFiles')(function* (
       '-z',
       ...diffFlags(limits),
       `--diff-merges=${parent === 1 ? 'first-parent' : 'off'}`,
+      '--decorate=short',
       `--format=${COMMIT_FORMAT}`,
       request.oid,
       '--',
