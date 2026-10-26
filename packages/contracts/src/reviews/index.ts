@@ -120,3 +120,5 @@ export type {
   SetReviewPullRequestRequest,
   SetReviewPullRequestResponse,
 } from './pull-requests.ts';
+
+export { ReviewPullRequestRefusedError } from '@porcelain/reviews/errors';

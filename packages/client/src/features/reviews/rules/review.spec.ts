@@ -1,3 +1,4 @@
+import { ReviewPullRequestRefusedError } from '@porcelain/contracts/reviews';
 import { describe, expect, it } from 'vitest';
 import {
   mergeBranchChanges,
@@ -208,4 +209,33 @@ it('shows why linking a pull request was refused', () => {
   expect(reviewErrorMessage(error)).toBe(
     'The pull request head must be feature.',
   );
+});
+
+it('keeps the declared refusal reason when production minifies its error class name', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    ReviewPullRequestRefusedError,
+    'name',
+  );
+  if (!descriptor)
+    throw new Error('The refusal error must have a runtime class name');
+  try {
+    Object.defineProperty(ReviewPullRequestRefusedError, 'name', {
+      value: 'a',
+      configurable: true,
+    });
+    const decoded = new Error('The pull request repository must match origin.');
+    decoded.name = 'a';
+    expect(reviewErrorMessage(decoded)).toBe(
+      'The pull request repository must match origin.',
+    );
+    expect(
+      reviewErrorMessage(
+        new ReviewPullRequestRefusedError({
+          message: 'The pull request head must be feature.',
+        }),
+      ),
+    ).toBe('The pull request head must be feature.');
+  } finally {
+    Object.defineProperty(ReviewPullRequestRefusedError, 'name', descriptor);
+  }
 });

@@ -1,3 +1,4 @@
+import { ReviewPullRequestRefusedError } from '@porcelain/contracts/reviews';
 import type {
   ReadBranchChangesResponse,
   ReadChangeDiffsResponse,
@@ -119,7 +120,8 @@ export function reviewErrorMessage(error: unknown) {
   return error instanceof Error &&
     (error.name === 'ConnectionError' ||
       error.name === 'WriteNotSentError' ||
-      error.name === 'ReviewPullRequestRefusedError')
+      error instanceof ReviewPullRequestRefusedError ||
+      error.name === ReviewPullRequestRefusedError.name)
     ? error.message
     : 'This review surface could not be loaded. Try again.';
 }
