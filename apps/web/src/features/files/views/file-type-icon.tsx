@@ -1,16 +1,9 @@
-import {
-  createFileTreeIconResolver,
-  getBuiltInSpriteSheet,
-} from '@pierre/trees';
+import { createFileTreeIconResolver } from '@pierre/trees';
 import { cn } from '@/shared/lib/utils';
 import { FILE_ICON_DEFAULT_SIZE } from '@/config/limits';
+import { FILE_ICON_SPRITE, treeIconsFor } from '../adapters/file-icons';
 
-const ICON_SET = 'minimal';
-
-const resolver = createFileTreeIconResolver({
-  set: ICON_SET,
-  colored: false,
-});
+const resolver = createFileTreeIconResolver(treeIconsFor());
 
 export function PierreIconSprite() {
   return (
@@ -22,7 +15,7 @@ export function PierreIconSprite() {
         height: 0,
         overflow: 'hidden',
       }}
-      dangerouslySetInnerHTML={{ __html: getBuiltInSpriteSheet(ICON_SET) }}
+      dangerouslySetInnerHTML={{ __html: FILE_ICON_SPRITE }}
     />
   );
 }
@@ -40,7 +33,6 @@ export function FileTypeIcon({
   return (
     <svg
       aria-hidden="true"
-      data-icon-token={icon.token}
       viewBox={icon.viewBox ?? `0 0 ${width} ${height}`}
       className={cn('pierre-file-icon', className)}
     >
