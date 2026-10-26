@@ -26,7 +26,7 @@ function projectReport(
       id: worktree.id,
       path: worktree.path,
       main: worktree.main,
-      branch: worktree.branch,
+      branch: worktree.branch?.replace(/^refs\/heads\//u, ''),
       available: worktree.available,
       status: statuses.get(worktree.id),
     })),

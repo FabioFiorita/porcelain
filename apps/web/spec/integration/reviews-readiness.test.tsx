@@ -97,8 +97,8 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await expect
     .element(
       workspace
-        .getByRole('region', { name: 'Proof', exact: true })
-        .getByRole('heading', { name: 'Proof', exact: true }),
+        .getByRole('region', { name: /^Proven at / })
+        .getByRole('heading', { name: /^Proven at / }),
     )
     .toBeVisible();
 });

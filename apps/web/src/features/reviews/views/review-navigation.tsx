@@ -13,8 +13,6 @@ import {
 import {
   filesReviewed,
   revisionDecisionStates,
-  proofLabel,
-  proofStatus,
   revisionReviewItems,
   reviewSidebarActions,
   stopDone,
@@ -29,7 +27,7 @@ import {
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { usePreferences } from '@/features/preferences/index';
 import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
-import { type OpenDocument, ALL_CHANGES, PROOF } from '../rules/documents';
+import { type OpenDocument, ALL_CHANGES } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
 import { SidebarActionMenu } from './sidebar-action-menu';
 
@@ -106,8 +104,10 @@ function PublishedNavigation({
         selection.choose(snapshot.revision, step.id);
         onOpen({ kind: 'handoff' });
       }}
-      onProof={() => onOpen(PROOF)}
-      onAllChanges={() => onOpen(ALL_CHANGES)}
+      allChanges={{
+        active: activeEntry === 'all-changes',
+        onOpen: () => onOpen(ALL_CHANGES),
+      }}
     />
   );
 }
@@ -119,8 +119,7 @@ export function RevisionNavigation({
   activeStop,
   onStop,
   onStep,
-  onProof,
-  onAllChanges,
+  allChanges,
 }: {
   revision: ReviewRevision;
   marks: ReviewMarks | undefined;
@@ -128,8 +127,7 @@ export function RevisionNavigation({
   activeStop: string | undefined;
   onStop: (key: WalkthroughKey) => void;
   onStep: (step: ReviewStep) => void;
-  onProof: () => void;
-  onAllChanges?: () => void;
+  allChanges?: { active: boolean; onOpen: () => void };
 }) {
   const commands = reviewCommands({
     connection: context.connection,
@@ -294,14 +292,11 @@ export function RevisionNavigation({
           The review mark could not be updated.
         </p>
       )}
-      <SidebarDocumentRow label="Proof" active={false} onOpen={onProof}>
-        Proof · {proofLabel(proofStatus(revision.content.proof))}
-      </SidebarDocumentRow>
-      {onAllChanges && (
+      {allChanges && (
         <SidebarDocumentRow
           label="All changes"
-          active={false}
-          onOpen={onAllChanges}
+          active={allChanges.active}
+          onOpen={allChanges.onOpen}
         >
           All changes
         </SidebarDocumentRow>

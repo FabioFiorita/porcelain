@@ -33,6 +33,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
       title: string,
       asked?: string,
       route?: { path: string; lane: string },
+      branch?: string,
     ) =>
       Schema.decodeUnknownSync(reviewFixtureSchema)(
         JSON.parse(
@@ -42,6 +43,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
             title,
             asked,
             route,
+            branch,
           }),
         ),
       ),

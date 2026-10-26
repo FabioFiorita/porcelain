@@ -83,7 +83,6 @@ export function RevisionPanel({
               activeStop={activeStop}
               onStop={onStop}
               onStep={onStep}
-              onProof={onProof}
             />
             <SidebarGroup
               name="Changed files"
