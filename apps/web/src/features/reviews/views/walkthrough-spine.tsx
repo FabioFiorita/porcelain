@@ -28,10 +28,14 @@ export function WalkthroughSpine({
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
 }) {
-  const reached = stops.reduce(
-    (last, stop, index) => (stop.key === current || done(stop) ? index : last),
-    0,
-  );
+  const lastDone = stops.findLastIndex(done);
+  const reached =
+    current === undefined
+      ? lastDone + 1
+      : Math.max(
+          stops.findIndex((stop) => stop.key === current),
+          lastDone,
+        );
   return (
     <nav
       aria-label="Walkthrough progress"
