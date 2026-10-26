@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
 import { type ReactNode, useState } from 'react';
 import { useHotkey } from '@tanstack/react-hotkeys';
@@ -336,7 +337,7 @@ function OmittedChanges({
             key={item.path}
             className="flex min-w-0 flex-wrap items-center gap-2"
           >
-            <span className="min-w-0 basis-full truncate">{item.path}</span>
+            <TruncatedText className="min-w-0 basis-full" text={item.path} />
             {isImagePath(item.path) && (
               <>
                 <span>Current worktree image</span>

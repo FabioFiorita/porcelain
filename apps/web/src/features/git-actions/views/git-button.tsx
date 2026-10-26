@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
@@ -65,6 +66,8 @@ import {
 } from '@porcelain/client/git-actions/rules';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
+import { BranchTracking } from '@/features/history/index';
+import { branchTracking } from '@porcelain/client/history/rules';
 import { GitActionError, GitActionMessage } from './git-action-message';
 
 export function GitButton({
@@ -133,6 +136,8 @@ export function GitButton({
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
+  const reading = detailsLive && AsyncResult.isInitial(details.result);
+  const shownGroups = reading ? gitActionGroups.slice(0, 1) : gitActionGroups;
 
   const choose = (next: GitAction) => {
     if (isNetworkAction(next)) {
@@ -227,9 +232,11 @@ export function GitButton({
                       running.operation.receipt.progress
                         .slice(-4)
                         .map((line) => (
-                          <li key={line} className="truncate" title={line}>
-                            {line}
-                          </li>
+                          <TruncatedText
+                            key={line}
+                            render={<li />}
+                            text={line}
+                          />
                         ))
                     ) : (
                       <li className="text-muted-foreground">
@@ -275,34 +282,25 @@ export function GitButton({
               Git actions
             </TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="end" className="w-76">
+          <DropdownMenuContent align="end" className="w-76" aria-busy={reading}>
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center">
-                <GitBranchIcon className="size-3.5 shrink-0" />
-                <span className="truncate">
-                  {branch
-                    ? (branch.name?.replace(/^refs\/heads\//, '') ??
-                      'Detached HEAD')
-                    : 'Git actions'}
-                </span>
-                {branch && (
-                  <span className="ml-auto shrink-0 tabular-nums">
-                    {branch.ahead} ahead · {branch.behind} behind
+              <DropdownMenuLabel>
+                {branch ? (
+                  <BranchTracking tracking={branchTracking(branch, null)} />
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <GitBranchIcon className="size-3.5 shrink-0" />
+                    Git actions
                   </span>
                 )}
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {gitActionGroups.map((group, index) => (
+            {shownGroups.map((group, index) => (
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker =
-                      isNetworkAction(candidate.id) &&
-                      detailsLive &&
-                      AsyncResult.isInitial(details.result)
-                        ? 'Reading the configured upstream.'
-                        : gitActionBlocker(candidate.id, status);
+                    const blocker = gitActionBlocker(candidate.id, status);
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
@@ -320,9 +318,7 @@ export function GitButton({
                           >
                             <GitActionIcon action={candidate.id} />
                             <span className="flex min-w-0 flex-col">
-                              <span className="truncate">
-                                {candidate.label}
-                              </span>
+                              <TruncatedText text={candidate.label} />
                               {blocker && (
                                 <span className="text-xs whitespace-normal text-muted-foreground">
                                   {blocker}
@@ -339,12 +335,20 @@ export function GitButton({
                     );
                   })}
                 </DropdownMenuGroup>
-                {index < gitActionGroups.length - 1 && (
+                {(reading || index < shownGroups.length - 1) && (
                   <DropdownMenuSeparator />
                 )}
               </Fragment>
             ))}
-            {(branch?.discarded?.length ?? 0) > 0 && (
+            {reading && (
+              <p
+                role="status"
+                className="px-2 py-1 text-xs text-muted-foreground"
+              >
+                Reading Git status…
+              </p>
+            )}
+            {!reading && (branch?.discarded?.length ?? 0) > 0 && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
@@ -364,7 +368,7 @@ export function GitButton({
                             }}
                           >
                             <Undo2Icon />
-                            <span className="min-w-0 truncate">{label}</span>
+                            <TruncatedText className="min-w-0" text={label} />
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>

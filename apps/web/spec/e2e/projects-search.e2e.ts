@@ -1,6 +1,146 @@
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
+for (const width of [1440, 414]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`sibling detached checkouts show distinct folder names through search and selection at ${width}px in ${colorScheme}`, async ({
+      pairedPage,
+      repo,
+      server,
+      app,
+    }) => {
+      await pairedPage.setViewportSize({ width, height: 896 });
+      await pairedPage.emulateMedia({ colorScheme });
+      const names = ['detached-531', 'detached-532'];
+      for (const name of names) await repo.worktree(name);
+      await expect
+        .poll(async () => {
+          const project = await server.project();
+          return names.every((name) =>
+            project.worktrees.some(
+              (row) => row.branch === `refs/heads/${name}`,
+            ),
+          );
+        })
+        .toBe(true);
+      const project = await server.project();
+      const computer = (await server.inventory()).environment.name;
+      const targets = names.map((name) => {
+        const worktree = project.worktrees.find(
+          (row) => row.branch === `refs/heads/${name}`,
+        );
+        if (!worktree) throw new Error(`Missing checkout ${name}`);
+        return worktree;
+      });
+      for (const name of names) await repo.detachWorktree(name);
+      await app.reload();
+      const sidebar = pairedPage.getByRole('navigation', {
+        name: 'Projects and worktrees',
+        exact: true,
+      });
+      const filter = sidebar.getByRole('button', {
+        name: 'Filter reviews',
+        exact: true,
+      });
+      if (width === 414)
+        await pairedPage
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
+      for (const [index, target] of targets.entries()) {
+        const row = sidebar.getByRole('button', {
+          name: `${target.path} ${project.name}`,
+          exact: true,
+        });
+        await expect(row).toBeVisible();
+        const folder = row.getByText(names[index] ?? '', { exact: true });
+        await expect(folder).toBeVisible();
+        await expect
+          .poll(() =>
+            folder.evaluate((node) => node.scrollWidth <= node.clientWidth),
+          )
+          .toBe(true);
+      }
+      for (const [index, target] of targets.entries()) {
+        const submenu = pairedPage.getByRole('menuitem', {
+          name: 'Worktrees',
+          exact: true,
+        });
+        if (index === 0) {
+          await filter.focus();
+          await filter.press('Enter');
+          await pairedPage.keyboard.press('w');
+          await expect(submenu).toBeFocused();
+          await submenu.press('ArrowRight');
+        } else {
+          await filter.click();
+          await submenu.click();
+        }
+        const result = pairedPage.getByRole('menuitemradio', {
+          name: `${target.path} · ${project.name} ${computer}`,
+          exact: true,
+        });
+        await expect(result).toBeVisible();
+        await expect(result).toHaveCSS('height', '32px');
+        const label = result.getByText(names[index] ?? '', { exact: true });
+        await expect(label).toBeVisible();
+        await expect
+          .poll(() =>
+            label.evaluate((node) => node.scrollWidth <= node.clientWidth),
+          )
+          .toBe(true);
+        const search = pairedPage.getByRole('searchbox', {
+          name: 'Search worktrees',
+          exact: true,
+        });
+        await expect(search).toHaveValue('');
+        await search.click();
+        await search.fill('NO-MATCH');
+        await expect(
+          pairedPage.getByText('No matching worktrees', { exact: true }),
+        ).toBeVisible();
+        await search.press('ArrowDown');
+        await expect(search).toBeFocused();
+        await search.press('ArrowUp');
+        await expect(search).toBeFocused();
+        await search.fill(target.path);
+        await expect(pairedPage.getByRole('menuitemradio')).toHaveCount(1);
+        if (index === 0) {
+          await search.press('ArrowDown');
+          await expect(result).toBeFocused();
+          await search.click();
+          await search.press('ArrowUp');
+          await expect(result).toBeFocused();
+          await result.press('Enter');
+        } else await result.click();
+        await expect
+          .poll(() => app.address().path)
+          .toBe(`/${project.id}/${target.id}`);
+        await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+        if (width === 414)
+          await pairedPage
+            .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+            .click();
+        await filter.click();
+        await pairedPage
+          .getByRole('menuitem', { name: 'Worktrees', exact: true })
+          .click();
+        await expect(search).toHaveValue('');
+        await expect(result).toHaveAttribute('aria-checked', 'true');
+        await result.hover();
+        await expect(pairedPage.getByRole('tooltip')).toHaveText(
+          `${target.path} · ${project.name} · ${computer}`,
+        );
+        await result.click();
+        await expect(pairedPage.getByRole('menu')).toHaveCount(0);
+        if (width === 414)
+          await pairedPage
+            .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+            .click();
+      }
+    });
+  }
+}
+
 test('the flat worktree menu searches checkouts without reviews and selects the exact workspace', async ({
   pairedPage,
   repo,

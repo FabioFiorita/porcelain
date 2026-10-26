@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Item,
   ItemContent,
@@ -243,24 +243,29 @@ function ComputerLink({
   onOpen: () => void;
 }) {
   return (
-    <FullValueTooltip
-      value={name}
-      render={<Button variant="ghost" />}
-      className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
-      aria-label={label}
-      onClick={onOpen}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
-          {icon}
-          <span className="min-w-0 truncate font-medium">{name}</span>
-          {badge}
-        </span>
-        <span className="block break-all text-xs font-normal text-muted-foreground">
-          {description}
-        </span>
-      </span>
-      <ChevronRightIcon className="shrink-0" />
-    </FullValueTooltip>
+    <TruncatedText
+      text={name}
+      className="font-medium"
+      renderTrigger={(text) => (
+        <Button
+          variant="ghost"
+          className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
+          aria-label={label}
+          onClick={onOpen}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-2">
+              {icon}
+              {text}
+              {badge}
+            </span>
+            <span className="block break-all text-xs font-normal text-muted-foreground">
+              {description}
+            </span>
+          </span>
+          <ChevronRightIcon className="shrink-0" />
+        </Button>
+      )}
+    />
   );
 }

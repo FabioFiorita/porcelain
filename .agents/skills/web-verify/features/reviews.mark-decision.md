@@ -9,7 +9,7 @@ selectors:
   - "Unmark "
   - "Could not update the decision"
   - "Mark available files reviewed"
-  - "Review unavailable"
+  - "Could not display"
   - "Some files cannot be marked reviewed"
 tests:
   - apps/web/spec/integration/reviews-mark-decision.test.tsx

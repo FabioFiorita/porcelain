@@ -6,7 +6,7 @@ import {
   remoteStatusNote,
   remoteStatusText,
 } from '@porcelain/client/access/rules';
-import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -28,11 +28,7 @@ import { RemoteServiceUpdate } from './service-update';
 export function RemoteComputerName({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
   const name = status.kind === 'online' ? status.name : remote.name;
-  return (
-    <FullValueTooltip value={name} className="block min-w-0">
-      <span className="block truncate">{name}</span>
-    </FullValueTooltip>
-  );
+  return <TruncatedText text={name} className="block min-w-0" />;
 }
 
 export function RemoteComputerSettings({

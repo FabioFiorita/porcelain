@@ -22,7 +22,7 @@ A pairing link whose installation id is not this server's is refused after the w
 Preconditions: [surface baseline](README.md).
 
 1. Navigate to `/pair#c=not-for-this-server&e=00000000-0000-4000-8000-000000000000`
-   Expect: heading "This browser is not paired" and a destructive alert reading "This link was made for a different Porcelain installation."; URL `/pair` with no `#c=` fragment (the loader strips it before checking).
+   Expect: heading "This browser is not paired" and an inline alert in the pairing route reading "This link was made for a different Porcelain installation."; URL `/pair` with no `#c=` fragment (the loader strips it before checking).
 2. Inspect HTTP traffic
    Expect: `GET /api/health` answered 200 and NO `POST /api/pair` after it. `$C server devices` lists only "Development setup" and the "Verification browser" you paired with the card’s link.
 3. Navigate to `/`

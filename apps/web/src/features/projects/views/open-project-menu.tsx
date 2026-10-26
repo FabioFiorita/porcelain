@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
   TooltipTrigger,
@@ -97,9 +98,10 @@ function RemoteItem({
   return (
     <DropdownMenuItem disabled={!online} onClick={onOpen}>
       <ServerIcon />
-      <span className="min-w-0 truncate">
-        {online ? status.name : entry.remote.name}
-      </span>
+      <TruncatedText
+        className="min-w-0"
+        text={online ? status.name : entry.remote.name}
+      />
       {!online && (
         <Badge variant={remoteStatusVariant(status)} className="ml-auto">
           {remoteStatusText(status)}

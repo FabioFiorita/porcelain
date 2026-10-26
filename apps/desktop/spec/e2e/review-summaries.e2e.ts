@@ -231,7 +231,12 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     const app = await desktop.launch();
     const page = await app.window();
     await expect(
-      page.getByRole('button', { name: 'Open project', exact: true }),
+      page
+        .getByRole('navigation', {
+          name: 'Projects and worktrees',
+          exact: true,
+        })
+        .getByRole('button', { name: 'Open project', exact: true }),
     ).toBeVisible();
     const here = await publishSummary(
       page,
@@ -304,12 +309,16 @@ test('a remote computer summary renders through the app from that computer, cann
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const other = await desktop.launch(join(desktop.folder, 'remote-profile'));
   const otherPage = await other.window();
   await expect(
-    otherPage.getByRole('button', { name: 'Open project', exact: true }),
+    otherPage
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const there = await publishSummary(
     otherPage,

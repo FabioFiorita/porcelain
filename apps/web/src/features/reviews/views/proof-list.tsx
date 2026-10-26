@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import {
@@ -184,7 +185,7 @@ function AssetView({
           className="flex min-w-0 items-center gap-1.5 px-1 text-sm underline-offset-2 hover:underline"
         >
           <ExternalLinkIcon aria-hidden className="size-3.5 shrink-0" />
-          <span className="truncate">{asset.title}</span>
+          <TruncatedText text={asset.title} />
         </a>
         <figcaption className="flex min-w-0 flex-col px-1 pt-0.5">
           <span className="text-xs wrap-anywhere text-muted-foreground">

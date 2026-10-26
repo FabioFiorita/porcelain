@@ -79,12 +79,16 @@ import { WalkthroughBriefing } from './walkthrough-briefing';
 import { DecisionPage } from './walkthrough-stop';
 import { ClosingPage } from './closing-page';
 import { MarginRow } from './margin-row';
-import { ReviewNotice } from './review-notice';
 import { SummaryFrame } from './summary-frame';
 import { WalkthroughDock } from './walkthrough-dock';
 import { useComments } from '../queries/comments';
 import { RevisionCode, RevisionFile } from './revision-code';
-import { ReviewEmpty } from './review-empty';
+import {
+  StateFrame,
+  StateFailure,
+  StateNotice,
+  StateSkeleton,
+} from '@/shared/views/state-notice';
 import { ReviewBoundary } from './review-boundary';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
@@ -132,45 +136,18 @@ export function ReviewPage({
   const result = useAtomValue(query);
   const retry = useAtomRefresh(query);
   const data = Option.getOrUndefined(AsyncResult.value(result));
-  if (AsyncResult.isInitial(result))
-    return (
-      <p role="status" className="p-4">
-        Loading review…
-      </p>
-    );
-  if (AsyncResult.isFailure(result))
-    return (
-      <div className="p-4">
-        <p role="alert">
-          Review could not be loaded. Check the link and connection.
-        </p>
-        <Button variant="outline" onClick={retry}>
-          Try again
-        </Button>
-        <Button variant="ghost" onClick={onBack}>
-          Back to workspace
-        </Button>
-      </div>
-    );
+  const state = reviewReadState(result, navigation, retry, onBack);
+  if (state) return state;
   if (!data?.review || !data.revision)
     return (
-      <div className="p-4">
-        {revision === undefined ? (
-          <ReviewEmpty
-            title="Review not found"
-            description="This link does not identify an available review revision."
-          />
-        ) : (
-          <RevisionMissing
-            reviewId={reviewId}
-            context={context}
-            onRevision={onRevision}
-          />
-        )}
-        <Button variant="outline" onClick={onBack}>
-          Back to workspace
-        </Button>
-      </div>
+      <ReviewMissing
+        navigation={navigation}
+        reviewId={reviewId}
+        revision={revision}
+        context={context}
+        onRevision={onRevision}
+        onBack={onBack}
+      />
     );
   return (
     <ReviewRevisionPage
@@ -191,6 +168,87 @@ export function ReviewPage({
       proofCurrent={proofCurrent}
       active={active}
     />
+  );
+}
+
+export function ReviewMissing({
+  navigation,
+  reviewId,
+  revision,
+  context,
+  onRevision,
+  onBack,
+}: Pick<
+  ReviewPageProps,
+  'navigation' | 'reviewId' | 'context' | 'onRevision' | 'onBack'
+> & {
+  revision?: string | number | undefined;
+}) {
+  const query = readReview({ connection: context.connection, reviewId });
+  const result = useAtomValue(query);
+  const retry = useAtomRefresh(query);
+  const latest = Option.getOrUndefined(AsyncResult.value(result))?.review;
+  const state = reviewReadState(result, navigation, retry, onBack);
+  if (state) return state;
+  return (
+    <StateFrame navigation={navigation} title="Review">
+      <StateNotice
+        title={latest ? 'Revision not found' : 'Review not found'}
+        description={
+          latest
+            ? `This review has revisions r1 to r${latest.latestRevision}. This link asks for r${revision}.`
+            : 'This link does not identify an available review.'
+        }
+      >
+        {latest && onRevision && (
+          <Button onClick={() => onRevision(undefined)}>
+            Open r{latest.latestRevision}, the latest
+          </Button>
+        )}
+        <Button variant="outline" onClick={onBack}>
+          Back to workspace
+        </Button>
+      </StateNotice>
+    </StateFrame>
+  );
+}
+
+function reviewReadState(
+  result: AsyncResult.AsyncResult<unknown, unknown>,
+  navigation: ReactNode,
+  retry: () => void,
+  onBack: () => void,
+) {
+  if (AsyncResult.isInitial(result))
+    return <ReviewLoading navigation={navigation} />;
+  if (AsyncResult.isFailure(result))
+    return (
+      <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
+    );
+  return undefined;
+}
+
+function ReviewLoading({ navigation }: Pick<ReviewPageProps, 'navigation'>) {
+  return (
+    <StateFrame navigation={navigation} title="Review">
+      <StateSkeleton label="Loading review" />
+    </StateFrame>
+  );
+}
+
+function ReviewFailure({
+  navigation,
+  retry,
+  onBack,
+}: Pick<ReviewPageProps, 'navigation' | 'onBack'> & { retry: () => void }) {
+  return (
+    <StateFrame navigation={navigation} title="Review">
+      <StateFailure
+        description="Review could not be loaded. Check the link and connection."
+        onRetry={retry}
+        onBack={onBack}
+      />
+    </StateFrame>
   );
 }
 
@@ -605,7 +663,7 @@ function ReviewRevisionPage({
       </header>
       {pullNotice && (
         <div className="px-4 py-2">
-          <ReviewNotice title={pullNotice}>
+          <StateNotice role="status" title={pullNotice}>
             {pull?.kind !== 'loading' && (
               <Button
                 variant="outline"
@@ -616,7 +674,7 @@ function ReviewRevisionPage({
                 Read pull request again
               </Button>
             )}
-          </ReviewNotice>
+          </StateNotice>
         </div>
       )}
       {currentScope && (
@@ -633,9 +691,11 @@ function ReviewRevisionPage({
       )}
       {missingDecision && (
         <div className="px-4 pt-3">
-          <ReviewNotice title="That decision is not in this revision.">
-            The briefing is shown below. Choose another decision or revision.
-          </ReviewNotice>
+          <StateNotice
+            role="status"
+            title="That decision is not in this revision."
+            description="The briefing is shown below. Choose another decision or revision."
+          />
         </div>
       )}
       <Tabs
@@ -1070,35 +1130,6 @@ function FilesMark({
   );
 }
 
-function RevisionMissing({
-  reviewId,
-  context,
-  onRevision,
-}: {
-  reviewId: string;
-  context: ConnectionContext;
-  onRevision: ReviewPageProps['onRevision'];
-}) {
-  const read = useAtomValue(
-    readReview({ connection: context.connection, reviewId }),
-  );
-  const latest = Option.getOrUndefined(AsyncResult.value(read))?.review;
-  if (AsyncResult.isInitial(read)) return <p role="status">Loading review…</p>;
-  return (
-    <>
-      <ReviewEmpty
-        title={latest ? 'Revision not found' : 'Review not found'}
-        description="This link does not identify an available review revision."
-      />
-      {latest && onRevision && (
-        <Button onClick={() => onRevision(undefined)}>
-          Open r{latest.latestRevision}, the latest
-        </Button>
-      )}
-    </>
-  );
-}
-
 function BranchTipNotice({
   scope,
   context,
@@ -1112,7 +1143,10 @@ function BranchTipNotice({
   const data = Option.getOrUndefined(AsyncResult.value(read.result));
   return data && data.head.oid !== headOid ? (
     <div className="px-4 pt-3">
-      <ReviewNotice title="The branch tip differs from this review. Publish a revision to include it." />
+      <StateNotice
+        role="status"
+        title="The branch tip differs from this review. Publish a revision to include it."
+      />
     </div>
   ) : null;
 }

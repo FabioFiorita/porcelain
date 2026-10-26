@@ -52,6 +52,9 @@ export const Route = createFileRoute('/pair')({
 
 function PairRoute() {
   const data = Route.useLoaderData();
+  const pending = Route.useMatch({
+    select: (match) => match.isFetching === 'loader',
+  });
   const router = useRouter();
   useAtomMount(
     pairingLinkChanges(() => {
@@ -60,7 +63,10 @@ function PairRoute() {
   );
   return (
     <DisconnectedPage>
-      {data ? <NotPaired reason={data.reason} /> : <NotPaired />}
+      <NotPaired
+        pending={pending}
+        reason={pending ? undefined : data?.reason}
+      />
     </DisconnectedPage>
   );
 }

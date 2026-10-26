@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
   TooltipTrigger,
@@ -90,9 +91,10 @@ function RouteStatus({
       <Badge variant="secondary">{route.enabled ? 'On' : 'Stopping'}</Badge>
       {status.urls.map((url) => (
         <div key={url} className="flex max-w-full items-center gap-1">
-          <span className="truncate font-mono text-xs text-muted-foreground">
-            {url}
-          </span>
+          <TruncatedText
+            className="font-mono text-xs text-muted-foreground"
+            text={url}
+          />
           <Tooltip>
             <TooltipTrigger
               render={
@@ -308,9 +310,11 @@ function TailnetSettings({
             remove it with tailscale serve --https=443 off.
           </p>
           <div className="flex max-w-full items-center gap-1">
-            <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-              {command}
-            </code>
+            <TruncatedText
+              className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs"
+              render={<code />}
+              text={command}
+            />
             <Tooltip>
               <TooltipTrigger
                 render={

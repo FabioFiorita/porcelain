@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Link } from '@tanstack/react-router';
 import { createPortal } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -54,7 +55,7 @@ import {
   codeCommentMatches,
   codeCommentStale,
 } from '../rules/retained-comments';
-import { ReviewNotice } from './review-notice';
+import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
@@ -442,10 +443,10 @@ function CodeSurface({
             className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-lg border bg-popover/95 px-2.5 py-1 text-xs text-popover-foreground shadow-md"
           >
             <MessageSquarePlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">
-              {basename(selectionAnchor.filePath)} ·{' '}
-              {anchorLabel(selectionAnchor)}
-            </span>
+            <TruncatedText
+              className="pointer-events-auto"
+              text={`${basename(selectionAnchor.filePath)} · ${anchorLabel(selectionAnchor)}`}
+            />
             {selectionAnchor.kind === 'codeRange' &&
               selectionAnchor.comparison?.kind === 'worktree' &&
               selectionAnchor.side !== 'deletions' &&
@@ -621,34 +622,31 @@ function CodeSurface({
                       </p>
                     )}
                     {stale && thread.review && (
-                      <ReviewNotice
+                      <StateNotice
+                        role="status"
                         title="Code changed since this comment"
-                        action={
-                          <Link
-                            to="/reviews/$reviewId/$revision"
-                            params={{
-                              reviewId: thread.review.reviewId,
-                              revision: String(thread.review.revision),
-                            }}
-                            search={(previous) => ({
-                              environment: previous.environment,
-                              decision: undefined,
-                            })}
-                            className={cn(
-                              buttonVariants({
-                                variant: 'outline',
-                                size: 'xs',
-                              }),
-                            )}
-                          >
-                            Open r{thread.review.revision}
-                          </Link>
-                        }
+                        description={`Written on r${thread.review.revision}. Read the original code before acting on this thread.`}
                       >
-                        {thread.review &&
-                          `Written on r${thread.review.revision}. `}
-                        Read the original code before acting on this thread.
-                      </ReviewNotice>
+                        <Link
+                          to="/reviews/$reviewId/$revision"
+                          params={{
+                            reviewId: thread.review.reviewId,
+                            revision: String(thread.review.revision),
+                          }}
+                          search={(previous) => ({
+                            environment: previous.environment,
+                            decision: undefined,
+                          })}
+                          className={cn(
+                            buttonVariants({
+                              variant: 'outline',
+                              size: 'xs',
+                            }),
+                          )}
+                        >
+                          Open r{thread.review.revision}
+                        </Link>
+                      </StateNotice>
                     )}
                     <ThreadCard
                       scope={scope}
@@ -751,12 +749,10 @@ function CodeSurface({
             const entry = byId.get(item.id);
             if (!entry) return null;
             return entry.note ? (
-              <span
-                className="ml-2 hidden max-w-48 truncate font-sans text-xs text-muted-foreground @code-wide/code:block"
-                title={entry.note}
-              >
-                {entry.note}
-              </span>
+              <TruncatedText
+                className="ml-2 hidden max-w-48 font-sans text-xs text-muted-foreground @code-wide/code:block"
+                text={entry.note}
+              />
             ) : null;
           }}
         />

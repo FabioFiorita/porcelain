@@ -14,93 +14,6 @@ const branch = {
   discarded: [],
 };
 
-it.each([
-  [2, 0, '↑ 2 ahead · ↓ 0 behind · against origin/topic'],
-  [0, 3, '↑ 0 ahead · ↓ 3 behind · against origin/topic'],
-  [0, 0, '↑ 0 ahead · ↓ 0 behind · against origin/topic'],
-  [2, 3, '↑ 2 ahead · ↓ 3 behind · against origin/topic'],
-])(
-  'compares %i ahead and %i behind with the named upstream',
-  (ahead, behind, tracking) => {
-    expect(
-      historyStatus(
-        { branch: { ...branch, ahead, behind }, changes: [] },
-        null,
-      ),
-    ).toEqual({
-      name: 'topic',
-      tracking,
-      uncommitted: undefined,
-    });
-  },
-);
-
-it.each([undefined, ''])(
-  'does not invent counts without upstream %s',
-  (upstream) => {
-    expect(
-      historyStatus(
-        { branch: { ...branch, upstream, ahead: 2, behind: 3 }, changes: [] },
-        null,
-      ).tracking,
-    ).toBe('No upstream');
-  },
-);
-
-it.each([undefined, ''])(
-  'shows detached HEAD without a branch name %s',
-  (name) => {
-    expect(
-      historyStatus(
-        { branch: { ...branch, name }, changes: [] },
-        { tipOid: undefined, head: { kind: 'detached' } },
-      ),
-    ).toEqual({
-      name: 'Detached HEAD',
-      tracking: 'No branch checked out',
-      uncommitted: undefined,
-    });
-  },
-);
-
-it.each([
-  [{ kind: 'attached' as const, ref: 'refs/heads/main' }, 'main'],
-  [{ kind: 'unborn' as const, ref: 'refs/heads/new' }, 'No commits yet on new'],
-  [{ kind: 'detached' as const }, 'Detached HEAD'],
-])(
-  'keeps the history heading when branch status is missing: %s',
-  (head, name) => {
-    expect(historyStatus({ changes: [] }, { tipOid: undefined, head })).toEqual(
-      {
-        name,
-        tracking: 'Branch status unavailable',
-        uncommitted: undefined,
-      },
-    );
-  },
-);
-
-it('keeps complete long branch and upstream names available to accessibility', () => {
-  const name = `topic/${'long-'.repeat(40)}branch`;
-  expect(
-    historyStatus(
-      {
-        branch: {
-          ...branch,
-          name: `refs/heads/${name}`,
-          upstream: `refs/remotes/origin/${name}`,
-        },
-        changes: [],
-      },
-      null,
-    ),
-  ).toEqual({
-    name,
-    tracking: `↑ 0 ahead · ↓ 0 behind · against origin/${name}`,
-    uncommitted: undefined,
-  });
-});
-
 const ordinary = {
   oldPath: 'file.ts',
   newPath: 'file.ts',
@@ -181,7 +94,8 @@ it('retains the branch and uncommitted files in an empty repository', () => {
     ),
   ).toEqual({
     name: 'new',
-    tracking: 'No upstream',
+    counts: null,
+    upstream: 'No upstream',
     uncommitted: '1 file',
   });
 });

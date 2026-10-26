@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verificationEnvironment } from '../../verify-core/environment.ts';
 import { buildFingerprint } from '../../verify-core/fingerprint.ts';
-import { _electron } from 'playwright';
+import type { ElectronApplication } from 'playwright';
 import { freePort, onPath } from '../../verify-core/cli.ts';
 import {
   buildIdentity,
@@ -88,7 +88,7 @@ export async function startDesktop(input: {
   const workspace = await realpath(await mkdtemp('/tmp/porcelain-desktop-'));
   const stagedPath = join(input.folder, 'app');
   const profilePath = join(workspace, 'profile');
-  let electron: Awaited<ReturnType<typeof _electron.launch>> | undefined;
+  let electron: ElectronApplication | undefined;
   let child: ReturnType<NonNullable<typeof electron>['process']> | undefined;
   let awake: ReturnType<typeof spawn> | undefined;
   let stopped: Promise<void> | undefined;
@@ -169,6 +169,7 @@ export async function startDesktop(input: {
       `${JSON.stringify(options, null, 2)}\n`,
       { mode: 0o600 },
     );
+    const { _electron } = await import('playwright');
     electron = await _electron.launch(options);
     child = electron.process();
     if (child.pid === undefined)
