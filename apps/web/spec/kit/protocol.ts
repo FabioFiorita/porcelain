@@ -27,6 +27,7 @@ export type RepoStep =
         | 'remove-repository';
       title: string;
       asked?: string | undefined;
+      branch?: string | undefined;
       route?: { path: string; lane: string } | undefined;
     }
   | {
@@ -36,6 +37,7 @@ export type RepoStep =
   | { kind: 'environment-name-fixture'; name: string }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
+  | { kind: 'rename'; from: string; to: string }
   | { kind: 'read'; path: string }
   | { kind: 'commit'; message: string }
   | { kind: 'branch'; name: string }

@@ -16,9 +16,8 @@ test('opening a repository with a linked worktree from the empty workspace after
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await opened
-    .getByRole('button', { name: 'Filter reviews', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
-  await opened.getByRole('menuitem', { name: 'Projects', exact: true }).click();
   await opened
     .getByRole('menuitem', { name: sample.name, exact: true })
     .click();

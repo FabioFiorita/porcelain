@@ -281,7 +281,7 @@ function ReviewWorkspaceContent({
           >
             <section
               aria-label="Review content"
-              className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
             >
               <InterruptedActionNotice scope={scope} context={context} />
               <ConflictGuidance scope={scope} context={context} onOpen={open} />

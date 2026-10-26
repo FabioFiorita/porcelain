@@ -14,14 +14,12 @@ import {
 export function BranchReviewPage({
   scope,
   context,
-  initialView,
   active,
   toolbarTarget,
 }: {
   toolbarTarget?: HTMLElement | null | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
-  initialView?: 'proof';
   active?: boolean | undefined;
 }) {
   const published = usePublishedReview(scope, context);
@@ -60,7 +58,6 @@ export function BranchReviewPage({
         published.refresh();
       }}
       liveScope={scope}
-      initialView={initialView}
     />
   );
 }

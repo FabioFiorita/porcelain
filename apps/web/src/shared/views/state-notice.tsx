@@ -16,7 +16,7 @@ export function StateFrame({
 }) {
   if (!navigation) return children;
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-paper border bg-background">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         {navigation}
         <span className="text-ui font-medium">{title}</span>

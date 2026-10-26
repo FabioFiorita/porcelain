@@ -41,7 +41,7 @@ test('registering a second repository names the project after its folder, lists 
       {
         path,
         main: true,
-        branch: 'refs/heads/trunk',
+        branch: 'trunk',
         available: true,
         status: null,
       },

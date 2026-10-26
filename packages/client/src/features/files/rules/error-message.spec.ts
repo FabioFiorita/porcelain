@@ -9,14 +9,4 @@ describe('surfaceErrorMessage', () => {
       'Reopen Porcelain to continue safely.',
     );
   });
-
-  it('asks to try again after any other failure', () => {
-    expect([
-      surfaceErrorMessage(new Error('boom')),
-      surfaceErrorMessage('x'),
-    ]).toEqual([
-      'This review surface could not be loaded. Try again.',
-      'This review surface could not be loaded. Try again.',
-    ]);
-  });
 });

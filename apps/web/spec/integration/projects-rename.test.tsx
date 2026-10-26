@@ -8,17 +8,14 @@ test('renaming a project in the navigator shows the new name and the server keep
   const project = await server.project();
   const name = 'Browser renamed project';
   await navigator
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await navigator
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   const projectButton = navigator.getByRole('menuitem', {
     name: project.name,
     exact: true,
   });
   await expect.element(projectButton).toBeVisible();
-  await userEvent.keyboard('{ArrowRight}');
+  await userEvent.keyboard('{ArrowDown}');
   await expect.element(projectButton).toHaveFocus();
   await userEvent.keyboard('{ArrowRight}{ArrowDown}');
   await expect
@@ -37,10 +34,7 @@ test('renaming a project in the navigator shows the new name and the server keep
     .fill(name);
   await navigator.getByRole('button', { name: 'Rename', exact: true }).click();
   await navigator
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await navigator
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect
     .element(navigator.getByRole('menuitem', { name, exact: true }))

@@ -13,6 +13,7 @@ selectors:
   - "Look at the diff again before discarding"
 tests:
   - apps/web/spec/integration/git-actions-discard.test.tsx
+  - apps/web/spec/integration/git-actions-discarded-menu.test.tsx
 api:
   - POST /api/worktrees/:worktreeId/git/actions
 ---
@@ -20,6 +21,8 @@ api:
 # git-actions.discard
 
 Discarding a changed file returns it to the last commit and the toast's Restore brings the change back; a file that changed on disk after the discard dialog opened is refused and keeps its newer text.
+
+Discarded hunks and renames remain available in Git actions. Their full-label and description tooltips let one Escape close the menu and return focus to Git actions; reopening the menu still lets the developer restore the discarded change.
 
 ## How to get to it (user POV)
 
@@ -63,6 +66,8 @@ Fresh instance, or after case 1's Restore.
 ### Observable proof
 
 Read disk after discard/restore/refusal. Record action requests including recovery `stash-apply`.
+
+For discarded hunks and renames, open Git actions and focus a restore row with the keyboard, then reveal its description with the pointer. In each case, press Escape once and confirm the menu closes and Git actions regains focus. Repeat with a long path at 1440 and 414, in light and dark, then reopen and restore the change; verify the restored bytes and Git index independently.
 
 Automated coverage: `git-actions-discard.test.tsx`.
 

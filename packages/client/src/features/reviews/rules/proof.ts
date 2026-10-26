@@ -45,14 +45,6 @@ export function proofOnLayer(
   };
 }
 
-export function proofLabel(status: ProofStatus): string {
-  const total = status.failing + status.passing;
-  if (total === 0) return 'no checks';
-  if (status.failing > 0) return `${status.failing} failing`;
-  if (!status.current) return 'outdated';
-  return total === 1 ? 'passed' : `all ${total} passed`;
-}
-
 export function checkResultLabel(result: ProofCheck['result']): string {
   switch (result) {
     case 'fail':

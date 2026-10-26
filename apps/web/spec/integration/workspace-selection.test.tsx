@@ -43,10 +43,7 @@ test('first run offers project registration without inactive search advice', asy
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await app.page
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await app.page
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await app.page
     .getByRole('menuitem', { name: project.name, exact: true })

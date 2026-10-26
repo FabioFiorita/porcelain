@@ -12,16 +12,19 @@ test('the proof an agent published shows its checks and screenshot, with the fai
     ],
     screenshot: 'Saved notice',
   });
+  await workspace
+    .getByRole('button', { name: 'Continue at decision 1', exact: true })
+    .click();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Review', exact: true })
     .click();
   await workspace
-    .getByRole('button', { name: 'Proof · 1 failing', exact: true })
+    .getByRole('button', { name: '1 of 2 checks failing', exact: true })
     .click();
 
-  const proof = workspace.getByRole('region', { name: 'Proof', exact: true });
+  const proof = workspace.getByRole('region', { name: /^Proven at / });
   await expect
     .element(proof.getByRole('alert'))
     .toMatchTextContent('1 check failed');

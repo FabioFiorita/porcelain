@@ -34,7 +34,7 @@ export function commitEntry(commit: CommitSummary) {
     author: commit.author.name,
     time: new Date(commit.author.timestamp).toLocaleString(),
     shortHash: shortOid(commit.oid),
-    refs: shownRefs(commit.refs).map(refLabel),
+    refs: shownRefs(commit.refs),
   };
 }
 export function historyHeading(
@@ -85,13 +85,13 @@ export function branchTracking(
     };
   if (!branch.upstream)
     return {
-      name: refLabel(branch.name),
+      name: branch.name,
       counts: null,
       upstream: 'No upstream',
     };
   return {
-    name: refLabel(branch.name),
+    name: branch.name,
     counts: `${branch.ahead} ahead · ${branch.behind} behind`,
-    upstream: `against ${refLabel(branch.upstream)}`,
+    upstream: `against ${branch.upstream}`,
   };
 }

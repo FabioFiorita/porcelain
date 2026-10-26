@@ -9,7 +9,22 @@ function uncovered(element: Element) {
   return hit !== null && element.contains(hit);
 }
 
+function highlightedLines(locator: Locator) {
+  return [...locator.element().querySelectorAll('diffs-container')].flatMap(
+    (host) => [
+      ...(host.shadowRoot?.querySelectorAll(
+        '[data-code] [data-selected-line]',
+      ) ?? []),
+    ],
+  );
+}
+
 export const reviewLayout = {
+  reviewControlLabels(controls: Locator) {
+    return controls
+      .elements()
+      .map((button) => button.getAttribute('aria-label'));
+  },
   scrollToEnd(locator: Locator) {
     const element = locator.element();
     element.scrollTop = element.scrollHeight;
@@ -48,13 +63,31 @@ export const reviewLayout = {
     const visible = viewport.getBoundingClientRect();
     return chip.left >= visible.left - 1 && chip.right <= visible.right + 1;
   },
+  tabStripResized(locator: Locator) {
+    const viewport = locator
+      .element()
+      .closest('[role="tablist"]')?.parentElement;
+    if (!viewport) throw new Error('The tab has no strip viewport');
+    const width = viewport.clientWidth;
+    return new Promise<void>((resolve) => {
+      const observer = new ResizeObserver(() => {
+        if (viewport.clientWidth === width) return;
+        observer.disconnect();
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      observer.observe(viewport);
+    });
+  },
   titleLines(locator: Locator) {
     const title = locator.element();
     const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);
+    const text = document.createRange();
+    text.selectNodeContents(title);
+    const lines = new Set(Array.from(text.getClientRects(), (box) => box.top));
     return {
       withinThreeLines:
         title.getBoundingClientRect().height <= lineHeight * 3 + 1,
-      clipped: title.scrollHeight > title.clientHeight,
+      clipped: lines.size > 3,
     };
   },
   fitsViewport(locator: Locator) {
@@ -100,5 +133,27 @@ export const reviewLayout = {
         box.right <= window.innerWidth,
       fits: outer.scrollWidth <= outer.clientWidth,
     };
+  },
+  paneWidth(locator: Locator) {
+    return (
+      locator
+        .element()
+        .closest('[aria-label="Review walkthrough"]')
+        ?.getBoundingClientRect().width ?? 0
+    );
+  },
+  hasAnchor(locator: Locator) {
+    return locator.query() !== null;
+  },
+  highlightedCode(locator: Locator) {
+    return highlightedLines(locator)
+      .map((line) => line.textContent)
+      .join('\n');
+  },
+  highlightVisible(locator: Locator) {
+    return highlightedLines(locator).some((line) => {
+      const box = line.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= window.innerHeight;
+    });
   },
 };

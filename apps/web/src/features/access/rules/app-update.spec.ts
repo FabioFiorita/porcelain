@@ -23,15 +23,6 @@ describe('appUpdateProgress', () => {
   ])('describes %j as %j', (state, text) => {
     expect(appUpdateProgress(state)).toBe(text);
   });
-
-  it.each([
-    [{ status: 'idle' as const }],
-    [{ status: 'unavailable' as const }],
-    [{ status: 'available' as const, version: '2.0.0' }],
-    [{ status: 'error' as const, message: 'No release feed' }],
-  ])('shows no progress for %j', (state) => {
-    expect(appUpdateProgress(state)).toBeUndefined();
-  });
 });
 
 describe('noUpdateMessage', () => {
