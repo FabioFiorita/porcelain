@@ -13,9 +13,11 @@ const chipClass = 'h-4 min-w-0 max-w-40';
 
 export function CommitRefs({
   refs,
+  current = () => false,
   onOpenCommit,
 }: {
   refs: readonly string[];
+  current?: (ref: string) => boolean;
   onOpenCommit: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const { row, visibleCount } = useRefChipLayout(refs);
@@ -50,7 +52,7 @@ export function CommitRefs({
           renderTrigger={(label) => (
             <Badge
               render={<button type="button" onClick={onOpenCommit} />}
-              variant="secondary"
+              variant={current(ref) ? 'brand-soft' : 'secondary'}
               className={`${chipClass} pointer-events-auto shrink`}
             >
               {label}
