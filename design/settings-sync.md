@@ -29,6 +29,8 @@ Reuse the existing confirmed-resource, per-connection atom runtime, write queue,
 - Invalid enums, non-booleans, an empty change, negative/fractional/unsafe revisions, missing fields, undefined values and unknown/excess keys return 400 through native schemas and the API's existing strict parse options. No arbitrary preference keys cross the wire.
 - Revision mismatch, including two first imports, returns 409 with `SettingsConflict.current`. Unreachable/request failure, unsupported older servers and access failures remain distinct client states. The sketch's client failure names describe those states; the implementation should reuse existing transport/auth error owners when mapping them.
 
+The existing generic `httpFailure` helper reconstructs message-only errors and cannot retain `current`. The proposed endpoint therefore needs a dedicated 409 wire schema carrying the snapshot, annotated as Conflict and decoded as `SettingsConflict`; keep the generic `RequestError` shape unchanged. The generated endpoint client must preserve that typed error before the generic transport-error mapper.
+
 Use the existing access lane for authorization and the mutation, followed by a committed live notice. The SQLite store alone owns atomic initialization and compare-and-save. Persistence failures remain defects, matching nearby SQLite stores; they must not publish success or a change notice. The domain services each retain one named `execute` and a static Layer, with dependencies supplied through Layers. The sketches omit HTTP composition and event publication bodies deliberately; implementation must keep them in the server use case, not views or the storage adapter.
 
 ## Database migration and first-device import
