@@ -13,10 +13,7 @@ test.for([1280, 414])(
       if (worktree === undefined)
         throw new Error('The project has no main worktree.');
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
-        .click();
-      await page
-        .getByRole('menuitem', { name: 'Projects', exact: true })
+        .getByRole('button', { name: 'Manage projects', exact: true })
         .click();
       const projectButton = page.getByRole('menuitem', {
         name: project.name,
@@ -44,10 +41,7 @@ test.for([1280, 414])(
 
       await expect.element(confirm).not.toBeInTheDocument();
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
-        .click();
-      await page
-        .getByRole('menuitem', { name: 'Projects', exact: true })
+        .getByRole('button', { name: 'Manage projects', exact: true })
         .click();
       await expect.element(projectButton).toBeVisible();
       await expect
@@ -70,10 +64,7 @@ test.for([1280, 414])(
 
       const project = await server.project();
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
-        .click();
-      await page
-        .getByRole('menuitem', { name: 'Projects', exact: true })
+        .getByRole('button', { name: 'Manage projects', exact: true })
         .click();
       const projectButton = page.getByRole('menuitem', {
         name: project.name,

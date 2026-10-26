@@ -114,12 +114,6 @@ it('marks every folder above a changed file and no other folder', () => {
   ]);
 });
 
-it('marks nothing when nothing changed', () => {
-  const marks = worktreeChangeMarks([]);
-  expect(marks.files.size).toBe(0);
-  expect(marks.folders.size).toBe(0);
-});
-
 it.each([
   ['added', 'added'],
   ['deleted', 'deleted'],

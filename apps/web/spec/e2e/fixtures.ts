@@ -27,6 +27,7 @@ import {
   holdNextPost,
   holdNextReviewRead,
   liveRouter,
+  reviewSeenRequests,
 } from './network.ts';
 
 export { expect };
@@ -287,6 +288,7 @@ type TestFixtures = {
     holdNextReviewRead: () => ReturnType<typeof holdNextReviewRead>;
     holdNextPost: (ending: string) => ReturnType<typeof holdNextPost>;
   };
+  seenRequests: ReturnType<typeof reviewSeenRequests>;
   previewRequests: Awaited<ReturnType<typeof capturePreviewRequests>>;
   app: Awaited<ReturnType<typeof appOf>>;
   pairedPage: Page;
@@ -445,6 +447,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       holdNextReviewRead: () => holdNextReviewRead(context),
       holdNextPost: (ending) => holdNextPost(context, ending),
     });
+  },
+  seenRequests: async ({ context }, use) => {
+    await use(reviewSeenRequests(context));
   },
   previewRequests: async ({ context }, use) => {
     await use(await capturePreviewRequests(context));

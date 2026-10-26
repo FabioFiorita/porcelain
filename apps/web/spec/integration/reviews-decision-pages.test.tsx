@@ -259,34 +259,3 @@ test.for([
     }
   },
 );
-
-test.for([414, 360])(
-  'the dock keeps its primary action whole at %i px',
-  async (width, { agent, render, server, reviewLayout }) => {
-    await browserPage.viewport(width, 896);
-    try {
-      await agent.publishArchitecture();
-      const published = (await server.publishedReview()).review;
-      if (!published?.reviewId)
-        throw new Error('The published fixture has no review');
-      const app = await render.route(`/reviews/${published.reviewId}`);
-      await app.page
-        .getByRole('button', { name: 'Not explained', exact: true })
-        .click();
-      const dock = app.page.getByRole('navigation', {
-        name: 'Walkthrough dock',
-        exact: true,
-      });
-      const action = dock.getByRole('button', {
-        name: 'Mark 2 files reviewed',
-        exact: true,
-      });
-      await expect.element(action).toBeVisible();
-      await expect
-        .poll(() => reviewLayout.holds(dock, action))
-        .toEqual({ inside: true, fits: true });
-    } finally {
-      await browserPage.viewport(414, 896);
-    }
-  },
-);

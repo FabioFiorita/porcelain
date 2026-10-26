@@ -46,7 +46,7 @@ done
 1. Navigate to `/`
    Expect: title "Changes — repository".
 2. Click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with Projects and Worktrees menus. Open Projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
+   Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with Manage projects and Filter reviews menus. Open Manage projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
 
 ### Only the browsed repository is registered
 
@@ -58,8 +58,8 @@ done
    Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
 6. Inspect HTTP traffic
    Expect: one `POST /api/projects` with status 200.
-7. Navigate to `/`, then click button `Toggle Sidebar` and open Projects
-   Expect: after the reload Projects still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
+7. Navigate to `/`, then click button `Toggle Sidebar` and open Manage projects
+   Expect: after the reload Manage projects still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
 
 ### Observable proof
 
@@ -69,5 +69,5 @@ Automated coverage: `projects-manual-selection.e2e.ts`.
 
 ## Gotchas
 
-- Open selected leaves the navigator sheet open. Registration persists and changes default workspace selection; remove selected through Filter reviews → Projects → Remove from Porcelain, or reset.
+- Open selected leaves the navigator sheet open. Registration persists and changes default workspace selection; remove selected through Manage projects → Remove from Porcelain, or reset.
 - Use unique folder names: home/repository/state/web already exist in the fixture home.
