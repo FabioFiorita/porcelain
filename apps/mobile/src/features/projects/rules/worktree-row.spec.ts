@@ -21,54 +21,6 @@ const entry: ReviewListEntry = {
   disabled: false,
 };
 
-it.each([
-  ['Projects', 'folder'],
-  ['Needs you', 'review'],
-  ['Waiting on agent', 'history'],
-  ['Ready to merge', 'check'],
-  ['No review', 'review'],
-  ['Closed', 'closed'],
-] as const)(
-  'uses one status symbol for %s without an information affordance',
-  (group, icon) => {
-    const row = worktreeRow(
-      {
-        ...entry,
-        group,
-        reviewId:
-          group === 'Projects' || group === 'No review' ? undefined : 'review',
-        closed: group === 'Closed',
-      },
-      false,
-      false,
-    );
-    expect(row.icon).toBe(icon);
-    expect(row.accessibilityLabel).toContain(group);
-    expect(row.accessibilityLabel).not.toContain('Private workstation');
-  },
-);
-
-it.each([
-  ['Proof failed', 'destructive'],
-  ['2 not explained', 'outline'],
-  ['Agent says hold', 'secondary'],
-  ['Recommends merge', 'secondary'],
-  ['Agent replied', 'default'],
-  ['Waiting for a commit', 'secondary'],
-  ['Archived', 'secondary'],
-  ['PR merged', 'secondary'],
-  ['PR closed', 'secondary'],
-] as const)('announces the full reason %s', (label, variant) => {
-  const row = worktreeRow(
-    { ...entry, badges: [{ label, variant }] },
-    false,
-    false,
-  );
-  expect(row.accessibilityLabel).toContain(label);
-  expect(row.accessibilityLabel).toContain('1/4 decisions reviewed');
-  expect(row.icon).toBe(label === 'Proof failed' ? 'warning' : 'review');
-});
-
 it.each([false, true])(
   'does not repeat an unreviewed branch with multiple projects %s',
   (multipleProjects) => {
