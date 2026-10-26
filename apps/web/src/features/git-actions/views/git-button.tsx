@@ -145,7 +145,10 @@ export function GitButton({
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
-  const primaryTip = primaryTooltip(primary, status);
+  const primaryBlocked =
+    primary.kind === 'run' && primary.action === 'pull' && !ready;
+  const primaryTip =
+    primaryBlocked && pullBlock ? pullBlock : primaryTooltip(primary, status);
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
@@ -189,7 +192,7 @@ export function GitButton({
                       }
                       disabled={
                         (running === null || running === undefined) &&
-                        primary.kind === 'hint'
+                        (primary.kind === 'hint' || primaryBlocked)
                       }
                       focusableWhenDisabled
                       className="aria-disabled:cursor-default"

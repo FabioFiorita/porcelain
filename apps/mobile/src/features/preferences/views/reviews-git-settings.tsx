@@ -24,9 +24,11 @@ import { CommitModelSetting } from './commit-model-setting';
 function ComputerReviewGitSettings({
   connection,
   candidate,
+  candidateReady,
 }: {
   connection: RuntimeConnection;
   candidate: ReviewGitSettings;
+  candidateReady: boolean;
 }) {
   const view = useReviewGitSettings(connection);
   const { save, saving, failure, readAgain } =
@@ -60,6 +62,7 @@ function ComputerReviewGitSettings({
           <Button
             label="Use these settings for this computer"
             pending={saving}
+            disabled={!candidateReady}
             onPress={() => save({ kind: 'initialize', settings })}
           />
         </Box>
@@ -125,7 +128,7 @@ export function ReviewsGitSettings() {
     computers[0];
   return (
     <PreferencesPage>
-      {({ preferences }) => (
+      {({ preferences, disabled }) => (
         <>
           {computers.length > 1 && computer ? (
             <PreferenceChoice
@@ -156,6 +159,7 @@ export function ReviewsGitSettings() {
               key={computer.remote.environmentId}
               connection={computer.connection}
               candidate={preferences.reviewGitSettingsImportCandidate}
+              candidateReady={!disabled}
             />
           ) : null}
           <Box gap={3}>
