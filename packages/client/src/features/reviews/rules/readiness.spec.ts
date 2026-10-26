@@ -90,6 +90,13 @@ describe('readinessItems', () => {
       ['2 comments waiting on the agent', 'attention'],
       ['1 of 2 checks failing', 'failing'],
     ]);
+    expect(items.map((item) => item.value)).toEqual([
+      '1 of 3 reviewed',
+      '1 changed',
+      '3 lines in 1 file',
+      '2 awaiting agent',
+      '1 of 2 failing',
+    ]);
     expect(readinessSummary(items)).toBe('5 things to check');
   });
 
@@ -103,11 +110,13 @@ describe('readinessItems', () => {
     expect(items.find((item) => item.key === 'unexplained')).toEqual({
       key: 'unexplained',
       label: 'No review published',
+      value: 'No review',
       tone: 'attention',
     });
     expect(items.find((item) => item.key === 'checks')).toEqual({
       key: 'checks',
       label: 'No checks attached',
+      value: 'None attached',
       tone: 'attention',
     });
   });
@@ -129,9 +138,15 @@ describe('readinessItems', () => {
       {
         key: 'comments',
         label: '1 comment waiting on the agent',
+        value: '1 awaiting agent',
         tone: 'attention',
       },
-      { key: 'replies', label: '2 comments waiting on you', tone: 'attention' },
+      {
+        key: 'replies',
+        label: '2 comments waiting on you',
+        value: '2 awaiting you',
+        tone: 'attention',
+      },
     ]);
     expect(readinessSummary(items)).toBe('2 things to check');
   });
@@ -146,6 +161,7 @@ describe('readinessItems', () => {
     expect(items.find((item) => item.key === 'checks')).toEqual({
       key: 'checks',
       label: 'Checks ran before the latest changes',
+      value: 'Outdated',
       tone: 'attention',
     });
     expect(readinessSummary(items)).toBe('1 thing to check');

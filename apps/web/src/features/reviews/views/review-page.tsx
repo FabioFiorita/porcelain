@@ -109,6 +109,7 @@ type ReviewPageProps = {
   onDeleted?: (() => void) | undefined;
   liveScope?: ReviewScope | undefined;
   initialView?: 'proof' | undefined;
+  initialStep?: string | undefined;
   proofCurrent?: boolean | undefined;
 };
 
@@ -125,6 +126,7 @@ export function ReviewPage({
   onDeleted,
   liveScope,
   initialView,
+  initialStep,
   proofCurrent = true,
   active = true,
 }: ReviewPageProps) {
@@ -165,6 +167,7 @@ export function ReviewPage({
       onDeleted={onDeleted}
       liveScope={liveScope}
       initialView={initialView}
+      initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
     />
@@ -266,6 +269,7 @@ function ReviewRevisionPage({
   onDeleted,
   liveScope,
   initialView,
+  initialStep,
   proofCurrent = true,
   active = true,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
@@ -338,11 +342,19 @@ function ReviewRevisionPage({
   const [view, setView] = useState<'walkthrough' | 'summary' | 'proof'>(
     initialView ?? 'walkthrough',
   );
-  const [file, setFile] = useState<{
-    path: string;
-    step?: ReviewStep;
-    change?: true;
-  }>();
+  const [file, setFile] = useState<
+    | {
+        path: string;
+        step?: ReviewStep;
+        change?: true;
+      }
+    | undefined
+  >(() => {
+    const step = review.layers
+      .flatMap((layer) => layer.steps)
+      .find((step) => step.id === initialStep);
+    return step ? { path: step.pointer.path, step } : undefined;
+  });
   const standalone = toolbarTarget === undefined;
   const desktop = useDesktopReview();
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
@@ -538,6 +550,13 @@ function ReviewRevisionPage({
             scope={scope}
             context={context}
             marks={marks}
+            activeStop={stop.key}
+            onStep={(step) =>
+              reveal(() => {
+                setView('walkthrough');
+                setFile({ path: step.pointer.path, step });
+              })
+            }
             file={file?.path}
             onFile={(path) =>
               reveal(() => {

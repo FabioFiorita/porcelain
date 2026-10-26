@@ -52,6 +52,7 @@ export function BranchReviewPage({
       active={active}
       reviewId={reviewId}
       revision={selection.revision}
+      initialStep={selection.step}
       context={context}
       onRevision={selection.choose}
       onBack={() => selection.choose(undefined)}
