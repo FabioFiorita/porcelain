@@ -201,3 +201,11 @@ describe('mergeBranchChanges', () => {
     ]);
   });
 });
+
+it('shows why linking a pull request was refused', () => {
+  const error = new Error('The pull request head must be feature.');
+  error.name = 'ReviewPullRequestRefusedError';
+  expect(reviewErrorMessage(error)).toBe(
+    'The pull request head must be feature.',
+  );
+});

@@ -1,3 +1,4 @@
+import { PullRequestBlock } from './pull-request-block';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
 import { useReviewPanelView } from '../store';
@@ -44,6 +45,7 @@ export function RevisionPanel({
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <PullRequestBlock reviewId={revision.reviewId} context={context} />
       <ChangeReadiness
         files={items}
         review={revision.content}

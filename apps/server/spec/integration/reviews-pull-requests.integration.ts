@@ -25,6 +25,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
   const state = {
     mode: 'ok',
     state: 'OPEN',
+    headBranch: (await session.git('branch', '--show-current')).trim(),
     accounts: ['personal', 'work'],
     readable: ['personal', 'work'],
   };
@@ -46,7 +47,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
 } else {
  const pageInfo = { hasNextPage: false };
  const pr = { number: 423, title: 'Fixture PR', url: 'https://github.com/FabioFiorita/porcelain/pull/423', state: fixture.state, isDraft: false,
- author: { login: 'author' }, headRefName: 'feature', updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
+ author: { login: 'author' }, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
  comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [], pageInfo } };
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
 }
@@ -68,7 +69,6 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
           session,
           toolCall(session, 1, 'publish_review', {
             ...sampleReview(session, 0, randomUUID(), randomUUID()),
-            pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
           }),
         ),
       ),
@@ -119,6 +119,86 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     expect(
       await accountViewer.next((notice) => notice.type === 'inventory'),
     ).toEqual({ type: 'inventory' });
+    expect(await request(`${review}/pull-request`)).toEqual({
+      kind: 'not-linked',
+    });
+    const pullRequest = 'https://github.com/FabioFiorita/porcelain/pull/423';
+    await read(
+      session,
+      {
+        method: 'PUT',
+        path: `${review}/pull-request`,
+        auth: 'none',
+        body: { pullRequest },
+      },
+      401,
+    );
+
+    const setPull = (value: string | null, status = 200) =>
+      read(
+        session,
+        {
+          method: 'PUT',
+          path: `${review}/pull-request`,
+          body: { pullRequest: value },
+        },
+        status,
+      );
+    for (const value of [
+      'https://example.com/a/b/pull/1',
+      '',
+      'https://github.com/a/b/pull/0',
+    ])
+      await setPull(value, 400);
+    await setPull('https://github.com/another/repository/pull/423', 409);
+    const branch = state.headBranch;
+    state.headBranch = 'another-branch';
+    await save();
+    expect(await setPull(pullRequest, 409)).toMatchObject({
+      message: `The pull request head must be ${branch}.`,
+    });
+    expect(await request(`${review}/pull-request`)).toEqual({
+      kind: 'not-linked',
+    });
+    state.headBranch = branch;
+    state.mode = 'rate';
+    await save();
+    expect(await setPull(pullRequest)).toEqual({
+      kind: 'unavailable',
+      reason: 'rate-limited',
+    });
+    expect(await request(review)).toMatchObject({
+      review: { branch, latestRevision: 1 },
+    });
+    state.mode = 'ok';
+    await save();
+    expect(await request(`${project}/pull-requests`)).toMatchObject({
+      pullRequests: [{ headBranch: branch }],
+    });
+    const linkingViewer = await session.live();
+    expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
+    expect(
+      await linkingViewer.next((notice) => notice.type === 'inventory'),
+    ).toEqual({ type: 'inventory' });
+    await linkingViewer.close();
+    expect(await request(review)).toMatchObject({
+      review: { pullRequest: pullRequest.toLowerCase(), latestRevision: 1 },
+      revision: { revision: 1 },
+    });
+    state.mode = 'offline';
+    await save();
+    expect(await setPull(null)).toEqual({ kind: 'updated' });
+    expect(await setPull(null)).toEqual({ kind: 'updated' });
+    expect(await request(`${review}/pull-request`)).toEqual({
+      kind: 'not-linked',
+    });
+    expect(await request(review)).toMatchObject({
+      review: { branch, state: 'open', latestRevision: 1 },
+      revision: { revision: 1 },
+    });
+    state.mode = 'ok';
+    await save();
+    expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     expect(await request(`${review}/pull-request`)).toMatchObject({
       kind: 'available',
       account: 'work',
@@ -193,6 +273,11 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       review: { state: 'closed' },
       revision: { revision: 1 },
     });
+    expect(await setPull(null)).toEqual({ kind: 'updated' });
+    expect(await request(review)).toMatchObject({
+      review: { state: 'closed', latestRevision: 1 },
+    });
+    expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     const preview = await request(`${review}/archive`, 'POST', {
       options: archiveOptions,
     });

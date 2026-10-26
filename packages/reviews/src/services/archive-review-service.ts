@@ -1,3 +1,4 @@
+import { normalizedReviewPullRequest } from '../rules/review-publication.ts';
 import { Context, Effect, Layer } from 'effect';
 import type {
   ArchiveReviewRequest,
@@ -14,6 +15,7 @@ export class ArchiveReviewService extends Context.Service<
       input: ArchiveReviewRequest & {
         reviewId: string;
         pullRequestClosed: boolean;
+        observedPullRequest: string | undefined;
         mergedHead?: string | undefined;
         repositoryIdentity: string;
       },
@@ -33,7 +35,12 @@ export class ArchiveReviewService extends Context.Service<
           const record = yield* reviews.readRecord(input);
           const revision = yield* reviews.read(input);
           if (!record || !revision) return yield* new ReviewNotFoundError();
-          if (!record.pullRequest || !input.pullRequestClosed)
+          if (
+            !record.pullRequest ||
+            !input.pullRequestClosed ||
+            normalizedReviewPullRequest(record.pullRequest) !==
+              normalizedReviewPullRequest(input.observedPullRequest)
+          )
             return yield* new ReviewArchiveRefusedError({
               message:
                 'Only reviews with a merged or closed pull request can be archived. Refresh the pull request and retry.',

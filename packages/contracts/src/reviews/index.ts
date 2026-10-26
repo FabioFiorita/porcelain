@@ -115,3 +115,8 @@ export {
   type ReadReviewInterdiffQuery,
 } from './review-comparison.ts';
 export { type ProjectGitHubAccountOverride } from './pull-requests.ts';
+
+export type {
+  SetReviewPullRequestRequest,
+  SetReviewPullRequestResponse,
+} from './pull-requests.ts';

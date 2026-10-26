@@ -123,6 +123,7 @@ export {
   reviewListStatus,
   reviewListTitle,
   reviewPullRequestNotice,
+  pullRequestStateLabel,
   reviewListView,
   reviewListGroups,
   reviewListMeta,

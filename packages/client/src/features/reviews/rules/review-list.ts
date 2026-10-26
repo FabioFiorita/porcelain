@@ -330,3 +330,11 @@ export function reviewListView(
     ],
   };
 }
+
+export function pullRequestStateLabel(pull: {
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+}) {
+  if (pull.state === 'open' && pull.draft) return 'Draft';
+  return { open: 'Open', closed: 'Closed', merged: 'Merged' }[pull.state];
+}

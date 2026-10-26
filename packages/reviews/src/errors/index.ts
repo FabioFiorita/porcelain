@@ -29,3 +29,5 @@ export { InvalidReviewComparisonError } from './invalid-review-comparison-error.
 
 export { GitHubReadError } from './github-read-error.ts';
 export { ReviewArchiveRefusedError } from './review-archive-refused-error.ts';
+
+export { ReviewPullRequestRefusedError } from './review-pull-request-refused-error.ts';

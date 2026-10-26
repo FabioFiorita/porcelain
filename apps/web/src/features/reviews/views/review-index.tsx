@@ -1,3 +1,4 @@
+import { PullRequestBlock } from './pull-request-block';
 import { ReviewNavigation } from './review-navigation';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -107,6 +108,9 @@ export function ReviewIndex({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {review?.reviewId && (
+        <PullRequestBlock reviewId={review.reviewId} context={context} />
+      )}
       <div className="shrink-0 px-2">
         <Tabs
           value={changeScope}
