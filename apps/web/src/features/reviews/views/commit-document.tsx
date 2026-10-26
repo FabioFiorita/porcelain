@@ -9,7 +9,6 @@ import { relativeTime } from '@/shared/lib/relative-time';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CopyIcon, GitBranchIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -91,63 +90,69 @@ export function CommitDocument({
     (file) => (commitEntry(oid, file, patchOf(file)) ?? null) === null,
   );
   const more = commit.files.length - reached.length;
+  const subject = commit.commit.subject || `Commit ${shortOid(oid)}`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <CodeDocument
         toolbar={(collapseControl) => (
-          <DocumentToolbar
-            target={interaction.toolbarTarget}
-            barActions={
-              <>
-                {' '}
-                <BarAction
-                  label="Copy hash"
-                  icon={CopyIcon}
-                  onClick={() => copyText(oid, 'commit id')}
-                />
-                <BarAction
-                  label="Open in graph"
-                  icon={GitBranchIcon}
-                  onClick={() => onOpen({ kind: 'graph' })}
-                />
-              </>
-            }
-            titleLabel={oid}
-            title={<span className="font-mono">{shortOid(oid)}</span>}
-            subtitle={`${commit.files.length} file${commit.files.length === 1 ? '' : 's'} changed`}
-          >
-            {commit.commit.parentOids.length > 1 && (
-              <Tabs
-                value={String(parent)}
-                onValueChange={(value) =>
-                  startTransition(() =>
-                    setParentChoice({
-                      nonce: reveal?.nonce,
-                      parent: Number(value),
-                    }),
-                  )
-                }
-              >
-                <TabsList className="h-7">
-                  {commit.commit.parentOids.map((parentOid, index) => (
-                    <TabsTrigger key={parentOid} value={String(index + 1)}>
-                      {ordinal(index + 1)} parent ·{' '}
-                      <span className="font-mono">{shortOid(parentOid)}</span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            )}
-            <BarAction
-              label="Copy message"
-              icon={CopyIcon}
-              onClick={() =>
-                copyText(commitMessage(commit.commit), 'commit message')
+          <div className="px-3 pt-8">
+            <DocumentToolbar
+              target={interaction.toolbarTarget}
+              barActions={
+                <>
+                  {' '}
+                  <BarAction
+                    label="Copy hash"
+                    icon={CopyIcon}
+                    onClick={() => copyText(oid, 'commit id')}
+                  />
+                  <BarAction
+                    label="Open in graph"
+                    icon={GitBranchIcon}
+                    onClick={() => onOpen({ kind: 'graph' })}
+                  />
+                </>
               }
-            />
-            {collapseControl}
-          </DocumentToolbar>
+              titleLabel={subject}
+              title={
+                <span className="text-2xl leading-tight font-semibold tracking-tight">
+                  {subject}
+                </span>
+              }
+            >
+              {commit.commit.parentOids.length > 1 && (
+                <Tabs
+                  value={String(parent)}
+                  onValueChange={(value) =>
+                    startTransition(() =>
+                      setParentChoice({
+                        nonce: reveal?.nonce,
+                        parent: Number(value),
+                      }),
+                    )
+                  }
+                >
+                  <TabsList className="h-7">
+                    {commit.commit.parentOids.map((parentOid, index) => (
+                      <TabsTrigger key={parentOid} value={String(index + 1)}>
+                        {ordinal(index + 1)} parent ·{' '}
+                        <span className="font-mono">{shortOid(parentOid)}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              )}
+              <BarAction
+                label="Copy message"
+                icon={CopyIcon}
+                onClick={() =>
+                  copyText(commitMessage(commit.commit), 'commit message')
+                }
+              />
+              {collapseControl}
+            </DocumentToolbar>
+          </div>
         )}
         scope={scope}
         context={context}
@@ -191,30 +196,17 @@ function CommitHeader({
   onRetry: () => void;
 }) {
   return (
-    <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
-      <h2 className="text-sm font-semibold">{commit.commit.subject}</h2>
-      {commit.commit.body !== null && commit.commit.body !== undefined && (
-        <p className="mt-1 whitespace-pre-wrap break-words text-caption leading-relaxed text-muted-foreground">
-          {commit.commit.body}
-        </p>
-      )}
-      {commit.commit.bodyTruncated && (
-        <p className="mt-1 text-2xs text-muted-foreground">
-          Commit message truncated
-        </p>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-        {commit.commit !== null && commit.commit !== undefined && (
-          <span>
-            {commit.commit.author.name} ·{' '}
-            {relativeTime(commit.commit.author.timestamp)}
-          </span>
-        )}
-        <span className="font-mono">{oid}</span>
+    <section className="mx-7 mt-1 mb-6 min-w-0">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-ui text-muted-foreground">
+        <TruncatedText
+          text={commit.commit.author.name}
+          className="font-medium text-foreground"
+        />
+        <span>{relativeTime(commit.commit.author.timestamp)}</span>
         {commit.comparison.kind === 'parent' ? (
           <span>
             against{' '}
-            <span className="font-mono">
+            <span className="font-mono text-foreground">
               {shortOid(commit.comparison.baseOid)}
             </span>
             {commit.commit.parentOids.length > 1 &&
@@ -223,12 +215,53 @@ function CommitHeader({
         ) : (
           <span>root commit</span>
         )}
+      </div>
+      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
+        <TruncatedText text={oid} className="font-mono" />
         {shownRefs(commit.commit.refs).map((ref) => (
-          <Badge key={ref} title={ref} variant="secondary" className="h-4">
+          <TruncatedText key={ref} text={ref} className="font-mono">
             {refLabel(ref)}
-          </Badge>
+          </TruncatedText>
         ))}
       </div>
+      {commit.commit.body !== null && commit.commit.body !== undefined && (
+        <p className="mt-3 whitespace-pre-wrap text-ui leading-relaxed wrap-anywhere text-muted-foreground">
+          {commit.commit.body}
+        </p>
+      )}
+      {(commit.commit.subjectTruncated || commit.commit.bodyTruncated) && (
+        <p className="mt-1 text-caption text-muted-foreground">
+          Commit message truncated
+        </p>
+      )}
+      <section aria-label="Files changed" className="mt-7">
+        <p className="border-b pb-1.5 text-xs font-medium tabular-nums">
+          {commit.files.length} file{commit.files.length === 1 ? '' : 's'}{' '}
+          changed
+        </p>
+        <ul
+          className="max-h-64 divide-y overflow-y-auto border-b"
+          aria-label="Changed files"
+        >
+          {commit.files.map((file) => (
+            <li
+              key={pathKey(file)}
+              className="flex min-w-0 items-center gap-2.5 py-2 text-caption"
+            >
+              <span
+                aria-label={file.status}
+                className="w-4 shrink-0 text-center font-mono font-medium text-muted-foreground"
+              >
+                {file.status.slice(0, 1).toUpperCase()}
+              </span>
+              <TruncatedText
+                text={commitPaths(file).join(' → ')}
+                className="font-mono"
+              />
+            </li>
+          ))}
+        </ul>
+      </section>
       {omitted.length > 0 && (
         <OmittedCommitChanges
           changes={omitted}
