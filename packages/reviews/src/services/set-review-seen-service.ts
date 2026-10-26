@@ -20,6 +20,10 @@ export class SetReviewSeenService extends Context.Service<
         execute: Effect.fn('SetReviewSeenService.execute')(function* (input) {
           if ((yield* reviews.read(input)) === undefined)
             return yield* new ReviewNotFoundError();
+          const record = yield* reviews.readRecord(input);
+          if (record === undefined) return yield* new ReviewNotFoundError();
+          if (record.lastSeenRevision >= input.revision)
+            return { updated: false };
           yield* reviews.markSeen(input);
           return { updated: true };
         }),
