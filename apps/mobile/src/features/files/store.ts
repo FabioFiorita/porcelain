@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useAtom } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 
@@ -25,11 +25,8 @@ const navigation = Atom.family((_: string) =>
 );
 
 export function useFileNavigation(workspace: string, retained: boolean) {
-  const atom = useMemo(
-    () => (retained ? navigation(workspace) : Atom.make(initialNavigation())),
-    [workspace, retained],
-  );
-  const [state, set] = useAtom(atom);
+  const [local] = useState(() => Atom.make(initialNavigation()));
+  const [state, set] = useAtom(retained ? navigation(workspace) : local);
   return {
     ...state,
     setExpanded: (

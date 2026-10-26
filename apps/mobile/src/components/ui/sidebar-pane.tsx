@@ -1,14 +1,11 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode } from 'react';
 import Animated, {
-  cancelAnimation,
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { Box } from './box';
-import { transitionSidebar } from '../../shared/rules/sidebar-transition';
 
 export function SidebarPane({
   visible,
@@ -22,27 +19,17 @@ export function SidebarPane({
   reduceMotion: boolean;
 }) {
   const width = compact ? 192 : 256;
-  const extent = useSharedValue(visible ? width : 0);
-  const style = useAnimatedStyle(() => ({ width: extent.get() }));
-  useEffect(() => {
-    transitionSidebar(
-      {
-        stop: () => cancelAnimation(extent),
-        settle: (target) => extent.set(target),
-        animate: (target) =>
-          extent.set(
-            withTiming(target, {
-              duration: 200,
-              easing: Easing.bezier(0.23, 1, 0.32, 1),
-              reduceMotion: ReduceMotion.Never,
-            }),
-          ),
-      },
-      visible,
-      width,
-      reduceMotion,
-    );
-    return () => cancelAnimation(extent);
+  const style = useAnimatedStyle(() => {
+    const target = visible ? width : 0;
+    return {
+      width: reduceMotion ? target : withTiming(target, {
+        duration: 200,
+        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        reduceMotion: ReduceMotion.Never,
+      }),
+    };
+  });
+  return () => cancelAnimation(extent);
   }, [extent, visible, width, reduceMotion]);
   return (
     <Animated.View

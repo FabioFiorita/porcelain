@@ -19,7 +19,6 @@ tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/shared/rules/document-tabs.spec.ts
   - apps/mobile/src/shared/rules/workspace-documents.spec.ts
-  - apps/mobile/src/shared/rules/sidebar-transition.spec.ts
 api: []
 ---
 
@@ -41,7 +40,7 @@ Preconditions: [surface baseline](README.md).
 4. Open Settings with sidebar open: the workspace sidebar hides, and the page bar shows Settings / General plus Close Settings. Close returns to the retained workspace and restores sidebar visibility. Wide: 224-point category pane/full-height divider; narrow: categories above detail. Switch General, Computers, Development; previews and controls stay bounded, without overlapping system controls.
 5. Return to the worktree, switch away/back and cold-launch; inspect its session using [workspace](app.workspace.md).
 
-Automated coverage: `workspace-selection.spec.ts`, `document-tabs.spec.ts`, `workspace-documents.spec.ts`, `sidebar-transition.spec.ts`.
+Automated coverage: `workspace-selection.spec.ts`, `document-tabs.spec.ts`, `workspace-documents.spec.ts`.
 
 ## Gotchas
 
