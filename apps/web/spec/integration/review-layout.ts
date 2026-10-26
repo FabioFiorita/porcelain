@@ -20,6 +20,11 @@ function highlightedLines(locator: Locator) {
 }
 
 export const reviewLayout = {
+  reviewControlLabels(controls: Locator) {
+    return controls
+      .elements()
+      .map((button) => button.getAttribute('aria-label'));
+  },
   scrollToEnd(locator: Locator) {
     const element = locator.element();
     element.scrollTop = element.scrollHeight;

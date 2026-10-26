@@ -5,6 +5,7 @@ test('decision diffs follow the route from the entry point through its owners an
   agent,
   render,
   server,
+  reviewLayout,
 }) => {
   await agent.publishArchitecture();
   const published = (await server.publishedReview()).review;
@@ -23,10 +24,9 @@ test('decision diffs follow the route from the entry point through its owners an
   });
   await expect
     .poll(() =>
-      decision
-        .getByRole('button', { name: /^Mark .+ as reviewed$/u })
-        .elements()
-        .map((button) => button.getAttribute('aria-label')),
+      reviewLayout.reviewControlLabels(
+        decision.getByRole('button', { name: /^Mark .+ as reviewed$/u }),
+      ),
     )
     .toEqual([
       'Mark apps/web/src/revoke-access.ts as reviewed',

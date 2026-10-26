@@ -171,6 +171,8 @@ function RevisionDiffs({
     const reviewed = marks.files.some(
       (item) => item.path === file.path && item.fingerprint === fingerprint,
     );
+    const ReviewIcon = reviewed ? CheckIcon : SquareIcon;
+    const reviewText = reviewed ? 'File reviewed' : 'Mark file reviewed';
     return [
       {
         ...entry,
@@ -213,17 +215,7 @@ function RevisionDiffs({
                   />
                 }
               >
-                {decision ? (
-                  reviewed ? (
-                    <CheckIcon />
-                  ) : (
-                    <SquareIcon />
-                  )
-                ) : reviewed ? (
-                  'File reviewed'
-                ) : (
-                  'Mark file reviewed'
-                )}
+                {decision ? <ReviewIcon /> : reviewText}
               </TooltipTrigger>
               <TooltipContent>
                 {reviewedControlLabel(
