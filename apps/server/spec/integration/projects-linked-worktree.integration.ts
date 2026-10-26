@@ -62,13 +62,13 @@ test('a worktree added with git worktree add is listed beside the main checkout 
     id: session.worktreeId,
     path: session.repository,
     main: true,
-    branch: `refs/heads/${session.fixture.branch}`,
+    branch: session.fixture.branch,
     available: true,
   });
   expect(worktrees.find((worktree) => worktree.main === false)).toMatchObject({
     path: linkedPath(session),
     main: false,
-    branch: `refs/heads/${BRANCH}`,
+    branch: BRANCH,
     available: true,
     status: null,
   });

@@ -19,14 +19,41 @@ for (const width of [1440, 414]) {
         await pairedPage
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
+      if (
+        (await pairedPage
+          .getByRole('button', { name: 'Closed reviews', exact: true })
+          .getAttribute('aria-expanded')) !== 'true'
+      )
+        await pairedPage
+          .getByRole('button', { name: 'Closed reviews', exact: true })
+          .click();
       await pairedPage
-        .getByRole('button', { name: 'Closed reviews', exact: true })
+        .getByRole('button', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        })
         .click();
+      const search = pairedPage.getByRole('searchbox', {
+        name: 'Search reviews and worktrees',
+        exact: true,
+      });
+      await search.fill('Completed archive fixture');
+      await expect(
+        pairedPage.getByText('No matching worktrees', { exact: true }),
+      ).not.toBeAttached();
       const row = pairedPage.getByRole('listitem').filter({
         has: pairedPage.getByRole('link', {
           name: /Completed archive fixture/,
         }),
       });
+      await expect(row).toBeVisible();
+      await expect(
+        pairedPage.getByRole('button', { name: /^No review/ }),
+      ).not.toBeAttached();
+      await expect(
+        pairedPage.getByText('No matching worktrees', { exact: true }),
+      ).not.toBeAttached();
+      await search.fill('');
       const dialog = pairedPage.getByRole('alertdialog', {
         name: 'Archive review?',
         exact: true,
@@ -75,9 +102,14 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage
-    .getByRole('button', { name: 'Closed reviews', exact: true })
-    .click();
+  if (
+    (await pairedPage
+      .getByRole('button', { name: 'Closed reviews', exact: true })
+      .getAttribute('aria-expanded')) !== 'true'
+  )
+    await pairedPage
+      .getByRole('button', { name: 'Closed reviews', exact: true })
+      .click();
   const row = pairedPage.getByRole('listitem').filter({
     has: pairedPage.getByRole('link', { name: /Completed archive fixture/ }),
   });
@@ -118,9 +150,14 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage
-    .getByRole('button', { name: 'Closed reviews', exact: true })
-    .click();
+  if (
+    (await pairedPage
+      .getByRole('button', { name: 'Closed reviews', exact: true })
+      .getAttribute('aria-expanded')) !== 'true'
+  )
+    await pairedPage
+      .getByRole('button', { name: 'Closed reviews', exact: true })
+      .click();
   fixture.unlock();
   fixture.dirty();
   await row.getByRole('button', { name: 'Archive', exact: true }).click();
@@ -145,7 +182,8 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
     name: 'Closed reviews',
     exact: true,
   });
-  if (await closed.isVisible()) await closed.click();
+  if ((await closed.getAttribute('aria-expanded')) !== 'true')
+    await closed.click();
   await expect(
     pairedPage.getByRole('link', {
       name: /Completed archive fixture.*Archived/,

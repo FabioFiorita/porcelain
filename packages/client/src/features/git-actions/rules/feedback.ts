@@ -12,7 +12,7 @@ export function expectationFor(
     headOid: status.headOid ?? undefined,
     inProgress: status.inProgress ?? undefined,
     mergeHeadOid: status.mergeHeadOid ?? undefined,
-    branch: status.branch?.name?.replace(/^refs\/heads\//, '') ?? undefined,
+    branch: status.branch?.name ?? undefined,
     ...(upstreamOid !== undefined ? { upstreamOid } : {}),
     ...(includeFiles
       ? {

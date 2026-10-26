@@ -3,8 +3,8 @@ import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import { historyStatus } from './status';
 
 const branch = {
-  name: 'refs/heads/topic',
-  upstream: 'refs/remotes/origin/topic',
+  name: 'topic',
+  upstream: 'origin/topic',
   ahead: 0,
   behind: 0,
   remoteName: 'origin',
@@ -87,7 +87,7 @@ it('retains the branch and uncommitted files in an empty repository', () => {
   expect(
     historyStatus(
       {
-        branch: { ...branch, name: 'refs/heads/new', upstream: undefined },
+        branch: { ...branch, name: 'new', upstream: undefined },
         changes: [{ scope: 'untracked', path: 'first.ts' }],
       },
       { tipOid: undefined, head: { kind: 'unborn', ref: 'refs/heads/new' } },

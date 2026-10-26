@@ -29,6 +29,7 @@ import {
 export function WalkthroughDock({
   label,
   shortLabel,
+  compactLabel,
   stops,
   current,
   onGo,
@@ -38,6 +39,7 @@ export function WalkthroughDock({
 }: {
   label: string;
   shortLabel: string;
+  compactLabel: string;
   stops: readonly WalkthroughStop[];
   current: WalkthroughKey;
   onGo: (key: WalkthroughKey) => void;
@@ -49,7 +51,7 @@ export function WalkthroughDock({
     <div className="flex justify-center pt-4">
       <nav
         aria-label="Walkthrough dock"
-        className="pointer-events-auto flex max-w-full min-w-0 items-center gap-1 rounded-full border bg-background p-1.5 shadow-lg"
+        className="pointer-events-auto flex max-w-full min-w-0 items-center gap-0 rounded-full border bg-background p-1 @md/review:gap-1 @md/review:p-1.5 shadow-lg"
       >
         <DockStep
           label="Previous stop"
@@ -67,16 +69,25 @@ export function WalkthroughDock({
               <Button
                 variant="ghost"
                 size="sm"
-                className="min-w-0 shrink"
+                className="min-w-0 shrink-0 @md/review:shrink"
                 aria-label={`${label}, jump to a stop`}
               />
             }
           >
-            <TruncatedText className="min-w-0 tabular-nums" text={label}>
-              <span className="@2xl/review:hidden">{shortLabel}</span>
+            <TruncatedText
+              className="min-w-0 tabular-nums"
+              text={`${label}, jump to a stop`}
+            >
+              <span className="@md/review:hidden">{compactLabel}</span>
+              <span className="hidden @md/review:inline @2xl/review:hidden">
+                {shortLabel}
+              </span>
               <span className="hidden @2xl/review:inline">{label}</span>
             </TruncatedText>
-            <ChevronDownIcon data-icon="inline-end" />
+            <ChevronDownIcon
+              className="hidden @md/review:block"
+              data-icon="inline-end"
+            />
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top">
             {stops.map((stop) => (
