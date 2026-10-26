@@ -271,6 +271,12 @@ function ReviewNavigationList({
                 {files.map((file) => (
                   <Item
                     key={file.path}
+                    {...(!inlineOverview
+                      ? {
+                          titleNumberOfLines: 1,
+                          descriptionNumberOfLines: 1,
+                        }
+                      : {})}
                     title={
                       inlineOverview
                         ? file.path

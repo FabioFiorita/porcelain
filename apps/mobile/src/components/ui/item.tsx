@@ -16,6 +16,7 @@ export type ItemProps = {
   title: string;
   description?: string;
   titleNumberOfLines?: number;
+  descriptionNumberOfLines?: number;
   titleTrailing?: ReactNode;
   detail?: string;
   leading?: ReactNode;
@@ -35,6 +36,7 @@ export function Item({
   title,
   description,
   titleNumberOfLines,
+  descriptionNumberOfLines,
   titleTrailing,
   detail,
   leading,
@@ -93,7 +95,11 @@ export function Item({
           </Text>
         )}
         {description ? (
-          <Text variant="caption" tone="muted">
+          <Text
+            variant="caption"
+            tone="muted"
+            numberOfLines={descriptionNumberOfLines}
+          >
             {description}
           </Text>
         ) : null}
