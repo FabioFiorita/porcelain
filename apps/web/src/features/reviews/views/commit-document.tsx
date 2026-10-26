@@ -20,7 +20,7 @@ import {
   type CommitFile,
   type CommitFiles,
 } from '@porcelain/client/history/rules';
-import { refLabel, shortOid, shownRefs } from '@porcelain/client/history/rules';
+import { shortOid, shownRefs } from '@porcelain/client/history/rules';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
@@ -225,7 +225,7 @@ function CommitHeader({
         )}
         {shownRefs(commit.commit.refs).map((ref) => (
           <Badge key={ref} title={ref} variant="secondary" className="h-4">
-            {refLabel(ref)}
+            {ref}
           </Badge>
         ))}
       </div>

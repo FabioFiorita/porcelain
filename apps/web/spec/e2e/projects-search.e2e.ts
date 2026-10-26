@@ -17,18 +17,14 @@ for (const width of [1440, 414]) {
         .poll(async () => {
           const project = await server.project();
           return names.every((name) =>
-            project.worktrees.some(
-              (row) => row.branch === `refs/heads/${name}`,
-            ),
+            project.worktrees.some((row) => row.branch === name),
           );
         })
         .toBe(true);
       const project = await server.project();
       const computer = (await server.inventory()).environment.name;
       const targets = names.map((name) => {
-        const worktree = project.worktrees.find(
-          (row) => row.branch === `refs/heads/${name}`,
-        );
+        const worktree = project.worktrees.find((row) => row.branch === name);
         if (!worktree) throw new Error(`Missing checkout ${name}`);
         return worktree;
       });
@@ -152,9 +148,7 @@ test('the flat worktree menu searches checkouts without reviews and selects the 
   await repo.worktree(branch);
   await app.reload();
   const project = await server.project();
-  const target = project.worktrees.find(
-    (row) => row.branch === `refs/heads/${branch}`,
-  );
+  const target = project.worktrees.find((row) => row.branch === branch);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -212,7 +206,7 @@ for (const width of [1280, 414]) {
     await pairedPage.setViewportSize({ width, height: 896 });
     const project = await server.project();
     const target = project.worktrees.find(
-      (row) => row.branch === 'refs/heads/menu-dismissal',
+      (row) => row.branch === 'menu-dismissal',
     );
     if (width === 414)
       await pairedPage
@@ -330,7 +324,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .getByRole('menuitemradio', { name: /other-workspace/ })
     .click();
   const other = project.worktrees.find(
-    (row) => row.branch === 'refs/heads/other-workspace',
+    (row) => row.branch === 'other-workspace',
   );
   await expect
     .poll(() => app.address().path)
@@ -344,12 +338,10 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await pairedPage
     .getByRole('menuitem', { name: 'Worktrees', exact: true })
     .click();
-  await search.fill(current?.branch?.replace('refs/heads/', '') ?? 'missing');
+  await search.fill(current?.branch ?? 'missing');
   await pairedPage
     .getByRole('menuitemradio', {
-      name: new RegExp(
-        current?.branch?.replace('refs/heads/', '') ?? 'missing',
-      ),
+      name: new RegExp(current?.branch ?? 'missing'),
     })
     .click();
   await expect.poll(() => app.address().path).toBe(original);
@@ -380,7 +372,7 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} ${main.branch?.replace('refs/heads/', '')}`;
+  const meta = `${project.name} ${main.branch}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -409,7 +401,7 @@ test('Projects pins main checkouts, No review keeps other checkouts, and search 
     exact: true,
   });
   await search.fill(
-    `${project.name} ${inventory.environment.name} ${main.branch?.replace('refs/heads/', '')}`,
+    `${project.name} ${inventory.environment.name} ${main.branch}`,
   );
   await expect(mainRow).toBeVisible();
   await expect(topicRow).not.toBeAttached();

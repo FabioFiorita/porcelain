@@ -47,12 +47,15 @@ export function networkInput(
 ): ActionInput {
   if (!branch?.name)
     throw new Error('Check out a branch before using the remote.');
-  const name = branch.name.replace(/^refs\/heads\//, '');
   if (action === 'fetch' || action === 'pull') {
     if (!branch?.upstream || !branch.remoteName || !branch.sourceRef)
       throw new Error('Configure an upstream branch first.');
-    const upstream = `${branch.remoteName}/${branch.sourceRef.replace(/^refs\/heads\//, '')}`;
-    if (upstream !== branch.upstream)
+    const remotePrefix = `${branch.remoteName}/`;
+    if (
+      !branch.upstream.startsWith(remotePrefix) ||
+      branch.sourceRef !==
+        `refs/heads/${branch.upstream.slice(remotePrefix.length)}`
+    )
       throw new Error(
         'The configured upstream changed. Review it and try again.',
       );
@@ -69,7 +72,7 @@ export function networkInput(
       strategy,
     };
   }
-  const ref = branch.sourceRef ?? `refs/heads/${name}`;
+  const ref = branch.sourceRef ?? `refs/heads/${branch.name}`;
   const remoteName = branch.remoteName ?? 'origin';
   return {
     action,

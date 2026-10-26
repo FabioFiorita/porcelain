@@ -68,7 +68,7 @@ describe('inventoryReport', () => {
               id: 'w1',
               path: '/srv/w1',
               main: true,
-              branch: 'refs/heads/main',
+              branch: 'main',
               available: true,
               status: undefined,
             },
@@ -83,7 +83,7 @@ describe('inventoryReport', () => {
               id: 'w2',
               path: '/srv/w2',
               main: true,
-              branch: 'refs/heads/main',
+              branch: 'main',
               available: true,
               status: 'pending',
             },
@@ -127,7 +127,7 @@ describe('registeredProjectReport', () => {
           id: 'w2',
           path: '/srv/w2',
           main: true,
-          branch: 'refs/heads/main',
+          branch: 'main',
           available: true,
           status: undefined,
         },
@@ -144,3 +144,40 @@ describe('registeredProjectReport', () => {
     });
   });
 });
+
+it.each([
+  ['refs/heads/main', 'main'],
+  ['refs/heads/topic/nested', 'topic/nested'],
+  ['topic/nested', 'topic/nested'],
+  ['refs/heads/topic/refs/heads/nested', 'topic/refs/heads/nested'],
+  ['refs/heads/refs/tags/release', 'refs/tags/release'],
+  ['refs/tags/release', 'refs/tags/release'],
+  [
+    'refs/heads/' + 'long-'.repeat(40) + 'branch',
+    'long-'.repeat(40) + 'branch',
+  ],
+  ['', ''],
+  [undefined, undefined],
+] as const)(
+  'reports branch %s as %s on registration and inventory',
+  (branch, expected) => {
+    const listings = [
+      listing('first', [{ ...worktree('w1', 'first'), branch }]),
+    ];
+    const registered = project('first', 1);
+    const inventory = inventoryReport(
+      'environment',
+      { projects: [registered] },
+      listings,
+      new Map(),
+    );
+    const registration = registeredProjectReport(
+      registered,
+      listings,
+      new Map(),
+    );
+    expect(inventory.projects[0]?.worktrees[0]?.branch).toBe(expected);
+    expect(registration.worktrees[0]?.branch).toBe(expected);
+    expect(listings[0]?.worktrees[0]?.branch).toBe(branch);
+  },
+);
