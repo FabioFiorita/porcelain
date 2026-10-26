@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  checkoutFolder,
   reviewArchivable,
   reviewClosed,
   emptyReviewListFilter,
@@ -11,6 +12,7 @@ import {
   reviewListMeta,
   reviewListSignal,
   reviewListRowContext,
+  reviewListCheckout,
   reviewListView,
   reviewListOptions,
   reviewListFilterItems,
@@ -185,6 +187,7 @@ const entry: ReviewListEntry = {
   path: '/code/feature',
   reviewId: 'review',
   branch: 'feature',
+  detached: false,
   title: 'Shared reviews',
   group: 'Needs you',
   closed: false,
@@ -368,6 +371,49 @@ it('uses one status indicator, prioritizing failed proof while keeping secondary
   expect(
     reviewListSignal({ ...entry, reviewId: undefined, badges: [] }),
   ).toBeUndefined();
+});
+
+it.each([
+  [
+    '/home/dev/code/porcelain-worktrees/qa-531',
+    'qa-531',
+    '/home/dev/code/porcelain-worktrees',
+  ],
+  [
+    '/home/dev/code/porcelain-worktrees/qa-532/',
+    'qa-532',
+    '/home/dev/code/porcelain-worktrees',
+  ],
+  ['C:\\worktrees\\qa-533', 'qa-533', 'C:\\worktrees'],
+  ['/qa-534', 'qa-534', '/'],
+  ['qa-535', 'qa-535', undefined],
+])(
+  'names the detached checkout at %s by its folder before its parent path',
+  (path, name, parent) => {
+    const detached = {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      branch: 'Detached HEAD',
+      detached: true,
+      path,
+    };
+    expect(checkoutFolder(path)).toEqual({ name, parent });
+    expect(reviewListCheckout(detached)).toEqual({ name, parent, full: path });
+    expect(reviewListRowContext(detached, false)).toEqual({
+      project: 'Porcelain',
+      branch: undefined,
+      location: parent,
+    });
+  },
+);
+
+it('keeps the branch as the label of an attached checkout', () => {
+  expect(reviewListCheckout(entry)).toEqual({
+    name: 'feature',
+    parent: undefined,
+    full: 'feature',
+  });
 });
 
 it('adds project context only for multiple visible projects and avoids repeating unreviewed branches', () => {

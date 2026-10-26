@@ -918,6 +918,87 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...[
+    ['"Save"', 'Save', 'Delete'],
+    ["{'Save'}", "{'Save'}", "{'Delete'}"],
+    ['{`Save`}', '{`Save`}', '{`Delete`}'],
+    [
+      '"Save file"',
+      '<span>Save</span>{" "}<strong>file</strong>',
+      '<span>Delete file</span>',
+    ],
+    ['"Save"', 'Save <Kbd>{shortcut}</Kbd>', 'Delete <Kbd>{shortcut}</Kbd>'],
+    [
+      '"Save"',
+      'Save <KbdGroup><Kbd>S</Kbd></KbdGroup>',
+      'Delete <KbdGroup><Kbd>S</Kbd></KbdGroup>',
+    ],
+  ].map(([label, valid, invalid]) => ({
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/shared/workspace/save-control.tsx',
+    valid: `import { Button as Action } from '@/components/ui/button'; import * as Tip from '@/components/ui/tooltip'; import { Kbd, KbdGroup } from '@/components/ui/kbd'; export const control = <Tip.Tooltip><Tip.TooltipTrigger render={<Action size="icon" aria-label=${label} />} /><Tip.TooltipContent>${valid}</Tip.TooltipContent></Tip.Tooltip>;`,
+    invalid: `import { Button as Action } from '@/components/ui/button'; import * as Tip from '@/components/ui/tooltip'; import { Kbd, KbdGroup } from '@/components/ui/kbd'; export const control = <Tip.Tooltip><Tip.TooltipTrigger render={<Action size="icon" aria-label=${label} />} /><Tip.TooltipContent>${invalid}</Tip.TooltipContent></Tip.Tooltip>;`,
+    errors: 1,
+  })),
+  ...[
+    ['{label}', 'Save'],
+    ['"Save"', '{label}'],
+    ['"Save"', '<span>{label}</span>'],
+    ['"Save"', 'Save<DynamicDescription />'],
+    ['"Save"', '  Save  '],
+    ['"Save"', '<>Save</>'],
+  ].map(([label, content]) => ({
+    rule: 'web-icon-button-tooltip',
+    path: 'apps/web/src/features/files/views/save-control.tsx',
+    valid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size="icon" aria-label=${label} />} /><TooltipContent>${content}</TooltipContent></Tooltip>;`,
+    invalid: `import { Button } from '@/components/ui/button'; import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'; export const control = <Tooltip><TooltipTrigger render={<Button size="icon" aria-label="Save" />} /><TooltipContent>Delete</TooltipContent></Tooltip>;`,
+    errors: 1,
+  })),
+  ...[
+    '<span className="truncate">path</span>',
+    '<span className={cn("min-w-0", "truncate")}>path</span>',
+    '<span className={compact ? "truncate" : "block"}>path</span>',
+    '<span className={`min-w-0 truncate ${style}`}>path</span>',
+    '<span className="md:truncate">path</span>',
+    '<span className="[&>span]:truncate"><span>path</span></span>',
+    'const labelClass = "min-w-0 truncate"; <span className={labelClass}>path</span>;',
+    '<span className={cn({ truncate: compact })}>path</span>',
+    'const labelClass = `truncate ${style}`; <span className={labelClass}>path</span>;',
+    '<span className="!truncate">path</span>',
+    '<span className="truncate!">path</span>',
+  ].flatMap((invalid) =>
+    [
+      'apps/web/src/features/files/views/file-label.tsx',
+      'apps/web/src/app/file-label.tsx',
+      'apps/web/src/shared/views/file-label.tsx',
+    ].map((path) => ({
+      rule: 'web-truncated-text',
+      path,
+      valid: `import { TruncatedText } from '@/shared/views/truncated-text'; export const label = <TruncatedText text={path} />;`,
+      invalid,
+      errors: 1,
+    })),
+  ),
+  ...[
+    'apps/web/src/shared/views/truncated-text.tsx',
+    'apps/web/src/components/ui/sidebar.tsx',
+    'apps/mobile/src/features/files/views/file-label.tsx',
+  ].map((validPath) => ({
+    rule: 'web-truncated-text',
+    path: 'apps/web/src/features/files/views/file-label.tsx',
+    validPath,
+    valid: '<span className="truncate">path</span>',
+    invalid: '<span className="truncate">path</span>',
+    errors: 1,
+  })),
+  {
+    rule: 'web-truncated-text',
+    path: 'apps/web/src/shared/views/file-label.tsx',
+    valid:
+      'const value = "truncate"; export const label = <span aria-label="truncate" className="text-ellipsis">{value}</span>;',
+    invalid: '<span className="truncate">path</span>',
+    errors: 1,
+  },
   ...['icon', 'icon-sm', 'icon-xs', 'icon-lg'].flatMap((size) =>
     [
       `<Button size="${size}" aria-label="Save"><SaveIcon /></Button>`,
@@ -1674,6 +1755,12 @@ export const saveBoth = Atom.writable(
     'apps/web/spec/integration/sample.test.tsx',
     'apps/web/spec/e2e/sample.e2e.ts',
     'apps/desktop/spec/e2e/sample.e2e.ts',
+    'apps/web/spec/kit/sample.ts',
+    'apps/mobile/spec/kit/sample.ts',
+    'apps/server/spec/fakes/sample.ts',
+    '.agents/skills/spec/integration/sample.integration.ts',
+    'apps/web/src/features/files/views/sample.test.tsx',
+    'apps/mobile/src/features/files/rules/sample.test.ts',
   ].flatMap((path) => [
     ...[
       ['Date.now();', 1],
@@ -1697,11 +1784,10 @@ export const saveBoth = Atom.writable(
       errors,
     })),
     ...[
-      'apps/web/spec/kit/sample.ts',
-      'apps/desktop/spec/kit/sample.ts',
-      'apps/server/spec/kit/sample.ts',
-      'apps/mobile/spec/kit/sample.ts',
       'apps/web/src/features/files/commands/sample.ts',
+      'architecture/spec-gaps.mjs',
+      'apps/mobile/spec/kit/metro.ts',
+      'apps/server/spec/fakes/scripted-service-update-runner.ts',
     ].map((validPath) => ({
       rule: 'spec-no-clock',
       path,
@@ -1851,7 +1937,7 @@ export const saveBoth = Atom.writable(
     errors: 3,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid:
       'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10));',
@@ -1859,7 +1945,7 @@ export const saveBoth = Atom.writable(
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid:
       'new Promise((resolve, reject) => setTimeout(() => reject(new Error("deadline")), 10)); new Promise(r => setTimeout(() => notify(), 10));',
@@ -1867,6 +1953,44 @@ export const saveBoth = Atom.writable(
       'new Promise((r) => setTimeout(() => r(undefined), 10)); new Promise((resolve) => setTimeout(() => { resolve(); }, 10)); new Promise((resolve) => setTimeout(function () { return resolve(); }, 10));',
     errors: 3,
   },
+  ...[
+    'packages/git/src/history/commands/sample.spec.ts',
+    'apps/web/src/features/files/views/sample.test.tsx',
+    'apps/desktop/spec/e2e/fixtures.ts',
+    'apps/mobile/spec/kit/sample.ts',
+    '.agents/skills/spec/integration/sample.integration.ts',
+  ].map((path) => ({
+    rule: 'spec-no-waits',
+    path,
+    valid: 'await expect.poll(() => existsSync(marker)).toBe(true);',
+    invalid:
+      "import { setTimeout as sleep } from 'node:timers/promises'; await new Promise((resolve) => setTimeout(resolve, 10)); await sleep(10); await Effect.runPromise(Effect.sleep('50 millis'));",
+    errors: 3,
+  })),
+  ...[
+    "import { TestClock } from 'effect/testing';",
+    "import * as TestClock from 'effect/testing/TestClock';",
+  ].map((clock) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/features/projects/commands/sample.spec.ts',
+    valid: `${clock} const fiber = Effect.runFork(Effect.sleep('1 second')); await Effect.runPromise(TestClock.adjust('1 second'));`,
+    invalid: `import { TestServices } from 'effect/testing'; const fiber = Effect.runFork(Effect.sleep('1 second'));`,
+    errors: 1,
+  })),
+  ...[
+    'apps/web/src/features/files/commands/sample.ts',
+    'apps/mobile/spec/kit/simulator.ts',
+    'apps/server/spec/fakes/scripted-service-update-runner.ts',
+    'apps/web/spec/integration/sample.test.tsx',
+  ].map((validPath) => ({
+    rule: 'spec-no-waits',
+    path: 'apps/server/spec/fakes/sample.ts',
+    validPath,
+    valid:
+      "import { setTimeout as sleep } from 'node:timers/promises'; await sleep(10); await Effect.runPromise(Effect.sleep('50 millis'));",
+    invalid: "await Effect.runPromise(Effect.sleep('50 millis'));",
+    errors: 1,
+  })),
   {
     rule: 'spec-no-mocking',
     path: 'packages/client/src/rules/sample.spec.ts',
@@ -1909,21 +2033,21 @@ export const saveBoth = Atom.writable(
     errors: 2,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/integration/sample.integration.ts',
     valid: 'await connection.next(notice => notice.type === "subscribed");',
     invalid: 'await delay(600);',
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/src/adapters/sample.spec.ts',
     valid: 'await expect.poll(() => pipeHasReader(head)).toBe(true);',
     invalid: 'await Effect.sleep(300);',
     errors: 1,
   },
   {
-    rule: 'server-spec-no-waits',
+    rule: 'spec-no-waits',
     path: 'apps/server/spec/kit/sample.ts',
     valid: 'await once(child, "exit");',
     invalid:

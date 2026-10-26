@@ -77,13 +77,13 @@ export function branchTracking(
       counts: null,
       upstream: 'Branch status unavailable',
     };
-  if (branch.name === null || branch.name === undefined)
+  if (!branch.name)
     return {
       name: 'Detached HEAD',
       counts: null,
       upstream: 'No branch checked out',
     };
-  if (branch.upstream === null || branch.upstream === undefined)
+  if (!branch.upstream)
     return {
       name: refLabel(branch.name),
       counts: null,

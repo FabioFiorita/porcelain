@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Empty,
   EmptyDescription,
@@ -51,9 +52,10 @@ export function FileTimeline({
                 onSelect({ oid: entry.commit.oid, path: entry.path }, true),
             }}
           >
-            <span className="truncate text-2xs text-muted-foreground">
-              {timelineChange(entry, path)}
-            </span>
+            <TruncatedText
+              className="text-2xs text-muted-foreground"
+              text={timelineChange(entry, path)}
+            />
           </CommitRow>
         </li>
       ))}

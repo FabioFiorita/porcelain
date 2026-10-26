@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -161,7 +162,7 @@ function PublishedNavigation({
                   {stop.kind === 'decision' && (
                     <span>{reviewed ? '✓' : stop.number}</span>
                   )}
-                  <span className="truncate">{stopName(stop)}</span>
+                  <TruncatedText text={stopName(stop)} />
                   {stop.kind !== 'briefing' && (
                     <span className="text-xs text-muted-foreground">
                       {progress.reviewed}/{progress.total}

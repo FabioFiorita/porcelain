@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { Fragment } from 'react';
@@ -106,9 +107,10 @@ export function ProjectFolderPicker({
           }}
         >
           {disabled && <Spinner />}
-          <span className="max-w-36 truncate">
-            Open {current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}
-          </span>
+          <TruncatedText
+            className="max-w-36"
+            text={`Open ${current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`}
+          />
         </Button>
       </div>
     </section>

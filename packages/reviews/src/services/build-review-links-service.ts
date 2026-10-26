@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from 'effect';
 import type { Review } from '../models/review.ts';
 import type {
   ReviewLinks,
-  ReviewLinkHosts,
+  ReviewLinkRoutes,
 } from '../models/review-management.ts';
 
 export class BuildReviewLinksService extends Context.Service<
@@ -11,7 +11,7 @@ export class BuildReviewLinksService extends Context.Service<
     readonly execute: (input: {
       review: Review;
       environmentId: string;
-      hosts: ReviewLinkHosts;
+      routes: ReviewLinkRoutes;
     }) => Effect.Effect<ReviewLinks>;
   }
 >()('@porcelain/reviews/BuildReviewLinksService') {
@@ -20,30 +20,31 @@ export class BuildReviewLinksService extends Context.Service<
     Effect.sync(() => ({
       execute: Effect.fn('BuildReviewLinksService.execute')((input) =>
         Effect.sync(() => {
-          const { review, hosts } = input;
-          const localHost = hosts.localHost.includes(':')
-            ? `[${hosts.localHost}]`
-            : hosts.localHost;
-          const host =
-            hosts.cloudflare ??
-            (hosts.tailnet === undefined
-              ? `${localHost}:${hosts.localPort}`
-              : `${hosts.tailnet}${hosts.tailnetPort === undefined || hosts.tailnetPort === 443 ? '' : `:${hosts.tailnetPort}`}`);
+          const { review, routes } = input;
+          const origin = routes.origins[0];
+          if (origin === undefined)
+            return {
+              kind: 'unavailable' as const,
+              reason: 'no-reachable-route' as const,
+            };
+          const route = new URL(origin);
           const link = (revision?: number, decision?: string) => {
             const path = `/reviews/${review.reviewId}${revision === undefined ? '' : `/${revision}`}${decision === undefined ? '' : `/decisions/${decision}`}`;
             const app = new URL(
               `/open/reviews/${review.reviewId}`,
-              input.hosts.hubOrigin,
+              input.routes.hubOrigin,
             );
             app.searchParams.set('environment', input.environmentId);
-            app.searchParams.set('host', host);
+            app.searchParams.set('host', route.host);
+            app.searchParams.set('protocol', route.protocol.slice(0, -1));
             if (revision !== undefined)
               app.searchParams.set('revision', String(revision));
             if (decision !== undefined)
               app.searchParams.set('decision', decision);
-            return { web: `https://${host}${path}`, app: app.toString() };
+            return { web: `${route.origin}${path}`, app: app.toString() };
           };
           return {
+            kind: 'available' as const,
             ...link(),
             revision: link(review.revision),
             decisions: review.layers.map((layer) => ({

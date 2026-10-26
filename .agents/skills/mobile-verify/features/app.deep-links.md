@@ -24,14 +24,14 @@ Development scheme and public HTTPS links open the requested destination through
 ## How to get to it (user POV)
 
 - `porcelain.dev://` (Files), `://files`, `://review`, `://history`, `://settings`; use the full scheme for each.
-- Public HTTPS `/open/reviews/<reviewId>` with environment, host and optional revision/decision.
+- Public HTTPS `/open/reviews/<reviewId>` with environment, host, protocol (http or https) and optional revision/decision.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
 1. Open `porcelain.dev://history`, `porcelain.dev://settings`, `porcelain.dev://` and `porcelain.dev://review`. Expect History, Settings, Files and Review respectively, with the matching selected tab/sidebar. In Settings open Computers and confirm pairing. Cold-launch into History and confirm that destination.
-2. Publish a committed review through the fixture CLI. Deliver `/open/reviews/<reviewId>?environment=<environmentId>&host=<host>` with optional `revision` and `decision`. On Android use a VIEW intent targeting the disposable development package, warm and cold. With another environment selected, expect the linked computer/review; independently read saved selection and seen revision.
+2. Publish a committed review through the fixture CLI. Deliver `/open/reviews/<reviewId>?environment=<environmentId>&host=<host>` with `protocol=http` for the local listener (or `https` for remote HTTPS), and optional `revision` and `decision`. On Android use a VIEW intent targeting the disposable development package, warm and cold. With another environment selected, expect the linked computer/review; independently read saved selection and seen revision.
 3. Unpaired, open a decision link → Pair this computer → pair that computer. The exact review/decision opens without resending the link. Cancel preserves the destination and pairing offer; native header Back exits to Review.
 4. Try missing review/revision/decision, offline computer and a host containing a scheme/path. Expect explanation and Back; connectivity failures offer Read again. A missing decision leaves the verdict/list usable. Return to the existing workspace Review and confirm it still opens.
 

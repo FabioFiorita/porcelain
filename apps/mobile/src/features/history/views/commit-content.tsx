@@ -10,6 +10,7 @@ import {
   commitPath,
   refLabel,
   shortOid,
+  shownRefs,
 } from '@porcelain/client/history/rules';
 import { CommitReadState } from './commit-state';
 import { CommitParentMenu } from './commit-parent-menu';
@@ -73,7 +74,7 @@ export function CommitContent({
                   />
                 ) : null}
                 <Box className="flex-row flex-wrap" gap={1}>
-                  {value.commit.refs.map((ref) => (
+                  {shownRefs(value.commit.refs).map((ref) => (
                     <Badge
                       key={ref}
                       label={refLabel(ref)}

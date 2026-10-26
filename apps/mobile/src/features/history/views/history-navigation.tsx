@@ -85,13 +85,18 @@ function BranchStatus({
         >
           {branch.name}
         </Text>
+        {branch.counts !== null ? (
+          <Text variant="caption" tone="muted">
+            {branch.counts}
+          </Text>
+        ) : null}
         <Text
           variant="caption"
           tone="muted"
-          numberOfLines={2}
-          accessibilityLabel={branch.tracking}
+          numberOfLines={1}
+          accessibilityLabel={branch.upstream}
         >
-          {branch.tracking}
+          {branch.upstream}
         </Text>
       </>
     );

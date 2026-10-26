@@ -171,14 +171,6 @@ function contiguous(values: readonly number[]): {
   return result;
 }
 
-function paragraph(lines: readonly string[], line: number): [number, number] {
-  let before = line - 1;
-  let end = line;
-  while (before > 0 && (lines[before - 1] ?? '').trim() !== '') before -= 1;
-  while (end < lines.length && (lines[end] ?? '').trim() !== '') end += 1;
-  return [before + 1, end];
-}
-
 function coveredLines(
   layers: readonly ResolvedLayer[],
 ): Map<string, Set<number>> {
@@ -222,10 +214,7 @@ export function unexplainedChanges(
       (line) => {
         if (!removals.has(line) && IGNORABLE.test(text[line - 1] ?? ''))
           return false;
-        const [start, end] = paragraph(text, line);
-        for (let candidate = start; candidate <= end; candidate += 1)
-          if (mine.has(candidate)) return false;
-        return true;
+        return !mine.has(line);
       },
     );
     return left.length === 0

@@ -23,7 +23,6 @@ import {
 } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';
 import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
-import { sweep } from './sweep.ts';
 
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
@@ -227,7 +226,10 @@ async function command(args: readonly string[]): Promise<string> {
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
   if (name === 'sweep')
-    return registry.drive(instance, args, () => sweep(instance, args));
+    return registry.drive(instance, args, async () => {
+      const { sweep } = await import('./sweep.ts');
+      return sweep(instance, args);
+    });
   if (name === 'logs')
     return registry
       .redactor(instance)

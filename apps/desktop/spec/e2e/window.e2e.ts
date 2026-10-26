@@ -193,7 +193,9 @@ test('Quit persists the latest maximized window before closing it, even while it
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const held = await app.holdWrite(join(app.profile, 'window.json'), 'rename');
   const unloadMarker = 'Porcelain e2e: page tried to prevent Quit';
@@ -402,7 +404,9 @@ test('a second instance reopens the primary window and exits without starting an
   const reopened = app.nextWindow();
   expect(await desktop.launchSecondInstance()).toBe(0);
   await expect(
-    (await reopened).getByRole('button', { name: 'Open project', exact: true }),
+    (await reopened)
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   expect(app.electron.windows()).toHaveLength(1);
   expect((await app.server()).pid).toBe(pid);
@@ -442,7 +446,9 @@ test('Quit during app request setup cancels forwarding without a main-process ex
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const { pid } = await app.server();
   const marker = 'Porcelain e2e: quit during request setup';
@@ -469,7 +475,9 @@ test('Quit while reopening the window cancels its initial load without showing a
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const { pid } = await app.server();
   const child = app.electron.process();

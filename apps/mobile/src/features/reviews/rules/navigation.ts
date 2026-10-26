@@ -24,6 +24,27 @@ export function decodeCommentAnchor(value?: string): CommentAnchor | undefined {
   }
 }
 
+export type CommentReview = { reviewId: string; reviewRevision: number };
+
+export function commentReviewParams(review: {
+  reviewId?: string | undefined;
+  revision: number;
+}) {
+  return review.reviewId
+    ? { review: review.reviewId, revision: String(review.revision) }
+    : {};
+}
+
+export function decodeCommentReview(
+  reviewId?: string,
+  revision?: string,
+): CommentReview | undefined {
+  const reviewRevision = Number(revision);
+  return reviewId && Number.isInteger(reviewRevision) && reviewRevision > 0
+    ? { reviewId, reviewRevision }
+    : undefined;
+}
+
 export function reviewParams(key: string, comparison: ReviewComparison) {
   return {
     workspace: key,
