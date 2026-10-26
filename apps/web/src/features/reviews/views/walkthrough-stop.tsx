@@ -147,7 +147,7 @@ export function DecisionPage({
             </span>
             {questions.length > 0 && (
               <Badge variant="outline">
-                <CircleHelpIcon className="text-graph-1" /> Needs your decision
+                <CircleHelpIcon className="text-brand" /> Needs your decision
               </Badge>
             )}
             {decision?.stale && (
