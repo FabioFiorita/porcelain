@@ -62,6 +62,11 @@ export class InventoryState extends Context.Service<
           queryKeys.inventory(connection.environmentId),
           read.pipe(Effect.tap(checkEnvironment)),
           seed,
+          [
+            queryKeys.inventory(connection.environmentId),
+            queryKeys.environment(connection.environmentId),
+            queryKeys.worktreeInventory(connection.environmentId),
+          ],
         );
         function confirm<A, E, R>(
           operation: Effect.Effect<A, E, R>,

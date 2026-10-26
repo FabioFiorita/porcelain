@@ -33,8 +33,12 @@ export const queryKeys = {
       queryKeys.inventory(connection.environmentId),
       connection,
     ),
-  projectReviews: (environmentId: string) =>
-    ['project-reviews', environmentId] as const,
+  projectReviews: (environmentId: string, projectId?: string) =>
+    [
+      'project-reviews',
+      environmentId,
+      ...(projectId ? [projectId] : []),
+    ] as const,
   durableReview: (environmentId: string, reviewId: string) =>
     ['project-review', environmentId, reviewId] as const,
   environment: (environmentId: string) =>
@@ -43,6 +47,8 @@ export const queryKeys = {
     ['review', environmentId, projectId, 'file-preferences'] as const,
   inventory: (environmentId: string | undefined) =>
     ['inventory', environmentId] as const,
+  worktreeInventory: (environmentId: string) =>
+    ['worktree-inventory', environmentId] as const,
   reviewProject: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId] as const,
   review: (environmentId: string, scope: ReviewScope) =>

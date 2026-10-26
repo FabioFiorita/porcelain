@@ -106,3 +106,23 @@ export function failRemoteStatus(context: BrowserContext, address: string) {
     503,
   );
 }
+
+export function reviewSeenRequests(context: BrowserContext) {
+  const counts = new Map<string, number>();
+  const matches = (reviewId: string) => (request: RoutedRequest) =>
+    request.method() === 'PUT' &&
+    pathOf(request) === `/api/reviews/${reviewId}/seen`;
+  context.on('request', (request) => {
+    if (request.method() === 'PUT') {
+      const path = pathOf(request);
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+    }
+  });
+  const network = browserNetwork(context);
+  return {
+    count: (reviewId: string) =>
+      counts.get(`/api/reviews/${reviewId}/seen`) ?? 0,
+    fail: (reviewId: string) => network.fail(matches(reviewId), 503),
+    holdNext: (reviewId: string) => network.holdNext(matches(reviewId)),
+  };
+}
