@@ -5,7 +5,7 @@ import {
   NetworkAddressReader,
   RemoteAccessOptions,
 } from '@porcelain/access/ports';
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   InvalidTailnetHostnameError,
@@ -14,6 +14,8 @@ import {
   MissingTunnelHostnameError,
   NoLocalNetworkError,
   UnidentifiedLocalNetworkError,
+  RemoteRouteInUseError,
+  WaysInChangedError,
 } from '@porcelain/access/errors';
 import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
 import { FixedRuntimeStatusReader } from '../../spec/fakes/fixed-runtime-status-reader.ts';
@@ -23,6 +25,8 @@ import {
   HOME_ROUTER_HARDWARE,
   routesVia,
 } from '../../spec/fixtures/default-routes.ts';
+import type { RemoteAccessChange } from '../models/remote-access.ts';
+import { ReadRemoteAccessService } from './read-remote-access-service.ts';
 import { SetRemoteAccessService } from './set-remote-access-service.ts';
 
 const serviceUrl = 'http://127.0.0.1:4173';
@@ -54,9 +58,17 @@ function setup() {
     [wifi('192.168.1.20/24')],
     routesVia('wlp2s0', HOME_ROUTER_HARDWARE),
   );
-  const service = Effect.runSync(
-    SetRemoteAccessService.pipe(
-      Effect.provide(SetRemoteAccessService.layer),
+  const services = Effect.runSync(
+    Effect.all({
+      set: SetRemoteAccessService,
+      read: ReadRemoteAccessService,
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          SetRemoteAccessService.layer,
+          ReadRemoteAccessService.layer,
+        ),
+      ),
       Effect.provideService(RemoteAccessStore, settings),
       Effect.provideService(RouteStateStore, routes),
       Effect.provideService(
@@ -71,7 +83,16 @@ function setup() {
       Effect.provideService(RemoteAccessOptions, { hostnameLength: 253 }),
     ),
   );
-  return { settings, routes, network, service };
+  const service = {
+    execute: (change: RemoteAccessChange) =>
+      services.read.execute().pipe(
+        Effect.flatMap(({ fingerprint }) =>
+          services.set.execute({ expected: fingerprint, change }),
+        ),
+        Effect.map(({ remote }) => remote),
+      ),
+  };
+  return { settings, routes, network, service, services };
 }
 
 describe('SetRemoteAccessService', () => {
@@ -332,5 +353,168 @@ describe('SetRemoteAccessService', () => {
     expect(
       (await Effect.runPromise(settings.read())).cloudflareHostname,
     ).toBeUndefined();
+  });
+
+  it('refuses a save made from an older look at the ways in, and changes nothing', async () => {
+    const { settings, routes, services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+    await Effect.runPromise(
+      services.set.execute({
+        expected: before.fingerprint,
+        change: { tailnet: true, tailnetHostname },
+      }),
+    );
+    const saved = await Effect.runPromise(settings.read());
+    const states = routes.read();
+
+    await expect(
+      Effect.runPromise(
+        services.set.execute({
+          expected: before.fingerprint,
+          change: { lan: true },
+        }),
+      ),
+    ).rejects.toThrow(WaysInChangedError);
+    expect(await Effect.runPromise(settings.read())).toEqual(saved);
+    expect(routes.read()).toEqual(states);
+  });
+
+  it('refuses to turn the local network on after the computer moved to another network since the last look', async () => {
+    const { settings, network, services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+    network.replace([wifi('10.20.30.40/16')]);
+
+    await expect(
+      Effect.runPromise(
+        services.set.execute({
+          expected: before.fingerprint,
+          change: { lan: true },
+        }),
+      ),
+    ).rejects.toThrow(WaysInChangedError);
+    expect(await Effect.runPromise(settings.read())).toEqual({
+      lan: false,
+      tailnet: false,
+      cloudflare: false,
+    });
+  });
+
+  it('answers a repeated save, sent again while its route is still starting, with the current ways in instead of a conflict', async () => {
+    const { settings, routes, services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+    const change = { tailnet: true, tailnetHostname };
+    const first = await Effect.runPromise(
+      services.set.execute({ expected: before.fingerprint, change }),
+    );
+    const saved = await Effect.runPromise(settings.read());
+    const states = routes.read();
+
+    const repeated = await Effect.runPromise(
+      services.set.execute({ expected: before.fingerprint, change }),
+    );
+
+    expect(first.applied).toBe(true);
+    expect(repeated).toEqual({ ...first, applied: false });
+    expect(await Effect.runPromise(settings.read())).toEqual(saved);
+    expect(routes.read()).toBe(states);
+  });
+
+  it('checks a failed route again even though its settings stay the same', async () => {
+    const { routes, services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+    const saved = await Effect.runPromise(
+      services.set.execute({
+        expected: before.fingerprint,
+        change: { tailnet: true, tailnetHostname },
+      }),
+    );
+    routes.save({
+      states: {
+        ...routes.read().states,
+        tailnet: { kind: 'failed', reason: 'unreachable' },
+      },
+      origins: [],
+    });
+
+    const again = await Effect.runPromise(
+      services.set.execute({
+        expected: saved.fingerprint,
+        change: { tailnet: true },
+      }),
+    );
+
+    expect(again.applied).toBe(true);
+    expect(again.fingerprint).toBe(saved.fingerprint);
+    expect(again.remote.routes.tailnet.status).toEqual({ kind: 'starting' });
+  });
+
+  it('answers a save from an older look that would also be invalid now with the conflict, not with a validation error about settings it never saw', async () => {
+    const { services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+    await Effect.runPromise(
+      services.set.execute({
+        expected: before.fingerprint,
+        change: { cloudflare: true, cloudflareHostname: 'a.example.com' },
+      }),
+    );
+
+    await expect(
+      Effect.runPromise(
+        services.set.execute({
+          expected: before.fingerprint,
+          change: { tailnet: true },
+        }),
+      ),
+    ).rejects.toThrow(WaysInChangedError);
+  });
+
+  it.each([
+    ['turning it on', { lan: true }],
+    [
+      'turning it on with another route',
+      { lan: true, tailnet: true, tailnetHostname },
+    ],
+  ])(
+    'refuses %s for the way in the device is connected through, and changes nothing',
+    async (_name, change) => {
+      const { settings, services } = setup();
+      const before = await Effect.runPromise(services.read.execute());
+
+      await expect(
+        Effect.runPromise(
+          services.set.execute({
+            expected: before.fingerprint,
+            change,
+            protectedRoute: 'lan',
+          }),
+        ),
+      ).rejects.toThrow(RemoteRouteInUseError);
+      expect(await Effect.runPromise(settings.read())).toEqual({
+        lan: false,
+        tailnet: false,
+        cloudflare: false,
+      });
+    },
+  );
+
+  it('saves another way in for a device connected through the local network', async () => {
+    const { settings, services } = setup();
+    const before = await Effect.runPromise(services.read.execute());
+
+    const saved = await Effect.runPromise(
+      services.set.execute({
+        expected: before.fingerprint,
+        change: { tailnet: true, tailnetHostname },
+        protectedRoute: 'lan',
+      }),
+    );
+
+    expect(saved.applied).toBe(true);
+    expect(await Effect.runPromise(settings.read())).toEqual({
+      lan: false,
+      tailnet: true,
+      tailnetHostname,
+      cloudflare: false,
+    });
   });
 });

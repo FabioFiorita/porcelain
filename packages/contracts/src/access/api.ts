@@ -16,6 +16,9 @@ import {
   TooManyLiveTicketsError,
   UnidentifiedLocalNetworkError,
   UntrustedDeviceError,
+  RemoteRouteInUseError,
+  WaysInChangedError,
+  WaysInPermissionRequiredError,
 } from '@porcelain/access/errors';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -40,6 +43,8 @@ import {
   revokeAccessResponseSchema,
   setDeviceTrustRequestSchema,
   setDeviceTrustResponseSchema,
+  setWaysInPermissionRequestSchema,
+  setWaysInPermissionResponseSchema,
 } from './pairing.ts';
 import { readSessionResponseSchema } from './principal.ts';
 import {
@@ -158,15 +163,33 @@ const administrationGroup = HttpApiGroup.make('administration')
       success: setDeviceTrustResponseSchema,
       error: httpFailure(DeviceNotFoundError, 'NotFound'),
     }),
+    HttpApiEndpoint.post('setWaysInPermission', '/access/ways-in-permission', {
+      disableCodecs: true,
+      payload: setWaysInPermissionRequestSchema,
+      success: setWaysInPermissionResponseSchema,
+      error: httpFailure(DeviceNotFoundError, 'NotFound'),
+    }),
+  )
+  .middleware(PairedRequest);
+const waysInPermissionRequired = httpFailure(
+  WaysInPermissionRequiredError,
+  'Forbidden',
+);
+const remoteAccessGroup = HttpApiGroup.make('remoteAccess')
+  .add(
     HttpApiEndpoint.get('readRemoteAccess', '/remote-access', {
       disableCodecs: true,
       success: readRemoteAccessResponseSchema,
+      error: waysInPermissionRequired,
     }),
     HttpApiEndpoint.patch('setRemoteAccess', '/remote-access', {
       disableCodecs: true,
       payload: setRemoteAccessRequestSchema,
       success: setRemoteAccessResponseSchema,
       error: [
+        waysInPermissionRequired,
+        httpFailure(WaysInChangedError, 'Conflict'),
+        httpFailure(RemoteRouteInUseError, 'Conflict'),
         httpFailure(InvalidTailnetHostnameError, 'BadRequest'),
         httpFailure(InvalidTunnelHostnameError, 'BadRequest'),
         httpFailure(MissingTailnetHostnameError, 'BadRequest'),
@@ -176,7 +199,8 @@ const administrationGroup = HttpApiGroup.make('administration')
       ],
     }),
   )
-  .middleware(PairedRequest);
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
 const environmentNameGroup = HttpApiGroup.make('environmentName')
   .add(
     HttpApiEndpoint.put('renameEnvironment', '/environment/name', {
@@ -206,11 +230,15 @@ export class SessionApi extends porcelainApi.add(sessionGroup).prefix('/api') {}
 export class ServiceUpdatesApi extends porcelainApi
   .add(updatesGroup)
   .prefix('/api') {}
+export class RemoteAccessApi extends porcelainApi
+  .add(remoteAccessGroup)
+  .prefix('/api') {}
 export class HostAccessApi extends porcelainApi
   .add(administrationGroup, environmentNameGroup)
   .prefix('/api') {}
 export class OwnerAccessApi extends porcelainApi.add(
   administrationGroup,
+  remoteAccessGroup,
   ownerStatusGroup,
 ) {}
 export class AccessApi extends porcelainApi
@@ -220,6 +248,7 @@ export class AccessApi extends porcelainApi
     pairingGroup,
     sessionGroup,
     updatesGroup,
+    remoteAccessGroup,
     administrationGroup,
     environmentNameGroup,
   )

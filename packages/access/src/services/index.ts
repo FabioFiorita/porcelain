@@ -25,3 +25,5 @@ export { IssueLiveTicketService } from './issue-live-ticket-service.ts';
 export { RedeemLiveTicketService } from './redeem-live-ticket-service.ts';
 export { SetDeviceTrustService } from './set-device-trust-service.ts';
 export { AuthorizeServiceUpdateService } from './authorize-service-update-service.ts';
+export { AuthorizeWaysInService } from './authorize-ways-in-service.ts';
+export { SetWaysInPermissionService } from './set-ways-in-permission-service.ts';

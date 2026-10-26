@@ -6,9 +6,11 @@ import {
   PairingApi,
   SessionApi,
   ServiceUpdatesApi,
+  RemoteAccessApi,
   HostAccessApi,
   OwnerAccessApi,
 } from '@porcelain/contracts/access';
+import { type SetRemoteAccessRequest } from '@porcelain/contracts/access';
 import { RequestCaller, RequestConnection } from '@porcelain/contracts/shared';
 import type { Context } from 'effect';
 import { Effect, Layer } from 'effect';
@@ -28,6 +30,7 @@ import { type RenameEnvironmentUseCase } from '../../../use-cases/access/rename-
 import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
 import { type SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
 import { type SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
+import { type SetWaysInPermissionUseCase } from '../../../use-cases/access/set-ways-in-permission.ts';
 import { type StartServiceUpdateUseCase } from '../../../use-cases/access/start-service-update.ts';
 
 type AccessUseCases = {
@@ -85,6 +88,10 @@ type AccessUseCases = {
     Context.Service.Shape<typeof SetRemoteAccessUseCase>,
     'execute'
   >;
+  setWaysInPermission: Pick<
+    Context.Service.Shape<typeof SetWaysInPermissionUseCase>,
+    'execute'
+  >;
   startServiceUpdate: Pick<
     Context.Service.Shape<typeof StartServiceUpdateUseCase>,
     'execute'
@@ -118,19 +125,61 @@ function administrationHandlers(useCases: AccessUseCases) {
         Context.Service.Shape<typeof SetDeviceTrustUseCase>['execute']
       >[0];
     }) => useCases.setDeviceTrust.execute(payload),
-    readRemoteAccess: () => useCases.readRemoteAccess.execute(),
-    setRemoteAccess: ({
+    setWaysInPermission: ({
       payload,
     }: {
       payload: Parameters<
-        Context.Service.Shape<typeof SetRemoteAccessUseCase>['execute']
+        Context.Service.Shape<typeof SetWaysInPermissionUseCase>['execute']
       >[0];
-    }) => useCases.setRemoteAccess.execute(payload),
+    }) => useCases.setWaysInPermission.execute(payload),
+  };
+}
+
+function remoteAccessHandlers(useCases: AccessUseCases) {
+  return {
+    readRemoteAccess: () =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { local, route } = yield* RequestConnection;
+        return yield* useCases.readRemoteAccess.execute({
+          viewer,
+          local,
+          route,
+        });
+      }),
+    setRemoteAccess: ({ payload }: { payload: SetRemoteAccessRequest }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { local, route } = yield* RequestConnection;
+        return yield* useCases.setRemoteAccess.execute({
+          ...payload,
+          viewer,
+          local,
+          route,
+        });
+      }),
   };
 }
 
 export function accessRoutes(useCases: AccessUseCases) {
   const administration = administrationHandlers(useCases);
+  const remoteAccess = remoteAccessHandlers(useCases);
+  const pairedRemoteAccess = HttpApiBuilder.group(
+    RemoteAccessApi,
+    'remoteAccess',
+    (handlers) =>
+      handlers
+        .handle('readRemoteAccess', remoteAccess.readRemoteAccess)
+        .handle('setRemoteAccess', remoteAccess.setRemoteAccess),
+  );
+  const ownerRemoteAccess = HttpApiBuilder.group(
+    OwnerAccessApi,
+    'remoteAccess',
+    (handlers) =>
+      handlers
+        .handle('readRemoteAccess', remoteAccess.readRemoteAccess)
+        .handle('setRemoteAccess', remoteAccess.setRemoteAccess),
+  );
   const hostAdministration = HttpApiBuilder.group(
     HostAccessApi,
     'administration',
@@ -140,8 +189,7 @@ export function accessRoutes(useCases: AccessUseCases) {
         .handle('issuePairing', administration.issuePairing)
         .handle('revokeAccess', administration.revokeAccess)
         .handle('setDeviceTrust', administration.setDeviceTrust)
-        .handle('readRemoteAccess', administration.readRemoteAccess)
-        .handle('setRemoteAccess', administration.setRemoteAccess),
+        .handle('setWaysInPermission', administration.setWaysInPermission),
   );
   const ownerAdministration = HttpApiBuilder.group(
     OwnerAccessApi,
@@ -152,8 +200,7 @@ export function accessRoutes(useCases: AccessUseCases) {
         .handle('issuePairing', administration.issuePairing)
         .handle('revokeAccess', administration.revokeAccess)
         .handle('setDeviceTrust', administration.setDeviceTrust)
-        .handle('readRemoteAccess', administration.readRemoteAccess)
-        .handle('setRemoteAccess', administration.setRemoteAccess),
+        .handle('setWaysInPermission', administration.setWaysInPermission),
   );
   const publicHandlers = HttpApiBuilder.group(
     PublicAccessApi,
@@ -265,13 +312,20 @@ export function accessRoutes(useCases: AccessUseCases) {
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),
+    remoteAccess: HttpApiBuilder.layer(RemoteAccessApi).pipe(
+      Layer.provide(pairedRemoteAccess),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
+    ),
     host: HttpApiBuilder.layer(HostAccessApi).pipe(
       Layer.provide(Layer.merge(hostAdministration, environmentName)),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),
     owner: HttpApiBuilder.layer(OwnerAccessApi).pipe(
-      Layer.provide(Layer.merge(ownerAdministration, ownerStatus)),
+      Layer.provide(
+        Layer.mergeAll(ownerAdministration, ownerRemoteAccess, ownerStatus),
+      ),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),

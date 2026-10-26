@@ -14,7 +14,11 @@ import { requestPolicy } from '../hooks/request-policy.ts';
 
 export type PairedUseCases = {
   access: LocalDeviceOptions['access'] & {
-    routes: { session: HttpApplication; updates: HttpApplication };
+    routes: {
+      session: HttpApplication;
+      updates: HttpApplication;
+      remoteAccess: HttpApplication;
+    };
   };
   projects: HttpApplication;
   files: HttpApplication;
@@ -32,7 +36,10 @@ export function pairedScope(options: {
     cookieMaxAgeSeconds: limits.access.device.cookieMaxAgeSeconds,
   });
   return Layer.mergeAll(
-    application.access.routes.updates.pipe(
+    Layer.mergeAll(
+      application.access.routes.updates,
+      application.access.routes.remoteAccess,
+    ).pipe(
       Layer.provide(
         requestPolicy(
           authenticated.pipe(

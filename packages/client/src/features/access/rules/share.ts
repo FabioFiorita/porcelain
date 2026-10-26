@@ -3,10 +3,13 @@ import {
   type IssuePairingResponse,
   type ListAccessResponse,
   type ReadRemoteAccessResponse,
+  type RemoteAccessChange,
   type RenameEnvironmentResponse,
 } from '@porcelain/contracts/access';
 
 export type RemoteAccess = ReadRemoteAccessResponse;
+export type PairedAccess = ListAccessResponse;
+export type { RemoteAccessChange };
 export type Environment = RenameEnvironmentResponse;
 export type RemoteRouteName = keyof RemoteAccess['routes'];
 export type RemoteRoute = RemoteAccess['routes'][RemoteRouteName];
@@ -31,12 +34,30 @@ export const remoteRouteTitles: Record<RemoteRouteName, string> = {
   cloudflare: 'Cloudflare tunnel',
 };
 
+export const remoteRouteDescriptions: Record<RemoteRouteName, string> = {
+  lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
+  tailnet:
+    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. You set up tailscale serve once; Porcelain checks that it reaches here.',
+  cloudflare:
+    'Your own Cloudflare tunnel and hostname, over HTTPS from anywhere.',
+};
+
 export const deviceRouteTitles: Record<DeviceRoute, string> = {
   loopback: 'This computer',
   lan: 'Local network',
   tailnet: 'Tailscale',
   tunnel: 'Cloudflare tunnel',
 };
+
+export function protectedRouteNote(route: RemoteRouteName): string {
+  return `This device is connected through ${remoteRouteTitles[route]}, so it cannot change it. Change it on the computer that runs Porcelain, or from a device connected another way.`;
+}
+
+export const LOCAL_NETWORK_WARNING =
+  'Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.';
+
+export const WAYS_IN_PERMISSION_NOTE =
+  'An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
 
 type Network = NonNullable<RemoteAccess['localNetwork']>;
 
@@ -109,6 +130,103 @@ export function issuedLink(issued: IssuePairingResponse): IssuedLink | null {
 
 export function tailscaleServeCommand(target: string): string {
   return `tailscale serve --bg --https=443 ${target}`;
+}
+
+const checkingLabels: Record<RemoteRouteName, string> = {
+  lan: 'Starting',
+  tailnet: 'Checking the Tailscale name',
+  cloudflare: 'Checking the tunnel',
+};
+
+export function routeStatusLabel(
+  name: RemoteRouteName,
+  route: RemoteRoute,
+): string | null {
+  switch (route.status.kind) {
+    case 'off':
+      return route.enabled ? 'Starting' : null;
+    case 'starting':
+      return checkingLabels[name];
+    case 'paused':
+      return 'Paused on this network';
+    case 'failed':
+      return 'Failed';
+    case 'on':
+      return route.enabled ? 'On' : 'Stopping';
+  }
+}
+
+type HostedRouteName = Exclude<RemoteRouteName, 'lan'>;
+
+const hostnameFields: Record<
+  HostedRouteName,
+  { label: string; saveLabel: string; placeholder: string }
+> = {
+  tailnet: {
+    label: 'Tailscale name',
+    saveLabel: 'Save name',
+    placeholder: 'laptop.tail1234.ts.net',
+  },
+  cloudflare: {
+    label: 'Public hostname',
+    saveLabel: 'Save hostname',
+    placeholder: 'porcelain.example.com',
+  },
+};
+
+function savedHostname(remote: RemoteAccess, route: HostedRouteName): string {
+  return (
+    (route === 'tailnet'
+      ? remote.tailnetHostname
+      : remote.cloudflareHostname) ?? ''
+  );
+}
+
+function routeFailed(remote: RemoteAccess, route: RemoteRouteName): boolean {
+  const { enabled, status } = remote.routes[route];
+  return enabled && status.kind === 'failed';
+}
+
+function hostnameChange(
+  remote: RemoteAccess,
+  route: HostedRouteName,
+  hostname: string,
+): RemoteAccessChange {
+  const first = savedHostname(remote, route) === '';
+  return route === 'tailnet'
+    ? { tailnetHostname: hostname, ...(first ? { tailnet: true } : {}) }
+    : {
+        cloudflareHostname: hostname,
+        ...(first ? { cloudflare: true } : {}),
+      };
+}
+
+export type HostnameFormInput = {
+  route: HostedRouteName;
+  remote: RemoteAccess;
+  disabled: boolean;
+  onChange: (change: RemoteAccessChange) => void;
+};
+
+export function hostnameForm(
+  remote: RemoteAccess,
+  route: HostedRouteName,
+  draft: string | null,
+) {
+  const saved = savedHostname(remote, route);
+  const value = draft ?? saved;
+  const hostname = value.trim();
+  return {
+    ...hostnameFields[route],
+    value,
+    canSave: hostname !== '' && hostname !== saved,
+    save: hostnameChange(remote, route, hostname),
+    failed: routeFailed(remote, route),
+    check:
+      route === 'tailnet'
+        ? { tailnet: true as const }
+        : { cloudflare: true as const },
+  };
 }
 
 export function routeFailure(

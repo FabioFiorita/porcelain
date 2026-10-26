@@ -49,3 +49,4 @@ export type { LiveTickets } from './live-ticket.ts';
 export type { RedeemLiveTicketInput } from './redeem-live-ticket.ts';
 
 export type { ServiceUpdateAuthority } from './authorize-service-update.ts';
+export type { WaysInCaller } from './ways-in.ts';

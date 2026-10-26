@@ -5,6 +5,7 @@ import type {
   DeviceRevocation,
   DeviceSighting,
   DeviceTrust,
+  DeviceWaysInPermission,
   StoredDevice,
 } from '../models/device.ts';
 
@@ -14,6 +15,7 @@ export interface DeviceStore {
   markRevoked(input: DeviceRevocation): Effect.Effect<void>;
   recordSighting(input: DeviceSighting): Effect.Effect<void>;
   recordTrust(input: DeviceTrust): Effect.Effect<void>;
+  recordWaysInPermission(input: DeviceWaysInPermission): Effect.Effect<void>;
 }
 
 export const DeviceStore = Context.Service<

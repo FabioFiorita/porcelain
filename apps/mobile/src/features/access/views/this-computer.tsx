@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import { Item } from '../../../components/ui/item';
 import { Text } from '../../../components/ui/text';
+import { ComputerWaysIn } from './computer-ways-in';
 
 export function ThisComputer({
   remote,
@@ -30,6 +31,7 @@ export function ThisComputer({
               {remote.address}
             </Text>
           </Box>
+          <ComputerWaysIn environmentId={remote.environmentId} />
           <Box gap={3}>
             <Text variant="subheading" tone="muted">
               Devices
@@ -37,7 +39,7 @@ export function ThisComputer({
             <Card>
               <Item
                 title="Paired devices"
-                description="View and manage paired devices in Settings → Computers → This computer in a browser on the computer that runs Porcelain."
+                description="View and manage paired devices, and which of them can edit ways in, in Settings → Computers → This computer in a browser on the computer that runs Porcelain."
               />
             </Card>
           </Box>

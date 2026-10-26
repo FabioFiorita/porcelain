@@ -1,4 +1,4 @@
-import { Cause, Option } from 'effect';
+import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { devicePlatformName } from '../rules/settings';
 import { relativeTime } from '@/shared/lib/relative-time';
@@ -13,27 +13,28 @@ import {
   ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
-import { Spinner } from '@/components/ui/spinner';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useRevokeAccess, useSetDeviceTrust } from '../commands/share';
-import { usePairedAccess } from '../queries/share';
+import {
+  useRevokeAccess,
+  useSetDeviceTrust,
+  useSetWaysInPermission,
+} from '../commands/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { deviceRouteTitles } from '@porcelain/client/access/rules';
+import {
+  deviceRouteTitles,
+  type PairedAccess,
+} from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function PairedDevices({ connection }: { connection: Connection }) {
-  const access = usePairedAccess(connection);
-  const answer = Option.getOrUndefined(AsyncResult.value(access));
-  if (AsyncResult.isFailure(access))
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {connectionErrorMessage(Cause.squash(access.cause))}
-        </AlertDescription>
-      </Alert>
-    );
-  if (!answer) return <Spinner />;
+export function PairedDevices({
+  connection,
+  access,
+}: {
+  connection: Connection;
+  access: PairedAccess;
+}) {
+  const answer = access;
   return (
     <div className="flex flex-col gap-2">
       <ItemGroup role="list" aria-label="Paired devices and links">
@@ -73,6 +74,12 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 id={device.id}
                 label={device.label}
                 trusted={device.trusted}
+              />
+              <WaysInPermissionControl
+                connection={connection}
+                id={device.id}
+                label={device.label}
+                allowed={device.canEditWaysIn}
               />
               {!device.current && (
                 <RevokeControl
@@ -119,7 +126,9 @@ export function PairedDevices({ connection }: { connection: Connection }) {
         it was paired over, so a credential seen on one network cannot be used
         through another. A phone that uses two ways in is paired once through
         each. Revoking a device signs it out at once and leaves the others
-        alone.
+        alone. A device that can edit ways in sees and changes the local
+        network, Tailscale and Cloudflare tunnel settings from anywhere it is
+        paired, except the way in it is connected through.
       </p>
     </div>
   );
@@ -150,6 +159,37 @@ function DeviceTrustControl({
         <Alert variant="destructive">
           <AlertDescription>
             {connectionErrorMessage(Cause.squash(trust.cause))}
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+}
+function WaysInPermissionControl({
+  connection,
+  id,
+  label,
+  allowed,
+}: {
+  connection: Connection;
+  id: string;
+  label: string;
+  allowed: boolean;
+}) {
+  const [permission, setAllowed] = useSetWaysInPermission(connection, id);
+  return (
+    <>
+      <Label aria-hidden>Can edit ways in</Label>
+      <Switch
+        aria-label={`${label} can edit ways in`}
+        checked={allowed}
+        disabled={permission.waiting}
+        onCheckedChange={setAllowed}
+      />
+      {AsyncResult.isFailure(permission) && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {connectionErrorMessage(Cause.squash(permission.cause))}
           </AlertDescription>
         </Alert>
       )}

@@ -34,6 +34,12 @@ export const cachedDeviceStoreLayer = Layer.effect(
         yield* devices.recordTrust(input);
         yield* Cache.invalidate(cached, input.device.id);
       }),
+      recordWaysInPermission: Effect.fn('DeviceCache.recordWaysInPermission')(
+        function* (input) {
+          yield* devices.recordWaysInPermission(input);
+          yield* Cache.invalidate(cached, input.device.id);
+        },
+      ),
     });
   }),
 );
