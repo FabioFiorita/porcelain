@@ -40,10 +40,16 @@ function cutContent(cut: Cut, content: ReactNode) {
   return cut === 'start' ? <bdi dir="ltr">{content}</bdi> : content;
 }
 
-function isClipped(element: Element, lines: 1 | 3) {
-  return lines === 3
-    ? element.scrollHeight > element.clientHeight
-    : element.scrollWidth > element.clientWidth;
+function isClipped(element: HTMLElement, lines: 1 | 3) {
+  if (lines === 1) return element.scrollWidth > element.clientWidth;
+  const height = element.clientHeight;
+  const clamp = element.style.webkitLineClamp;
+  try {
+    element.style.webkitLineClamp = 'unset';
+    return element.clientHeight > height;
+  } finally {
+    element.style.webkitLineClamp = clamp;
+  }
 }
 
 export function TruncatedText({
@@ -81,9 +87,10 @@ export function TruncatedText({
   const [attach] = useState(() => (element: HTMLElement | null) => {
     if (!element) return;
     const pieces = () =>
-      [element, ...element.querySelectorAll('[data-truncated]')].filter(
-        (piece) => piece.getAttribute('data-truncated') === id,
-      );
+      [
+        element,
+        ...element.querySelectorAll<HTMLElement>('[data-truncated]'),
+      ].filter((piece) => piece.getAttribute('data-truncated') === id);
     const owner = triggered
       ? null
       : (element.parentElement?.closest<HTMLElement>(owners) ?? null);
