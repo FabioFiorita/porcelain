@@ -51,6 +51,7 @@ export const listFileCommits = Effect.fn('Git.listFileCommits')(function* (
               '--follow',
               `--max-count=${limit + 1}`,
               '--decorate-refs=refs/*',
+              '--decorate=short',
               `--format=${COMMIT_FORMAT}`,
               tip,
               '--',

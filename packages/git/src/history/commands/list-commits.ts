@@ -152,6 +152,7 @@ const readLog = Effect.fn('Git.readLog')(function* (
       '-z',
       `--max-count=${limit + 1}`,
       '--decorate-refs=refs/*',
+      '--decorate=short',
       `--format=${COMMIT_FORMAT}`,
       ...range,
       '--',
