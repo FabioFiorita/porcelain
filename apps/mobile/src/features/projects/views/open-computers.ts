@@ -11,7 +11,9 @@ export function useOpenComputers() {
       router.push('/computers');
       return;
     }
-    select('computers');
-    requestDocumentLeave(() => router.replace('/settings'));
+    requestDocumentLeave(() => {
+      select('computers');
+      router.replace('/settings');
+    });
   };
 }

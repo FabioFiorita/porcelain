@@ -4,6 +4,7 @@ import {
   UpdatesButton,
   UpdatesSheet,
   useEnvironments,
+  useEnvironmentStorageStatus,
   useUpdatesIndicator,
 } from '../../access';
 import { ArchiveReview } from './archive-review';
@@ -61,6 +62,7 @@ export function WorktreeNavigator({
   const { preferences, setPreferences } = usePreferences();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
+  const storage = useEnvironmentStorageStatus();
   const { rows, filters, multipleProjects } = reviewListView(
     entries,
     query,
@@ -85,7 +87,7 @@ export function WorktreeNavigator({
       });
     }
   };
-  if (!initializing && paired.length === 0)
+  if (storage.status === 'ready' && paired.length === 0)
     return (
       <Box className="flex-1" testID="worktree-navigator">
         <Box paddingX={4} paddingY={3} gap={2}>
@@ -156,11 +158,13 @@ export function WorktreeNavigator({
           />
         </Stack.Toolbar>
       ) : null}
-      <UpdatesSheet
-        presented={updates}
-        onClose={() => setUpdates(false)}
-        onManageComputers={() => router.push('/computers')}
-      />
+      {nativeHeader ? (
+        <UpdatesSheet
+          presented={updates}
+          onClose={() => setUpdates(false)}
+          onManageComputers={openComputers}
+        />
+      ) : null}
       <Box paddingX={4} paddingY={3} gap={2}>
         <Box className="flex-row items-center" gap={1}>
           <Box className="min-w-0 flex-1">
