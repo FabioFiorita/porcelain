@@ -20,7 +20,7 @@ Each server owns one optional settings record for its environment. Every paired 
 
 Reads return `unconfigured` or `configured` with a positive revision and all five values. Saves either initialize the whole record or apply a nonempty typed partial change with an expected positive revision. The partial schema is derived from the full schema: there is no second field list. A single SQLite transaction checks the revision, preserves omitted fields, saves all values and increments the revision. A stale or duplicate save returns `SettingsConflict` with the current snapshot; the caller displays it and asks the user to apply their choice again. No automatic conflict replay or retry.
 
-Reuse the existing confirmed-resource, per-connection atom runtime, write queue, query-key invalidation and live-notice path. Local atom state is a confirmed cache, not another authority. Use one new environment-scoped notice, `{ type: 'review-git-settings' }`, delivered to paired live connections without a project/worktree subscription. Subscribe/read on connection, invalidate on the notice and refetch on live reconnect so a missed notice cannot strand a cache. Save responses refresh the submitting client's confirmed snapshot. Queue subsequent edits against the newest confirmed revision or leave controls disabled while saving; do not submit another edit with a revision already in flight.
+Reuse the existing confirmed-resource, per-connection atom runtime, write queue, query-key invalidation and live-notice path. Local atom state is a confirmed cache, not another authority. Reuse the existing `EventPublisher.inventoryChanged()` notice after a settings commit, as environment rename already does. Extend the new client's existing inventory-notice invalidation to include the settings query key; delivery already reaches paired live connections without a project/worktree subscription. Do not add a live-notice union variant: older clients reject unknown variants and could interrupt their live streams. Accept the existing inventory/status refresh on a settings save, which is infrequent, rather than adding capability negotiation. Subscribe/read on connection, invalidate on the notice and refetch on live reconnect so a missed notice cannot strand a cache. Save responses refresh the submitting client's confirmed snapshot. Queue subsequent edits against the newest confirmed revision or leave controls disabled while saving; do not submit another edit with a revision already in flight.
 
 ## Proposed public contract and authorization
 
@@ -31,7 +31,7 @@ Reuse the existing confirmed-resource, per-connection atom runtime, write queue,
 
 The existing generic `httpFailure` helper reconstructs message-only errors and cannot retain `current`. The proposed endpoint therefore needs a dedicated 409 wire schema carrying the snapshot, annotated as Conflict and decoded as `SettingsConflict`; keep the generic `RequestError` shape unchanged. The generated endpoint client must preserve that typed error before the generic transport-error mapper.
 
-Use the existing access lane for authorization and the mutation, followed by a committed live notice. The SQLite store alone owns atomic initialization and compare-and-save. Persistence failures remain defects, matching nearby SQLite stores; they must not publish success or a change notice. The domain services each retain one named `execute` and a static Layer, with dependencies supplied through Layers. The sketches omit HTTP composition and event publication bodies deliberately; implementation must keep them in the server use case, not views or the storage adapter.
+Use the existing access lane for authorization and the mutation, followed by the existing inventory notice after commit. The SQLite store alone owns atomic initialization and compare-and-save. Persistence failures remain defects, matching nearby SQLite stores; they must not publish success or a change notice. The domain services each retain one named `execute` and a static Layer, with dependencies supplied through Layers. The sketches omit HTTP composition and event publication bodies deliberately; implementation must keep them in the server use case, not views or the storage adapter.
 
 ## Database migration and first-device import
 
@@ -39,17 +39,54 @@ Add one native additive migration to `packages/storage/src/db/migrate.ts` (use t
 
 On an upgraded but unconfigured server, show this device's existing five decoded values as an import preview. The user explicitly chooses “Use these settings for this computer”; initialization atomically inserts revision 1. A new device previews the existing defaults (Merge, specs not grouped, all three archive deletions on), with the deletion choices visible before confirmation. Two devices confirming concurrently produce one winner and one conflict; a later device always reads the winner and never silently imports over it.
 
-Retain the original local record until import succeeds and preserve the six unrelated local fields. Once configured, all five server-owned fields leave the local writable preferences shape and every current consumer moves to the server-backed source. Local legacy decoding exists only to supply an explicit first-import candidate; it never merges into or overwrites a configured record. The implementation must remove the old five local setters/callers in the same change. A failed or ambiguous import is recovered by rereading the server, not resubmitting automatically.
+On the first upgraded local decode, capture the five legacy values in an immutable `reviewGitSettingsImportCandidate` field of the persisted device-preferences envelope. Decode missing/invalid legacy values with today's defaults. Every subsequent local encode, including a General-setting change, must preserve this candidate unchanged. If the app exits before a first write, the untouched legacy record supplies the same candidate next time. No server response updates it and no preference setter exposes it.
+
+Keep the candidate for the lifetime of this application profile, including after successful import and when another device initialized the selected server. It can therefore seed unconfigured computer B after computer A was configured, across app restarts and General-setting writes, without a per-computer completion list. Clearing the application's local data removes it. This frozen migration snapshot is only an explicit import preview; it never supplies live Pull/archive defaults or merges into a configured record.
+
+Remove all five fields from the local writable preferences shape and move every current consumer to the server-backed source in the same implementation change; preserve the six unrelated local fields. Replace legacy writable serialization with the canonical envelope carrying the immutable candidate, without losing its values on the first write. A failed or ambiguous import is recovered by rereading the server, not resubmitting automatically.
 
 Until import is confirmed, show the preview but disable operations that need these defaults (Pull and creating an archive plan); Fetch/Push and manual review reading remain available. Once configured, live read failures can retain last confirmed values for viewing and spec grouping, with a persistent unavailable notice; disable setting saves, Pull and archive-plan creation until a fresh read succeeds. A plan already shown remains the user's explicit selection and keeps existing server validation/dirty-work acknowledgement. Never silently replace an unreadable server value with a device default.
 
-An older server without the route shows “Update this computer to sync settings” and disables the new settings/operations requiring them. Older clients keep their preexisting local behavior and do not write this record; the new server cannot force old clients to consume it. That mixed-version limitation must be disclosed during rollout. Additive schema alone does not promise executable downgrade: this repository rejects unknown native migration history, so after upgrade an older server binary may refuse to start. Use the existing database backup/restore or forward upgrade path, not manual row/table deletion.
+An older server without the route shows “Update this computer to sync settings” and disables the new settings/operations requiring them. Older clients keep their preexisting local behavior and do not write this record; the new server cannot force old clients to consume it. That mixed-version limitation must be disclosed during rollout. Reusing the known inventory notice avoids introducing an unknown live variant to older clients. Additive schema alone does not promise executable downgrade: this repository rejects unknown native migration history, so after upgrade an older server binary may refuse to start. Use the existing database backup/restore or forward upgrade path, not manual row/table deletion.
 
 ## Alternative: device replicas with a synchronization log
 
-A structurally different shape keeps a writable device-local replica with `{ deviceId, values, pendingEdits, observedSequences }`; edits carry device identity, a sequence, a logical clock, a field and a correlated value. `editReplica(replica, edit): Replica` and `exchangeWithServer(replica, environmentId): Promise<Replica>` both have bodies that throw `not implemented` in the discarded scratch sketch. A server log accepts idempotent edits, and every replica merges snapshots and replays its outbox. Application callers can change values offline and exchange later.
+Module boundaries would be shared-client replica ownership, platform outbox-storage adapters, a contract exchange endpoint and a server log-store/SQLite owner. A structurally different shape keeps a writable device-local replica with `{ deviceId, values, pendingEdits, observedSequences }`; edits carry device identity, a sequence, a logical clock, a field and a correlated value. `editReplica(replica, edit): Replica` and `exchangeWithServer(replica, environmentId): Promise<Replica>` both have bodies that throw `not implemented` in the discarded scratch sketch. A server log accepts idempotent edits, and every replica merges snapshots and replays its outbox. Application callers can change values offline and exchange later.
 
 It loses because the feature asks devices sharing a server to agree, not for offline editing. This alternative needs durable outboxes, merge ordering, per-device cursors, retention and separate migration of every platform store. Concurrent edits to archive deletion defaults become a merge policy. A typed field/value union can prevent malformed edits but cannot remove the multiple writers. No running prototype is needed to distinguish the ownership and durable-state costs; this checkpoint makes no latency or runtime claims.
+
+### Discarded replica shape
+
+```ts
+import type { ReviewGitSettings } from './model.ts';
+
+type ReplicaEdit = {
+  [K in keyof ReviewGitSettings]: {
+    deviceId: string;
+    sequence: number;
+    logicalClock: number;
+    field: K;
+    value: ReviewGitSettings[K];
+  };
+}[keyof ReviewGitSettings];
+type Replica = {
+  deviceId: string;
+  values: ReviewGitSettings;
+  pendingEdits: readonly ReplicaEdit[];
+  observedSequences: Readonly<Record<string, number>>;
+};
+
+export function editReplica(_replica: Replica, _edit: ReplicaEdit): Replica {
+  throw new Error('not implemented');
+}
+
+export function exchangeWithServer(
+  _replica: Replica,
+  _environmentId: string,
+): Promise<Replica> {
+  throw new Error('not implemented');
+}
+```
 
 ## Red-flag screen
 
@@ -66,12 +103,12 @@ It loses because the feature asks devices sharing a server to agree, not for off
 
 Accept a computer selector, an explicit first import, conflicts that require review, and no offline writes. These make the single authority visible and avoid last-writer-wins surprises for destructive defaults. Scope is per computer, not per repository, device identity or account.
 
-No General preference sync; no theme, diff, wrapping, document-default, commit-model or navigator-expansion sync. No cloud account, hub election, durable client outbox, cross-computer broadcast, background import, automatic retry, new package, rule change or dependency. No changes to archive execution, trust policy for other operations or Git action validation. No new mobile layout work beyond eventual controls needed for the approved five values and computer selection.
+No General preference sync; no theme, diff, wrapping, document-default, commit-model or navigator-expansion sync. No cloud account, hub election, durable client outbox, cross-computer broadcast, background import, automatic retry, new package, rule change or dependency. No new live-notice variant or capability negotiation. No changes to archive execution, trust policy for other operations or Git action validation. No new mobile layout work beyond eventual controls needed for the approved five values and computer selection.
 
 ## Open questions for approval
 
 1. **Scope:** approve one settings record per computer, with an explicit target selector in multi-computer apps, rather than one global set across all computers? This is the main architectural choice.
-2. **Migration:** approve the empty singleton table and explicit first-device import, including visibly confirming existing archive deletion choices? The alternative is server defaults on upgrade, which loses existing per-device choices.
+2. **Migration:** approve the empty singleton table and explicit first-device import, including visibly confirming existing archive deletion choices and retaining an immutable device import candidate for other computers? The alternative is server defaults on upgrade, which loses existing per-device choices.
 3. **Availability and rollout:** approve blocking Pull/archive-plan defaults until initialization and while server settings are unavailable, plus the stated limitation for older clients? This avoids acting on unconfirmed destructive defaults but changes availability.
 4. **Write authority and conflicts:** approve owner/trusted-only writes on every route and 409 conflicts requiring a deliberate resave, including conflicts between edits to different fields?
 
@@ -82,7 +119,7 @@ All rows below are design assertions for approval, not feature runtime proof. No
 | State | Expected after implementation | web 1440 | web 414 | desktop | Android | Test (file:case) | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Both pull strategies; all 16 boolean combinations | Save/read exact values across two devices | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future schema/client/server cases | Design only |
-| No server row; first/new device; existing false defaults | Explicit preview/import; no opening-time write | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future migration/import cases | Design only |
+| No server row; first/new device; existing false defaults | Explicit preview/import; immutable candidate survives A/B imports and local writes | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future migration/import cases | Design only |
 | Two imports or stale/disjoint/double saves | One atomic winner; 409 returns current snapshot | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future real SQLite concurrent save cases | Design only |
 | Empty/invalid/excess patch; invalid revision | 400; no storage or notice | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future HTTP validation cases | Design only |
 | Read/save failure, timeout, ambiguous response, retry | Preserve confirmed view; disable mutations; explicit reread/recovery | N/A sketch | N/A sketch | N/A sketch | N/A no devices | Future failure/recovery cases | Design only |
