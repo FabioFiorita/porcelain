@@ -2,7 +2,7 @@
 route: /
 selectors:
   - 'Review'
-  - 'Proof'
+  - 'Proven at '
   - ' failing'
   - 'check failed'
   - 'The agent reported this work as not passing yet.'
