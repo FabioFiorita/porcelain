@@ -121,6 +121,7 @@ export function PullRequestBlock({ reviewId, context }: Props) {
                     <Button
                       size="sm"
                       variant="outline"
+                      nativeButton={false}
                       render={
                         <Link
                           to="/settings/$section/$environmentId"
@@ -148,6 +149,7 @@ export function PullRequestBlock({ reviewId, context }: Props) {
           <Button
             variant="outline"
             size="sm"
+            nativeButton={false}
             render={<a href={linked} target="_blank" rel="noreferrer" />}
           >
             Open pull request
@@ -219,10 +221,7 @@ function PullRequestDiscovery({
   const found =
     value?.kind === 'available'
       ? value.pullRequests.filter(
-          (pull) =>
-            pull.headBranch === branch &&
-            pull.state === 'open' &&
-            pull.reviewId === undefined,
+          (pull) => pull.headBranch === branch && pull.state === 'open',
         )
       : [];
   return (
@@ -288,7 +287,6 @@ function PullRequestDiscovery({
           aria-label="GitHub pull request URL"
           type="url"
           required
-          pattern="https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/pull/[1-9][0-9]*"
           placeholder="https://github.com/owner/repo/pull/482"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
