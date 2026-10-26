@@ -200,19 +200,96 @@ The implementation resolves its ports in the Layer and exposes one named `Effect
 
 Add `canEditWaysIn` to the existing device model/store with a database column defaulting to false. Existing devices, trusted devices and newly redeemed pairings start false. No pairing-code field or inherited grant is added. Add host/owner-only POST `/access/ways-in-permission` (TCP prefix `/api`) with `WaysInPermission`; device listings report the stored bit. Its use case writes under the access lane and refuses missing/revoked devices. Existing trust operations never modify it. Device revocation makes it unusable immediately; there is no second credentials store.
 
+### `settings.ts`
+
+```ts
+import { Context, Effect, Layer } from 'effect';
+import {
+  NetworkAddressReader,
+  RemoteAccessStore,
+  RouteStateStore,
+  RuntimeStatusReader,
+} from '@porcelain/access/ports';
+import type { SetRemoteAccessService as ExistingSetRemoteAccessService } from '@porcelain/access/services';
+import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
+import type { Editor, EditRequest, WaysInChangedError } from './contract.ts';
+
+export type ValidationFailure = Effect.Error<
+  ReturnType<ExistingSetRemoteAccessService['Service']['execute']>
+>;
+
+export type SettingsSnapshot = {
+  remote: ReadRemoteAccessResponse;
+  fingerprint: Editor['editing']['fingerprint'];
+};
+
+export class ReadRemoteAccessService extends Context.Service<
+  ReadRemoteAccessService,
+  { readonly execute: () => Effect.Effect<SettingsSnapshot> }
+>()('@porcelain/access/ReadRemoteAccessService') {
+  static readonly layer = Layer.effect(
+    ReadRemoteAccessService,
+    Effect.gen(function* () {
+      yield* RemoteAccessStore;
+      yield* RouteStateStore;
+      yield* RuntimeStatusReader;
+      yield* NetworkAddressReader;
+      return {
+        execute: Effect.fn('ReadRemoteAccessService.execute')(
+          (): Effect.Effect<SettingsSnapshot> => {
+            throw new Error('not implemented');
+          },
+        ),
+      };
+    }),
+  );
+}
+
+export class SetRemoteAccessService extends Context.Service<
+  SetRemoteAccessService,
+  {
+    readonly execute: (
+      input: EditRequest,
+    ) => Effect.Effect<SettingsSnapshot, ValidationFailure | WaysInChangedError>;
+  }
+>()('@porcelain/access/SetRemoteAccessService') {
+  static readonly layer = Layer.effect(
+    SetRemoteAccessService,
+    Effect.gen(function* () {
+      yield* RemoteAccessStore;
+      yield* RouteStateStore;
+      yield* RuntimeStatusReader;
+      yield* NetworkAddressReader;
+      return {
+        execute: Effect.fn('SetRemoteAccessService.execute')(
+          (_input: EditRequest): Effect.Effect<SettingsSnapshot, ValidationFailure | WaysInChangedError> => {
+            throw new Error('not implemented');
+          },
+        ),
+      };
+    }),
+  );
+}
+```
+
+These replace the existing read/set services in their current owner; they are not parallel services. One set operation captures saved settings and the current host network once, compares `expected` with that snapshot, validates the requested change against the same captured network, saves and returns the resulting snapshot. Read derives the view and fingerprint from one captured snapshot too. The server never passes a caller-supplied network and never coordinates a separate compare followed by a resampling settings call. An unchanged duplicate succeeds as a no-op without restarting routes; a changed fingerprint conflicts. A digest is not an exactly-once operation identifier.
+
 ### `server.ts`
 
 ```ts
 import { Context, Effect, Layer } from 'effect';
 import {
-  ReadRemoteAccessService,
-  SetRemoteAccessService,
   OpenRemoteRoutesService,
   CloseTunnelConnectionsService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
 import type { SetRemoteAccessRequest } from '@porcelain/contracts/access';
 import { AuthorizeWaysInService } from './domain.ts';
+import {
+  ReadRemoteAccessService,
+  SetRemoteAccessService,
+  type ValidationFailure,
+} from './settings.ts';
 import type {
   Editor,
   EditRequest,
@@ -221,10 +298,6 @@ import type {
   WaysInPermissionRequiredError,
   RemoteRouteInUseError,
 } from './contract.ts';
-
-type ExistingValidationFailure = Effect.Error<
-  ReturnType<SetRemoteAccessService['Service']['execute']>
->;
 
 export class ReadRemoteAccessUseCase extends Context.Service<
   ReadRemoteAccessUseCase,
@@ -252,7 +325,7 @@ export class SetRemoteAccessUseCase extends Context.Service<
       change: EditRequest;
     }) => Effect.Effect<
       Editor,
-      | ExistingValidationFailure
+      | ValidationFailure
       | WaysInPermissionRequiredError
       | WaysInChangedError
       | RemoteRouteInUseError
@@ -280,7 +353,7 @@ export function protectIngress(
 }
 ```
 
-The existing use cases acquire both access and remote-access lanes before authorizing and reading or committing; bootstrap supplies existing `Lanes` and `LaneKeys`. No caller does a separate authorize-then-write sequence. PATCH checks permission, the snapshot fingerprint, and ingress protection before calling the existing settings service. Fingerprint calculation and comparison share one access-domain owner and the same locked snapshot as the returned view.
+The existing use cases acquire both access and remote-access lanes before authorizing and reading or committing; bootstrap supplies existing `Lanes` and `LaneKeys`. No caller does a separate authorize-then-write sequence. PATCH checks permission and ingress protection, then invokes the revised settings service once with `EditRequest`. That service owns fingerprint comparison, validation, LAN pinning and the resulting snapshot. The use case decorates its result with the server-derived protected route to return `Editor`.
 
 The fingerprint is an opaque digest of canonical persisted settings and the host's observed LAN identity relevant to enabling LAN, not of polling status. It is not an authorization token. It avoids another persisted revision counter. A changed network forces a fresh read before pinning LAN. Read captures that network and the view coherently; write must validate and use the same captured host network, rather than sample it again after comparison. Interface name/subnet alone are insufficient: retain the existing router hardware identity check.
 
@@ -385,7 +458,7 @@ These are design obligations, not executed runtime evidence. Every surface cell 
 | Every route off / starting / on / paused / failed | Render requested and observed facts; no promise of reachability | N/A | N/A | N/A | N/A | Planned all status and failure-reason table | Specified |
 | Empty/invalid/oversized hostname; missing hostname/network/router identity | Existing schema/domain rejection; no save | N/A | N/A | N/A | N/A | Planned existing validation controls | Specified |
 | Ingress field supplied, hostname edit or LAN repin | 409 for remote; local owner can recover | N/A | N/A | N/A | N/A | Planned ingress table and listener continuity | Specified |
-| Host network changes, another edit, Tailscale allocation, double submit | Fresh fingerprint conflict; explicit reread/save | N/A | N/A | N/A | N/A | Planned coherent snapshot/CAS controls | Specified |
+| Host network changes, another edit, Tailscale allocation, double submit | Changed fingerprint conflicts; unchanged duplicate is a no-op; explicit reread/save after conflict | N/A | N/A | N/A | N/A | Planned coherent snapshot/CAS controls | Specified |
 | Timeout, offline, partial reconciliation failure, lost response, retry | Unknown outcome or failed status; refresh, no blind replay | N/A | N/A | N/A | N/A | Planned transport recovery journey | Specified |
 | Permission removed while view retains success | Clear privileged data on denial; never enable from stale answer | N/A | N/A | N/A | N/A | Planned query refresh/retention controls | Specified |
 | First run, no saved routes, absent optional metadata | Disabled/explanatory empty states; local pairing recovery | N/A | N/A | N/A | N/A | Planned empty-state journey | Specified |
