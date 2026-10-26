@@ -44,7 +44,7 @@ export function WalkthroughSpine({
               aria-hidden="true"
               className={cn(
                 'absolute top-full left-1/2 h-7 -translate-x-1/2 -translate-y-0.5',
-                index < reached ? 'w-0.75 bg-brand' : 'w-px bg-border',
+                index < reached ? 'w-0.75 bg-brand' : 'w-px bg-border-strong',
               )}
             />
           )}
@@ -63,7 +63,7 @@ export function WalkthroughSpine({
             >
               <span
                 className={cn(
-                  'grid size-6 place-items-center rounded-full border bg-card',
+                  'grid size-6 place-items-center rounded-full border border-border-strong bg-card text-muted-foreground',
                   stop.key === current &&
                     'border-brand text-brand ring-4 ring-brand-soft',
                   done(stop) && 'border-brand bg-brand text-brand-foreground',
