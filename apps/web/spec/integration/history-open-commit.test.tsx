@@ -1,5 +1,35 @@
 import { expect, test } from './fixtures.tsx';
 
+test.for([
+  'refs/heads/heads/x',
+  'heads/x',
+  'x',
+  'refs/tags/release',
+  'experiment/a-long-nested-branch-name-that-must-remain-intact-in-commit-details',
+])(
+  'opening a commit preserves the literal branch decoration %s',
+  async (branch, { repo, render }) => {
+    await repo.branch(branch);
+    const workspace = await render.workspace();
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+    await workspace.getByRole('button', { name: /^Initial commit/ }).click();
+    await expect
+      .element(
+        workspace.getByRole('heading', {
+          name: 'Initial commit',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(workspace.getByText(branch, { exact: true }))
+      .toBeVisible();
+  },
+);
+
 test('opening the root commit shows its added file and patch against the empty tree', async ({
   workspace,
   repo,
