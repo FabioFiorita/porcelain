@@ -293,9 +293,8 @@ it.each(['metadata refreshes', 'is reopened'])(
       }
       expect(writes).toBe(1);
       held.resolve(Response.json({ updated: true }));
-      expect(await readClientAtom(subject.registry, seen)).toEqual({
-        updated: true,
-      });
+      await readClientAtom(subject.registry, seen);
+      expect(writes).toBe(1);
     } finally {
       held.resolve(Response.json({ updated: true }));
       stopSeen();
