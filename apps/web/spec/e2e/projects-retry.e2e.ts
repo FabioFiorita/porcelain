@@ -1,3 +1,4 @@
+import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { expect, test } from './fixtures.ts';
 
 const reasons = [
@@ -27,20 +28,21 @@ for (const width of [1440, 414]) {
       let reason: (typeof reasons)[number][0];
       await page.route('**/api/inventory', async (route) => {
         const response = await route.fetch();
-        const inventory = await response.json();
-        if (unavailable)
-          inventory.projects = [
-            {
-              ...project,
-              available: false,
-              ...(reason ? { unavailableReason: reason } : {}),
-              worktrees: project.worktrees.map((worktree) => ({
-                ...worktree,
+        const inventory: ReadInventoryResponse = await response.json();
+        const projects = unavailable
+          ? inventory.projects
+              .filter((entry) => entry.id === project.id)
+              .map((entry) => ({
+                ...entry,
                 available: false,
-              })),
-            },
-          ];
-        await route.fulfill({ response, json: inventory });
+                ...(reason ? { unavailableReason: reason } : {}),
+                worktrees: entry.worktrees.map((worktree) => ({
+                  ...worktree,
+                  available: false,
+                })),
+              }))
+          : inventory.projects;
+        await route.fulfill({ response, json: { ...inventory, projects } });
       });
       const manage = page.getByRole('button', {
         name: 'Manage projects',
