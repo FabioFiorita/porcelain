@@ -49,7 +49,7 @@ test.for([1440, 414])(
       await expect.element(steps).toBeVisible();
       await steps
         .getByRole('button', {
-          name: '1 Read the retained revision',
+          name: 'Not reviewed 1 Read the retained revision',
           exact: true,
         })
         .click();
@@ -75,7 +75,12 @@ test.for([1440, 414])(
         .getByRole('button', { name: 'Changed files', exact: true })
         .click();
       await expect
-        .element(panel.getByRole('button', { name: 'retired.ts', exact: true }))
+        .element(
+          panel.getByRole('button', {
+            name: 'Not reviewed retired.ts',
+            exact: true,
+          }),
+        )
         .toBeVisible();
       await panel.getByRole('tab', { name: 'Comments', exact: true }).click();
       await expect
@@ -122,7 +127,7 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
   await open();
   await panel
     .getByRole('list', { name: 'Stops of decision 1', exact: true })
-    .getByRole('button', { name: '1 New line', exact: true })
+    .getByRole('button', { name: 'Not reviewed 1 New line', exact: true })
     .click();
   await expect
     .element(
@@ -140,12 +145,15 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
   await workspace
     .getByRole('button', { name: 'Back to decision', exact: true })
     .click();
+  await workspace
+    .getByRole('button', { name: 'Mark decision reviewed', exact: true })
+    .click();
+  await open();
   await expect
     .element(
-      workspace.getByRole('button', {
-        name: 'Mark decision reviewed',
-        exact: true,
-      }),
+      panel
+        .getByRole('list', { name: 'Stops of decision 1', exact: true })
+        .getByRole('button', { name: 'Reviewed 1 New line', exact: true }),
     )
     .toBeVisible();
 });

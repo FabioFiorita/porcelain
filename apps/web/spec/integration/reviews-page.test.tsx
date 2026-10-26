@@ -468,7 +468,7 @@ test('the review page keeps whole-change and inline comments in its Review panel
       .getByRole('button', { name: 'Changed files', exact: true })
       .click();
     await panel
-      .getByRole('button', { name: 'retired.ts', exact: true })
+      .getByRole('button', { name: 'Not reviewed retired.ts', exact: true })
       .click();
     await expect
       .element(
