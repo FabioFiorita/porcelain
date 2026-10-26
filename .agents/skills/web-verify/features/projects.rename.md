@@ -19,8 +19,8 @@ Renaming a project from the navigator's project action submenu changes only its 
 
 ## How to get to it (user POV)
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Filter reviews → Projects → project menuitem (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
-- Desktop shell: a remote computer's project (under Projects, in the group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Manage projects → project menuitem (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
+- Desktop shell: a remote computer's project (under Manage projects, in the group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
 
 ## Driving it with browser
 
@@ -32,7 +32,7 @@ Preconditions: [surface baseline](README.md).
    Expect: title "Changes — repository".
 2. Click button `Toggle Sidebar`
    Expect: dialog "Sidebar" with Filter reviews.
-3. Open Filter reviews → Projects → menuitem `repository`
+3. Open Manage projects → menuitem `repository`
    Expect: project action submenu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
 4. Click menuitem `Rename project`
    Expect: dialog "Rename project"; textbox "Name" focused with value "repository"; buttons "Cancel" and "Rename".
@@ -41,11 +41,11 @@ Preconditions: [surface baseline](README.md).
 6. Fill textbox `Name` with 'Browser renamed project'
    Expect: the alert is gone; button "Rename" enabled.
 7. Click button `Rename`
-   Expect: dialog "Rename project" is gone; project menuitem "Browser renamed project" after reopening Filter reviews → Projects in the sheet and no project menuitem "repository"; title "Changes — Browser renamed project".
+   Expect: dialog "Rename project" is gone; project menuitem "Browser renamed project" after reopening Manage projects in the sheet and no project menuitem "repository"; title "Changes — Browser renamed project".
 8. Inspect HTTP traffic
    Expect: `PATCH /api/projects/<projectId>` with status 200.
 9. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: after reopening Filter reviews → Projects the project menuitem is still "Browser renamed project".
+   Expect: after reopening Manage projects the project menuitem is still "Browser renamed project".
 
 ### Observable proof
 
