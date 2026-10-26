@@ -158,6 +158,8 @@ export class World {
       return '';
     }
     if (step.kind === 'read') return repository.readFile(step.path);
+    if (step.kind === 'rename')
+      return repository.git('mv', '--', step.from, step.to);
     if (step.kind === 'commit') {
       await repository.git('add', '--all');
       return repository.git('commit', '--message', step.message);
