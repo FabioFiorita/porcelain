@@ -12,6 +12,7 @@ selectors:
 tests:
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
   - apps/web/spec/e2e/projects-remove.e2e.ts
+  - apps/web/spec/e2e/projects-retry.e2e.ts
   - apps/web/spec/integration/projects-remove.test.tsx
 api:
   - POST /api/inventory/refresh
@@ -60,7 +61,7 @@ Cancelling keeps it. An address of one of its worktrees, open at the time or ope
 ### Unavailable project submenu
 
 1. Make the disposable repository missing, permission denied, replaced, or fail Git, then POST `/api/inventory/refresh` to observe that state.
-2. Open Manage projects → the unavailable project. Expect respectively "The repository folder is missing.", "Porcelain cannot read this repository because access is denied.", "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.", or "Git could not read this repository." An older server with no reason shows "Porcelain can't reach this repository right now."
+2. Open Manage projects → the unavailable project. Expect respectively "The repository folder is missing.", "Porcelain cannot read this repository because access is denied.", "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.", or "Git could not read this repository." An older server with no reason shows "Porcelain can't reach this repository right now." Check every reason at 1440 and 414 in light and dark: the submenu stays within the viewport. Restore access, click Retry, and verify POST /api/inventory/refresh completes with 200; reopening the project actions removes the reason and Retry without reloading.
 3. Click `Retry` while blocked: expect POST `/api/inventory/refresh`, 200 JSON, and the same state. Restore the repository and click `Retry`: expect the original worktree and no alert.
 4. Reopen an unavailable project's submenu, click `Remove from Porcelain`, and drive the same Cancel/confirm paths above. On a remote computer's project, the same paths send `DELETE /api/projects/<projectId>` to that computer's address, not this server's.
 

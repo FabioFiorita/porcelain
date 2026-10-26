@@ -8,7 +8,7 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { cn } from '@/shared/lib/utils';
 import { useState } from 'react';
 import { useElement } from '@/shared/hooks/use-element';
-import { useAtomValue, useAtomSet } from '@effect/atom-react';
+import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
   ArchiveIcon,
@@ -20,6 +20,7 @@ import {
   SettingsIcon,
 } from 'lucide-react';
 import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
+import { refreshInventories } from '@porcelain/client/projects';
 import {
   emptyReviewListFilter,
   reviewListGroups,
@@ -115,6 +116,7 @@ export function ProjectNavigator({
   const { entries, loading, messages, projects } = useAtomValue(
     readReviewList(connections),
   );
+  useAtomMount(refreshInventories(connections));
   const retry = useAtomSet(refreshReviewList(connections));
   const [view, setView] = useState({
     query: '',

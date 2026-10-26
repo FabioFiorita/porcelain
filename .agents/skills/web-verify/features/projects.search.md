@@ -10,6 +10,7 @@ selectors:
 tests:
   - apps/web/spec/e2e/projects-search.e2e.ts
   - apps/web/spec/e2e/projects-manage.e2e.ts
+  - apps/web/spec/e2e/projects-retry.e2e.ts
   - apps/web/spec/integration/worktrees-menu.test.tsx
   - apps/web/spec/e2e/review-archive.e2e.ts
   - apps/web/spec/e2e/projects-pr-state.e2e.ts
