@@ -22,6 +22,7 @@ import {
   RemoveReviewMarkService,
   DeleteReviewService,
   ReadPublishedReviewService,
+  SetReviewSeenService,
 } from '@porcelain/reviews/services';
 import { reviewFixture, reviewSave } from '@porcelain/reviews/store-contracts';
 import { storageLayer } from '@porcelain/storage';
@@ -48,6 +49,7 @@ import { DeleteResolvedCommentsUseCase } from '../../src/use-cases/reviews/delet
 import { SetReviewMarkUseCase } from '../../src/use-cases/reviews/set-review-mark.ts';
 import { RemoveReviewMarkUseCase } from '../../src/use-cases/reviews/remove-review-mark.ts';
 import { DeleteReviewUseCase } from '../../src/use-cases/reviews/delete-review.ts';
+import { SetReviewSeenUseCase } from '../../src/use-cases/reviews/set-review-seen.ts';
 import { record } from '../kit/session.ts';
 import { LIMITS } from '../../src/config/limits.ts';
 
@@ -66,6 +68,8 @@ const rows = [
   ['set decision mark', ['settled', 'inventory']],
   ['remove decision mark', ['settled', 'inventory']],
   ['delete review', ['settled', 'inventory']],
+  ['see revision', ['settled', 'inventory']],
+  ['see revision again', ['settled']],
   ['failure', ['settled']],
   ['interruption', ['settled']],
   [
@@ -207,6 +211,7 @@ test.each(rows)(
               RemoveReviewMarkService.layer,
               DeleteReviewService.layer,
               ReadPublishedReviewService.layer,
+              SetReviewSeenService.layer,
             ).pipe(Layer.provideMerge(runtime));
             const context = yield* Layer.build(
               Layer.mergeAll(
@@ -218,6 +223,7 @@ test.each(rows)(
                 SetReviewMarkUseCase.layer,
                 RemoveReviewMarkUseCase.layer,
                 DeleteReviewUseCase.layer,
+                SetReviewSeenUseCase.layer,
               ).pipe(Layer.provideMerge(services)),
             );
             const create = Context.get(context, CreateCommentThreadUseCase);
@@ -258,6 +264,9 @@ test.each(rows)(
             const setMark = Context.get(context, SetReviewMarkUseCase);
             if (state === 'remove decision mark')
               yield* setMark.execute({ ...mark, revision: 1 });
+            const seen = Context.get(context, SetReviewSeenUseCase);
+            if (state === 'see revision again')
+              yield* seen.execute({ reviewId: review.reviewId, revision: 1 });
             trace.length = 0;
             readbacks.length = 0;
             switch (state) {
@@ -318,6 +327,18 @@ test.each(rows)(
                 break;
               case 'delete review':
                 yield* Context.get(context, DeleteReviewUseCase).execute(input);
+                break;
+              case 'see revision':
+              case 'see revision again':
+                expect(
+                  yield* seen.execute({
+                    reviewId: review.reviewId,
+                    revision: 1,
+                  }),
+                ).toEqual({ updated: state === 'see revision' });
+                expect(
+                  (yield* reviews.readRecord(input))?.lastSeenRevision,
+                ).toBe(1);
                 break;
               case 'failure': {
                 const result = yield* reply

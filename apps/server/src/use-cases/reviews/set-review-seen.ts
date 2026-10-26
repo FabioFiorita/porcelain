@@ -31,7 +31,8 @@ export class SetReviewSeenUseCase extends Context.Service<
             'write',
             () => operation.execute(input),
             {
-              succeeded: () => events.inventoryChanged(),
+              succeeded: (value) =>
+                value.updated ? events.inventoryChanged() : Effect.void,
             },
           );
         }),
