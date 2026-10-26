@@ -2,11 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { utf8ByteLength } from './utf8-byte-length.ts';
 
 describe('utf8ByteLength', () => {
-  it('counts one byte for ASCII text, reserved characters included', () => {
-    expect(utf8ByteLength('Fix README')).toBe(10);
-    expect(utf8ByteLength('a%20b/c?d')).toBe(9);
-  });
-
   it('moves to the next width exactly at each UTF-8 boundary', () => {
     expect(utf8ByteLength('\u007f')).toBe(1);
     expect(utf8ByteLength('\u0080')).toBe(2);

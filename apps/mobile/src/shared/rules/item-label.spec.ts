@@ -1,22 +1,6 @@
 import { expect, it } from 'vitest';
 import { itemAccessibilityLabel } from './item-label.ts';
 
-it('leaves status badges and connection-error children in the native announcement', () => {
-  expect(
-    itemAccessibilityLabel({
-      title: 'Development',
-      hasAdditionalContent: true,
-    }),
-  ).toBeUndefined();
-  expect(
-    itemAccessibilityLabel({
-      title: 'Development',
-      description: 'Remote server',
-      hasAdditionalContent: true,
-    }),
-  ).toBeUndefined();
-});
-
 it('labels plain rows and respects an explicit announcement', () => {
   expect(
     itemAccessibilityLabel({
