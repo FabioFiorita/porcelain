@@ -24,10 +24,14 @@ export class AuthorizeWaysInService extends Context.Service<
           const { viewer } = input;
           if (viewer.kind === 'owner') return;
           const device = yield* devices.find({ deviceId: viewer.deviceId });
-          if (device === undefined || deviceRevoked(device))
+          if (device !== undefined && deviceRevoked(device))
             return yield* Effect.fail(new WaysInPermissionRequiredError());
           if (input.local) return;
-          if (input.route === 'loopback' || device.canEditWaysIn !== true)
+          if (
+            device === undefined ||
+            input.route === 'loopback' ||
+            device.canEditWaysIn !== true
+          )
             return yield* Effect.fail(new WaysInPermissionRequiredError());
         }),
       };

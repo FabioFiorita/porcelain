@@ -89,6 +89,11 @@ describe('AuthorizeWaysInService', () => {
     ],
     ['an unknown device', asDevice('unknown', 'tailnet'), false],
     [
+      "the desktop app's own session on this computer, which has no paired device record",
+      asDevice('desktop-session', 'loopback', true),
+      true,
+    ],
+    [
       'a relayed request on the loopback address, even with the permission',
       asDevice('allowed-loopback', 'loopback'),
       false,
