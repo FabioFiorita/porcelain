@@ -234,7 +234,7 @@ function PublishedReadiness({
         tone={
           progress && progress.reviewed === progress.total ? 'ok' : 'attention'
         }
-        onSelect={progress ? () => onSelect('files') : retry}
+        onSelect={failed ? retry : () => onSelect('files')}
       />
     </>
   );
@@ -271,7 +271,8 @@ function usePublishedProgress({
   const currentMarks =
     marks ?? Option.getOrUndefined(AsyncResult.value(markResult));
   const failed =
-    AsyncResult.isFailure(result) || AsyncResult.isFailure(markResult);
+    AsyncResult.isFailure(result) ||
+    (marks === undefined && AsyncResult.isFailure(markResult));
   return {
     progress:
       !failed && snapshot && currentMarks
