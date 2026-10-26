@@ -158,6 +158,14 @@ export const nativeMigrations = Migrator.fromRecord({
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE reviews ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1))`;
   }),
+  '005_review_git_settings': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE review_git_settings (
+      singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
+      revision INTEGER NOT NULL CHECK(revision > 0),
+      settings TEXT NOT NULL
+    )`;
+  }),
   '003_project_github_accounts': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE project_github_accounts (

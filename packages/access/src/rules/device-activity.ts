@@ -8,6 +8,10 @@ export function deviceRevoked(device: StoredDevice): boolean {
   return device.revokedAt !== undefined;
 }
 
+export function deviceTrusted(device: StoredDevice | undefined): boolean {
+  return device !== undefined && !deviceRevoked(device) && device.trusted === true;
+}
+
 export function sightingDue(device: StoredDevice, now: string): boolean {
   return idleMilliseconds(device, now) > 0;
 }

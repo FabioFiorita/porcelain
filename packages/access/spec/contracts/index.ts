@@ -19,3 +19,7 @@ export {
   remoteAccessStoreContract,
   type RemoteAccessStoreSubject,
 } from './remote-access-store-contract.ts';
+export {
+  reviewGitSettingsStoreContract,
+  type ReviewGitSettingsStoreSubject,
+} from './review-git-settings-store-contract.ts';

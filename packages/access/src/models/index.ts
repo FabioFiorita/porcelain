@@ -49,3 +49,17 @@ export type { LiveTickets } from './live-ticket.ts';
 export type { RedeemLiveTicketInput } from './redeem-live-ticket.ts';
 
 export type { ServiceUpdateAuthority } from './authorize-service-update.ts';
+export {
+  reviewGitSettingsSchema,
+  reviewGitSettingsChangeSchema,
+  configuredReviewGitSettingsSchema,
+  reviewGitSettingsSnapshotSchema,
+  saveReviewGitSettingsSchema,
+  type ReviewGitSettings,
+  type ReviewGitSettingsChange,
+  type ConfiguredReviewGitSettings,
+  type ReviewGitSettingsSnapshot,
+  type SaveReviewGitSettings,
+  type SaveReviewGitSettingsInput,
+} from './review-git-settings.ts';
+export type { Viewer } from './viewer.ts';
