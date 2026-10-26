@@ -9,11 +9,13 @@ import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
 
+const unframed = (content: ReactNode) => content;
+
 export function WorkspaceGate({
   title,
   expectedWorkspace,
   changed,
-  fallbackFrame = (content) => content,
+  fallbackFrame = unframed,
   children,
 }: {
   title: string;
