@@ -19,7 +19,7 @@ export function WorkspacePending() {
           </div>
         ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col rounded-xl border bg-background">
+      <div className="flex min-w-0 flex-1 flex-col rounded-paper border bg-background">
         <div className="flex h-12 items-center border-b px-4">
           <Skeleton className="h-7 w-16" />
         </div>
