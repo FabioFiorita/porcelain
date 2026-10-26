@@ -5,7 +5,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { refLabel } from '@porcelain/client/history/rules';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import {
@@ -278,9 +277,7 @@ function ReviewRevisionPage({
     (entry) => entry.id === revision.projectId,
   );
   const worktree = project?.worktrees.find(
-    (entry) =>
-      entry.available &&
-      refLabel(entry.branch ?? '') === refLabel(revision.branch),
+    (entry) => entry.available && entry.id === revision.content.worktreeId,
   );
   const currentScope =
     liveScope ??
