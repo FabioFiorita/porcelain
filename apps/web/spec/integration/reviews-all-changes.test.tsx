@@ -115,3 +115,19 @@ for (const surface of ['Files', 'History'] as const) {
       .toBeVisible();
   });
 }
+
+test('Changes explains how to get a review until the agent publishes one', async ({
+  workspace,
+  agent,
+}) => {
+  const intro = workspace.getByRole('heading', {
+    name: 'No review yet',
+    exact: true,
+  });
+  await expect.element(intro).toBeVisible();
+  await expect
+    .element(workspace.getByText('publish_review', { exact: true }))
+    .toBeVisible();
+  await agent.publishArchitecture();
+  await expect.element(intro).not.toBeInTheDocument();
+});
