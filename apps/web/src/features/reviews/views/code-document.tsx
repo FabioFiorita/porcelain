@@ -1,6 +1,6 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Link } from '@tanstack/react-router';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -27,6 +27,8 @@ import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
+  PIERRE_DECISION_CSS,
+  PIERRE_DECISION_THEME,
   PIERRE_HEADER_CSS,
   PIERRE_MARGIN_THREAD_CSS,
   PIERRE_SURFACE_CSS,
@@ -54,7 +56,7 @@ import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
-import { useMarginStack } from '../adapters/margin-stack';
+import { revealMarginLine, useMarginStack } from '../adapters/margin-stack';
 import {
   codeCommentMatches,
   codeCommentStale,
@@ -63,6 +65,7 @@ import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
+import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
@@ -93,6 +96,7 @@ type Props = {
   collapsible?: boolean;
   range?: ReviewRange;
   threadMargin?: boolean;
+  decision?: boolean;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -137,6 +141,7 @@ function CodeSurface({
   fullHeight = false,
   collapsible = false,
   threadMargin = false,
+  decision = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -145,7 +150,7 @@ function CodeSurface({
   const { dark } = useTheme();
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
-  const entries = groupSpecPaths(given, specsApart);
+  const entries = decision ? given : groupSpecPaths(given, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
   const margin = useMarginStack();
@@ -315,7 +320,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: PIERRE_THEME,
+    theme: decision ? PIERRE_DECISION_THEME : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -343,7 +348,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -417,7 +422,12 @@ function CodeSurface({
   );
 
   return (
-    <div className="@container/code relative flex min-h-0 flex-1 flex-col">
+    <div
+      className={cn(
+        '@container/code relative flex min-h-0 flex-1 flex-col',
+        decision && 'decision-code',
+      )}
+    >
       {interaction.toolbarTarget &&
         paneActions &&
         createPortal(paneActions, interaction.toolbarTarget)}
@@ -577,11 +587,12 @@ function CodeSurface({
                 setFocused(entries.findIndex((entry) => entry.id === next.id));
             }
           }}
-          renderAnnotation={(...[annotation]) => {
+          renderAnnotation={(...[annotation, , item]) => {
             const note = annotation.metadata;
             if (note.kind === 'agent')
               return (
                 <AgentNote
+                  compact={decision}
                   title={note.title}
                   text={note.text}
                   stale={note.stale}
@@ -620,7 +631,7 @@ function CodeSurface({
                 )}
               >
                 {note.threads.map(({ thread, stale }) => (
-                  <div key={thread.id}>
+                  <div key={thread.id} className="group/margin-thread">
                     {stale && !thread.review && (
                       <p className="mb-2 text-xs text-graph-4">
                         Code changed since this comment
@@ -657,6 +668,41 @@ function CodeSurface({
                       scope={scope}
                       context={gitContext}
                       thread={thread}
+                      {...(threadMargin &&
+                      note.lineNumber > 0 &&
+                      thread.anchor.kind === 'codeRange'
+                        ? {
+                            location: (
+                              <MarginThreadLocation
+                                anchor={thread.anchor}
+                                onReveal={(control) => {
+                                  const anchor = thread.anchor;
+                                  if (anchor.kind !== 'codeRange') return;
+                                  const side =
+                                    item.type === 'diff'
+                                      ? { side: anchor.side ?? 'additions' }
+                                      : {};
+                                  flushSync(() => {
+                                    setSelection({
+                                      id: item.id,
+                                      range: {
+                                        start: anchor.startLine,
+                                        end: anchor.endLine,
+                                        ...side,
+                                      },
+                                    });
+                                    setFocused(
+                                      entries.findIndex(
+                                        (entry) => entry.id === item.id,
+                                      ),
+                                    );
+                                  });
+                                  revealMarginLine(control);
+                                }}
+                              />
+                            ),
+                          }
+                        : {})}
                     />
                   </div>
                 ))}
@@ -700,6 +746,7 @@ function CodeSurface({
               </div>
             );
           }}
+          disableWorkerPool={decision}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }
@@ -724,7 +771,8 @@ function CodeSurface({
                 : null;
             return (
               <span className="flex items-center gap-1">
-                {specsApart &&
+                {!decision &&
+                  specsApart &&
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">

@@ -9,20 +9,29 @@ export function AgentNote({
   stale = false,
   marker,
   tone = 'agent',
+  compact = false,
 }: {
   title?: string;
   text: string;
   stale?: boolean;
   marker?: string;
   tone?: 'agent' | 'gap';
+  compact?: boolean;
 }) {
   const gap = tone === 'gap';
-  const body = <MarkdownView text={text} className="text-sm" />;
+  const body = (
+    <MarkdownView
+      text={text}
+      className={cn('text-sm', compact && '[&_p]:my-0')}
+    />
+  );
   return (
     <aside
       aria-label={`${gap ? 'Not explained' : 'Agent note'}${title ? ` · ${title}` : ''}`}
       className={cn(
-        'm-3 flex max-w-3xl gap-2.5 rounded-lg border bg-background px-3 py-2.5 font-sans shadow-xs',
+        compact
+          ? 'mx-3 my-1 flex gap-2 border-l-2 border-brand-soft py-1 pl-3 font-sans'
+          : 'm-3 flex max-w-3xl gap-2.5 rounded-lg border bg-background px-3 py-2.5 font-sans shadow-xs',
         gap && 'border-graph-4/40 bg-graph-4/5',
       )}
     >

@@ -10,8 +10,6 @@ import {
 import {
   revisionDecisionStates,
   filesReviewed,
-  proofLabel,
-  proofStatus,
   revisionReviewItems,
   reviewSidebarActions,
   stopDone,
@@ -22,7 +20,7 @@ import {
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useSpecsApart } from '@/features/preferences/index';
 import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
-import { type OpenDocument, ALL_CHANGES, PROOF } from '../rules/documents';
+import { type OpenDocument, ALL_CHANGES } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
 import { SidebarActionMenu } from './sidebar-action-menu';
 import { Button } from '@/components/ui/button';
@@ -181,13 +179,6 @@ function PublishedNavigation({
           The review mark could not be updated.
         </p>
       )}
-      <SidebarDocumentRow
-        label="Proof"
-        active={activeEntry === 'proof'}
-        onOpen={() => onOpen(PROOF)}
-      >
-        Proof · {proofLabel(proofStatus(snapshot.content.proof))}
-      </SidebarDocumentRow>
       <SidebarDocumentRow
         label="All changes"
         active={activeEntry === 'all-changes'}

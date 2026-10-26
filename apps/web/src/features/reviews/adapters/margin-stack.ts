@@ -13,11 +13,15 @@ function createMarginStack(onReserve: (pixels: number) => void) {
   const layout = () => {
     cancelAnimationFrame(frame);
     frame = 0;
-    for (const card of cards) card.style.translate = '';
-    const placed = [...cards].filter(
-      (card) =>
-        card.isConnected && getComputedStyle(card).position === 'absolute',
-    );
+    for (const card of cards) {
+      card.style.translate = '';
+    }
+    const placed = [...cards].filter((card) => {
+      const placed =
+        card.isConnected && getComputedStyle(card).position === 'absolute';
+      if (!placed) identifyMarginThreads(card, undefined);
+      return placed;
+    });
     const boxes = placed.map((card) => card.getBoundingClientRect());
     const offsets = stackMargin(
       boxes.map((box) => ({ top: box.top, height: box.height })),
@@ -25,6 +29,7 @@ function createMarginStack(onReserve: (pixels: number) => void) {
     let reserve = 0;
     placed.forEach((card, index) => {
       const offset = offsets[index] ?? 0;
+      identifyMarginThreads(card, offset);
       if (offset > 0) card.style.translate = `0 ${offset}px`;
       const end = card.offsetParent?.getBoundingClientRect().bottom;
       const bottom = (boxes[index]?.bottom ?? 0) + offset;
@@ -52,4 +57,20 @@ function createMarginStack(onReserve: (pixels: number) => void) {
       onReserve(0);
     };
   };
+}
+
+export function revealMarginLine(control: HTMLElement) {
+  control
+    .closest('diffs-container')
+    ?.shadowRoot?.querySelector<HTMLElement>('[data-code] [data-selected-line]')
+    ?.scrollIntoView({ block: 'center', inline: 'nearest' });
+}
+
+function identifyMarginThreads(card: HTMLElement, offset: number | undefined) {
+  [...card.children].forEach((thread, index) => {
+    if (thread instanceof HTMLElement)
+      thread.dataset.displaced = String(
+        offset !== undefined && (offset > 0 || index > 0),
+      );
+  });
 }
