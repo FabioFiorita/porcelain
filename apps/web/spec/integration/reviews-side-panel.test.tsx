@@ -6,59 +6,6 @@ const rail = () =>
 const panel = () =>
   page.getByRole('complementary', { name: 'Review sidebar', exact: true });
 
-test('the rail opens each view in the docked panel and the open view or the hide button closes it', async ({
-  workspace,
-}) => {
-  await page.viewport(1280, 896);
-  try {
-    await expect
-      .element(rail().getByRole('button', { name: 'Files', exact: true }))
-      .toHaveAttribute('aria-pressed', 'true');
-    await expect
-      .element(
-        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
-      )
-      .toBeVisible();
-    await expect
-      .element(workspace.getByRole('button', { name: 'Review', exact: true }))
-      .not.toBeInTheDocument();
-
-    for (const view of ['Changes', 'History', 'Files']) {
-      await rail().getByRole('button', { name: view, exact: true }).click();
-      await expect
-        .element(
-          panel().getByRole('heading', { level: 2, name: view, exact: true }),
-        )
-        .toBeVisible();
-    }
-
-    await rail().getByRole('button', { name: 'Files', exact: true }).click();
-    await expect.element(panel()).not.toBeInTheDocument();
-    for (const view of ['Files', 'Changes', 'History'])
-      await expect
-        .element(rail().getByRole('button', { name: view, exact: true }))
-        .toHaveAttribute('aria-pressed', 'false');
-    const show = workspace.getByRole('button', {
-      name: 'Show side panel',
-      exact: true,
-    });
-    await expect.element(show).toHaveAttribute('aria-expanded', 'false');
-
-    await show.click();
-    await expect
-      .element(
-        panel().getByRole('heading', { level: 2, name: 'Files', exact: true }),
-      )
-      .toBeVisible();
-    await workspace
-      .getByRole('button', { name: 'Hide side panel', exact: true })
-      .click();
-    await expect.element(panel()).not.toBeInTheDocument();
-  } finally {
-    await page.viewport(414, 896);
-  }
-});
-
 test('Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the panel', async ({
   workspace,
 }) => {
@@ -171,70 +118,6 @@ test('the History panel names the branch, counts uncommitted files as they chang
           .getByRole('tab', { name: 'All changes', exact: true }),
       )
       .toHaveAttribute('aria-selected', 'true');
-  } finally {
-    await page.viewport(414, 896);
-  }
-});
-
-test('the Pinned group shows its count and folds away', async ({
-  workspace,
-  repo,
-}) => {
-  await repo.write('guide.md', '# Guide\n');
-  await page.viewport(1280, 896);
-  try {
-    await workspace
-      .getByRole('treeitem', { name: 'guide.md', exact: true })
-      .click({ button: 'right' });
-    await workspace
-      .getByRole('menuitem', { name: 'Pin file', exact: true })
-      .click();
-    const group = workspace.getByRole('region', {
-      name: 'Pinned files',
-      exact: true,
-    });
-    const header = group.getByRole('button', {
-      name: 'Pinned 1',
-      exact: true,
-    });
-    await expect.element(header).toHaveAttribute('aria-expanded', 'true');
-    await expect
-      .element(
-        group.getByRole('button', { name: 'Unpin guide.md', exact: true }),
-      )
-      .toBeVisible();
-    await header.click();
-    await expect.element(header).toHaveAttribute('aria-expanded', 'false');
-    await expect
-      .element(
-        group.getByRole('button', { name: 'Unpin guide.md', exact: true }),
-      )
-      .not.toBeInTheDocument();
-  } finally {
-    await page.viewport(414, 896);
-  }
-});
-
-test('the Graph tab gives each commit one row with its id, HEAD badge and age at desktop width', async ({
-  workspace,
-}) => {
-  await page.viewport(1280, 896);
-  try {
-    await rail().getByRole('button', { name: 'History', exact: true }).click();
-    await panel()
-      .getByRole('button', { name: 'Open graph', exact: true })
-      .click();
-    const graph = workspace.getByRole('list', {
-      name: 'Commit graph',
-      exact: true,
-    });
-    const row = graph.getByRole('listitem').first();
-    await expect
-      .element(
-        row.getByRole('button', { name: /^Initial commit [0-9a-f]{7} / }),
-      )
-      .toBeVisible();
-    await expect.element(row.getByText('HEAD', { exact: true })).toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }

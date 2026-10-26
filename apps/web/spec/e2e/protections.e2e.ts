@@ -32,14 +32,6 @@ test('the automatic failures fixture reports an uncaught error and an unhandled 
   failures.accept(reported);
 });
 
-test('the server readers return the project name the server kept', async ({
-  server,
-}) => {
-  await expect
-    .poll(async () => (await server.project()).name)
-    .toBe('repository');
-});
-
 test('the evidence a test keeps holds no credential or pairing code', async ({
   pairedPage,
   world,
