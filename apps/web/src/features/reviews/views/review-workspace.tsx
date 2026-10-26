@@ -281,7 +281,10 @@ function ReviewWorkspaceContent({
           >
             <section
               aria-label="Review content"
-              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
+              className={cn(
+                'flex h-full min-w-0 flex-col',
+                !layout.split && 'overflow-hidden rounded-paper border bg-card',
+              )}
             >
               <InterruptedActionNotice scope={scope} context={context} />
               <ConflictGuidance scope={scope} context={context} onOpen={open} />
@@ -481,7 +484,10 @@ function DocumentPanes({
       <ResizablePanel id="pane-left" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(0)} />
       </ResizablePanel>
-      <ResizableHandle withHandle />
+      <ResizableHandle
+        withHandle
+        className="w-2 bg-transparent after:w-2 aria-[orientation=horizontal]:h-2 aria-[orientation=horizontal]:after:h-2"
+      />
       <ResizablePanel id="pane-right" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(1)} />
       </ResizablePanel>
@@ -545,7 +551,7 @@ function PaneView({
       onFocusCapture={focusPane}
       className={cn(
         '@container/pane flex h-full min-h-0 min-w-0 flex-col',
-        split && index === 1 && 'border-l',
+        split && 'overflow-hidden rounded-paper border bg-card shadow-paper',
       )}
     >
       <DocumentTabs
