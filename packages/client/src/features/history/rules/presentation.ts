@@ -85,12 +85,12 @@ export function branchTracking(
     };
   if (!branch.upstream)
     return {
-      name: refLabel(branch.name),
+      name: branch.name,
       counts: null,
       upstream: 'No upstream',
     };
   return {
-    name: refLabel(branch.name),
+    name: branch.name,
     counts: `${branch.ahead} ahead · ${branch.behind} behind`,
     upstream: `against ${refLabel(branch.upstream)}`,
   };

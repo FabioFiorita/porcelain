@@ -108,7 +108,7 @@ const attached = {
   head: { kind: 'attached' as const, ref: 'refs/heads/feature' },
 };
 const tracked = {
-  name: 'refs/heads/topic',
+  name: 'topic',
   upstream: 'refs/remotes/origin/topic',
   ahead: 0,
   behind: 0,
@@ -166,7 +166,7 @@ it('retains complete long branch and upstream names', () => {
     branchTracking(
       {
         ...tracked,
-        name: `refs/heads/${name}`,
+        name,
         upstream: `refs/remotes/origin/${name}`,
       },
       null,
@@ -194,3 +194,10 @@ it('keeps branch, remote and tag refs and drops Porcelain internal refs', () => 
     'HEAD',
   ]);
 });
+
+it.each(['topic/nested', 'refs/heads/topic', 'refs/tags/release'])(
+  'keeps the actual branch name %s in tracking',
+  (name) => {
+    expect(branchTracking({ ...tracked, name }, attached).name).toBe(name);
+  },
+);
