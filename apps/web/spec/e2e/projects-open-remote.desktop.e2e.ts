@@ -121,10 +121,7 @@ test('the desktop app opens a project on another computer from the Open project 
       `/remotes/${other.environmentId}/${project?.id ?? ''}/${worktree?.id ?? ''}`,
     );
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     pairedPage
@@ -180,10 +177,7 @@ test('This computer in the Open project menu still opens a project on this compu
     .poll(() => app.address().path)
     .toBe(`/${project?.id ?? ''}/${worktree?.id ?? ''}`);
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     pairedPage
@@ -207,10 +201,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
     other.environment.name,
   );
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   const there = pairedPage.getByRole('group', {
     name: other.environment.name,
@@ -238,10 +229,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
   await rename.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(rename).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     there.getByRole('menuitem', { name: renamed, exact: true }),
@@ -262,10 +250,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
   await remove.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(remove).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     there.getByRole('menuitem', { name: renamed, exact: true }),
@@ -280,10 +265,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
     .click();
   await expect(remove).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     pairedPage.getByRole('menuitem', { name: renamed, exact: true }),
@@ -308,10 +290,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
   await rename.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(rename).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await expect(
     here.getByRole('menuitem', { name: named, exact: true }),
@@ -332,10 +311,7 @@ test('a rename dialog for another computer’s project is disabled with the reas
     other.environment.name,
   );
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await pairedPage
     .getByRole('group', { name: other.environment.name, exact: true })

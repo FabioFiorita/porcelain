@@ -8,27 +8,36 @@ import {
   type Stream,
 } from 'effect';
 
-export type ReadSubscription = {
+type ReadSubscription = {
   readonly projectId: string;
   readonly worktreeId: string;
   readonly paths: readonly string[];
 };
-export type ActiveWorktreeRead = ReadSubscription & {
+type ActiveWorktreeRead = ReadSubscription & {
+  readonly reviewId?: string;
   readonly surface: string;
   readonly settled: Effect.Effect<void>;
 };
+type PendingReviewRead = {
+  readonly projectId?: never;
+  readonly worktreeId?: never;
+  readonly paths?: never;
+  readonly reviewId: string;
+  readonly surface: string;
+  readonly settled: Effect.Effect<void>;
+};
+export type ActiveRead = ActiveWorktreeRead | PendingReviewRead;
 
 export class ReadSubscriptions extends Context.Service<
   ReadSubscriptions,
   {
-    readonly snapshot: Effect.Effect<
-      HashMap.HashMap<symbol, ActiveWorktreeRead>
-    >;
-    readonly changes: Stream.Stream<
-      HashMap.HashMap<symbol, ActiveWorktreeRead>
-    >;
+    readonly snapshot: Effect.Effect<HashMap.HashMap<symbol, ActiveRead>>;
+    readonly changes: Stream.Stream<HashMap.HashMap<symbol, ActiveRead>>;
+    readonly reviewsFor: (
+      scope: Pick<ReadSubscription, 'projectId' | 'worktreeId'>,
+    ) => Effect.Effect<readonly string[]>;
     readonly retain: (
-      subscription: ActiveWorktreeRead,
+      subscription: ActiveRead,
     ) => Effect.Effect<void, never, Scope.Scope>;
   }
 >()('@porcelain/client/ReadSubscriptions') {
@@ -36,13 +45,30 @@ export class ReadSubscriptions extends Context.Service<
     ReadSubscriptions,
     Effect.gen(function* () {
       const state = yield* SubscriptionRef.make(
-        HashMap.empty<symbol, ActiveWorktreeRead>(),
+        HashMap.empty<symbol, ActiveRead>(),
       );
       return {
         snapshot: SubscriptionRef.get(state),
         changes: SubscriptionRef.changes(state),
+        reviewsFor: Effect.fn('ReadSubscriptions.reviewsFor')(function* (
+          scope: Pick<ReadSubscription, 'projectId' | 'worktreeId'>,
+        ) {
+          const reads = yield* SubscriptionRef.get(state);
+          return [
+            ...new Set(
+              [...HashMap.values(reads)].flatMap((read) =>
+                read.reviewId &&
+                (read.projectId === undefined ||
+                  (read.projectId === scope.projectId &&
+                    read.worktreeId === scope.worktreeId))
+                  ? [read.reviewId]
+                  : [],
+              ),
+            ),
+          ];
+        }),
         retain: Effect.fn('ReadSubscriptions.retain')(function* (
-          subscription: ActiveWorktreeRead,
+          subscription: ActiveRead,
         ) {
           yield* Effect.acquireRelease(
             Effect.gen(function* () {

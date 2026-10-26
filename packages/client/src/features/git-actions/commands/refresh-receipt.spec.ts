@@ -71,7 +71,7 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
   const { subject, started, answer, readCount } = await heldRefresh();
   let inventoryRefreshes = 0;
   const unregister = subject.reactivity.registerUnsafe(
-    [queryKeys.inventory('44444444-4444-4444-8444-444444444444')],
+    [queryKeys.worktreeInventory('44444444-4444-4444-8444-444444444444')],
     () => {
       inventoryRefreshes++;
     },
@@ -133,7 +133,7 @@ it.each(['running', 'rejected', 'no-change'] as const)(
     });
     let refreshes = 0;
     const unregister = subject.reactivity.registerUnsafe(
-      [queryKeys.inventory('44444444-4444-4444-8444-444444444444')],
+      [queryKeys.worktreeInventory('44444444-4444-4444-8444-444444444444')],
       () => {
         refreshes++;
       },

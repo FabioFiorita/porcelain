@@ -50,18 +50,30 @@ export class GitReceiptRefresh extends Context.Service<
                   String(key[4]),
                 ),
               );
-              const reads = [
-                ...HashMap.values(yield* subscriptions.snapshot),
-              ].filter(
+              const active = [...HashMap.values(yield* subscriptions.snapshot)];
+              const reviewIds = yield* subscriptions.reviewsFor(receipt);
+              const worktreeReads = active.filter(
                 (read) =>
                   read.projectId === receipt.projectId &&
-                  read.worktreeId === receipt.worktreeId &&
-                  surfaces.has(read.surface),
+                  read.worktreeId === receipt.worktreeId,
+              );
+              const reads = worktreeReads.filter((read) =>
+                surfaces.has(read.surface),
               );
               const fiber = yield* Effect.forkIn(
                 Effect.gen(function* () {
                   reactivity.invalidateUnsafe([
-                    queryKeys.inventory(connection.environmentId),
+                    queryKeys.worktreeInventory(connection.environmentId),
+                    queryKeys.projectReviews(
+                      connection.environmentId,
+                      receipt.projectId,
+                    ),
+                    ...reviewIds.map((reviewId) =>
+                      queryKeys.durableReview(
+                        connection.environmentId,
+                        reviewId,
+                      ),
+                    ),
                     ...receiptReadKeys(connection.environmentId, receipt),
                   ]);
                   yield* Effect.forEach(reads, (read) => read.settled, {

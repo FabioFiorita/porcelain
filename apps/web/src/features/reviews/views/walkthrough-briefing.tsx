@@ -3,9 +3,6 @@ import {
   CheckIcon,
   FileQuestionIcon,
   FlaskConicalIcon,
-  MinusIcon,
-  PencilIcon,
-  PlusIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -85,11 +82,11 @@ export function WalkthroughBriefing({
               <p className="text-xs text-muted-foreground">
                 Briefing · Revision {review.revision}
               </p>
-              <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
+              <h2 className="text-briefing-title font-semibold tracking-tight wrap-anywhere">
                 <TruncatedText
                   text={title}
                   lines={3}
-                  className="min-w-0 text-muted-foreground"
+                  className="min-w-0 text-title-dim"
                 />
                 <span className="block">
                   {briefingTitle(decisionStops.length)}.
@@ -163,21 +160,18 @@ export function WalkthroughBriefing({
               <div className="flex flex-col divide-y border-y">
                 <PartGroup
                   title="New"
-                  icon={<PlusIcon className="size-3.5 text-graph-2" />}
                   parts={parts.added}
                   review={review}
                   onGo={onGo}
                 />
                 <PartGroup
                   title="Changed"
-                  icon={<PencilIcon className="size-3.5 text-graph-1" />}
                   parts={parts.changed}
                   review={review}
                   onGo={onGo}
                 />
                 <PartGroup
                   title="Removed"
-                  icon={<MinusIcon className="size-3.5 text-destructive" />}
                   parts={parts.removed}
                   review={review}
                   onGo={onGo}
@@ -363,26 +357,29 @@ function StopMark({ done, label }: { done: boolean; label: string }) {
   );
 }
 
+const partVariants = {
+  New: 'default',
+  Changed: 'secondary',
+  Removed: 'destructive',
+} as const;
+
 function PartGroup({
   title,
-  icon,
   parts,
   review,
   onGo,
   struck = false,
 }: {
-  title: string;
-  icon: ReactNode;
+  title: keyof typeof partVariants;
   parts: readonly SystemPart[];
   review: WalkthroughProps['review'];
   onGo: (key: WalkthroughKey) => void;
   struck?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 py-3 @2xl/review:flex-row">
-      <p className="flex shrink-0 items-start @2xl/review:w-20 gap-1 text-xs font-medium">
-        {icon}
-        {title}
+    <div className="flex min-w-0 flex-col gap-3 py-3 @2xl/review:flex-row @2xl/review:items-start">
+      <p className="flex shrink-0 items-center gap-1.5 text-xs font-medium whitespace-nowrap @2xl/review:w-24">
+        <Badge variant={partVariants[title]}>{title}</Badge>
         <span className="text-muted-foreground tabular-nums">
           {parts.length}
         </span>
