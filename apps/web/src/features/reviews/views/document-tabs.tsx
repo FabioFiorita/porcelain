@@ -77,12 +77,6 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
         title: 'Specs',
         hint: 'Changed spec and test files',
       };
-    case 'proof':
-      return {
-        Icon: FlaskConicalIcon,
-        title: 'Proof',
-        hint: 'Checks and attachments the agent published',
-      };
     case 'change':
       return {
         Icon: FileCodeIcon,
@@ -338,7 +332,11 @@ function DocumentTab({
             >
               <Icon className="size-3.5 shrink-0" />
               {label}
-              {tabKey === 'handoff' && reviewCount}
+              {tabKey === 'handoff' && reviewCount && (
+                <span className="shrink-0 whitespace-nowrap">
+                  {reviewCount}
+                </span>
+              )}
               {tabKey !== 'handoff' && pinned && (
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger

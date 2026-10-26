@@ -17,7 +17,7 @@ selectors:
   - " changed since reviewed"
   - " not explained"
   - " failing"
-  - "Proof"
+  - "Proven at "
 tests:
   - apps/web/spec/integration/reviews-readiness.test.tsx
 api:
@@ -34,7 +34,7 @@ api:
 
 # reviews.readiness
 
-The readiness panel at the top of the review sidebar counts reviewed files, marks that went stale, changes the review does not explain, comments waiting on the agent and failing checks; its header sums the open items ("<n> things to check") and each line opens what it counts (the checks line opens the Proof document).
+The readiness panel at the top of the review sidebar counts reviewed files, marks that went stale, changes the review does not explain, comments waiting on the agent and failing checks; its header sums the open items ("<n> things to check") and each line opens what it counts (the checks line opens proof in the briefing).
 
 ## How to get to it (user POV)
 
@@ -69,7 +69,7 @@ Preconditions: [surface baseline](README.md).
 9. `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`, then wait for button `1 of 2 checks failing`
    Expect: lines "No changed files", "No marks went stale", "2 lines in 2 files not explained", "1 comment waiting on the agent" and "1 of 2 checks failing"; header button "Readiness 3 things to check". Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
 10. Click button `1 of 2 checks failing`
-    Expect: the sheet closes; title "Proof — repository"; region "Proof" with heading "Proof" and alert "1 check failed The agent reported this work as not passing yet.".
+    Expect: the sheet closes; the Review tab stays selected; the briefing's region "Proven at <head>" shows the alert "1 check failed The agent reported this work as not passing yet.".
 
 ### Observable proof
 
