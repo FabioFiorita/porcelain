@@ -28,41 +28,57 @@ export function WalkthroughSpine({
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
 }) {
+  const lastDone = stops.findLastIndex(done);
+  const reached =
+    current === undefined
+      ? lastDone + 1
+      : Math.max(
+          stops.findIndex((stop) => stop.key === current),
+          lastDone,
+        );
   return (
     <nav
       aria-label="Walkthrough progress"
-      className="sticky top-0 hidden h-fit w-14 shrink-0 flex-col items-center gap-6 border-r py-6 @2xl/review:flex @6xl/review:w-18"
+      className="sticky top-0 hidden h-fit w-14 shrink-0 flex-col items-center gap-6 border-r py-6 @2xl/review:flex @5xl/review:w-18"
     >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-6 left-1/2 w-px bg-border"
-      />
-      {stops.map((stop) => (
-        <Tooltip key={stop.key}>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={stop.key === current ? 'outline' : 'ghost'}
-                size="icon-sm"
-                className="relative"
-                aria-label={spineLabel(stop)}
-                aria-current={stop.key === current ? 'step' : undefined}
-                onClick={() => onGo(stop.key)}
-              />
-            }
-          >
+      {stops.map((stop, index) => (
+        <div key={stop.key} className="relative flex flex-col items-center">
+          {index < stops.length - 1 && (
             <span
+              aria-hidden="true"
               className={cn(
-                'grid size-6 place-items-center rounded-full border bg-card',
-                stop.key === current && 'border-graph-1',
-                done(stop) && 'border-graph-1 bg-graph-1 text-background',
+                'absolute top-full left-1/2 h-7 -translate-x-1/2 -translate-y-0.5',
+                index < reached ? 'w-0.75 bg-brand' : 'w-px bg-border-strong',
               )}
+            />
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="relative"
+                  aria-label={spineLabel(stop)}
+                  aria-current={stop.key === current ? 'step' : undefined}
+                  onClick={() => onGo(stop.key)}
+                />
+              }
             >
-              <SpineMark stop={stop} done={done(stop)} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="right">{spineLabel(stop)}</TooltipContent>
-        </Tooltip>
+              <span
+                className={cn(
+                  'grid size-6 place-items-center rounded-full border border-border-strong bg-card text-muted-foreground',
+                  stop.key === current &&
+                    'border-brand text-brand ring-4 ring-brand-soft',
+                  done(stop) && 'border-brand bg-brand text-brand-foreground',
+                )}
+              >
+                <SpineMark stop={stop} done={done(stop)} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right">{spineLabel(stop)}</TooltipContent>
+          </Tooltip>
+        </div>
       ))}
     </nav>
   );
