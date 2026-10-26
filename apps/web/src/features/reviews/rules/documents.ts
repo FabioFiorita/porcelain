@@ -8,7 +8,6 @@ export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'all-changes' }
   | { kind: 'specs' }
-  | { kind: 'proof' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string }
@@ -21,7 +20,6 @@ const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
 export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
-export const PROOF: DocumentRef = { kind: 'proof' };
 const GRAPH: DocumentRef = { kind: 'graph' };
 
 export function entryKey(ref: DocumentRef): string {
@@ -32,8 +30,6 @@ export function entryKey(ref: DocumentRef): string {
       return 'all-changes';
     case 'specs':
       return 'specs';
-    case 'proof':
-      return 'proof';
     case 'change':
       return `change:${ref.path}`;
     case 'file':
@@ -56,7 +52,6 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === 'handoff') return HANDOFF;
   if (entry === 'all-changes') return ALL_CHANGES;
   if (entry === 'specs') return SPECS;
-  if (entry === 'proof') return PROOF;
   if (entry === 'branch') return BRANCH;
   if (entry === 'graph') return GRAPH;
 
@@ -132,8 +127,6 @@ function documentTitle(ref: DocumentRef): string {
       return 'All changes';
     case 'specs':
       return 'Specs';
-    case 'proof':
-      return 'Proof';
     case 'branch':
       return 'Branch changes';
     case 'graph':

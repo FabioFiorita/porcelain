@@ -18,7 +18,6 @@ describe('opening a document', () => {
     'handoff',
     'all-changes',
     'specs',
-    'proof',
     'change:src/a.ts',
     'file:src/a.ts',
     'commit:abcd',
@@ -80,7 +79,7 @@ describe('parseTabLayout', () => {
       parseTabLayout({
         panes: [
           {
-            tabs: ['file:a.ts', 'unknown:x', 7, 'commit:zz'],
+            tabs: ['file:a.ts', 'proof', 'unknown:x', 7, 'commit:zz'],
             pinned: ['file:b.ts', 'file:a.ts'],
           },
         ],

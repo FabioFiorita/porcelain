@@ -45,7 +45,7 @@ for (const width of [1440, 414]) {
           sidebar.getByRole('button', { name: 'Read again', exact: true }),
         ).toBeVisible();
         await sidebar
-          .getByRole('button', { name: 'Back to reviews', exact: true })
+          .getByRole('button', { name: 'Closed reviews', exact: true })
           .click();
         const status = row.getByRole('button', { name: /^Review status:/ });
         await status.focus();

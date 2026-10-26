@@ -11,13 +11,13 @@ import { useElement } from '@/shared/hooks/use-element';
 import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
-  ArchiveIcon,
-  ArrowLeftIcon,
   ChevronDownIcon,
   FilterIcon,
+  FolderCogIcon,
   KeyboardIcon,
   SearchIcon,
   SettingsIcon,
+  XIcon,
 } from 'lucide-react';
 import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import { refreshInventories } from '@porcelain/client/projects';
@@ -106,6 +106,8 @@ export function ProjectNavigator({
 }: Props) {
   const { connection } = useConnectedContext();
   const settingsButton = useElement<HTMLButtonElement>();
+  const searchButton = useElement<HTMLButtonElement>();
+  const [searching, setSearching] = useState(false);
   const firstCheckout = useElement<HTMLDivElement>();
   const lastCheckout = useElement<HTMLDivElement>();
   const { preferences, setPreference } = usePreferences();
@@ -121,9 +123,8 @@ export function ProjectNavigator({
   const [view, setView] = useState({
     query: '',
     filter: emptyReviewListFilter,
-    closed: false,
   });
-  const { query, filter, closed } = view;
+  const { query, filter } = view;
   const location = useLocation();
   const [menu, setMenu] = useState({
     href: location.href,
@@ -152,30 +153,30 @@ export function ProjectNavigator({
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
     setView((current) => ({ ...current, filter }));
-  const setClosed = (closed: boolean) =>
-    setView((current) => ({ ...current, closed }));
-  const emptyReviewsLabel = closed
-    ? 'No closed reviews'
-    : 'No matching worktrees';
-  const emptyLabel =
-    projects.length === 0 ? 'No projects registered' : emptyReviewsLabel;
-  let emptyDescription = closed
-    ? 'Closed reviews will appear here.'
-    : 'Open a project to see its worktrees.';
-  if (
+  const filtered =
     query.trim() ||
     filter.projects !== undefined ||
-    filter.environments !== undefined
-  )
-    emptyDescription = 'Try another search or clear the filters.';
+    filter.environments !== undefined;
+  const emptyLabel =
+    projects.length === 0 ? 'No projects registered' : 'No matching worktrees';
+  let emptyDescription = filtered
+    ? 'Try another search or clear the filters.'
+    : 'Open a project to see its worktrees.';
   if (projects.length === 0)
     emptyDescription = 'Open a Git repository to get started.';
   const { rows, filters, multipleProjects } = reviewListView(
     entries,
     query,
     filter,
-    closed,
+    false,
   );
+  const closedView = reviewListView(entries, query, filter, true);
+  const closedRows = closedView.rows;
+  const closeSearch = () => {
+    setQuery('');
+    setSearching(false);
+    searchButton.element?.focus();
+  };
   const { setOpenMobile } = useSidebar();
   const openWorktree = (entry: ReviewListEntry) => {
     if (!entry.worktreeId) return;
@@ -200,22 +201,56 @@ export function ProjectNavigator({
         <NavigatorHeader>
           <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
         </NavigatorHeader>
-        <div className="px-2 pt-2">
+        <div className="flex items-center gap-1 px-2 py-1">
+          {searching && (
+            <InputGroup className="h-7 min-w-0 flex-1">
+              <InputGroupInput
+                autoFocus
+                type="search"
+                aria-label="Search reviews and worktrees"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    closeSearch();
+                  }
+                }}
+                placeholder="Search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <InputGroupAddon>
+                <SearchIcon />
+              </InputGroupAddon>
+            </InputGroup>
+          )}
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-between"
-                >
-                  Manage projects
-                  <ChevronDownIcon />
-                </Button>
-              }
-            />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size={searching ? 'icon-sm' : 'xs'}
+                        className="h-7 shrink-0"
+                        aria-label="Manage projects"
+                      />
+                    }
+                  />
+                }
+              >
+                {searching ? (
+                  <FolderCogIcon className="text-muted-foreground" />
+                ) : (
+                  <span className="font-normal text-muted-foreground">
+                    Manage projects
+                  </span>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>Manage projects</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent
-              align="end"
+              align="start"
               className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
             >
               {projects.length === 0 ? (
@@ -252,23 +287,6 @@ export function ProjectNavigator({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-        <div className="flex gap-1 p-2">
-          <InputGroup className="min-w-0 flex-1">
-            <InputGroupInput
-              type="search"
-              aria-label="Search reviews and worktrees"
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') setQuery('');
-              }}
-              placeholder="Search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <InputGroupAddon>
-              <SearchIcon />
-            </InputGroupAddon>
-          </InputGroup>
           <DropdownMenu
             highlightItemOnHover={false}
             open={menuOpen}
@@ -282,20 +300,28 @@ export function ProjectNavigator({
                   <DropdownMenuTrigger
                     render={
                       <Button
-                        variant={
-                          filter.projects !== undefined ||
-                          filter.environments !== undefined
-                            ? 'secondary'
-                            : 'outline'
-                        }
-                        size="icon"
+                        variant={filtered ? 'secondary' : 'ghost'}
+                        size={searching || filtered ? 'icon-sm' : 'xs'}
+                        className={cn(
+                          'h-7',
+                          !searching &&
+                            !filtered &&
+                            'min-w-0 flex-1 justify-start',
+                        )}
                         aria-label="Filter reviews"
                       />
                     }
                   />
                 }
               >
-                <FilterIcon />
+                {searching || filtered ? (
+                  <FilterIcon className="text-muted-foreground" />
+                ) : (
+                  <>
+                    <span className="text-caption text-foreground">All</span>
+                    <ChevronDownIcon className="ml-auto" />
+                  </>
+                )}
               </TooltipTrigger>
               <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
@@ -444,18 +470,28 @@ export function ProjectNavigator({
             <TooltipTrigger
               render={
                 <Button
+                  ref={(element) => searchButton.attach(element)}
                   variant="ghost"
-                  size="icon"
-                  aria-label={closed ? 'Back to reviews' : 'Closed reviews'}
-                  aria-pressed={closed}
-                  onClick={() => setClosed(!closed)}
+                  size="icon-sm"
+                  className="ml-auto size-7"
+                  aria-label={
+                    searching ? 'Close search' : 'Search reviews and worktrees'
+                  }
+                  aria-expanded={searching}
+                  onClick={() =>
+                    searching ? closeSearch() : setSearching(true)
+                  }
                 />
               }
             >
-              {closed ? <ArrowLeftIcon /> : <ArchiveIcon />}
+              {searching ? (
+                <XIcon className="text-muted-foreground" />
+              ) : (
+                <SearchIcon className="text-muted-foreground" />
+              )}
             </TooltipTrigger>
-            <TooltipContent role="tooltip">
-              {closed ? 'Back to reviews' : 'Closed reviews'}
+            <TooltipContent>
+              {searching ? 'Close search' : 'Search reviews and worktrees'}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -467,196 +503,220 @@ export function ProjectNavigator({
             </div>
           )}
           <div className="flex flex-col -space-y-1">
-            {(closed ? (['Closed'] as const) : reviewListGroups).map(
-              (group) => {
-                const grouped =
-                  group === 'Closed'
-                    ? rows
-                    : rows.filter((row) => row.group === group);
-                if (grouped.length === 0) return null;
-                return (
-                  <SidebarGroup key={group}>
-                    <Collapsible
-                      open={preferences.reviewListGroupOpen[group] ?? true}
-                      onOpenChange={(open) =>
-                        setPreference('reviewListGroupOpen', {
-                          ...preferences.reviewListGroupOpen,
-                          [group]: open,
-                        })
+            {[
+              ...reviewListGroups.filter((group) => group !== 'Projects'),
+              'Closed' as const,
+            ].map((group) => {
+              const grouped =
+                group === 'Closed'
+                  ? closedRows
+                  : rows.filter(
+                      (row) =>
+                        row.group === group ||
+                        (group === 'No review' && row.group === 'Projects'),
+                    );
+              if (grouped.length === 0 && group !== 'Closed') return null;
+              return (
+                <SidebarGroup key={group}>
+                  <Collapsible
+                    open={
+                      preferences.reviewListGroupOpen[group] ??
+                      group !== 'Closed'
+                    }
+                    onOpenChange={(open) =>
+                      setPreference('reviewListGroupOpen', {
+                        ...preferences.reviewListGroupOpen,
+                        [group]: open,
+                      })
+                    }
+                    className="group/review-list"
+                  >
+                    <SidebarGroupLabel
+                      render={<CollapsibleTrigger />}
+                      aria-label={
+                        group === 'Closed' ? 'Closed reviews' : undefined
                       }
-                      className="group/review-list"
+                      className="h-7 w-full cursor-pointer"
                     >
-                      <SidebarGroupLabel
-                        render={<CollapsibleTrigger />}
-                        className="h-7 w-full cursor-pointer"
-                      >
-                        {group} · {grouped.length}
-                        <ChevronDownIcon className="ml-auto group-data-closed/review-list:-rotate-90" />
-                      </SidebarGroupLabel>
-                      <CollapsibleContent>
-                        <SidebarMenu>
-                          {grouped.map((entry) => {
-                            const context = reviewListRowContext(
-                              entry,
-                              multipleProjects,
-                            );
-                            const checkout = reviewListCheckout(entry);
-                            const detachedLabel = context.location
-                              ? `${checkout.full} ${entry.projectName}`
-                              : undefined;
-                            const active =
-                              !closed &&
-                              entry.worktreeId !== undefined &&
-                              selected?.worktreeId === entry.worktreeId &&
-                              (selected?.remote ?? connection.environmentId) ===
-                                entry.environmentId;
-                            return (
-                              <SidebarMenuItem
-                                key={entry.key}
-                                className="flex items-center"
+                      {group} · {grouped.length}
+                      <ChevronDownIcon className="ml-auto group-data-closed/review-list:-rotate-90" />
+                    </SidebarGroupLabel>
+                    <CollapsibleContent>
+                      {group === 'Closed' &&
+                        grouped.length === 0 &&
+                        !loading &&
+                        messages.length === 0 && (
+                          <p className="px-2 py-3 text-caption text-muted-foreground">
+                            {filtered
+                              ? 'No matching closed reviews'
+                              : 'No closed reviews'}
+                          </p>
+                        )}
+                      <SidebarMenu>
+                        {grouped.map((entry) => {
+                          const context = reviewListRowContext(
+                            entry,
+                            group === 'Closed'
+                              ? closedView.multipleProjects
+                              : multipleProjects,
+                          );
+                          const checkout = reviewListCheckout(entry);
+                          const detachedLabel = context.location
+                            ? `${checkout.full} ${entry.projectName}`
+                            : undefined;
+                          const active =
+                            !entry.closed &&
+                            entry.worktreeId !== undefined &&
+                            selected?.worktreeId === entry.worktreeId &&
+                            (selected?.remote ?? connection.environmentId) ===
+                              entry.environmentId;
+                          return (
+                            <SidebarMenuItem
+                              key={entry.key}
+                              className="flex items-center"
+                            >
+                              <NavigatorRowMenu
+                                entry={entry}
+                                connection={
+                                  connections.find(
+                                    (source) =>
+                                      source.environmentId ===
+                                      entry.environmentId,
+                                  ) ?? connection
+                                }
+                                onRetry={() => retry(undefined)}
+                                beforeLeave={() => setOpenMobile(false)}
                               >
-                                <NavigatorRowMenu
-                                  entry={entry}
-                                  connection={
-                                    connections.find(
-                                      (source) =>
-                                        source.environmentId ===
-                                        entry.environmentId,
-                                    ) ?? connection
-                                  }
-                                  onRetry={() => retry(undefined)}
-                                  beforeLeave={() => setOpenMobile(false)}
+                                <div
+                                  className={cn(
+                                    'flex min-w-0 flex-1 items-center rounded-xl',
+                                    active && 'bg-sidebar-row shadow-row',
+                                  )}
                                 >
-                                  <div
-                                    className={cn(
-                                      'flex min-w-0 flex-1 items-center rounded-xl',
-                                      active && 'bg-sidebar-row shadow-row',
-                                    )}
+                                  <NavigatorStatus entry={entry} />
+                                  <SidebarMenuButton
+                                    size="lg"
+                                    className="h-10 min-w-0 flex-1"
+                                    aria-label={
+                                      entry.reviewId
+                                        ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                        : detachedLabel
+                                    }
+                                    disabled={!entry.reviewId && entry.disabled}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() =>
+                                      entry.reviewId
+                                        ? setOpenMobile(false)
+                                        : openWorktree(entry)
+                                    }
+                                    render={
+                                      entry.reviewId ? (
+                                        <Link
+                                          to="/reviews/$reviewId"
+                                          params={{
+                                            reviewId: entry.reviewId,
+                                          }}
+                                          search={{
+                                            environment:
+                                              entry.environmentId ===
+                                              connection.environmentId
+                                                ? undefined
+                                                : entry.environmentId,
+                                            decision: undefined,
+                                          }}
+                                        />
+                                      ) : undefined
+                                    }
                                   >
-                                    <NavigatorStatus entry={entry} />
-                                    <SidebarMenuButton
-                                      size="lg"
-                                      className="h-10 min-w-0 flex-1"
-                                      aria-label={
-                                        entry.reviewId
-                                          ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                          : detachedLabel
-                                      }
-                                      disabled={
-                                        !entry.reviewId && entry.disabled
-                                      }
-                                      aria-current={active ? 'page' : undefined}
-                                      onClick={() =>
-                                        entry.reviewId
-                                          ? setOpenMobile(false)
-                                          : openWorktree(entry)
-                                      }
-                                      render={
-                                        entry.reviewId ? (
-                                          <Link
-                                            to="/reviews/$reviewId"
-                                            params={{
-                                              reviewId: entry.reviewId,
-                                            }}
-                                            search={{
-                                              environment:
-                                                entry.environmentId ===
-                                                connection.environmentId
-                                                  ? undefined
-                                                  : entry.environmentId,
-                                              decision: undefined,
-                                            }}
-                                          />
-                                        ) : undefined
-                                      }
-                                    >
-                                      <div className="min-w-0 flex-1 text-ui leading-4">
-                                        <div className="flex min-w-0 items-center gap-1">
-                                          <TruncatedText
-                                            className="min-w-0 flex-1"
-                                            text={entry.title}
-                                          />
-                                          {entry.reviewId ? (
-                                            <span
-                                              className={cn(
-                                                'shrink-0 text-xs',
-                                                active
-                                                  ? 'text-brand'
-                                                  : 'text-muted-foreground',
-                                              )}
-                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                    <div className="min-w-0 flex-1 text-ui leading-4">
+                                      <div className="flex min-w-0 items-center gap-1">
+                                        <TruncatedText
+                                          className="min-w-0 flex-1"
+                                          text={entry.title}
+                                        />
+                                        {entry.reviewId ? (
+                                          <span
+                                            className={cn(
+                                              'shrink-0 text-xs',
+                                              active
+                                                ? 'text-brand'
+                                                : 'text-muted-foreground',
+                                            )}
+                                            aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                          >
+                                            {entry.reviewed}/{entry.total}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                        <div className="flex min-w-0 flex-1 items-center gap-1">
+                                          {context.project ? (
+                                            <TruncatedText
+                                              className={
+                                                context.branch ||
+                                                context.location
+                                                  ? 'min-w-0 max-w-1/2 '
+                                                  : 'min-w-0 flex-1 '
+                                              }
+                                              text={context.project}
+                                            />
+                                          ) : null}
+                                          {context.branch ? (
+                                            <TruncatedText
+                                              className="min-w-0 flex-1"
+                                              text={context.branch}
+                                            />
+                                          ) : null}
+                                          {context.location ? (
+                                            <TruncatedText
+                                              cut="start"
+                                              disclose="always"
+                                              className="min-w-0 flex-1"
+                                              text={checkout.full}
                                             >
-                                              {entry.reviewed}/{entry.total}
-                                            </span>
+                                              {context.location}
+                                            </TruncatedText>
                                           ) : null}
                                         </div>
-                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                          <div className="flex min-w-0 flex-1 items-center gap-1">
-                                            {context.project ? (
-                                              <TruncatedText
-                                                className={
-                                                  context.branch ||
-                                                  context.location
-                                                    ? 'min-w-0 max-w-1/2 '
-                                                    : 'min-w-0 flex-1 '
-                                                }
-                                                text={context.project}
-                                              />
-                                            ) : null}
-                                            {context.branch ? (
-                                              <TruncatedText
-                                                className="min-w-0 flex-1"
-                                                text={context.branch}
-                                              />
-                                            ) : null}
-                                            {context.location ? (
-                                              <TruncatedText
-                                                cut="start"
-                                                disclose="always"
-                                                className="min-w-0 flex-1"
-                                                text={checkout.full}
-                                              >
-                                                {context.location}
-                                              </TruncatedText>
-                                            ) : null}
-                                          </div>
-                                        </div>
                                       </div>
-                                    </SidebarMenuButton>
-                                  </div>
-                                  {entry.archivable && entry.reviewId ? (
-                                    <ArchiveReview
-                                      connection={
-                                        connections.find(
-                                          (source) =>
-                                            source.environmentId ===
-                                            entry.environmentId,
-                                        ) ?? connection
-                                      }
-                                      reviewId={entry.reviewId}
-                                      beforeLeave={() => setOpenMobile(false)}
-                                    />
-                                  ) : null}
-                                </NavigatorRowMenu>
-                              </SidebarMenuItem>
-                            );
-                          })}
-                        </SidebarMenu>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </SidebarGroup>
-                );
-              },
-            )}
+                                    </div>
+                                  </SidebarMenuButton>
+                                </div>
+                                {entry.archivable && entry.reviewId ? (
+                                  <ArchiveReview
+                                    connection={
+                                      connections.find(
+                                        (source) =>
+                                          source.environmentId ===
+                                          entry.environmentId,
+                                      ) ?? connection
+                                    }
+                                    reviewId={entry.reviewId}
+                                    beforeLeave={() => setOpenMobile(false)}
+                                  />
+                                ) : null}
+                              </NavigatorRowMenu>
+                            </SidebarMenuItem>
+                          );
+                        })}
+                      </SidebarMenu>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarGroup>
+              );
+            })}
           </div>
-          {!loading && messages.length === 0 && rows.length === 0 && (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>{emptyLabel}</EmptyTitle>
-                <EmptyDescription>{emptyDescription}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
+          {!loading &&
+            messages.length === 0 &&
+            rows.length === 0 &&
+            closedRows.length === 0 && (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>{emptyLabel}</EmptyTitle>
+                  <EmptyDescription>{emptyDescription}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
           {messages.map((message) => (
             <p key={message} role="status" className="px-3 text-xs">
               {message}
