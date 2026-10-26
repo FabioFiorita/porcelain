@@ -1766,6 +1766,8 @@ export const saveBoth = Atom.writable(
       ['Date.now();', 1],
       ['performance.now();', 1],
       ['new Date();', 1],
+      ['Date(); Date(0);', 2],
+      ["globalThis.Date(); window['Date'](); self.Date('fixed');", 3],
       [
         "globalThis['Date'].now(); window['performance'].now(); new self['Date']();",
         3,
@@ -1973,9 +1975,199 @@ export const saveBoth = Atom.writable(
   ].map((clock) => ({
     rule: 'spec-no-waits',
     path: 'packages/client/src/features/projects/commands/sample.spec.ts',
-    valid: `${clock} const fiber = Effect.runFork(Effect.sleep('1 second')); await Effect.runPromise(TestClock.adjust('1 second'));`,
-    invalid: `import { TestServices } from 'effect/testing'; const fiber = Effect.runFork(Effect.sleep('1 second'));`,
+    valid: `${clock} await Effect.runPromise(Effect.sleep('1 second').pipe(Effect.provide(TestClock.layer())));`,
+    invalid: `${clock} const fiber = Effect.runFork(Effect.sleep('1 second'));`,
     errors: 1,
+  })),
+  ...[
+    'it.effect',
+    'it.effect.skip',
+    'it.effect.only',
+    'it.effect.each([1])',
+    'check.effect',
+  ].map((test) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid: `import { it, it as check } from '@effect/vitest'; ${test}('virtual sleep', () => Effect.gen(function* () { yield* Effect.sleep(100); }));`,
+    invalid: `import { it, it as check } from '@effect/vitest'; ${test}('virtual sleep', () => Effect.void); it.live('live sleep', () => Effect.sleep(100));`,
+    errors: 1,
+  })),
+  ...[
+    "import { TestClock } from 'effect/testing';",
+    "import { TestClock as Clock } from 'effect/testing';",
+    "import * as Clock from 'effect/testing/TestClock';",
+  ].map((clock) => {
+    const name =
+      clock.includes('Clock as') || clock.includes('* as')
+        ? 'Clock'
+        : 'TestClock';
+    return {
+      rule: 'spec-no-waits',
+      path: 'packages/client/src/rules/sample.spec.ts',
+      valid: `${clock} Effect.provide(Effect.sleep(100), ${name}.layer());`,
+      invalid: `${clock} import { it } from '@effect/vitest'; it.effect('live override', () => Effect.sleep(100).pipe(${name}.withLive)); it.effect('separate runtime', () => Effect.promise(() => Effect.runPromise(Effect.sleep(100))));`,
+      errors: 2,
+    };
+  }),
+  {
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid:
+      "import { it } from '@effect/vitest'; it.effect('virtual', () => Effect.sleep(100));",
+    invalid:
+      "import { it } from 'vitest'; it.effect('not an Effect test', () => Effect.sleep(100));",
+    errors: 1,
+  },
+  ...[
+    [
+      "import { Effect, Layer, ManagedRuntime } from 'effect'; import { it } from '@effect/vitest'; import { TestClock } from 'effect/testing'; const runtime = ManagedRuntime.make(Layer.empty); it.effect('virtual', () => Effect.promise(() => runtime.runPromise(Effect.sleep(100).pipe(Effect.provide(TestClock.layer())))));",
+      "import { Effect, Layer, ManagedRuntime } from 'effect'; import { it } from '@effect/vitest'; const runtime = ManagedRuntime.make(Layer.empty); it.effect('live runtime', () => Effect.promise(() => runtime.runPromise(Effect.sleep(100))));",
+      1,
+    ],
+    [
+      "import { Effect } from 'effect'; import { TestClock } from 'effect/testing'; const program = Effect.sleep(100); Effect.runPromise(program.pipe(Effect.provide(TestClock.layer())));",
+      "import { Effect } from 'effect'; import { TestClock } from 'effect/testing'; const program = Effect.sleep(100); Effect.runPromise(program.pipe(Effect.provide(TestClock.layer()))); Effect.runPromise(program);",
+      1,
+    ],
+    [
+      "import * as Effect from 'effect/Effect'; import { TestClock } from 'effect/testing'; Effect.runPromise(Effect.sleep(100).pipe(Effect.provide(TestClock.layer())));",
+      "import * as Effect from 'effect/Effect'; import { TestClock } from 'effect/testing'; Effect.runPromise(Effect.sleep(100));",
+      1,
+    ],
+    [
+      "import * as tests from '@effect/vitest'; tests.it.effect('virtual', () => Effect.sleep(100));",
+      "import * as tests from 'vitest'; tests.it.effect('live', () => Effect.sleep(100));",
+      1,
+    ],
+    [
+      "import { TestClock } from 'effect/testing'; Effect.sleep(100).pipe(Effect.provide(TestClock.layer()), TestClock.withLive);",
+      "import { TestClock } from 'effect/testing'; Effect.sleep(100).pipe(TestClock.withLive, Effect.provide(TestClock.layer()));",
+      1,
+    ],
+  ].map(([valid, invalid, errors]) => ({
+    rule: 'spec-no-waits',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid,
+    invalid,
+    errors,
+  })),
+  ...[
+    [
+      "it('virtual', () => { vi.useFakeTimers(); Date.now(); new Date(); Date(); vi.useRealTimers(); });",
+      "it('live', () => { Date.now(); vi.useFakeTimers(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers(); Date.now(); }); it('other', () => new Date(0));",
+      "it('virtual', () => { vi.useFakeTimers(); }); it('other', () => Date.now());",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers(); Date.now(); vi.useRealTimers(); });",
+      "it('restored', () => { vi.useFakeTimers(); vi.useRealTimers(); Date.now(); });",
+      1,
+    ],
+    [
+      "describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); afterEach(() => vi.useRealTimers()); it('clock', () => Date.now()); });",
+      "describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); it('clock', () => Date.now()); }); describe('live', () => { it('clock', () => Date.now()); });",
+      1,
+    ],
+    [
+      "describe('virtual', () => { it('clock', () => Date.now()); beforeAll(() => vi.useFakeTimers()); afterAll(() => vi.useRealTimers()); });",
+      "describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); describe('live', () => { beforeEach(() => vi.useRealTimers()); it('clock', () => Date.now()); }); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ toFake: ['Date'] }); Date.now(); });",
+      "it('live Date', () => { vi.useFakeTimers({ toFake: ['setTimeout'] }); Date.now(); });",
+      1,
+    ],
+    [
+      "import { vi as timers } from 'vitest'; it('virtual', () => { timers.useFakeTimers(); Date.now(); });",
+      'function unrelated(vi) { vi.useFakeTimers(); Date.now(); }',
+      1,
+    ],
+    [
+      "import { vitest } from 'vitest'; it('virtual', () => { vitest.useFakeTimers({ toFake: ['performance'] }); performance.now(); });",
+      "it('live performance', () => { vi.useFakeTimers({ toFake: ['Date'] }); performance.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ toNotFake: ['performance'] }); Date.now(); });",
+      "it('live Date', () => { vi.useFakeTimers({ toNotFake: ['Date'] }); Date.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ ['toFake']: ['Date'] }); Date.now(); });",
+      "it('live Date', () => { vi.useFakeTimers({ ['toFake']: ['setTimeout'] }); Date.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ toFake: ['setTimeout'] }); vi.useFakeTimers({ toFake: ['Date'] }); Date.now(); });",
+      "it('live Date', () => { vi.useFakeTimers({ toFake: ['Date'] }); vi.useFakeTimers({ toFake: ['setTimeout'] }); Date.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers(); Date.now(); });",
+      "it('restored', () => { vi.useFakeTimers(); try { work(); } finally { vi.useRealTimers(); } Date.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers(); Date.now(); });",
+      "it('possibly live', () => { vi.useFakeTimers(); if (condition) vi.useRealTimers(); Date.now(); });",
+      1,
+    ],
+    [
+      "it('virtual', () => { { vi.useFakeTimers(); Date.now(); } });",
+      "it('live', () => { vi.useFakeTimers(); { vi.useRealTimers(); Date.now(); } });",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ now: 0 }); Date.now(); });",
+      "it('unknown clock', () => { vi.useFakeTimers({ ...options }); Date.now(); });",
+      1,
+    ],
+    [
+      "import {it,vi} from 'vitest'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});",
+      "import {it,vi} from 'vitest'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});it('live',()=>Date.now());",
+      1,
+    ],
+    [
+      "import * as V from 'vitest'; V.it('virtual',()=>{V.vi.useFakeTimers();Date.now();});",
+      "import * as V from 'vitest'; V.it('live',()=>{V.vi.useFakeTimers();V.vi.useRealTimers();Date.now();});",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ toFake: [] }); Date.now(); });",
+      "it('live', () => { vi.useFakeTimers({ toNotFake: ['Date'] }); Date.now(); });",
+      1,
+    ],
+    [
+      "beforeAll(() => vi.useFakeTimers());afterEach(() => vi.useRealTimers());it('first', () => Date.now());",
+      "beforeAll(() => vi.useFakeTimers());afterEach(() => vi.useRealTimers());it('first', () => {});it('second', () => Date.now());",
+      1,
+    ],
+    [
+      "beforeAll(() => vi.useFakeTimers());beforeEach(() => vi.useFakeTimers());afterEach(() => vi.useRealTimers());it('first', () => {});it('second', () => Date.now());",
+      "beforeAll(() => vi.useFakeTimers());it('first', () => vi.useRealTimers());it('second', () => Date.now());",
+      1,
+    ],
+    [
+      "afterEach(() => vi.useRealTimers());it('outside', () => {});describe('inner', () => {beforeAll(() => vi.useFakeTimers());it('first', () => Date.now());});",
+      "beforeAll(() => vi.useFakeTimers());describe('previous', () => {afterAll(() => vi.useRealTimers());it('first', () => {});});it('second', () => Date.now());",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers({ toNotFake: ['performance'] }); Date.now(); });",
+      "it('unknown clock', () => { vi.useFakeTimers({ toNotFake: [excluded] }); Date.now(); });",
+      1,
+    ],
+  ].map(([valid, invalid, errors]) => ({
+    rule: 'spec-no-clock',
+    path: 'packages/client/src/rules/sample.spec.ts',
+    valid,
+    invalid,
+    errors,
   })),
   ...[
     'apps/web/src/features/files/commands/sample.ts',
