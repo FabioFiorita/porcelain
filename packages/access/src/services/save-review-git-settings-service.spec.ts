@@ -113,7 +113,10 @@ describe('SaveReviewGitSettingsService', () => {
   it('keeps the last change when two devices change the same setting', () => {
     const { save } = setup();
     save({ ...owner, save: { kind: 'initialize', settings: imported } });
-    save({ ...owner, save: { kind: 'change', change: { collapseSpecs: true } } });
+    save({
+      ...owner,
+      save: { kind: 'change', change: { collapseSpecs: true } },
+    });
     expect(
       save({
         ...owner,

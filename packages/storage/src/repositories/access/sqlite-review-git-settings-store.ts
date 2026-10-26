@@ -14,8 +14,7 @@ export const sqliteReviewGitSettingsStoreLayer = Layer.effect(
     const read = SqlSchema.findOneOption({
       Request: Schema.Void,
       Result: ReviewGitSettingsRow,
-      execute: () =>
-        sql`SELECT * FROM review_git_settings WHERE singleton = 1`,
+      execute: () => sql`SELECT * FROM review_git_settings WHERE singleton = 1`,
     });
 
     return ReviewGitSettingsStore.of({

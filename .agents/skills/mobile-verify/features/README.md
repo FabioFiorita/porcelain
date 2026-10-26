@@ -52,7 +52,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.diff](history.diff.md) — Commit comparisons, unavailable patches and comments.
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
-- [preferences.reviews-git](preferences.reviews-git.md) — Archive defaults, pull strategy and commit models.
+- [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
 - [projects.workspace-picker](projects.workspace-picker.md) — Worktree selection, filters, status and archive.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.

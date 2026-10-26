@@ -20,7 +20,7 @@ import {
   type ReviewResponse,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
 import { type OpenDocument, ALL_CHANGES, PROOF } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
@@ -72,7 +72,7 @@ function PublishedNavigation({
   const [unmarked, unmark] = useAtom(commands.unmark);
   const place = useWalkthroughPlace(`${reviewId}:${revision}`);
   const selection = useReviewRevisionSelection(reviewId);
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   if (!data?.revision)
     return (
       <SidebarDocumentRow
@@ -87,7 +87,7 @@ function PublishedNavigation({
   const stops = walkthroughStops(
     snapshot.content,
     snapshot.files.map((file) => file.path),
-    { specsApart: preferences.collapseSpecs },
+    { specsApart: specsApart },
   );
   const items = revisionReviewItems(snapshot, marks);
   const decisions = revisionDecisionStates(snapshot, marks);

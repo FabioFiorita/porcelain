@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomSet } from '@effect/atom-react';
 import { PreferencesStore } from '@porcelain/client/preferences';
-import type { Preferences } from '@porcelain/client/preferences';
+import type { PreferenceChange } from '@porcelain/client/preferences';
 import {
   clientRuntime,
   preferencesState,
@@ -13,7 +13,7 @@ const read = clientRuntime.fn((_: void) =>
   Effect.flatMap(PreferencesStore, (store) => store.load()),
 );
 const change = clientRuntime.fn(
-  (preferences: Partial<Preferences>) =>
+  (preferences: PreferenceChange) =>
     Effect.flatMap(PreferencesStore, (store) => store.change(preferences)),
   { concurrent: true },
 );

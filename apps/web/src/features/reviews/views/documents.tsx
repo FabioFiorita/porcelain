@@ -32,7 +32,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
 import { BranchReviewPage } from './branch-review-page';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type DocumentProps = {
@@ -205,7 +205,7 @@ function PlainChangesDocument({
 }: DocumentProps & { specsOnly?: boolean }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const list = useChanges(scope, connection);
   const allChanges = useReviewChangeItems(scope, context, list);
   const published = usePublishedReview(scope, context);
@@ -247,7 +247,7 @@ function PlainChangesDocument({
     ? walkthroughStops(
         review,
         list.changes.map((change) => change.path),
-        { specsApart: preferences.collapseSpecs },
+        { specsApart: specsApart },
       ).flatMap((stop) =>
         stop.paths.map((path) => ({
           path,

@@ -9,7 +9,9 @@ export function deviceRevoked(device: StoredDevice): boolean {
 }
 
 export function deviceTrusted(device: StoredDevice | undefined): boolean {
-  return device !== undefined && !deviceRevoked(device) && device.trusted === true;
+  return (
+    device !== undefined && !deviceRevoked(device) && device.trusted === true
+  );
 }
 
 export function sightingDue(device: StoredDevice, now: string): boolean {

@@ -58,7 +58,7 @@ import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
 import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import {
   anchorBase,
   type RevealComment,
@@ -647,7 +647,7 @@ function ReviewTabProgress({
   context: ConnectionContext;
 }) {
   const selection = useReviewRevisionSelection(review.reviewId ?? '');
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const read = useAtomValue(
     readReview({
       connection: context.connection,
@@ -672,7 +672,7 @@ function ReviewTabProgress({
     reviewed = walkthroughStops(
       revision.content,
       revision.files.map((file) => file.path),
-      { specsApart: preferences.collapseSpecs },
+      { specsApart: specsApart },
     ).filter(
       (stop) => stop.kind === 'decision' && stopDone(stop, items, decisions),
     ).length;

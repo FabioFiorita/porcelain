@@ -114,10 +114,7 @@ test('two devices changing different settings both keep their change', async ({
 }) => {
   const phone = await trustedDevice(session, 'Phone');
   await read(session, save({ kind: 'initialize', settings: imported }));
-  const base = await read(
-    session,
-    save({ kind: 'change', change: imported }),
-  );
+  const base = await read(session, save({ kind: 'change', change: imported }));
 
   const fromHere = await session.send(
     save({ kind: 'change', change: { pullStrategy: 'rebase' } }),
@@ -133,9 +130,9 @@ test('two devices changing different settings both keep their change', async ({
     ...fromPhone(phone.credential),
   });
 
-  expect([fromHere.status, fromAway.status, seenByPhone.status]).toStrictEqual(
-    [200, 200, 200],
-  );
+  expect([fromHere.status, fromAway.status, seenByPhone.status]).toStrictEqual([
+    200, 200, 200,
+  ]);
   const merged = {
     kind: 'configured',
     revision: Number(base.revision) + 2,

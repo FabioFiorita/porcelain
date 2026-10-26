@@ -59,10 +59,11 @@ export {
   type SetRemoteAccessResponse,
 } from './remote-access.ts';
 export {
+  reviewGitSettingsSchema,
   readReviewGitSettingsResponseSchema,
-  saveReviewGitSettingsRequestSchema,
   saveReviewGitSettingsResponseSchema,
   type ReadReviewGitSettingsResponse,
+  type ReviewGitSettings,
   type SaveReviewGitSettingsInput,
   type SaveReviewGitSettingsRequest,
   type SaveReviewGitSettingsResponse,
