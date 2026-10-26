@@ -2279,6 +2279,26 @@ export const saveBoth = Atom.writable(
       "const suite = () => { it('clock', () => Date.now()); }; describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); describe('inner', suite); }); describe('live', suite);",
       1,
     ],
+    [
+      "beforeAll(() => vi.useFakeTimers()); afterEach(() => vi.useFakeTimers()); afterEach(() => vi.useRealTimers()); it('first', () => {}); it('virtual', () => Date.now());",
+      "beforeAll(() => vi.useFakeTimers()); afterEach(() => vi.useRealTimers()); afterEach(() => vi.useFakeTimers()); it('first', () => {}); it('live', () => Date.now());",
+      1,
+    ],
+    [
+      "beforeAll(() => vi.useFakeTimers()); beforeEach(() => vi.useFakeTimers()); afterEach(vi.useRealTimers); it('first', () => {}); it('virtual', () => Date.now());",
+      "beforeAll(() => vi.useFakeTimers()); afterEach(vi.useRealTimers); it('first', () => {}); it('live', () => Date.now());",
+      1,
+    ],
+    [
+      "it('virtual', () => { vi.useFakeTimers(); const now = () => Date.now(); now(); vi.useRealTimers(); });",
+      "it('live', () => { vi.useFakeTimers(); const now = () => Date.now(); vi.useRealTimers(); now(); });",
+      1,
+    ],
+    [
+      "vi.useRealTimers(); it('virtual', () => Date.now()); describe('later collector', () => { vi.useFakeTimers(); });",
+      "vi.useFakeTimers(); it('live', () => Date.now()); describe('later collector', () => { vi.useRealTimers(); });",
+      1,
+    ],
   ].map(([valid, invalid, errors]) => ({
     rule: 'spec-no-clock',
     path: 'packages/client/src/rules/sample.spec.ts',

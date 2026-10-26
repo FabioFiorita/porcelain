@@ -761,7 +761,8 @@ function callbackSites(callback, context) {
   return references.every(
     (reference) =>
       reference.parent?.type === 'CallExpression' &&
-      reference.parent.arguments.includes(reference) &&
+      (reference.parent.arguments.includes(reference) ||
+        reference.parent.callee === reference) &&
       !(
         reference.range[0] >= callback.range[0] &&
         reference.range[1] <= callback.range[1]
@@ -948,6 +949,10 @@ function fakeClock(node, context, clock, sites = new Map()) {
           : controlsTimers(value, functions)),
     );
   };
+  const callbacks = (call) =>
+    call.arguments.filter((argument) =>
+      ['ArrowFunctionExpression', 'FunctionExpression'].includes(argument.type),
+    );
   const applyBody = (body, before, after = -Infinity) => {
     if (body?.type !== 'BlockStatement' && body?.type !== 'Program') {
       if (body?.range[0] < before && body.range[0] >= after) apply(body);
@@ -966,7 +971,16 @@ function fakeClock(node, context, clock, sites = new Map()) {
         )
       )
         apply(call);
-      else if (controlsTimers(statement)) {
+      else if (
+        call?.type === 'CallExpression' &&
+        /^(?:(?:vitest|effect-test)\.)?describe(?:\.|$)/.test(
+          timingPath(call.callee, context) ?? '',
+        )
+      ) {
+        const suites = callbacks(call);
+        if (suites.length === 0) fake = false;
+        for (const suite of suites) applyBody(suite.body, Infinity);
+      } else if (controlsTimers(statement)) {
         fake = false;
       }
     }
@@ -995,23 +1009,22 @@ function fakeClock(node, context, clock, sites = new Map()) {
         Infinity,
         site(suites[suiteIndex + 1] ?? next).range[1],
       );
-    const callbacks = (call) =>
-      call.arguments.filter((argument) =>
-        ['ArrowFunctionExpression', 'FunctionExpression'].includes(
-          argument.type,
-        ),
-      );
     const applyHooks = (suite, hook) => {
-      for (const statement of bodyOf(suite)?.body ?? []) {
+      const statements = bodyOf(suite)?.body ?? [];
+      for (const statement of hook === 'afterEach'
+        ? statements.toReversed()
+        : statements) {
         const call = statement.expression;
         if (
           call?.type === 'CallExpression' &&
           [hook, `vitest.${hook}`, `effect-test.${hook}`].includes(
             timingPath(call.callee, context),
           )
-        )
-          for (const callback of callbacks(call))
-            applyBody(callback.body, Infinity);
+        ) {
+          const hooks = callbacks(call);
+          if (hooks.length === 0) fake = false;
+          for (const callback of hooks) applyBody(callback.body, Infinity);
+        }
       }
     };
     for (let suiteIndex = 0; suiteIndex < suites.length; suiteIndex++) {
