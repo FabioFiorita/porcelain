@@ -25,7 +25,6 @@ import {
   BRANCH,
   type DocumentRef,
   entryKey,
-  PROOF,
   type OpenDocument,
 } from '../rules/documents';
 import type { ReadinessKey } from '@porcelain/client/reviews/rules';
@@ -35,7 +34,7 @@ import {
   type ReviewResponse,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { useWalkthroughPlace } from '../store';
+import { useReviewRevisionSelection, useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
@@ -79,6 +78,7 @@ export function ReviewIndex({
   const { setPlace } = useWalkthroughPlace(
     `${review?.reviewId ?? scope.worktreeId}:${review?.revision ?? ''}`,
   );
+  const selection = useReviewRevisionSelection(review?.reviewId ?? '');
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
@@ -93,7 +93,11 @@ export function ReviewIndex({
       return;
     }
     setView('layers');
-    if (key === 'checks') onOpen(PROOF);
+    if (key === 'checks') {
+      selection.choose(undefined);
+      setPlace('briefing');
+      onOpen({ kind: 'handoff' });
+    }
     if (key === 'unexplained') {
       if (review) setPlace('unexplained');
       onOpen({ kind: 'handoff' });

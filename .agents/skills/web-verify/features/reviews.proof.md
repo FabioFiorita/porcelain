@@ -1,13 +1,13 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Proof"
-  - " failing"
-  - "check failed"
-  - "The agent reported this work as not passing yet."
-  - "Checks"
-  - "Attachments"
+  - 'Review'
+  - 'Proven at '
+  - ' failing'
+  - 'check failed'
+  - 'The agent reported this work as not passing yet.'
+  - 'Checks'
+  - 'Attachments'
 tests:
   - apps/web/spec/integration/reviews-proof.test.tsx
   - apps/desktop/src/rules/content-security-policy.spec.ts
@@ -17,13 +17,13 @@ api:
 
 # reviews.proof
 
-The checks and attachments the agent published with its review open as a Proof document: a failing check raises a destructive alert, failing checks are listed first with their output, and an image attachment renders from the server.
+The checks and attachments the agent published with its review live in the briefing: a failing check raises a destructive alert, failing checks are listed first with their output, and an image attachment renders from the server.
 
 ## How to get to it (user POV)
 
-- Review (sheet at phone width) → tab "Review" → nav "Walkthrough"'s proof row, named `Proof · <status>` (for example "Proof · 1 failing").
-- Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the same document.
-- The walkthrough's briefing: section "Proven at <head>" shows all checks, output and image/video/link attachments directly, including stale-proof and failed-check notices. The Proof tab also remains available.
+- Review (sheet at phone width) → tab "Review" → nav "Walkthrough" → Briefing.
+- Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the briefing.
+- The walkthrough's briefing: section "Proven at <head>" shows all checks, output and image/video/link attachments directly, including stale-proof and failed-check notices. There is no separate Proof tab.
 - Inside a decision stop, the checks attached to that decision show in list "Checks for this decision" below its steps.
 
 ## Driving it with browser
@@ -37,9 +37,9 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`
    Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`, then click tab `Review`
-   Expect: the review sheet with button "Proof · 1 failing" in nav "Walkthrough" (and, in Readiness, "1 of 2 checks failing").
-3. Click button `Proof · 1 failing`, then wait for img named `Saved notice`
-   Expect: the sheet closes; title "Proof — repository"; region "Proof" with heading "Proof" and paragraph "Published <date, time> · checks 1 failing · 1 attachment"; alert "1 check failed The agent reported this work as not passing yet."; region "Checks" whose first listitem is "Save journey: Failed" holding "Readme layer" and "Expected the Saved notice to be visible", the second "Unit tests: Passed"; region "Attachments" with figure "Saved notice" holding img "Saved notice".
+   Expect: the review sheet with Readiness and its "1 of 2 checks failing" button.
+3. Click button `1 of 2 checks failing`, then wait for img named `Saved notice`
+   Expect: the sheet closes; the permanent Review tab stays selected; region "Proven at <head>" holds the published timestamp, alert "1 check failed The agent reported this work as not passing yet.", region "Checks" whose first listitem is "Save journey: Failed" holding "Readme layer" and "Expected the Saved notice to be visible", the second "Unit tests: Passed", and region "Attachments" with figure "Saved notice" holding img "Saved notice". No Proof tab or second review bar appears.
 
 ### Observable proof
 
@@ -49,5 +49,5 @@ Automated coverage: `reviews-proof.test.tsx`.
 
 ## Gotchas
 
-- Match status-dependent names: Proof · no checks / passed / all 2 passed / outdated. Wait beyond Loading image… for actual attachment bytes.
+- Match the Readiness checks line to its current status. Wait beyond Loading image… for actual attachment bytes.
 - In Porcelain Dev's `porcelain://app` renderer, verify retained video bytes decode and play. The desktop media policy admits app/blob sources; a direct HTTP media URL must still produce a `media-src` refusal. HTTP-browser playback alone does not cover this policy.

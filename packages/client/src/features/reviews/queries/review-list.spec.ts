@@ -70,7 +70,7 @@ function inventoryAnswer(environmentId: string, index: number, main = true) {
             id: 'a'.repeat(32),
             path: '/code/main',
             main,
-            branch: 'refs/heads/main',
+            branch: 'main',
             available: index === 0,
             status: null,
           },
@@ -134,7 +134,7 @@ it('gives each main checkout one Projects row even with multiple open reviews an
     id: 'b'.repeat(32),
     path: '/code/topic',
     main: false,
-    branch: 'refs/heads/topic',
+    branch: 'topic',
   });
   const entries = await publishedEntries(inventory, ['main', 'main']);
   expect(
