@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Link } from '@tanstack/react-router';
 import { createPortal } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -436,10 +437,10 @@ function CodeSurface({
             className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-lg border bg-popover/95 px-2.5 py-1 text-xs text-popover-foreground shadow-md"
           >
             <MessageSquarePlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">
-              {basename(selectionAnchor.filePath)} ·{' '}
-              {anchorLabel(selectionAnchor)}
-            </span>
+            <TruncatedText
+              className="pointer-events-auto"
+              text={`${basename(selectionAnchor.filePath)} · ${anchorLabel(selectionAnchor)}`}
+            />
             {selectionAnchor.kind === 'codeRange' &&
               selectionAnchor.comparison?.kind === 'worktree' &&
               selectionAnchor.side !== 'deletions' &&
@@ -737,12 +738,10 @@ function CodeSurface({
             const entry = byId.get(item.id);
             if (!entry) return null;
             return entry.note ? (
-              <span
-                className="ml-2 hidden max-w-48 truncate font-sans text-xs text-muted-foreground @code-wide/code:block"
-                title={entry.note}
-              >
-                {entry.note}
-              </span>
+              <TruncatedText
+                className="ml-2 hidden max-w-48 font-sans text-xs text-muted-foreground @code-wide/code:block"
+                text={entry.note}
+              />
             ) : null;
           }}
         />

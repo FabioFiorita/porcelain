@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
 import { ArchiveReview } from './archive-review';
 import { NavigatorStatus } from './navigator-status';
@@ -23,6 +24,7 @@ import {
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
+  reviewListCheckout,
   reviewListRowContext,
   reviewListView,
   type ReviewListEntry,
@@ -103,6 +105,8 @@ export function ProjectNavigator({
 }: Props) {
   const { connection } = useConnectedContext();
   const settingsButton = useElement<HTMLButtonElement>();
+  const firstCheckout = useElement<HTMLDivElement>();
+  const lastCheckout = useElement<HTMLDivElement>();
   const { preferences, setPreference } = usePreferences();
   const connections = [
     connection,
@@ -140,6 +144,8 @@ export function ProjectNavigator({
       selected?.worktreeId === entry.worktreeId &&
       (selected?.remote ?? connection.environmentId) === entry.environmentId,
   );
+  const firstCheckoutKey = checkouts.find((entry) => !entry.disabled)?.key;
+  const lastCheckoutKey = checkouts.findLast((entry) => !entry.disabled)?.key;
   const setQuery = (query: string) =>
     setView((current) => ({ ...current, query }));
   const setFilter = (filter: typeof emptyReviewListFilter) =>
@@ -236,7 +242,7 @@ export function ProjectNavigator({
               >
                 <FilterIcon />
               </TooltipTrigger>
-              <TooltipContent role="tooltip">Filter and open</TooltipContent>
+              <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
               align="end"
@@ -246,21 +252,23 @@ export function ProjectNavigator({
                 <DropdownMenuGroup key={section.key}>
                   <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
                   {section.items.map((option) => (
-                    <DropdownMenuCheckboxItem
+                    <TruncatedText
+                      propagateEscape
                       key={option.id}
-                      checked={option.checked}
-                      closeOnClick={false}
-                      onCheckedChange={() =>
-                        setFilter({ ...filter, [section.key]: option.next })
-                      }
-                    >
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        title={option.label}
-                      >
-                        {option.label}
-                      </span>
-                    </DropdownMenuCheckboxItem>
+                      text={option.label}
+                      className="min-w-0 flex-1"
+                      renderTrigger={(label) => (
+                        <DropdownMenuCheckboxItem
+                          checked={option.checked}
+                          closeOnClick={false}
+                          onCheckedChange={() =>
+                            setFilter({ ...filter, [section.key]: option.next })
+                          }
+                        >
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    />
                   ))}
                   <DropdownMenuSeparator />
                 </DropdownMenuGroup>
@@ -321,10 +329,20 @@ export function ProjectNavigator({
                         onChange={(event) => setMenuQuery(event.target.value)}
                         onKeyDown={(event) => {
                           if (
-                            !['Escape', 'ArrowDown', 'ArrowUp', 'Tab'].includes(
-                              event.key,
-                            )
-                          )
+                            event.key === 'ArrowDown' ||
+                            event.key === 'ArrowUp'
+                          ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const target =
+                              event.key === 'ArrowDown' ||
+                              firstCheckoutKey === lastCheckoutKey
+                                ? firstCheckout.element
+                                : lastCheckout.element;
+                            if (firstCheckoutKey !== undefined) target?.focus();
+                            return;
+                          }
+                          if (!['Escape', 'Tab'].includes(event.key))
                             event.stopPropagation();
                         }}
                       />
@@ -333,31 +351,58 @@ export function ProjectNavigator({
                       </InputGroupAddon>
                     </InputGroup>
                     <DropdownMenuRadioGroup value={currentCheckout?.key ?? ''}>
-                      {checkouts.map((entry) => (
-                        <DropdownMenuRadioItem
-                          key={entry.key}
-                          value={entry.key}
-                          closeOnClick
-                          disabled={entry.disabled}
-                          onClick={() => openWorktree(entry)}
-                        >
-                          <span
-                            className="min-w-0 flex-1 truncate"
-                            title={`${entry.branch} · ${entry.projectName}`}
+                      {checkouts.map((entry) => {
+                        const checkoutTarget =
+                          entry.key === firstCheckoutKey
+                            ? firstCheckout
+                            : lastCheckout;
+                        const attach =
+                          entry.key === firstCheckoutKey ||
+                          entry.key === lastCheckoutKey
+                            ? checkoutTarget.attach
+                            : undefined;
+                        const checkout = reviewListCheckout(entry);
+                        const full = `${checkout.full} · ${entry.projectName}`;
+                        return (
+                          <TruncatedText
+                            propagateEscape
+                            key={entry.key}
+                            text={`${full} · ${entry.environmentName}`}
+                            disclose={checkout.parent ? 'always' : 'clipped'}
+                            className="max-w-full shrink-0"
+                            renderTrigger={(label, clip) => (
+                              <DropdownMenuRadioItem
+                                ref={attach}
+                                value={entry.key}
+                                closeOnClick
+                                disabled={entry.disabled}
+                                aria-label={`${full} ${entry.environmentName}`}
+                                onClick={() => openWorktree(entry)}
+                              >
+                                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                  {label}
+                                  {clip(`· ${entry.projectName}`)}
+                                  {checkout.parent
+                                    ? clip(
+                                        checkout.parent,
+                                        'flex-1 text-muted-foreground',
+                                        'start',
+                                      )
+                                    : null}
+                                </span>
+                                <Badge
+                                  variant="secondary"
+                                  className="max-w-1/2"
+                                >
+                                  {clip(entry.environmentName)}
+                                </Badge>
+                              </DropdownMenuRadioItem>
+                            )}
                           >
-                            {entry.branch} · {entry.projectName}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="max-w-1/2"
-                            title={entry.environmentName}
-                          >
-                            <span className="truncate">
-                              {entry.environmentName}
-                            </span>
-                          </Badge>
-                        </DropdownMenuRadioItem>
-                      ))}
+                            {checkout.name}
+                          </TruncatedText>
+                        );
+                      })}
                     </DropdownMenuRadioGroup>
                     {!loading && checkouts.length === 0 ? (
                       <Empty>
@@ -437,6 +482,10 @@ export function ProjectNavigator({
                               entry,
                               multipleProjects,
                             );
+                            const checkout = reviewListCheckout(entry);
+                            const detachedLabel = context.location
+                              ? `${checkout.full} ${entry.projectName}`
+                              : undefined;
                             const active =
                               !closed &&
                               entry.worktreeId !== undefined &&
@@ -467,104 +516,95 @@ export function ProjectNavigator({
                                     )}
                                   >
                                     <NavigatorStatus entry={entry} />
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        render={
-                                          <SidebarMenuButton
-                                            size="lg"
-                                            className="h-10 min-w-0 flex-1"
-                                            aria-label={
-                                              entry.reviewId
-                                                ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
-                                                : undefined
-                                            }
-                                            disabled={
-                                              !entry.reviewId && entry.disabled
-                                            }
-                                            aria-current={
-                                              active ? 'page' : undefined
-                                            }
-                                            onClick={() =>
-                                              entry.reviewId
-                                                ? setOpenMobile(false)
-                                                : openWorktree(entry)
-                                            }
-                                            render={
-                                              entry.reviewId ? (
-                                                <Link
-                                                  to="/reviews/$reviewId"
-                                                  params={{
-                                                    reviewId: entry.reviewId,
-                                                  }}
-                                                  search={{
-                                                    environment:
-                                                      entry.environmentId ===
-                                                      connection.environmentId
-                                                        ? undefined
-                                                        : entry.environmentId,
-                                                    decision: undefined,
-                                                  }}
-                                                />
-                                              ) : undefined
-                                            }
+                                    <SidebarMenuButton
+                                      size="lg"
+                                      className="h-10 min-w-0 flex-1"
+                                      aria-label={
+                                        entry.reviewId
+                                          ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                          : detachedLabel
+                                      }
+                                      disabled={
+                                        !entry.reviewId && entry.disabled
+                                      }
+                                      aria-current={active ? 'page' : undefined}
+                                      onClick={() =>
+                                        entry.reviewId
+                                          ? setOpenMobile(false)
+                                          : openWorktree(entry)
+                                      }
+                                      render={
+                                        entry.reviewId ? (
+                                          <Link
+                                            to="/reviews/$reviewId"
+                                            params={{
+                                              reviewId: entry.reviewId,
+                                            }}
+                                            search={{
+                                              environment:
+                                                entry.environmentId ===
+                                                connection.environmentId
+                                                  ? undefined
+                                                  : entry.environmentId,
+                                              decision: undefined,
+                                            }}
                                           />
-                                        }
-                                      >
-                                        <div className="min-w-0 flex-1 text-ui leading-4">
-                                          <div className="flex min-w-0 items-center gap-1">
-                                            <span className="min-w-0 flex-1 truncate">
-                                              {entry.title}
+                                        ) : undefined
+                                      }
+                                    >
+                                      <div className="min-w-0 flex-1 text-ui leading-4">
+                                        <div className="flex min-w-0 items-center gap-1">
+                                          <TruncatedText
+                                            className="min-w-0 flex-1"
+                                            text={entry.title}
+                                          />
+                                          {entry.reviewId ? (
+                                            <span
+                                              className={cn(
+                                                'shrink-0 text-xs',
+                                                active
+                                                  ? 'text-brand'
+                                                  : 'text-muted-foreground',
+                                              )}
+                                              aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                            >
+                                              {entry.reviewed}/{entry.total}
                                             </span>
-                                            {entry.reviewId ? (
-                                              <span
-                                                className={cn(
-                                                  'shrink-0 text-xs',
-                                                  active
-                                                    ? 'text-brand'
-                                                    : 'text-muted-foreground',
-                                                )}
-                                                aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                          ) : null}
+                                        </div>
+                                        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                          <div className="flex min-w-0 flex-1 items-center gap-1">
+                                            {context.project ? (
+                                              <TruncatedText
+                                                className={
+                                                  context.branch ||
+                                                  context.location
+                                                    ? 'min-w-0 max-w-1/2 '
+                                                    : 'min-w-0 flex-1 '
+                                                }
+                                                text={context.project}
+                                              />
+                                            ) : null}
+                                            {context.branch ? (
+                                              <TruncatedText
+                                                className="min-w-0 flex-1"
+                                                text={context.branch}
+                                              />
+                                            ) : null}
+                                            {context.location ? (
+                                              <TruncatedText
+                                                cut="start"
+                                                disclose="always"
+                                                className="min-w-0 flex-1"
+                                                text={checkout.full}
                                               >
-                                                {entry.reviewed}/{entry.total}
-                                              </span>
+                                                {context.location}
+                                              </TruncatedText>
                                             ) : null}
                                           </div>
-                                          <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                            <div className="flex min-w-0 flex-1 items-center gap-1">
-                                              {context.project ? (
-                                                <span
-                                                  className={
-                                                    context.branch
-                                                      ? 'min-w-0 max-w-1/2 truncate'
-                                                      : 'min-w-0 flex-1 truncate'
-                                                  }
-                                                >
-                                                  {context.project}
-                                                </span>
-                                              ) : null}
-                                              {context.branch ? (
-                                                <span className="min-w-0 flex-1 truncate">
-                                                  {context.branch}
-                                                </span>
-                                              ) : null}
-                                            </div>
-                                          </div>
                                         </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent
-                                        side="right"
-                                        role="tooltip"
-                                      >
-                                        <div>
-                                          <p>{entry.title}</p>
-                                          <p>
-                                            {[context.project, context.branch]
-                                              .filter(Boolean)
-                                              .join(' · ')}
-                                          </p>
-                                        </div>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                      </div>
+                                    </SidebarMenuButton>
                                   </div>
                                   {entry.archivable && entry.reviewId ? (
                                     <ArchiveReview

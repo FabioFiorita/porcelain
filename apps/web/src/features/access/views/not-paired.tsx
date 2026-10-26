@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { CheckIcon, CopyIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -83,22 +84,11 @@ export function NotPaired({
                 <span aria-hidden="true" className="text-muted-foreground">
                   $
                 </span>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <code
-                        className="min-w-0 flex-1 truncate"
-                        tabIndex={0}
-                        aria-label={command}
-                      >
-                        {command}
-                      </code>
-                    }
-                  />
-                  <TooltipContent className="max-w-sm break-all">
-                    {command}
-                  </TooltipContent>
-                </Tooltip>
+                <TruncatedText
+                  text={command}
+                  render={<code />}
+                  className="flex-1"
+                />
                 <Tooltip>
                   <TooltipTrigger
                     render={

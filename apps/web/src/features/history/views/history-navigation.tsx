@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -7,12 +8,6 @@ import {
   GitGraphIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Empty,
@@ -27,6 +22,7 @@ import {
   historyHeading,
 } from '@porcelain/client/history/rules';
 import { useReviewOverview } from '@/features/changes/index';
+import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -58,24 +54,9 @@ export function HistoryNavigation({
     <div className="flex h-full min-h-0 flex-col">
       <section
         aria-label="Branch"
-        className="flex shrink-0 items-start gap-2 border-b px-3.5 py-2.5"
+        className="flex shrink-0 border-b px-3.5 py-2.5"
       >
-        <GitBranchIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <FullText className="min-w-0 flex-1 font-mono text-caption font-medium">
-              {tracking.name}
-            </FullText>
-            {tracking.counts !== null && (
-              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                {tracking.counts}
-              </span>
-            )}
-          </div>
-          <FullText className="text-2xs text-muted-foreground">
-            {tracking.upstream}
-          </FullText>
-        </div>
+        <BranchTracking tracking={tracking} />
       </section>
       <HistoryRestarted history={history} />
       <ScrollArea className="h-0 min-h-0 flex-1">
@@ -87,7 +68,7 @@ export function HistoryNavigation({
               className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-caption transition-colors hover:bg-accent"
             >
               <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate">Uncommitted changes</span>
+              <TruncatedText className="flex-1" text="Uncommitted changes" />
               <span className="text-2xs text-muted-foreground tabular-nums">
                 {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
               </span>
@@ -124,25 +105,6 @@ export function HistoryNavigation({
   );
 }
 
-function FullText({
-  className,
-  children,
-}: {
-  className: string;
-  children: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={<span tabIndex={0} className={cn('truncate', className)} />}
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent className="break-all">{children}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function HistoryHeading({
   history,
 }: {
@@ -153,9 +115,10 @@ export function HistoryHeading({
       {history.snapshot !== null && history.snapshot !== undefined && (
         <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate">
-            {historyHeading(history.snapshot)}
-          </span>
+          <TruncatedText
+            className="min-w-0 flex-1"
+            text={historyHeading(history.snapshot)}
+          />
         </div>
       )}
       <HistoryRestarted history={history} />

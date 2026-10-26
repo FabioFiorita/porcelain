@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { BranchState } from './branch-state';
 import type { AsyncResult } from 'effect/reactivity';
 import { GitBranchIcon } from 'lucide-react';
@@ -147,7 +148,10 @@ function BranchFileList({
           onOpen={() => onOpen(BRANCH)}
         >
           <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate">All branch changes</span>
+          <TruncatedText
+            className="min-w-0 flex-1"
+            text={'All branch changes'}
+          />
           <span className="ml-auto text-2xs text-muted-foreground tabular-nums">
             {items.length}
           </span>

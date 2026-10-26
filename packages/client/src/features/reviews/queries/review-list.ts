@@ -5,6 +5,7 @@ import { readInventory } from '../../projects/queries/inventory.ts';
 import type { Project } from '../../projects/rules/inventory.ts';
 import { worktreeLabel } from '../../projects/rules/inventory.ts';
 import {
+  checkoutFolder,
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
@@ -101,6 +102,7 @@ export const readReviewList = Atom.family(
               path: worktree?.path ?? revision?.worktreePath,
               reviewId: record.reviewId,
               branch: record.branch,
+              detached: worktree !== undefined && !worktree.branch,
               title: reviewListTitle(
                 record,
                 revision,
@@ -151,11 +153,12 @@ export const readReviewList = Atom.family(
               worktreeId: worktree.id,
               path: worktree.path,
               branch: worktreeLabel(worktree.branch),
+              detached: !worktree.branch,
               title: worktree.main
                 ? project.name
                 : worktree.branch
                   ? worktreeLabel(worktree.branch)
-                  : worktree.path,
+                  : checkoutFolder(worktree.path).name,
               group: worktree.main ? 'Projects' : 'No review',
               closed: false,
               reviewed: 0,

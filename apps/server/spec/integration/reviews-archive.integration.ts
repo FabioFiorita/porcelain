@@ -391,6 +391,81 @@ for (const state of ['closed', 'merged'] as const) {
     ));
 }
 
+test('archive without cleanup retains persisted review and local commits when the push remote is unavailable', () =>
+  withArchive((f) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(async () => {
+        await writeFile(join(f.worktree, 'note.txt'), 'Local commit\n');
+        await f.git('-C', f.worktree, 'commit', '-am', 'Local only');
+        await writeFile(join(f.worktree, 'unsaved.txt'), 'Unsaved work\n');
+        await f.git(
+          'remote',
+          'set-url',
+          '--push',
+          'origin',
+          `${f.remote}.unavailable`,
+        );
+      });
+      const input = {
+        ...f.input,
+        options: {
+          deleteWorktree: false,
+          deleteLocalBranch: false,
+          deleteRemoteBranch: false,
+        },
+      };
+      const preview = yield* f.archive.execute(input);
+      expect(preview).toMatchObject({
+        archived: false,
+        plan: {
+          worktreePath: undefined,
+          detachWorktreePath: undefined,
+          localBranch: undefined,
+          remoteBranch: undefined,
+          dirty: false,
+          unpushed: false,
+        },
+      });
+      expect(yield* f.store.readRecord(input)).toMatchObject({
+        archived: false,
+      });
+      expect(
+        (yield* f.archive.execute({
+          ...input,
+          confirmation: { plan: preview.plan, discardChanges: false },
+        })).archived,
+      ).toBe(true);
+      expect(yield* f.store.readRecord(input)).toMatchObject({
+        archived: true,
+      });
+      expect(yield* f.store.read(input)).toMatchObject({
+        revision: 1,
+        summaryHtml: '<p>Review</p>',
+      });
+      expect(
+        yield* Effect.promise(() =>
+          readFile(join(f.worktree, 'unsaved.txt'), 'utf8'),
+        ),
+      ).toBe('Unsaved work\n');
+      expect(
+        yield* Effect.promise(() =>
+          f.git('-C', f.worktree, 'branch', '--show-current'),
+        ),
+      ).toBe('feature');
+      expect(
+        yield* Effect.promise(() =>
+          f.git('log', '-1', '--format=%s', 'feature'),
+        ),
+      ).toBe('Local only');
+      expect(
+        yield* Effect.promise(() =>
+          f.git('--git-dir', f.remote, 'log', '-1', '--format=%s', 'feature'),
+        ),
+      ).toBe('Initial code');
+      expect(f.trace).toEqual(['settled', 'settled', 'inventory']);
+    }),
+  ));
+
 for (const owner of ['P', 'R'] as const) {
   test(`archive cancellation excludes the exact ${owner} owner through port cleanup`, () =>
     withArchive((f) =>

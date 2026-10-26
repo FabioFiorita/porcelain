@@ -265,7 +265,11 @@ for (const main of [true, false])
             registry
               .get(list)
               .entries.some(
-                (row) => row.group === 'No review' && row.title === checkout,
+                (row) =>
+                  row.group === 'No review' &&
+                  row.title === branch &&
+                  row.path === checkout &&
+                  row.detached,
               ),
           )
           .toBe(true);

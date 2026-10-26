@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ALL_CHANGES,
   publishedReviewTitle,
@@ -108,7 +109,11 @@ export function SidePanel({
       {layout === 'docked' ? (
         <>
           <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-3.5">
-            <h2 className="truncate text-ui font-semibold">{names[surface]}</h2>
+            <TruncatedText
+              className="text-ui font-semibold"
+              render={<h2 />}
+              text={names[surface]}
+            />
             {toolbar}
           </header>
           <div className="min-h-0 flex-1 text-sm">{content}</div>
@@ -124,14 +129,21 @@ export function SidePanel({
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5">
             <TabsList className="h-8 min-w-0 flex-1">
               {surfaces.map((value) => (
-                <TabsTrigger key={value} value={value} className="min-w-0">
-                  <SurfaceIcon
-                    published={published}
-                    surface={value}
-                    className="size-3.5 shrink-0"
-                  />
-                  <span className="truncate">{names[value]}</span>
-                </TabsTrigger>
+                <TruncatedText
+                  propagateEscape
+                  key={value}
+                  text={names[value]}
+                  renderTrigger={(label) => (
+                    <TabsTrigger value={value} className="min-w-0">
+                      <SurfaceIcon
+                        published={published}
+                        surface={value}
+                        className="size-3.5 shrink-0"
+                      />
+                      {label}
+                    </TabsTrigger>
+                  )}
+                />
               ))}
             </TabsList>
             {toolbar}

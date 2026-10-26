@@ -42,6 +42,7 @@ export type RepoStep =
   | { kind: 'switch'; name: string }
   | { kind: 'merge'; name: string }
   | { kind: 'worktree'; name: string }
+  | { kind: 'detach-worktree'; name: string }
   | { kind: 'fifo'; path: string }
   | { kind: 'remote'; name: string; url: string }
   | { kind: 'agent'; action: AgentAction };

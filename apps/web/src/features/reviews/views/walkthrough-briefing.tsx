@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FullValueTooltip } from '@/shared/views/full-value-tooltip';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { cn } from '@/shared/lib/utils';
 import {
   briefingTitle,
@@ -86,11 +86,11 @@ export function WalkthroughBriefing({
                 Briefing · Revision {review.revision}
               </p>
               <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
-                <FullValueTooltip value={title} className="block min-w-0">
-                  <span className="line-clamp-3 text-muted-foreground">
-                    {title}
-                  </span>
-                </FullValueTooltip>
+                <TruncatedText
+                  text={title}
+                  lines={3}
+                  className="min-w-0 text-muted-foreground"
+                />
                 <span className="block">
                   {briefingTitle(decisionStops.length)}.
                 </span>
@@ -232,26 +232,34 @@ export function WalkthroughBriefing({
                     onGo={onGo}
                     detail={route}
                   >
-                    <StopMark done={isDone(stop)} label={`${stop.number}`} />
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
-                        {stop.layer.title}
-                      </span>
-                      <span className="min-w-0 truncate text-xs text-muted-foreground @2xl/review:max-w-1/2">
-                        {route}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {progress.reviewed}/{progress.total} files
-                      </span>
-                      {state?.stale && (
-                        <Badge variant="outline">
-                          <TriangleAlertIcon className="text-graph-4" /> Code
-                          moved
-                        </Badge>
-                      )}
-                    </span>
+                    {(clip) => (
+                      <>
+                        <StopMark
+                          done={isDone(stop)}
+                          label={`${stop.number}`}
+                        />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                          <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+                            {stop.layer.title}
+                          </span>
+                          {clip(
+                            route,
+                            'text-xs text-muted-foreground @2xl/review:max-w-1/2',
+                          )}
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {progress.reviewed}/{progress.total} files
+                          </span>
+                          {state?.stale && (
+                            <Badge variant="outline">
+                              <TriangleAlertIcon className="text-graph-4" />{' '}
+                              Code moved
+                            </Badge>
+                          )}
+                        </span>
+                      </>
+                    )}
                   </WalkthroughRow>
                 );
               })}
@@ -259,32 +267,36 @@ export function WalkthroughBriefing({
                 const progress = filesReviewed(stop.paths, items);
                 return (
                   <WalkthroughRow key={stop.key} stop={stop} onGo={onGo}>
-                    <span
-                      className={cn(
-                        'grid size-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground',
-                        stop.kind === 'unexplained' &&
-                          'bg-graph-4/15 text-graph-4',
-                      )}
-                    >
-                      {stop.kind === 'unexplained' ? (
-                        <FileQuestionIcon className="size-3.5" />
-                      ) : (
-                        <FlaskConicalIcon className="size-3.5" />
-                      )}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-                      <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
-                        {stopName(stop)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {stop.kind === 'unexplained'
-                          ? 'Changes no decision explains'
-                          : 'Set apart by your settings'}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {progress.reviewed}/{progress.total} files
-                    </span>
+                    {() => (
+                      <>
+                        <span
+                          className={cn(
+                            'grid size-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground',
+                            stop.kind === 'unexplained' &&
+                              'bg-graph-4/15 text-graph-4',
+                          )}
+                        >
+                          {stop.kind === 'unexplained' ? (
+                            <FileQuestionIcon className="size-3.5" />
+                          ) : (
+                            <FlaskConicalIcon className="size-3.5" />
+                          )}
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
+                          <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+                            {stopName(stop)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {stop.kind === 'unexplained'
+                              ? 'Changes no decision explains'
+                              : 'Set apart by your settings'}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {progress.reviewed}/{progress.total} files
+                        </span>
+                      </>
+                    )}
                   </WalkthroughRow>
                 );
               })}
@@ -312,22 +324,28 @@ function WalkthroughRow({
 }: {
   stop: WalkthroughStop;
   onGo: (key: WalkthroughKey) => void;
-  children: ReactNode;
+  children: (
+    clip: (value: string, className?: string) => ReactNode,
+  ) => ReactNode;
   detail?: string;
 }) {
   const name =
     detail === undefined ? stopTitle(stop) : `${stopTitle(stop)} · ${detail}`;
   return (
     <li>
-      <FullValueTooltip
-        value={detail ?? stopTitle(stop)}
-        render={<button type="button" />}
-        aria-label={name}
-        onClick={() => onGo(stop.key)}
-        className="flex w-full items-start gap-3 px-3.5 py-2 text-left hover:bg-accent/50"
-      >
-        {children}
-      </FullValueTooltip>
+      <TruncatedText
+        text={detail ?? stopTitle(stop)}
+        renderTrigger={(_label, clip) => (
+          <button
+            type="button"
+            aria-label={name}
+            onClick={() => onGo(stop.key)}
+            className="flex w-full items-start gap-3 px-3.5 py-2 text-left hover:bg-accent/50"
+          >
+            {children(clip)}
+          </button>
+        )}
+      />
     </li>
   );
 }
