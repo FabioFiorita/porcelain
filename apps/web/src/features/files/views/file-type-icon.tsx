@@ -5,11 +5,11 @@ import {
 import { cn } from '@/shared/lib/utils';
 import { FILE_ICON_DEFAULT_SIZE } from '@/config/limits';
 
-const ICON_SET = 'complete';
+const ICON_SET = 'minimal';
 
 const resolver = createFileTreeIconResolver({
   set: ICON_SET,
-  colored: true,
+  colored: false,
 });
 
 export function PierreIconSprite() {

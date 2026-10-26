@@ -115,7 +115,7 @@ function mountTree(
     initialExpansion: 'closed',
     icons: treeIconsFor(read().links),
     unsafeCSS:
-      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
+      '[data-item-section="icon"] > svg { color: var(--trees-fg-muted); } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus: read().gitStatus,
     search: false,
     onSearchChange: (value) => {

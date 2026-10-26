@@ -23,8 +23,8 @@ export function treeIconsFor(
   links: readonly { path: string; kind: string }[] = [],
 ): FileTreeIconConfig {
   return {
-    set: 'complete',
-    colored: true,
+    set: 'minimal',
+    colored: false,
     spriteSheet: LINK_SPRITE,
     byFileName: Object.fromEntries(
       links.flatMap((link) => {
