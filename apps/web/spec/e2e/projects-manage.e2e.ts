@@ -75,7 +75,12 @@ for (const width of [1440, 414]) {
       await expect(remove).not.toBeAttached();
       await expect.poll(async () => (await server.project()).name).toBe(name);
       await manage.click();
-      await page.keyboard.press('Escape');
+      const menu = page.getByRole('menu', {
+        name: 'Manage projects',
+        exact: true,
+      });
+      await expect(menu).toBeVisible();
+      await menu.press('Escape');
       await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(manage).toBeFocused();
       await page
