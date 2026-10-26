@@ -87,11 +87,7 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
       bodyTruncated: false,
       parentOids: [],
       author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
-      refs: [
-        'refs/remotes/origin/topic',
-        'refs/tags/v1',
-        'refs/porcelain/reviews/internal/1',
-      ],
+      refs: ['origin/topic', 'v1', 'refs/porcelain/reviews/internal/1'],
     }),
   ).toEqual({
     id: '0123456789',
@@ -109,7 +105,7 @@ const attached = {
 };
 const tracked = {
   name: 'topic',
-  upstream: 'refs/remotes/origin/topic',
+  upstream: 'origin/topic',
   ahead: 0,
   behind: 0,
 };
@@ -167,7 +163,7 @@ it('retains complete long branch and upstream names', () => {
       {
         ...tracked,
         name,
-        upstream: `refs/remotes/origin/${name}`,
+        upstream: `origin/${name}`,
       },
       null,
     ),
@@ -201,3 +197,28 @@ it.each(['topic/nested', 'refs/heads/topic', 'refs/tags/release'])(
     expect(branchTracking({ ...tracked, name }, attached).name).toBe(name);
   },
 );
+
+it.each(['refs/heads/topic', 'refs/tags/release', 'origin/refs/heads/topic'])(
+  'keeps the actual commit decoration %s',
+  (ref) => {
+    expect(
+      commitEntry({
+        oid: '0123456789',
+        subject: 'Keep names',
+        subjectTruncated: false,
+        body: undefined,
+        bodyTruncated: false,
+        parentOids: [],
+        author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
+        refs: [ref],
+      }).refs,
+    ).toEqual([ref]);
+  },
+);
+
+it('keeps the actual upstream name even when its remote is named refs', () => {
+  expect(
+    branchTracking({ ...tracked, upstream: 'refs/remotes/topic' }, attached)
+      .upstream,
+  ).toBe('against refs/remotes/topic');
+});

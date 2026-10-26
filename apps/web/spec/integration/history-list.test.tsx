@@ -201,3 +201,22 @@ test('every ref is reachable at a narrow width in the History list and graph', a
     )
     .toBeVisible();
 });
+
+test.for(['refs/heads/topic', 'refs/tags/release'])(
+  'History keeps the literal branch decoration %s',
+  async (branch, { repo, render }) => {
+    await repo.branch(branch);
+    const workspace = await render.workspace();
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+    const history = workspace.getByRole('complementary', {
+      name: 'Review sidebar',
+      exact: true,
+    });
+    await expect
+      .element(history.getByRole('button', { name: branch, exact: true }))
+      .toHaveTextContent(branch);
+  },
+);
