@@ -5,7 +5,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { refLabel } from '@porcelain/client/history/rules';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import {
@@ -62,7 +61,6 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences, useTheme } from '@/features/preferences/index';
@@ -75,7 +73,6 @@ import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
-import { ReviewProof } from './review-proof';
 import { WalkthroughBriefing } from './walkthrough-briefing';
 import { DecisionPage } from './walkthrough-stop';
 import { ClosingPage } from './closing-page';
@@ -109,7 +106,6 @@ type ReviewPageProps = {
   onBack: () => void;
   onDeleted?: (() => void) | undefined;
   liveScope?: ReviewScope | undefined;
-  initialView?: 'proof' | undefined;
   proofCurrent?: boolean | undefined;
 };
 
@@ -125,7 +121,6 @@ export function ReviewPage({
   onBack,
   onDeleted,
   liveScope,
-  initialView,
   proofCurrent = true,
   active = true,
 }: ReviewPageProps) {
@@ -165,7 +160,6 @@ export function ReviewPage({
       onBack={onBack}
       onDeleted={onDeleted}
       liveScope={liveScope}
-      initialView={initialView}
       proofCurrent={proofCurrent}
       active={active}
     />
@@ -266,7 +260,6 @@ function ReviewRevisionPage({
   onBack,
   onDeleted,
   liveScope,
-  initialView,
   proofCurrent = true,
   active = true,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
@@ -279,9 +272,7 @@ function ReviewRevisionPage({
     (entry) => entry.id === revision.projectId,
   );
   const worktree = project?.worktrees.find(
-    (entry) =>
-      entry.available &&
-      refLabel(entry.branch ?? '') === refLabel(revision.branch),
+    (entry) => entry.available && entry.id === revision.content.worktreeId,
   );
   const currentScope =
     liveScope ??
@@ -329,9 +320,7 @@ function ReviewRevisionPage({
     `${revision.reviewId}:${revision.revision}`,
   );
   const [chosen, setChosen] = useState<string>();
-  const [view, setView] = useState<'walkthrough' | 'summary' | 'proof'>(
-    initialView ?? 'walkthrough',
-  );
+  const [view, setView] = useState<'walkthrough' | 'summary'>('walkthrough');
   const [file, setFile] = useState<{
     path: string;
     step?: ReviewStep;
@@ -397,8 +386,7 @@ function ReviewRevisionPage({
     context,
     interaction,
     onOpen: (document: { kind: string; path?: string }) => {
-      if (document.kind === 'proof') setView('proof');
-      else if (document.path) setFile({ path: document.path });
+      if (document.path) setFile({ path: document.path });
     },
   };
   const presentation = (
@@ -546,12 +534,7 @@ function ReviewRevisionPage({
               })
             }
             onStop={(key) => reveal(() => go(key))}
-            onProof={() =>
-              reveal(() => {
-                setView('proof');
-                setFile(undefined);
-              })
-            }
+            onProof={() => reveal(() => go('briefing'))}
           />
         </ReviewBoundary>
       )}
@@ -629,32 +612,6 @@ function ReviewRevisionPage({
       {active && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
       )}
-      <header className="flex shrink-0 flex-col gap-2 border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            Back
-          </Button>
-          <span className="flex-1" />
-          <Badge variant="outline">{record?.state ?? 'open'}</Badge>
-        </div>
-        <h1
-          aria-label="Review"
-          className="min-w-0 text-sm font-semibold break-words"
-        >
-          {record?.pullRequest && (
-            <>
-              <a
-                href={record.pullRequest}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                PR #{record.pullRequest.split('/').filter(Boolean).at(-1)}
-              </a>
-              {' · '}
-            </>
-          )}
-        </h1>
-      </header>
       {pullNotice && (
         <div className="px-4 py-2">
           <StateNotice role="status" title={pullNotice}>
@@ -706,30 +663,6 @@ function ReviewRevisionPage({
           />
         </div>
       )}
-      <Tabs
-        value={view}
-        onValueChange={(value: unknown) => {
-          if (
-            value === 'walkthrough' ||
-            value === 'summary' ||
-            value === 'proof'
-          ) {
-            setView(value);
-            setFile(undefined);
-          }
-        }}
-      >
-        <TabsList
-          className="flex h-auto flex-wrap"
-          aria-label="Review details"
-          aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
-        >
-          {!showSummary && (
-            <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
-          )}
-          <TabsTrigger value="proof">Proof</TabsTrigger>
-        </TabsList>
-      </Tabs>
       <Suspense
         fallback={
           <p role="status" className="p-4">
@@ -811,6 +744,7 @@ function ReviewRevisionPage({
                       context={context}
                       onRevision={onRevision}
                       onDeleted={onDeleted ?? onBack}
+                      onBack={standalone ? onBack : undefined}
                     />
                   }
                   stops={stops}
@@ -862,7 +796,7 @@ function ReviewRevisionPage({
                             active={active}
                             marks={marks ?? { files: [], decisions: [] }}
                             steps={stop.layer.steps}
-                            threadMargin
+                            decision
                           />
                         </MarginRow>
                       </>
@@ -928,6 +862,11 @@ function ReviewRevisionPage({
                           ? `${stop.number} of ${decisionCount}`
                           : stopName(stop)
                       }
+                      compactLabel={
+                        stop.kind === 'decision'
+                          ? `${stop.number}/${decisionCount}`
+                          : `${stops.findIndex((item) => item.key === stop.key) + 1}/${stops.length}`
+                      }
                       stops={stops}
                       current={stop.key}
                       onGo={go}
@@ -965,17 +904,6 @@ function ReviewRevisionPage({
                 </section>
               )}
             </div>
-          </div>
-        )}
-        {view === 'proof' && (
-          <div className="p-4">
-            <ReviewProof
-              revision={revision}
-              scope={scope}
-              context={context}
-              current={proofCurrent && revision.headOid === latestHead}
-              title="Proof"
-            />
           </div>
         )}
       </Suspense>
@@ -1033,7 +961,7 @@ function PanelKeys({
 
 function MarginRowDock({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-4 pb-4 @2xl/review:px-6">
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-2 pb-4 @md/review:px-4 @2xl/review:px-6">
       <MarginRow>{children}</MarginRow>
     </div>
   );

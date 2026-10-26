@@ -43,7 +43,7 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
   expect(project.worktrees).toHaveLength(2);
   const main = project.worktrees.find((worktree) => worktree.main);
   const offline = project.worktrees.find(
-    (worktree) => worktree.branch === 'refs/heads/demo/offline-cache',
+    (worktree) => worktree.branch === 'demo/offline-cache',
   );
   expect(main?.path).toBe(environment.server.repository);
   expect(offline?.path).toBe(
