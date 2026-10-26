@@ -15,6 +15,7 @@ test('renaming a project in the navigator shows the new name and the server keep
     exact: true,
   });
   await expect.element(projectButton).toBeVisible();
+  await userEvent.keyboard('{ArrowDown}');
   await expect.element(projectButton).toHaveFocus();
   await userEvent.keyboard('{ArrowRight}{ArrowDown}');
   await expect
