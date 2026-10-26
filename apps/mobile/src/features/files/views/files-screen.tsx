@@ -112,7 +112,7 @@ function FilesNavigationView({
     setPinnedOpen,
     allOpen,
     setAllOpen,
-  } = useFileNavigation(selected.key);
+  } = useFileNavigation(selected.key, embedded);
   const [action, setAction] = useState<FileAction>();
   const [refreshRequested, setRefreshRequested] = useState(false);
   const directories = useDirectories({

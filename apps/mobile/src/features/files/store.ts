@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAtom } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 
@@ -10,19 +11,25 @@ type NavigationState = {
   readonly allOpen: boolean;
 };
 
+const initialNavigation = (): NavigationState => ({
+  expanded: new Set(),
+  requested: [''],
+  query: '',
+  showHidden: false,
+  pinnedOpen: true,
+  allOpen: true,
+});
+
 const navigation = Atom.family((_: string) =>
-  Atom.make<NavigationState>({
-    expanded: new Set(),
-    requested: [''],
-    query: '',
-    showHidden: false,
-    pinnedOpen: true,
-    allOpen: true,
-  }).pipe(Atom.keepAlive),
+  Atom.make(initialNavigation()).pipe(Atom.keepAlive),
 );
 
-export function useFileNavigation(workspace: string) {
-  const [state, set] = useAtom(navigation(workspace));
+export function useFileNavigation(workspace: string, retained: boolean) {
+  const atom = useMemo(
+    () => (retained ? navigation(workspace) : Atom.make(initialNavigation())),
+    [workspace, retained],
+  );
+  const [state, set] = useAtom(atom);
   return {
     ...state,
     setExpanded: (
