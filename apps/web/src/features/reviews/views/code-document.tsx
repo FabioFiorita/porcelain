@@ -1,6 +1,6 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Link } from '@tanstack/react-router';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -50,7 +50,7 @@ import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
-import { useMarginStack } from '../adapters/margin-stack';
+import { revealMarginLine, useMarginStack } from '../adapters/margin-stack';
 import {
   codeCommentMatches,
   codeCommentStale,
@@ -59,6 +59,7 @@ import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
+import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
@@ -572,7 +573,7 @@ function CodeSurface({
                 setFocused(entries.findIndex((entry) => entry.id === next.id));
             }
           }}
-          renderAnnotation={(...[annotation]) => {
+          renderAnnotation={(...[annotation, , item]) => {
             const note = annotation.metadata;
             if (note.kind === 'agent')
               return (
@@ -615,7 +616,7 @@ function CodeSurface({
                 )}
               >
                 {note.threads.map(({ thread, stale }) => (
-                  <div key={thread.id}>
+                  <div key={thread.id} className="group/margin-thread">
                     {stale && !thread.review && (
                       <p className="mb-2 text-xs text-graph-4">
                         Code changed since this comment
@@ -652,6 +653,41 @@ function CodeSurface({
                       scope={scope}
                       context={gitContext}
                       thread={thread}
+                      {...(threadMargin &&
+                      note.lineNumber > 0 &&
+                      thread.anchor.kind === 'codeRange'
+                        ? {
+                            location: (
+                              <MarginThreadLocation
+                                anchor={thread.anchor}
+                                onReveal={(control) => {
+                                  const anchor = thread.anchor;
+                                  if (anchor.kind !== 'codeRange') return;
+                                  const side =
+                                    item.type === 'diff'
+                                      ? { side: anchor.side ?? 'additions' }
+                                      : {};
+                                  flushSync(() => {
+                                    setSelection({
+                                      id: item.id,
+                                      range: {
+                                        start: anchor.startLine,
+                                        end: anchor.endLine,
+                                        ...side,
+                                      },
+                                    });
+                                    setFocused(
+                                      entries.findIndex(
+                                        (entry) => entry.id === item.id,
+                                      ),
+                                    );
+                                  });
+                                  revealMarginLine(control);
+                                }}
+                              />
+                            ),
+                          }
+                        : {})}
                     />
                   </div>
                 ))}

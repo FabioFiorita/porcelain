@@ -5,7 +5,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { refLabel } from '@porcelain/client/history/rules';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import {
@@ -279,9 +278,7 @@ function ReviewRevisionPage({
     (entry) => entry.id === revision.projectId,
   );
   const worktree = project?.worktrees.find(
-    (entry) =>
-      entry.available &&
-      refLabel(entry.branch ?? '') === refLabel(revision.branch),
+    (entry) => entry.available && entry.id === revision.content.worktreeId,
   );
   const currentScope =
     liveScope ??
@@ -928,6 +925,11 @@ function ReviewRevisionPage({
                           ? `${stop.number} of ${decisionCount}`
                           : stopName(stop)
                       }
+                      compactLabel={
+                        stop.kind === 'decision'
+                          ? `${stop.number}/${decisionCount}`
+                          : `${stops.findIndex((item) => item.key === stop.key) + 1}/${stops.length}`
+                      }
                       stops={stops}
                       current={stop.key}
                       onGo={go}
@@ -1033,7 +1035,7 @@ function PanelKeys({
 
 function MarginRowDock({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-4 pb-4 @2xl/review:px-6">
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-2 pb-4 @md/review:px-4 @2xl/review:px-6">
       <MarginRow>{children}</MarginRow>
     </div>
   );

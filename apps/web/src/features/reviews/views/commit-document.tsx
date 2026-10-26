@@ -19,7 +19,7 @@ import {
   type CommitFile,
   type CommitFiles,
 } from '@porcelain/client/history/rules';
-import { refLabel, shortOid, shownRefs } from '@porcelain/client/history/rules';
+import { shortOid, shownRefs } from '@porcelain/client/history/rules';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
@@ -219,9 +219,7 @@ function CommitHeader({
       <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
         <TruncatedText text={oid} className="font-mono" />
         {shownRefs(commit.commit.refs).map((ref) => (
-          <TruncatedText key={ref} text={ref} className="font-mono">
-            {refLabel(ref)}
-          </TruncatedText>
+          <TruncatedText key={ref} text={ref} className="font-mono" />
         ))}
       </div>
       {commit.commit.body !== null && commit.commit.body !== undefined && (

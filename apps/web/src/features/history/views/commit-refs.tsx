@@ -7,7 +7,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { refLabel } from '@porcelain/client/history/rules';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
 
 const chipClass = 'h-4 min-w-0 max-w-40';
@@ -34,7 +33,7 @@ export function CommitRefs({
           {refs.map((ref) => (
             <Badge key={ref} variant="secondary" className={chipClass}>
               <span
-                data-label={refLabel(ref)}
+                data-label={ref}
                 className="before:content-[attr(data-label)]"
               />
             </Badge>
@@ -58,7 +57,7 @@ export function CommitRefs({
             </Badge>
           )}
         >
-          {refLabel(ref)}
+          {ref}
         </TruncatedText>
       ))}
       {hidden.length > 0 && (

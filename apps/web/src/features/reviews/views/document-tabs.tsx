@@ -42,6 +42,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+function revealTab(tab: HTMLElement | null) {
+  const viewport = tab?.closest('[role="tablist"]')?.parentElement;
+  if (!tab || !viewport) return;
+  const chip = tab.getBoundingClientRect();
+  const frame = viewport.getBoundingClientRect();
+  const left =
+    chip.left < frame.left
+      ? chip.left - frame.left
+      : Math.max(0, chip.right - frame.right);
+  viewport.scrollBy({ left });
+}
+
 function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
@@ -171,11 +183,11 @@ export function DocumentTabs({
           ref={(viewport) => {
             if (!viewport) return;
             const reveal = () =>
-              viewport
-                .querySelector<HTMLElement>(
+              revealTab(
+                viewport.querySelector<HTMLElement>(
                   '[role="tab"][aria-selected="true"]',
-                )
-                ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                ),
+              );
             let frame = 0;
             const observer = new ResizeObserver(() => {
               cancelAnimationFrame(frame);
@@ -297,11 +309,7 @@ function DocumentTab({
               render={
                 <div
                   ref={(tab) => {
-                    if (active)
-                      tab?.scrollIntoView?.({
-                        block: 'nearest',
-                        inline: 'nearest',
-                      });
+                    if (active) revealTab(tab);
                   }}
                   role="tab"
                   tabIndex={0}
