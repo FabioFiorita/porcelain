@@ -122,6 +122,7 @@ export {
   reviewListTitle,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestLink,
   reviewListView,
   reviewListGroups,
   reviewListMeta,

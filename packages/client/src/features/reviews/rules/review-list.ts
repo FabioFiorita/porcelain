@@ -338,3 +338,13 @@ export function pullRequestStateLabel(pull: {
   if (pull.state === 'open' && pull.draft) return 'Draft';
   return { open: 'Open', closed: 'Closed', merged: 'Merged' }[pull.state];
 }
+
+export function pullRequestLink(text: string): string | undefined {
+  const match =
+    /^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/pull\/([1-9][0-9]*)(?:\/[^?#]*)?(?:[?#].*)?$/.exec(
+      text.trim(),
+    );
+  return match
+    ? `https://github.com/${match[1]}/${match[2]}/pull/${match[3]}`
+    : undefined;
+}

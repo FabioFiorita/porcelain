@@ -10,6 +10,7 @@ import {
   reviewListTitle,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestLink,
   reviewListMeta,
   reviewListSignal,
   reviewListRowContext,
@@ -571,4 +572,39 @@ it.each([
   ['merged', true, 'Merged'],
 ] as const)('labels a %s PR with draft %s as %s', (state, draft, expected) => {
   expect(pullRequestStateLabel({ state, draft })).toBe(expected);
+});
+
+it.each([
+  [
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  [
+    '  https://github.com/FabioFiorita/porcelain/pull/423/  ',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  [
+    'https://github.com/FabioFiorita/porcelain/pull/423/files',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  [
+    'https://github.com/FabioFiorita/porcelain/pull/423/commits/abc123',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  [
+    'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  [
+    'https://github.com/FabioFiorita/porcelain/pull/423?notification_referrer_id=x',
+    'https://github.com/FabioFiorita/porcelain/pull/423',
+  ],
+  ['https://github.com/FabioFiorita/porcelain/pull/0', undefined],
+  ['https://github.com/FabioFiorita/porcelain/issues/423', undefined],
+  ['https://example.com/FabioFiorita/porcelain/pull/423', undefined],
+  ['http://github.com/FabioFiorita/porcelain/pull/423', undefined],
+  ['https://github.com/FabioFiorita/porcelain/pull/423x', undefined],
+  ['porcelain#423', undefined],
+] as const)('reads the pull request link in %j as %j', (text, expected) => {
+  expect(pullRequestLink(text)).toBe(expected);
 });

@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
@@ -13,6 +12,7 @@ import {
   reviewErrorMessage,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestLink,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { Button } from '@/components/ui/button';
@@ -115,26 +115,6 @@ export function PullRequestBlock({ reviewId, context }: Props) {
             <Alert>
               <AlertDescription>
                 {notice}
-                {pull?.kind === 'unavailable' &&
-                  (pull.reason === 'no-access' ||
-                    pull.reason === 'no-accounts') && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      nativeButton={false}
-                      render={
-                        <Link
-                          to="/settings/$section/$environmentId"
-                          params={{
-                            section: 'git',
-                            environmentId: context.connection.environmentId,
-                          }}
-                        />
-                      }
-                    >
-                      Choose an account
-                    </Button>
-                  )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -209,6 +189,7 @@ function PullRequestDiscovery({
   onLink: (url: string) => void;
 }) {
   const [url, setUrl] = useState('');
+  const [malformed, setMalformed] = useState(false);
   const query = readProjectPullRequests({
     connection: context.connection,
     projectId,
@@ -280,7 +261,9 @@ function PullRequestDiscovery({
         className="flex min-w-0 flex-col gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!pending) onLink(url.trim());
+          const link = pullRequestLink(url);
+          setMalformed(link === undefined);
+          if (link !== undefined && !pending) onLink(link);
         }}
       >
         <Input
@@ -289,9 +272,19 @@ function PullRequestDiscovery({
           required
           placeholder="https://github.com/owner/repo/pull/482"
           value={url}
-          onChange={(event) => setUrl(event.target.value)}
+          onChange={(event) => {
+            setUrl(event.target.value);
+            setMalformed(false);
+          }}
           disabled={pending}
+          aria-invalid={malformed || undefined}
         />
+        {malformed && (
+          <p role="alert" className="text-xs text-destructive">
+            Paste a GitHub pull request link, such as
+            https://github.com/owner/repo/pull/482.
+          </p>
+        )}
         <Button
           type="submit"
           size="sm"
