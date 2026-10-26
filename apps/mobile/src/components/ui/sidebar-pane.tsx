@@ -1,5 +1,4 @@
-import type { View } from 'react-native';
-import { type ReactNode, type ComponentRef } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -25,29 +24,28 @@ export function SidebarPane({
   const width = compact ? 192 : 256;
   const extent = useSharedValue(visible ? width : 0);
   const style = useAnimatedStyle(() => ({ width: extent.get() }));
+  useEffect(() => {
+    transitionSidebar(
+      {
+        stop: () => cancelAnimation(extent),
+        settle: (target) => extent.set(target),
+        animate: (target) =>
+          extent.set(
+            withTiming(target, {
+              duration: 200,
+              easing: Easing.bezier(0.23, 1, 0.32, 1),
+              reduceMotion: ReduceMotion.Never,
+            }),
+          ),
+      },
+      visible,
+      width,
+      reduceMotion,
+    );
+    return () => cancelAnimation(extent);
+  }, [extent, visible, width, reduceMotion]);
   return (
     <Animated.View
-      ref={(element: ComponentRef<typeof View> | null) => {
-        if (!element) return;
-        transitionSidebar(
-          {
-            stop: () => cancelAnimation(extent),
-            settle: (target) => extent.set(target),
-            animate: (target) =>
-              extent.set(
-                withTiming(target, {
-                  duration: 200,
-                  easing: Easing.bezier(0.23, 1, 0.32, 1),
-                  reduceMotion: ReduceMotion.Never,
-                }),
-              ),
-          },
-          visible,
-          width,
-          reduceMotion,
-        );
-        return () => cancelAnimation(extent);
-      }}
       className="shrink-0 overflow-hidden"
       style={style}
       pointerEvents={visible ? 'auto' : 'none'}

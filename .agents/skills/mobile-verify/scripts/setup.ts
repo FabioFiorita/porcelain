@@ -213,7 +213,7 @@ export function pairClient(
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
     if (ios) run(['alert', 'accept', '5000'], true);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
-    run(['wait', 'text', 'Settings', '60000']);
+    run(['wait', 'text', 'General', '60000']);
     if (ios) run(['alert', 'accept', '5000'], true);
     run(['press', 'id="settings-computers"', '--settle']);
     run(['press', 'label="Add computer"', '--settle']);

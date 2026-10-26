@@ -11,7 +11,7 @@ import { destinationForPath } from './destinations';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
-export function TabletSidebar({ windowed }: { windowed: boolean }) {
+export function TabletSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const inSettings = destinationForPath(pathname).group === '(settings)';
@@ -20,7 +20,7 @@ export function TabletSidebar({ windowed }: { windowed: boolean }) {
       edges={['top', 'left', 'bottom']}
       className="flex-1 bg-sidebar"
     >
-      <Box {...(windowed ? { paddingTop: 8 } : {})}>
+      <Box>
         <Box paddingX={4} paddingY={4}>
           <Text variant="heading">Porcelain</Text>
         </Box>
