@@ -33,7 +33,7 @@ test('an agent question and checks older than the code keep the readiness panel 
     .element(line('Checks ran before the latest changes'))
     .toBeVisible();
   await line('Checks ran before the latest changes').click();
-  const proof = workspace.getByRole('region', { name: 'Proof', exact: true });
+  const proof = workspace.getByRole('region', { name: /^Proven at / });
   await expect
     .element(
       proof.getByText('These checks ran before the latest changes', {
@@ -42,7 +42,7 @@ test('an agent question and checks older than the code keep the readiness panel 
     )
     .toBeVisible();
   await expect
-    .element(proof.getByRole('heading', { name: 'Proof', exact: true }))
+    .element(proof.getByRole('heading', { name: /^Proven at / }))
     .toBeVisible();
   await expect.element(proof).toMatchTextContent('Published ');
 });
