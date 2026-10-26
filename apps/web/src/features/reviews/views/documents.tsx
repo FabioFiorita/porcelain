@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
+import { useInventory } from '@/features/projects/index';
 import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -186,14 +187,23 @@ function HandoffDocument(props: DocumentProps) {
   );
 }
 
-function NoReviewIntro({ branch }: { branch: string | undefined }) {
+function NoReviewIntro({
+  scope,
+  context,
+  branch,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  branch: string | undefined;
+}) {
+  const project = useInventory(context.connection).projects.find(
+    (entry) => entry.id === scope.projectId,
+  );
+  const place = [branch, project?.name].filter(Boolean).join(' · ');
   return (
     <header className="flex min-w-0 flex-col gap-3 px-4 pt-8 pb-6">
-      {branch && (
-        <TruncatedText
-          text={branch}
-          className="text-xs text-muted-foreground"
-        />
+      {place && (
+        <TruncatedText text={place} className="text-xs text-muted-foreground" />
       )}
       <h2 className="text-briefing-title font-semibold tracking-tight">
         No review yet
@@ -282,7 +292,15 @@ function PlainChangesDocument({
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
         {...(intro
-          ? { header: () => <NoReviewIntro branch={list.branch?.name} /> }
+          ? {
+              header: () => (
+                <NoReviewIntro
+                  scope={scope}
+                  context={context}
+                  branch={list.branch?.name}
+                />
+              ),
+            }
           : {})}
         {...(review
           ? {
