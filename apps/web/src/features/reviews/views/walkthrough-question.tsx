@@ -25,11 +25,11 @@ function DecisionQuestion({
     <div
       className={cn(
         'flex min-w-0 flex-col gap-2 rounded-xl border border-brand/40 bg-brand-soft px-4 py-3',
-        compact && 'border-graph-1/40 bg-graph-1/5 p-3',
+        compact && 'p-3',
       )}
     >
       <div className="flex items-start gap-3">
-        <CircleHelpIcon className="mt-0.5 size-4 shrink-0 text-graph-1" />
+        <CircleHelpIcon className="mt-0.5 size-4 shrink-0 text-brand" />
         <div className="min-w-0 flex-1 wrap-anywhere">
           <p className={cn('text-sm font-medium', compact && 'text-xs')}>
             Needs your decision · {part.label}
