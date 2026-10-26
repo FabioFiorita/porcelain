@@ -71,6 +71,7 @@ import { useReviewSummary } from '../queries/summary';
 import { useReviewPanelOpen, useWalkthroughPlace } from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
+import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
 import { WalkthroughBriefing } from './walkthrough-briefing';
@@ -452,21 +453,11 @@ function ReviewRevisionPage({
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
       >
         {reviewedFiles} of {items.length} files
-        <span
-          role="progressbar"
-          aria-label="Files reviewed"
-          aria-valuemin={0}
-          aria-valuemax={items.length}
-          aria-valuenow={reviewedFiles}
-          className="h-1 w-16 overflow-hidden rounded-full bg-muted"
-        >
-          <span
-            className="block h-full bg-primary"
-            style={{
-              width: `${items.length === 0 ? 0 : (reviewedFiles / items.length) * 100}%`,
-            }}
-          />
-        </span>
+        <ProgressMeter
+          label="Files reviewed"
+          value={reviewedFiles}
+          max={items.length}
+        />
         <span>
           {reviewedDecisions} of {review.layers.length} decisions
         </span>

@@ -1,4 +1,9 @@
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FileDiffIcon,
+} from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { ReviewStatusIcon, ROW } from './change-row';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -305,7 +310,15 @@ export function RevisionNavigation({
           active={allChanges.active}
           onOpen={allChanges.onOpen}
         >
-          All changes
+          <FileDiffIcon aria-hidden className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 text-left">All changes</span>
+          <span
+            aria-hidden
+            className="shrink-0 text-caption text-muted-foreground tabular-nums"
+          >
+            {revision.files.length}{' '}
+            {revision.files.length === 1 ? 'file' : 'files'}
+          </span>
         </SidebarDocumentRow>
       )}
     </nav>

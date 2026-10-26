@@ -1,8 +1,8 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import {
+  CheckIcon,
   ChevronDownIcon,
   CircleAlertIcon,
-  CircleCheckIcon,
   CircleXIcon,
 } from 'lucide-react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
@@ -23,6 +23,7 @@ import { usePreferences } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
+import { ProgressMeter } from './progress-meter';
 import type { CommentThread } from '@porcelain/client/reviews/rules';
 import {
   type ReadinessItem,
@@ -234,6 +235,15 @@ function PublishedReadiness({
         tone={
           progress && progress.reviewed === progress.total ? 'ok' : 'attention'
         }
+        meter={
+          progress && (
+            <ProgressMeter
+              label="Decisions reviewed"
+              value={progress.reviewed}
+              max={progress.total}
+            />
+          )
+        }
         onSelect={failed ? retry : () => onSelect('files')}
       />
     </>
@@ -418,12 +428,14 @@ function ReadinessRow({
   label,
   value,
   tone,
+  meter,
   onSelect,
 }: {
   name: string;
   label: string;
   value: string;
   tone: ReadinessTone;
+  meter?: ReactNode;
   onSelect: () => void;
 }) {
   return (
@@ -443,6 +455,7 @@ function ReadinessRow({
               tone === 'failing' && 'text-destructive',
             )}
           >
+            {meter}
             <ToneIcon tone={tone} />
             {clip(value)}
           </span>
@@ -454,9 +467,7 @@ function ReadinessRow({
 
 function ToneIcon({ tone }: { tone: ReadinessTone }) {
   if (tone === 'ok')
-    return (
-      <CircleCheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
-    );
+    return <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />;
   if (tone === 'failing')
     return (
       <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-destructive" />
