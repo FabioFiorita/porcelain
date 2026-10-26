@@ -28,6 +28,10 @@ selectors:
   - 'Answer'
   - 'Unmark reviewed'
   - 'Read more files'
+  - 'Pull request'
+  - 'Read pull request again'
+  - 'Open pull request'
+  - 'Unlink pull request'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
@@ -50,6 +54,8 @@ api:
   - GET /api/worktrees/:worktreeId/reviewed
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/reviews/:reviewId/revisions/:revision/diffs
+  - GET /api/reviews/:reviewId/pull-request
+  - PUT /api/reviews/:reviewId/pull-request
 ---
 
 # reviews.review
@@ -101,6 +107,12 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 3. Refuse one bulk write with a stale fingerprint: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
 4. Use an unavailable fingerprint (e.g. 66 MiB file): name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Make the file readable: ordinary completion returns.
 5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and iPad landscape/portrait.
+
+### Linked pull request
+
+1. Give the fixture repository a GitHub `origin`, put a fake `gh` in the server manifest's `bin` that answers from a state file, and link the published review to a PR for its branch with `PUT /api/reviews/:reviewId/pull-request`. The briefing (and the `/reviews/[reviewId]` screen) shows Pull request with `#n title`, Open/Draft/Merged/Closed with the checks summary, and either Same head as the review, both full SHAs when GitHub is newer, or This review is closed and remains readable.
+2. Change the fake PR and select Read pull request again: the new state replaces the old one. Make `gh` fail (offline, rate limit, HTTP 404, invalid JSON, no accounts, missing `gh`, non-GitHub origin): the linked URL stays with the matching reason and Read pull request again recovers.
+3. Unlink pull request, including while GitHub is offline and on a closed review: the button shows busy and disables while pending, the block disappears, and the server review keeps its id, revision, branch and open/closed state without a pull request. Linking is not offered on the phone; it says to link from the web or desktop app.
 
 Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `publication.spec.ts`, `decisions.spec.ts`, `walkthrough.spec.ts`.
 

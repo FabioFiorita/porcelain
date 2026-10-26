@@ -89,6 +89,14 @@ export function PullRequestState({
           }}
         />
       )}
+      {available && (
+        <Button
+          label="Read pull request again"
+          variant="ghost"
+          pending={result.waiting}
+          onPress={refresh}
+        />
+      )}
       <Button
         label="Open pull request"
         variant="outline"
