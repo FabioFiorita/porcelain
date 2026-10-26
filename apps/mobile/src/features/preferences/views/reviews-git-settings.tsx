@@ -48,7 +48,7 @@ function ComputerReviewGitSettings({
       ) : null}
       {block && (view.kind === 'unreadable' || view.kind === 'configured') ? (
         <ErrorState
-          message={`${block} Pull and Archive wait until they can be read again.`}
+          message={`${block}\nPull and Archive wait until they can be read again.`}
           retry={{ label: 'Read settings again', onPress: readAgain }}
         />
       ) : null}

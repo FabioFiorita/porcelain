@@ -195,7 +195,8 @@ function SettingsNotice({
     <Alert variant="destructive">
       <AlertTitle>Settings unavailable</AlertTitle>
       <AlertDescription>
-        <p>{block} Pull and Archive wait until they can be read again.</p>
+        <p>{block}</p>
+        <p>Pull and Archive wait until they can be read again.</p>
         <Button className="mt-3" size="sm" variant="outline" onClick={onRetry}>
           Read settings again
         </Button>
