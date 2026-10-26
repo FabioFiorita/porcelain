@@ -103,9 +103,52 @@ export function selectedDocument(
     : [...pane.tabs].reverse().find((tab) => documentMode(tab) === mode);
 }
 
+const savedTabsSchema = Schema.Struct({
+  tabs: Schema.Array(
+    Schema.Union([
+      workspaceDocumentSchema,
+      Schema.Struct({
+        kind: Schema.Literal('review-overview'),
+        comparison: reviewComparisonSchema,
+      }),
+    ]),
+  ),
+  active: Schema.NullOr(Schema.String),
+});
+
+const savedSnapshotSchema = Schema.Struct({
+  ...workspaceSnapshotSchema.fields,
+  left: savedTabsSchema,
+  right: Schema.NullOr(savedTabsSchema),
+});
+
 export function readWorkspaceSnapshot(value: unknown): WorkspaceSnapshot {
-  const result = Schema.decodeUnknownResult(workspaceSnapshotSchema)(value);
-  return result._tag === 'Success'
-    ? result.success
-    : initialWorkspaceSnapshot();
+  const result = Schema.decodeUnknownResult(savedSnapshotSchema)(value);
+  if (result._tag === 'Failure') return initialWorkspaceSnapshot();
+  const snapshot = result.success;
+  const withoutOverview = (pane: typeof savedTabsSchema.Type) => ({
+    tabs: pane.tabs.filter((tab) => tab.kind !== 'review-overview'),
+    active: pane.tabs.some(
+      (tab) =>
+        tab.kind === 'review-overview' &&
+        documentOverviewKey(tab.comparison) === pane.active,
+    )
+      ? null
+      : pane.active,
+  });
+  return {
+    ...snapshot,
+    left: withoutOverview(snapshot.left),
+    right: snapshot.right ? withoutOverview(snapshot.right) : null,
+  };
+}
+
+function documentOverviewKey(comparison: typeof reviewComparisonSchema.Type) {
+  return JSON.stringify([
+    'review-overview',
+    comparison.kind === 'worktree'
+      ? ['worktree']
+      : ['branch', comparison.base ?? null],
+    null,
+  ]);
 }

@@ -59,7 +59,7 @@ export function TabletRail({
 }) {
   return (
     <Box
-      className="w-13 items-center justify-between"
+      className="w-11 items-center justify-between"
       paddingY={1}
       accessibilityRole="toolbar"
       accessibilityLabel="Panels"
@@ -81,7 +81,7 @@ export function TabletRail({
   );
 }
 
-export function PanelHeader({
+function PanelHeader({
   title,
   onClose,
 }: {

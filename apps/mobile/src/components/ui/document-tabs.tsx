@@ -59,7 +59,12 @@ export function DocumentTabs<T extends DocumentTab>({
   const [bounds, setBounds] = useState<ReadonlyMap<string, DocumentTabBounds>>(
     () => new Map(),
   );
-  const activeBounds = active ? bounds.get(active) : undefined;
+  const [pinnedBounds, setPinnedBounds] = useState<DocumentTabBounds>();
+  const activeBounds = pinned?.selected
+    ? pinnedBounds
+    : active
+      ? bounds.get(active)
+      : undefined;
   const { overflow } = documentTabLayout(viewport, content.width, 0);
 
   return (
@@ -106,6 +111,7 @@ export function DocumentTabs<T extends DocumentTab>({
     >
       {pinned ? (
         <View
+          onLayout={({ nativeEvent: { layout } }) => setPinnedBounds(layout)}
           className={
             pinned.selected
               ? `flex-row items-center rounded-lg border bg-muted ${focused ? 'border-border' : 'border-transparent'}`

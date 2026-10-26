@@ -137,3 +137,41 @@ it('keeps header tabs and active documents together through opens, switches, per
   expect(closed.left).toEqual({ tabs: [], active: null });
   expect(selectedDocument(closed, 'files')).toBeUndefined();
 });
+
+it.each([{ kind: 'worktree' }, { kind: 'branch', base: 'main' }] as const)(
+  'preserves other saved documents when replacing an old %j overview with the pinned Review tab',
+  (comparison) => {
+    const initial = initialWorkspaceSnapshot();
+    const file = { kind: 'file', path: 'docs/README.md' } as const;
+    const commit = { kind: 'commit', oid: 'abc', parent: 2 } as const;
+    const overviewKey = JSON.stringify([
+      'review-overview',
+      comparison.kind === 'worktree'
+        ? ['worktree']
+        : ['branch', comparison.base],
+      null,
+    ]);
+    const restored = restoreWorkspace(
+      readWorkspaceSnapshot({
+        ...initial,
+        left: {
+          tabs: [file, { kind: 'review-overview', comparison }],
+          active: overviewKey,
+        },
+        right: { tabs: [commit], active: '["commit","abc"]' },
+        mode: 'history',
+        inspectorOpen: false,
+        comparison,
+      }),
+      'files',
+    );
+    expect(restored.left).toEqual({ tabs: [documentTab(file)], active: null });
+    expect(restored.right).toEqual({
+      tabs: [documentTab(commit)],
+      active: '["commit","abc"]',
+    });
+    expect(restored.mode).toBe('history');
+    expect(restored.inspectorOpen).toBe(false);
+    expect(restored.comparison).toEqual(comparison);
+  },
+);
