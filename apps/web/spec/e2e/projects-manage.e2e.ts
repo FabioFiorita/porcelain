@@ -71,6 +71,11 @@ for (const width of [1440, 414]) {
         exact: true,
       });
       await expect(remove).toBeVisible();
+      await expect
+        .poll(() =>
+          remove.evaluate((node) => node.scrollWidth <= node.clientWidth),
+        )
+        .toBe(true);
       await remove.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect(remove).not.toBeAttached();
       await expect.poll(async () => (await server.project()).name).toBe(name);
