@@ -115,6 +115,12 @@ for (const width of [1280, 414]) {
     await expect(dialog).not.toBeVisible();
     await expect(footer).toBeFocused();
 
+    await page
+      .getByRole('button', {
+        name: 'Search reviews and worktrees',
+        exact: true,
+      })
+      .click();
     const search = page.getByRole('searchbox', {
       name: 'Search reviews and worktrees',
       exact: true,

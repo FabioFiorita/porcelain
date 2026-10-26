@@ -47,7 +47,7 @@ export function ProjectWorkspace({
           <>
             <ResizablePanel
               id="navigator"
-              defaultSize={264}
+              defaultSize={248}
               minSize={220}
               maxSize={420}
             >

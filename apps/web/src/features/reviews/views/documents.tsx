@@ -89,16 +89,6 @@ export function DocumentView({
       return <PlainChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
-    case 'proof':
-      return (
-        <BranchReviewPage
-          scope={scope}
-          context={context}
-          toolbarTarget={toolbarTarget}
-          active={active}
-          initialView="proof"
-        />
-      );
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
     case 'file':
