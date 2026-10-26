@@ -27,6 +27,8 @@ import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
+  PIERRE_DECISION_CSS,
+  PIERRE_DECISION_THEME,
   PIERRE_HEADER_CSS,
   PIERRE_MARGIN_THREAD_CSS,
   PIERRE_SURFACE_CSS,
@@ -90,6 +92,7 @@ type Props = {
   collapsible?: boolean;
   range?: ReviewRange;
   threadMargin?: boolean;
+  decision?: boolean;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -134,6 +137,7 @@ function CodeSurface({
   fullHeight = false,
   collapsible = false,
   threadMargin = false,
+  decision = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -141,7 +145,9 @@ function CodeSurface({
 }) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
-  const entries = groupSpecPaths(given, preferences.collapseSpecs);
+  const entries = decision
+    ? given
+    : groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
   const margin = useMarginStack();
@@ -311,7 +317,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: PIERRE_THEME,
+    theme: decision ? PIERRE_DECISION_THEME : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -339,7 +345,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -413,7 +419,12 @@ function CodeSurface({
   );
 
   return (
-    <div className="@container/code relative flex min-h-0 flex-1 flex-col">
+    <div
+      className={cn(
+        '@container/code relative flex min-h-0 flex-1 flex-col',
+        decision && 'decision-code',
+      )}
+    >
       {interaction.toolbarTarget &&
         paneActions &&
         createPortal(paneActions, interaction.toolbarTarget)}
@@ -578,6 +589,7 @@ function CodeSurface({
             if (note.kind === 'agent')
               return (
                 <AgentNote
+                  compact={decision}
                   title={note.title}
                   text={note.text}
                   stale={note.stale}
@@ -731,6 +743,7 @@ function CodeSurface({
               </div>
             );
           }}
+          disableWorkerPool={decision}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }
@@ -755,7 +768,8 @@ function CodeSurface({
                 : null;
             return (
               <span className="flex items-center gap-1">
-                {preferences.collapseSpecs &&
+                {!decision &&
+                  preferences.collapseSpecs &&
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">

@@ -17,6 +17,12 @@ import type {
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
+import { CheckIcon, SquareIcon } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { CodeDocument } from './code-document';
@@ -33,7 +39,7 @@ export function RevisionCode({
   marks,
   steps = [],
   active,
-  threadMargin = false,
+  decision = false,
 }: {
   revision: ReviewRevision;
   paths: readonly string[];
@@ -42,10 +48,12 @@ export function RevisionCode({
   marks: ReviewMarks;
   steps?: readonly ReviewStep[];
   active: boolean;
-  threadMargin?: boolean;
+  decision?: boolean;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
-  const files = revision.files.filter((file) => paths.includes(file.path));
+  const files = paths.flatMap((path) =>
+    revision.files.filter((file) => file.path === path),
+  );
   const reached = files.slice(0, shown);
   return (
     <div className="flex shrink-0 flex-col">
@@ -58,7 +66,7 @@ export function RevisionCode({
           marks={marks}
           steps={steps}
           active={active}
-          threadMargin={threadMargin}
+          decision={decision}
         />
       )}
       {files.length > shown && (
@@ -88,6 +96,7 @@ export function RevisionCode({
                 scope={scope}
                 context={context}
                 path={step.pointer.path}
+                compact={decision}
                 step={step}
                 active={active && reached.length === 0 && index === 0}
               />
@@ -106,7 +115,7 @@ function RevisionDiffs({
   marks,
   steps,
   active,
-  threadMargin,
+  decision,
 }: {
   revision: ReviewRevision;
   files: ReviewRevision['files'];
@@ -115,7 +124,7 @@ function RevisionDiffs({
   marks: ReviewMarks;
   steps: readonly ReviewStep[];
   active: boolean;
-  threadMargin: boolean;
+  decision: boolean;
 }) {
   const result = useAtomValue(
     readReviewRevisionDiffs({
@@ -172,35 +181,57 @@ function RevisionDiffs({
           fingerprint,
           reviewed,
           control: (
-            <Button
-              size="xs"
-              variant="outline"
-              aria-pressed={reviewed}
-              aria-label={reviewedControlLabel(
-                file.path,
-                reviewed ? 'reviewed' : 'unreviewed',
-              )}
-              disabled={
-                !fingerprint || markResult.waiting || unmarkResult.waiting
-              }
-              onClick={() =>
-                fingerprint &&
-                (reviewed
-                  ? unmark({
-                      kind: 'file',
-                      path: file.path,
-                      headBlobOid: fingerprint,
-                    })
-                  : mark({
-                      kind: 'file',
-                      revision: revision.revision,
-                      path: file.path,
-                      headBlobOid: fingerprint,
-                    }))
-              }
-            >
-              {reviewed ? 'File reviewed' : 'Mark file reviewed'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size={decision ? 'icon-sm' : 'xs'}
+                    variant="outline"
+                    aria-pressed={reviewed}
+                    aria-label={reviewedControlLabel(
+                      file.path,
+                      reviewed ? 'reviewed' : 'unreviewed',
+                    )}
+                    disabled={
+                      !fingerprint || markResult.waiting || unmarkResult.waiting
+                    }
+                    onClick={() =>
+                      fingerprint &&
+                      (reviewed
+                        ? unmark({
+                            kind: 'file',
+                            path: file.path,
+                            headBlobOid: fingerprint,
+                          })
+                        : mark({
+                            kind: 'file',
+                            revision: revision.revision,
+                            path: file.path,
+                            headBlobOid: fingerprint,
+                          }))
+                    }
+                  />
+                }
+              >
+                {decision ? (
+                  reviewed ? (
+                    <CheckIcon />
+                  ) : (
+                    <SquareIcon />
+                  )
+                ) : reviewed ? (
+                  'File reviewed'
+                ) : (
+                  'Mark file reviewed'
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {reviewedControlLabel(
+                  file.path,
+                  reviewed ? 'reviewed' : 'unreviewed',
+                )}
+              </TooltipContent>
+            </Tooltip>
           ),
         },
       },
@@ -236,7 +267,8 @@ function RevisionDiffs({
           }}
           entries={entries}
           fullHeight
-          threadMargin={threadMargin}
+          threadMargin={decision}
+          decision={decision}
           onReview={(entry) => {
             const target = entry.review;
             if (
@@ -280,7 +312,11 @@ function RevisionDiffs({
                   .filter((step) => step.pointer.path === file.path)
                   .map((step) => (
                     <article key={step.id} aria-label={`Step ${step.title}`}>
-                      <AgentNote title={step.title} text={step.text} />
+                      <AgentNote
+                        compact={decision}
+                        title={step.title}
+                        text={step.text}
+                      />
                       {step.published && (
                         <pre className="overflow-auto whitespace-pre-wrap">
                           {step.published.join('\n')}
@@ -302,7 +338,9 @@ export function RevisionFile({
   path,
   step,
   active,
+  compact = false,
 }: {
+  compact?: boolean;
   revision: ReviewRevision;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -335,19 +373,24 @@ export function RevisionFile({
       aria-label={step ? `Step ${step.title}` : `File ${path}`}
       className="flex min-h-0 shrink-0 flex-col border-t"
     >
-      {step && <AgentNote title={step.title} text={step.text} />}
+      {step && (
+        <AgentNote compact={compact} title={step.title} text={step.text} />
+      )}
       {entry ? (
-        <CodeDocument
-          scope={scope}
-          context={context}
-          interaction={{
-            active,
-            worktreeId: revision.reviewId,
-            entry: `file:${revision.revision}:${path}`,
-          }}
-          entries={[entry]}
-          fullHeight
-        />
+        <div className={compact ? 'max-h-48 overflow-auto' : undefined}>
+          <CodeDocument
+            decision={compact}
+            scope={scope}
+            context={context}
+            interaction={{
+              active,
+              worktreeId: revision.reviewId,
+              entry: `file:${revision.revision}:${path}`,
+            }}
+            entries={[entry]}
+            fullHeight
+          />
+        </div>
       ) : (
         <div className="p-4 text-sm break-all">
           <p>

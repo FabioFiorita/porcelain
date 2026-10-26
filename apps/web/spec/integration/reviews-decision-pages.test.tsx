@@ -1,6 +1,43 @@
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
+test('decision diffs follow the route from the entry point through its owners and proof', async ({
+  agent,
+  render,
+  server,
+}) => {
+  await agent.publishArchitecture();
+  const published = (await server.publishedReview()).review;
+  if (!published?.reviewId)
+    throw new Error('The published fixture has no review');
+  const app = await render.route(`/reviews/${published.reviewId}`);
+  await app.page
+    .getByRole('button', {
+      name: '2. Revoke access across devices · Entry points → Shared client → Server → Owners',
+      exact: true,
+    })
+    .click();
+  const decision = app.page.getByRole('region', {
+    name: '2. Revoke access across devices',
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      decision
+        .getByRole('button', { name: /^Mark .+ as reviewed$/u })
+        .elements()
+        .map((button) => button.getAttribute('aria-label')),
+    )
+    .toEqual([
+      'Mark apps/web/src/revoke-access.ts as reviewed',
+      'Mark packages/client/src/revoke-access.ts as reviewed',
+      'Mark apps/server/src/revoke-access.ts as reviewed',
+      'Mark packages/workspace/src/revoke-access.ts as reviewed',
+      'Mark tests/revoke-access.spec.ts as reviewed',
+      'Mark docs/decisions/revoke-access.md as reviewed',
+    ]);
+});
+
 const question =
   'Outbox and journal are updated separately. Transaction ownership needs a decision.';
 

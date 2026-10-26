@@ -862,7 +862,7 @@ function ReviewRevisionPage({
                             active={active}
                             marks={marks ?? { files: [], decisions: [] }}
                             steps={stop.layer.steps}
-                            threadMargin
+                            decision
                           />
                         </MarginRow>
                       </>
