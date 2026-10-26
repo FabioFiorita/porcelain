@@ -76,12 +76,7 @@ export function agentOn(step: Step) {
     await step({ kind: 'agent', action });
   };
   return {
-    publishArchitecture: (
-      options: Omit<
-        Extract<AgentAction, { kind: 'publish-architecture' }>,
-        'kind'
-      > = {},
-    ) => act({ kind: 'publish-architecture', ...options }),
+    publishArchitecture: () => act({ kind: 'publish-architecture' }),
     publishReview: (
       title: string,
       kind: 'changed' | 'context' = 'changed',

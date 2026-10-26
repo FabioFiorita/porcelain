@@ -128,7 +128,7 @@ export type ProofCheckStep = {
 };
 
 export type AgentAction =
-  | { kind: 'publish-architecture'; reviewed?: boolean }
+  | { kind: 'publish-architecture' }
   | { kind: 'seed'; variant: StressVariant }
   | {
       kind: 'publish-review';
