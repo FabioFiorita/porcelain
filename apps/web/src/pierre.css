@@ -3,6 +3,33 @@ diffs-container {
   --diffs-header-font-family: var(--font-sans);
 }
 
+.decision-code diffs-container {
+  --diffs-foreground: var(--foreground);
+  --diffs-background: var(--card);
+  --diffs-token-comment: var(--muted-foreground);
+  --diffs-token-string-expression: var(--syn-str);
+  --diffs-token-string: var(--syn-str);
+  --diffs-token-keyword: var(--syn-kw);
+  --diffs-token-constant: var(--syn-ty);
+  --diffs-token-parameter: var(--foreground);
+  --diffs-token-function: var(--syn-fn);
+  --diffs-token-punctuation: var(--syn-punct);
+  --diffs-token-link: var(--brand);
+  --diffs-token-inserted: var(--add-fg);
+  --diffs-token-deleted: var(--del-fg);
+  --diffs-addition-color-override: var(--add-fg);
+  --diffs-deletion-color-override: var(--del-fg);
+  --diffs-fg-number-override: var(--muted-foreground);
+  --diffs-bg-context-override: var(--card);
+  --diffs-bg-context-gutter-override: var(--card);
+  --diffs-bg-addition-override: var(--add-bg);
+  --diffs-bg-addition-number-override: var(--add-bg);
+  --diffs-bg-addition-emphasis-override: var(--add-strong);
+  --diffs-bg-deletion-override: var(--del-bg);
+  --diffs-bg-deletion-number-override: var(--del-bg);
+  --diffs-bg-deletion-emphasis-override: var(--del-strong);
+}
+
 [data-slot='file-tree'] {
   --trees-font-family-override: var(--font-mono);
 }

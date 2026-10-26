@@ -161,7 +161,7 @@ export function DecisionPage({
               </Badge>
             )}
           </div>
-          <h2 className="text-3xl leading-tight font-semibold tracking-tight wrap-anywhere">
+          <h2 className="text-4xl font-semibold tracking-tight wrap-anywhere">
             <span aria-hidden="true" className="text-muted-foreground">
               {stop.number}.{' '}
             </span>
@@ -264,7 +264,10 @@ function Summary({ text }: { text: string }) {
     <div className="flex flex-col items-start gap-1">
       <MarkdownView
         text={text}
-        className={cn('text-base text-pretty', long && !open && 'line-clamp-3')}
+        className={cn(
+          'text-lg text-pretty [&_p]:leading-7',
+          long && !open && 'line-clamp-3',
+        )}
       />
       {long && (
         <Button

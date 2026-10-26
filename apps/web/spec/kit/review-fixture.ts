@@ -32,6 +32,7 @@ export async function durableReviewFixture(
   title: string,
   asked = 'Read one committed review after checkout cleanup',
   route = { path: 'review-page.ts', lane: 'Client' },
+  branch = name,
 ) {
   const filename = route.path;
   const worktree = join(session.projectHome, name);
@@ -60,14 +61,14 @@ export async function durableReviewFixture(
       await session.git('add', '--all');
       await session.git('commit', '-m', 'Commit the development fixture');
     }
-    await session.git('worktree', 'add', '-b', name, worktree);
+    await session.git('worktree', 'add', '-b', branch, worktree);
     await writeFile(
       join(worktree, 'retired.ts'),
       'export const retired = true;\n',
     );
     await git('add', '--all');
     await git('commit', '-m', 'Prepare the removal fixture');
-    await git('branch', 'review-page-base');
+    await git('branch', 'review-page-base', 'HEAD');
   }
   const count = Number(
     await readFile(

@@ -17,7 +17,7 @@ const project: Project = {
       id: 'main',
       path: '/repo',
       main: true,
-      branch: 'refs/heads/main',
+      branch: 'main',
       available: true,
       status: undefined,
     },
@@ -77,8 +77,8 @@ describe('project inventory decisions', () => {
 });
 
 describe('worktree labels', () => {
-  it('shows branch names without the refs prefix and labels detached heads', () => {
-    expect(worktreeLabel('refs/heads/topic')).toBe('topic');
+  it('shows branch names and labels detached heads', () => {
+    expect(worktreeLabel('topic')).toBe('topic');
     expect(worktreeLabel(null)).toBe('Detached HEAD');
   });
 });
