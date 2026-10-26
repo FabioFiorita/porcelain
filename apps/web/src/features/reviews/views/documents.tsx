@@ -6,6 +6,7 @@ import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 import { useInventory } from '@/features/projects/index';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -182,7 +183,9 @@ function HandoffDocument(props: DocumentProps) {
   return (
     <PlainChangesDocument
       {...props}
-      intro={AsyncResult.isSuccess(published.result) && !published.review}
+      intro={
+        Option.isSome(AsyncResult.value(published.result)) && !published.review
+      }
     />
   );
 }

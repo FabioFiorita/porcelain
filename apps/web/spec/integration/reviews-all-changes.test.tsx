@@ -120,6 +120,9 @@ test('Changes explains how to get a review until the agent publishes one', async
   workspace,
   agent,
 }) => {
+  await expect
+    .element(workspace.getByText('main · repository', { exact: true }))
+    .toBeVisible();
   const intro = workspace.getByRole('heading', {
     name: 'No review yet',
     exact: true,
