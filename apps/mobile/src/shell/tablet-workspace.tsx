@@ -1,9 +1,8 @@
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, useWindowDimensions } from 'react-native';
 import { TabletSurface } from './tablet-surface';
 import { Box } from '../components/ui/box';
-import { ChromeButton } from '../components/ui/chrome-button';
 import { DocumentTabs } from '../components/ui/document-tabs';
 import { IconButton } from '../components/ui/icon-button';
 import { Separator } from '../components/ui/separator';
@@ -48,28 +47,17 @@ export function TabletWorkspace({
 }: {
   initialMode?: InspectorMode;
 }) {
-  const { sidebar } = useAppSidebar();
   return (
     <TabletSurface>
       <Stack.Screen options={{ headerShown: false }} />
       <WorkspaceGate
         title="Workspace"
-        fallbackToolbar={
-          sidebar ? (
-            <Box
-              className="items-start"
-              paddingX={4}
-              paddingY={2}
-              divider="bottom"
-            >
-              <ChromeButton
-                icon="sidebar"
-                label={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
-                onPress={sidebar.toggle}
-              />
-            </Box>
-          ) : null
-        }
+        fallbackFrame={(content) => (
+          <Box className="min-w-0 flex-1" surface="panel">
+            <PaneBar />
+            {content}
+          </Box>
+        )}
       >
         {(workspace) => (
           <SelectedWorkspace
@@ -236,21 +224,7 @@ function SelectedWorkspace({
   return (
     <Box className="min-w-0 flex-1 flex-row" gap={2}>
       <Box className="min-w-0 flex-1" surface="panel">
-        <Box
-          className="h-13 min-w-0 flex-row items-center"
-          gap={1}
-          paddingX={2}
-          divider="bottom"
-        >
-          {sidebar ? (
-            <IconButton
-              icon="sidebar"
-              accessibilityLabel={
-                sidebar.visible ? 'Hide sidebar' : 'Show sidebar'
-              }
-              onPress={sidebar.toggle}
-            />
-          ) : null}
+        <PaneBar>
           {panes.map((pane, index) => (
             <Box key={pane} className="min-w-0 flex-1 flex-row items-center">
               {index > 0 ? <Separator orientation="vertical" /> : null}
@@ -299,7 +273,7 @@ function SelectedWorkspace({
               />
             </>
           )}
-        </Box>
+        </PaneBar>
         <Box
           className="min-w-0 flex-1 flex-row"
           onLayout={({ nativeEvent: { layout } }) =>
@@ -392,6 +366,27 @@ function SelectedWorkspace({
       >
         {panel}
       </PanelSheet>
+    </Box>
+  );
+}
+
+function PaneBar({ children }: { children?: ReactNode }) {
+  const { sidebar } = useAppSidebar();
+  return (
+    <Box
+      className="h-13 min-w-0 flex-row items-center"
+      gap={1}
+      paddingX={2}
+      divider="bottom"
+    >
+      {sidebar ? (
+        <IconButton
+          icon="sidebar"
+          accessibilityLabel={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
+          onPress={sidebar.toggle}
+        />
+      ) : null}
+      {children}
     </Box>
   );
 }

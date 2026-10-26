@@ -8,7 +8,7 @@ const StyledSafeAreaView = withUniwind(SafeAreaView);
 export function TabletSurface({ children }: { children: ReactNode }) {
   return (
     <StyledSafeAreaView
-      edges={['top', 'left', 'right', 'bottom']}
+      edges={['top', 'left', 'right']}
       className="min-w-0 flex-1 bg-sidebar"
     >
       <Box className="min-w-0 flex-1" padding={2}>

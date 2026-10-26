@@ -57,7 +57,12 @@ export function FilesScreen({
   return (
     <WorkspaceGate
       title="Files"
-      fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
+      fallbackFrame={(content) => (
+        <>
+          <LeadingToolbar sidebar={sidebar} />
+          {content}
+        </>
+      )}
     >
       {(selected) => (
         <FilesNavigation

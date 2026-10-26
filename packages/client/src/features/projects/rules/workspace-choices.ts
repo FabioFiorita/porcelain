@@ -101,13 +101,10 @@ export function workspaceChoices(
       })),
     })),
   );
-  const messages =
-    environments.length === 0
-      ? ['No environments paired']
-      : environments.flatMap((environment) => {
-          const status = statusOf(environment);
-          return status ? [`${nameOf(environment)} · ${status}`] : [];
-        });
+  const messages = environments.flatMap((environment) => {
+    const status = statusOf(environment);
+    return status ? [`${nameOf(environment)} · ${status}`] : [];
+  });
   const unavailableReason = saved && savedUnavailable(environments, saved);
   messages.push(
     ...choices
