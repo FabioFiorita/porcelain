@@ -5,15 +5,16 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
-import expo.modules.kotlin.views.ExpoView
+import androidx.compose.runtime.Composable
 
-class CodeSurface(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
+class CodeSurface(context: Context, appContext: AppContext) : RendererHost(context, appContext) {
   val onCodeSelect by EventDispatcher()
   val onExpand by EventDispatcher()
   internal val state = CodeState()
 
-  init {
-    mountContent { CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy) }
+  @Composable
+  override fun RenderContent() {
+    CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy)
   }
 
   private fun select(line: CodeLine, reset: Boolean) {

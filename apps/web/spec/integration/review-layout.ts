@@ -76,10 +76,13 @@ export const reviewLayout = {
   titleLines(locator: Locator) {
     const title = locator.element();
     const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);
+    const text = document.createRange();
+    text.selectNodeContents(title);
+    const lines = new Set(Array.from(text.getClientRects(), (box) => box.top));
     return {
       withinThreeLines:
         title.getBoundingClientRect().height <= lineHeight * 3 + 1,
-      clipped: title.scrollHeight > title.clientHeight,
+      clipped: lines.size > 3,
     };
   },
   fitsViewport(locator: Locator) {

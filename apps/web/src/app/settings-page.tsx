@@ -159,7 +159,7 @@ export function SettingsPage({
       ref={attachPage}
       tabIndex={-1}
       aria-label="Settings"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
     >
       <header className="flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
         <Tooltip>

@@ -24,8 +24,8 @@ function DecisionQuestion({
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col gap-3 rounded-xl border border-graph-1/40 bg-graph-1/5 p-4',
-        compact && 'gap-2 p-3',
+        'flex min-w-0 flex-col gap-2 rounded-xl border border-brand/40 bg-brand-soft px-4 py-3',
+        compact && 'border-graph-1/40 bg-graph-1/5 p-3',
       )}
     >
       <div className="flex items-start gap-3">
@@ -44,7 +44,11 @@ function DecisionQuestion({
           </p>
         </div>
       </div>
-      {action && <div className="self-start">{action}</div>}
+      {action && (
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          {action}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -70,17 +74,24 @@ export function AnswerableQuestion({
     null,
   );
   return (
-    <DecisionQuestion part={part} action={action} compact={compact}>
-      <Button
-        ref={setAnswerButton}
-        size="sm"
-        variant="ghost"
-        className="self-start"
-        aria-expanded={answering}
-        onClick={() => setAnswering(true)}
-      >
-        Answer this question
-      </Button>
+    <DecisionQuestion
+      part={part}
+      compact={compact}
+      action={
+        <>
+          {action}
+          <Button
+            ref={setAnswerButton}
+            size={compact ? 'sm' : 'xs'}
+            variant="ghost"
+            aria-expanded={answering}
+            onClick={() => setAnswering(true)}
+          >
+            Answer this question
+          </Button>
+        </>
+      }
+    >
       {answering && (
         <InlineComposer
           scope={scope}

@@ -26,16 +26,12 @@ export function routingPromises() {
         name: 'Projects and worktrees',
         exact: true,
       });
-      await navigator
-        .getByRole('button', { name: 'Filter reviews', exact: true })
-        .click();
       await pairedPage
-        .getByRole('menuitem', { name: 'Projects', exact: true })
+        .getByRole('button', { name: 'Manage projects', exact: true })
         .click();
       await expect(
         pairedPage.getByRole('menuitem', { name: project.name, exact: true }),
       ).toBeVisible();
-      await pairedPage.keyboard.press('Escape');
       await pairedPage.keyboard.press('Escape');
       await expect(pairedPage.getByRole('menu')).toHaveCount(0);
       await expect(

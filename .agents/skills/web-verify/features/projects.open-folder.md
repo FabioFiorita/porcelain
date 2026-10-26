@@ -47,7 +47,7 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 ### A plain folder cannot be opened
 
 1. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" with button "Open project" and Projects and Worktrees menus. Open Projects: "repository" is registered. Press Escape.
+   Expect: dialog "Sidebar" with button "Open project" and Manage projects and Filter reviews menus. Open Manage projects: "repository" is registered. Press Escape.
 2. Click button `Open project`
    Expect: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
 3. Click button `plain`
@@ -63,8 +63,8 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
    Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
 7. Inspect HTTP traffic
    Expect: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
-8. Navigate to `/`, then click button `Toggle Sidebar` and open Projects
-   Expect: after the reload Projects still lists "browsed" and "repository" and no "plain".
+8. Navigate to `/`, then click button `Toggle Sidebar` and open Manage projects
+   Expect: after the reload Manage projects still lists "browsed" and "repository" and no "plain".
 
 ### Observable proof
 

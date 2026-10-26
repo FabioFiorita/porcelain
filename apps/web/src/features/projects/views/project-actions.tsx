@@ -44,7 +44,7 @@ export function ProjectActions({
           </DropdownMenuSubTrigger>
         )}
       />
-      <DropdownMenuSubContent className="min-w-44">
+      <DropdownMenuSubContent className="min-w-44 max-w-[calc(100vw-2rem)]">
         {!project.available && (
           <DropdownMenuGroup>
             <DropdownMenuLabel>

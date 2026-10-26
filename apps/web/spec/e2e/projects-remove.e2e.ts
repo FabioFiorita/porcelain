@@ -23,10 +23,7 @@ test("a removed project's worktree address says the worktree is no longer presen
   await dialog.getByRole('button', { name: 'Open other', exact: true }).click();
   await expect(dialog).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Projects', exact: true })
+    .getByRole('button', { name: 'Manage projects', exact: true })
     .click();
   await pairedPage
     .getByRole('menuitem', { name: sample.name, exact: true })

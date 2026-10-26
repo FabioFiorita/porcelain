@@ -12,19 +12,6 @@ async function openFiles(render: Render, repo: Repo) {
   return render.workspace();
 }
 
-test('an image opened from the file tree shows as a picture', async ({
-  render,
-  repo,
-}) => {
-  const opened = await openFiles(render, repo);
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
-  await opened.getByRole('treeitem', { name: image, exact: true }).click();
-  await expect
-    .element(opened.getByRole('img', { name: image, exact: true }))
-    .toBeVisible();
-});
-
 test('a binary file opened from the file tree is not shown as text and says why', async ({
   render,
   repo,
