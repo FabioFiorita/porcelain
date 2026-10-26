@@ -1,4 +1,5 @@
 import {
+  reviewListCheckout,
   reviewListRowContext,
   reviewListSignal,
   type ReviewListEntry,
@@ -29,7 +30,7 @@ export function worktreeRow(
       ...new Set([
         entry.title,
         entry.projectName,
-        entry.branch,
+        reviewListCheckout(entry).full,
         entry.group,
         entry.pullRequestNumber
           ? `Pull request #${entry.pullRequestNumber}`

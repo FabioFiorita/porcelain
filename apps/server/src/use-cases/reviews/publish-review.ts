@@ -75,7 +75,7 @@ export class PublishReviewUseCase extends Context.Service<
       const validateReviewDraftCapability = yield* ValidateReviewDraftService;
       const branches = yield* ReadBranchChangesService;
       const publication = yield* ValidateReviewPublicationService;
-      const hosts = yield* ReviewLinkSource;
+      const routes = yield* ReviewLinkSource;
       const statusReader = yield* ReadWorktreeStatusService;
       const origins = yield* ReadRepositoryOriginService;
       const links = yield* BuildReviewLinksService;
@@ -203,7 +203,7 @@ export class PublishReviewUseCase extends Context.Service<
                     links: yield* links.execute({
                       review,
                       environmentId: environment.environmentId,
-                      hosts: yield* hosts.read(),
+                      routes: yield* routes.read(),
                     }),
                     review: yield* resolvePublishedReviewCapability.execute({
                       environmentId: environment.environmentId,

@@ -108,6 +108,7 @@
     "porcelain/web-no-empty-catch": "error",
     "porcelain/web-shadcn-wrapper": "error",
     "porcelain/web-icon-button-tooltip": "error",
+    "porcelain/web-truncated-text": "error",
     "porcelain/development-imports": "error",
     "porcelain/web-design-tokens": "error",
     "porcelain/web-journey-imports": "error",
@@ -134,7 +135,7 @@
     "porcelain/interfaces-only-in-ports": "error",
     "eqeqeq": "error",
     "porcelain/spec-no-clock": "error",
-    "porcelain/server-spec-no-waits": "error"
+    "porcelain/spec-no-waits": "error"
   },
   "overrides": [
     {

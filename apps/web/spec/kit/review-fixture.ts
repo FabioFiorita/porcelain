@@ -13,14 +13,27 @@ const execute = promisify(execFile);
 const layerId = 'cfa1b255-f3f9-4a95-aadb-98e37fa7606e';
 const stepId = '630c458d-33b7-4906-97f2-51c077d05a96';
 const name = 'durable-review';
-const filename = 'review-page.ts';
+
+export async function detachWorktreeFixture(session: Session, branch: string) {
+  await execute('git', [
+    '-C',
+    join(session.projectHome, branch),
+    '-c',
+    'core.hooksPath=/dev/null',
+    'switch',
+    '--detach',
+  ]);
+  return session.git('branch', '-D', branch);
+}
 
 export async function durableReviewFixture(
   session: Session,
   operation: 'publish' | 'remove-worktree' | 'advance' | 'remove-repository',
   title: string,
   asked = 'Read one committed review after checkout cleanup',
+  route = { path: 'review-page.ts', lane: 'Client' },
 ) {
+  const filename = route.path;
   const worktree = join(session.projectHome, name);
   const git = (...args: string[]) => execute('git', ['-C', worktree, ...args]);
   if (operation === 'remove-repository') {
@@ -107,7 +120,7 @@ export async function durableReviewFixture(
           title,
           summary:
             'Keep the reviewed code and its explanation after removing the publishing checkout.',
-          lanes: ['Client'],
+          lanes: [route.lane],
           steps: [
             {
               id: stepId,

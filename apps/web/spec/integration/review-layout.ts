@@ -10,6 +10,36 @@ function uncovered(element: Element) {
 }
 
 export const reviewLayout = {
+  scrollToEnd(locator: Locator) {
+    const element = locator.element();
+    element.scrollTop = element.scrollHeight;
+  },
+  scrollTop: (locator: Locator) => locator.element().scrollTop,
+  continuity(page: Locator) {
+    const mounted = page.element();
+    let reloaded = false;
+    const observer = new MutationObserver((records) => {
+      reloaded ||= records.some((record) =>
+        Array.from(record.addedNodes).some(
+          (node) =>
+            node instanceof Element &&
+            [node, ...node.querySelectorAll('[role="status"]')].some(
+              (status) =>
+                status.getAttribute('role') === 'status' &&
+                status.textContent === 'Loading review…',
+            ),
+        ),
+      );
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return {
+      read: () => ({ remounted: page.query() !== mounted, reloaded }),
+      stop: () => observer.disconnect(),
+    };
+  },
+  focus(locator: Locator) {
+    locator.element().focus();
+  },
   tabInsideStrip(locator: Locator) {
     const tab = locator.element();
     const viewport = tab.closest('[role="tablist"]')?.parentElement;

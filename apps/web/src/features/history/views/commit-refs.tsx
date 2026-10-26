@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import type { MouseEvent } from 'react';
 import {
@@ -6,11 +7,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { refLabel } from '@porcelain/client/history/rules';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
 
@@ -39,7 +35,7 @@ export function CommitRefs({
             <Badge key={ref} variant="secondary" className={chipClass}>
               <span
                 data-label={refLabel(ref)}
-                className="truncate before:content-[attr(data-label)]"
+                className="before:content-[attr(data-label)]"
               />
             </Badge>
           ))}
@@ -49,20 +45,21 @@ export function CommitRefs({
         </div>
       </div>
       {refs.slice(0, visibleCount).map((ref) => (
-        <Tooltip key={ref}>
-          <TooltipTrigger
-            render={
-              <Badge
-                render={<button type="button" onClick={onOpenCommit} />}
-                variant="secondary"
-                className={`${chipClass} pointer-events-auto shrink`}
-              />
-            }
-          >
-            <span className="truncate">{refLabel(ref)}</span>
-          </TooltipTrigger>
-          <TooltipContent className="break-all">{ref}</TooltipContent>
-        </Tooltip>
+        <TruncatedText
+          key={ref}
+          text={ref}
+          renderTrigger={(label) => (
+            <Badge
+              render={<button type="button" onClick={onOpenCommit} />}
+              variant="secondary"
+              className={`${chipClass} pointer-events-auto shrink`}
+            >
+              {label}
+            </Badge>
+          )}
+        >
+          {refLabel(ref)}
+        </TruncatedText>
       ))}
       {hidden.length > 0 && (
         <Popover>

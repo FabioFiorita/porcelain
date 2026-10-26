@@ -25,6 +25,7 @@ export type ReviewListEntry = {
   path?: string | undefined;
   reviewId?: string | undefined;
   branch: string;
+  detached: boolean;
   title: string;
   group: ReviewListGroup;
   closed: boolean;
@@ -211,6 +212,21 @@ export function reviewListSignal(entry: ReviewListEntry) {
   };
 }
 
+export function checkoutFolder(path: string) {
+  const trimmed = path.replace(/(?<=.)[\\/]+$/, '');
+  const split = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+  return {
+    name: trimmed.slice(split + 1) || trimmed,
+    parent: split < 0 ? undefined : trimmed.slice(0, split || 1),
+  };
+}
+
+export function reviewListCheckout(entry: ReviewListEntry) {
+  if (!entry.detached || !entry.path)
+    return { name: entry.branch, parent: undefined, full: entry.branch };
+  return { ...checkoutFolder(entry.path), full: entry.path };
+}
+
 export function reviewListRowContext(
   entry: ReviewListEntry,
   multipleProjects: boolean,
@@ -222,6 +238,7 @@ export function reviewListRowContext(
         ? entry.projectName
         : undefined,
     branch: noReview ? undefined : entry.branch,
+    location: noReview ? reviewListCheckout(entry).parent : undefined,
   };
 }
 

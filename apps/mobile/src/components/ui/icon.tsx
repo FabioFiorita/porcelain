@@ -10,6 +10,8 @@ const symbols = {
   copy: { ios: 'document.on.document', android: 'content_copy' },
   check: { ios: 'checkmark', android: 'check' },
   chevron: { ios: 'chevron.right', android: 'chevron_right' },
+  previous: { ios: 'chevron.left', android: 'chevron_left' },
+  send: { ios: 'arrow.up', android: 'arrow_upward' },
   down: { ios: 'chevron.down', android: 'expand_more' },
   collapse: { ios: 'chevron.up.chevron.down', android: 'unfold_less' },
   file: { ios: 'document', android: 'description' },

@@ -34,6 +34,8 @@ api:
 
 # reviews.walkthrough
 
+The briefing walkthrough rows expose their complete lane route in the keyboard tooltip and action name.
+
 The briefing is the first stop and the only view with the verdict. Its two-tone title uses the navigator name and the decision count sentence. A vertical spine follows published decision order, then Not explained and Specs when present; a nine-decision review with both closing stops has twelve stops. The briefing retains system owners, New/Changed/Removed groups, Needs your decision, decision order and Not explained. Each decision reads code from its immutable revision. Context files and their stored excerpts remain available after worktree removal.
 
 ## How to get to it (user POV)
@@ -45,7 +47,7 @@ The briefing is the first stop and the only view with the verdict. Its two-tone 
 
 Preconditions: [surface baseline](README.md).
 
-Follow [reviews.page](reviews.page.md) for setup, widths, themes and lifecycle. In the worktree Review tab the sidebar decision rows open this same page. In the page, select a decision or Continue at decision n; N and P move between stops. Open the briefing returns to owners, proof and progress. A Needs your decision card opens an answer box; blank answers cannot be sent, posting disables submission, and the saved whole-change comment quotes the complete question and names the selected revision. Proof and Comments tabs remain available. No floating dock appears on the briefing. A decision records its available files before its decision mark; unmarking the decision leaves file marks. Worktree edits do not change retained code or its marks. Branch commits ahead of the latest revision are reported separately.
+Follow [reviews.page](reviews.page.md) for setup, widths, themes and lifecycle. In the worktree Review tab the sidebar decision rows open this same page. In the page, select a decision or Continue at decision n; N and P move between stops. On the latest route (`/reviews/<reviewId>`) every stop stays on that route, a decision is named by `?decision=<layerId>`, and the page never shows Loading review… between stops, even for N then P pressed at once; a revision route keeps `/reviews/<reviewId>/<revision>/decisions/<layerId>`. Open the briefing returns to owners, proof and progress; browser Back to a URL without a decision still restores the saved walkthrough place. A Needs your decision card opens an answer box; blank answers cannot be sent, posting disables submission, and the saved whole-change comment quotes the complete question and names the selected revision. Proof and Comments tabs remain available. No floating dock appears on the briefing. A decision records its available files before its decision mark; unmarking the decision leaves file marks. Worktree edits do not change retained code or its marks. Branch commits ahead of the latest revision are reported separately.
 
 A decision page reads "Decision n of N", the numbered title and explanation, the route table (lane, step, path; the path moves under the title in a narrow pane) and the diff. Its margin, "Decision details", holds the Needs your decision card for every decision the question connects to, Contracts and the decision's proof checks; at medium width the margin follows the route table and Contracts fold into one row. At 1080 and wider a line thread sits beside its line in the margin; narrower, it stays under its line. The floating "Walkthrough dock" carries previous/next (P/N), the stop name and Mark decision reviewed; J/K, R and C keep working in the diff.
 
@@ -53,7 +55,7 @@ Not explained and Specs form one closing page. Its "Review completion" card coun
 
 The Agent summary view shows a credit line with the revision, a Sandboxed chip and the sandboxed frame; its margin explains the sandbox and lists "Links in this page" (each `#layer-N` link, a missing decision disabled). Branch moved, proof stale and code moved share one notice shape. A missing revision offers "Open rN, the latest".
 
-Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-unavailable-completion.test.tsx`, `reviews-decision-pages.test.tsx`.
+Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-page.test.tsx`, `reviews-unavailable-completion.test.tsx`, `reviews-decision-pages.test.tsx`.
 
 ## Gotchas
 

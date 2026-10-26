@@ -1,8 +1,8 @@
 import { Context, type Effect } from 'effect';
-import type { ReviewLinkHosts } from '@porcelain/reviews/models';
+import type { ReviewLinkRoutes } from '@porcelain/reviews/models';
 export const ReviewLinkSource = Context.Service<
   '@porcelain/server/ReviewLinkSource',
   {
-    read(): Effect.Effect<ReviewLinkHosts>;
+    read(): Effect.Effect<ReviewLinkRoutes>;
   }
 >('@porcelain/server/ReviewLinkSource');

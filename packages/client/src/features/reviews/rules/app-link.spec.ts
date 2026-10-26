@@ -87,3 +87,50 @@ it.each([
 ])('rejects invalid links %s', (value) => {
   expect(parseReviewAppLink(value)).toBeUndefined();
 });
+
+it.each([
+  ['http', '127.0.0.1:5090'],
+  ['http', '192.168.1.2:5090'],
+  ['http', '[::1]:5090'],
+  ['http', 'localhost:80'],
+  ['https', 'machine.ts.net:8443'],
+  ['https', 'computer.example.com:443'],
+])('retains the explicit %s protocol for %s', (protocol, host) => {
+  const result = parseReviewAppLink(
+    `${path}?environment=computer&host=${encodeURIComponent(host)}&protocol=${protocol}&revision=3&decision=${decision}`,
+  );
+  expect(result).toMatchObject({
+    environmentId: 'computer',
+    reviewId,
+    revision: 3,
+    decision,
+    host,
+    protocol,
+  });
+  expect(result?.webUrl).toBe(
+    new URL(
+      `${protocol}://${host}/reviews/${reviewId}/3/decisions/${decision}`,
+    ).toString(),
+  );
+});
+it.each(['ftp', 'javascript', 'https:', '', 'http&protocol=https'])(
+  'rejects an invalid or duplicate protocol %s',
+  (protocol) => {
+    expect(parseReviewAppLink(`${link}&protocol=${protocol}`)).toBeUndefined();
+  },
+);
+it.each([
+  'owner:secret@evil.com',
+  'evil.com/path',
+  'evil.com:0',
+  'evil.com:65536',
+  ' evil.com',
+  'evil.com\\path',
+  'evil.com?x=y',
+])('preserves unsafe host rejection with HTTP: %s', (host) => {
+  expect(
+    parseReviewAppLink(
+      `${path}?environment=computer&host=${encodeURIComponent(host)}&protocol=http`,
+    ),
+  ).toBeUndefined();
+});

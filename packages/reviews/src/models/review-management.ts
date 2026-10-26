@@ -51,20 +51,19 @@ export type ReviewMarks = {
   files: readonly ReviewedFileMark[];
   decisions: readonly ReviewedLayerMark[];
 };
-export type ReviewLinkHosts = {
+export type ReviewLinkRoutes = {
   hubOrigin: string;
-  localHost: string;
-  localPort: number;
-  cloudflare?: string | undefined;
-  tailnet?: string | undefined;
-  tailnetPort?: number | undefined;
+  origins: readonly string[];
 };
-export type ReviewLinks = {
-  web: string;
-  app: string;
-  revision: { web: string; app: string };
-  decisions: readonly { layerId: string; web: string; app: string }[];
-};
+export type ReviewLinks =
+  | { kind: 'unavailable'; reason: 'no-reachable-route' }
+  | {
+      kind: 'available';
+      web: string;
+      app: string;
+      revision: { web: string; app: string };
+      decisions: readonly { layerId: string; web: string; app: string }[];
+    };
 
 export type ReadReviewSelection =
   | ReadReviewInput

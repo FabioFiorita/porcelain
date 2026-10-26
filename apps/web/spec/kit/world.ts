@@ -1,4 +1,7 @@
-import { durableReviewFixture } from './review-fixture.ts';
+import {
+  detachWorktreeFixture,
+  durableReviewFixture,
+} from './review-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { agentActs } from '@porcelain/server/kit/agent';
@@ -124,12 +127,23 @@ export class World {
       else await writeFile(path, JSON.stringify(step.state));
       return '';
     }
+    if (step.kind === 'environment-name-fixture') {
+      const response = await repository.send({
+        method: 'PUT',
+        path: '/api/environment/name',
+        body: { name: step.name },
+      });
+      if (response.status !== 200)
+        throw new Error('The computer name fixture could not be saved');
+      return '';
+    }
     if (step.kind === 'review-fixture')
       return durableReviewFixture(
         repository,
         step.operation,
         step.title,
         step.asked,
+        step.route,
       );
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
@@ -165,6 +179,8 @@ export class World {
         step.name,
         join(repository.projectHome, step.name),
       );
+    if (step.kind === 'detach-worktree')
+      return detachWorktreeFixture(repository, step.name);
     return repository.git('switch', step.name);
   }
 

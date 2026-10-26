@@ -4,7 +4,7 @@ selectors:
   - 'This browser is not paired'
   - 'porcelain pair'
   - 'Computers'
-  - 'Open This computer'
+  - 'Open This computer:'
   - 'Disconnect this browser'
 tests:
   - apps/web/spec/e2e/app-routing.e2e.ts
@@ -27,7 +27,7 @@ Preconditions: [surface baseline](README.md).
 Start in a fresh unpaired context without minting a pairing link. Do not apply the paired baseline.
 
 1. Navigate to `/`
-   Expect: URL `/pair`; heading "Porcelain" (level 1); heading "This browser is not paired"; the text "Run this on the machine hosting Porcelain, then open the link it prints on this device."; code `porcelain pair "This browser" --address http://127.0.0.1:<port>` naming the web origin the CLI started; no region "Review content". `$C server devices` lists only the server's own "Development setup".
+   Expect: URL `/pair`; heading "Porcelain" (level 1); heading "This browser is not paired"; the text "Pair it from your computer." and a three-step route named "How pairing works"; code `porcelain pair "This browser" --address http://127.0.0.1:<port>` naming the web origin the CLI started; no region "Review content". `$C server devices` lists only the server's own "Development setup".
 2. Navigate to `/settings/general`
    Expect: also redirected to `/pair` with the same heading: every paired route is guarded.
 3. Inspect HTTP traffic

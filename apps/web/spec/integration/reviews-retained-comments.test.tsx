@@ -74,7 +74,7 @@ test('an unchanged context file accepts a whole-file comment and keeps its revis
   const app = await render.route(`/reviews/${first.reviewId}`);
   await app.page
     .getByRole('button', {
-      name: '2. Revoke access across devices',
+      name: '2. Revoke access across devices · Entry points → Shared client → Server → Owners',
       exact: true,
     })
     .click();
@@ -158,7 +158,7 @@ test('a deleted-line thread stays at file level when its step opens the retained
   );
   await app.page
     .getByRole('button', {
-      name: `Go to step ${layer.steps.indexOf(step) + 1}: ${step.title}`,
+      name: `Go to step ${layer.steps.indexOf(step) + 1}: ${step.title} · Shared owners · packages/workspace/src/policy.ts`,
       exact: true,
     })
     .click();

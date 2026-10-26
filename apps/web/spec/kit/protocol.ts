@@ -27,11 +27,13 @@ export type RepoStep =
         | 'remove-repository';
       title: string;
       asked?: string | undefined;
+      route?: { path: string; lane: string } | undefined;
     }
   | {
       kind: 'service-update-fixture';
       state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;
     }
+  | { kind: 'environment-name-fixture'; name: string }
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
   | { kind: 'read'; path: string }
@@ -40,6 +42,7 @@ export type RepoStep =
   | { kind: 'switch'; name: string }
   | { kind: 'merge'; name: string }
   | { kind: 'worktree'; name: string }
+  | { kind: 'detach-worktree'; name: string }
   | { kind: 'fifo'; path: string }
   | { kind: 'remote'; name: string; url: string }
   | { kind: 'agent'; action: AgentAction };

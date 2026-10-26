@@ -1,8 +1,50 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const title =
   'Keep every committed revision readable after the publishing worktree has been removed';
+
+test.for([
+  'missing revision',
+  'malformed revision',
+  'missing review',
+  'unpaired computer',
+] as const)(
+  'a durable %s notice keeps the navigator and returns focus after Escape',
+  async (state, { repo, render }) => {
+    const review = await repo.review(title);
+    const paths = {
+      'missing revision': `/reviews/${review.reviewId}/99`,
+      'malformed revision': `/reviews/${review.reviewId}/not-a-revision`,
+      'missing review': '/reviews/00000000-0000-4000-8000-000000000099',
+      'unpaired computer': `/reviews/${review.reviewId}?environment=00000000-0000-4000-8000-000000000099`,
+    };
+    const headings = {
+      'missing revision': 'Revision not found',
+      'malformed revision': 'Revision not found',
+      'missing review': 'Review not found',
+      'unpaired computer': 'Computer not paired',
+    };
+    const app = await render.route(paths[state]);
+    await expect
+      .element(
+        app.page.getByRole('heading', { name: headings[state], exact: true }),
+      )
+      .toBeVisible();
+    const navigator = app.page.getByRole('button', {
+      name: 'Toggle Sidebar',
+      exact: true,
+    });
+    await expect.element(navigator).toBeVisible();
+    await navigator.click();
+    await expect
+      .element(app.page.getByRole('button', { name: 'Settings', exact: true }))
+      .toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(navigator).toHaveFocus();
+    await expect.poll(() => app.location()).toBe(paths[state]);
+  },
+);
 
 test.for([
   title,
@@ -112,13 +154,32 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await expect
     .element(app.page.getByText('Revision not found', { exact: true }))
     .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Open r2, the latest', exact: true })
+    .click();
+  await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
+  await expect
+    .element(
+      app.page.getByRole('region', { name: 'Review walkthrough', exact: true }),
+    )
+    .toBeVisible();
+  await app.navigate(`/reviews/${first.reviewId}/99`);
   await expect
     .element(
       app.page.getByRole('button', { name: 'Back to workspace', exact: true }),
     )
     .toBeVisible();
+  await app.navigate(`/reviews/${first.reviewId}/not-a-revision`);
+  await expect
+    .element(
+      app.page.getByRole('button', {
+        name: 'Open r2, the latest',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
   await app.page
-    .getByRole('button', { name: /^Open r\d+, the latest$/ })
+    .getByRole('button', { name: 'Open r2, the latest', exact: true })
     .click();
   await expect
     .element(review.getByRole('region', { name: 'Briefing', exact: true }))
@@ -127,6 +188,133 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await expect
     .element(app.page.getByText('Review not found', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      app.page.getByRole('button', { name: /^Open r[0-9]+, the latest$/ }),
+    )
+    .not.toBeInTheDocument();
+});
+
+test('keys pressed at once from the latest briefing move between its stops on one loaded page', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  const briefing = review.getByRole('region', {
+    name: 'Briefing',
+    exact: true,
+  });
+  await expect.element(briefing).toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('np');
+    await userEvent.keyboard('n');
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}`);
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
+});
+
+test('moving between long review stops starts at the top of each stop', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  await page.viewport(414, 500);
+  try {
+    const longTitle = Array.from({ length: 2 }, () => title).join(' ');
+    const fixture = await repo.review(longTitle);
+    const app = await render.route(`/reviews/${fixture.reviewId}`);
+    const review = app.page.getByRole('region', {
+      name: 'Review walkthrough',
+      exact: true,
+    });
+    const briefing = review.getByRole('region', {
+      name: 'Briefing',
+      exact: true,
+    });
+    await expect.element(briefing).toBeVisible();
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('n');
+    await expect
+      .element(
+        review.getByRole('region', { name: `1. ${longTitle}`, exact: true }),
+      )
+      .toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+    reviewLayout.scrollToEnd(review);
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(0);
+    await userEvent.keyboard('p');
+    await expect.element(briefing).toBeVisible();
+    await expect.poll(() => reviewLayout.scrollTop(review)).toBe(0);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('a latest decision URL replaces the stop chosen with the keyboard without remounting', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const fixture = await repo.review(title);
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await expect
+    .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+    .toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await userEvent.keyboard('n');
+    await expect
+      .poll(() => app.location())
+      .toBe(`/reviews/${fixture.reviewId}?decision=${fixture.layerId}`);
+    await app.navigate(`/reviews/${fixture.reviewId}?decision=unknown`);
+    await expect
+      .element(review.getByRole('region', { name: 'Briefing', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        review.getByText('That decision is not in this revision.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await app.navigate(
+      `/reviews/${fixture.reviewId}?decision=${fixture.layerId}`,
+    );
+    await expect
+      .element(review.getByRole('region', { name: `1. ${title}`, exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
 });
 
 test('an unpaired durable decision link survives pairing with its revision and query intact', async ({
@@ -327,7 +515,7 @@ test('the review page keeps whole-change and inline comments in its Review panel
     await wholeThread.getByRole('button', { name: /^Whole branch/ }).click();
     await expect
       .poll(() => app.location())
-      .toBe(`/reviews/${fixture.reviewId}/1`);
+      .toBe(`/reviews/${fixture.reviewId}`);
     await expect.element(comments).toHaveAttribute('aria-selected', 'true');
     await wholeThread
       .getByRole('button', { name: 'Resolve', exact: true })
@@ -392,8 +580,7 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     .toBeVisible();
   await app.page
     .getByRole('button', {
-      name: 'Go to step 1: Read the retained revision',
-      exact: true,
+      name: /^Go to step 1: Read the retained revision ·/u,
     })
     .click();
   await expect

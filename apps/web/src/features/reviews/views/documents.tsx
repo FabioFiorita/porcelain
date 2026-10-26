@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,10 @@ import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
-import { ReviewEmpty } from './review-empty';
+import { formatForDisplay } from '@tanstack/react-hotkeys';
+import { Kbd } from '@/components/ui/kbd';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { StateNotice } from '@/shared/views/state-notice';
 import { BranchReviewPage } from './branch-review-page';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -37,6 +41,7 @@ type DocumentProps = {
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
   sideLabel: string;
+  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
 };
 
 export function DocumentView({
@@ -44,6 +49,7 @@ export function DocumentView({
   context,
   document,
   onOpen,
+  onBrowse,
   sideLabel,
   active = false,
   reveal,
@@ -56,6 +62,7 @@ export function DocumentView({
   toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
+  onBrowse: DocumentProps['onBrowse'];
   active?: boolean;
   reveal?: RevealComment | undefined;
   base?: string | undefined;
@@ -64,6 +71,7 @@ export function DocumentView({
     scope,
     context,
     onOpen,
+    onBrowse,
     sideLabel,
     interaction: {
       toolbarTarget,
@@ -140,7 +148,7 @@ function TimelineDocument({
         title={
           <span className="flex min-w-0 items-center gap-1.5">
             <HistoryIcon className="size-4 shrink-0" />
-            <span className="truncate">{path}</span>
+            <TruncatedText text={path} />
           </span>
         }
         subtitle="Commits that changed this file"
@@ -192,6 +200,7 @@ function PlainChangesDocument({
   scope,
   context,
   interaction,
+  onBrowse,
   specsOnly = false,
 }: DocumentProps & { specsOnly?: boolean }) {
   const { connection } = context;
@@ -205,6 +214,35 @@ function PlainChangesDocument({
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
+  if (!specsOnly && changes.length === 0)
+    return (
+      <StateNotice
+        title="No changes to review"
+        description={
+          <>
+            <span className="font-mono text-foreground">
+              {list.branch?.name ?? 'This worktree'}
+            </span>{' '}
+            matches its last commit. Browse files or history from the right.
+          </>
+        }
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('files', event.currentTarget)}
+        >
+          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('history', event.currentTarget)}
+        >
+          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+        </Button>
+      </StateNotice>
+    );
   const story = review
     ? walkthroughStops(
         review,
@@ -270,7 +308,7 @@ function ChangeDocument({
   );
   if (!change)
     return (
-      <ReviewEmpty
+      <StateNotice
         title="Change no longer present"
         description="Choose a change that is still present in the current review."
       />

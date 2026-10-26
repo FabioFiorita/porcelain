@@ -57,6 +57,25 @@
   color-scheme: dark;
 }
 
+.pairing-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.pairing-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: calc(var(--spacing) * 6) calc(var(--spacing) * 6);
+  mask-image: linear-gradient(var(--foreground), transparent 80%);
+  opacity: 0.35;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -166,6 +185,7 @@
 }
 
 .settings-content [data-slot='field-set'] {
+  min-width: 0;
   gap: calc(var(--spacing) * 2);
 }
 
@@ -209,6 +229,10 @@
   .settings-computer > [data-slot='field-set'] {
     grid-column: span 2;
   }
+}
+
+[data-slot='skeleton'] {
+  background-color: var(--skeleton);
 }
 
 [data-slot='kbd'] {

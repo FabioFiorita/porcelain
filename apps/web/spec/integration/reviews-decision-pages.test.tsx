@@ -16,8 +16,7 @@ test('a decision connected to a question pins it beside the decision, and its an
   const app = await render.route(`/reviews/${published.reviewId}`);
   await app.page
     .getByRole('button', {
-      name: '6. Retry delivery without duplicate messages',
-      exact: true,
+      name: /^6\. Retry delivery without duplicate messages · /u,
     })
     .click();
   const decision = app.page.getByRole('region', {
@@ -79,7 +78,7 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
   });
   await expect
     .element(completion.getByRole('heading', { level: 3 }))
-    .toHaveTextContent('0 of 9 decisions reviewed');
+    .toHaveTextContent('2 of 9 decisions reviewed');
   await expect
     .element(
       completion.getByRole('region', {
@@ -219,7 +218,7 @@ test.for([
           .click();
       await app.page
         .getByRole('button', {
-          name: '9. Establish the shared mutation boundary',
+          name: '9. Establish the shared mutation boundary · Shared owners',
           exact: true,
         })
         .click();

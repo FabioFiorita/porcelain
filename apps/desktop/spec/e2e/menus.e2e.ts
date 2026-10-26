@@ -6,7 +6,9 @@ test('the Settings menu opens Settings, which shows the app version and that the
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
-    page.getByRole('button', { name: 'Open project', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
 
   await app.clickMenu('open-settings');
@@ -15,9 +17,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   await settings
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
-  await settings
-    .getByRole('button', { name: 'Open This computer', exact: true })
-    .click();
+  await settings.getByRole('button', { name: /^Open This computer:/u }).click();
   const version = await app.electron.evaluate(({ app }) => app.getVersion());
   await expect(
     settings.getByText(`Mac app ${version}`, { exact: true }),

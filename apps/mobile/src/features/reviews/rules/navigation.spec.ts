@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
 import {
+  commentReviewParams,
   decodeCommentAnchor,
+  decodeCommentReview,
   reviewParams,
   reviewComparison,
 } from './navigation';
@@ -54,5 +56,28 @@ it.each([undefined, 'worktree', 'unknown'])(
   'defaults %s to a worktree comparison',
   (kind) => {
     expect(reviewComparison(kind, 'ignored')).toEqual({ kind: 'worktree' });
+  },
+);
+
+const reviewId = '92825267-1e53-4a39-a954-9c6920e57ffa';
+
+it('carries the published review a new comment belongs to into the comments page', () => {
+  const params = commentReviewParams({ reviewId, revision: 3 });
+  expect(params).toEqual({ review: reviewId, revision: '3' });
+  expect(decodeCommentReview(params.review, params.revision)).toEqual({
+    reviewId,
+    reviewRevision: 3,
+  });
+});
+
+it('leaves a comment on a publication without a durable review unowned', () => {
+  expect(commentReviewParams({ revision: 3 })).toEqual({});
+  expect(decodeCommentReview(undefined, undefined)).toBeUndefined();
+});
+
+it.each(['0', '-1', '1.5', 'r2', undefined])(
+  'refuses review revision %s',
+  (revision) => {
+    expect(decodeCommentReview(reviewId, revision)).toBeUndefined();
   },
 );

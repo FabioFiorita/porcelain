@@ -29,8 +29,8 @@ Settings → Computers → This computer → Ways in turns the local network, th
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer` → Ways in.
-- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer` → Ways in.
+- Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer: <name>` → Ways in.
+- Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer: <name>` → Ways in.
 - Route: `/settings/computers/this-computer#ways-in` (host-authorized browser or desktop).
 - Controls: switches "Local network", "Tailscale", "Cloudflare tunnel"; textbox "Tailscale name" + `Save name`; textbox "Public hostname" + `Save hostname`; `Check again` after a failure.
 

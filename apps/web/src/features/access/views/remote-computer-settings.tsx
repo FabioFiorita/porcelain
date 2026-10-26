@@ -6,6 +6,7 @@ import {
   remoteStatusNote,
   remoteStatusText,
 } from '@porcelain/client/access/rules';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -26,7 +27,8 @@ import { RemoteServiceUpdate } from './service-update';
 
 export function RemoteComputerName({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
-  return status.kind === 'online' ? status.name : remote.name;
+  const name = status.kind === 'online' ? status.name : remote.name;
+  return <TruncatedText text={name} className="block min-w-0" />;
 }
 
 export function RemoteComputerSettings({
@@ -71,8 +73,8 @@ function RemoteDetails({
         <ItemGroup>
           <Item variant="outline">
             <ItemContent>
-              <ItemTitle>
-                {name}{' '}
+              <ItemTitle className="min-w-0 flex-wrap">
+                <span className="min-w-0">{name}</span>{' '}
                 <Badge variant={remoteStatusVariant(status)}>
                   {remoteStatusText(status)}
                 </Badge>

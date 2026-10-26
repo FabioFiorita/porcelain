@@ -210,7 +210,9 @@ test('an empty worktree opens Changes without another navigation', async ({
       .getByRole('tablist', { name: 'Open documents', exact: true })
       .getByRole('tab', { name: 'Changes', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('0 files', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'No changes to review', exact: true }),
+  ).toBeVisible();
   await expect
     .poll(() => new URLSearchParams(app.address().query).get('entry'))
     .toBeNull();

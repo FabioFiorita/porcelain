@@ -12,7 +12,10 @@ test('N and P move between retained decisions without moving their published rev
     exact: true,
   });
   await review
-    .getByRole('button', { name: '3. Publish an immutable note', exact: true })
+    .getByRole('button', {
+      name: '3. Publish an immutable note · Entry points → Shared client → Server → Owners',
+      exact: true,
+    })
     .click();
   await expect
     .element(

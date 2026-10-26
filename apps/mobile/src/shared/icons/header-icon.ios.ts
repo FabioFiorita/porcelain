@@ -11,6 +11,8 @@ const symbols = {
   close: 'xmark',
   closed: 'archivebox',
   compareParent: 'arrow.triangle.merge',
+  resolve: 'checkmark.circle',
+  reopen: 'arrow.uturn.backward',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function headerIcon(name: HeaderIconName) {

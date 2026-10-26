@@ -134,6 +134,10 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     }
   }
   const contentFingerprint = content.digest('hex');
+  const cleanup =
+    input.options.deleteWorktree ||
+    input.options.deleteLocalBranch ||
+    input.options.deleteRemoteBranch;
   const tracking = yield* read([
     'for-each-ref',
     '--format=%(upstream:remotename)%00%(upstream:remoteref)',
@@ -163,13 +167,19 @@ export const archiveReview = Effect.fn('Git.archiveReview')(function* (
     });
   let remoteUrl = '';
   let remoteOid = '';
-  if (!mainCheckout && remoteName && remoteRef?.startsWith('refs/heads/')) {
+  if (
+    cleanup &&
+    !mainCheckout &&
+    remoteName &&
+    remoteRef?.startsWith('refs/heads/')
+  ) {
     remoteUrl = yield* read(['remote', 'get-url', '--push', remoteName]);
     const remote = yield* read(['ls-remote', '--heads', remoteUrl, remoteRef]);
     remoteOid = remote.split(/\s+/)[0] ?? '';
   }
   const confirmedHead = remoteOid || input.mergedHead;
   const unpushed =
+    cleanup &&
     !mainCheckout &&
     Boolean(head) &&
     (confirmedHead

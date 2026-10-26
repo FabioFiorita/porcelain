@@ -17,6 +17,7 @@ import { page } from 'vitest/browser';
 import '@/app.css';
 import { AppProviders } from '@/app/app-providers';
 import { PairedShell } from '@/app/paired-shell';
+import { ConnectedWorkspace } from '@/app/connected-workspace';
 import {
   pairBrowser,
   restoreSession,
@@ -56,12 +57,14 @@ export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
   workspace: () => Promise<typeof page>;
+  selection: () => Promise<typeof page>;
   route: (
     path: string,
     options?: { unpaired?: boolean },
   ) => Promise<{
     page: typeof page;
     navigate: (path: string) => Promise<void>;
+    whenRendered: (path: string) => Promise<void>;
     pair: () => Promise<void>;
     location: () => string;
     title: () => string;
@@ -371,6 +374,18 @@ export const test = base
       await host.porcelainFixture('this'),
     ),
   )
+  .extend('remote', ({ world: _world }) => ({
+    rename: (name: string) =>
+      host.porcelainRepo({ kind: 'environment-name-fixture', name }, 'remote'),
+    pairingLink: async () => {
+      const grant = await host.porcelainPairingLink('Review device', 'remote');
+      return pairingLink({
+        addresses: [grant.address],
+        code: grant.code,
+        environmentId: grant.environmentId,
+      });
+    },
+  }))
   .extend('agent', ({ world: _world }) =>
     agentOn((step) => host.porcelainRepo(step, 'this')),
   )
@@ -382,7 +397,11 @@ export const test = base
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
     let unmount: (() => Promise<void>) | undefined;
-    onCleanup(() => unmount?.());
+    const subscriptions = new Set<() => void>();
+    onCleanup(async () => {
+      for (const unsubscribe of subscriptions) unsubscribe();
+      await unmount?.();
+    });
     const show = async (view: (connection: Connection) => ReactNode) => {
       if (unmount !== undefined)
         throw new Error('A test renders one feature once.');
@@ -390,6 +409,10 @@ export const test = base
       unmount = mounted.unmount;
     };
     const render: Render = {
+      async selection() {
+        await show(() => <ConnectedWorkspace />);
+        return page;
+      },
       async route(path, options) {
         if (unmount !== undefined)
           throw new Error('A test renders one feature once.');
@@ -405,6 +428,19 @@ export const test = base
             mounted.router.history.push(path);
             await mounted.router.load();
           },
+          whenRendered: (path) =>
+            new Promise<void>((resolve) => {
+              const unsubscribe = mounted.router.subscribe(
+                'onRendered',
+                ({ toLocation }) => {
+                  if (toLocation.href !== path) return;
+                  unsubscribe();
+                  subscriptions.delete(unsubscribe);
+                  resolve();
+                },
+              );
+              subscriptions.add(unsubscribe);
+            }),
           pair: async () => {
             const grant = await host.porcelainPairingLink(
               'Durable review reader',
