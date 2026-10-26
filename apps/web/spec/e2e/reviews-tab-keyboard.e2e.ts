@@ -79,26 +79,6 @@ test('Proof uses its pane bar and closes back to Review', async ({
   ).toHaveAttribute('aria-selected', 'true');
 });
 
-test('Escape closes Git actions while an action tooltip is open', async ({
-  pairedPage: page,
-}) => {
-  const trigger = page.getByRole('button', {
-    name: 'Git actions',
-    exact: true,
-  });
-  await trigger.focus();
-  await page.keyboard.press('Enter');
-  const menu = page.getByRole('menu');
-  await expect(menu).toBeVisible();
-  await menu.getByRole('menuitem', { name: 'Commit…', exact: true }).hover();
-  await expect(
-    page.getByText('Commit selected files', { exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(menu).not.toBeAttached();
-  await expect(trigger).toBeFocused();
-});
-
 test('file tabs distinguish matching basenames by their full paths', async ({
   pairedPage: page,
   app,

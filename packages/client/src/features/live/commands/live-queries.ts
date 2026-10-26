@@ -26,7 +26,7 @@ import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { noticeReadKeys } from './cache-updates.ts';
 import {
   ReadSubscriptions,
-  type ReadSubscription,
+  type ActiveRead,
 } from '../../../shared/api/read-subscriptions.ts';
 import { isTerminal } from '../../git-actions/store/operations.ts';
 import { readGitReceipt } from '../../git-actions/queries/read-receipt.ts';
@@ -40,7 +40,7 @@ type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
 function liveSubscription(
   operations: Context.Service.Shape<typeof OperationStore>,
   data: ReadInventoryResponse | undefined,
-  reads: Iterable<ReadSubscription>,
+  reads: Iterable<ActiveRead>,
 ) {
   const watched = new Map<string, Watched>();
   for (const operation of [...operations.state.value.operations.values()]) {
@@ -51,7 +51,24 @@ function liveSubscription(
       paths: new Set(),
     });
   }
-  for (const read of reads) {
+  const activeReads = [...reads];
+  for (const read of [
+    ...activeReads.filter((read) => !read.reviewId),
+    ...activeReads.filter((read) => read.reviewId),
+  ]) {
+    if (read.projectId === undefined) continue;
+    if (
+      read.reviewId &&
+      !data?.projects.some(
+        (project) =>
+          project.id === read.projectId &&
+          project.available &&
+          project.worktrees.some(
+            (worktree) => worktree.id === read.worktreeId && worktree.available,
+          ),
+      )
+    )
+      continue;
     const key = JSON.stringify([read.projectId, read.worktreeId]);
     const entry = watched.get(key) ?? {
       projectId: read.projectId,
@@ -96,10 +113,20 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   ) {
     if (notice.type === 'git-action')
       return yield* refresh.refresh(notice.receipt);
-    if (notice.type === 'inventory' || notice.type === 'worktree')
+    if (notice.type === 'inventory')
       yield* reactivity.invalidate([
         queryKeys.inventory(connection.environmentId),
       ]);
+    if (notice.type === 'worktree') {
+      const reviewIds = yield* reads.reviewsFor(notice);
+      yield* reactivity.invalidate([
+        queryKeys.worktreeInventory(connection.environmentId),
+        queryKeys.projectReviews(connection.environmentId, notice.projectId),
+        ...reviewIds.map((reviewId) =>
+          queryKeys.durableReview(connection.environmentId, reviewId),
+        ),
+      ]);
+    }
     if (notice.type === 'project' && notice.change === 'preferences')
       yield* reactivity.invalidate([
         queryKeys.filePreferences(connection.environmentId, notice.projectId),

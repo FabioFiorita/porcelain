@@ -58,7 +58,7 @@ function RemoveProjectContent({
   return (
     <>
       <AlertDialogHeader>
-        <AlertDialogTitle>
+        <AlertDialogTitle className="break-all">
           Remove {project.name} from Porcelain?
         </AlertDialogTitle>
         <AlertDialogDescription>

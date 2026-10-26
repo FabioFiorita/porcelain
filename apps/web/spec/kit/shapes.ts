@@ -57,6 +57,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
       step({ kind: 'review-fixture', operation: 'remove-worktree', title: '' }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
     remove: (path: string) => step({ kind: 'remove', path }),
+    rename: (from: string, to: string) => step({ kind: 'rename', from, to }),
     read: (path: string) => step({ kind: 'read', path }),
     commit: (message: string) => step({ kind: 'commit', message }),
     branch: (name: string) => step({ kind: 'branch', name }),

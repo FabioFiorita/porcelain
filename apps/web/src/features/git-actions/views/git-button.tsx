@@ -359,7 +359,13 @@ export function GitButton({
                         ? `Restore discarded rename of ${item.path}`
                         : `Restore discarded hunk of ${item.path}`;
                     return (
-                      <Tooltip key={item.oid}>
+                      <Tooltip
+                        key={item.oid}
+                        onOpenChange={(_open, details) => {
+                          if (details.reason === 'escape-key')
+                            details.allowPropagation();
+                        }}
+                      >
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
                             onClick={() => {
@@ -368,7 +374,11 @@ export function GitButton({
                             }}
                           >
                             <Undo2Icon />
-                            <TruncatedText className="min-w-0" text={label} />
+                            <TruncatedText
+                              className="min-w-0"
+                              text={label}
+                              propagateEscape
+                            />
                           </DropdownMenuItem>
                         </TooltipTrigger>
                         <TooltipContent>

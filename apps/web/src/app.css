@@ -42,6 +42,8 @@
 }
 
 @theme inline {
+  --text-briefing-title: 2.75rem;
+  --text-briefing-title--line-height: 3rem;
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
   --font-heading: var(--font-sans);
