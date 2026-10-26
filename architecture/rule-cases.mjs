@@ -2086,6 +2086,14 @@ export const saveBoth = Atom.writable(
       "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
       "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test = api; test.effect('unknown clock', () => Effect.sleep(100)); });",
     ],
+    [
+      "import { it } from '@effect/vitest'; const suite = (test) => { test.effect('virtual', () => Effect.sleep(100)); }; it.layer(Layer.empty)(suite); function named(test) { test.effect('virtual', () => Effect.sleep(100)); } it.layer(Layer.empty)(named);",
+      "import { it } from '@effect/vitest'; const suite = (test) => { test.effect('unknown clock', () => Effect.sleep(100)); }; it.layer(Layer.empty)(suite); it.layer(Layer.empty, { excludeTestServices: true })(suite);",
+    ],
+    [
+      "import { it } from '@effect/vitest'; const suite = (test) => { test.effect('virtual', () => Effect.sleep(100)); }; it.layer(Layer.empty)(suite);",
+      "import { it } from '@effect/vitest'; const suite = (test) => { test.effect('unknown clock', () => Effect.sleep(100)); }; it.layer(Layer.empty)(suite); suite(api);",
+    ],
   ].map(([valid, invalid]) => ({
     rule: 'spec-no-waits',
     path: 'packages/client/src/rules/sample.spec.ts',
@@ -2254,6 +2262,21 @@ export const saveBoth = Atom.writable(
     [
       "it('virtual', () => { vi.useFakeTimers({ toNotFake: ['performance'] }); Date.now(); });",
       "it('unknown clock', () => { vi.useFakeTimers({ toNotFake: [excluded] }); Date.now(); });",
+      1,
+    ],
+    [
+      "const body = () => Date.now(); beforeEach(() => vi.useFakeTimers({ now: 0 })); afterEach(() => vi.useRealTimers()); it('virtual', body);",
+      "const body = () => Date.now(); describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); it('virtual', body); }); it('live', body);",
+      1,
+    ],
+    [
+      "function body() { return Date.now(); } describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); it('virtual', body); });",
+      "const body = () => Date.now(); beforeEach(() => vi.useFakeTimers()); it('virtual', body); body();",
+      1,
+    ],
+    [
+      "const suite = () => { it('virtual', () => Date.now()); }; describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); describe('inner', suite); });",
+      "const suite = () => { it('clock', () => Date.now()); }; describe('virtual', () => { beforeEach(() => vi.useFakeTimers()); describe('inner', suite); }); describe('live', suite);",
       1,
     ],
   ].map(([valid, invalid, errors]) => ({

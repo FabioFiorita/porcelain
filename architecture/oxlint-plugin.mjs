@@ -703,39 +703,72 @@ function timingPath(node, context) {
   }
   if (definition?.type === 'Parameter') {
     const callback = definition.node;
-    const registration = callback.parent;
-    const layer = registration?.callee;
+    const sites = callbackSites(callback, context);
     if (
       callback.params[0]?.type === 'Identifier' &&
       callback.params[0].name === node.name &&
       !variable.references.some((reference) => reference.isWrite()) &&
-      registration?.type === 'CallExpression' &&
-      registration.arguments.includes(callback) &&
-      layer?.type === 'CallExpression' &&
-      /^effect-test\.(?:(?:it|test)\.)?layer$/.test(
-        timingPath(layer.callee, context) ?? '',
-      )
-    ) {
-      const options = layer.arguments[1];
-      if (
-        options === undefined ||
-        (options.type === 'ObjectExpression' &&
-          options.properties.every(
-            (property) =>
-              property.type === 'Property' &&
-              propertyName(property, context) !== undefined &&
-              (propertyName(property, context) !== 'excludeTestServices' ||
-                (property.value.type === 'Literal' &&
-                  property.value.value === false)),
-          ))
-      )
-        return 'effect-test.it';
-    }
+      sites.length > 0 &&
+      sites.every((site) => {
+        const layer = site.parent.callee;
+        if (
+          layer?.type !== 'CallExpression' ||
+          !/^effect-test\.(?:(?:it|test)\.)?layer$/.test(
+            timingPath(layer.callee, context) ?? '',
+          )
+        )
+          return false;
+        const options = layer.arguments[1];
+        return (
+          options === undefined ||
+          (options.type === 'ObjectExpression' &&
+            options.properties.every(
+              (property) =>
+                property.type === 'Property' &&
+                propertyName(property, context) !== undefined &&
+                (propertyName(property, context) !== 'excludeTestServices' ||
+                  (property.value.type === 'Literal' &&
+                    property.value.value === false)),
+            ))
+        );
+      })
+    )
+      return 'effect-test.it';
   }
   if (definition) return `local.${node.name}`;
   if (['vi', 'vitest'].includes(node.name)) return 'vitest.vi';
   if (node.name === 'TestClock') return undefined;
   return node.name;
+}
+
+function callbackSites(callback, context) {
+  const parent = callback.parent;
+  if (parent?.type === 'CallExpression' && parent.arguments.includes(callback))
+    return [callback];
+  const id =
+    callback.type === 'FunctionDeclaration'
+      ? callback.id
+      : parent?.type === 'VariableDeclarator' &&
+          parent.init === callback &&
+          parent.parent.kind === 'const'
+        ? parent.id
+        : undefined;
+  if (id?.type !== 'Identifier') return [];
+  const references =
+    findVariable(context.sourceCode.getScope(callback), id.name)
+      ?.references.filter((reference) => reference.isRead())
+      .map((reference) => reference.identifier) ?? [];
+  return references.every(
+    (reference) =>
+      reference.parent?.type === 'CallExpression' &&
+      reference.parent.arguments.includes(reference) &&
+      !(
+        reference.range[0] >= callback.range[0] &&
+        reference.range[1] <= callback.range[1]
+      ),
+  )
+    ? references
+    : [];
 }
 
 const effectRuntime =
@@ -812,9 +845,24 @@ function testClockSleep(node, context, seen = new Set()) {
   return false;
 }
 
-function fakeClock(node, context, clock) {
+function fakeClock(node, context, clock, sites = new Map()) {
   const scopes = [];
-  for (let current = node.parent; current; current = current.parent)
+  const visited = new Set();
+  for (let current = node.parent; current; current = current.parent) {
+    if (visited.has(current)) return false;
+    visited.add(current);
+    const callback = [
+      'ArrowFunctionExpression',
+      'FunctionExpression',
+      'FunctionDeclaration',
+    ].includes(current.type);
+    if (callback && !sites.has(current)) {
+      const named = callbackSites(current, context);
+      if (named.length > 0 && named[0] !== current)
+        return named.every((site) =>
+          fakeClock(node, context, clock, new Map(sites).set(current, site)),
+        );
+    }
     if (
       current.type === 'Program' ||
       (current.type === 'BlockStatement' &&
@@ -823,13 +871,12 @@ function fakeClock(node, context, clock) {
           'FunctionExpression',
           'FunctionDeclaration',
         ].includes(current.parent?.type)) ||
-      [
-        'ArrowFunctionExpression',
-        'FunctionExpression',
-        'FunctionDeclaration',
-      ].includes(current.type)
+      callback
     )
       scopes.unshift(current);
+    if (sites.has(current)) current = sites.get(current);
+  }
+  const site = (scope) => sites.get(scope) ?? scope;
   let fake = false;
   const apply = (call) => {
     if (call?.type !== 'CallExpression') return;
@@ -930,8 +977,8 @@ function fakeClock(node, context, clock) {
       ? scope
       : scope.body;
     const next = scopes[index + 1];
-    applyBody(body, next?.range[0] ?? node.range[0]);
-    const registration = next?.parent;
+    applyBody(body, (site(next) ?? node).range[0]);
+    const registration = site(next)?.parent;
     if (
       registration?.type !== 'CallExpression' ||
       !/^(?:(?:vitest|effect-test)\.)?(?:it|test)(?:\.|$)/.test(
@@ -946,7 +993,7 @@ function fakeClock(node, context, clock) {
       applyBody(
         bodyOf(suites[suiteIndex]),
         Infinity,
-        (suites[suiteIndex + 1] ?? next).range[1],
+        site(suites[suiteIndex + 1] ?? next).range[1],
       );
     const callbacks = (call) =>
       call.arguments.filter((argument) =>
@@ -970,7 +1017,7 @@ function fakeClock(node, context, clock) {
     for (let suiteIndex = 0; suiteIndex < suites.length; suiteIndex++) {
       const suite = suites[suiteIndex];
       applyHooks(suite, 'beforeAll');
-      const cutoff = (suites[suiteIndex + 1] ?? next).range[0];
+      const cutoff = site(suites[suiteIndex + 1] ?? next).range[0];
       const previous = (bodyOf(suite)?.body ?? [])
         .map((statement) => statement.expression)
         .filter(
