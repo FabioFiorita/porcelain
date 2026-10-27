@@ -1,7 +1,7 @@
 import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('the readiness panel follows reviewed and stale files, unexplained lines, waiting comments and failing checks', async ({
+test('the readiness panel follows reviewed and stale files, waiting comments and failing checks, and keeps the published review to checks, proof, decisions and comments', async ({
   workspace,
   repo,
   agent,
@@ -30,9 +30,6 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   };
 
   await showReadiness();
-  await readiness
-    .getByRole('button', { name: 'Files and explanation', exact: true })
-    .click();
   await expect.element(line('0 of 1 file reviewed')).toBeVisible();
   await expect.element(line('No marks went stale')).toBeVisible();
   await expect.element(line('No review published')).toBeVisible();
@@ -62,9 +59,6 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
     )
     .toBeEnabled();
   await showReadiness();
-  await readiness
-    .getByRole('button', { name: 'Files and explanation', exact: true })
-    .click();
   await expect.element(line('1 comment waiting on the agent')).toBeVisible();
   await expect.element(line('1 of 1 file reviewed')).toBeVisible();
 
@@ -87,11 +81,20 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
       { path: readme, ranges: [{ startLine: 4, endLine: 4 }] },
       { path: 'notes.md', ranges: [{ startLine: 1, endLine: 1 }] },
     ]);
-  await expect.element(line('2 lines in 2 files not explained')).toBeVisible();
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
+  await expect.element(line('Proof is incomplete')).toBeVisible();
+  await expect.element(line('0 of 1 decisions reviewed')).toBeVisible();
+  await expect.element(line('1 comment waiting on the agent')).toBeVisible();
   await expect
-    .element(readiness.getByRole('button', { name: /^Readiness/ }))
-    .toMatchTextContent('4 things to check');
+    .element(line('2 lines in 2 files not explained'))
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      sidebar
+        .getByRole('navigation', { name: 'Walkthrough', exact: true })
+        .getByRole('button', { name: 'Not explained', exact: true }),
+    )
+    .toBeVisible();
 
   await line('1 of 2 checks failing').click();
   await expect

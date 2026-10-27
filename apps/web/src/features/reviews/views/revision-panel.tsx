@@ -16,7 +16,12 @@ import {
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { useComments } from '../queries/comments';
 import { ReviewStatusIcon } from './change-row';
-import { ChangeComment, CommentsView, ReviewViews } from './comments-view';
+import {
+  ChangeComment,
+  CommentsView,
+  ReviewViews,
+  WholeChangeComment,
+} from './comments-view';
 import { ChangeReadiness } from './readiness-panel';
 import { SidebarDocumentRow, SidebarGroup } from './sidebar-section';
 
@@ -31,7 +36,9 @@ export function RevisionPanel({
   onStop,
   onProof,
   activeStop,
+  activeStep,
   onStep,
+  actionsTarget,
 }: {
   revision: ReviewRevision;
   scope: ReviewScope;
@@ -42,15 +49,25 @@ export function RevisionPanel({
   onChange: (path: string) => void;
   onStop: (key: WalkthroughKey) => void;
   activeStop: string;
+  activeStep: string | undefined;
   onStep: (step: ReviewStep) => void;
+  actionsTarget: HTMLElement | null;
   onProof: () => void;
 }) {
   const { threads } = useComments(scope, context);
   const { view, setView } = useReviewPanelView(revision.reviewId);
   const [expanded, setExpanded] = useState(false);
+  const [composing, setComposing] = useState(false);
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <WholeChangeComment
+        target={actionsTarget}
+        onCompose={() => {
+          setView('comments');
+          setComposing(true);
+        }}
+      />
       <ChangeReadiness
         context={context}
         marks={marks}
@@ -75,12 +92,13 @@ export function RevisionPanel({
       />
       {view === 'layers' && (
         <ScrollArea className="h-0 min-h-0 flex-1">
-          <div className="p-2 pr-3">
+          <div className="px-2.5 pt-2 pb-3">
             <RevisionNavigation
               revision={revision}
               marks={marks}
               context={context}
               activeStop={activeStop}
+              activeStep={activeStep}
               onStop={onStop}
               onStep={onStep}
             />
@@ -127,6 +145,8 @@ export function RevisionPanel({
                 revision: revision.headOid,
                 comparison: { kind: 'branch', base: revision.base },
               }}
+              open={composing}
+              setOpen={setComposing}
             />
           }
           onReveal={(anchor) =>

@@ -21,7 +21,7 @@ A comment the agent left for you and checks that ran before the latest code chan
 
 ## How to get to it (user POV)
 
-- Review (sheet at phone width) → region "Readiness" at the top of the Changes/Review sidebar tab (expanded by default; its header button "Readiness <n> things to check" collapses it) → the checks line.
+- Review (sheet at phone width) → region "Readiness" at the top of the Changes/Review sidebar tab → the checks line.
 - `Alt+Shift+R` toggles the review sheet at phone width (the right sidebar at 1280px and wider).
 
 ## Driving it with browser
@@ -36,9 +36,9 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`
    Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`
-   Expect: in the dialog, region "Readiness" with a summary that includes unfinished decisions; open "Files and explanation" to reach buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
+   Expect: in the dialog, region "Readiness" with buttons "2 checks passed", the Proof row, "0 of 1 decisions reviewed" and "1 comment waiting on you".
 3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button `Checks ran before the latest changes`
-   Expect: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; a summary that also includes the unfinished decision; the Proof row reads "Outdated".
+   Expect: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; the Proof row reads "Outdated".
 4. Click button `Checks ran before the latest changes`
    Expect: the sheet closes; the Review tab stays selected; the briefing's region "Proven at <head>" contains the published timestamp and the notice "These checks ran before the latest changes The code changed after the agent published this proof. Ask it to run the checks again.".
 
@@ -50,6 +50,6 @@ Automated coverage: `reviews-readiness-outdated.test.tsx`.
 
 ## Gotchas
 
-- Readiness keeps aligned Checks, Proof, Decisions and Comments rows. Open “Files and explanation” for file marks, stale marks and explanation details. These actions keep their full accessible names.
+- A published review keeps aligned Checks, Proof, Decisions and Comments rows. Each line keeps its full accessible name.
 
 - Keep the sheet open through the write; wait for live checks state without reload. Restore README afterward.

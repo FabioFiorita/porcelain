@@ -48,10 +48,7 @@ test.for([1440, 414])(
       });
       await expect.element(steps).toBeVisible();
       await steps
-        .getByRole('button', {
-          name: 'Not reviewed 1 Read the retained revision',
-          exact: true,
-        })
+        .getByRole('button', { name: /^1 Read the retained revision/ })
         .click();
       const content = app.page.getByRole('region', {
         name: 'Review walkthrough',
@@ -127,7 +124,7 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
   await open();
   await panel
     .getByRole('list', { name: 'Stops of decision 1', exact: true })
-    .getByRole('button', { name: 'Not reviewed 1 New line', exact: true })
+    .getByRole('button', { name: /^1 New line/ })
     .click();
   await expect
     .element(
@@ -153,9 +150,12 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
     .element(
       panel
         .getByRole('list', { name: 'Stops of decision 1', exact: true })
-        .getByRole('button', { name: 'Reviewed 1 New line', exact: true }),
+        .getByRole('checkbox', {
+          name: `${repo.readme.path} reviewed`,
+          exact: true,
+        }),
     )
-    .toBeVisible();
+    .toBeChecked();
 });
 
 test('decision readiness includes unfinished decisions and requires their file marks', async ({
@@ -200,14 +200,6 @@ test('decision readiness includes unfinished decisions and requires their file m
       }),
     )
     .toBeVisible();
-  await expect
-    .element(
-      readiness.getByRole('button', {
-        name: 'Readiness Nothing left to check',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
   await panel
     .getByRole('button', { name: 'More actions for decision 1', exact: true })
     .click();
@@ -218,14 +210,6 @@ test('decision readiness includes unfinished decisions and requires their file m
     .element(
       readiness.getByRole('button', {
         name: '0 of 1 decisions reviewed',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      readiness.getByRole('button', {
-        name: 'Readiness 1 thing to check',
         exact: true,
       }),
     )
@@ -252,12 +236,47 @@ test('decision readiness includes unfinished decisions and requires their file m
       }),
     )
     .toBeVisible();
+});
+
+test('a decision step marks its file reviewed and the header starts a whole-change comment', async ({
+  workspace,
+  repo,
+  agent,
+}) => {
+  await agent.publishReview('Mark the step from the panel');
+  const panel = workspace.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  const open = async () => {
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await panel.getByRole('tab', { name: 'Review', exact: true }).click();
+  };
+  await open();
   await expect
-    .element(
-      readiness.getByRole('button', {
-        name: 'Readiness 1 thing to check',
-        exact: true,
-      }),
-    )
+    .element(panel.getByText('No changes', { exact: true }))
+    .not.toBeInTheDocument();
+  await panel
+    .getByRole('button', { name: /^1 Mark the step from the panel/ })
+    .click();
+  await open();
+  const reviewed = panel
+    .getByRole('list', { name: 'Stops of decision 1', exact: true })
+    .getByRole('checkbox', {
+      name: `${repo.readme.path} reviewed`,
+      exact: true,
+    });
+  await expect.element(reviewed).not.toBeChecked();
+  await reviewed.click();
+  await expect.element(reviewed).toBeChecked();
+  await reviewed.click();
+  await expect.element(reviewed).not.toBeChecked();
+  await panel
+    .getByRole('button', { name: 'Comment on the whole change', exact: true })
+    .click();
+  await expect
+    .element(panel.getByRole('textbox', { name: 'Comment', exact: true }))
     .toBeVisible();
 });

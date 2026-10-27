@@ -7,6 +7,10 @@
 @custom-variant light (&:not(.dark));
 @custom-variant dark (&:is(.dark, .dark *));
 
+@utility control-border {
+  border-width: 1.5px;
+}
+
 .desktop-shell .desktop-sidebar-header {
   padding-left: 82px;
   app-region: drag;
@@ -44,6 +48,10 @@
 @theme inline {
   --text-briefing-title: 2.75rem;
   --text-briefing-title--line-height: 3rem;
+  --text-3xs: 0.625rem;
+  --radius-row: calc(var(--radius) * 0.7);
+  --radius-segment: calc(var(--radius) * 0.9);
+  --radius-check: calc(var(--radius) * 0.4);
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
   --font-heading: var(--font-sans);
@@ -184,6 +192,38 @@
     inset 0 0 0 1px var(--workspace-edge),
     0 1px 2px var(--workspace-edge)
   );
+}
+
+.segmented-tabs [data-slot='tabs-list'] {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  width: 100%;
+  height: calc(var(--spacing) * 7);
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 0.5);
+  border-radius: var(--radius-segment);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.segmented-tabs [data-slot='tabs-trigger'] {
+  height: calc(var(--spacing) * 6);
+  padding-block: 0;
+  padding-inline: calc(var(--spacing) * 2.5);
+  border-radius: var(--radius-row);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: calc(var(--spacing) * 6);
+}
+
+.segmented-tabs [data-slot='tabs-trigger'][data-active] {
+  background: var(--background);
+  box-shadow: var(--shadow-row);
+  color: var(--foreground);
+}
+
+.panel-actions button {
+  border-radius: var(--radius-row);
 }
 
 .settings-content [data-slot='field-set'] {

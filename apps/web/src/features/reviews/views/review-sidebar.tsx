@@ -96,7 +96,7 @@ export function SidePanel({
   const toolbar = (
     <div
       ref={setActionsTarget}
-      className="ml-auto flex shrink-0 items-center gap-0.5"
+      className="panel-actions ml-auto flex shrink-0 items-center gap-0.5"
     />
   );
   const content = children(actionsTarget);
@@ -108,7 +108,7 @@ export function SidePanel({
     >
       {layout === 'docked' ? (
         <>
-          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-3.5">
+          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-4">
             <TruncatedText
               className="text-ui font-semibold"
               render={<h2 />}
@@ -231,6 +231,7 @@ function SidebarSurface({
           base={changes.base}
           onChangeScope={changes.onScope}
           onBase={changes.onBase}
+          actionsTarget={actionsTarget}
         />
       )}
       {surface === 'files' && (

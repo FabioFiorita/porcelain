@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
+import { type ChangeScope } from '@/shared/workspace/search';
+import { SegmentedTabs } from './segmented-tabs';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
@@ -37,7 +37,12 @@ import { useReviewRevisionSelection, useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
-import { ChangeComment, CommentsView, ReviewViews } from './comments-view';
+import {
+  ChangeComment,
+  CommentsView,
+  ReviewViews,
+  WholeChangeComment,
+} from './comments-view';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -49,7 +54,13 @@ type Props = {
   onOpen: OpenDocument;
   sideLabel: string;
 };
+const CHANGE_SCOPES: readonly { value: ChangeScope; label: string }[] = [
+  { value: 'uncommitted', label: 'Uncommitted' },
+  { value: 'branch', label: 'Branch' },
+];
+
 type ScopeProps = {
+  actionsTarget: HTMLElement | null;
   changeScope: ChangeScope;
   base: string | undefined;
   onChangeScope: (scope: ChangeScope) => void;
@@ -66,9 +77,11 @@ export function ReviewIndex({
   base,
   onChangeScope,
   onBase,
+  actionsTarget,
 }: Props & ScopeProps) {
   const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
+  const [composing, setComposing] = useState(false);
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
@@ -111,27 +124,20 @@ export function ReviewIndex({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 px-2">
-        <Tabs
-          value={changeScope}
-          onValueChange={(value: unknown) => {
-            if (isChangeScope(value)) onChangeScope(value);
-          }}
-        >
-          <TabsList
-            variant="line"
-            className="w-full"
-            aria-label="Changes to review"
-          >
-            <TabsTrigger value="uncommitted" className="flex-1">
-              Uncommitted
-            </TabsTrigger>
-            <TabsTrigger value="branch" className="flex-1">
-              Branch
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <WholeChangeComment
+        target={actionsTarget}
+        onCompose={() => {
+          setView('comments');
+          setComposing(true);
+        }}
+      />
+      <SegmentedTabs
+        label="Changes to review"
+        className="px-2.5 pt-3"
+        value={changeScope}
+        onValue={onChangeScope}
+        options={CHANGE_SCOPES}
+      />
       {branch ? (
         <BranchReadiness
           scope={scope}
@@ -192,12 +198,16 @@ export function ReviewIndex({
                 scope={scope}
                 context={context}
                 base={base}
+                open={composing}
+                setOpen={setComposing}
               />
             ) : (
               <ChangeComment
                 scope={scope}
                 context={context}
                 anchor={changeAnchor(undefined)}
+                open={composing}
+                setOpen={setComposing}
               />
             )
           }
@@ -299,7 +309,7 @@ function LayersView({
   );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
-      <div className="p-2 pr-3">
+      <div className="px-2.5 pt-2 pb-3">
         {review ? (
           <ReviewNavigation
             context={context}
@@ -316,7 +326,7 @@ function LayersView({
             All changes
           </SidebarDocumentRow>
         )}
-        {paths.length === 0 && (
+        {!review && paths.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No changes</p>
         )}
         {mainPaths.length > 0 && (
@@ -374,10 +384,14 @@ function BranchChangeComment({
   scope,
   context,
   base,
+  open,
+  setOpen,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   base: string | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
@@ -393,6 +407,8 @@ function BranchChangeComment({
           ? undefined
           : changeAnchor({ base: ref, tip })
       }
+      open={open}
+      setOpen={setOpen}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readinessItems, readinessSummary } from './readiness.ts';
+import { readinessItems } from './readiness.ts';
 
 type Input = Parameters<typeof readinessItems>[0];
 type Review = NonNullable<Input['review']>;
@@ -47,7 +47,6 @@ describe('readinessItems', () => {
       ['comments', 'No open comments', 'ok'],
       ['checks', '1 check passed', 'ok'],
     ]);
-    expect(readinessSummary(items)).toBe('Nothing left to check');
   });
 
   it('counts unreviewed and stale files, unexplained lines, waiting comments and failing checks', () => {
@@ -97,7 +96,6 @@ describe('readinessItems', () => {
       '2 awaiting agent',
       '1 of 2 failing',
     ]);
-    expect(readinessSummary(items)).toBe('5 things to check');
   });
 
   it('asks for checks and a review when the agent published neither', () => {
@@ -148,7 +146,6 @@ describe('readinessItems', () => {
         tone: 'attention',
       },
     ]);
-    expect(readinessSummary(items)).toBe('2 things to check');
   });
 
   it('asks for the checks again once the code changed after they ran', () => {
@@ -164,6 +161,5 @@ describe('readinessItems', () => {
       value: 'Outdated',
       tone: 'attention',
     });
-    expect(readinessSummary(items)).toBe('1 thing to check');
   });
 });

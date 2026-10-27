@@ -1,8 +1,12 @@
 import { MessageSquarePlusIcon } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { createPortal } from 'react-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -21,6 +25,7 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 import { useVisibleComments } from '../commands/comments';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
+import { SegmentedTabs } from './segmented-tabs';
 import { ThreadCard } from './thread-card';
 
 export function ReviewViews({
@@ -35,29 +40,56 @@ export function ReviewViews({
   openComments: number;
 }) {
   return (
-    <div className="shrink-0 px-2 pt-2">
-      <Tabs
-        value={view}
-        onValueChange={(value: unknown) => {
-          if (value === 'layers' || value === 'comments') onView(value);
-        }}
-        aria-label="Review views"
+    <SegmentedTabs
+      label="Review views"
+      className="px-2.5 pt-3.5"
+      value={view}
+      onValue={onView}
+      options={[
+        { value: 'layers', label: filesLabel },
+        {
+          value: 'comments',
+          label:
+            openComments > 0 ? (
+              <>
+                Comments <span className="tabular-nums">({openComments})</span>
+              </>
+            ) : (
+              'Comments'
+            ),
+        },
+      ]}
+    />
+  );
+}
+
+export function WholeChangeComment({
+  target,
+  onCompose,
+}: {
+  target: HTMLElement | null;
+  onCompose: () => void;
+}) {
+  if (!target) return null;
+  return createPortal(
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Comment on the whole change"
+            onClick={onCompose}
+          />
+        }
       >
-        <TabsList className="h-8 w-full">
-          <TabsTrigger value="layers" className="flex-1">
-            {filesLabel}
-          </TabsTrigger>
-          <TabsTrigger value="comments" className="flex-1">
-            Comments
-            {openComments > 0 && (
-              <Badge variant="secondary" className="h-4 min-w-4">
-                {openComments}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-    </div>
+        <MessageSquarePlusIcon className="text-muted-foreground" />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip">
+        Comment on the whole change
+      </TooltipContent>
+    </Tooltip>,
+    target,
   );
 }
 
@@ -65,12 +97,15 @@ export function ChangeComment({
   scope,
   context,
   anchor,
+  open,
+  setOpen,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const branch = anchor?.comparison?.kind === 'branch';
   if (open && anchor)
     return (

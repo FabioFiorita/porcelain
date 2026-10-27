@@ -21,7 +21,6 @@ The checks and attachments the agent published with its review live in the brief
 
 ## How to get to it (user POV)
 
-- Review (sheet at phone width) → tab "Review" → nav "Walkthrough" → Briefing.
 - Review → Readiness → the checks line ("1 of 2 checks failing", "2 checks passed", "Checks ran before the latest changes"...) opens the briefing.
 - The walkthrough's briefing: section "Proven at <head>" shows all checks, output and image/video/link attachments directly, including stale-proof and failed-check notices. There is no separate Proof tab.
 - Inside a decision stop, the checks attached to that decision show in list "Checks for this decision" below its steps.
