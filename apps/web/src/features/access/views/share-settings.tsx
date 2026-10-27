@@ -75,6 +75,8 @@ export function ComputerSettings({
   );
   const named = `${environment.custom}:${environment.name}`;
   const [renamingFrom, setRenamingFrom] = useState<string | null>(null);
+  const served = new URL(connection.address);
+  const address = /^https?:$/.test(served.protocol) ? served.origin : undefined;
   const renaming = renamingFrom === named;
 
   return (
@@ -94,13 +96,17 @@ export function ComputerSettings({
               ·
             </span>
             <Badge variant="secondary">This computer</Badge>
-            <span aria-hidden className="text-muted-foreground">
-              ·
-            </span>
-            <TruncatedText
-              text={new URL(connection.address).origin}
-              className="font-mono text-xs text-muted-foreground"
-            />
+            {address && (
+              <>
+                <span aria-hidden className="text-muted-foreground">
+                  ·
+                </span>
+                <TruncatedText
+                  text={address}
+                  className="font-mono text-xs text-muted-foreground"
+                />
+              </>
+            )}
           </>
         }
         action={
