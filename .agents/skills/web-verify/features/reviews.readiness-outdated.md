@@ -8,6 +8,7 @@ selectors:
   - "Checks ran before the latest changes"
   - "These checks ran before the latest changes"
   - "Proven at "
+  - "Proof"
 tests:
   - apps/web/spec/integration/reviews-readiness-outdated.test.tsx
 api:
@@ -35,9 +36,9 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`
    Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`
-   Expect: in the dialog, region "Readiness" with header button "Readiness 2 things to check" and buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
+   Expect: in the dialog, region "Readiness" with a summary that includes unfinished decisions; open "Files and explanation" to reach buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
 3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button `Checks ran before the latest changes`
-   Expect: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; header "Readiness 3 things to check".
+   Expect: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; a summary that also includes the unfinished decision; the Proof row reads "Outdated".
 4. Click button `Checks ran before the latest changes`
    Expect: the sheet closes; the Review tab stays selected; the briefing's region "Proven at <head>" contains the published timestamp and the notice "These checks ran before the latest changes The code changed after the agent published this proof. Ask it to run the checks again.".
 
@@ -48,5 +49,7 @@ After write, checks/readiness change; the briefing shows the stale-proof notice 
 Automated coverage: `reviews-readiness-outdated.test.tsx`.
 
 ## Gotchas
+
+- Readiness keeps aligned Checks, Proof, Decisions and Comments rows. Open “Files and explanation” for file marks, stale marks and explanation details. These actions keep their full accessible names.
 
 - Keep the sheet open through the write; wait for live checks state without reload. Restore README afterward.

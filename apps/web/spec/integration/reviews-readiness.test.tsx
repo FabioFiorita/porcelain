@@ -30,6 +30,9 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   };
 
   await showReadiness();
+  await readiness
+    .getByRole('button', { name: 'Files and explanation', exact: true })
+    .click();
   await expect.element(line('0 of 1 file reviewed')).toBeVisible();
   await expect.element(line('No marks went stale')).toBeVisible();
   await expect.element(line('No review published')).toBeVisible();
@@ -59,6 +62,9 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
     )
     .toBeEnabled();
   await showReadiness();
+  await readiness
+    .getByRole('button', { name: 'Files and explanation', exact: true })
+    .click();
   await expect.element(line('1 comment waiting on the agent')).toBeVisible();
   await expect.element(line('1 of 1 file reviewed')).toBeVisible();
 
@@ -85,7 +91,7 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
   await expect
     .element(readiness.getByRole('button', { name: /^Readiness/ }))
-    .toMatchTextContent('3 things to check');
+    .toMatchTextContent('4 things to check');
 
   await line('1 of 2 checks failing').click();
   await expect

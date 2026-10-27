@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { revisionReviewItems, revisionDecisionStates } from './revision.ts';
+import {
+  revisionReviewItems,
+  revisionDecisionStates,
+  revisionDecisionProgress,
+} from './revision.ts';
 
 it('uses head blobs for file marks, retaining unchanged marks across revisions and using the retained old blob for a deletion', () => {
   const revision = {
@@ -95,3 +99,99 @@ it('matches immutable decisions against all retained marks by both layer and fin
     stale: false,
   });
 });
+
+it.for([
+  {
+    name: 'no marks',
+    file: false,
+    decision: false,
+    fingerprint: 'blob',
+    expected: 0,
+  },
+  {
+    name: 'decision without file',
+    file: false,
+    decision: true,
+    fingerprint: 'blob',
+    expected: 0,
+  },
+  {
+    name: 'file without decision',
+    file: true,
+    decision: false,
+    fingerprint: 'blob',
+    expected: 0,
+  },
+  {
+    name: 'both current marks',
+    file: true,
+    decision: true,
+    fingerprint: 'blob',
+    expected: 1,
+  },
+  {
+    name: 'a changed file',
+    file: true,
+    decision: true,
+    fingerprint: 'old',
+    expected: 0,
+  },
+])(
+  'counts completed decisions with $name',
+  ({ file, decision, fingerprint, expected }) => {
+    const revision = {
+      files: [
+        {
+          path: 'owner.ts',
+          newOid: 'blob',
+          oldMode: '100644',
+          newMode: '100644',
+          status: 'added' as const,
+        },
+      ],
+      content: {
+        notExplained: [],
+        layers: [
+          {
+            id: 'decision',
+            title: 'Own the behavior',
+            summary: 'One owner',
+            lanes: ['Owner'],
+            fingerprint: 'layer',
+            steps: [
+              {
+                id: 'step',
+                lane: 0,
+                title: 'Implement it',
+                text: 'Change the owner',
+                kind: 'changed' as const,
+                pointer: {
+                  path: 'owner.ts',
+                  startLine: 1,
+                  endLine: 1,
+                  textFingerprint: 'text',
+                },
+                location: {
+                  state: 'current' as const,
+                  startLine: 1,
+                  endLine: 1,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const marks = {
+      files: file
+        ? [{ path: 'owner.ts', fingerprint, reviewedAt: 'now', stale: false }]
+        : [],
+      decisions: decision
+        ? [{ layerId: 'decision', fingerprint: 'layer', reviewedAt: 'now' }]
+        : [],
+    };
+    expect(
+      revisionDecisionProgress(revision, marks, { specsApart: false }),
+    ).toEqual({ reviewed: expected, total: 1 });
+  },
+);
