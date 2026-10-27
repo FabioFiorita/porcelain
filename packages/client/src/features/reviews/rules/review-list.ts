@@ -242,6 +242,21 @@ export function reviewListRowContext(
   };
 }
 
+export function reviewListWithoutClosedCheckouts(
+  entries: readonly ReviewListEntry[],
+) {
+  const checkout = (entry: ReviewListEntry) =>
+    `${entry.environmentId}/${entry.worktreeId}`;
+  const closed = new Set(
+    entries
+      .filter((entry) => entry.closed && entry.worktreeId !== undefined)
+      .map(checkout),
+  );
+  return entries.filter(
+    (entry) => entry.group !== 'No review' || !closed.has(checkout(entry)),
+  );
+}
+
 export function reviewListRow(entry: ReviewListEntry) {
   if (entry.reviewId)
     return {

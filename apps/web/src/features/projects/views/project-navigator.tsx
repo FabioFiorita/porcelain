@@ -27,6 +27,7 @@ import {
   reviewListMeta,
   reviewListCheckout,
   reviewListRow,
+  reviewListWithoutClosedCheckouts,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -166,7 +167,12 @@ export function ProjectNavigator({
     : 'Open a project to see its worktrees.';
   if (projects.length === 0)
     emptyDescription = 'Open a Git repository to get started.';
-  const { rows, filters } = reviewListView(entries, query, filter, false);
+  const { rows, filters } = reviewListView(
+    reviewListWithoutClosedCheckouts(entries),
+    query,
+    filter,
+    false,
+  );
   const closedRows = reviewListView(entries, query, filter, true).rows;
   const closeSearch = () => {
     setQuery('');
@@ -645,7 +651,7 @@ export function ProjectNavigator({
                                             className={cn(
                                               'shrink-0 text-xs tabular-nums',
                                               active
-                                                ? 'text-brand'
+                                                ? 'font-medium text-brand'
                                                 : 'text-muted-foreground',
                                             )}
                                             aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}

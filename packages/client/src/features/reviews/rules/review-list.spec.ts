@@ -12,6 +12,7 @@ import {
   reviewListMeta,
   reviewListSignal,
   reviewListRow,
+  reviewListWithoutClosedCheckouts,
   reviewListRowContext,
   reviewListCheckout,
   reviewListView,
@@ -471,6 +472,47 @@ it.each([
   ],
 ])('%s', (_, row, expected) => {
   expect(reviewListRow(row)).toEqual(expected);
+});
+
+const checkoutRow = {
+  ...entry,
+  key: 'checkout',
+  reviewId: undefined,
+  group: 'No review' as const,
+  title: 'feature',
+};
+const closedReview = {
+  ...entry,
+  key: 'closed',
+  group: 'Closed' as const,
+  closed: true,
+};
+it.each([
+  [
+    'drops a checkout whose only review is closed',
+    [checkoutRow, closedReview],
+    ['closed'],
+  ],
+  [
+    'keeps the main checkout beside its closed review',
+    [{ ...checkoutRow, group: 'Projects' as const }, closedReview],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review is on another computer',
+    [checkoutRow, { ...closedReview, environmentId: 'mac' }],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review lost its worktree',
+    [checkoutRow, { ...closedReview, worktreeId: undefined }],
+    ['checkout', 'closed'],
+  ],
+  ['keeps a checkout with no review at all', [checkoutRow], ['checkout']],
+])('%s', (_, rows, keys) => {
+  expect(reviewListWithoutClosedCheckouts(rows).map((row) => row.key)).toEqual(
+    keys,
+  );
 });
 
 it('keeps the branch as the label of an attached checkout', () => {

@@ -130,6 +130,7 @@ export {
   reviewListMeta,
   reviewListSignal,
   reviewListRow,
+  reviewListWithoutClosedCheckouts,
   reviewListRowContext,
   reviewListCheckout,
   emptyReviewListFilter,
