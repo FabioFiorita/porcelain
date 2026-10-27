@@ -102,6 +102,7 @@ import {
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
+  GitHubPullRequestNotFoundError,
   GitHubReadError,
   UnknownBoxLayerError,
   CommentAuthorMismatchError,
@@ -170,6 +171,11 @@ const rules: readonly StatusRule[] = [
     statusCode: 409,
   },
   { errors: [ReviewNotFoundError], statusCode: 404 },
+  {
+    errors: [GitHubPullRequestNotFoundError],
+    statusCode: 404,
+    message: 'GitHub has no such pull request',
+  },
   {
     errors: [
       InvalidPairingAddressError,
