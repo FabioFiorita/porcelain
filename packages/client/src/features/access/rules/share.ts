@@ -19,7 +19,7 @@ type IssuedLink = {
   expiresAt: string;
 };
 
-const remoteRouteNames: readonly RemoteRouteName[] = [
+export const remoteRouteNames: readonly RemoteRouteName[] = [
   'lan',
   'tailnet',
   'cloudflare',

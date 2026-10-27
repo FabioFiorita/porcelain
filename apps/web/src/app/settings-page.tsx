@@ -1,5 +1,6 @@
 import { useElement } from '@/shared/hooks/use-element';
 import {
+  ChevronLeftIcon,
   XIcon,
   GitBranchIcon,
   SlidersHorizontalIcon,
@@ -106,7 +107,7 @@ export function SettingsPage({
         replace: true,
       });
   };
-  const openRemote = (id: string) => {
+  const openRemote = (id: string, hash?: string) => {
     setListReturn({
       scroll: list?.scrollTop ?? 0,
       focus:
@@ -117,6 +118,7 @@ export function SettingsPage({
     void navigate({
       to: '/settings/$section/$environmentId',
       params: { section: 'computers', environmentId: id },
+      ...(hash === undefined ? {} : { hash }),
     });
   };
   const attachPage = (element: HTMLElement | null) => {
@@ -159,7 +161,7 @@ export function SettingsPage({
       ref={attachPage}
       tabIndex={-1}
       aria-label="Settings"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper border bg-card outline-none"
     >
       <header className="flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
         <Tooltip>
@@ -172,13 +174,15 @@ export function SettingsPage({
           </TooltipContent>
         </Tooltip>
         <Breadcrumb className="min-w-0 flex-1">
-          <BreadcrumbList className="min-w-0 flex-nowrap">
+          <BreadcrumbList className="min-w-0 flex-nowrap gap-1.5 text-ui leading-4 sm:gap-1.5">
             <BreadcrumbItem>Settings</BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
               <h2>
                 {environmentId === undefined ? (
-                  <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="font-medium">
+                    {current.label}
+                  </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink
                     render={<button type="button" onClick={returnToList} />}
@@ -192,7 +196,7 @@ export function SettingsPage({
               <>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="min-w-0">
+                  <BreadcrumbPage className="min-w-0 font-medium">
                     {detailName}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -203,12 +207,16 @@ export function SettingsPage({
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto shrink-0"
+          className="ml-auto shrink-0 gap-1.5 rounded-md pr-1.5 pl-2 text-xs"
           onClick={leave}
-          aria-label="Close Settings"
+          aria-label={
+            environmentId === undefined ? 'Close Settings' : 'Back to Computers'
+          }
         >
-          <XIcon />
-          <span className="hidden sm:inline">Close</span>
+          {environmentId === undefined ? <XIcon /> : <ChevronLeftIcon />}
+          <span className="hidden sm:inline">
+            {environmentId === undefined ? 'Close' : 'Computers'}
+          </span>
           <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
         </Button>
       </header>
@@ -224,9 +232,13 @@ export function SettingsPage({
               return (
                 <Button
                   key={item.id}
-                  variant={selected ? 'secondary' : 'ghost'}
+                  variant="ghost"
                   size="sm"
-                  className="shrink-0 justify-start md:w-full"
+                  className={cn(
+                    'h-8 shrink-0 justify-start gap-2.5 rounded-md pr-2.5 pl-2 text-ui leading-4 md:w-full [&_svg]:text-muted-foreground',
+                    selected &&
+                      'bg-muted inset-ring inset-ring-border [&_svg]:text-foreground',
+                  )}
                   aria-current={selected ? 'page' : undefined}
                   onClick={() => {
                     if (
@@ -249,7 +261,7 @@ export function SettingsPage({
               );
             })}
           </div>
-          <p className="mt-auto hidden px-5 pb-4 text-xs text-muted-foreground md:block">
+          <p className="mt-auto hidden px-5 pb-4 text-xs tabular-nums text-muted-foreground md:block">
             Porcelain {import.meta.env.PORCELAIN_VERSION}
           </p>
         </nav>
@@ -260,7 +272,7 @@ export function SettingsPage({
                 ref={attachList}
                 className={
                   environmentId === undefined
-                    ? 'min-h-0 flex-1 overflow-y-auto'
+                    ? 'min-h-0 flex-1 overflow-y-auto outline-none'
                     : 'hidden'
                 }
                 role="region"

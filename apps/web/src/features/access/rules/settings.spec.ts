@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { agentMcpCommand, devicePlatformName } from './settings';
+import type { RemoteAccess } from '@porcelain/client/access/rules';
+import {
+  agentMcpCommand,
+  computerSummary,
+  deviceKind,
+  devicePlatformName,
+} from './settings';
 
 it.each([
   ['claude', 'claude mcp add porcelain -- porcelain mcp'],
@@ -62,3 +68,50 @@ it.each([
 ])('shows a readable platform for %s', (input, expected) => {
   expect(devicePlatformName(input)).toBe(expected);
 });
+
+it.each([
+  ['iOS', 'phone'],
+  ['Android', 'phone'],
+  ['Mobile', 'phone'],
+  ['iPadOS', 'tablet'],
+  ['Chrome on Linux', 'browser'],
+  ['Safari on iPadOS', 'browser'],
+  [
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1',
+    'browser',
+  ],
+  ['', 'browser'],
+] as const)('draws a device on %s as a %s', (platform, expected) => {
+  expect(deviceKind(platform)).toBe(expected);
+});
+
+const on = { enabled: true, status: { kind: 'on' as const, urls: [] } };
+const off = { enabled: false, status: { kind: 'off' as const } };
+const starting = { enabled: true, status: { kind: 'starting' as const } };
+
+function access(routes: RemoteAccess['routes']): RemoteAccess {
+  return { routes, serviceUrl: 'http://127.0.0.1:4173' };
+}
+
+it.each([
+  [
+    { lan: on, tailnet: on, cloudflare: off },
+    3,
+    'Local network and Tailscale · 3 devices',
+  ],
+  [
+    { lan: on, tailnet: on, cloudflare: on },
+    1,
+    'Local network, Tailscale and Cloudflare tunnel · 1 device',
+  ],
+  [
+    { lan: off, tailnet: starting, cloudflare: off },
+    0,
+    'No way in on · 0 devices',
+  ],
+] as const)(
+  'summarises ways in that answer and devices',
+  (routes, devices, expected) => {
+    expect(computerSummary(access(routes), devices)).toBe(expected);
+  },
+);

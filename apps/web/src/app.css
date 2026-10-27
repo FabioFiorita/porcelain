@@ -46,6 +46,8 @@
   --text-briefing-title--line-height: 3rem;
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
+  --tracking-title: -0.04em;
+  --tracking-lead: -0.005em;
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', 'Geist Fallback', sans-serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono Fallback', monospace;
@@ -221,10 +223,65 @@
   gap: calc(var(--spacing) * 0.5);
 }
 
+.settings-content [data-slot='item-title'] {
+  line-height: calc(var(--spacing) * 5);
+}
+
 .settings-content [data-slot='item-description'] {
   display: block;
   overflow: visible;
   font-size: var(--text-ui);
+  line-height: calc(var(--spacing) * 4.5);
+}
+
+.settings-content :is([data-slot='input'], [data-slot='select-trigger']) {
+  border-color: var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  font-size: var(--text-ui);
+}
+
+.settings-content [data-slot='tabs-list'] {
+  height: auto;
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 0.5);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.settings-content [data-slot='tabs-trigger'] {
+  height: calc(var(--spacing) * 6);
+  padding-inline: calc(var(--spacing) * 2.5);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: calc(var(--spacing) * 6);
+}
+
+.settings-content [data-slot='tabs-trigger']:hover {
+  color: var(--foreground);
+}
+
+.settings-content [data-slot='tabs-trigger'][data-active] {
+  background: var(--background);
+  box-shadow: var(--shadow-row);
+  color: var(--foreground);
+}
+
+.settings-content
+  :is(
+    [data-slot='badge'][data-variant='secondary'],
+    [data-slot='badge'][data-variant='outline']
+  ) {
+  height: calc(var(--spacing) * 4.5);
+  padding-inline: calc(var(--spacing) * 1.5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--foreground);
+  font-size: var(--text-2xs);
+  line-height: calc(var(--spacing) * 4.5);
 }
 
 @media (min-width: 64rem) {

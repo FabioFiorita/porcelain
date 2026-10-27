@@ -18,6 +18,7 @@ export {
   localNetworkNote,
   networkName,
   pairingAddresses,
+  remoteRouteNames,
   remoteRouteTitles,
   routeFailure,
   tailscaleServeCommand,
