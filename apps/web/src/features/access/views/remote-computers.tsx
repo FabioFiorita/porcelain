@@ -68,7 +68,18 @@ function RemoteRow({
           <span className="font-mono">{remote.environmentId.slice(0, 8)}</span>
         </>
       }
-      update={showUpdates && update && <SettingsUpdateRow row={update} />}
+      update={
+        showUpdates &&
+        (update ? (
+          <SettingsUpdateRow row={update} />
+        ) : (
+          status.kind === 'offline' && (
+            <p className="text-xs leading-4 text-muted-foreground">
+              Version unavailable while offline
+            </p>
+          )
+        ))
+      }
     />
   );
 }
@@ -308,7 +319,7 @@ function ComputerRow({
       >
         {statusDots[status]}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 self-start">
         <div className="flex min-w-0 items-center gap-2">
           <TruncatedText
             text={name}
@@ -331,7 +342,7 @@ function ComputerRow({
         </p>
       </div>
       {update && (
-        <div className="relative col-span-2 col-start-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-start-1">
+        <div className="relative col-span-2 col-start-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-start-1 sm:max-w-80">
           {update}
         </div>
       )}
