@@ -114,7 +114,7 @@ export function SettingsPage({
         replace: true,
       });
   };
-  const openRemote = (id: string, hash?: string) => {
+  const openRemote = (id: string) => {
     setListReturn({
       scroll: list?.scrollTop ?? 0,
       focus:
@@ -125,7 +125,6 @@ export function SettingsPage({
     void navigate({
       to: '/settings/$section/$environmentId',
       params: { section: 'computers', environmentId: id },
-      ...(hash === undefined ? {} : { hash }),
     });
   };
   const attachPage = (element: HTMLElement | null) => {

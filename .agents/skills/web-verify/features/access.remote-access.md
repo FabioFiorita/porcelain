@@ -9,6 +9,7 @@ selectors:
   - 'Local network warning'
   - 'Not encrypted'
   - 'Tailscale'
+  - 'Set up Tailscale'
   - 'Tailscale name'
   - 'Save name'
   - 'Copy the tailscale serve command'
@@ -32,7 +33,7 @@ Settings → Computers → This computer → Ways in turns the local network, th
 - Workspace → `Toggle Sidebar` (phone width) → `Settings` (navigator footer) → `Computers` → `Open This computer: <name>` → Ways in.
 - Keyboard: `Alt+Shift+S` on the workspace (focus outside a text field) opens Settings, then `Computers` → `Open This computer: <name>` → Ways in.
 - Route: `/settings/computers/this-computer#ways-in` (host-authorized browser or desktop).
-- Controls: switches "Local network", "Tailscale", "Cloudflare tunnel"; textbox "Tailscale name" + `Save name`; textbox "Public hostname" + `Save hostname`; `Check again` after a failure.
+- Controls: switches "Local network", "Tailscale", "Cloudflare tunnel"; `Set up Tailscale` (then `Tailscale setup`) disclosing textbox "Tailscale name" + `Save name`; `Set up Cloudflare tunnel` disclosing textbox "Public hostname" + `Save hostname`; `Check again` after a failure.
 
 ## Driving it with browser
 
@@ -60,14 +61,14 @@ Required instance mode: `--desktop`.
    - the text `http://192.168.1.20:<port>` with a button "Copy http://192.168.1.20:<port>".
    - the text "Listening on 192.168.1.0/24 on eth0 only."
    - switch "Tailscale" still disabled.
-3. Fill textbox `Tailscale name` with 'Porcelain.Tail0000.ts.net'
+3. Click button `Set up Tailscale`, then fill textbox `Tailscale name` with 'Porcelain.Tail0000.ts.net'
    Expect: button "Save name" enabled.
 4. Click button `Save name`
    Expect:
    - switch "Tailscale" checked.
    - the text "https://porcelain.tail0000.ts.net".
    - the command text "tailscale serve --bg --https=443 http://127.0.0.1:41000" with a button "Copy the tailscale serve command".
-5. Fill textbox `Public hostname` with 'https://Porcelain.Example.com/'
+5. Click button `Set up Cloudflare tunnel`, then fill textbox `Public hostname` with 'https://Porcelain.Example.com/'
    Expect: button "Save hostname" enabled; switch "Cloudflare tunnel" still disabled.
 6. Click button `Save hostname`
    Expect: switch "Cloudflare tunnel" checked; the text "https://porcelain.example.com".
@@ -82,7 +83,7 @@ Required instance mode: `--desktop`.
 11. Click switch named `Local network`
     Expect: switch "Local network" not checked; no text `http://192.168.1.20:<port>`; the "Turning it on listens on 192.168.1.0/24 …" note again.
 12. Navigate to `/settings/computers/this-computer#ways-in`
-    Expect: after the reload, "Local network" not checked, "Tailscale" and "Cloudflare tunnel" checked, textbox "Tailscale name" holding "porcelain.tail0000.ts.net".
+    Expect: after the reload, "Local network" not checked, "Tailscale" and "Cloudflare tunnel" checked, buttons "Tailscale setup" and "Cloudflare tunnel setup" collapsed; clicking `Tailscale setup` shows textbox "Tailscale name" holding "porcelain.tail0000.ts.net".
 
 ### Observable proof
 

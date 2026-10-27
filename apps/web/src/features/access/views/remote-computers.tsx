@@ -1,4 +1,5 @@
 import { AsyncResult } from 'effect/reactivity';
+import { Link } from '@tanstack/react-router';
 import { Cause, Option } from 'effect';
 import {
   ChevronRightIcon,
@@ -144,7 +145,7 @@ export function RemoteComputers({
 }: {
   environment: Environment;
   showUpdates: boolean;
-  onOpen: (environmentId: string, hash?: string) => void;
+  onOpen: (environmentId: string) => void;
 }) {
   const { connection } = useConnectedContext();
   const { remotes, error: unreadable } = useSavedEnvironments();
@@ -240,13 +241,14 @@ export function RemoteComputers({
       </FieldSet>
       <p className="-mt-3.5 text-ui leading-5 text-muted-foreground">
         To pair a phone, tablet or browser with this computer, open{' '}
-        <button
-          type="button"
+        <Link
+          to="/settings/$section/$environmentId"
+          params={{ section: 'computers', environmentId: 'this-computer' }}
+          hash="devices"
           className="rounded-sm font-medium text-foreground underline underline-offset-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-          onClick={() => onOpen('this-computer', 'devices')}
         >
           {environment.name} › Devices
-        </button>
+        </Link>
         .
       </p>
     </>
@@ -316,7 +318,7 @@ function ComputerRow({
                 type="button"
                 aria-label={openLabel}
                 onClick={onOpen}
-                className="min-w-0 rounded-sm text-left outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/30"
+                className="flex min-w-0 rounded-sm text-left outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/30"
               >
                 {text}
               </button>
