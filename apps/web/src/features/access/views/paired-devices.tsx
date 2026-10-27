@@ -155,7 +155,12 @@ function DeviceTrustControl({
   const [trust, setTrusted] = useSetDeviceTrust(connection, id);
   return (
     <>
-      <Label aria-hidden>Can update</Label>
+      <Label
+        aria-hidden
+        className="text-xs leading-4 font-normal text-muted-foreground"
+      >
+        Can update
+      </Label>
       <Switch
         aria-label={`${label} can update Porcelain`}
         checked={trusted}
@@ -186,7 +191,12 @@ function WaysInPermissionControl({
   const [permission, setAllowed] = useSetWaysInPermission(connection, id);
   return (
     <>
-      <Label aria-hidden>Can edit ways in</Label>
+      <Label
+        aria-hidden
+        className="text-xs leading-4 font-normal text-muted-foreground"
+      >
+        Can edit ways in
+      </Label>
       <Switch
         aria-label={`${label} can edit ways in`}
         checked={allowed}
