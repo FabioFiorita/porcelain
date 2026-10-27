@@ -27,7 +27,7 @@ export function ChangeTable({
     (item) => item.reviewStatus === 'reviewed',
   ).length;
   return (
-    <section aria-label={label} className="pb-5">
+    <section aria-label={label} className="pb-4.25">
       <div className="flex min-h-6 flex-wrap items-center gap-x-3.5 gap-y-1 border-b pb-1.5 text-xs text-muted-foreground tabular-nums">
         <h2 className="text-ui leading-4 font-medium text-foreground">
           {label}
@@ -61,7 +61,9 @@ export function ChangeTable({
               />
               <button
                 type="button"
-                aria-current={controls.current === item.path ? 'true' : undefined}
+                aria-current={
+                  controls.current === item.path ? 'true' : undefined
+                }
                 onClick={() => controls.open(item.path)}
                 className="flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
               >

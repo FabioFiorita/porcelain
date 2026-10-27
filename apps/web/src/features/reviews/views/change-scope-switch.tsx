@@ -38,7 +38,7 @@ export function ChangeScopeSwitch({
                 <TabsPrimitive.Tab
                   value={scope}
                   aria-label={label}
-                  className="inline-flex h-6 items-center rounded-chip px-2.5 text-xs leading-6 font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:bg-background data-active:text-foreground data-active:shadow-row"
+                  className="inline-flex h-6 items-center rounded-chip px-1.5 text-xs @min-3xl/pane:px-2.5 leading-6 font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:bg-background data-active:text-foreground data-active:shadow-row"
                 />
               }
             >

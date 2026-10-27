@@ -26,6 +26,7 @@ import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
+  PIERRE_CARD_CSS,
   PIERRE_COMMENT_CSS,
   PIERRE_DECISION_CSS,
   PIERRE_DECISION_THEME,
@@ -361,7 +362,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CARD_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,

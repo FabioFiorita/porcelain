@@ -357,17 +357,12 @@ function CountedTab({
               <Icon className="size-3.5 shrink-0" />
               {label}
               {count && (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground tabular-nums"
-                  >
-                    {count.value}
-                  </span>
-                  <span id={countId} hidden>
-                    {count.description}
-                  </span>
-                </>
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground tabular-nums"
+                >
+                  {count.value}
+                </span>
               )}
               {tabKey !== 'handoff' && pinned && (
                 <Tooltip disableHoverablePopup>
@@ -465,6 +460,11 @@ function CountedTab({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+      {count && (
+        <span id={countId} hidden>
+          {count.description}
+        </span>
+      )}
     </span>
   );
 }
