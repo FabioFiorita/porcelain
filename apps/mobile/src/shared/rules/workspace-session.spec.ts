@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Schema } from 'effect';
 import { documentTab } from './workspace-documents';
 import { activateDocument, closeDocument } from './document-tabs';
@@ -7,6 +7,7 @@ import {
   initialWorkspaceSnapshot,
   readWorkspaceSnapshot,
   restoreWorkspace,
+  reviewPanelSelection,
   selectedDocument,
   showReview,
   workspaceSnapshot,
@@ -84,6 +85,52 @@ it('returns to the Review tab without closing documents in either pane', () => {
   expect(review.right).toEqual({ tabs: [commit], active: commit.key });
   expect(review.focused).toBe('left');
   expect(selectedDocument(review, 'files')?.label).toBe('README.md');
+});
+
+describe('selects exactly one Review panel row', () => {
+  const initial = restoreWorkspace(initialWorkspaceSnapshot(), 'review');
+  const uncommitted = { kind: 'worktree' as const };
+  const reviewFile = documentTab({
+    kind: 'review-file',
+    path: 'src/app.css',
+    comparison: uncommitted,
+  });
+  const branchFile = documentTab({
+    kind: 'review-file',
+    path: 'src/app.css',
+    comparison: { kind: 'branch', base: 'main' },
+  });
+  const readme = documentTab({ kind: 'file', path: 'README.md' });
+  const opened = { ...initial, ...openInPane(initial, reviewFile) };
+  it.each([
+    {
+      state: 'the Review tab after opening a changed file',
+      session: showReview(opened),
+      selection: { kind: 'overview' },
+    },
+    {
+      state: 'a changed file in the current comparison',
+      session: opened,
+      selection: { kind: 'file', path: 'src/app.css' },
+    },
+    {
+      state: 'a changed file from another comparison',
+      session: { ...initial, ...openInPane(initial, branchFile) },
+      selection: undefined,
+    },
+    {
+      state: 'a plain file after a changed file',
+      session: { ...opened, ...openInPane(opened, readme) },
+      selection: { kind: 'file', path: 'src/app.css' },
+    },
+    {
+      state: 'a changed file in the focused side pane beside the Review tab',
+      session: { ...initial, ...openInPane(initial, reviewFile, 'right') },
+      selection: { kind: 'overview' },
+    },
+  ])('$state', ({ session, selection }) => {
+    expect(reviewPanelSelection(session)).toEqual(selection);
+  });
 });
 
 it('starts with a clean layout when saved structure or parent selection is invalid', () => {

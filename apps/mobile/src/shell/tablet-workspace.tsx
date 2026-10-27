@@ -27,7 +27,10 @@ import {
 } from '../features/projects';
 import { visiblePanes } from '../shared/rules/document-panes';
 import type { ReviewComparison } from '../shared/rules/review-comparison';
-import { selectedDocument } from '../shared/rules/workspace-session';
+import {
+  reviewPanelSelection,
+  selectedDocument,
+} from '../shared/rules/workspace-session';
 import {
   documentTab,
   type InspectorMode,
@@ -102,17 +105,6 @@ function SelectedWorkspace({
   const reviewShown = session.left.active === null;
   const fileSelection = selectedDocument(session, 'files');
   const historySelection = selectedDocument(session, 'history');
-  const reviewSelection = selectedDocument(session, 'review');
-  const selectedReviewPath =
-    reviewSelection?.kind === 'review-file' &&
-    reviewSelection.key ===
-      documentTab({
-        kind: 'review-file',
-        path: reviewSelection.path,
-        comparison: session.comparison,
-      }).key
-      ? reviewSelection.path
-      : undefined;
   const scope = (pane: 'left' | 'right') => `${workspace.key}:${pane}`;
   const showContent = () => {
     if (!landscape) setSheetOpen(false);
@@ -191,8 +183,7 @@ function SelectedWorkspace({
           workspace={workspace}
           comparison={session.comparison}
           onComparison={changeComparison}
-          selectedPath={selectedReviewPath}
-          overviewSelected={reviewShown}
+          selection={reviewPanelSelection(session)}
           onOverview={() => {
             openReview();
             showContent();

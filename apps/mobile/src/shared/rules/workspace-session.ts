@@ -103,6 +103,22 @@ export function selectedDocument(
     : [...pane.tabs].reverse().find((tab) => documentMode(tab) === mode);
 }
 
+export type ReviewPanelSelection =
+  | { readonly kind: 'overview' }
+  | { readonly kind: 'file'; readonly path: string };
+
+export function reviewPanelSelection(
+  session: WorkspaceSession,
+): ReviewPanelSelection | undefined {
+  if (session.left.active === null) return { kind: 'overview' };
+  const document = selectedDocument(session, 'review');
+  return document?.kind === 'review-file' &&
+    document.key ===
+      documentTab({ ...document, comparison: session.comparison }).key
+    ? { kind: 'file', path: document.path }
+    : undefined;
+}
+
 const savedTabsSchema = Schema.Struct({
   tabs: Schema.Array(
     Schema.Union([
