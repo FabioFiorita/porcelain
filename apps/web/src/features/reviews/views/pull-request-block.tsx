@@ -32,7 +32,7 @@ function returnFocusTo(
   pending: FocusReturn,
   done: () => void,
 ) {
-  if (!element || pending !== target) return;
+  if (!element || pending !== target || element.matches(':disabled')) return;
   done();
   if (document.activeElement === document.body) element.focus();
 }
@@ -57,6 +57,12 @@ export function PullRequestBlock({ reviewId, context }: Props) {
   const available = pull?.kind === 'available' ? pull.pullRequest : undefined;
   const notice = reviewPullRequestNotice(pull);
   const answer = Option.getOrUndefined(AsyncResult.value(mutation));
+  const writeSettledWithoutChange =
+    focusReturn !== undefined &&
+    !mutation.waiting &&
+    (AsyncResult.isFailure(mutation) || answer?.kind === 'unavailable');
+  const currentControl: FocusReturn = linked ? 'linked' : 'unlinked';
+  const focusTarget = writeSettledWithoutChange ? currentControl : focusReturn;
   const outcome = (
     <>
       {AsyncResult.isFailure(mutation) && (
@@ -85,7 +91,7 @@ export function PullRequestBlock({ reviewId, context }: Props) {
         pending={mutation.waiting}
         outcome={outcome}
         inputRef={(element) =>
-          returnFocusTo(element, 'unlinked', focusReturn, () =>
+          returnFocusTo(element, 'unlinked', focusTarget, () =>
             setFocusReturn(undefined),
           )
         }
@@ -172,7 +178,7 @@ export function PullRequestBlock({ reviewId, context }: Props) {
           </Button>
           <Button
             ref={(element) =>
-              returnFocusTo(element, 'linked', focusReturn, () =>
+              returnFocusTo(element, 'linked', focusTarget, () =>
                 setFocusReturn(undefined),
               )
             }
