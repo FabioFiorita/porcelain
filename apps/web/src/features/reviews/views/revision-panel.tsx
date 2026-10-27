@@ -1,4 +1,5 @@
 import { PullRequestBlock } from './pull-request-block';
+import { RevisionNavigation } from './review-navigation';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
 import { useReviewPanelView } from '../store';
@@ -10,6 +11,8 @@ import {
   type ReviewRevision,
   type ReviewScope,
   revisionReviewItems,
+  type ReviewStep,
+  type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { useComments } from '../queries/comments';
@@ -28,6 +31,8 @@ export function RevisionPanel({
   onChange,
   onStop,
   onProof,
+  activeStop,
+  onStep,
 }: {
   revision: ReviewRevision;
   scope: ReviewScope;
@@ -36,17 +41,21 @@ export function RevisionPanel({
   file: string | undefined;
   onFile: (path: string) => void;
   onChange: (path: string) => void;
-  onStop: (key: 'briefing' | 'unexplained') => void;
+  onStop: (key: WalkthroughKey) => void;
+  activeStop: string;
+  onStep: (step: ReviewStep) => void;
   onProof: () => void;
 }) {
   const { threads } = useComments(scope, context);
   const { view, setView } = useReviewPanelView(revision.reviewId);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PullRequestBlock reviewId={revision.reviewId} context={context} />
       <ChangeReadiness
+        context={context}
+        marks={marks}
         files={items}
         review={revision.content}
         threads={threads}
@@ -63,12 +72,20 @@ export function RevisionPanel({
       <ReviewViews
         view={view}
         onView={setView}
-        filesLabel="Changed files"
+        filesLabel="Explore"
         openComments={threads.filter((thread) => !thread.resolved).length}
       />
       {view === 'layers' && (
         <ScrollArea className="h-0 min-h-0 flex-1">
           <div className="p-2 pr-3">
+            <RevisionNavigation
+              revision={revision}
+              marks={marks}
+              context={context}
+              activeStop={activeStop}
+              onStop={onStop}
+              onStep={onStep}
+            />
             <SidebarGroup
               name="Changed files"
               count={items.length}

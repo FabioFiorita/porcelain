@@ -20,10 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useAtomValue } from '@effect/atom-react';
 import { readReview, readReviewMarks } from '@porcelain/client/reviews';
 import {
-  walkthroughStops,
-  revisionReviewItems,
-  revisionDecisionStates,
-  stopDone,
+  revisionDecisionProgress,
   type ReviewResponse,
 } from '@porcelain/client/reviews/rules';
 import {
@@ -665,18 +662,11 @@ function ReviewTabProgress({
     }),
   );
   const marks = Option.getOrUndefined(AsyncResult.value(result));
-  let reviewed = 0;
-  if (revision) {
-    const items = revisionReviewItems(revision, marks);
-    const decisions = revisionDecisionStates(revision, marks);
-    reviewed = walkthroughStops(
-      revision.content,
-      revision.files.map((file) => file.path),
-      { specsApart: preferences.collapseSpecs },
-    ).filter(
-      (stop) => stop.kind === 'decision' && stopDone(stop, items, decisions),
-    ).length;
-  }
+  const reviewed = revision
+    ? revisionDecisionProgress(revision, marks, {
+        specsApart: preferences.collapseSpecs,
+      }).reviewed
+    : 0;
   return (
     <span
       aria-hidden="true"

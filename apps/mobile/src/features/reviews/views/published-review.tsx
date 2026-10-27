@@ -28,6 +28,7 @@ import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
+import { IconButton } from '../../../components/ui/icon-button';
 import { Loading } from '../../../components/ui/loading';
 import { Empty } from '../../../components/ui/empty';
 import { HtmlPreview } from '../../../components/ui/html-preview';
@@ -220,7 +221,11 @@ function PublishedContent({
             setPlace({ ...place, summary: true });
           }}
         />
-        <Button label="Refresh review" variant="ghost" onPress={onRefresh} />
+        <IconButton
+          icon="refresh"
+          accessibilityLabel="Refresh review"
+          onPress={onRefresh}
+        />
       </Box>
       {place.summary ? (
         <>

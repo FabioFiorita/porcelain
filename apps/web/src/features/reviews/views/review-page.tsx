@@ -71,6 +71,7 @@ import { useReviewSummary } from '../queries/summary';
 import { useReviewPanelOpen, useWalkthroughPlace } from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
+import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
 import { WalkthroughBriefing } from './walkthrough-briefing';
@@ -106,6 +107,7 @@ type ReviewPageProps = {
   onBack: () => void;
   onDeleted?: (() => void) | undefined;
   liveScope?: ReviewScope | undefined;
+  initialStep?: string | undefined;
   proofCurrent?: boolean | undefined;
 };
 
@@ -121,6 +123,7 @@ export function ReviewPage({
   onBack,
   onDeleted,
   liveScope,
+  initialStep,
   proofCurrent = true,
   active = true,
 }: ReviewPageProps) {
@@ -160,6 +163,7 @@ export function ReviewPage({
       onBack={onBack}
       onDeleted={onDeleted}
       liveScope={liveScope}
+      initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
     />
@@ -260,6 +264,7 @@ function ReviewRevisionPage({
   onBack,
   onDeleted,
   liveScope,
+  initialStep,
   proofCurrent = true,
   active = true,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
@@ -321,11 +326,19 @@ function ReviewRevisionPage({
   );
   const [chosen, setChosen] = useState<string>();
   const [view, setView] = useState<'walkthrough' | 'summary'>('walkthrough');
-  const [file, setFile] = useState<{
-    path: string;
-    step?: ReviewStep;
-    change?: true;
-  }>();
+  const [file, setFile] = useState<
+    | {
+        path: string;
+        step?: ReviewStep;
+        change?: true;
+      }
+    | undefined
+  >(() => {
+    const step = review.layers
+      .flatMap((layer) => layer.steps)
+      .find((step) => step.id === initialStep);
+    return step ? { path: step.pointer.path, step } : undefined;
+  });
   const standalone = toolbarTarget === undefined;
   const desktop = useDesktopReview();
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
@@ -440,21 +453,11 @@ function ReviewRevisionPage({
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
       >
         {reviewedFiles} of {items.length} files
-        <span
-          role="progressbar"
-          aria-label="Files reviewed"
-          aria-valuemin={0}
-          aria-valuemax={items.length}
-          aria-valuenow={reviewedFiles}
-          className="h-1 w-16 overflow-hidden rounded-full bg-muted"
-        >
-          <span
-            className="block h-full bg-primary"
-            style={{
-              width: `${items.length === 0 ? 0 : (reviewedFiles / items.length) * 100}%`,
-            }}
-          />
-        </span>
+        <ProgressMeter
+          label="Files reviewed"
+          value={reviewedFiles}
+          max={items.length}
+        />
         <span>
           {reviewedDecisions} of {review.layers.length} decisions
         </span>
@@ -520,6 +523,13 @@ function ReviewRevisionPage({
             scope={scope}
             context={context}
             marks={marks}
+            activeStop={stop.key}
+            onStep={(step) =>
+              reveal(() => {
+                setView('walkthrough');
+                setFile({ path: step.pointer.path, step });
+              })
+            }
             file={file?.path}
             onFile={(path) =>
               reveal(() => {

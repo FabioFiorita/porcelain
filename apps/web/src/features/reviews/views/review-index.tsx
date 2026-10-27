@@ -147,6 +147,7 @@ export function ReviewIndex({
         />
       ) : (
         <ChangeReadiness
+          context={context}
           files={changes}
           review={review}
           threads={threads}

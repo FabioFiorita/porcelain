@@ -105,7 +105,7 @@ export function CommitRow({
               {children}
             </button>
             {refs.length > 0 && (
-              <CommitRefs refs={refs} onOpenCommit={select} />
+              <CommitRefs refs={refs} current={current} onOpenCommit={select} />
             )}
           </>
         ) : (
@@ -125,10 +125,18 @@ export function CommitRow({
                   {` ${shortOid(commit.oid)} ${commit.author.name} ${age}`}
                 </span>
               </button>
-              {head && <Badge className="relative h-4 shrink-0">HEAD</Badge>}
+              {head && (
+                <Badge variant="brand" className="relative h-4 shrink-0">
+                  HEAD
+                </Badge>
+              )}
               <div className="min-w-0 flex-1 overflow-hidden">
                 {refs.length > 0 && (
-                  <CommitRefs refs={refs} onOpenCommit={select} />
+                  <CommitRefs
+                    refs={refs}
+                    current={current}
+                    onOpenCommit={select}
+                  />
                 )}
               </div>
             </div>

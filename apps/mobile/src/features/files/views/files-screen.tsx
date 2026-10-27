@@ -8,6 +8,7 @@ import { useFileReview } from '../../reviews';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
+import { useFileNavigation } from '../store';
 import { Stack } from 'expo-router';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -56,7 +57,12 @@ export function FilesScreen({
   return (
     <WorkspaceGate
       title="Files"
-      fallbackToolbar={<LeadingToolbar sidebar={sidebar} />}
+      fallbackFrame={(content) => (
+        <>
+          <LeadingToolbar sidebar={sidebar} />
+          {content}
+        </>
+      )}
     >
       {(selected) => (
         <FilesNavigation
@@ -98,12 +104,20 @@ function FilesNavigationView({
     read: useFilePreferences(selected.connection, selected.scope.projectId),
     write: useSetFilePreference(selected.connection, selected.scope.projectId),
   };
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const [requested, setRequested] = useState<readonly string[]>(['']);
-  const [query, setQuery] = useState('');
-  const [showHidden, setShowHidden] = useState(false);
-  const [pinnedOpen, setPinnedOpen] = useState(true);
-  const [allOpen, setAllOpen] = useState(true);
+  const {
+    expanded,
+    setExpanded,
+    requested,
+    setRequested,
+    query,
+    setQuery,
+    showHidden,
+    setShowHidden,
+    pinnedOpen,
+    setPinnedOpen,
+    allOpen,
+    setAllOpen,
+  } = useFileNavigation(selected.key, embedded);
   const [action, setAction] = useState<FileAction>();
   const [refreshRequested, setRefreshRequested] = useState(false);
   const directories = useDirectories({

@@ -64,14 +64,14 @@ Review shows the selected worktree’s changes, reviewed status, published decis
 
 ## How to get to it (user POV)
 
-- Phone Review tab; iPad Review inspector → Overview or changed file.
+- Phone Review tab; iPad Review panel → Overview or changed file.
 - `porcelain.dev://review`; Files remains the default launch destination.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
-1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; inspector switches and Comments → Done retain central tabs/selection.
+1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; panel switches and Comments → Done retain central tabs/selection.
 2. Choose Branch and a base from Uncommitted. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes.
 3. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again in the phone toolbar/iPad navigator. Switch Files/back and cold-launch through Metro: selected workspace stays.
 
