@@ -61,7 +61,7 @@ export function NavigatorStatus({ entry }: { entry: ReviewListEntry }) {
     signal.tone === 'destructive' ? (
       <CircleAlertIcon aria-hidden className="size-3.5 text-destructive" />
     ) : (
-      glyphs[entry.closed ? 'Closed' : entry.group]
+      glyphs[entry.group]
     );
   return (
     <Tooltip

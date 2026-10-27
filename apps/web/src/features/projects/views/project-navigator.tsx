@@ -589,9 +589,10 @@ export function ProjectNavigator({
                                     row.kind === 'review'
                                       ? 'items-start'
                                       : 'items-center',
-                                    active
-                                      ? 'bg-sidebar-row shadow-row'
-                                      : 'hover:bg-sidebar-accent',
+                                    active && 'bg-sidebar-row shadow-row',
+                                    !active &&
+                                      (entry.reviewId || !entry.disabled) &&
+                                      'hover:bg-sidebar-accent',
                                   )}
                                 >
                                   <NavigatorStatus entry={entry} />
