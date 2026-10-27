@@ -29,7 +29,7 @@ api:
 
 # access.device-trust
 
-On Settings → Computers → This computer → Pair a device the owner lets a paired device update Porcelain and takes that back with the device's "can update Porcelain" switch, and can create a pairing link whose device may update Porcelain from the moment it pairs. A separate "can edit ways in" switch lets a paired device see and change this computer's ways in from wherever it connects, except the way in it is connected through; it is off for every device until the owner turns it on, and update trust never grants it.
+On Settings → Computers → This computer → Pair a device the owner lets a paired device update Porcelain and takes that back with the device's "can update Porcelain" switch, and can create a pairing link whose device may update Porcelain from the moment it pairs. A separate "can edit ways in" switch lets a paired device see and change this computer's ways in from wherever it connects, except the way in it is connected through; it is off for every device until the owner turns it on, and update trust never grants it. A device paired through this computer's own address (badge This computer), such as the sandbox's Development setup, has no such switch unless it is already on.
 
 ## How to get to it (user POV)
 
@@ -68,16 +68,16 @@ None on disk. The default server has two paired devices: "Development setup" (th
    Expect: img "Pairing QR code"; text "Scan on Release laptop"; the Pairing link text `http://192.168.1.20:<port>/pair#c=<one-time code>&e=…`; listitem "Release laptop" containing "Pending link".
 10. `$C server pending-links`
     Expect: the link labelled "Release laptop" with `"trusted": true`.
-11. Click switch named `Development setup can edit ways in`
-    Expect: switch "Development setup can edit ways in" checked; switch "Development setup can update Porcelain" unchanged.
-12. Navigate to `/settings/devices`
-    Expect: switch "Development setup can edit ways in" still checked; click it again and it is not checked after another reload.
+11. Stay on Paired devices
+    Expect: listitem "Development setup" has switch "Development setup can update Porcelain" and no switch "Development setup can edit ways in".
+12. Turn on Cloudflare tunnel with hostname `porcelain.example.com` in Ways in, wait for On, then pair a device through it from the server-verify kit (`POST /api/pair` with `Host: porcelain.example.com`) labelled "Tunnel phone" and reload
+    Expect: switch "Tunnel phone can edit ways in" not checked; click it and it is checked while "Tunnel phone can update Porcelain" is unchanged; after a reload it is still checked; click it again and it is not checked after another reload.
 
 ### Observable proof
 
 Reload and read `GET /api/access`: device trust persists. Trust switches POST 200. Confirm `POST /api/pairings` sends `trusted: true` for Release laptop; pending rows do not display trust.
 
-Automated coverage: `access-device-trust.desktop.e2e.ts`, `access-ways-in-permission.desktop.e2e.ts`.
+Automated coverage: `access-device-trust.desktop.e2e.ts`, `access-ways-in-permission.desktop.e2e.ts` (pairs Tunnel phone through the tunnel).
 
 ## Gotchas
 

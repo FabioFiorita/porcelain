@@ -6,12 +6,13 @@ import {
 } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, invalidRequest, unauthenticated } from '../kit/answers.ts';
-import { tunnelOn, waysInChange } from '../kit/reads.ts';
+import { tunnelOn } from '../kit/reads.ts';
 import {
   issuePairing,
   pairBrowser,
   pairDevice,
   read,
+  waysInChange,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {

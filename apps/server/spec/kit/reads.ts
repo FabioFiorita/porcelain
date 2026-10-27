@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { read, receiptPath, worktreePath } from './requests.ts';
+import { read, receiptPath, waysInChange, worktreePath } from './requests.ts';
 import {
   list,
   record,
@@ -132,27 +132,6 @@ export function eventually(
     },
     { timeout: 10_000, interval: 100 },
   );
-}
-
-export async function waysInChange(
-  session: Session,
-  change: Record<string, unknown>,
-  request: Omit<HttpRequest, 'method' | 'path' | 'body'> = {},
-): Promise<HttpRequest> {
-  const current = await read(session, {
-    ...request,
-    method: 'GET',
-    path: '/api/remote-access',
-  });
-  return {
-    ...request,
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: {
-      expected: record(current.editing).fingerprint,
-      change,
-    },
-  };
 }
 
 export async function tunnelOn(session: Session, hostname: string) {

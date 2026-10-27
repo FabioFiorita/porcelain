@@ -46,7 +46,7 @@ export function PairedDevices({
             role="listitem"
             aria-label={device.label}
           >
-            <ItemContent className="min-w-0">
+            <ItemContent className="min-w-48">
               <ItemTitle className="flex-wrap">
                 {device.label}
                 {device.current && (
@@ -68,19 +68,23 @@ export function PairedDevices({
                 </ItemDescription>
               )}
             </ItemContent>
-            <ItemActions className="w-full flex-wrap sm:w-auto">
-              <DeviceTrustControl
-                connection={connection}
-                id={device.id}
-                label={device.label}
-                trusted={device.trusted}
-              />
-              <WaysInPermissionControl
-                connection={connection}
-                id={device.id}
-                label={device.label}
-                allowed={device.canEditWaysIn}
-              />
+            <ItemActions className="flex-wrap">
+              <div className="grid grid-cols-[auto_auto] items-center gap-x-2 gap-y-1.5">
+                <DeviceTrustControl
+                  connection={connection}
+                  id={device.id}
+                  label={device.label}
+                  trusted={device.trusted}
+                />
+                {(device.route !== 'loopback' || device.canEditWaysIn) && (
+                  <WaysInPermissionControl
+                    connection={connection}
+                    id={device.id}
+                    label={device.label}
+                    allowed={device.canEditWaysIn}
+                  />
+                )}
+              </div>
               {!device.current && (
                 <RevokeControl
                   connection={connection}
@@ -128,7 +132,9 @@ export function PairedDevices({
         each. Revoking a device signs it out at once and leaves the others
         alone. A device that can edit ways in sees and changes the local
         network, Tailscale and Cloudflare tunnel settings from anywhere it is
-        paired, except the way in it is connected through.
+        paired, except the way in it is connected through. A device paired
+        through this computer’s own address has no such switch: it edits ways in
+        only from this computer.
       </p>
     </div>
   );
@@ -156,7 +162,7 @@ function DeviceTrustControl({
         onCheckedChange={setTrusted}
       />
       {AsyncResult.isFailure(trust) && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="col-span-2">
           <AlertDescription>
             {connectionErrorMessage(Cause.squash(trust.cause))}
           </AlertDescription>
@@ -187,7 +193,7 @@ function WaysInPermissionControl({
         onCheckedChange={setAllowed}
       />
       {AsyncResult.isFailure(permission) && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="col-span-2">
           <AlertDescription>
             {connectionErrorMessage(Cause.squash(permission.cause))}
           </AlertDescription>

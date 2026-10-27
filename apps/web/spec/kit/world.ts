@@ -11,7 +11,12 @@ import {
   Recorder,
 } from '@porcelain/server/kit/isolated-server';
 import { prepareRemote } from '@porcelain/server/kit/remote-computer';
-import { pairingGrant } from '@porcelain/server/kit/requests';
+import {
+  pairDevice,
+  pairingGrant,
+  read,
+  waysInChange,
+} from '@porcelain/server/kit/requests';
 import type { Session } from '@porcelain/server/kit/session';
 import type {
   CodingToolReplies,
@@ -201,6 +206,18 @@ export class World {
     trusted = false,
   ): Promise<PairingParts> {
     return pairingGrant(await this.session(server), label, trusted);
+  }
+
+  async changeWaysIn(change: Record<string, unknown>): Promise<void> {
+    const session = await this.session();
+    await read(session, await waysInChange(session, change));
+  }
+
+  async pairThrough(host: string, label: string): Promise<void> {
+    await pairDevice(await this.session(), label, {
+      host,
+      origin: `https://${host}`,
+    });
   }
 
   async hits(server: ServerName): Promise<ServerHit[]> {

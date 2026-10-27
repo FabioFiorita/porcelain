@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
-import { eventually, waysInChange } from '../kit/reads.ts';
+import { eventually } from '../kit/reads.ts';
+import { waysInChange } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { record, type HttpRequest, type Session } from '../kit/session.ts';
 
