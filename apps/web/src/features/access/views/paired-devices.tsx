@@ -46,7 +46,7 @@ export function PairedDevices({
             role="listitem"
             aria-label={device.label}
           >
-            <ItemContent className="min-w-48">
+            <ItemContent className="basis-48">
               <ItemTitle className="flex-wrap">
                 {device.label}
                 {device.current && (
