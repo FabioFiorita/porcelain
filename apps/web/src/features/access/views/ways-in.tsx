@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import {
   connectionErrorMessage,
-  WAYS_IN_PERMISSION_NOTE,
+  waysInRefusal,
   type RemoteAccess,
 } from '@porcelain/client/access/rules';
 import { useRemoteAccess } from '../queries/share';
@@ -25,7 +25,7 @@ export function WaysInGate({
   if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
-        This device cannot see or change ways in. {WAYS_IN_PERMISSION_NOTE}
+        {waysInRefusal(connection.address)}
       </p>
     );
   if (AsyncResult.isFailure(remote))

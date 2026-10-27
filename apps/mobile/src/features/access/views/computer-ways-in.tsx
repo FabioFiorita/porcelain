@@ -2,7 +2,11 @@ import { useState, type ReactNode } from 'react';
 import { useAtom, useAtomRef, useAtomValue } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { readRemoteAccess, setRemoteAccess } from '@porcelain/client/access';
+import {
+  readRemoteAccess,
+  setRemoteAccess,
+  type EnvironmentConnection,
+} from '@porcelain/client/access';
 import {
   connectionErrorMessage,
   hostnameForm,
@@ -14,7 +18,7 @@ import {
   remoteRouteTitles,
   routeFailure,
   routeStatusLabel,
-  WAYS_IN_PERMISSION_NOTE,
+  waysInRefusal,
   type HostnameFormInput,
   type RemoteAccess,
   type RemoteAccessChange,
@@ -52,13 +56,17 @@ export function ComputerWaysIn({ environmentId }: { environmentId: string }) {
   );
 }
 
-function ConnectedWaysIn({ connection }: { connection: RuntimeConnection }) {
+function ConnectedWaysIn({
+  connection,
+}: {
+  connection: EnvironmentConnection;
+}) {
   const result = useAtomValue(readRemoteAccess(connection));
   const answer = Option.getOrUndefined(AsyncResult.value(result));
   if (answer === null)
     return (
       <Text variant="caption" tone="muted">
-        This device cannot see or change ways in. {WAYS_IN_PERMISSION_NOTE}
+        {waysInRefusal(connection.address)}
       </Text>
     );
   if (AsyncResult.isFailure(result))

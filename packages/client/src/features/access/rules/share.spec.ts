@@ -10,7 +10,7 @@ import {
   routeFailure,
   routeStatusLabel,
   tailscaleServeCommand,
-  WAYS_IN_PERMISSION_NOTE,
+  waysInRefusal,
   type RemoteAccess,
 } from './share.ts';
 
@@ -189,12 +189,27 @@ describe('routeStatusLabel', () => {
 });
 
 describe('ways in copy', () => {
+  const ownAddress =
+    'Ways in cannot be seen or changed over this connection, because it reaches the computer that runs Porcelain through that computer’s own address. Change them on that computer, or pair this device through the local network, Tailscale or a Cloudflare tunnel.';
+  const askOwner =
+    'This device cannot see or change ways in. An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
+
+  it.each([
+    ['http://127.0.0.1:4173', ownAddress],
+    ['http://127.0.1.1:4173', ownAddress],
+    ['http://localhost:4173', ownAddress],
+    ['http://[::1]:4173', ownAddress],
+    ['http://192.168.1.20:4173', askOwner],
+    ['https://laptop.tail0000.ts.net', askOwner],
+    ['https://porcelain.example.com', askOwner],
+    ['https://localhost.example.com', askOwner],
+  ])('explains a refused ways-in read over %s', (address, note) => {
+    expect(waysInRefusal(address)).toBe(note);
+  });
+
   it('explains the locked way in by the name a person sees, and where an owner grants the permission', () => {
     expect(protectedRouteNote('cloudflare')).toBe(
       'This device is connected through Cloudflare tunnel, so it cannot change it. Change it on the computer that runs Porcelain, or from a device connected another way.',
-    );
-    expect(WAYS_IN_PERMISSION_NOTE).toBe(
-      'An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.',
     );
     expect(LOCAL_NETWORK_WARNING).toBe(
       'Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.',
