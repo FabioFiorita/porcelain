@@ -248,7 +248,7 @@
 .review-navigator [data-slot='sidebar-group-label'] {
   gap: calc(var(--spacing) * 1.5);
   padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--muted-foreground);
 }
 
@@ -267,4 +267,22 @@
   padding-inline: var(--spacing) calc(var(--spacing) * 2);
   border-radius: var(--radius-md);
   background: transparent;
+}
+
+.review-navigator .navigator-row {
+  border-radius: var(--radius-md);
+}
+
+.review-navigator .navigator-filters > button:first-child {
+  gap: calc(var(--spacing) * 2);
+  padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+  border-radius: var(--radius-sm);
+}
+
+.review-navigator .navigator-footer > button:first-child {
+  gap: calc(var(--spacing) * 2);
+  padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-ui);
+  line-height: calc(var(--spacing) * 4);
 }

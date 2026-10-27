@@ -197,7 +197,7 @@ export function ProjectNavigator({
         <NavigatorHeader>
           <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
         </NavigatorHeader>
-        <div className="mt-0.5 mb-2.5 flex items-center gap-0.5 px-1">
+        <div className="navigator-filters mt-0.5 mb-2.5 flex items-center gap-0.5 px-1">
           {searching && (
             <InputGroup className="h-7 min-w-0 flex-1">
               <InputGroupInput
@@ -246,10 +246,10 @@ export function ProjectNavigator({
                 <ListFilterIcon className="size-3.5 text-muted-foreground" />
                 {searching ? null : (
                   <>
-                    <span className="ml-1 font-normal text-muted-foreground">
+                    <span className="font-normal text-muted-foreground">
                       Projects
                     </span>
-                    <span className="ml-1 font-medium">
+                    <span className="font-medium">
                       {filtered ? 'Filtered' : 'All'}
                     </span>
                     <ChevronDownIcon className="ml-auto size-3 text-muted-foreground" />
@@ -585,7 +585,7 @@ export function ProjectNavigator({
                               >
                                 <div
                                   className={cn(
-                                    'flex min-w-0 flex-1 rounded-md pl-1',
+                                    'navigator-row flex min-w-0 flex-1 pl-1',
                                     row.kind === 'review'
                                       ? 'items-start'
                                       : 'items-center',
@@ -744,7 +744,7 @@ export function ProjectNavigator({
         <footer
           role="group"
           aria-label="Navigator controls"
-          className="flex shrink-0 items-center gap-1 p-2"
+          className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
           <Tooltip>
             <TooltipTrigger
@@ -757,7 +757,7 @@ export function ProjectNavigator({
                 />
               }
             >
-              <SettingsIcon />
+              <SettingsIcon className="text-muted-foreground" />
               Settings
             </TooltipTrigger>
             <TooltipContent role="tooltip">
