@@ -117,6 +117,7 @@ export class SetRemoteAccessService extends Context.Service<
                 ? operationFailure(decision)
                 : new WaysInChangedError(),
             );
+          yield* authorizeWaysIn.execute(input.caller);
           const current = routeStates.read();
           const states = requestedStates(
             current.states,
@@ -142,7 +143,6 @@ export class SetRemoteAccessService extends Context.Service<
             };
           if (fingerprint !== input.expected)
             return yield* Effect.fail(new WaysInChangedError());
-          yield* authorizeWaysIn.execute(input.caller);
           yield* remoteAccess.save(decision.settings);
           const routes = {
             ...current,

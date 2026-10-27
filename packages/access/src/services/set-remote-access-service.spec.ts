@@ -559,21 +559,25 @@ describe('SetRemoteAccessService', () => {
         }),
     ],
   ])(
-    'refuses a save from a device after %s since it looked, and changes nothing',
+    'refuses a save from a device after %s since it looked, whether or not it changes anything, and changes nothing',
     async (_name, withdraw) => {
       const { settings, devices, services } = setup();
       const before = await Effect.runPromise(services.read.execute());
       await Effect.runPromise(withdraw(devices));
 
-      await expect(
-        Effect.runPromise(
-          services.set.execute({
-            expected: before.fingerprint,
-            change: { tailnet: true, tailnetHostname },
-            caller: phoneOnLan,
-          }),
-        ),
-      ).rejects.toThrow(WaysInPermissionRequiredError);
+      for (const change of [
+        { tailnet: true, tailnetHostname },
+        { cloudflare: false },
+      ])
+        await expect(
+          Effect.runPromise(
+            services.set.execute({
+              expected: before.fingerprint,
+              change,
+              caller: phoneOnLan,
+            }),
+          ),
+        ).rejects.toThrow(WaysInPermissionRequiredError);
       expect(await Effect.runPromise(settings.read())).toEqual({
         lan: false,
         tailnet: false,
