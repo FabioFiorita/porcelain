@@ -151,7 +151,7 @@ export function PairDevice({
       {issued && (
         <div className="flex flex-col gap-2.5 border-t pt-2.5">
           <div className="flex gap-2.5">
-            <div className="shrink-0 rounded-lg bg-background p-1 inset-ring inset-ring-border">
+            <div className="shrink-0 rounded-lg bg-white p-1 inset-ring inset-ring-border">
               <PairingQr link={issued.link} />
             </div>
             <div className="flex min-w-0 flex-col gap-1 pt-0.5">

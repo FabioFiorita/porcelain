@@ -17,7 +17,7 @@ export function PairingQr({ link }: { link: string }) {
       aria-label="Pairing QR code"
       viewBox={`0 0 ${size} ${size}`}
       shapeRendering="crispEdges"
-      className="size-40 shrink-0 rounded-md bg-white text-black"
+      className="size-21 shrink-0 rounded-sm bg-white text-black"
     >
       <path d={path} fill="currentColor" />
     </svg>

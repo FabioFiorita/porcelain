@@ -171,64 +171,65 @@ function RouteRow({
   const title = remoteRouteTitles[name];
   const encrypted = name !== 'lan' || route.status.kind !== 'on';
   return (
-    <Collapsible
-      defaultOpen={setup?.open ?? false}
-      render={<Item variant="outline" className="min-h-14" />}
-    >
-      <ItemContent>
-        <ItemTitle className="flex-wrap">
-          {title}
-          <RouteStatus name={name} route={route} />
-          {!encrypted && (
-            <span className="flex items-center gap-1 text-xs leading-4 font-medium text-warn">
-              <ShieldAlertIcon aria-hidden className="size-3.5" />
-              Not encrypted
-            </span>
-          )}
-        </ItemTitle>
-        <RouteReach name={name} route={route} note={note} />
-      </ItemContent>
-      <ItemActions>
-        {setup && (
-          <CollapsibleTrigger
-            render={
-              <Button
-                size="sm"
-                variant={setup.configured ? 'ghost' : 'outline'}
-                aria-label={
-                  setup.configured ? `${title} setup` : `Set up ${title}`
-                }
-                className="group/setup"
-              />
-            }
-          >
-            {setup.configured ? 'Setup' : 'Set up'}
-            {setup.configured && (
-              <ChevronDownIcon
-                aria-hidden
-                className="size-3.5 text-muted-foreground transition-transform group-data-panel-open/setup:rotate-180"
-              />
+    <Item variant="outline" className="min-h-14">
+      <Collapsible defaultOpen={setup?.open ?? false} className="contents">
+        <ItemContent>
+          <ItemTitle className="flex-wrap">
+            {title}
+            <RouteStatus name={name} route={route} />
+            {!encrypted && (
+              <span className="flex items-center gap-1 text-xs leading-4 font-medium text-warn">
+                <ShieldAlertIcon aria-hidden className="size-3.5" />
+                Not encrypted
+              </span>
             )}
-          </CollapsibleTrigger>
-        )}
-        <Switch
-          aria-label={title}
-          checked={route.enabled}
-          disabled={disabled}
-          onCheckedChange={(enabled) => onChange(enabled)}
-        />
-      </ItemActions>
-      {children &&
-        (setup ? (
-          <CollapsibleContent className="basis-full">
-            <div className="flex min-w-0 flex-col gap-2">{children}</div>
-          </CollapsibleContent>
-        ) : (
-          <ItemFooter>
-            <div className="flex min-w-0 flex-1 flex-col gap-2">{children}</div>
-          </ItemFooter>
-        ))}
-    </Collapsible>
+          </ItemTitle>
+          <RouteReach name={name} route={route} note={note} />
+        </ItemContent>
+        <ItemActions>
+          {setup && (
+            <CollapsibleTrigger
+              render={
+                <Button
+                  size="sm"
+                  variant={setup.configured ? 'ghost' : 'outline'}
+                  aria-label={
+                    setup.configured ? `${title} setup` : `Set up ${title}`
+                  }
+                  className="group/setup"
+                />
+              }
+            >
+              {setup.configured ? 'Setup' : 'Set up'}
+              {setup.configured && (
+                <ChevronDownIcon
+                  aria-hidden
+                  className="size-3.5 text-muted-foreground transition-transform group-data-panel-open/setup:rotate-180"
+                />
+              )}
+            </CollapsibleTrigger>
+          )}
+          <Switch
+            aria-label={title}
+            checked={route.enabled}
+            disabled={disabled}
+            onCheckedChange={(enabled) => onChange(enabled)}
+          />
+        </ItemActions>
+        {children &&
+          (setup ? (
+            <CollapsibleContent className="basis-full">
+              <div className="flex min-w-0 flex-col gap-2">{children}</div>
+            </CollapsibleContent>
+          ) : (
+            <ItemFooter>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {children}
+              </div>
+            </ItemFooter>
+          ))}
+      </Collapsible>
+    </Item>
   );
 }
 
@@ -262,7 +263,7 @@ function LocalNetworkSettings({
           {localNetworkNote(remote)}
         </p>
       )}
-      <div className="settings-margin-note lg:absolute lg:top-7 lg:left-full lg:ml-8 lg:w-62">
+      <div className="settings-margin-note lg:absolute lg:top-0 lg:left-full lg:ml-8 lg:w-62">
         <span
           aria-hidden
           className="absolute top-6.5 -left-6.5 hidden size-1.5 rounded-full bg-warn lg:block"

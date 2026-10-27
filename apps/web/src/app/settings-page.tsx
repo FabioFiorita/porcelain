@@ -55,23 +55,31 @@ export const settingsSections: readonly [
 
 export const defaultSettingsSection = settingsSections[0].id;
 
-function contentClass(wide = false) {
+type ContentLayout = 'reading' | 'list' | 'wide';
+
+const contentLayouts: Record<ContentLayout, string> = {
+  reading: 'max-w-186 gap-8',
+  list: 'max-w-186 gap-7',
+  wide: 'max-w-240 gap-5.5 md:pt-7.5',
+};
+
+function contentClass(layout: ContentLayout) {
   return cn(
-    'settings-content wrap-anywhere mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pr-10 lg:pl-6',
-    wide ? 'max-w-240 md:pt-7.5' : 'max-w-186',
+    'settings-content wrap-anywhere mx-auto flex w-full flex-col px-4 py-6 md:px-6 md:py-9 lg:pr-10 lg:pl-6',
+    contentLayouts[layout],
   );
 }
 
 function SectionFrame({
   children,
-  wide = false,
+  layout,
 }: {
   children: ReactNode;
-  wide?: boolean;
+  layout: ContentLayout;
 }) {
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div className={contentClass(wide)}>{children}</div>
+      <div className={contentClass(layout)}>{children}</div>
     </ScrollArea>
   );
 }
@@ -268,7 +276,7 @@ export function SettingsPage({
                 aria-label="Computers list"
                 tabIndex={-1}
               >
-                <div className={contentClass()}>
+                <div className={contentClass('list')}>
                   <RemoteComputers
                     showUpdates={environmentId === undefined}
                     environment={environment}
@@ -277,7 +285,7 @@ export function SettingsPage({
                 </div>
               </div>
               {environmentId !== undefined && (
-                <SectionFrame wide>
+                <SectionFrame layout="wide">
                   {environmentId === 'this-computer' ? (
                     <ComputerSettings environment={environment} />
                   ) : (
@@ -291,7 +299,7 @@ export function SettingsPage({
               )}
             </>
           ) : (
-            <SectionFrame>
+            <SectionFrame layout="reading">
               {current.id === 'git' ? (
                 <ReviewsGitSettings />
               ) : (

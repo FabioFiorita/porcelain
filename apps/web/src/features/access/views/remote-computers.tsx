@@ -81,26 +81,28 @@ function AddRemote() {
       <ItemContent>
         <p className="text-ui leading-5 text-foreground-2">
           On the other computer, run{' '}
-          <code className="rounded-sm bg-muted px-1.5 py-px font-mono text-xs font-medium text-foreground inset-ring inset-ring-border">
+          <code className="rounded-sm bg-muted px-1.5 py-px font-mono text-xs leading-4.5 font-medium text-foreground inset-ring inset-ring-border">
             porcelain pair
           </code>{' '}
           and paste the link it prints. This device keeps its own credential for
           that computer.
         </p>
         <form
-          className="mt-2.5 flex flex-col gap-2 font-mono sm:flex-row"
+          className="mt-2.5 flex flex-col gap-2 sm:flex-row"
           onSubmit={(event) => submitForm(event, () => add.submit(link))}
         >
-          <Input
-            aria-label="Pairing link"
-            placeholder="http://192.168.1.20:4738/pair#c=…"
-            value={link}
-            disabled={add.result.waiting || status !== 'ready'}
-            onChange={(event) => {
-              add.reset();
-              setLink(event.target.value);
-            }}
-          />
+          <div className="min-w-0 flex-1 font-mono">
+            <Input
+              aria-label="Pairing link"
+              placeholder="http://192.168.1.20:4738/pair#c=…"
+              value={link}
+              disabled={add.result.waiting || status !== 'ready'}
+              onChange={(event) => {
+                add.reset();
+                setLink(event.target.value);
+              }}
+            />
+          </div>
           <Button
             type="submit"
             className="shrink-0"
@@ -180,21 +182,26 @@ export function RemoteComputers({
           </AlertDescription>
         </Alert>
       )}
-      <FieldSet className="relative">
-        <FieldLegend variant="label" className="flex h-7 items-center">
-          <span className="flex items-center gap-1">
+      <section
+        aria-labelledby="computers-heading"
+        className="flex min-w-0 flex-col gap-2"
+      >
+        <div className="mb-1.5 flex min-h-7 items-center justify-between gap-2">
+          <h2
+            id="computers-heading"
+            className="flex items-center gap-1 text-xs leading-4 font-medium text-muted-foreground"
+          >
             Computers
             <span className="tabular-nums">{remotes.length + 1}</span>
-          </span>
-        </FieldLegend>
-        <Button
-          size="sm"
-          className="absolute top-0 right-0"
-          disabled={batch.running || count === 0}
-          onClick={() => run(targets)}
-        >
-          Update all ({count})
-        </Button>
+          </h2>
+          <Button
+            size="sm"
+            disabled={batch.running || count === 0}
+            onClick={() => run(targets)}
+          >
+            Update all ({count})
+          </Button>
+        </div>
         <ItemGroup aria-label="Computers">
           <ComputerRow
             name={environment.name}
@@ -221,10 +228,10 @@ export function RemoteComputers({
               />
             ))}
         </ItemGroup>
-        <p className="text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
           Services update from npm and restart. The Mac app updates itself.
         </p>
-      </FieldSet>
+      </section>
       <FieldSet>
         <FieldLegend variant="label">Add computer</FieldLegend>
         <ItemGroup>
