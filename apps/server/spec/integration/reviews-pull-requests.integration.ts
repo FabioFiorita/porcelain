@@ -22,6 +22,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
   const statePath = join(session.projectHome, 'github-state.json');
   const heldPath = join(session.projectHome, 'github-accounts-held');
   const releasePath = join(session.projectHome, 'github-accounts-released');
+  const probesPath = join(session.projectHome, 'github-account-probes');
   const ghPath = join(text(manifest.bin), 'gh');
   const secret = 'github-test-token-never-return-this';
   const state = {
@@ -53,6 +54,7 @@ else if (args[0] === 'auth' && args[1] === 'token') { console.log(secret + '-' +
 else if (fixture.mode !== 'ok') { console.error((fixture.mode === 'rate' ? 'HTTP 429 rate limit exceeded ' : 'network offline ') + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (args.includes('number=999')) { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest)'); process.exitCode = 1; }
 else if (args.includes('repos/FabioFiorita/porcelain')) {
+  fs.appendFileSync(${JSON.stringify(probesPath)}, process.env.GH_TOKEN.slice(secret.length + 1) + '\\n');
   if (fixture.readable.some(account => process.env.GH_TOKEN === secret + '-' + account)) console.log('{}');
   else { console.error('HTTP 404 ' + process.env.GH_TOKEN); process.exitCode = 1; }
 } else {
@@ -273,6 +275,22 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       await accountViewer.next((notice) => notice.type === 'inventory'),
     ).toEqual({ type: 'inventory' });
     await accountViewer.close();
+    state.readable = ['work'];
+    await save();
+    await writeFile(probesPath, '');
+    expect(await request(`${project}/github-account`)).toMatchObject({
+      choice: { account: 'work', source: 'detected' },
+    });
+    expect(await request(`${project}/github-account`)).toMatchObject({
+      choice: { account: 'work', source: 'detected' },
+    });
+    expect((await readFile(probesPath, 'utf8')).trim().split('\n')).toEqual([
+      'personal',
+      'work',
+      'work',
+    ]);
+    state.readable = ['personal'];
+    await save();
     state.mode = 'rate';
     await save();
     expect(await request(`${review}/pull-request`)).toEqual({
