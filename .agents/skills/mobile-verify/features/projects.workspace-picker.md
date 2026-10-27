@@ -55,7 +55,7 @@ Preconditions: seed active checkouts, reviews in every status and one closed rev
 
 ### Archive a completed review
 
-Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, When archiving a review has worktree/local branch/remote branch switches, all default on.
+Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, the review's computer has confirmed settings (Use these settings for this computer); When archiving a review has worktree/local branch/remote branch switches. Until then Archive is disabled and says why.
 
 1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.

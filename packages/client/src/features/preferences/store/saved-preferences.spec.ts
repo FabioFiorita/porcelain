@@ -4,6 +4,7 @@ import { KeyValueStore } from 'effect/persistence';
 import { COMMIT_MODEL_LENGTH } from '@porcelain/contracts/shared';
 import {
   defaultPreferences,
+  defaultReviewGitSettings,
   readPreferences,
   preferencesSchema,
 } from './saved-preferences.ts';
@@ -13,16 +14,18 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
   (saved) => {
     expect(readPreferences(saved)).toEqual({
       commitModel: '',
-      pullStrategy: 'merge',
       appearance: 'system',
       diffStyle: 'unified',
       lineOverflow: 'scroll',
       documentsDefault: 'rendered',
-      collapseSpecs: false,
       reviewListGroupOpen: {},
-      archiveDeleteWorktree: true,
-      archiveDeleteLocalBranch: true,
-      archiveDeleteRemoteBranch: true,
+      reviewGitSettingsImportCandidate: {
+        pullStrategy: 'merge',
+        collapseSpecs: false,
+        archiveDeleteWorktree: true,
+        archiveDeleteLocalBranch: true,
+        archiveDeleteRemoteBranch: true,
+      },
     });
   },
 );
@@ -39,43 +42,96 @@ it.each([true, false])(
         }),
       ),
     ).toEqual({
-      commitModel: '',
-      pullStrategy: 'merge',
+      ...defaultPreferences,
       appearance: 'dark',
-      diffStyle: 'unified',
       lineOverflow: wrapLongLines ? 'wrap' : 'scroll',
       documentsDefault: 'source',
-      collapseSpecs: false,
-      reviewListGroupOpen: {},
-      archiveDeleteWorktree: true,
-      archiveDeleteLocalBranch: true,
-      archiveDeleteRemoteBranch: true,
     });
   },
 );
-it('keeps an old web record and writes only the canonical shape', () => {
-  const saved = {
-    ...defaultPreferences,
-    commitModel: 'model',
-    pullStrategy: 'rebase',
-    appearance: 'light',
-    diffStyle: 'split',
-    lineOverflow: 'wrap',
-    documentsDefault: 'source',
-    collapseSpecs: true,
-  } as const;
-  expect(readPreferences(JSON.stringify(saved))).toEqual(saved);
-  expect(Schema.encodeSync(preferencesSchema)(saved)).toEqual(saved);
+const legacyRecord = {
+  commitModel: 'model',
+  pullStrategy: 'rebase',
+  appearance: 'light',
+  diffStyle: 'split',
+  lineOverflow: 'wrap',
+  documentsDefault: 'source',
+  collapseSpecs: true,
+  reviewListGroupOpen: {},
+  archiveDeleteWorktree: false,
+  archiveDeleteLocalBranch: true,
+  archiveDeleteRemoteBranch: false,
+} as const;
+const legacyCandidate = {
+  pullStrategy: 'rebase',
+  collapseSpecs: true,
+  archiveDeleteWorktree: false,
+  archiveDeleteLocalBranch: true,
+  archiveDeleteRemoteBranch: false,
+} as const;
+const upgraded = {
+  commitModel: 'model',
+  appearance: 'light',
+  diffStyle: 'split',
+  lineOverflow: 'wrap',
+  documentsDefault: 'source',
+  reviewListGroupOpen: {},
+  reviewGitSettingsImportCandidate: legacyCandidate,
+} as const;
+it('moves the old Reviews & Git choices into the import candidate and writes only the canonical shape', () => {
+  const preferences = readPreferences(JSON.stringify(legacyRecord));
+  expect(preferences).toEqual(upgraded);
+  const encoded = Schema.encodeSync(preferencesSchema)(preferences);
+  expect(encoded).toEqual(upgraded);
+  expect(readPreferences(JSON.stringify(encoded))).toEqual(upgraded);
 });
+it('keeps a saved import candidate unchanged even when old fields disagree', () => {
+  expect(
+    readPreferences(
+      JSON.stringify({
+        ...upgraded,
+        pullStrategy: 'merge',
+        collapseSpecs: false,
+        archiveDeleteWorktree: true,
+      }),
+    ),
+  ).toEqual(upgraded);
+});
+it('recaptures the candidate from old fields when the saved candidate is damaged', () => {
+  expect(
+    readPreferences(
+      JSON.stringify({
+        ...legacyRecord,
+        reviewGitSettingsImportCandidate: { pullStrategy: 'squash' },
+      }),
+    ),
+  ).toEqual(upgraded);
+});
+it.each([
+  ['pullStrategy', 'fast-forward'],
+  ['collapseSpecs', 'true'],
+  ['archiveDeleteWorktree', 0],
+  ['archiveDeleteLocalBranch', null],
+  ['archiveDeleteRemoteBranch', 'no'],
+] as const)(
+  'captures today’s default for an invalid old %s and keeps the other old choices',
+  (key, value) => {
+    expect(
+      readPreferences(JSON.stringify({ ...legacyRecord, [key]: value }))
+        .reviewGitSettingsImportCandidate,
+    ).toEqual({
+      ...legacyCandidate,
+      [key]: defaultReviewGitSettings[key],
+    });
+  },
+);
 it.each([
   ['commitModel', 12],
   ['commitModel', 'x'.repeat(COMMIT_MODEL_LENGTH + 1)],
-  ['pullStrategy', 'fast-forward'],
   ['appearance', 'automatic'],
   ['diffStyle', 'side-by-side'],
   ['lineOverflow', true],
   ['documentsDefault', 'preview'],
-  ['collapseSpecs', 'true'],
   ['reviewListGroupOpen', { Projects: 'false' }],
 ] as const)(
   'repairs invalid %s without losing another valid field',
@@ -99,12 +155,10 @@ it.each([
 );
 it.each([
   'commitModel',
-  'pullStrategy',
   'appearance',
   'diffStyle',
   'lineOverflow',
   'documentsDefault',
-  'collapseSpecs',
   'reviewListGroupOpen',
 ] as const)('repairs missing %s without losing another field', (key) => {
   const saved: Record<string, unknown> = {
@@ -135,16 +189,7 @@ it('repairs invalid legacy fields independently', () => {
   ).toEqual({ ...defaultPreferences, documentsDefault: 'source' });
 });
 it('reads web records through the browser key-value path, keeping an old record and repairing only a bad field', async () => {
-  const old = {
-    ...defaultPreferences,
-    commitModel: 'model',
-    pullStrategy: 'rebase',
-    appearance: 'light',
-    diffStyle: 'split',
-    lineOverflow: 'wrap',
-    documentsDefault: 'source',
-    collapseSpecs: true,
-  } as const;
+  const old = upgraded;
   const result = await Effect.runPromise(
     Effect.gen(function* () {
       const store = yield* KeyValueStore.KeyValueStore;

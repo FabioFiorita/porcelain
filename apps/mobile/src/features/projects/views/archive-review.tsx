@@ -6,13 +6,17 @@ import {
   archiveDescription,
   archiveFailureMessage,
 } from '@porcelain/client/reviews/rules';
-import { archiveOptions } from '@porcelain/client/preferences/rules';
+import {
+  archiveOptions,
+  confirmedReviewGitSettings,
+  reviewGitSettingsBlock,
+} from '@porcelain/client/preferences/rules';
 import { Button } from '../../../components/ui/button';
 import { AlertDialog } from '../../../components/ui/alert-dialog';
 import { Switch } from '../../../components/ui/switch';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
-import { usePreferences } from '../../preferences';
+import { useReviewGitSettings } from '../../preferences';
 import {
   useArchiveReview,
   type ArchivePlan,
@@ -24,7 +28,9 @@ export function ArchiveReview(props: {
   projectId: string;
   mainWorktreeId: string;
 }) {
-  const { preferences, status } = usePreferences();
+  const view = useReviewGitSettings(props.connection);
+  const settings = confirmedReviewGitSettings(view);
+  const block = reviewGitSettingsBlock(view);
   const { result, prepare, submit } = useArchiveReview(props);
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<ArchivePlan>();
@@ -41,10 +47,11 @@ export function ArchiveReview(props: {
       <Button
         label="Archive"
         variant="outline"
-        disabled={status !== 'ready'}
+        disabled={!settings}
         pending={result.waiting}
         onPress={() => {
-          const next = archiveOptions(preferences);
+          if (!settings) return;
+          const next = archiveOptions(settings);
           setPlan(undefined);
           setAcknowledged(false);
           setOptions(next);
@@ -52,6 +59,11 @@ export function ArchiveReview(props: {
           prepare(next, (answer) => setPlan(answer.plan));
         }}
       />
+      {block && view.kind !== 'reading' ? (
+        <Text variant="caption" tone="muted">
+          {block}
+        </Text>
+      ) : null}
       <AlertDialog
         open={open}
         title="Archive review?"

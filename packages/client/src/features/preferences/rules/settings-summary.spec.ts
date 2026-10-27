@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   generalSettingsSummary,
-  reviewsGitSettingsSummary,
+  REVIEWS_GIT_SETTINGS_SUMMARY,
 } from './settings-summary.ts';
 
 it.each([['system', 'wrap', 'System theme · Wrap long lines']] as const)(
@@ -11,17 +11,8 @@ it.each([['system', 'wrap', 'System theme · Wrap long lines']] as const)(
   },
 );
 
-const keepAll = {
-  archiveDeleteWorktree: false,
-  archiveDeleteLocalBranch: false,
-  archiveDeleteRemoteBranch: false,
-};
-
-it.each([
-  [
-    { pullStrategy: 'merge', ...keepAll },
-    'Merge on pull · Archive keeps everything',
-  ],
-] as const)('summarizes Reviews & Git for %j', (preferences, summary) => {
-  expect(reviewsGitSettingsSummary(preferences)).toBe(summary);
+it('says Reviews & Git settings belong to each computer', () => {
+  expect(REVIEWS_GIT_SETTINGS_SUMMARY).toBe(
+    'Pull, archive and spec files on each computer',
+  );
 });

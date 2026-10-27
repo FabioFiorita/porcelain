@@ -41,7 +41,11 @@ import {
 } from '@/components/ui/tooltip';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
-import { usePreferences } from '@/features/preferences/index';
+import { useReviewGitSettings } from '@/features/preferences/index';
+import {
+  confirmedReviewGitSettings,
+  reviewGitSettingsBlock,
+} from '@porcelain/client/preferences/rules';
 import { useGitMenu } from '../commands/git-menu';
 import type { GitNotice } from '@porcelain/client/git-actions/rules';
 import type { GitAction, GitScope } from '@porcelain/client/git-actions/rules';
@@ -93,7 +97,9 @@ export function GitButton({
     AsyncResult.value(details.result),
   );
   const refreshLook = useRefreshGitLook(scope, connection);
-  const { preferences } = usePreferences();
+  const settings = useReviewGitSettings(connection);
+  const ready = confirmedReviewGitSettings(settings);
+  const pullBlock = reviewGitSettingsBlock(settings);
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
   const [result, setResult] = useState<GitNotice | null>(null);
@@ -104,7 +110,14 @@ export function GitButton({
   const menu = useGitMenu(scope, context, {
     details,
     enableDetails: () => setDetailsEnabled(true),
-    pullStrategy: preferences.pullStrategy,
+    pull: ready
+      ? { kind: 'ready', strategy: ready.pullStrategy }
+      : {
+          kind: 'blocked',
+          reason:
+            pullBlock ??
+            'Reviews & Git settings for this computer are unavailable.',
+        },
     notify: ({ title, description, type }) =>
       toast.add({
         title,
@@ -132,7 +145,10 @@ export function GitButton({
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
-  const primaryTip = primaryTooltip(primary, status);
+  const primaryBlocked =
+    primary.kind === 'run' && primary.action === 'pull' && !ready;
+  const primaryTip =
+    primaryBlocked && pullBlock ? pullBlock : primaryTooltip(primary, status);
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
@@ -176,7 +192,7 @@ export function GitButton({
                       }
                       disabled={
                         (running === null || running === undefined) &&
-                        primary.kind === 'hint'
+                        (primary.kind === 'hint' || primaryBlocked)
                       }
                       focusableWhenDisabled
                       className="aria-disabled:cursor-default"
@@ -300,7 +316,10 @@ export function GitButton({
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker = gitActionBlocker(candidate.id, status);
+                    const blocker =
+                      candidate.id === 'pull' && !ready
+                        ? pullBlock
+                        : gitActionBlocker(candidate.id, status);
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
