@@ -30,6 +30,7 @@ import {
   initialWorkspaceSnapshot,
   readWorkspaceSnapshot,
   restoreWorkspace,
+  showReview,
   workspaceSnapshot,
   workspaceSnapshotSchema,
   type WorkspaceSession,
@@ -95,6 +96,7 @@ export function useWorkspaceSession(
       update((current) => ({ ...current, inspectorOpen })),
     changeComparison: (comparison: ReviewComparison) =>
       update((current) => ({ ...current, comparison })),
+    showReview: () => update(showReview),
     focus: (pane: PaneId) =>
       update((current) => ({ ...current, ...focusPane(current, pane) })),
     changeDocuments: (

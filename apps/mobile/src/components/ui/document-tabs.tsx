@@ -4,6 +4,7 @@ import {
   documentTabLayout,
   type DocumentTabBounds,
 } from '../../shared/rules/document-tab-layout';
+import { Icon, type IconName } from './icon';
 import { IconButton } from './icon-button';
 import { Text } from './text';
 import {
@@ -19,6 +20,14 @@ type DocumentTab = {
   closable?: boolean;
 };
 
+type PinnedTab = {
+  title: string;
+  icon: IconName;
+  detail?: string | undefined;
+  selected: boolean;
+  onPress: () => void;
+};
+
 export function DocumentTabs<T extends DocumentTab>({
   documents,
   onChange,
@@ -26,6 +35,7 @@ export function DocumentTabs<T extends DocumentTab>({
   onOpenToSide,
   label = 'Open documents',
   focused = true,
+  pinned,
 }: {
   documents: DocumentTabsState<T>;
   onChange: (
@@ -35,6 +45,7 @@ export function DocumentTabs<T extends DocumentTab>({
   onOpenToSide?: (document: T) => void;
   label?: string;
   focused?: boolean;
+  pinned?: PinnedTab | undefined;
 }) {
   const { tabs, active } = documents;
   const [offset, setOffset] = useState(0);
@@ -48,21 +59,13 @@ export function DocumentTabs<T extends DocumentTab>({
   const [bounds, setBounds] = useState<ReadonlyMap<string, DocumentTabBounds>>(
     () => new Map(),
   );
-  const activeBounds = active ? bounds.get(active) : undefined;
+  const [pinnedBounds, setPinnedBounds] = useState<DocumentTabBounds>();
+  const activeBounds = pinned?.selected
+    ? pinnedBounds
+    : active
+      ? bounds.get(active)
+      : undefined;
   const { overflow } = documentTabLayout(viewport, content.width, 0);
-
-  if (tabs.length === 0)
-    return (
-      <View
-        className="min-h-12 min-w-0 flex-1 justify-center px-2"
-        accessibilityRole="tablist"
-        accessibilityLabel={label}
-      >
-        <Text variant="caption" tone="muted">
-          No open tabs
-        </Text>
-      </View>
-    );
 
   return (
     <ScrollView
@@ -90,7 +93,7 @@ export function DocumentTabs<T extends DocumentTab>({
       horizontal
       className="min-h-12 min-w-0 flex-1"
       style={{ height: content.height || undefined }}
-      contentContainerClassName="min-h-12 items-center gap-1 px-2 pb-1"
+      contentContainerClassName="min-h-12 items-center gap-1"
       onLayout={({ nativeEvent: { layout } }) => setViewport(layout.width)}
       onContentSizeChange={(width, height) => setContent({ width, height })}
       onScroll={({ nativeEvent }) => {
@@ -106,6 +109,46 @@ export function DocumentTabs<T extends DocumentTab>({
       accessibilityRole="tablist"
       accessibilityLabel={label}
     >
+      {pinned ? (
+        <View
+          onLayout={({ nativeEvent: { layout } }) => setPinnedBounds(layout)}
+          className={
+            pinned.selected
+              ? `flex-row items-center rounded-lg border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+              : 'flex-row items-center rounded-lg border border-transparent'
+          }
+        >
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel={
+              pinned.detail
+                ? `${pinned.title}, ${pinned.detail} decisions reviewed`
+                : pinned.title
+            }
+            accessibilityState={{ selected: pinned.selected }}
+            className="min-h-11 flex-row items-center gap-2 px-3 active:opacity-80"
+            onPress={pinned.onPress}
+          >
+            <Icon
+              name={pinned.icon}
+              tone={pinned.selected ? 'default' : 'muted'}
+            />
+            <Text
+              variant="ui"
+              weight="medium"
+              tone={pinned.selected ? 'default' : 'muted'}
+              numberOfLines={1}
+            >
+              {pinned.title}
+            </Text>
+            {pinned.detail ? (
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {pinned.detail}
+              </Text>
+            ) : null}
+          </Pressable>
+        </View>
+      ) : null}
       {tabs.map((tab) => (
         <View
           key={tab.key}
@@ -123,23 +166,26 @@ export function DocumentTabs<T extends DocumentTab>({
           }
           className={
             tab.key === active
-              ? focused
-                ? 'flex-row items-center rounded-2xl border-b-2 border-ring bg-accent'
-                : 'flex-row items-center rounded-2xl border-b-2 border-transparent bg-accent'
-              : 'flex-row items-center rounded-2xl border-b-2 border-transparent'
+              ? `flex-row items-center rounded-lg border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+              : 'flex-row items-center rounded-lg border border-transparent'
           }
         >
           <Pressable
             accessibilityRole="tab"
             accessibilityLabel={tab.label ?? tab.title}
             accessibilityState={{ selected: tab.key === active }}
-            className="min-h-11 max-w-64 justify-center px-3 py-2 active:opacity-80"
+            className="min-h-11 max-w-45 justify-center px-3 active:opacity-80"
             onPress={() => {
               onChange((state) => activateDocument(state, tab.key));
               onSelect();
             }}
           >
-            <Text variant="ui" weight="medium" numberOfLines={1}>
+            <Text
+              variant="ui"
+              weight="medium"
+              tone={tab.key === active ? 'default' : 'muted'}
+              numberOfLines={1}
+            >
               {tab.title}
             </Text>
           </Pressable>
@@ -150,7 +196,7 @@ export function DocumentTabs<T extends DocumentTab>({
               onPress={() => onOpenToSide(tab)}
             />
           ) : null}
-          {tab.closable !== false ? (
+          {tab.key === active && tab.closable !== false ? (
             <IconButton
               icon="close"
               accessibilityLabel={`Close ${tab.label ?? tab.title}`}

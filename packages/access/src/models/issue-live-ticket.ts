@@ -1,12 +1,9 @@
 import type { DeviceRoute } from './device.ts';
 import type { Redacted } from 'effect';
-
-type LiveTicketViewer =
-  | { kind: 'owner' }
-  | { kind: 'device'; deviceId: string };
+import type { Viewer } from './viewer.ts';
 
 export type IssueLiveTicketInput = {
-  viewer: LiveTicketViewer;
+  viewer: Viewer;
   route: DeviceRoute;
 };
 

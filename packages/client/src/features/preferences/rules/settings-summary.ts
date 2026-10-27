@@ -1,4 +1,3 @@
-import { archiveSettings } from './archive.ts';
 import type { Appearance } from './preferences.ts';
 
 const themes = {
@@ -18,15 +17,5 @@ export function generalSettingsSummary(preferences: {
   }`;
 }
 
-export function reviewsGitSettingsSummary(
-  preferences: { pullStrategy: 'merge' | 'rebase' } & Record<
-    (typeof archiveSettings)[number]['key'],
-    boolean
-  >,
-) {
-  return `${preferences.pullStrategy === 'rebase' ? 'Rebase on pull' : 'Merge on pull'} · ${
-    archiveSettings.some(({ key }) => preferences[key])
-      ? 'Archive cleans up'
-      : 'Archive keeps everything'
-  }`;
-}
+export const REVIEWS_GIT_SETTINGS_SUMMARY =
+  'Pull, archive and spec files on each computer';

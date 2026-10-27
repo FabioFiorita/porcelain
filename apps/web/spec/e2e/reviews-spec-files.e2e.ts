@@ -40,9 +40,23 @@ test('Spec files creates a separate collapsed section only while the setting is 
   await settings
     .getByRole('button', { name: 'Reviews & Git', exact: true })
     .click();
+  const specFiles = settings.getByRole('switch', {
+    name: 'Spec files',
+    exact: true,
+  });
+  await expect(specFiles).toBeDisabled();
   await settings
-    .getByRole('switch', { name: 'Spec files', exact: true })
+    .getByRole('button', {
+      name: 'Use these settings for this computer',
+      exact: true,
+    })
     .click();
+  await expect(specFiles).toBeEnabled();
+  await specFiles.click();
+  await expect(specFiles).toBeChecked();
+  await expect
+    .poll(() => server.reviewGitSettings())
+    .toMatchObject({ kind: 'configured', settings: { collapseSpecs: true } });
   await settings
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();

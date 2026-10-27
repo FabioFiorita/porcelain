@@ -31,13 +31,8 @@ export function changePane<T extends { key: string }>(
   const current = state[pane];
   if (!current) return state;
   const documents = change(current);
-  if (documents.tabs.length === 0 && state.right) {
-    return {
-      left: pane === 'left' ? state.right : state.left,
-      right: null,
-      focused: 'left',
-    };
-  }
+  if (pane === 'right' && documents.tabs.length === 0)
+    return { left: state.left, right: null, focused: 'left' };
   return { ...state, [pane]: documents, focused: pane };
 }
 
@@ -63,7 +58,14 @@ export function openToSide<T extends { key: string }>(
 
 export function visiblePanes<T extends { key: string }>(
   state: DocumentPanes<T>,
-  width: number,
+  layout: {
+    readonly width: number;
+    readonly orientation: 'landscape' | 'portrait';
+  },
 ): readonly PaneId[] {
-  return state.right && width >= 700 ? ['left', 'right'] : [state.focused];
+  return state.right &&
+    layout.orientation === 'landscape' &&
+    layout.width >= 700
+    ? ['left', 'right']
+    : [state.focused];
 }

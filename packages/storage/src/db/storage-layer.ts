@@ -4,6 +4,7 @@ import { databaseLayer } from './connection.ts';
 import { sqliteDeviceStoreLayer } from '../repositories/access/sqlite-device-store.ts';
 import { sqliteEnvironmentIdentityReaderLayer } from '../repositories/access/sqlite-environment-identity-reader.ts';
 import { sqliteEnvironmentNameStoreLayer } from '../repositories/access/sqlite-environment-name-store.ts';
+import { sqliteReviewGitSettingsStoreLayer } from '../repositories/access/sqlite-review-git-settings-store.ts';
 import { sqlitePairingGrantStoreLayer } from '../repositories/access/sqlite-pairing-grant-store.ts';
 import { sqliteRemoteAccessStoreLayer } from '../repositories/access/sqlite-remote-access-store.ts';
 import { sqliteFilePreferenceStoreLayer } from '../repositories/projects/sqlite-file-preference-store.ts';
@@ -25,6 +26,7 @@ export function storageLayer(
     sqliteDeviceStoreLayer,
     sqliteEnvironmentIdentityReaderLayer,
     sqliteEnvironmentNameStoreLayer,
+    sqliteReviewGitSettingsStoreLayer,
     sqlitePairingGrantStoreLayer,
     sqliteRemoteAccessStoreLayer,
     sqliteFilePreferenceStoreLayer,

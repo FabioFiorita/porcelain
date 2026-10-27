@@ -1,9 +1,7 @@
-type ServiceUpdateViewer =
-  | { kind: 'owner' }
-  | { kind: 'device'; deviceId: string };
+import type { Viewer } from './viewer.ts';
 
 export type AuthorizeServiceUpdateInput = {
-  viewer: ServiceUpdateViewer;
+  viewer: Viewer;
   local: boolean;
 };
 

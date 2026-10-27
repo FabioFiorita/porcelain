@@ -4,7 +4,7 @@ import type {
   ServiceUpdateAuthority,
 } from '../models/authorize-service-update.ts';
 import { DeviceStore } from '../ports/device-store.ts';
-import { deviceRevoked } from '../rules/device-activity.ts';
+import { deviceTrusted } from '../rules/device-activity.ts';
 
 export class AuthorizeServiceUpdateService extends Context.Service<
   AuthorizeServiceUpdateService,
@@ -26,12 +26,10 @@ export class AuthorizeServiceUpdateService extends Context.Service<
           const { viewer } = input;
           if (viewer.kind === 'owner' || input.local)
             return { canUpdate: true };
-          const device = yield* devices.find({ deviceId: viewer.deviceId });
           return {
-            canUpdate:
-              device !== undefined &&
-              !deviceRevoked(device) &&
-              device.trusted === true,
+            canUpdate: deviceTrusted(
+              yield* devices.find({ deviceId: viewer.deviceId }),
+            ),
           };
         }),
       };

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Schema } from 'effect';
 import { documentTab } from './workspace-documents';
 import { activateDocument, closeDocument } from './document-tabs';
@@ -7,7 +7,9 @@ import {
   initialWorkspaceSnapshot,
   readWorkspaceSnapshot,
   restoreWorkspace,
+  reviewPanelSelection,
   selectedDocument,
+  showReview,
   workspaceSnapshot,
   workspaceSnapshotSchema,
 } from './workspace-session';
@@ -55,18 +57,80 @@ it('normalizes stale active keys, duplicates, and a focus pointing to a missing 
     },
     'review',
   );
-  expect(restored.left).toEqual({
+  expect(restored.left).toEqual({ tabs: [documentTab(file)], active: null });
+  expect(restored.focused).toBe('left');
+  expect(restored.mode).toBe('review');
+  const side = restoreWorkspace(
+    { ...initial, right: { tabs: [file], active: 'old' }, focused: 'right' },
+    'files',
+  );
+  expect(side.left).toEqual({ tabs: [], active: null });
+  expect(side.right).toEqual({
     tabs: [documentTab(file)],
     active: '["file","README.md"]',
   });
-  expect(restored.focused).toBe('left');
-  expect(restored.mode).toBe('review');
-  expect(
-    restoreWorkspace(
-      { ...initial, right: { tabs: [file], active: 'old' }, focused: 'right' },
-      'files',
-    ).left,
-  ).toEqual(restored.left);
+  expect(side.focused).toBe('right');
+});
+
+it('returns to the Review tab without closing documents in either pane', () => {
+  const initial = restoreWorkspace(initialWorkspaceSnapshot(), 'files');
+  const file = documentTab({ kind: 'file', path: 'README.md' });
+  const commit = documentTab({ kind: 'commit', oid: 'abc', parent: 1 });
+  const split = {
+    ...initial,
+    ...openInPane(openInPane(initial, file), commit, 'right'),
+  };
+  const review = showReview(split);
+  expect(review.left).toEqual({ tabs: [file], active: null });
+  expect(review.right).toEqual({ tabs: [commit], active: commit.key });
+  expect(review.focused).toBe('left');
+  expect(selectedDocument(review, 'files')?.label).toBe('README.md');
+});
+
+describe('selects exactly one Review panel row', () => {
+  const initial = restoreWorkspace(initialWorkspaceSnapshot(), 'review');
+  const uncommitted = { kind: 'worktree' as const };
+  const reviewFile = documentTab({
+    kind: 'review-file',
+    path: 'src/app.css',
+    comparison: uncommitted,
+  });
+  const branchFile = documentTab({
+    kind: 'review-file',
+    path: 'src/app.css',
+    comparison: { kind: 'branch', base: 'main' },
+  });
+  const readme = documentTab({ kind: 'file', path: 'README.md' });
+  const opened = { ...initial, ...openInPane(initial, reviewFile) };
+  it.each([
+    {
+      state: 'the Review tab after opening a changed file',
+      session: showReview(opened),
+      selection: { kind: 'overview' },
+    },
+    {
+      state: 'a changed file in the current comparison',
+      session: opened,
+      selection: { kind: 'file', path: 'src/app.css' },
+    },
+    {
+      state: 'a changed file from another comparison',
+      session: { ...initial, ...openInPane(initial, branchFile) },
+      selection: undefined,
+    },
+    {
+      state: 'a plain file after a changed file',
+      session: { ...opened, ...openInPane(opened, readme) },
+      selection: { kind: 'file', path: 'src/app.css' },
+    },
+    {
+      state: 'a changed file in the focused side pane beside the Review tab',
+      session: { ...initial, ...openInPane(initial, reviewFile, 'right') },
+      selection: { kind: 'overview' },
+    },
+  ])('$state', ({ session, selection }) => {
+    expect(reviewPanelSelection(session)).toEqual(selection);
+  });
 });
 
 it('starts with a clean layout when saved structure or parent selection is invalid', () => {
@@ -120,3 +184,41 @@ it('keeps header tabs and active documents together through opens, switches, per
   expect(closed.left).toEqual({ tabs: [], active: null });
   expect(selectedDocument(closed, 'files')).toBeUndefined();
 });
+
+it.each([{ kind: 'worktree' }, { kind: 'branch', base: 'main' }] as const)(
+  'preserves other saved documents when replacing an old %j overview with the pinned Review tab',
+  (comparison) => {
+    const initial = initialWorkspaceSnapshot();
+    const file = { kind: 'file', path: 'docs/README.md' } as const;
+    const commit = { kind: 'commit', oid: 'abc', parent: 2 } as const;
+    const overviewKey = JSON.stringify([
+      'review-overview',
+      comparison.kind === 'worktree'
+        ? ['worktree']
+        : ['branch', comparison.base],
+      null,
+    ]);
+    const restored = restoreWorkspace(
+      readWorkspaceSnapshot({
+        ...initial,
+        left: {
+          tabs: [file, { kind: 'review-overview', comparison }],
+          active: overviewKey,
+        },
+        right: { tabs: [commit], active: '["commit","abc"]' },
+        mode: 'history',
+        inspectorOpen: false,
+        comparison,
+      }),
+      'files',
+    );
+    expect(restored.left).toEqual({ tabs: [documentTab(file)], active: null });
+    expect(restored.right).toEqual({
+      tabs: [documentTab(commit)],
+      active: '["commit","abc"]',
+    });
+    expect(restored.mode).toBe('history');
+    expect(restored.inspectorOpen).toBe(false);
+    expect(restored.comparison).toEqual(comparison);
+  },
+);

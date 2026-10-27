@@ -104,6 +104,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.remote-workspace](projects.remote-workspace.md) (desktop) — Remote routes, reviews and recovery.
 - [projects.remove](projects.remove.md) — Project removal and cancellation.
 - [projects.rename](projects.rename.md) — Project naming and persistence.
+- [preferences.reviews-git](preferences.reviews-git.md) — Reviews & Git settings each computer keeps, the first import and the computer picker.
 - [projects.search](projects.search.md) — Search, status filters, checkout selection and archive.
 - [reviews.all-changes](reviews.all-changes.md) — Review-wide changes and file selection.
 - [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.

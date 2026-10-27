@@ -1,6 +1,35 @@
-import { archiveSettings } from '@porcelain/client/preferences/rules';
-import type { Preferences } from '@porcelain/client/preferences';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
+import {
+  archiveSettings,
+  confirmedReviewGitSettings,
+  reviewGitSettingsBlock,
+  type ReviewGitSettingsView,
+} from '@porcelain/client/preferences/rules';
+import type { PreferenceChange } from '@porcelain/client/preferences';
+import type { ReviewGitSettings } from '@porcelain/client/preferences';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { TruncatedText } from '@/shared/views/truncated-text';
+import {
+  useConnectedContext,
+  useRemoteConnections,
+} from '@/features/access/index';
+import { type Connection } from '@/shared/workspace/connection';
+import { useReviewGitSettings } from '../queries/review-git-settings';
+import { useReviewGitSettingsCommands } from '../commands/review-git-settings';
 import {
   Item,
   ItemActions,
@@ -10,10 +39,12 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { Separator } from '@/components/ui/separator';
-import { Fragment } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences } from '../store';
+
+type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
 
 const archiveDescriptions = {
   archiveDeleteWorktree:
@@ -23,8 +54,74 @@ const archiveDescriptions = {
 };
 
 type ChoiceName = {
-  [K in keyof Preferences]: Preferences[K] extends string ? K : never;
-}[keyof Preferences];
+  [K in keyof PreferenceChange]-?: NonNullable<
+    PreferenceChange[K]
+  > extends string
+    ? K
+    : never;
+}[keyof PreferenceChange];
+
+function SettingItem({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Item variant="outline">
+      <ItemContent className="min-w-0">
+        <ItemTitle>{label}</ItemTitle>
+        <ItemDescription>{description}</ItemDescription>
+      </ItemContent>
+      <ItemActions>{children}</ItemActions>
+    </Item>
+  );
+}
+
+type ChoiceOption<V extends string> = { value: V; label: string };
+
+function ChoiceItem<V extends string>({
+  label,
+  description,
+  value,
+  options,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  value: V;
+  options: ChoiceOption<V>[];
+  disabled?: boolean;
+  onChange: (value: V) => void;
+}) {
+  return (
+    <SettingItem label={label} description={description}>
+      <Tabs
+        value={value}
+        onValueChange={(next: unknown) => {
+          const selected = options.find((option) => option.value === next);
+          if (selected) onChange(selected.value);
+        }}
+      >
+        <TabsList aria-label={label}>
+          {options.map((option) => (
+            <TabsTrigger
+              key={option.value}
+              value={option.value}
+              disabled={disabled}
+            >
+              {option.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </SettingItem>
+  );
+}
 
 function Choice<K extends ChoiceName>({
   label,
@@ -35,84 +132,207 @@ function Choice<K extends ChoiceName>({
   label: string;
   description: string;
   name: K;
-  options: { value: Preferences[K]; label: string }[];
+  options: ChoiceOption<NonNullable<PreferenceChange[K]>>[];
 }) {
   const { preferences, setPreference } = usePreferences();
   return (
-    <Item variant="outline">
-      <ItemContent className="min-w-0">
-        <ItemTitle>{label}</ItemTitle>
-        <ItemDescription>{description}</ItemDescription>
-      </ItemContent>
-      <ItemActions>
-        <Tabs
-          value={preferences[name]}
-          onValueChange={(value: unknown) => {
-            const selected = options.find((option) => option.value === value);
-            if (selected) setPreference(name, selected.value);
-          }}
-        >
-          <TabsList aria-label={label}>
-            {options.map((option) => (
-              <TabsTrigger key={option.value} value={option.value}>
-                {option.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </ItemActions>
-    </Item>
+    <ChoiceItem
+      label={label}
+      description={description}
+      value={preferences[name]}
+      options={options}
+      onChange={(value) => setPreference(name, value)}
+    />
   );
 }
 
-function ArchiveSettings() {
-  const { preferences, setPreference } = usePreferences();
+function SwitchItem({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <FieldSet>
-      <FieldLegend variant="label">When archiving a review</FieldLegend>
-      <ItemGroup>
-        {archiveSettings.map(({ key, label }) => (
-          <Fragment key={key}>
-            <Item variant="outline">
-              <ItemContent className="min-w-0">
-                <ItemTitle>{label}</ItemTitle>
-                <ItemDescription>{archiveDescriptions[key]}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Switch
-                  aria-label={label}
-                  checked={preferences[key]}
-                  onCheckedChange={(checked) => setPreference(key, checked)}
-                />
-              </ItemActions>
-            </Item>
-            {key !== archiveSettings.at(-1)?.key && <Separator />}
-          </Fragment>
-        ))}
-      </ItemGroup>
-    </FieldSet>
+    <SettingItem label={label} description={description}>
+      <Switch
+        aria-label={label}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onChange}
+      />
+    </SettingItem>
   );
 }
 
-function SpecFilesSetting() {
-  const { preferences, setPreference } = usePreferences();
+function SettingsNotice({
+  view,
+  onRetry,
+}: {
+  view: ReviewGitSettingsView;
+  onRetry: () => void;
+}) {
+  if (view.kind === 'unsupported')
+    return (
+      <Alert>
+        <AlertTitle>Update this computer to sync settings</AlertTitle>
+        <AlertDescription>
+          Porcelain on this computer is older and keeps no Reviews &amp; Git
+          settings. Update it from Computers to choose them here.
+        </AlertDescription>
+      </Alert>
+    );
+  const block = reviewGitSettingsBlock(view);
+  if (view.kind === 'reading' || view.kind === 'unconfigured' || !block)
+    return null;
   return (
-    <Item variant="outline">
-      <ItemContent className="min-w-0">
-        <ItemTitle>Spec files</ItemTitle>
-        <ItemDescription>
-          Group specs separately and start them collapsed, in a review and in
-          the changed files.
-        </ItemDescription>
-      </ItemContent>
-      <ItemActions>
-        <Switch
-          aria-label="Spec files"
-          checked={preferences.collapseSpecs}
-          onCheckedChange={(checked) => setPreference('collapseSpecs', checked)}
-        />
-      </ItemActions>
-    </Item>
+    <Alert variant="destructive">
+      <AlertTitle>Settings unavailable</AlertTitle>
+      <AlertDescription>
+        <p>{block}</p>
+        <p>Pull and Archive wait until they can be read again.</p>
+        <Button className="mt-3" size="sm" variant="outline" onClick={onRetry}>
+          Read settings again
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
+  const view = useReviewGitSettings(connection);
+  const { preferences } = usePreferences();
+  const { save, saving, failure, readAgain } =
+    useReviewGitSettingsCommands(connection);
+  const settings =
+    view.kind === 'configured'
+      ? view.settings
+      : preferences.reviewGitSettingsImportCandidate;
+  const editable = confirmedReviewGitSettings(view) !== undefined && !saving;
+  const change = (next: ReviewGitSettingsChange) =>
+    save({ kind: 'change', change: next });
+  return (
+    <>
+      <SettingsNotice view={view} onRetry={() => readAgain(undefined)} />
+      {view.kind === 'unconfigured' && (
+        <Alert>
+          <AlertTitle>Choose settings for this computer</AlertTitle>
+          <AlertDescription>
+            <p>
+              Every device connected to this computer uses the same Reviews
+              &amp; Git settings. These are the ones this browser used before;
+              check the archive deletions below, then use them for this
+              computer.
+            </p>
+            <Button
+              className="mt-3"
+              size="sm"
+              disabled={saving}
+              onClick={() => save({ kind: 'initialize', settings })}
+            >
+              Use these settings for this computer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {failure && (
+        <Alert variant="destructive">
+          <AlertTitle>Not saved</AlertTitle>
+          <AlertDescription>{failure}</AlertDescription>
+        </Alert>
+      )}
+      <FieldSet>
+        <FieldLegend variant="label">Reviews</FieldLegend>
+        <ItemGroup>
+          <SwitchItem
+            label="Spec files"
+            description="Group specs separately and start them collapsed, in a review and in the changed files."
+            checked={settings.collapseSpecs}
+            disabled={!editable}
+            onChange={(collapseSpecs) => change({ collapseSpecs })}
+          />
+        </ItemGroup>
+      </FieldSet>
+      <FieldSet>
+        <FieldLegend variant="label">Git</FieldLegend>
+        <ItemGroup>
+          <ChoiceItem
+            label="Pull strategy"
+            description="Used by Pull in the Git menu."
+            value={settings.pullStrategy}
+            disabled={!editable}
+            options={[
+              { value: 'merge', label: 'Merge' },
+              { value: 'rebase', label: 'Rebase' },
+            ]}
+            onChange={(pullStrategy) => change({ pullStrategy })}
+          />
+        </ItemGroup>
+      </FieldSet>
+      <FieldSet>
+        <FieldLegend variant="label">When archiving a review</FieldLegend>
+        <ItemGroup>
+          {archiveSettings.map(({ key, label }) => (
+            <Fragment key={key}>
+              <SwitchItem
+                label={label}
+                description={archiveDescriptions[key]}
+                checked={settings[key]}
+                disabled={!editable}
+                onChange={(checked) => change({ [key]: checked })}
+              />
+              {key !== archiveSettings.at(-1)?.key && <Separator />}
+            </Fragment>
+          ))}
+        </ItemGroup>
+      </FieldSet>
+    </>
+  );
+}
+
+function ComputerPicker({
+  computers,
+  selected,
+  onSelect,
+}: {
+  computers: readonly SettingsComputer[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor="settings-computer">Computer</FieldLabel>
+      <Select
+        items={computers.map((computer) => ({
+          value: computer.id,
+          label: computer.name,
+        }))}
+        value={selected}
+        onValueChange={(value) => {
+          if (typeof value === 'string') onSelect(value);
+        }}
+      >
+        <SelectTrigger id="settings-computer" className="w-full min-w-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {computers.map((computer) => (
+            <SelectItem key={computer.id} value={computer.id}>
+              <TruncatedText text={computer.name} className="block min-w-0" />
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldDescription>
+        Each computer keeps its own Reviews &amp; Git settings.
+      </FieldDescription>
+    </Field>
   );
 }
 
@@ -187,7 +407,22 @@ export function GeneralSettings() {
   );
 }
 
+type SettingsComputer = { id: string; name: string; connection: Connection };
+
 export function ReviewsGitSettings() {
+  const { connection } = useConnectedContext();
+  const remotes = useRemoteConnections();
+  const computers: readonly SettingsComputer[] = [
+    { id: 'this-computer', name: 'This computer', connection },
+    ...remotes.map((entry) => ({
+      id: entry.remote.environmentId,
+      name: entry.remote.name,
+      connection: entry.connection,
+    })),
+  ];
+  const [chosen, setChosen] = useState('this-computer');
+  const computer =
+    computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
       <div className="space-y-3">
@@ -199,30 +434,22 @@ export function ReviewsGitSettings() {
           How reviews read, and what Git does when you pull and archive.
         </p>
       </div>
-      <FieldSet>
-        <FieldLegend variant="label">Reviews</FieldLegend>
-        <ItemGroup>
-          <SpecFilesSetting />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Git</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Pull strategy"
-            description="Used by Pull in the Git menu."
-            name="pullStrategy"
-            options={[
-              { value: 'merge', label: 'Merge' },
-              { value: 'rebase', label: 'Rebase' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <ArchiveSettings />
+      {computers.length > 1 && (
+        <ComputerPicker
+          computers={computers}
+          selected={computer?.id ?? 'this-computer'}
+          onSelect={setChosen}
+        />
+      )}
+      {computer && (
+        <ReviewGitSettingsForm
+          key={computer.id}
+          connection={computer.connection}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
-        Spec files, Git and archiving are saved on this device. Archive and pull
-        run on the computer that holds the worktree.
+        Saved on the computer, for every device connected to it. Archive and
+        pull run on the computer that holds the worktree.
       </p>
     </>
   );
