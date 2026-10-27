@@ -10,6 +10,7 @@ import {
   routeFailure,
   routeStatusLabel,
   tailscaleServeCommand,
+  waysInPermissionShown,
   waysInRefusal,
   type RemoteAccess,
 } from './share.ts';
@@ -202,10 +203,40 @@ describe('ways in copy', () => {
     ['http://192.168.1.20:4173', askOwner],
     ['https://laptop.tail0000.ts.net', askOwner],
     ['https://porcelain.example.com', askOwner],
+    ['http://localhost.:4173', ownAddress],
+    ['http://app.localhost:4173', ownAddress],
+    ['http://[::ffff:127.0.0.1]:4173', ownAddress],
+    ['http://10.0.2.2:4173', ownAddress],
     ['https://localhost.example.com', askOwner],
+    ['https://127.example.com', askOwner],
+    ['http://10.0.2.3:4173', askOwner],
   ])('explains a refused ways-in read over %s', (address, note) => {
     expect(waysInRefusal(address)).toBe(note);
   });
+
+  it.each([
+    ['lan', false, true],
+    ['tailnet', false, true],
+    ['tunnel', false, true],
+    ['loopback', false, false],
+    ['loopback', true, true],
+  ] as const)(
+    'shows the can-edit-ways-in switch for a device on %s with the permission %s: %s',
+    (route, canEditWaysIn, shown) => {
+      expect(
+        waysInPermissionShown({
+          id: 'phone',
+          label: 'Phone',
+          platform: 'iOS',
+          createdAt: '2026-10-20T10:00:00.000Z',
+          lastSeenAt: '2026-10-20T10:00:00.000Z',
+          route,
+          trusted: false,
+          canEditWaysIn,
+        }),
+      ).toBe(shown);
+    },
+  );
 
   it('explains the locked way in by the name a person sees, and where an owner grants the permission', () => {
     expect(protectedRouteNote('cloudflare')).toBe(

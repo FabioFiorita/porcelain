@@ -33,6 +33,7 @@ export {
   type RemoteAccessChange,
   type RemoteRoute,
   type RemoteRouteName,
+  waysInPermissionShown,
   waysInRefusal,
 } from './share.ts';
 export {

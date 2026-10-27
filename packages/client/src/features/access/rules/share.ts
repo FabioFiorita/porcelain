@@ -14,7 +14,8 @@ export type Environment = RenameEnvironmentResponse;
 export type RemoteRouteName = keyof RemoteAccess['routes'];
 export type RemoteRoute = RemoteAccess['routes'][RemoteRouteName];
 type PairingAddress = { route: RemoteRouteName; url: string };
-type DeviceRoute = ListAccessResponse['devices'][number]['route'];
+type PairedDevice = ListAccessResponse['devices'][number];
+type DeviceRoute = PairedDevice['route'];
 type IssuedLink = {
   id: string;
   label: string;
@@ -56,11 +57,26 @@ export function protectedRouteNote(route: RemoteRouteName): string {
 export const LOCAL_NETWORK_WARNING =
   'Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.';
 
-const LOOPBACK_HOSTS = new Set(['localhost', '[::1]']);
+const ANDROID_EMULATOR_HOST = '10.0.2.2';
+const LOOPBACK_IPV4 = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;
+const LOOPBACK_MAPPED_IPV6 = /^::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}$/;
 
 function reachesOwnAddress(address: string): boolean {
-  const { hostname } = new URL(address);
-  return LOOPBACK_HOSTS.has(hostname) || hostname.startsWith('127.');
+  const hostname = new URL(address).hostname
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '');
+  return (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname === '::1' ||
+    hostname === ANDROID_EMULATOR_HOST ||
+    LOOPBACK_IPV4.test(hostname) ||
+    LOOPBACK_MAPPED_IPV6.test(hostname)
+  );
+}
+
+export function waysInPermissionShown(device: PairedDevice): boolean {
+  return device.route !== 'loopback' || device.canEditWaysIn;
 }
 
 export function waysInRefusal(address: string): string {

@@ -23,6 +23,7 @@ import {
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   deviceRouteTitles,
+  waysInPermissionShown,
   type PairedAccess,
 } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
@@ -76,7 +77,7 @@ export function PairedDevices({
                   label={device.label}
                   trusted={device.trusted}
                 />
-                {(device.route !== 'loopback' || device.canEditWaysIn) && (
+                {waysInPermissionShown(device) && (
                   <WaysInPermissionControl
                     connection={connection}
                     id={device.id}
