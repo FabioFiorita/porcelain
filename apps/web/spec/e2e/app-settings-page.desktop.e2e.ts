@@ -69,6 +69,10 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
   await name.click();
   await page.keyboard.press('Escape');
   await expect(settings).toBeVisible();
+  await expect(name).not.toBeAttached();
+  await expect(
+    settings.getByRole('button', { name: 'Rename', exact: true }),
+  ).toBeFocused();
 
   await settings.getByRole('button', { name: 'General', exact: true }).click();
   await page.keyboard.press('Escape');

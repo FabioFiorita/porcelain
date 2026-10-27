@@ -66,6 +66,8 @@ export function SettingsUpdateRow({
     target.kind === 'service' ? serviceUpdateOutcome(target.state) : undefined;
   const latest =
     target.kind === 'service' ? target.state.latest : target.latest;
+  const sidebarUpdates =
+    target.kind === 'mac-app' || (target.state.managed && trust === undefined);
   const pending =
     batch.running &&
     (entry?.status === 'updating' || entry?.status === 'queued');
@@ -137,7 +139,7 @@ export function SettingsUpdateRow({
               </span>
               {settingsUpdateAvailable(target) && latest && <> → {latest}</>}
             </p>
-            {prominent && (
+            {prominent && sidebarUpdates && (
               <p className="mt-0.5 text-ui leading-4.5 text-muted-foreground">
                 {updateNotes[target.kind]}
               </p>

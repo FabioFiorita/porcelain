@@ -126,3 +126,52 @@ test.for([414, 1080, 1440])(
     }
   },
 );
+
+test('the rename field closes on Save, Cancel and Escape and gives focus back to Rename', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/computers/this-computer');
+  const rename = app.page.getByRole('button', { name: 'Rename', exact: true });
+  const field = app.page.getByRole('textbox', {
+    name: 'Name of this computer',
+    exact: true,
+  });
+
+  await rename.click();
+  await expect.element(field).toHaveFocus();
+  await app.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+
+  await rename.click();
+  await field.fill('Escape draft');
+  await userEvent.keyboard('{Escape}');
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+  await expect
+    .element(app.page.getByRole('main', { name: 'Settings', exact: true }))
+    .toBeVisible();
+
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'Computers. Escape draft',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+
+  await rename.click();
+  await field.fill('Studio');
+  await app.page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'Computers. Studio',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+});

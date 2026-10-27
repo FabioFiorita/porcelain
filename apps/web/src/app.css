@@ -233,6 +233,9 @@
 
 .settings-nav [data-slot='button'][aria-current='page'] {
   background: var(--muted);
+}
+
+.settings-nav [data-slot='button'][aria-current='page']:not(:focus-visible) {
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
@@ -369,6 +372,7 @@
 .settings-content
   [data-slot='item-group']
   > [data-slot='item'][role='listitem'] {
+  min-height: calc(var(--spacing) * 15);
   padding-block: calc(var(--spacing) * 2.5);
 }
 
@@ -395,8 +399,11 @@
 }
 
 .settings-content [data-slot='switch'][data-unchecked] {
-  border-color: transparent;
   background: var(--background);
+}
+
+.settings-content [data-slot='switch'][data-unchecked]:not(:focus-visible) {
+  border-color: transparent;
   box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
@@ -473,8 +480,11 @@
 
 .settings-content [data-slot='tabs-trigger'][data-active] {
   background: var(--background);
-  box-shadow: var(--shadow-row);
   color: var(--foreground);
+}
+
+.settings-content [data-slot='tabs-trigger'][data-active]:not(:focus-visible) {
+  box-shadow: var(--shadow-row);
 }
 
 .settings-content

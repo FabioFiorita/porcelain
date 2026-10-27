@@ -169,10 +169,15 @@ function RouteRow({
   children?: ReactNode;
 }) {
   const title = remoteRouteTitles[name];
+  const [open, setOpen] = useState(false);
   const encrypted = name !== 'lan' || route.status.kind !== 'on';
   return (
-    <Item variant="outline" className="min-h-14">
-      <Collapsible defaultOpen={setup?.open ?? false} className="contents">
+    <Item variant="outline">
+      <Collapsible
+        open={open || (setup?.open ?? false)}
+        onOpenChange={setOpen}
+        className="contents"
+      >
         <ItemContent>
           <ItemTitle className="flex-wrap">
             {title}

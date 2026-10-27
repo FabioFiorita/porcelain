@@ -59,8 +59,8 @@ export function settingsUpdateTrust(target: {
     label: 'Needs trust',
     deviceId: target.deviceId,
     hint: target.deviceId
-      ? `Run porcelain trust ${target.deviceId} on that computer, or allow it in the Mac app → Computers → This computer → Paired devices`
-      : 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Computers → This computer → Paired devices',
+      ? `Run porcelain trust ${target.deviceId} on that computer, or allow it in the Mac app → Computers → This computer → Devices`
+      : 'Find this device’s id with porcelain devices on that computer, then run porcelain trust <id>, or allow it in the Mac app → Computers → This computer → Devices',
   };
 }
 

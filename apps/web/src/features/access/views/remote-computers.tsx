@@ -311,7 +311,7 @@ function ComputerRow({
     <Item
       role="listitem"
       aria-label={label}
-      className="relative grid min-h-15 grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] sm:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
+      className="relative grid grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] sm:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
     >
       <span
         aria-hidden

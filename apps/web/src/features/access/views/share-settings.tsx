@@ -75,6 +75,7 @@ export function ComputerSettings({
   );
   const named = `${environment.custom}:${environment.name}`;
   const [renamingFrom, setRenamingFrom] = useState<string | null>(null);
+  const [returning, setReturning] = useState(false);
   const served = new URL(connection.address);
   const address = /^https?:$/.test(served.protocol) ? served.origin : undefined;
   const renaming = renamingFrom === named;
@@ -116,7 +117,19 @@ export function ComputerSettings({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setRenamingFrom(named)}
+                ref={
+                  returning
+                    ? (element: HTMLButtonElement | null) => {
+                        if (!element) return;
+                        element.focus();
+                        setReturning(false);
+                      }
+                    : undefined
+                }
+                onClick={() => {
+                  setReturning(true);
+                  setRenamingFrom(named);
+                }}
               >
                 <PencilIcon />
                 Rename
