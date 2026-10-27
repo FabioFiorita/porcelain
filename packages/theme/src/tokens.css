@@ -62,6 +62,8 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-paper: 0.75rem;
+  --radius-chip: 0.4375rem;
+  --radius-checkbox: 0.25rem;
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
@@ -71,6 +73,7 @@
 @layer theme {
   :root {
     --radius: 0.625rem;
+    --border-checkbox: 0.09375rem;
     --skeleton: var(--border-strong);
 
     @variant light {

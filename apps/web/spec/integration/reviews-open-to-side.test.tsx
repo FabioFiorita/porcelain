@@ -386,7 +386,10 @@ test('branch file side actions keep the branch document kind', async ({
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
     .click();
-  await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Branch', exact: true })
+    .click();
   const row = workspace.getByRole('button', {
     name: 'notes.md · added',
     exact: true,

@@ -40,7 +40,12 @@ import {
   useSpecsApart,
   useTheme,
 } from '@/features/preferences/index';
-import { type CodeEntry, codeTarget } from '../adapters/code-entries';
+import {
+  type CodeEntry,
+  codeTarget,
+  type LineCounts,
+  lineCounts,
+} from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
@@ -83,7 +88,7 @@ type Props = {
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
-  header?: () => ReactNode;
+  header?: (controls: CodeHeaderControls) => ReactNode;
   footer?: () => ReactNode;
   emptyActions?: ReactNode;
   headerLeading?: ReactNode;
@@ -97,6 +102,13 @@ type Props = {
   range?: ReviewRange;
   threadMargin?: boolean;
   decision?: boolean;
+  column?: boolean;
+};
+export type CodeHeaderControls = {
+  collapse: ReactNode;
+  current: string | undefined;
+  counts: ReadonlyMap<string, LineCounts>;
+  open: (path: string) => void;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -142,6 +154,7 @@ function CodeSurface({
   collapsible = false,
   threadMargin = false,
   decision = false,
+  column = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -415,6 +428,14 @@ function CodeSurface({
     ) : (
       (emptyActions ?? headerActions)
     ));
+  const headerControls: CodeHeaderControls = {
+    collapse: collapseControl,
+    current: entries[focused]?.path,
+    counts: lineCounts(entries),
+    open: (path) =>
+      focusEntry(entries.findIndex((entry) => entry.path === path)),
+  };
+  const renderHeader = header && (() => header(headerControls));
   const selectionAnchor = selectedRangeAnchor(
     selection,
     composer !== null && composer !== undefined,
@@ -486,14 +507,18 @@ function CodeSurface({
       )}
       {toolbar
         ? toolbar(collapseControl)
-        : collapseControl && (
+        : !column &&
+          collapseControl && (
             <div className="flex shrink-0 justify-end px-3">
               {collapseControl}
             </div>
           )}
       {entries.length === 0 && (header || headerActions || footer) && (
         <div
-          className="min-h-0 flex-1 overflow-auto"
+          className={cn(
+            'min-h-0 flex-1 overflow-auto',
+            column && COLUMN_GUTTERS,
+          )}
           data-testid="empty-code-document"
         >
           {headerLeading && (
@@ -501,7 +526,7 @@ function CodeSurface({
               {headerLeading}
             </div>
           )}
-          {header?.()}
+          {renderHeader?.()}
           {footer?.()}
           {!paneFile && headerActions && (
             <div className="flex justify-end px-3.5 py-2">
@@ -751,12 +776,13 @@ function CodeSurface({
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }
             : {})}
-          className={
+          className={cn(
             fullHeight
               ? 'flex-none overflow-visible'
-              : 'min-h-0 flex-1 overflow-auto'
-          }
-          {...(header ? { renderCodeViewHeader: header } : {})}
+              : 'min-h-0 flex-1 overflow-auto',
+            column && COLUMN_GUTTERS,
+          )}
+          {...(renderHeader ? { renderCodeViewHeader: renderHeader } : {})}
           {...(footer ? { renderCodeViewFooter: footer } : {})}
           renderHeaderPrefix={(item) => {
             const entry = byId.get(item.id);
@@ -813,6 +839,9 @@ function CodeSurface({
     </div>
   );
 }
+
+const COLUMN_GUTTERS =
+  'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';
 
 function selectedRangeAnchor(
   selection: CodeViewLineSelection | null,

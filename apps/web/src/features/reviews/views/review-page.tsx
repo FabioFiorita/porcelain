@@ -71,6 +71,7 @@ import { useReviewSummary } from '../queries/summary';
 import { useReviewPanelOpen, useWalkthroughPlace } from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
+import { reviewTabCount } from '../rules/tab-strip';
 import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
@@ -563,13 +564,8 @@ function ReviewRevisionPage({
           pinned={[]}
           active="handoff"
           reviewTitle="Review"
-          reviewCount={
-            <span
-              aria-hidden="true"
-              className="text-2xs leading-4 text-muted-foreground tabular-nums"
-            >
-              {reviewedDecisions}/{review.layers.length}
-            </span>
+          countFirstTab={(tab) =>
+            tab(reviewTabCount(reviewedDecisions, review.layers.length))
           }
           side={null}
           focused={active}

@@ -27,6 +27,10 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ChangeScopeSwitch } from './change-scope-switch';
+import { ChangeTable } from './change-table';
+import { createPortal } from 'react-dom';
+import type { ChangeScope } from '@/shared/workspace/search';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
@@ -37,6 +41,11 @@ import { StateNotice } from '@/shared/views/state-notice';
 import { BranchReviewPage } from './branch-review-page';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+
+type ChangeScopeControl = {
+  scope: ChangeScope;
+  onScope: (scope: ChangeScope) => void;
+};
 
 type DocumentProps = {
   scope: ReviewScope;
@@ -57,11 +66,13 @@ export function DocumentView({
   active = false,
   reveal,
   base,
+  changes,
   toolbarTarget,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   document: DocumentRef;
+  changes: ChangeScopeControl;
   toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
@@ -86,7 +97,7 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
-      return <HandoffDocument {...props} />;
+      return <HandoffDocument {...props} base={base} changes={changes} />;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
@@ -170,7 +181,11 @@ function TimelineDocument({
   );
 }
 
-function HandoffDocument(props: DocumentProps) {
+function HandoffDocument({
+  base,
+  changes,
+  ...props
+}: DocumentProps & { base: string | undefined; changes: ChangeScopeControl }) {
   const published = usePublishedReview(props.scope, props.context);
   if (published.review?.reviewId)
     return (
@@ -180,13 +195,29 @@ function HandoffDocument(props: DocumentProps) {
         active={props.interaction.active}
       />
     );
+  const target = props.interaction.toolbarTarget;
   return (
-    <PlainChangesDocument
-      {...props}
-      intro={
-        Option.isSome(AsyncResult.value(published.result)) && !published.review
-      }
-    />
+    <>
+      {target &&
+        createPortal(
+          <ChangeScopeSwitch
+            value={changes.scope}
+            onValueChange={changes.onScope}
+          />,
+          target,
+        )}
+      {changes.scope === 'branch' ? (
+        <BranchDocument {...props} base={base} />
+      ) : (
+        <PlainChangesDocument
+          {...props}
+          intro={
+            Option.isSome(AsyncResult.value(published.result)) &&
+            !published.review
+          }
+        />
+      )}
+    </>
   );
 }
 
@@ -204,7 +235,7 @@ function NoReviewIntro({
   );
   const place = [branch, project?.name].filter(Boolean).join(' · ');
   return (
-    <header className="flex min-w-0 flex-col px-4 pt-8 pb-6">
+    <header className="flex min-w-0 flex-col pb-9">
       {place && (
         <div className="text-ui leading-5.5 font-medium text-muted-foreground">
           <TruncatedText text={place} className="block min-w-0" />
@@ -225,10 +256,11 @@ function NoReviewIntro({
   );
 }
 
-function changesTitle(specsOnly: boolean, entry: string) {
-  if (specsOnly) return 'Specs';
-  if (entry === 'all-changes') return 'All changes';
-  return 'Changes';
+function changesLabel(specsOnly: boolean, count: number) {
+  const changes = count === 1 ? 'change' : 'changes';
+  return specsOnly
+    ? `${count} uncommitted spec ${changes}`
+    : `${count} uncommitted ${changes}`;
 }
 
 function PlainChangesDocument({
@@ -298,17 +330,32 @@ function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
-        {...(intro
-          ? {
-              header: () => (
-                <NoReviewIntro
+        column
+        header={(controls) => (
+          <div className={intro ? 'pt-14' : 'pt-6'}>
+            {intro && (
+              <NoReviewIntro
+                scope={scope}
+                context={context}
+                branch={list.branch?.name}
+              />
+            )}
+            <ChangeTable
+              scope={scope}
+              context={context}
+              label={changesLabel(specsOnly, changes.length)}
+              items={changes}
+              controls={controls}
+              actions={
+                <MarkAllReviewed
                   scope={scope}
                   context={context}
-                  branch={list.branch?.name}
+                  entries={changes}
                 />
-              ),
-            }
-          : {})}
+              }
+            />
+          </div>
+        )}
         {...(review
           ? {
               files: story,
@@ -320,21 +367,6 @@ function PlainChangesDocument({
               ),
             }
           : {})}
-        toolbar={(collapseControl) => (
-          <DocumentToolbar
-            target={interaction.toolbarTarget}
-            barActions={null}
-            title={changesTitle(specsOnly, interaction.entry)}
-            subtitle={`${changes.length} file${changes.length === 1 ? '' : 's'}`}
-          >
-            {collapseControl}
-            <MarkAllReviewed
-              scope={scope}
-              context={context}
-              entries={changes}
-            />
-          </DocumentToolbar>
-        )}
       />
     </div>
   );

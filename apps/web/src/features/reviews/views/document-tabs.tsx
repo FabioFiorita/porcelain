@@ -18,7 +18,7 @@ import {
   XIcon,
 } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   ContextMenu,
@@ -33,7 +33,7 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry, type ReviewTitle } from '../rules/documents';
-import { openToSideText } from '../rules/tab-strip';
+import { openToSideText, type TabCount } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -54,17 +54,21 @@ function revealTab(tab: HTMLElement | null) {
   viewport.scrollBy({ left });
 }
 
-function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
+function describeTab(
+  key: string,
+  reviewTitle: ReviewTitle | undefined,
+  count: TabCount | undefined,
+) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
-    case 'handoff':
-      return reviewTitle
-        ? {
-            Icon: ListChecksIcon,
-            title: reviewTitle,
-            hint: 'Walkthrough of the decisions',
-          }
-        : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
+    case 'handoff': {
+      const title = reviewTitle ?? 'Changes';
+      return {
+        Icon: reviewTitle ? ListChecksIcon : FileDiffIcon,
+        title,
+        hint: count ? `${title} · ${count.description}` : title,
+      };
+    }
     case 'all-changes':
       return {
         Icon: FileDiffIcon,
@@ -147,7 +151,7 @@ export function DocumentTabs({
   focused,
   leading,
   trailing,
-  reviewCount,
+  countFirstTab,
   ...actions
 }: TabActions & {
   tabs: readonly string[];
@@ -158,7 +162,9 @@ export function DocumentTabs({
   focused: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
-  reviewCount?: ReactNode;
+  countFirstTab?: (
+    tab: (count: TabCount | undefined) => ReactNode,
+  ) => ReactNode;
 }) {
   return (
     <div
@@ -213,7 +219,7 @@ export function DocumentTabs({
                 <span key={key} className="contents">
                   <DocumentTab
                     tabKey={key}
-                    reviewCount={reviewCount}
+                    countFirstTab={countFirstTab}
                     active={key === active}
                     pinned={isPinned}
                     hasUnpinned={tabs.some(
@@ -249,8 +255,24 @@ export function DocumentTabs({
 }
 
 function DocumentTab({
+  countFirstTab,
+  ...props
+}: Omit<Parameters<typeof CountedTab>[0], 'count'> & {
+  countFirstTab?:
+    | ((tab: (count: TabCount | undefined) => ReactNode) => ReactNode)
+    | undefined;
+}) {
+  const tab = (count: TabCount | undefined) => (
+    <CountedTab {...props} count={count} />
+  );
+  return props.tabKey === 'handoff' && countFirstTab
+    ? countFirstTab(tab)
+    : tab(undefined);
+}
+
+function CountedTab({
   tabKey,
-  reviewCount,
+  count,
   active,
   pinned,
   hasUnpinned,
@@ -265,7 +287,7 @@ function DocumentTab({
   onClosePane,
 }: TabActions & {
   tabKey: string;
-  reviewCount?: ReactNode;
+  count: TabCount | undefined;
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
@@ -277,7 +299,8 @@ function DocumentTab({
     title,
     hint,
     accessibleName = title,
-  } = describeTab(tabKey, reviewTitle);
+  } = describeTab(tabKey, reviewTitle, count);
+  const countId = useId();
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
   const activateTab = (event: KeyboardEvent<HTMLElement>) => {
@@ -309,9 +332,10 @@ function DocumentTab({
                   tabIndex={0}
                   aria-selected={active}
                   aria-label={accessibleName}
+                  aria-describedby={count ? countId : undefined}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                    'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-chip px-2 text-xs font-medium transition-colors',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent/50',
@@ -332,10 +356,18 @@ function DocumentTab({
             >
               <Icon className="size-3.5 shrink-0" />
               {label}
-              {tabKey === 'handoff' && reviewCount && (
-                <span className="shrink-0 whitespace-nowrap">
-                  {reviewCount}
-                </span>
+              {count && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground tabular-nums"
+                  >
+                    {count.value}
+                  </span>
+                  <span id={countId} hidden>
+                    {count.description}
+                  </span>
+                </>
               )}
               {tabKey !== 'handoff' && pinned && (
                 <Tooltip disableHoverablePopup>

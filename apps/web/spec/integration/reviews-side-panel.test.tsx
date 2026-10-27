@@ -6,11 +6,14 @@ const rail = () =>
 const panel = () =>
   page.getByRole('complementary', { name: 'Review sidebar', exact: true });
 
-test('Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the panel', async ({
+test('the panel starts hidden, Alt+1, Alt+2 and Alt+3 open their view and Alt+Shift+R hides and shows the panel', async ({
   workspace,
 }) => {
   await page.viewport(1280, 896);
   try {
+    await expect.element(rail()).toBeVisible();
+    await expect.element(panel()).not.toBeInTheDocument();
+    await userEvent.keyboard('{Alt>}{Shift>}R{/Shift}{/Alt}');
     await expect.element(panel()).toBeVisible();
     await userEvent.keyboard('{Alt>}{Shift>}R{/Shift}{/Alt}');
     await expect.element(panel()).not.toBeInTheDocument();

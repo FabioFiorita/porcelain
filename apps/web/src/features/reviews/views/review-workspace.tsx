@@ -47,6 +47,7 @@ import {
 } from '@/features/git-actions/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import type {
+  ChangeScope,
   SetWorkspaceSearch,
   Surface,
   WorkspaceSearch,
@@ -61,7 +62,12 @@ import {
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import { openToSideText } from '../rules/tab-strip';
+import {
+  changesTabCount,
+  openToSideText,
+  reviewTabCount,
+  type TabCount,
+} from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -99,9 +105,17 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
+  const [docked, setDocked] = useState(desktop);
+  if (docked !== desktop) {
+    setDocked(desktop);
+    if (desktop && mobileOpen) {
+      setPanelOpen(true);
+      setMobileOpen(false);
+    }
+  }
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const railToggle = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
@@ -203,6 +217,11 @@ function ReviewWorkspaceContent({
     browseTrigger.attach(trigger);
     showSurface(next);
   };
+  const changes: PaneContext['changes'] = {
+    scope: search.scope ?? 'uncommitted',
+    onScope: (next) =>
+      onSearch({ scope: next === 'branch' ? next : undefined }),
+  };
   const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
       layout={layout}
@@ -216,10 +235,8 @@ function ReviewWorkspaceContent({
       onOpen={open}
       sideLabel={sideLabel}
       changes={{
-        scope: search.scope ?? 'uncommitted',
+        ...changes,
         base: search.base,
-        onScope: (next) =>
-          onSearch({ scope: next === 'branch' ? next : undefined }),
         onBase: (next) => onSearch({ base: next }),
       }}
     />
@@ -291,6 +308,7 @@ function ReviewWorkspaceContent({
                 needsDefault={needsDefault}
                 layout={layout}
                 base={search.base}
+                changes={changes}
                 focused={focusedPane}
                 onOpen={open}
                 onBrowse={browse}
@@ -364,6 +382,7 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
+  changes: { scope: ChangeScope; onScope: (scope: ChangeScope) => void };
   onOpen: OpenDocument;
   onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
@@ -412,6 +431,7 @@ function DocumentPanes({
   scope,
   context,
   base,
+  changes,
   focused,
   onOpen,
   onBrowse,
@@ -460,6 +480,7 @@ function DocumentPanes({
     reviewTitle: publishedReviewTitle(published.review),
     review: published.review ?? undefined,
     base,
+    changes,
     onOpen,
     onBrowse,
     navigationTrigger,
@@ -502,6 +523,7 @@ function PaneView({
   reviewTitle,
   review,
   base,
+  changes,
   onOpen,
   onBrowse,
   navigationTrigger,
@@ -546,13 +568,20 @@ function PaneView({
       )}
     >
       <DocumentTabs
-        reviewCount={
-          review?.reviewId ? (
-            <ReviewTabProgress review={review} context={context} />
-          ) : (
-            !reviewTitle && <ChangesTabCount scope={scope} context={context} />
-          )
-        }
+        countFirstTab={(tab) => {
+          if (review?.reviewId)
+            return (
+              <ReviewTabProgress review={review} context={context}>
+                {tab}
+              </ReviewTabProgress>
+            );
+          if (reviewTitle) return tab(undefined);
+          return (
+            <ChangesTabCount scope={scope} context={context}>
+              {tab}
+            </ChangesTabCount>
+          );
+        }}
         leading={
           index === 0 ? (
             <Tooltip>
@@ -621,6 +650,7 @@ function PaneView({
               document={document}
               sideLabel={openToSideText(paneSide(split, index))}
               base={base}
+              changes={changes}
               onOpen={onOpen}
               onBrowse={onBrowse}
               active={focused}
@@ -641,31 +671,27 @@ function PaneView({
 function ChangesTabCount({
   scope,
   context,
+  children,
 }: {
   scope: PaneContext['scope'];
   context: ConnectionContext;
+  children: (count: TabCount | undefined) => ReactNode;
 }) {
   const count =
     Option.getOrUndefined(
       AsyncResult.value(useReviewOverview(scope, context.connection)),
     )?.changes.length ?? 0;
-  if (count === 0) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className="text-2xs leading-4 text-muted-foreground tabular-nums"
-    >
-      {count}
-    </span>
-  );
+  return children(changesTabCount(count));
 }
 
 function ReviewTabProgress({
   review,
   context,
+  children,
 }: {
   review: ReviewResponse;
   context: ConnectionContext;
+  children: (count: TabCount) => ReactNode;
 }) {
   const selection = useReviewRevisionSelection(review.reviewId ?? '');
   const specsApart = useSpecsApart(context.connection);
@@ -691,12 +717,10 @@ function ReviewTabProgress({
         specsApart,
       }).reviewed
     : 0;
-  return (
-    <span
-      aria-hidden="true"
-      className="text-2xs leading-4 text-muted-foreground tabular-nums"
-    >
-      {reviewed}/{revision?.content.layers.length ?? review.layers.length}
-    </span>
+  return children(
+    reviewTabCount(
+      reviewed,
+      revision?.content.layers.length ?? review.layers.length,
+    ),
   );
 }

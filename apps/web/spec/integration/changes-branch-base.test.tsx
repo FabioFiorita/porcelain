@@ -30,7 +30,10 @@ test.for([1280, 414])(
           .getByRole('navigation', { name: 'Side panel', exact: true })
           .getByRole('button', { name: 'Changes', exact: true })
           .click();
-      await page.getByRole('tab', { name: 'Branch', exact: true }).click();
+      await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
+        .getByRole('tab', { name: 'Branch', exact: true })
+        .click();
       await expect
         .element(
           page.getByText('2 commits on feature since main', { exact: true }),

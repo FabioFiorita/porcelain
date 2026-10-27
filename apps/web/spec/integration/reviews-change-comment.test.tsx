@@ -46,7 +46,10 @@ test('the reviewer comments on the whole uncommitted change and then on the whol
   await repo.commit('Add notes');
   await expect.poll(async () => (await server.branchChanges()).commits).toBe(1);
   const tip = (await server.branchChanges()).head.oid;
-  await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Branch', exact: true })
+    .click();
   const branchComment = workspace.getByRole('button', {
     name: 'Comment on the whole branch',
     exact: true,

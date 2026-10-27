@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('all changes includes every changed file, including unexplained, deleted and spec files', async ({
@@ -21,7 +21,12 @@ test('all changes includes every changed file, including unexplained, deleted an
     .getByRole('button', { name: 'All changes', exact: true })
     .click();
   await expect
-    .element(workspace.getByText('5 files', { exact: true }))
+    .element(
+      workspace.getByRole('heading', {
+        name: '5 uncommitted changes',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await workspace
     .getByRole('button', { name: 'Mark all 5 files reviewed', exact: true })
@@ -131,12 +136,89 @@ test('Changes explains how to get a review until the agent publishes one', async
   await expect
     .element(workspace.getByText('publish_review', { exact: true }))
     .toBeVisible();
+  const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
+  await expect.element(tab).toHaveTextContent('Changes1');
+  await expect.element(tab).toHaveAccessibleDescription('1 uncommitted file');
   await expect
-    .element(workspace.getByRole('tab', { name: 'Changes', exact: true }))
-    .toHaveTextContent('Changes1');
-  await expect
-    .element(workspace.getByText('1 file', { exact: true }))
+    .element(
+      workspace.getByRole('heading', {
+        name: '1 uncommitted change',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await agent.publishArchitecture();
   await expect.element(intro).not.toBeInTheDocument();
+});
+
+test('Changes lists its files above the diff, marks them reviewed and switches to the branch from the bar at desktop width', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await page.viewport(1440, 900);
+  try {
+    await expect
+      .element(
+        workspace.getByRole('complementary', {
+          name: 'Review sidebar',
+          exact: true,
+        }),
+      )
+      .not.toBeInTheDocument();
+    const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
+    await tab.hover();
+    await expect
+      .element(
+        page
+          .getByRole('tooltip')
+          .getByText('Changes · 1 uncommitted file', { exact: true }),
+      )
+      .toBeVisible();
+    const table = workspace.getByRole('region', {
+      name: '1 uncommitted change',
+      exact: true,
+    });
+    await expect
+      .element(table.getByText('0 of 1 file reviewed', { exact: true }))
+      .toBeVisible();
+    const row = table.getByRole('button', {
+      name: `${repo.readme.path} −0 +2`,
+      exact: true,
+    });
+    await expect.element(row).toHaveAttribute('aria-current', 'true');
+    const reviewed = table.getByRole('checkbox', {
+      name: `${repo.readme.path} reviewed`,
+      exact: true,
+    });
+    await expect.element(reviewed).toHaveAttribute('aria-checked', 'false');
+    await reviewed.click();
+    await expect.element(reviewed).toHaveAttribute('aria-checked', 'true');
+    await expect
+      .element(table.getByText('1 of 1 file reviewed', { exact: true }))
+      .toBeVisible();
+    await expect
+      .poll(async () =>
+        (await server.reviewedFiles()).marks.map((mark) => mark.path),
+      )
+      .toEqual([repo.readme.path]);
+
+    const compare = workspace
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('tablist', { name: 'Compare', exact: true });
+    await expect
+      .element(compare.getByRole('tab', { name: 'Uncommitted', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await compare.getByRole('tab', { name: 'Branch', exact: true }).click();
+    await expect.element(table).not.toBeInTheDocument();
+    await expect
+      .element(compare.getByRole('tab', { name: 'Branch', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await compare
+      .getByRole('tab', { name: 'Uncommitted', exact: true })
+      .click();
+    await expect.element(table).toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
 });

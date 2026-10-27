@@ -143,6 +143,66 @@ export function ReviewedControl({
   );
 }
 
+export function ReviewedCheckbox({
+  scope,
+  context,
+  path,
+  fingerprint,
+  status,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  path: string;
+  fingerprint: string | null | undefined;
+  status: ReviewStatus;
+}) {
+  const mark = useMarkReviewed(scope, context, WORKTREE_RANGE);
+  const unmark = useUnmarkReviewed(scope, context, WORKTREE_RANGE);
+  const pending = mark.result.waiting || unmark.result.waiting;
+  const error = reviewedCommandFailure(mark.result, unmark.result);
+  const reviewed = status === 'reviewed';
+  const reviewable = fingerprint !== null && fingerprint !== undefined;
+  const staleHint =
+    status === 'stale' ? 'Changed since reviewed' : 'Toggle reviewed';
+  const hint = reviewable ? staleHint : unavailableReviewText([path]);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={reviewed}
+            aria-label={`${path} reviewed`}
+            aria-invalid={error !== undefined}
+            disabled={pending || !reviewable}
+            onClick={() => {
+              if (fingerprint === null || fingerprint === undefined) return;
+              if (reviewed) unmark.start(path);
+              else mark.start({ path, fingerprint });
+            }}
+            className={cn(
+              'grid size-4 shrink-0 place-items-center rounded-checkbox border-(length:--border-checkbox) border-border-strong bg-background text-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+              reviewed && 'border-foreground bg-foreground',
+              status === 'stale' && 'border-warn',
+              error !== undefined && 'border-destructive',
+            )}
+          />
+        }
+      >
+        {pending ? (
+          <LoaderCircleIcon className="size-3 animate-spin text-muted-foreground" />
+        ) : (
+          reviewed && <CheckIcon className="size-3" strokeWidth={3} />
+        )}
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" className="break-all">
+        {error === undefined ? hint : reviewErrorMessage(error)}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function MarkAllReviewed({
   scope,
   context,
