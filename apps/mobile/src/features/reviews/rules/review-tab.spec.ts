@@ -15,5 +15,19 @@ it.each([
 ] as const)(
   'names the first tab when published is %s with decisions %j',
   (published, decisions, tab) =>
-    expect(reviewTab(published, decisions)).toEqual(tab),
+    expect(reviewTab(published, decisions, { kind: 'worktree' })).toEqual(tab),
+);
+
+it.each([
+  [true, { title: 'Review', progress: undefined }],
+  [false, { title: 'Changes', progress: undefined }],
+] as const)(
+  'drops the review count while the Branch comparison is shown, published %s',
+  (published, tab) =>
+    expect(
+      reviewTab(published, [{ reviewed: true }, { reviewed: false }], {
+        kind: 'branch',
+        base: 'main',
+      }),
+    ).toEqual(tab),
 );
