@@ -544,40 +544,50 @@ describe('SetRemoteAccessService', () => {
     },
   );
 
+  const removePermission = (devices: InMemoryDeviceStore) =>
+    devices.recordWaysInPermission({ device: phone, allowed: false });
+  const revoke = (devices: InMemoryDeviceStore) =>
+    devices.markRevoked({
+      device: phone,
+      revokedAt: '2026-10-25T10:00:00.000Z',
+    });
+
   it.each([
     [
       'its permission was removed',
-      (devices: InMemoryDeviceStore) =>
-        devices.recordWaysInPermission({ device: phone, allowed: false }),
+      removePermission,
+      'turns Tailscale on',
+      { tailnet: true, tailnetHostname },
+    ],
+    [
+      'its permission was removed',
+      removePermission,
+      'changes nothing',
+      { cloudflare: false },
     ],
     [
       'it was revoked',
-      (devices: InMemoryDeviceStore) =>
-        devices.markRevoked({
-          device: phone,
-          revokedAt: '2026-10-25T10:00:00.000Z',
-        }),
+      revoke,
+      'turns Tailscale on',
+      { tailnet: true, tailnetHostname },
     ],
-  ])(
-    'refuses a save from a device after %s since it looked, whether or not it changes anything, and changes nothing',
-    async (_name, withdraw) => {
+    ['it was revoked', revoke, 'changes nothing', { cloudflare: false }],
+  ] as const)(
+    'refuses a save from a device after %s since it looked, when the save %s, and changes nothing',
+    async (_name, withdraw, _save, change) => {
       const { settings, devices, services } = setup();
       const before = await Effect.runPromise(services.read.execute());
       await Effect.runPromise(withdraw(devices));
 
-      for (const change of [
-        { tailnet: true, tailnetHostname },
-        { cloudflare: false },
-      ])
-        await expect(
-          Effect.runPromise(
-            services.set.execute({
-              expected: before.fingerprint,
-              change,
-              caller: phoneOnLan,
-            }),
-          ),
-        ).rejects.toThrow(WaysInPermissionRequiredError);
+      await expect(
+        Effect.runPromise(
+          services.set.execute({
+            expected: before.fingerprint,
+            change,
+            caller: phoneOnLan,
+          }),
+        ),
+      ).rejects.toThrow(WaysInPermissionRequiredError);
       expect(await Effect.runPromise(settings.read())).toEqual({
         lan: false,
         tailnet: false,
