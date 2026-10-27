@@ -9,7 +9,7 @@ selectors:
   - 'Local network warning'
   - 'Not encrypted'
   - 'Tailscale'
-  - 'Set up Tailscale'
+  - 'Set up'
   - 'Tailscale name'
   - 'Save name'
   - 'Copy the tailscale serve command'

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   localNetworkNote,
+  remoteRouteNames,
   routeFailure,
   tailscaleServeCommand,
   type RemoteAccess,
@@ -143,4 +144,8 @@ describe('routeFailure', () => {
     );
     expect(routeFailure('cloudflare', 'unreachable')).toContain('cloudflared');
   });
+});
+
+it('orders the ways in from the nearest network to the public tunnel', () => {
+  expect(remoteRouteNames).toEqual(['lan', 'tailnet', 'cloudflare']);
 });

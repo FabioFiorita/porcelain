@@ -10,7 +10,6 @@ selectors:
   - 'Name of this computer'
   - 'Save'
   - 'Open This computer:'
-  - 'Computers. '
   - 'Close Settings'
 tests:
   - apps/web/spec/e2e/access-environment-name.desktop.e2e.ts
