@@ -42,6 +42,7 @@ import { Separator } from '@/components/ui/separator';
 import { Fragment, useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SettingsHeading } from '@/shared/views/settings-heading';
 import { usePreferences } from '../store';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
@@ -339,14 +340,11 @@ function ComputerPicker({
 export function GeneralSettings() {
   return (
     <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> General
-        </h1>
-        <p className="text-base">
-          How Porcelain looks, and how code and documents open.
-        </p>
-      </div>
+      <SettingsHeading
+        section="Settings"
+        title="General"
+        lead="How Porcelain looks, and how code and documents open."
+      />
       <FieldSet>
         <FieldLegend variant="label">Appearance</FieldLegend>
         <ItemGroup>
@@ -425,15 +423,11 @@ export function ReviewsGitSettings() {
     computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> Reviews &amp;
-          Git
-        </h1>
-        <p className="text-base">
-          How reviews read, and what Git does when you pull and archive.
-        </p>
-      </div>
+      <SettingsHeading
+        section="Settings"
+        title="Reviews & Git"
+        lead="How reviews read, and what Git does when you pull and archive."
+      />
       {computers.length > 1 && (
         <ComputerPicker
           computers={computers}

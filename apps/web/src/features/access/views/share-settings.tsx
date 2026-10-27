@@ -3,13 +3,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { PencilIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemTitle,
-  ItemGroup,
-} from '@/components/ui/item';
+import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,7 +73,9 @@ export function ComputerSettings({
   const access = Option.getOrUndefined(
     AsyncResult.value(useRemoteAccess(connection)),
   );
-  const [renaming, setRenaming] = useState(false);
+  const named = `${environment.custom}:${environment.name}`;
+  const [renamingFrom, setRenamingFrom] = useState<string | null>(null);
+  const renaming = renamingFrom === named;
 
   return (
     <>
@@ -110,15 +106,16 @@ export function ComputerSettings({
         action={
           access &&
           !renaming && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-1 rounded-md px-2 text-xs text-muted-foreground"
-              onClick={() => setRenaming(true)}
-            >
-              <PencilIcon />
-              Rename
-            </Button>
+            <span className="mt-1 text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRenamingFrom(named)}
+              >
+                <PencilIcon />
+                Rename
+              </Button>
+            </span>
           )
         }
       >
@@ -127,7 +124,7 @@ export function ComputerSettings({
             <EnvironmentName
               connection={connection}
               environment={environment}
-              onDone={() => setRenaming(false)}
+              onCancel={() => setRenamingFrom(null)}
             />
           </div>
         )}
@@ -145,14 +142,11 @@ export function ComputerSettings({
         <AgentsSetting />
         {!desktopShell && (
           <FieldSet>
-            <FieldLegend variant="label" className="flex items-center gap-2">
-              <span>This browser</span>
-              <Badge
-                variant="outline"
-                className="font-medium text-muted-foreground"
-              >
-                Shown in a browser tab
-              </Badge>
+            <FieldLegend variant="label">
+              <span className="flex items-center gap-2">
+                <span>This browser</span>
+                <Badge variant="outline">Shown in a browser tab</Badge>
+              </span>
             </FieldLegend>
             <ItemGroup>
               <Item>
@@ -190,11 +184,13 @@ function DevicesSettings() {
       {(remote) => (
         <>
           <FieldSet id="devices" className="min-w-0">
-            <FieldLegend variant="label" className="flex items-center gap-1">
-              Devices
-              {paired && (
-                <span className="tabular-nums">{paired.devices.length}</span>
-              )}
+            <FieldLegend variant="label">
+              <span className="flex items-center gap-1">
+                Devices
+                {paired && (
+                  <span className="tabular-nums">{paired.devices.length}</span>
+                )}
+              </span>
             </FieldLegend>
             <PairedDevices connection={connection} />
           </FieldSet>

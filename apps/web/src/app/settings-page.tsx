@@ -1,6 +1,5 @@
 import { useElement } from '@/shared/hooks/use-element';
 import {
-  ChevronLeftIcon,
   XIcon,
   GitBranchIcon,
   SlidersHorizontalIcon,
@@ -163,7 +162,7 @@ export function SettingsPage({
       aria-label="Settings"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper border bg-card outline-none"
     >
-      <header className="flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
+      <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
         <Tooltip>
           <TooltipTrigger
             render={<SidebarTrigger aria-label="Toggle Sidebar" />}
@@ -174,15 +173,13 @@ export function SettingsPage({
           </TooltipContent>
         </Tooltip>
         <Breadcrumb className="min-w-0 flex-1">
-          <BreadcrumbList className="min-w-0 flex-nowrap gap-1.5 text-ui leading-4 sm:gap-1.5">
+          <BreadcrumbList className="min-w-0 flex-nowrap">
             <BreadcrumbItem>Settings</BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
               <h2>
                 {environmentId === undefined ? (
-                  <BreadcrumbPage className="font-medium">
-                    {current.label}
-                  </BreadcrumbPage>
+                  <BreadcrumbPage>{current.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink
                     render={<button type="button" onClick={returnToList} />}
@@ -196,7 +193,7 @@ export function SettingsPage({
               <>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="min-w-0 font-medium">
+                  <BreadcrumbPage className="min-w-0">
                     {detailName}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -207,16 +204,12 @@ export function SettingsPage({
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto shrink-0 gap-1.5 rounded-md pr-1.5 pl-2 text-xs"
+          className="ml-auto shrink-0"
           onClick={leave}
-          aria-label={
-            environmentId === undefined ? 'Close Settings' : 'Back to Computers'
-          }
+          aria-label="Close Settings"
         >
-          {environmentId === undefined ? <XIcon /> : <ChevronLeftIcon />}
-          <span className="hidden sm:inline">
-            {environmentId === undefined ? 'Close' : 'Computers'}
-          </span>
+          <XIcon />
+          <span className="hidden sm:inline">Close</span>
           <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
         </Button>
       </header>
@@ -225,7 +218,7 @@ export function SettingsPage({
           aria-label="Settings sections"
           className="flex shrink-0 flex-col md:w-52"
         >
-          <div className="flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
+          <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
             {settingsSections.map((item) => {
               const Icon = item.icon;
               const selected = current.id === item.id;
@@ -234,11 +227,7 @@ export function SettingsPage({
                   key={item.id}
                   variant="ghost"
                   size="sm"
-                  className={cn(
-                    'h-8 shrink-0 justify-start gap-2.5 rounded-md pr-2.5 pl-2 text-ui leading-4 md:w-full [&_svg]:text-muted-foreground',
-                    selected &&
-                      'bg-muted inset-ring inset-ring-border [&_svg]:text-foreground',
-                  )}
+                  className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}
                   onClick={() => {
                     if (

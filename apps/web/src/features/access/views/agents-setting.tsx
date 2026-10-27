@@ -46,15 +46,7 @@ export function AgentsSetting() {
           className="block font-mono text-xs leading-4.75 wrap-anywhere"
           role="status"
         >
-          {command === undefined
-            ? failed
-              ? 'MCP configuration is unavailable.'
-              : 'Loading MCP configuration…'
-            : commandParts(command).map((part, index) => (
-                <span key={index} className={partColors[part.kind]}>
-                  {part.text}
-                </span>
-              ))}
+          <CommandText command={command} failed={failed} />
         </code>
         <Tooltip>
           <TooltipTrigger
@@ -62,7 +54,7 @@ export function AgentsSetting() {
               <Button
                 size="icon-sm"
                 variant="ghost"
-                className="absolute top-1.5 right-1.5 rounded-md text-muted-foreground"
+                className="absolute top-1.5 right-1.5"
                 aria-label="Copy MCP configuration"
                 disabled={command === undefined}
                 onClick={() => {
@@ -99,7 +91,7 @@ export function AgentsSetting() {
         <Button
           size="sm"
           variant="outline"
-          className="self-start rounded-md px-2.5 text-xs"
+          className="self-start"
           onClick={retry}
         >
           Retry MCP configuration
@@ -107,6 +99,24 @@ export function AgentsSetting() {
       )}
     </FieldSet>
   );
+}
+
+function CommandText({
+  command,
+  failed,
+}: {
+  command: string | undefined;
+  failed: boolean;
+}) {
+  if (command !== undefined)
+    return commandParts(command).map((part, index) => (
+      <span key={index} className={partColors[part.kind]}>
+        {part.text}
+      </span>
+    ));
+  return failed
+    ? 'MCP configuration is unavailable.'
+    : 'Loading MCP configuration…';
 }
 
 const partColors: Record<CommandPart['kind'], string | undefined> = {

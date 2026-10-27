@@ -10,7 +10,6 @@ import {
   Item,
   ItemActions,
   ItemContent,
-  ItemDescription,
   ItemFooter,
   ItemGroup,
   ItemTitle,
@@ -133,7 +132,7 @@ function RouteReach({
               <Button
                 size="icon-xs"
                 variant="ghost"
-                className="size-5 rounded-sm text-muted-foreground"
+                className="size-5"
                 aria-label={`Copy ${url}`}
                 onClick={() => copyText(url, 'address')}
               >
@@ -174,10 +173,10 @@ function RouteRow({
   return (
     <Collapsible
       defaultOpen={setup?.open ?? false}
-      render={<Item variant="outline" className="min-h-14 gap-x-4 gap-y-2" />}
+      render={<Item variant="outline" className="min-h-14" />}
     >
       <ItemContent>
-        <ItemTitle className="flex-wrap gap-x-2 gap-y-1">
+        <ItemTitle className="flex-wrap">
           {title}
           <RouteStatus name={name} route={route} />
           {!encrypted && (
@@ -196,7 +195,10 @@ function RouteRow({
               <Button
                 size="sm"
                 variant={setup.configured ? 'ghost' : 'outline'}
-                className="group/setup rounded-md px-2.5 text-xs"
+                aria-label={
+                  setup.configured ? `${title} setup` : `Set up ${title}`
+                }
+                className="group/setup"
               />
             }
           >
@@ -248,7 +250,7 @@ function LocalNetworkSettings({
         <Button
           variant="outline"
           size="sm"
-          className="self-start rounded-md px-2.5 text-xs"
+          className="self-start"
           disabled={disabled}
           onClick={onTurnOn}
         >
@@ -260,11 +262,7 @@ function LocalNetworkSettings({
           {localNetworkNote(remote)}
         </p>
       )}
-      <Alert
-        role="note"
-        aria-label="Local network warning"
-        className="gap-1.5 rounded-xl border-warn-border bg-warn-soft px-3 pt-2.75 pb-3 text-warn lg:absolute lg:top-7 lg:left-full lg:ml-8 lg:w-62"
-      >
+      <div className="settings-margin-note lg:absolute lg:top-7 lg:left-full lg:ml-8 lg:w-62">
         <span
           aria-hidden
           className="absolute top-6.5 -left-6.5 hidden size-1.5 rounded-full bg-warn lg:block"
@@ -273,16 +271,18 @@ function LocalNetworkSettings({
           aria-hidden
           className="absolute top-7.25 -left-5 hidden h-px w-5 bg-warn-border lg:block"
         />
-        <AlertTitle className="flex items-center gap-1.5 text-xs leading-4 font-semibold">
-          <ShieldAlertIcon aria-hidden className="size-3.5" />
-          Not encrypted
-        </AlertTitle>
-        <AlertDescription className="text-xs leading-4.5 text-foreground-2">
-          Anyone on the same network can read what Porcelain shows and the
-          device credentials it sends. For an encrypted connection, use
-          Tailscale.
-        </AlertDescription>
-      </Alert>
+        <Alert role="note" aria-label="Local network warning">
+          <AlertTitle>
+            <ShieldAlertIcon aria-hidden />
+            Not encrypted
+          </AlertTitle>
+          <AlertDescription>
+            Anyone on the same network can read what Porcelain shows and the
+            device credentials it sends. For an encrypted connection, use
+            Tailscale.
+          </AlertDescription>
+        </Alert>
+      </div>
     </>
   );
 }
@@ -328,7 +328,7 @@ function HostnameForm({
       <Button
         type="submit"
         variant="outline"
-        className="shrink-0 rounded-md text-ui"
+        className="shrink-0"
         disabled={
           disabled || hostname.trim() === '' || hostname.trim() === saved
         }
@@ -339,7 +339,7 @@ function HostnameForm({
         <Button
           type="button"
           variant="outline"
-          className="shrink-0 rounded-md text-ui"
+          className="shrink-0"
           disabled={disabled}
           onClick={onCheck}
         >

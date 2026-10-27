@@ -7,7 +7,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -85,6 +84,7 @@ export function PairDevice({
           <Label htmlFor="pairing-label">Device name</Label>
           <Input
             id="pairing-label"
+            className="h-7.5"
             placeholder="My phone"
             maxLength={PAIRING_LABEL_MAX_LENGTH}
             value={label}
@@ -104,7 +104,7 @@ export function PairDevice({
                 if (value) setChosen(value);
               }}
             >
-              <SelectTrigger id="pairing-address" className="w-full">
+              <SelectTrigger id="pairing-address" className="h-7.5 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -119,6 +119,7 @@ export function PairDevice({
         )}
         <Button
           type="submit"
+          size="sm"
           className="shrink-0"
           disabled={issue.waiting || label.trim() === ''}
         >
@@ -129,14 +130,13 @@ export function PairDevice({
       <Field orientation="horizontal">
         <Switch
           id="pairing-trusted"
+          aria-label="The paired device can update Porcelain"
           checked={trusted}
           onCheckedChange={setTrusted}
         />
-        <Label htmlFor="pairing-trusted">
-          The paired device can update Porcelain
-        </Label>
+        <Label htmlFor="pairing-trusted">Can update Porcelain</Label>
       </Field>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs leading-4.25 text-muted-foreground">
         The link opens through {remoteRouteTitles[target.route]}. The device
         will work only through the way in it pairs over. To use it through
         another way in too, pair it again through that one.
@@ -149,33 +149,40 @@ export function PairDevice({
         </Alert>
       )}
       {issued && (
-        <Item variant="muted">
-          <ItemMedia>
-            <PairingQr link={issued.link} />
-          </ItemMedia>
-          <ItemContent>
-            <ItemTitle>Scan on {issued.label}</ItemTitle>
-            <p
-              aria-label="Pairing link"
-              className="font-mono text-xs break-all text-muted-foreground"
-            >
-              {issued.link}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Works once, until{' '}
-              {new Date(issued.expiresAt).toLocaleTimeString()}.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() => copyText(issued?.link ?? '', 'pairing link')}
-            >
-              <CopyIcon />
-              Copy link
-            </Button>
-          </ItemContent>
-        </Item>
+        <div className="flex flex-col gap-2.5 border-t pt-2.5">
+          <div className="flex gap-2.5">
+            <div className="shrink-0 rounded-lg bg-background p-1 inset-ring inset-ring-border">
+              <PairingQr link={issued.link} />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1 pt-0.5">
+              <p className="text-ui leading-4.5 font-medium">
+                Scan on {issued.label}
+              </p>
+              <p className="text-xs leading-4.25 text-muted-foreground">
+                Works once, until{' '}
+                <span className="tabular-nums">
+                  {new Date(issued.expiresAt).toLocaleTimeString()}
+                </span>
+                , through {remoteRouteTitles[target.route]}.
+              </p>
+            </div>
+          </div>
+          <p
+            aria-label="Pairing link"
+            className="font-mono text-2xs leading-4 break-all text-muted-foreground"
+          >
+            {issued.link}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => copyText(issued?.link ?? '', 'pairing link')}
+          >
+            <CopyIcon />
+            Copy link
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -81,7 +81,6 @@ export function SettingsUpdateRow({
     action = (
       <Button
         size="sm"
-        className="rounded-md px-2.5 text-xs"
         aria-label={
           target.kind === 'mac-app'
             ? 'Restart to update'
@@ -95,15 +94,7 @@ export function SettingsUpdateRow({
     );
   else if (trust && target.kind === 'service' && target.state.available)
     action = (
-      <CollapsibleTrigger
-        render={
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-md px-2.5 text-xs"
-          />
-        }
-      >
+      <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
         <LockKeyholeIcon />
         Needs trust
       </CollapsibleTrigger>
@@ -213,7 +204,7 @@ export function SettingsUpdateRow({
             <Button
               size="sm"
               variant="outline"
-              className="self-start rounded-md px-2.5 text-xs"
+              className="self-start"
               onClick={() => window.location.reload()}
             >
               Reload

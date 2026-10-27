@@ -20,12 +20,7 @@ import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-} from '@/components/ui/item';
+import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
 import { cn } from '@/shared/lib/utils';
 import { SettingsHeading } from '@/shared/views/settings-heading';
@@ -83,22 +78,21 @@ function AddRemote() {
   const { status } = useSavedEnvironments();
   return (
     <Item>
-      <ItemContent className="gap-3">
-        <ItemDescription className="leading-5 text-foreground-2">
+      <ItemContent>
+        <p className="text-ui leading-5 text-foreground-2">
           On the other computer, run{' '}
           <code className="rounded-sm bg-muted px-1.5 py-px font-mono text-xs font-medium text-foreground inset-ring inset-ring-border">
             porcelain pair
           </code>{' '}
           and paste the link it prints. This device keeps its own credential for
           that computer.
-        </ItemDescription>
+        </p>
         <form
-          className="flex flex-col gap-2 sm:flex-row"
+          className="mt-2.5 flex flex-col gap-2 font-mono sm:flex-row"
           onSubmit={(event) => submitForm(event, () => add.submit(link))}
         >
           <Input
             aria-label="Pairing link"
-            className="font-mono"
             placeholder="http://192.168.1.20:4738/pair#c=…"
             value={link}
             disabled={add.result.waiting || status !== 'ready'}
@@ -109,7 +103,7 @@ function AddRemote() {
           />
           <Button
             type="submit"
-            className="shrink-0 rounded-md px-3.5 text-ui"
+            className="shrink-0"
             disabled={
               add.result.waiting || status !== 'ready' || link.trim() === ''
             }
@@ -187,12 +181,15 @@ export function RemoteComputers({
         </Alert>
       )}
       <FieldSet className="relative">
-        <FieldLegend variant="label" className="flex h-7 items-center gap-1">
-          Computers <span className="tabular-nums">{remotes.length + 1}</span>
+        <FieldLegend variant="label" className="flex h-7 items-center">
+          <span className="flex items-center gap-1">
+            Computers
+            <span className="tabular-nums">{remotes.length + 1}</span>
+          </span>
         </FieldLegend>
         <Button
           size="sm"
-          className="absolute top-0 right-0 rounded-md px-2.5 text-xs"
+          className="absolute top-0 right-0"
           disabled={batch.running || count === 0}
           onClick={() => run(targets)}
         >
@@ -236,13 +233,13 @@ export function RemoteComputers({
       </FieldSet>
       <p className="-mt-3.5 text-ui leading-5 text-muted-foreground">
         To pair a phone, tablet or browser with this computer, open{' '}
-        <Button
-          variant="link"
-          className="h-auto p-0 text-ui leading-5 text-foreground underline underline-offset-3"
+        <button
+          type="button"
+          className="rounded-sm font-medium text-foreground underline underline-offset-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
           onClick={() => onOpen('this-computer', 'devices')}
         >
           {environment.name} › Devices
-        </Button>
+        </button>
         .
       </p>
     </>
@@ -292,10 +289,9 @@ function ComputerRow({
 }) {
   return (
     <Item
-      size="sm"
       role="listitem"
       aria-label={label}
-      className="relative grid min-h-15 grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] gap-x-3 gap-y-2 sm:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
+      className="relative grid min-h-15 grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] sm:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
     >
       <span
         aria-hidden
@@ -321,7 +317,7 @@ function ComputerRow({
           />
           {badge}
         </div>
-        <p className="mt-0.5 truncate text-xs leading-4.5 text-muted-foreground">
+        <p className="mt-0.5 text-xs leading-4.5 text-muted-foreground">
           {description}
         </p>
       </div>

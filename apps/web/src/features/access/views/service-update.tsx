@@ -35,7 +35,6 @@ function ServiceUpdate({
           <Button
             size="sm"
             variant="outline"
-            className="rounded-md px-2.5 text-xs"
             disabled={result.waiting}
             onClick={refresh}
           >

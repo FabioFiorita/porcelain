@@ -31,7 +31,7 @@ export function AppUpdateSettings({
         <Button
           size="sm"
           variant="outline"
-          className="self-start rounded-md px-2.5 text-xs"
+          className="self-start"
           disabled={
             batch.running ||
             result.waiting ||

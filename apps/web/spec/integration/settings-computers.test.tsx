@@ -9,19 +9,25 @@ test.for([414, 1080, 1440])(
     await page.viewport(width, 896);
     try {
       const app = await render.route('/settings/computers/this-computer');
-      await app.page
-        .getByRole('textbox', { name: 'Name of this computer', exact: true })
-        .fill(name);
-      const save = app.page.getByRole('button', { name: 'Save', exact: true });
-      await save.click();
-      await expect.element(save).toBeDisabled();
-      const description = app.page.getByText(
-        `Open the link or scan the code on the other device to connect it to ${name}. Each link works once, for a few minutes.`,
-        { exact: true },
-      );
-      await expect.element(description).toBeVisible();
+      const rename = app.page.getByRole('button', {
+        name: 'Rename',
+        exact: true,
+      });
+      await rename.click();
+      const field = app.page.getByRole('textbox', {
+        name: 'Name of this computer',
+        exact: true,
+      });
+      await field.fill(name);
+      await app.page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.element(field).not.toBeInTheDocument();
+      const heading = app.page.getByRole('heading', {
+        name: `Computers. ${name}`,
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
       await expect
-        .poll(() => reviewLayout.fitsViewport(description))
+        .poll(() => reviewLayout.fitsViewport(heading))
         .toEqual({ insideViewport: true, contentFits: true });
       await app.navigate('/settings/computers');
       const list = app.page.getByRole('region', {
@@ -47,23 +53,12 @@ test.for([414, 1080, 1440])(
       reviewLayout.focus(open);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
       await expect.element(open).toHaveFocus();
-      if (width === 1440)
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .not.toBeInTheDocument();
-      else
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .toHaveTextContent(name);
-      await open.click();
       await expect
-        .element(
-          app.page.getByRole('textbox', {
-            name: 'Name of this computer',
-            exact: true,
-          }),
-        )
-        .toHaveValue(name);
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(name);
+      await open.click();
+      await rename.click();
+      await expect.element(field).toHaveValue(name);
     } finally {
       await page.viewport(414, 896);
     }

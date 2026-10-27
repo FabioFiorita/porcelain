@@ -13,7 +13,7 @@ export function DisconnectBrowser({ computer }: { computer: string }) {
   const { result: disconnect, submit } = useDisconnect(connection);
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="settings-danger flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <div className="min-w-0">
           <p className="text-sm leading-5 font-medium">
             Disconnect this browser
@@ -25,7 +25,7 @@ export function DisconnectBrowser({ computer }: { computer: string }) {
         <Button
           variant="outline"
           size="sm"
-          className="shrink-0 self-start rounded-md px-2.5 text-xs text-del-fg sm:self-auto"
+          className="shrink-0 self-start sm:self-auto"
           aria-label="Disconnect this browser"
           disabled={disconnect.waiting}
           onClick={submit}
