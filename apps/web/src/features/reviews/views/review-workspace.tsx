@@ -549,7 +549,9 @@ function PaneView({
         reviewCount={
           review?.reviewId ? (
             <ReviewTabProgress review={review} context={context} />
-          ) : undefined
+          ) : (
+            !reviewTitle && <ChangesTabCount scope={scope} context={context} />
+          )
         }
         leading={
           index === 0 ? (
@@ -636,6 +638,28 @@ function PaneView({
   );
 }
 
+function ChangesTabCount({
+  scope,
+  context,
+}: {
+  scope: PaneContext['scope'];
+  context: ConnectionContext;
+}) {
+  const count =
+    Option.getOrUndefined(
+      AsyncResult.value(useReviewOverview(scope, context.connection)),
+    )?.changes.length ?? 0;
+  if (count === 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="text-2xs leading-4 text-muted-foreground tabular-nums"
+    >
+      {count}
+    </span>
+  );
+}
+
 function ReviewTabProgress({
   review,
   context,
@@ -670,7 +694,7 @@ function ReviewTabProgress({
   return (
     <span
       aria-hidden="true"
-      className="text-2xs text-muted-foreground tabular-nums"
+      className="text-2xs leading-4 text-muted-foreground tabular-nums"
     >
       {reviewed}/{revision?.content.layers.length ?? review.layers.length}
     </span>
