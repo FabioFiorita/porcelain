@@ -12,6 +12,7 @@ import type {
   NetworkAction,
 } from '@porcelain/client/git-actions/rules';
 import {
+  type GitMenuControls,
   runNetworkAction,
   refreshGitLook,
   restoreDiscardedItem,
@@ -26,7 +27,7 @@ type Menu = {
     read: () => Promise<ReadGitStatusResponse>;
   };
   enableDetails: () => void;
-  pullStrategy: 'merge' | 'rebase';
+  pull: GitMenuControls['pull'];
   notify: (notice: GitNotice) => void;
   onProgress: (open: boolean) => void;
   onResult: (notice: GitNotice) => void;

@@ -27,7 +27,9 @@ export type GitMenuControls = {
     read: () => Effect.Effect<ReadGitStatusResponse, Cause.UnknownError>;
   };
   enableDetails: () => void;
-  pullStrategy: 'merge' | 'rebase';
+  pull:
+    | { kind: 'ready'; strategy: 'merge' | 'rebase' }
+    | { kind: 'blocked'; reason: string };
   notify: (notice: GitNotice) => void;
   onProgress: (open: boolean) => void;
   onResult: (notice: GitNotice) => void;
@@ -45,6 +47,14 @@ export const runNetworkAction = Effect.fn('GitMenu.runNetwork')(
     const { details } = menu;
     const notify = menu.onResult;
     const label = networkTitle(next);
+    if (next === 'pull' && menu.pull.kind === 'blocked') {
+      notify({
+        title: `${label} did not run`,
+        description: menu.pull.reason,
+        type: 'error',
+      });
+      return;
+    }
     const status = AsyncResult.isSuccess(details.result)
       ? details.result.value
       : undefined;
@@ -67,7 +77,7 @@ export const runNetworkAction = Effect.fn('GitMenu.runNetwork')(
     const input: ActionInput = networkInput(
       next,
       looked.branch,
-      menu.pullStrategy,
+      menu.pull.kind === 'ready' ? menu.pull.strategy : 'merge',
     );
     const receipt = yield* Effect.acquireUseRelease(
       Effect.sync(() => menu.onProgress(true)),

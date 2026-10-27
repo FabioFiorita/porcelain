@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { ScrollView } from 'react-native';
 import {
   generalSettingsSummary,
-  reviewsGitSettingsSummary,
+  REVIEWS_GIT_SETTINGS_SUMMARY,
 } from '@porcelain/client/preferences/rules';
 import {
   computersSummary,
@@ -69,8 +69,8 @@ export function SettingsScreen({
           <Item
             testID="settings-reviews-git"
             title="Reviews & Git"
-            description={reviewsGitSettingsSummary(preferences)}
-            accessibilityLabel={`Reviews & Git, ${reviewsGitSettingsSummary(preferences)}`}
+            description={REVIEWS_GIT_SETTINGS_SUMMARY}
+            accessibilityLabel={`Reviews & Git, ${REVIEWS_GIT_SETTINGS_SUMMARY}`}
             leading={<IconTile name="checklist" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenReviewsGit}

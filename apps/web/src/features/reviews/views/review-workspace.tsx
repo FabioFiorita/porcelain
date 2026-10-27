@@ -55,7 +55,7 @@ import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
 import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import {
   anchorBase,
   type RevealComment,
@@ -644,7 +644,7 @@ function ReviewTabProgress({
   context: ConnectionContext;
 }) {
   const selection = useReviewRevisionSelection(review.reviewId ?? '');
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const read = useAtomValue(
     readReview({
       connection: context.connection,
@@ -664,7 +664,7 @@ function ReviewTabProgress({
   const marks = Option.getOrUndefined(AsyncResult.value(result));
   const reviewed = revision
     ? revisionDecisionProgress(revision, marks, {
-        specsApart: preferences.collapseSpecs,
+        specsApart,
       }).reviewed
     : 0;
   return (

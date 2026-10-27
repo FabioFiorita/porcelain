@@ -61,6 +61,7 @@ const tableLanes: Readonly<
   DeviceStore: { any: ['access'] },
   PairingGrantStore: { any: ['access'] },
   EnvironmentNameStore: { any: ['access'] },
+  ReviewGitSettingsStore: { any: ['access'] },
   RemoteAccessStore: { any: ['remoteAccess'] },
   DeviceSightingStore: { any: ['access'] },
   PairingAttemptStore: { any: ['access'] },

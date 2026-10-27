@@ -6,6 +6,7 @@ import type { ConnectionError } from '../../shared/api/connection-error.ts';
 import { PreferenceStorage } from './ports/preference-storage.ts';
 import {
   defaultPreferences,
+  type PreferenceChange,
   type Preferences,
 } from './store/saved-preferences.ts';
 import type { PersistedReadState } from '../persistence/rules/read-state.ts';
@@ -22,7 +23,7 @@ export class PreferencesStore extends Context.Service<
     readonly state: AtomRef.ReadonlyRef<PreferencesState>;
     readonly load: () => Effect.Effect<void, WriteFailure>;
     readonly change: (
-      change: Partial<Preferences>,
+      change: PreferenceChange,
     ) => Effect.Effect<void, WriteFailure>;
   }
 >()('@porcelain/client/PreferencesStore') {
@@ -47,7 +48,7 @@ export class PreferencesStore extends Context.Service<
         state: owner.state,
         load: owner.load,
         change: Effect.fn('PreferencesStore.change')(
-          (change: Partial<Preferences>) =>
+          (change: PreferenceChange) =>
             owner.write(({ preferences }) =>
               Effect.succeed({ preferences: { ...preferences, ...change } }),
             ),

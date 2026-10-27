@@ -63,7 +63,7 @@ import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePreferences, useTheme } from '@/features/preferences/index';
+import { useSpecsApart, useTheme } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { reviewListTitle } from '@porcelain/client/reviews/rules';
@@ -319,7 +319,7 @@ function ReviewRevisionPage({
   const markResult = useAtomValue(marksRead);
   const retryMarks = useAtomRefresh(marksRead);
   const marks = Option.getOrUndefined(AsyncResult.value(markResult));
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const { dark } = useTheme();
   const place = useWalkthroughPlace(
     `${revision.reviewId}:${revision.revision}`,
@@ -357,7 +357,7 @@ function ReviewRevisionPage({
   const stops = walkthroughStops(
     review,
     revision.files.map((entry) => entry.path),
-    { specsApart: preferences.collapseSpecs },
+    { specsApart: specsApart },
   );
   const missingDecision =
     decision !== undefined &&

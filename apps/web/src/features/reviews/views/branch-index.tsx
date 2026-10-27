@@ -22,7 +22,7 @@ import { BranchBasePicker } from './branch-base-picker';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchIndex({
@@ -120,7 +120,7 @@ function BranchFileList({
   onOpen: OpenDocument;
   sideLabel: string;
 }) {
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
   const reviewed = useToggleReviewed(
@@ -161,7 +161,7 @@ function BranchFileList({
             No changes since {refLabel(branch.base.ref)}
           </p>
         )}
-        {groupSpecPaths(items, preferences.collapseSpecs).map((item) => (
+        {groupSpecPaths(items, specsApart).map((item) => (
           <ChangeRow
             key={item.path}
             path={item.path}

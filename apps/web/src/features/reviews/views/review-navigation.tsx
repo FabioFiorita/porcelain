@@ -30,7 +30,7 @@ import {
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
 import { type OpenDocument, ALL_CHANGES } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
@@ -140,11 +140,11 @@ export function RevisionNavigation({
   });
   const [completed, complete] = useAtom(commands.completeDecision);
   const [unmarked, unmark] = useAtom(commands.unmark);
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const stops = walkthroughStops(
     revision.content,
     revision.files.map((file) => file.path),
-    { specsApart: preferences.collapseSpecs },
+    { specsApart },
   );
   const items = revisionReviewItems(revision, marks);
   const decisions = revisionDecisionStates(revision, marks);
