@@ -1,6 +1,9 @@
 import type { ReviewMarks, ReviewRecord } from './review.ts';
 import type { ReviewRevision } from './verdict.ts';
-import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
+import type {
+  ListPullRequestsResponse,
+  ReadPullRequestResponse,
+} from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export const reviewListGroups = [
@@ -337,6 +340,17 @@ export function pullRequestStateLabel(pull: {
 }) {
   if (pull.state === 'open' && pull.draft) return 'Draft';
   return { open: 'Open', closed: 'Closed', merged: 'Merged' }[pull.state];
+}
+
+export function pullRequestBlockHidden(
+  linked: string | undefined,
+  projectPullRequests: ListPullRequestsResponse | undefined,
+) {
+  return (
+    linked === undefined &&
+    projectPullRequests?.kind === 'unavailable' &&
+    projectPullRequests.reason === 'not-github'
+  );
 }
 
 export function pullRequestLink(text: string): string | undefined {

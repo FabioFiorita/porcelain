@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -12,6 +12,7 @@ import {
   reviewErrorMessage,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestBlockHidden,
   pullRequestLink,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
@@ -23,6 +24,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TruncatedText } from '@/shared/views/truncated-text';
 
 type Props = { reviewId: string; context: ConnectionContext };
+type FocusReturn = 'linked' | 'unlinked' | undefined;
+
+function returnFocusTo(
+  element: HTMLElement | null,
+  target: FocusReturn,
+  pending: FocusReturn,
+  done: () => void,
+) {
+  if (!element || pending !== target) return;
+  done();
+  if (document.activeElement === document.body) element.focus();
+}
 
 export function PullRequestBlock({ reviewId, context }: Props) {
   const input = { connection: context.connection, reviewId };
@@ -35,6 +48,7 @@ export function PullRequestBlock({ reviewId, context }: Props) {
   const [mutation, setPullRequest] = useAtom(
     reviewCommands(input).setPullRequest,
   );
+  const [focusReturn, setFocusReturn] = useState<FocusReturn>();
   const data = Option.getOrUndefined(AsyncResult.value(record));
   const pull = AsyncResult.isFailure(result)
     ? { kind: 'failed' as const }
@@ -43,24 +57,46 @@ export function PullRequestBlock({ reviewId, context }: Props) {
   const available = pull?.kind === 'available' ? pull.pullRequest : undefined;
   const notice = reviewPullRequestNotice(pull);
   const answer = Option.getOrUndefined(AsyncResult.value(mutation));
+  const outcome = (
+    <>
+      {AsyncResult.isFailure(mutation) && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {reviewErrorMessage(Cause.squash(mutation.cause))}
+          </AlertDescription>
+        </Alert>
+      )}
+      {answer?.kind === 'unavailable' && (
+        <Alert>
+          <AlertDescription>
+            {reviewPullRequestNotice(answer)} Try again after GitHub is
+            available.
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+  if (!AsyncResult.isFailure(record) && data?.review && !linked)
+    return (
+      <PullRequestDiscovery
+        context={context}
+        projectId={data.review.projectId}
+        branch={data.review.branch}
+        pending={mutation.waiting}
+        outcome={outcome}
+        inputRef={(element) =>
+          returnFocusTo(element, 'unlinked', focusReturn, () =>
+            setFocusReturn(undefined),
+          )
+        }
+        onLink={(pullRequest) => {
+          setFocusReturn('linked');
+          setPullRequest({ pullRequest });
+        }}
+      />
+    );
   return (
-    <section
-      aria-label="Pull request"
-      className="m-2 flex max-h-96 min-w-0 shrink-0 flex-col gap-2 overflow-y-auto rounded-xl border p-3 text-sm"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Pull request</span>
-        {linked && (
-          <a
-            href={linked}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs underline"
-          >
-            On GitHub ↗
-          </a>
-        )}
-      </div>
+    <PullRequestSection linked={linked}>
       {AsyncResult.isFailure(record) && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -135,10 +171,18 @@ export function PullRequestBlock({ reviewId, context }: Props) {
             Open pull request
           </Button>
           <Button
+            ref={(element) =>
+              returnFocusTo(element, 'linked', focusReturn, () =>
+                setFocusReturn(undefined),
+              )
+            }
             size="sm"
             variant="ghost"
             disabled={mutation.waiting}
-            onClick={() => setPullRequest({ pullRequest: undefined })}
+            onClick={() => {
+              setFocusReturn('unlinked');
+              setPullRequest({ pullRequest: undefined });
+            }}
           >
             {mutation.waiting ? 'Unlinking…' : 'Unlink pull request'}
           </Button>
@@ -147,30 +191,37 @@ export function PullRequestBlock({ reviewId, context }: Props) {
           </p>
         </>
       )}
-      {!AsyncResult.isFailure(record) && data?.review && !linked && (
-        <PullRequestDiscovery
-          context={context}
-          projectId={data.review.projectId}
-          branch={data.review.branch}
-          pending={mutation.waiting}
-          onLink={(pullRequest) => setPullRequest({ pullRequest })}
-        />
-      )}
-      {AsyncResult.isFailure(mutation) && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {reviewErrorMessage(Cause.squash(mutation.cause))}
-          </AlertDescription>
-        </Alert>
-      )}
-      {answer?.kind === 'unavailable' && (
-        <Alert>
-          <AlertDescription>
-            {reviewPullRequestNotice(answer)} Try again after GitHub is
-            available.
-          </AlertDescription>
-        </Alert>
-      )}
+      {outcome}
+    </PullRequestSection>
+  );
+}
+
+function PullRequestSection({
+  linked,
+  children,
+}: {
+  linked?: string | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label="Pull request"
+      className="m-2 flex max-h-96 min-w-0 shrink-0 flex-col gap-2 overflow-y-auto rounded-xl border p-3 text-sm"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Pull request</span>
+        {linked && (
+          <a
+            href={linked}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs underline"
+          >
+            On GitHub ↗
+          </a>
+        )}
+      </div>
+      {children}
     </section>
   );
 }
@@ -180,16 +231,25 @@ function PullRequestDiscovery({
   projectId,
   branch,
   pending,
+  outcome,
+  inputRef,
   onLink,
 }: {
   context: ConnectionContext;
   projectId: string;
   branch: string;
   pending: boolean;
+  outcome: ReactNode;
+  inputRef: (element: HTMLInputElement | null) => void;
   onLink: (url: string) => void;
 }) {
   const [url, setUrl] = useState('');
   const [malformed, setMalformed] = useState(false);
+  const [outcomeStale, setOutcomeStale] = useState(false);
+  const submit = (pullRequest: string) => {
+    setOutcomeStale(false);
+    onLink(pullRequest);
+  };
   const query = readProjectPullRequests({
     connection: context.connection,
     projectId,
@@ -205,8 +265,9 @@ function PullRequestDiscovery({
           (pull) => pull.headBranch === branch && pull.state === 'open',
         )
       : [];
+  if (pullRequestBlockHidden(undefined, value)) return null;
   return (
-    <>
+    <PullRequestSection>
       <p className="wrap-anywhere text-xs">
         No pull request linked for <code>{branch}</code>.
       </p>
@@ -219,7 +280,7 @@ function PullRequestDiscovery({
           <p className="text-xs text-muted-foreground">
             Found for this branch{pull.draft ? ' · Draft' : ''}
           </p>
-          <Button size="sm" disabled={pending} onClick={() => onLink(pull.url)}>
+          <Button size="sm" disabled={pending} onClick={() => submit(pull.url)}>
             Link to this review
           </Button>
         </div>
@@ -263,10 +324,12 @@ function PullRequestDiscovery({
           event.preventDefault();
           const link = pullRequestLink(url);
           setMalformed(link === undefined);
-          if (link !== undefined && !pending) onLink(link);
+          if (link === undefined) setOutcomeStale(true);
+          else if (!pending) submit(link);
         }}
       >
         <Input
+          ref={inputRef}
           aria-label="GitHub pull request URL"
           type="url"
           required
@@ -294,6 +357,7 @@ function PullRequestDiscovery({
           {pending ? 'Linking…' : 'Link pull request'}
         </Button>
       </form>
-    </>
+      {!outcomeStale && outcome}
+    </PullRequestSection>
   );
 }

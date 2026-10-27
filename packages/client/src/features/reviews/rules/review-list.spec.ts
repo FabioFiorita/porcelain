@@ -10,6 +10,7 @@ import {
   reviewListTitle,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestBlockHidden,
   pullRequestLink,
   reviewListMeta,
   reviewListSignal,
@@ -608,3 +609,28 @@ it.each([
 ] as const)('reads the pull request link in %j as %j', (text, expected) => {
   expect(pullRequestLink(text)).toBe(expected);
 });
+
+const linkedPullRequest = 'https://github.com/FabioFiorita/porcelain/pull/423';
+it.each([
+  [undefined, { kind: 'unavailable', reason: 'not-github' }, true],
+  [linkedPullRequest, { kind: 'unavailable', reason: 'not-github' }, false],
+  [undefined, { kind: 'unavailable', reason: 'offline' }, false],
+  [undefined, { kind: 'unavailable', reason: 'no-accounts' }, false],
+  [
+    undefined,
+    {
+      kind: 'available',
+      account: 'work',
+      pullRequests: [],
+      truncated: false,
+      recentlyClosedSince: '2026-10-20T00:00:00Z',
+    },
+    false,
+  ],
+  [undefined, undefined, false],
+] as const)(
+  'hides the pull request block for link %j and project answer %j: %j',
+  (linked, projectPullRequests, hidden) => {
+    expect(pullRequestBlockHidden(linked, projectPullRequests)).toBe(hidden);
+  },
+);
