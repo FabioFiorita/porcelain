@@ -73,7 +73,7 @@ export class SetRemoteAccessUseCase extends Context.Service<
                 const changed = yield* setRemoteAccessCapability.execute({
                   expected: input.expected,
                   change: input.change,
-                  protectedRoute: ingress,
+                  caller: input,
                 });
                 if (changed.applied)
                   yield* closeTunnelConnectionsCapability.execute();

@@ -15,7 +15,7 @@ export type WaysInCaller = {
 export type WaysInEdit = {
   expected: WaysInFingerprint;
   change: RemoteAccessChange;
-  protectedRoute?: WaysInRoute | undefined;
+  caller: WaysInCaller;
 };
 
 export type WaysInSnapshot = {

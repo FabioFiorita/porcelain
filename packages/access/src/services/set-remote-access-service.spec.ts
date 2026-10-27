@@ -1,4 +1,5 @@
 import {
+  DeviceStore,
   RemoteAccessStore,
   RouteStateStore,
   RuntimeStatusReader,
@@ -16,7 +17,10 @@ import {
   UnidentifiedLocalNetworkError,
   RemoteRouteInUseError,
   WaysInChangedError,
+  WaysInPermissionRequiredError,
 } from '@porcelain/access/errors';
+import type { StoredDevice, WaysInCaller } from '@porcelain/access/models';
+import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
 import { FixedRuntimeStatusReader } from '../../spec/fakes/fixed-runtime-status-reader.ts';
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
@@ -26,6 +30,7 @@ import {
   routesVia,
 } from '../../spec/fixtures/default-routes.ts';
 import type { RemoteAccessChange } from '../models/remote-access.ts';
+import { AuthorizeWaysInService } from './authorize-ways-in-service.ts';
 import { ReadRemoteAccessService } from './read-remote-access-service.ts';
 import { SetRemoteAccessService } from './set-remote-access-service.ts';
 
@@ -37,6 +42,26 @@ const router = {
 };
 const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24', ...router };
 const office = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16', ...router };
+const owner: WaysInCaller = {
+  viewer: { kind: 'owner' },
+  local: true,
+  route: 'loopback',
+};
+const phone: StoredDevice = {
+  id: 'phone',
+  label: 'Phone',
+  platform: 'iOS',
+  createdAt: '2026-10-20T10:00:00.000Z',
+  lastSeenAt: '2026-10-25T09:00:00.000Z',
+  route: 'lan',
+  secretHash: 'hash-phone',
+  canEditWaysIn: true,
+};
+const phoneOnLan: WaysInCaller = {
+  viewer: { kind: 'device', deviceId: phone.id },
+  local: false,
+  route: 'lan',
+};
 
 function wifi(cidr: string) {
   const [address = ''] = cidr.split('/');
@@ -54,6 +79,8 @@ function wifi(cidr: string) {
 function setup() {
   const settings = new InMemoryRemoteAccessStore();
   const routes = new InMemoryRouteStateStore();
+  const devices = new InMemoryDeviceStore();
+  devices.add(phone);
   const network = new FixedNetworkAddressReader(
     [wifi('192.168.1.20/24')],
     routesVia('wlp2s0', HOME_ROUTER_HARDWARE),
@@ -67,8 +94,9 @@ function setup() {
         Layer.mergeAll(
           SetRemoteAccessService.layer,
           ReadRemoteAccessService.layer,
-        ),
+        ).pipe(Layer.provide(AuthorizeWaysInService.layer)),
       ),
+      Effect.provideService(DeviceStore, devices),
       Effect.provideService(RemoteAccessStore, settings),
       Effect.provideService(RouteStateStore, routes),
       Effect.provideService(
@@ -87,12 +115,16 @@ function setup() {
     execute: (change: RemoteAccessChange) =>
       services.read.execute().pipe(
         Effect.flatMap(({ fingerprint }) =>
-          services.set.execute({ expected: fingerprint, change }),
+          services.set.execute({
+            expected: fingerprint,
+            change,
+            caller: owner,
+          }),
         ),
         Effect.map(({ remote }) => remote),
       ),
   };
-  return { settings, routes, network, service, services };
+  return { settings, routes, devices, network, service, services };
 }
 
 describe('SetRemoteAccessService', () => {
@@ -362,6 +394,7 @@ describe('SetRemoteAccessService', () => {
       services.set.execute({
         expected: before.fingerprint,
         change: { tailnet: true, tailnetHostname },
+        caller: owner,
       }),
     );
     const saved = await Effect.runPromise(settings.read());
@@ -372,6 +405,7 @@ describe('SetRemoteAccessService', () => {
         services.set.execute({
           expected: before.fingerprint,
           change: { lan: true },
+          caller: owner,
         }),
       ),
     ).rejects.toThrow(WaysInChangedError);
@@ -389,6 +423,7 @@ describe('SetRemoteAccessService', () => {
         services.set.execute({
           expected: before.fingerprint,
           change: { lan: true },
+          caller: owner,
         }),
       ),
     ).rejects.toThrow(WaysInChangedError);
@@ -404,13 +439,21 @@ describe('SetRemoteAccessService', () => {
     const before = await Effect.runPromise(services.read.execute());
     const change = { tailnet: true, tailnetHostname };
     const first = await Effect.runPromise(
-      services.set.execute({ expected: before.fingerprint, change }),
+      services.set.execute({
+        expected: before.fingerprint,
+        change,
+        caller: owner,
+      }),
     );
     const saved = await Effect.runPromise(settings.read());
     const states = routes.read();
 
     const repeated = await Effect.runPromise(
-      services.set.execute({ expected: before.fingerprint, change }),
+      services.set.execute({
+        expected: before.fingerprint,
+        change,
+        caller: owner,
+      }),
     );
 
     expect(first.applied).toBe(true);
@@ -426,6 +469,7 @@ describe('SetRemoteAccessService', () => {
       services.set.execute({
         expected: before.fingerprint,
         change: { tailnet: true, tailnetHostname },
+        caller: owner,
       }),
     );
     routes.save({
@@ -440,6 +484,7 @@ describe('SetRemoteAccessService', () => {
       services.set.execute({
         expected: saved.fingerprint,
         change: { tailnet: true },
+        caller: owner,
       }),
     );
 
@@ -455,6 +500,7 @@ describe('SetRemoteAccessService', () => {
       services.set.execute({
         expected: before.fingerprint,
         change: { cloudflare: true, cloudflareHostname: 'a.example.com' },
+        caller: owner,
       }),
     );
 
@@ -463,6 +509,7 @@ describe('SetRemoteAccessService', () => {
         services.set.execute({
           expected: before.fingerprint,
           change: { tailnet: true },
+          caller: owner,
         }),
       ),
     ).rejects.toThrow(WaysInChangedError);
@@ -485,10 +532,48 @@ describe('SetRemoteAccessService', () => {
           services.set.execute({
             expected: before.fingerprint,
             change,
-            protectedRoute: 'lan',
+            caller: phoneOnLan,
           }),
         ),
       ).rejects.toThrow(RemoteRouteInUseError);
+      expect(await Effect.runPromise(settings.read())).toEqual({
+        lan: false,
+        tailnet: false,
+        cloudflare: false,
+      });
+    },
+  );
+
+  it.each([
+    [
+      'its permission was removed',
+      (devices: InMemoryDeviceStore) =>
+        devices.recordWaysInPermission({ device: phone, allowed: false }),
+    ],
+    [
+      'it was revoked',
+      (devices: InMemoryDeviceStore) =>
+        devices.markRevoked({
+          device: phone,
+          revokedAt: '2026-10-25T10:00:00.000Z',
+        }),
+    ],
+  ])(
+    'refuses a save from a device after %s since it looked, and changes nothing',
+    async (_name, withdraw) => {
+      const { settings, devices, services } = setup();
+      const before = await Effect.runPromise(services.read.execute());
+      await Effect.runPromise(withdraw(devices));
+
+      await expect(
+        Effect.runPromise(
+          services.set.execute({
+            expected: before.fingerprint,
+            change: { tailnet: true, tailnetHostname },
+            caller: phoneOnLan,
+          }),
+        ),
+      ).rejects.toThrow(WaysInPermissionRequiredError);
       expect(await Effect.runPromise(settings.read())).toEqual({
         lan: false,
         tailnet: false,
@@ -505,7 +590,7 @@ describe('SetRemoteAccessService', () => {
       services.set.execute({
         expected: before.fingerprint,
         change: { tailnet: true, tailnetHostname },
-        protectedRoute: 'lan',
+        caller: phoneOnLan,
       }),
     );
 

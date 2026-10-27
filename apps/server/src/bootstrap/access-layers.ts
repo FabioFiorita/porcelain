@@ -88,7 +88,9 @@ export function accessServicesLayer(
     CheckServiceUpdateService.layer,
     RenameEnvironmentService.layer,
     ReadRemoteAccessService.layer,
-    SetRemoteAccessService.layer,
+    SetRemoteAccessService.layer.pipe(
+      Layer.provide(AuthorizeWaysInService.layer),
+    ),
     FlushDeviceActivityService.layer,
     IssuePairingService.layer,
     ListAccessService.layer,
