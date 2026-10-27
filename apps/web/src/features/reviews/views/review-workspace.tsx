@@ -552,8 +552,8 @@ function PaneView({
         reviewCount={
           review?.reviewId ? (
             <ReviewTabProgress review={review} context={context} />
-          ) : reviewTitle ? undefined : (
-            <ChangesTabCount scope={scope} context={context} />
+          ) : (
+            !reviewTitle && <ChangesTabCount scope={scope} context={context} />
           )
         }
         leading={
