@@ -129,6 +129,7 @@ export {
   reviewListGroups,
   reviewListMeta,
   reviewListSignal,
+  reviewListRow,
   reviewListRowContext,
   reviewListCheckout,
   emptyReviewListFilter,

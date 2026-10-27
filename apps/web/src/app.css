@@ -240,3 +240,31 @@
 [data-slot='kbd'] {
   font-family: var(--font-mono);
 }
+
+.review-navigator [data-slot='sidebar-group'] {
+  padding: 0;
+}
+
+.review-navigator [data-slot='sidebar-group-label'] {
+  gap: calc(var(--spacing) * 1.5);
+  padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+}
+
+.review-navigator [data-slot='sidebar-group-label']:hover {
+  background: var(--sidebar-accent);
+}
+
+.review-navigator [data-slot='sidebar-group-label'] > svg {
+  width: calc(var(--spacing) * 3);
+  height: calc(var(--spacing) * 3);
+}
+
+.review-navigator [data-slot='sidebar-menu-button'] {
+  gap: 0;
+  padding-block: var(--spacing);
+  padding-inline: var(--spacing) calc(var(--spacing) * 2);
+  border-radius: var(--radius-md);
+  background: transparent;
+}

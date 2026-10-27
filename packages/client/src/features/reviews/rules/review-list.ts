@@ -242,6 +242,24 @@ export function reviewListRowContext(
   };
 }
 
+export function reviewListRow(entry: ReviewListEntry) {
+  if (entry.reviewId)
+    return {
+      kind: 'review' as const,
+      title: entry.title,
+      progress: `${entry.reviewed}/${entry.total}`,
+      project: entry.projectName,
+      branch: entry.branch,
+    };
+  const checkout = reviewListCheckout(entry);
+  return {
+    kind: 'worktree' as const,
+    title: checkout.name,
+    project: entry.projectName,
+    location: checkout.parent,
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt

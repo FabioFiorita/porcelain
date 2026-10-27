@@ -11,6 +11,7 @@ import {
   reviewPullRequestNotice,
   reviewListMeta,
   reviewListSignal,
+  reviewListRow,
   reviewListRowContext,
   reviewListCheckout,
   reviewListView,
@@ -407,6 +408,70 @@ it.each([
     });
   },
 );
+
+it.each([
+  [
+    'a review names its project and branch under the title',
+    entry,
+    {
+      kind: 'review',
+      title: 'Shared reviews',
+      progress: '1/2',
+      project: 'Porcelain',
+      branch: 'feature',
+    },
+  ],
+  [
+    'a main checkout is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'Projects' as const,
+      title: 'Porcelain',
+      branch: 'main',
+    },
+    {
+      kind: 'worktree',
+      title: 'main',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a checkout without a review is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      title: 'feature',
+    },
+    {
+      kind: 'worktree',
+      title: 'feature',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a detached checkout is titled by its folder with its parent path',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      branch: 'Detached HEAD',
+      detached: true,
+      path: '/code/worktrees/qa-531',
+    },
+    {
+      kind: 'worktree',
+      title: 'qa-531',
+      project: 'Porcelain',
+      location: '/code/worktrees',
+    },
+  ],
+])('%s', (_, row, expected) => {
+  expect(reviewListRow(row)).toEqual(expected);
+});
 
 it('keeps the branch as the label of an attached checkout', () => {
   expect(reviewListCheckout(entry)).toEqual({

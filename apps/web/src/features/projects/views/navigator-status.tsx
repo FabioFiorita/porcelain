@@ -1,5 +1,10 @@
 import { useId, useState } from 'react';
-import { CircleIcon, CircleAlertIcon, CircleCheckIcon } from 'lucide-react';
+import {
+  CircleIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+} from 'lucide-react';
 import {
   reviewListMeta,
   reviewListSignal,
@@ -12,6 +17,34 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+const quiet = (
+  <CircleIcon
+    aria-hidden
+    strokeWidth={3.5}
+    className="size-2.5 text-border-strong"
+  />
+);
+
+const glyphs = {
+  Projects: quiet,
+  'No review': quiet,
+  'Needs you': <span aria-hidden className="size-2 rounded-full bg-brand" />,
+  'Waiting on agent': (
+    <CircleDashedIcon
+      aria-hidden
+      strokeWidth={3}
+      className="size-3 text-muted-foreground"
+    />
+  ),
+  'Ready to merge': (
+    <CircleCheckIcon
+      aria-hidden
+      className="size-3.5 fill-foreground text-background"
+    />
+  ),
+  Closed: <CircleIcon aria-hidden className="size-3 text-muted-foreground" />,
+};
+
 export function NavigatorStatus({ entry }: { entry: ReviewListEntry }) {
   const [visibility, setVisibility] = useState<'preview' | 'pressed'>();
   const open = visibility !== undefined;
@@ -20,18 +53,16 @@ export function NavigatorStatus({ entry }: { entry: ReviewListEntry }) {
   const signal = reviewListSignal(entry);
   if (!signal)
     return (
-      <span
-        className="inline-flex size-7 shrink-0 items-center justify-center text-muted-foreground"
-        aria-hidden
-      >
-        <CircleIcon className="size-3" />
+      <span className="inline-flex size-6 shrink-0 items-center justify-center">
+        {quiet}
       </span>
     );
-  const indicator = {
-    destructive: { Icon: CircleAlertIcon, className: 'text-destructive' },
-    primary: { Icon: CircleCheckIcon, className: 'text-primary' },
-    muted: { Icon: CircleIcon, className: 'text-muted-foreground' },
-  }[signal.tone];
+  const indicator =
+    signal.tone === 'destructive' ? (
+      <CircleAlertIcon aria-hidden className="size-3.5 text-destructive" />
+    ) : (
+      glyphs[entry.closed ? 'Closed' : entry.group]
+    );
   return (
     <Tooltip
       open={open}
@@ -52,12 +83,13 @@ export function NavigatorStatus({ entry }: { entry: ReviewListEntry }) {
         render={
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
+            className="shrink-0"
             aria-label={`Review status: ${entry.title}`}
           />
         }
       >
-        <indicator.Icon aria-hidden className={indicator.className} />
+        {indicator}
       </TooltipTrigger>
       <TooltipContent id={reasonId} side="right" role="tooltip">
         <div>
