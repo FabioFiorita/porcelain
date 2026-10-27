@@ -1,5 +1,6 @@
 import { useReviewDeletion } from '../commands/project-review';
 import { useState } from 'react';
+import { ArchiveIcon, Trash2Icon } from 'lucide-react';
 import { useAtom } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { reviewCommands } from '@porcelain/client/reviews';
@@ -40,21 +41,33 @@ export function ReviewActions({
         if (!removed.waiting) setConfirming(open);
       }}
     >
-      <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-col items-start">
         {state === 'open' && (
           <Button
-            size="xs"
+            size="sm"
             variant="ghost"
+            className={actionClass}
             disabled={pending}
             onClick={() => close()}
           >
+            <ArchiveIcon
+              data-icon="inline-start"
+              className="size-3.5 text-muted-foreground"
+            />
             Close review
           </Button>
         )}
         <AlertDialogTrigger
           disabled={pending}
-          render={<Button size="xs" variant="destructive" />}
+          render={
+            <Button
+              size="sm"
+              variant="ghost"
+              className={`${actionClass} text-destructive hover:text-destructive`}
+            />
+          }
         >
+          <Trash2Icon data-icon="inline-start" className="size-3.5" />
           Delete review…
         </AlertDialogTrigger>
       </div>
@@ -97,3 +110,6 @@ export function ReviewActions({
     </AlertDialog>
   );
 }
+
+const actionClass =
+  '-ml-1.5 h-7 gap-1.75 rounded-md pr-2 pl-1.5 text-xs leading-4';

@@ -1,4 +1,4 @@
-import { CircleHelpIcon } from 'lucide-react';
+import { CircleHelpIcon, MessageSquareIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -6,51 +6,38 @@ import {
   type ReviewRevision,
   type SystemPart,
 } from '@porcelain/client/reviews/rules';
-import { cn } from '@/shared/lib/utils';
 import { InlineComposer } from './inline-composer';
 import type { WalkthroughProps } from './walkthrough-props';
 
-function DecisionQuestion({
-  part,
-  action,
-  children,
-  compact = false,
-}: {
+type QuestionProps = {
   part: SystemPart;
-  action?: ReactNode;
-  children?: ReactNode;
-  compact?: boolean;
-}) {
+  revision: ReviewRevision;
+  scope: WalkthroughProps['scope'];
+  context: WalkthroughProps['context'];
+};
+
+function QuestionAnswer({
+  part,
+  revision,
+  scope,
+  context,
+  autoFocus,
+  onClose,
+}: QuestionProps & { autoFocus: boolean; onClose?: () => void }) {
   return (
-    <div
-      className={cn(
-        'flex min-w-0 flex-col gap-2 rounded-xl border border-brand/40 bg-brand-soft px-4 py-3',
-        compact && 'p-3',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <CircleHelpIcon className="mt-0.5 size-4 shrink-0 text-brand" />
-        <div className="min-w-0 flex-1 wrap-anywhere">
-          <p className={cn('text-sm font-medium', compact && 'text-xs')}>
-            Needs your decision · {part.label}
-          </p>
-          <p
-            className={cn(
-              'text-sm whitespace-pre-wrap wrap-anywhere',
-              compact && 'text-xs',
-            )}
-          >
-            {part.problem}
-          </p>
-        </div>
-      </div>
-      {action && (
-        <div className="flex flex-wrap items-center gap-2 self-start">
-          {action}
-        </div>
-      )}
-      {children}
-    </div>
+    <InlineComposer
+      variant="answer"
+      autoFocus={autoFocus}
+      closable={onClose !== undefined}
+      scope={scope}
+      context={context}
+      quote={part.problem}
+      anchor={changeAnchor({
+        base: revision.base,
+        tip: revision.headOid,
+      })}
+      onClose={onClose ?? (() => {})}
+    />
   );
 }
 
@@ -60,53 +47,97 @@ export function AnswerableQuestion({
   scope,
   context,
   action,
-  compact = false,
-}: {
-  part: SystemPart;
-  revision: ReviewRevision;
-  scope: WalkthroughProps['scope'];
-  context: WalkthroughProps['context'];
+  decisionTitle,
+}: QuestionProps & {
   action?: ReactNode;
-  compact?: boolean;
+  decisionTitle?: string | undefined;
 }) {
   const [answering, setAnswering] = useState(false);
   const [answerButton, setAnswerButton] = useState<HTMLButtonElement | null>(
     null,
   );
   return (
-    <DecisionQuestion
-      part={part}
-      compact={compact}
-      action={
-        <>
-          {action}
-          <Button
-            ref={setAnswerButton}
-            size={compact ? 'sm' : 'xs'}
-            variant="ghost"
-            aria-expanded={answering}
-            onClick={() => setAnswering(true)}
-          >
-            Answer this question
-          </Button>
-        </>
-      }
-    >
+    <div className="flex min-w-0 flex-col rounded-xl border border-brand/40 bg-brand-soft px-4 py-3.5">
+      <p className="flex min-w-0 items-start gap-2 text-xs leading-4 font-medium text-brand">
+        <CircleHelpIcon className="size-3.5 shrink-0" />
+        <span className="min-w-0 wrap-anywhere">
+          {[
+            part.label,
+            part.decision === undefined
+              ? undefined
+              : `Decision ${part.decision}`,
+            decisionTitle,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+      </p>
+      <p className="mt-2 text-reading leading-6 whitespace-pre-wrap wrap-anywhere">
+        {part.problem}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {action}
+        <Button
+          ref={setAnswerButton}
+          size="sm"
+          variant="ghost"
+          className="rounded-lg px-2.5 text-xs"
+          aria-expanded={answering}
+          onClick={() => setAnswering(true)}
+        >
+          <MessageSquareIcon data-icon="inline-start" className="size-3.5" />
+          Answer the agent
+        </Button>
+      </div>
       {answering && (
-        <InlineComposer
+        <div className="mt-3 rounded-lg border bg-card p-3">
+          <QuestionAnswer
+            part={part}
+            revision={revision}
+            scope={scope}
+            context={context}
+            autoFocus
+            onClose={() => {
+              setAnswering(false);
+              answerButton?.focus();
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function MarginQuestion({
+  part,
+  revision,
+  scope,
+  context,
+}: QuestionProps) {
+  return (
+    <section
+      aria-label={`Needs your decision: ${part.label}`}
+      className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-pop"
+    >
+      <p className="flex items-center gap-1.5 text-xs leading-4 font-semibold text-brand">
+        <CircleHelpIcon className="size-3.5 shrink-0" />
+        Needs your decision
+      </p>
+      <div className="min-w-0 wrap-anywhere">
+        <p className="text-ui leading-4.5 font-semibold">{part.label}</p>
+        <p className="mt-0.75 text-ui leading-4.75 whitespace-pre-wrap">
+          {part.problem}
+        </p>
+      </div>
+      <div className="border-t pt-2.5">
+        <QuestionAnswer
+          part={part}
+          revision={revision}
           scope={scope}
           context={context}
-          quote={part.problem}
-          anchor={changeAnchor({
-            base: revision.base,
-            tip: revision.headOid,
-          })}
-          onClose={() => {
-            setAnswering(false);
-            answerButton?.focus();
-          }}
+          autoFocus={false}
         />
-      )}
-    </DecisionQuestion>
+      </div>
+    </section>
   );
 }

@@ -89,7 +89,9 @@ test('the briefing owns verdict and proof, and decisions keep their code', async
       .poll(() => app.location())
       .toBe(`/reviews/${fixture.reviewId}`);
     await expect.element(briefing).toBeVisible();
-    await briefing.getByRole('button', { name: 'latest', exact: true }).click();
+    await briefing
+      .getByRole('button', { name: 'Revision 1, the latest', exact: true })
+      .click();
     await expect
       .poll(() => app.location())
       .toBe(`/reviews/${fixture.reviewId}`);
@@ -239,13 +241,16 @@ test('a briefing answer quotes its question, rejects blanks and posts one review
     exact: true,
   });
   await briefing
-    .getByRole('button', { name: 'Answer this question', exact: true })
+    .getByRole('button', { name: 'Answer the agent', exact: true })
     .click();
   const textbox = briefing.getByRole('textbox', {
-    name: 'Comment',
+    name: 'Answer the agent',
     exact: true,
   });
-  const post = briefing.getByRole('button', { name: 'Comment', exact: true });
+  const post = briefing.getByRole('button', {
+    name: 'Send answer',
+    exact: true,
+  });
   await expect.element(post).toBeDisabled();
   await textbox.fill('   ');
   await expect.element(post).toBeDisabled();
@@ -254,7 +259,7 @@ test('a briefing answer quotes its question, rejects blanks and posts one review
   await held.requested;
   await expect.element(textbox).toBeDisabled();
   await expect
-    .element(briefing.getByRole('button', { name: 'Posting…', exact: true }))
+    .element(briefing.getByRole('button', { name: 'Sending…', exact: true }))
     .toBeDisabled();
   held.release();
   await expect
@@ -276,7 +281,7 @@ test('a briefing answer quotes its question, rejects blanks and posts one review
   await expect
     .element(
       briefing.getByRole('button', {
-        name: 'Answer this question',
+        name: 'Answer the agent',
         exact: true,
       }),
     )

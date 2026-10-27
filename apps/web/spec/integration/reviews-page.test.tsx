@@ -127,7 +127,9 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await app.page
     .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
-  await review.getByRole('button', { name: 'latest', exact: true }).click();
+  await review
+    .getByRole('button', { name: 'Revision 2, the latest', exact: true })
+    .click();
   await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
   await expect
     .element(
@@ -553,12 +555,20 @@ test('durable routes warn when the live branch tip differs from the latest publi
   const fixture = await repo.review(title);
   await repo.advanceReviewBranch();
   const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const notice = app.page.getByRole('status').filter({
+    hasText: 'The branch tip differs from this review.',
+  });
   await expect
     .element(
-      app.page.getByText(
-        'The branch tip differs from this review. Publish a revision to include it.',
-        { exact: true },
-      ),
+      notice.getByRole('heading', {
+        name: 'The branch tip differs from this review.',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      notice.getByText('Publish a revision to include it.', { exact: true }),
     )
     .toBeVisible();
 });

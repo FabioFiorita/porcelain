@@ -32,9 +32,8 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { AnswerableQuestion } from './walkthrough-question';
+import { MarginQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { StateNotice } from '@/shared/views/state-notice';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -79,13 +78,12 @@ export function DecisionPage({
           className="flex min-w-0 flex-col gap-6 text-xs"
         >
           {questions.map((part) => (
-            <AnswerableQuestion
+            <MarginQuestion
               key={part.id}
               part={part}
               revision={revision}
               scope={scope}
               context={context}
-              compact
             />
           ))}
           {links.length > 0 && <Contracts links={links} />}
@@ -140,42 +138,42 @@ export function DecisionPage({
       }
     >
       <div className="flex min-w-0 flex-col gap-6">
-        <header className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>
+        <header className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex min-h-5.5 flex-wrap items-center gap-2.5">
+            <span className="text-ui leading-5.5 font-medium text-muted-foreground tabular-nums">
               Decision {stop.number} of {total}
             </span>
             {questions.length > 0 && (
-              <Badge variant="brand-soft">
+              <Badge variant="brand-soft" className={chipClass}>
                 <CircleHelpIcon /> Needs your decision
               </Badge>
             )}
             {decision?.stale && (
-              <Badge variant="outline">
-                <TriangleAlertIcon className="text-graph-4" /> Code moved
+              <Badge
+                variant="outline"
+                title="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+                className={cn(
+                  chipClass,
+                  'border-warn-border bg-warn-soft text-warn',
+                )}
+              >
+                <TriangleAlertIcon /> Code moved since it was explained
               </Badge>
             )}
             {finished && (
-              <Badge variant="outline">
-                <CheckIcon className="text-graph-2" /> Reviewed
+              <Badge variant="outline" className={chipClass}>
+                <CheckIcon className="text-brand" /> Reviewed
               </Badge>
             )}
           </div>
-          <h2 className="text-4xl font-semibold tracking-tight wrap-anywhere">
-            <span aria-hidden="true" className="text-muted-foreground">
+          <h2 className="text-page-title font-semibold wrap-anywhere">
+            <span aria-hidden="true" className="text-title-dim">
               {stop.number}.{' '}
             </span>
             {layer.title}
           </h2>
           <Summary text={layer.summary} />
         </header>
-        {decision?.stale && (
-          <StateNotice
-            role="status"
-            title="Code moved since it was explained"
-            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
-          />
-        )}
         <RouteTable
           layer={layer}
           reviewed={progress.reviewed}
@@ -214,6 +212,17 @@ function changeVariant(change: NonNullable<DecisionLink['change']>) {
   return 'destructive';
 }
 
+function changeClass(change: NonNullable<DecisionLink['change']>) {
+  if (change === 'new') return 'bg-foreground text-background';
+  if (change === 'changed') return 'border-border-strong';
+  return 'border-del-strong bg-del-bg text-del-fg';
+}
+
+const contractBadgeClass =
+  'h-4.5 shrink-0 rounded-sm px-1.5 py-0 text-2xs leading-4.5';
+
+const chipClass = 'h-5.5 rounded-full px-2 text-xs leading-5';
+
 function changeLabel(change: NonNullable<DecisionLink['change']>) {
   if (change === 'new') return 'New';
   if (change === 'changed') return 'Changed';
@@ -223,30 +232,31 @@ function changeLabel(change: NonNullable<DecisionLink['change']>) {
 function Contracts({ links }: { links: readonly DecisionLink[] }) {
   return (
     <section aria-label="Contracts" className="flex min-w-0 flex-col gap-2">
-      <h3 className="border-b pb-2 font-medium text-muted-foreground">
-        Contracts
-      </h3>
+      <h3 className="leading-4 font-medium text-muted-foreground">Contracts</h3>
       <ul
         aria-label="Connections"
-        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y"
+        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y @5xl/review:border-y"
       >
         {links.map((link) => (
           <li
             key={link.part.id}
-            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2.5"
+            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2"
           >
             <span className="flex min-w-0 items-baseline gap-1.5 wrap-anywhere @5xl/review:flex-col @5xl/review:gap-0.5">
-              <span className="text-muted-foreground">
+              <span className="leading-4.5 text-muted-foreground">
                 {link.outgoing ? link.verb : `${link.part.label} ${link.verb}`}
               </span>
               {link.outgoing && (
-                <span className="text-caption font-medium text-foreground">
+                <span className="text-ui leading-4.5 font-medium text-foreground">
                   {link.part.label}
                 </span>
               )}
             </span>
             {link.change && (
-              <Badge variant={changeVariant(link.change)}>
+              <Badge
+                variant={changeVariant(link.change)}
+                className={cn(contractBadgeClass, changeClass(link.change))}
+              >
                 {changeLabel(link.change)}
               </Badge>
             )}
@@ -265,7 +275,7 @@ function Summary({ text }: { text: string }) {
       <MarkdownView
         text={text}
         className={cn(
-          'text-lg text-pretty [&_p]:leading-7',
+          'text-lead text-pretty text-foreground-2 [&_p]:leading-7',
           long && !open && 'line-clamp-3',
         )}
       />
@@ -297,12 +307,12 @@ function RouteTable({
   const route = decisionRoute(layer);
   return (
     <section aria-label="Route through the system" className="flex flex-col">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b pb-2 text-xs">
-        <span className="text-muted-foreground tabular-nums">
-          {layer.steps.length} {layer.steps.length === 1 ? 'step' : 'steps'}
+      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b pb-1.5 text-xs text-muted-foreground">
+        <span className="font-medium tabular-nums">
+          {layer.steps.length} {layer.steps.length === 1 ? 'stop' : 'stops'}
         </span>
         {route.length > 0 && (
-          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 font-medium @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
+          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 text-ui leading-4 font-medium text-foreground @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
             {route.map((lane, index) => (
               <li
                 key={`${lane}:${index}`}
@@ -319,7 +329,7 @@ function RouteTable({
             ))}
           </ol>
         )}
-        <span className="ml-auto text-muted-foreground tabular-nums">
+        <span className="ml-auto tabular-nums">
           {reviewed} of {total} files reviewed here
         </span>
       </div>
@@ -364,24 +374,25 @@ function RouteRow({
           aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
           onClick={() => onStep(step)}
           className={cn(
-            'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
+            'flex min-h-8 w-full min-w-0 items-start gap-3 rounded-md py-1.5 pr-1.5 text-left hover:bg-accent @2xl/review:items-center',
             lane !== undefined && index > 0 && 'border-t',
           )}
         >
           {clip(
             lane ?? '',
-            'hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block',
+            'hidden w-22 shrink-0 text-xs text-muted-foreground @2xl/review:block',
           )}
           <span
             className={cn(
-              'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
-              step.kind === 'context' && 'border-dashed text-muted-foreground',
+              'grid size-5 shrink-0 place-items-center rounded-full bg-brand-soft text-2xs leading-none font-semibold text-brand tabular-nums',
+              step.kind === 'context' &&
+                'border border-dashed border-border-strong bg-transparent font-medium text-muted-foreground',
             )}
           >
             {index + 1}
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-            <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+            <span className="min-w-0 text-sm leading-4.5 font-medium wrap-anywhere @2xl/review:flex-1">
               {step.title}
               <StepMarker step={step} />
             </span>
@@ -413,7 +424,7 @@ function StepMarker({ step }: { step: ReviewStep }): ReactNode {
         'ml-2 text-xs font-normal text-muted-foreground',
         (step.location.state === 'changed' ||
           step.location.state === 'broken') &&
-          'text-graph-4',
+          'font-medium text-warn',
       )}
     >
       {marker}

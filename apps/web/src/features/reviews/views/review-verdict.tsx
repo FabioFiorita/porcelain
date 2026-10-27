@@ -1,58 +1,84 @@
 import {
+  ArrowUpRightIcon,
+  CheckIcon,
+  CircleDotIcon,
+  PauseIcon,
+} from 'lucide-react';
+import {
   verdictSections,
   type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/shared/lib/utils';
 
 export function ReviewVerdict({ revision }: { revision: ReviewRevision }) {
   const sections = verdictSections(revision);
+  const { recommendation } = sections;
+  const merge = recommendation.value === 'merge';
+  const RecommendationIcon = merge ? CheckIcon : PauseIcon;
   return (
     <section aria-label="Verdict" className="flex min-w-0 flex-col gap-6">
-      <section aria-label="You asked" className="flex flex-col gap-2">
-        <p className="text-lg leading-7 whitespace-pre-wrap wrap-anywhere text-foreground-2">
-          <span className="text-muted-foreground">You asked: </span>
-          {sections.asked.text}
+      <section aria-label="You asked" className="flex flex-col items-start">
+        <p className="text-lead whitespace-pre-wrap wrap-anywhere text-foreground-2">
+          <span className="text-muted-foreground">You asked: </span>“
+          {sections.asked.text}”
         </p>
         {sections.asked.links.length > 0 && (
-          <ul className="flex flex-wrap gap-3">
+          <ul className="mt-1.5 flex flex-wrap gap-x-3">
             {sections.asked.links.map((link) => (
               <li key={link.url} className="min-w-0">
                 <a
-                  className="text-sm font-medium wrap-anywhere underline underline-offset-2"
+                  className="-ml-1.5 inline-flex h-6.5 max-w-full items-center gap-1.5 rounded-md pr-2 pl-1.5 text-ui leading-4 font-medium wrap-anywhere hover:bg-accent"
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {link.title}
+                  <CircleDotIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0">{link.title}</span>
+                  <ArrowUpRightIcon className="size-3 shrink-0 text-muted-foreground" />
                 </a>
               </li>
             ))}
           </ul>
         )}
       </section>
-      <section
-        aria-label="Recommendation"
-        className={cn(
-          'flex flex-col gap-2 rounded-xl border bg-muted px-4 py-3',
-          sections.recommendation.value === 'hold' &&
-            'border-warn-border bg-warn-soft',
-        )}
-      >
+      <section aria-label="Recommendation" className="flex min-w-0 flex-col">
         <h3
-          aria-label={`Recommendation: ${sections.recommendation.label}`}
-          className="flex flex-wrap items-center gap-2 text-sm font-medium"
+          aria-label={`Recommendation: ${recommendation.label}`}
+          className="flex flex-wrap items-center gap-x-2.5 gap-y-1"
         >
-          <Badge variant="outline">{sections.recommendation.label}</Badge>
-          Recommendation: {sections.recommendation.label}
+          <span
+            className={cn(
+              'inline-flex h-7 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-ui leading-6.5 font-semibold',
+              merge
+                ? 'border-brand-soft bg-brand-soft text-brand'
+                : 'border-warn-border bg-warn-soft text-warn',
+            )}
+          >
+            <RecommendationIcon
+              aria-hidden="true"
+              className={cn('size-3', !merge && 'fill-current stroke-0')}
+            />
+            {recommendation.label}
+          </span>
+          <span className="text-reading leading-5 font-medium">
+            The agent recommends {merge ? 'merging' : 'holding'} this change
+          </span>
         </h3>
-        <ol className="flex list-outside list-decimal flex-col gap-1 pl-5 text-sm">
-          {sections.recommendation.reasons.map((reason, index) => (
-            <li key={index} className="pl-1 wrap-anywhere">
-              {reason}
-            </li>
-          ))}
-        </ol>
+        {recommendation.reasons.length > 0 && (
+          <ol className="mt-3 flex flex-col border-b">
+            {recommendation.reasons.map((reason, index) => (
+              <li
+                key={index}
+                className="flex min-w-0 border-t py-1 text-reading"
+              >
+                <span className="w-5.5 shrink-0 text-xs leading-5.5 font-medium text-muted-foreground tabular-nums">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 wrap-anywhere">{reason}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </section>
   );

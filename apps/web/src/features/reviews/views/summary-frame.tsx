@@ -1,9 +1,10 @@
 import { BotIcon, CheckIcon, ShieldCheckIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
+import { StateSkeleton } from '@/shared/views/state-notice';
 import {
   decisionKey,
-  publishedLabel,
   summaryLayerLinks,
   type ReviewRevision,
   type WalkthroughKey,
@@ -23,7 +24,7 @@ export function SummaryFrame({
 }: {
   revision: ReviewRevision;
   page: string | undefined;
-  url: string;
+  url: string | undefined;
   dark: boolean;
   stops: readonly WalkthroughStop[];
   done: (stop: WalkthroughStop) => boolean;
@@ -40,23 +41,23 @@ export function SummaryFrame({
       margin={
         <aside
           aria-label="About the agent summary"
-          className="flex min-w-0 flex-col gap-6 text-xs @5xl/review:pt-10"
+          className="flex min-w-0 flex-col gap-8 text-xs @5xl/review:pt-8"
         >
-          <section className="flex flex-col gap-2">
-            <h3 className="border-b pb-2 font-medium text-muted-foreground">
+          <section className="flex flex-col">
+            <h3 className="mb-2 leading-4 font-medium text-muted-foreground">
               The agent's page
             </h3>
-            <p>
+            <p className="border-t pt-2 text-ui leading-4.75">
               The agent wrote this page for revision {revision.revision}, for
               what the walkthrough cannot hold: a diagram, a screenshot.
             </p>
-            <p className="text-muted-foreground">
+            <p className="mt-2 text-ui leading-4.75 text-muted-foreground">
               It runs in a sandbox, apart from Porcelain: it cannot reach your
               session, your files or the code. It only receives your theme.
             </p>
           </section>
           <section aria-label="Links in this page" className="flex flex-col">
-            <h3 className="flex justify-between border-b pb-2 font-medium text-muted-foreground">
+            <h3 className="mb-2 flex justify-between leading-4 font-medium text-muted-foreground">
               Links in this page
               <span className="tabular-nums">{links.length}</span>
             </h3>
@@ -65,7 +66,7 @@ export function SummaryFrame({
                 This page links to no decisions.
               </p>
             ) : (
-              <ul className="flex flex-col divide-y">
+              <ul className="flex flex-col divide-y border-y">
                 {links.map((number) => {
                   const layer = layers[number - 1];
                   const stop = stops.find(
@@ -79,12 +80,12 @@ export function SummaryFrame({
                         type="button"
                         disabled={!layer}
                         onClick={() => open(number)}
-                        className="flex w-full items-start gap-2 py-2 text-left text-caption hover:bg-accent/50 disabled:text-muted-foreground disabled:hover:bg-transparent"
+                        className="flex min-h-7.5 w-full items-start gap-2 rounded-md py-1.5 pr-1 text-left text-ui leading-4.5 hover:bg-accent disabled:text-muted-foreground disabled:hover:bg-transparent"
                       >
                         <span
                           aria-hidden="true"
                           className={cn(
-                            'grid size-5 shrink-0 place-items-center rounded-full border text-2xs tabular-nums',
+                            'grid size-4.5 shrink-0 place-items-center rounded-full border border-border-strong text-2xs leading-none font-medium text-muted-foreground tabular-nums',
                             reviewed &&
                               'border-brand bg-brand text-brand-foreground',
                           )}
@@ -103,7 +104,7 @@ export function SummaryFrame({
               </ul>
             )}
           </section>
-          <p className="text-muted-foreground">
+          <p className="text-ui leading-4.75 text-muted-foreground">
             A decision link, here or in the page, opens that decision in the
             Walkthrough.
           </p>
@@ -111,30 +112,44 @@ export function SummaryFrame({
       }
     >
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
-          <BotIcon className="size-4 text-muted-foreground" />
+        <div className="flex min-h-7 min-w-0 flex-wrap items-center gap-2 text-ui leading-4.5">
+          <span
+            aria-hidden="true"
+            className="grid size-5.5 shrink-0 place-items-center rounded-md border border-border-strong"
+          >
+            <BotIcon className="size-3.25" />
+          </span>
           <span className="min-w-0 flex-1">
-            <strong className="font-medium">The agent</strong>
+            <strong className="font-semibold">The agent</strong>
             <span className="text-muted-foreground">
               {' '}
               wrote this page · revision {revision.revision} ·{' '}
-              {publishedLabel(revision.publishedAt)}
+              {relativeTime(revision.publishedAt)}
             </span>
           </span>
-          <Badge variant="outline">
-            <ShieldCheckIcon /> Sandboxed
+          <Badge
+            variant="outline"
+            className="h-6 gap-1.25 rounded-full border-border-strong pr-2.25 pl-1.75 leading-5.5"
+          >
+            <ShieldCheckIcon className="text-muted-foreground" /> Sandboxed
           </Badge>
         </div>
-        <iframe
-          ref={(frame) =>
-            frame ? bindSummaryLayerRequests(frame, open) : undefined
-          }
-          title="Review summary"
-          src={`${url}#theme=${dark ? 'dark' : 'light'}`}
-          sandbox="allow-scripts allow-forms allow-popups allow-modals"
-          referrerPolicy="no-referrer"
-          className="h-svh max-h-screen min-h-96 w-full rounded-xl border bg-background"
-        />
+        {url === undefined ? (
+          <div className="min-h-96 rounded-xl border bg-background">
+            <StateSkeleton label="Loading the agent's page" />
+          </div>
+        ) : (
+          <iframe
+            ref={(frame) =>
+              frame ? bindSummaryLayerRequests(frame, open) : undefined
+            }
+            title="Review summary"
+            src={`${url}#theme=${dark ? 'dark' : 'light'}`}
+            sandbox="allow-scripts allow-forms allow-popups allow-modals"
+            referrerPolicy="no-referrer"
+            className="h-svh max-h-screen min-h-96 w-full rounded-xl border bg-background"
+          />
+        )}
       </div>
     </MarginRow>
   );

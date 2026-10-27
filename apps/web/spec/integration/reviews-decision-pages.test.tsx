@@ -64,20 +64,15 @@ test('a decision connected to a question pins it beside the decision, and its an
     name: 'Decision details',
     exact: true,
   });
-  await expect
-    .element(
-      details.getByText('Needs your decision · Delivery outbox', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await details
-    .getByRole('button', { name: 'Answer this question', exact: true })
-    .click();
-  await details
-    .getByRole('textbox', { name: 'Comment', exact: true })
+  const card = details.getByRole('region', {
+    name: 'Needs your decision: Delivery outbox',
+    exact: true,
+  });
+  await expect.element(card).toBeVisible();
+  await card
+    .getByRole('textbox', { name: 'Answer the agent', exact: true })
     .fill('Keep one transaction in the outbox owner.');
-  await details.getByRole('button', { name: 'Comment', exact: true }).click();
+  await card.getByRole('button', { name: 'Send answer', exact: true }).click();
   await expect
     .poll(() => server.reviewComments(published.reviewId ?? ''))
     .toMatchObject([

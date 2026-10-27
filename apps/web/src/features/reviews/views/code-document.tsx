@@ -14,8 +14,10 @@ import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
+  MessageSquareIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
@@ -93,6 +95,8 @@ type Props = {
   range?: ReviewRange;
   threadMargin?: boolean;
   decision?: boolean;
+  commentLabel?: string;
+  collapseInHeader?: boolean;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -138,6 +142,8 @@ function CodeSurface({
   collapsible = false,
   threadMargin = false,
   decision = false,
+  commentLabel,
+  collapseInHeader = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -369,8 +375,9 @@ function CodeSurface({
   const collapseControl =
     entries.length > 1 ? (
       <Button
-        size="sm"
+        size={collapseInHeader ? 'xs' : 'sm'}
         variant="ghost"
+        className={collapseInHeader ? headerButtonClass : undefined}
         onClick={() => setAllCollapsed(!allCollapsed)}
       >
         {allCollapsed ? (
@@ -483,7 +490,8 @@ function CodeSurface({
       )}
       {toolbar
         ? toolbar(collapseControl)
-        : collapseControl && (
+        : !collapseInHeader &&
+          collapseControl && (
             <div className="flex shrink-0 justify-end px-3">
               {collapseControl}
             </div>
@@ -709,8 +717,34 @@ function CodeSurface({
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
             if (disableFileHeader || !entry) return null;
-            const actions =
-              !paneFile && item.id === entries[0]?.id ? headerActions : null;
+            const first = item.id === entries[0]?.id;
+            const index = entries.findIndex((entry) => entry.id === item.id);
+            const actions = !paneFile && first ? headerActions : null;
+            const collapseAll =
+              collapseInHeader && first ? collapseControl : null;
+            const steps =
+              decision && entries.length > 1 ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Previous file before ${entry.path}`}
+                    disabled={index === 0}
+                    onClick={() => focusEntry(index - 1)}
+                  >
+                    <ChevronUpIcon className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Next file after ${entry.path}`}
+                    disabled={index === entries.length - 1}
+                    onClick={() => focusEntry(index + 1)}
+                  >
+                    <ChevronDownIcon className="size-3.5" />
+                  </Button>
+                </>
+              ) : null;
             const leading = item.id === entries[0]?.id ? headerLeading : null;
             const stale = entry.review?.stale ? (
               <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-2xs text-graph-4">
@@ -722,14 +756,29 @@ function CodeSurface({
                 <Button
                   variant="ghost"
                   size="xs"
-                  aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
+                  className={decision ? headerButtonClass : undefined}
+                  aria-label={
+                    commentLabel
+                      ? `${commentLabel} about ${entry.path}`
+                      : `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`
+                  }
                   onClick={() => openFileComment(entry)}
                 >
-                  <MessageSquarePlusIcon />
-                  <span className="max-narrow:sr-only">Comment</span>
+                  {decision ? <MessageSquareIcon /> : <MessageSquarePlusIcon />}
+                  <span className="max-narrow:sr-only">
+                    {commentLabel ?? 'Comment'}
+                  </span>
                 </Button>
               ) : null;
-            if (!stale && !leading && !actions && !comment) return null;
+            if (
+              !stale &&
+              !leading &&
+              !actions &&
+              !comment &&
+              !steps &&
+              !collapseAll
+            )
+              return null;
             return (
               <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
                 {stale}
@@ -740,6 +789,8 @@ function CodeSurface({
                     {comment}
                   </ButtonGroup>
                 )}
+                {collapseAll}
+                {steps && <span className="flex items-center">{steps}</span>}
               </div>
             );
           }}
@@ -810,6 +861,9 @@ function CodeSurface({
     </div>
   );
 }
+
+const headerButtonClass =
+  'h-6.5 gap-1.5 rounded-md px-2 font-sans text-xs leading-4 [&_svg]:size-3.5';
 
 function selectedRangeAnchor(
   selection: CodeViewLineSelection | null,

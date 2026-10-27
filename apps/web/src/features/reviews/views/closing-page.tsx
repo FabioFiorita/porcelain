@@ -1,6 +1,6 @@
 import {
   ArchiveIcon,
-  ArrowRightIcon,
+  ChevronRightIcon,
   CircleCheckIcon,
   CircleIcon,
   ExternalLinkIcon,
@@ -114,9 +114,9 @@ export function ClosingPage({
               <section aria-labelledby="closing-partial">
                 <h3
                   id="closing-partial"
-                  className="flex justify-between border-b pb-2 text-xs text-muted-foreground"
+                  className="flex justify-between gap-3.5 border-b pb-1.5 text-xs leading-4 text-muted-foreground"
                 >
-                  <span>
+                  <span className="font-medium tabular-nums">
                     {unexplained.partial.length}{' '}
                     {unexplained.partial.length === 1 ? 'place' : 'places'}{' '}
                     inside explained files
@@ -127,32 +127,33 @@ export function ClosingPage({
                 </h3>
                 <ul
                   aria-label="Unexplained lines in explained files"
-                  className="flex flex-col divide-y"
+                  className="flex flex-col"
                 >
                   {unexplained.partial.map((gap) => (
                     <li
                       key={gap.path}
-                      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm"
+                      className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 py-1 pr-1.5 pl-0.5"
                     >
-                      <TriangleAlertIcon className="size-4 shrink-0 text-graph-4" />
+                      <TriangleAlertIcon className="size-3.5 shrink-0 text-warn" />
                       <span
-                        className="min-w-0 flex-1 font-mono text-xs break-all"
+                        className="min-w-0 flex-1 font-mono text-caption leading-4 break-all"
                         title={gap.path}
                       >
                         {gap.path}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs leading-4 text-muted-foreground tabular-nums">
                         {gap.ranges.length > 0
                           ? spansLabel(gap.ranges)
                           : 'whole file'}
                       </span>
                       <Button
-                        variant="link"
+                        variant="ghost"
                         size="xs"
+                        className="h-auto gap-1 px-0 leading-4 text-brand hover:bg-transparent hover:text-brand hover:underline"
                         onClick={() => onGo(gap.stop)}
                       >
                         Read in {placeName(stops, gap.stop)}
-                        <ArrowRightIcon data-icon="inline-end" />
+                        <ChevronRightIcon data-icon="inline-end" />
                       </Button>
                     </li>
                   ))}
@@ -166,9 +167,9 @@ export function ClosingPage({
               >
                 <h3
                   id="closing-files"
-                  className="flex justify-between pb-2 text-xs text-muted-foreground"
+                  className="flex justify-between pb-1 text-xs leading-4 text-muted-foreground"
                 >
-                  <span>
+                  <span className="font-medium">
                     {unexplained.paths.length}{' '}
                     {unexplained.paths.length === 1 ? 'file' : 'files'} no
                     decision points at
@@ -190,6 +191,7 @@ export function ClosingPage({
             className="flex min-w-0 scroll-mt-4 flex-col gap-5"
           >
             <ClosingHeading
+              size="subpage"
               eyebrow="Set apart by your settings"
               title="Specs"
               lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
@@ -214,18 +216,39 @@ function ClosingHeading({
   eyebrow,
   title,
   lead,
+  size = 'page',
 }: {
   eyebrow: string;
   title: string;
   lead: string;
+  size?: 'page' | 'subpage';
 }) {
   return (
-    <header className="flex min-w-0 flex-col gap-3">
-      <p className="text-xs text-muted-foreground">{eyebrow}</p>
-      <h2 className="text-3xl leading-tight font-semibold tracking-tight">
+    <header
+      className={cn(
+        'flex min-w-0 flex-col',
+        size === 'page' ? 'gap-2.5' : 'gap-1.5',
+      )}
+    >
+      <p className="text-ui leading-5.5 font-medium text-muted-foreground">
+        {eyebrow}
+      </p>
+      <h2
+        className={cn(
+          'font-semibold text-balance',
+          size === 'page' ? 'text-page-title' : 'text-subpage-title',
+        )}
+      >
         {title}
       </h2>
-      <p className="text-base text-pretty">{lead}</p>
+      <p
+        className={cn(
+          'text-pretty text-foreground-2',
+          size === 'page' ? 'text-lead' : 'text-reading',
+        )}
+      >
+        {lead}
+      </p>
     </header>
   );
 }

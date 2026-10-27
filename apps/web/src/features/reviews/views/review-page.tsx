@@ -52,6 +52,7 @@ import {
   reviewPullRequestNotice,
   stopName,
   stopTitle,
+  summaryLinkExpiring,
   walkthroughStops,
   revisionReviewItems,
   type ReviewRevision,
@@ -109,6 +110,7 @@ type ReviewPageProps = {
   liveScope?: ReviewScope | undefined;
   initialStep?: string | undefined;
   proofCurrent?: boolean | undefined;
+  onRefresh?: (() => void) | undefined;
 };
 
 export function ReviewPage({
@@ -166,6 +168,7 @@ export function ReviewPage({
       initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
+      onRefresh={retry}
     />
   );
 }
@@ -267,6 +270,7 @@ function ReviewRevisionPage({
   initialStep,
   proofCurrent = true,
   active = true,
+  onRefresh,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
   revision: ReviewRevision;
@@ -296,9 +300,15 @@ function ReviewRevisionPage({
   };
   const {
     result: summary,
+    page: summaryPage,
     url: summaryUrl,
     available: showSummary,
   } = useReviewSummary(scope, context, review.summary);
+  const [expiredLink, setExpiredLink] = useState<string>();
+  const renewSummaryLink = () => {
+    setExpiredLink(review.summary.expires);
+    onRefresh?.();
+  };
   const seenQuery = observeReviewSeen({
     connection: context.connection,
     reviewId: revision.reviewId,
@@ -408,6 +418,11 @@ function ReviewRevisionPage({
       value={view}
       onValueChange={(value: unknown) => {
         if (value === 'walkthrough' || value === 'summary') {
+          if (
+            value === 'summary' &&
+            summaryLinkExpiring(review.summary, Date.now())
+          )
+            renewSummaryLink();
           setView(value);
           setFile(undefined);
         }
@@ -447,7 +462,7 @@ function ReviewRevisionPage({
   );
   const bar = (
     <>
-      {showSummary && presentation}
+      {(showSummary || view === 'summary') && presentation}
       <span
         aria-label="Review progress"
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
@@ -680,6 +695,15 @@ function ReviewRevisionPage({
           </p>
         }
       >
+        {view === 'summary' &&
+          !showSummary &&
+          AsyncResult.isFailure(summary) && (
+            <StateFailure
+              title="Could not display"
+              description="The agent's page could not be loaded. Try again, or read the walkthrough."
+              onRetry={renewSummaryLink}
+            />
+          )}
         {(view === 'walkthrough' || (view === 'summary' && showSummary)) && (
           <div className="flex min-w-0 flex-1 items-start">
             <WalkthroughSpine
@@ -701,8 +725,12 @@ function ReviewRevisionPage({
                 <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
                   <SummaryFrame
                     revision={revision}
-                    page={Option.getOrUndefined(AsyncResult.value(summary))}
-                    url={summaryUrl}
+                    page={summaryPage}
+                    url={
+                      expiredLink === review.summary.expires
+                        ? undefined
+                        : summaryUrl
+                    }
                     dark={dark}
                     stops={stops}
                     done={done}
@@ -744,13 +772,15 @@ function ReviewRevisionPage({
                 <WalkthroughBriefing
                   {...props}
                   revision={revision}
+                  latestRevision={
+                    data.review?.latestRevision ?? revision.revision
+                  }
                   title={title}
                   proofCurrent={proofCurrent && revision.headOid === latestHead}
                   margin={
                     <BriefingMargin
                       data={data}
                       revision={revision}
-                      latest={latest}
                       context={context}
                       onRevision={onRevision}
                       onDeleted={onDeleted ?? onBack}
@@ -855,6 +885,13 @@ function ReviewRevisionPage({
                             context={context}
                             active={active && section.key === stop.key}
                             marks={marks ?? { files: [], decisions: [] }}
+                            card
+                            gaps={false}
+                            commentLabel={
+                              section.kind === 'unexplained'
+                                ? 'Ask why'
+                                : undefined
+                            }
                           />
                         )}
                       />
@@ -1011,6 +1048,7 @@ function DecisionMark({
     <>
       <Button
         size="sm"
+        className={dockButtonClass}
         variant={reviewed ? 'outline' : 'default'}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
@@ -1037,6 +1075,9 @@ function DecisionMark({
   );
 }
 
+const dockButtonClass =
+  'h-8 gap-1.75 rounded-full pr-3.5 pl-3 text-ui leading-4 [&_svg]:size-3.5';
+
 function FilesMark({
   revision,
   files,
@@ -1057,6 +1098,7 @@ function FilesMark({
     <>
       <Button
         size="sm"
+        className={dockButtonClass}
         disabled={!settled || files.length === 0 || result.waiting}
         onClick={() =>
           mark({ revision: revision.revision, files: blobFiles(files) })
@@ -1091,7 +1133,8 @@ function BranchTipNotice({
     <div className="px-4 pt-3">
       <StateNotice
         role="status"
-        title="The branch tip differs from this review. Publish a revision to include it."
+        title="The branch tip differs from this review."
+        description="Publish a revision to include it."
       />
     </div>
   ) : null;

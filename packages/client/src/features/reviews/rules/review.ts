@@ -11,6 +11,7 @@ import type {
   SetReviewedFileRequest,
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
+import { SUMMARY_LINK_REFRESH_MARGIN_MS } from '../../../config/limits.ts';
 
 export type ChangeList = ReadChangesResponse;
 type FileChange = ChangeList['changes'][number];
@@ -167,6 +168,13 @@ export function reviewSummaryUrl(
     `/review-summaries/${token}?${new URLSearchParams(signed)}`,
     address,
   ).href;
+}
+
+export function summaryLinkExpiring(
+  summary: Pick<ReviewResponse['summary'], 'expires'>,
+  now: number,
+) {
+  return !(Date.parse(summary.expires) - now > SUMMARY_LINK_REFRESH_MARGIN_MS);
 }
 
 export function notExplainedLabel(

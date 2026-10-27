@@ -44,6 +44,21 @@
 @theme inline {
   --text-briefing-title: 2.75rem;
   --text-briefing-title--line-height: 3rem;
+  --text-briefing-title--letter-spacing: -0.045em;
+  --text-page-title: 2.25rem;
+  --text-page-title--line-height: 2.5rem;
+  --text-page-title--letter-spacing: -0.04em;
+  --text-subpage-title: 1.625rem;
+  --text-subpage-title--line-height: 2rem;
+  --text-subpage-title--letter-spacing: -0.03em;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.75rem;
+  --text-lead--letter-spacing: -0.005em;
+  --text-section: 1rem;
+  --text-section--line-height: 1.375rem;
+  --text-section--letter-spacing: -0.015em;
+  --text-reading: 0.9375rem;
+  --text-reading--line-height: 1.375rem;
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
   --font-heading: var(--font-sans);

@@ -17,7 +17,8 @@ import type {
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
-import { CheckIcon, SquareIcon } from 'lucide-react';
+import { CheckIcon } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +41,9 @@ export function RevisionCode({
   steps = [],
   active,
   decision = false,
+  card = decision,
+  gaps = true,
+  commentLabel,
 }: {
   revision: ReviewRevision;
   paths: readonly string[];
@@ -49,6 +53,9 @@ export function RevisionCode({
   steps?: readonly ReviewStep[];
   active: boolean;
   decision?: boolean;
+  card?: boolean;
+  gaps?: boolean;
+  commentLabel?: string | undefined;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
   const files = paths.flatMap((path) =>
@@ -67,6 +74,9 @@ export function RevisionCode({
           steps={steps}
           active={active}
           decision={decision}
+          card={card}
+          gaps={gaps}
+          commentLabel={commentLabel}
         />
       )}
       {files.length > shown && (
@@ -116,6 +126,9 @@ function RevisionDiffs({
   steps,
   active,
   decision,
+  card,
+  gaps,
+  commentLabel,
 }: {
   revision: ReviewRevision;
   files: ReviewRevision['files'];
@@ -125,6 +138,9 @@ function RevisionDiffs({
   steps: readonly ReviewStep[];
   active: boolean;
   decision: boolean;
+  card: boolean;
+  gaps: boolean;
+  commentLabel: string | undefined;
 }) {
   const result = useAtomValue(
     readReviewRevisionDiffs({
@@ -145,7 +161,7 @@ function RevisionDiffs({
     ...revision.content.layers.map((layer, index) =>
       decisionNotes(layer, index + 1),
     ),
-    gapNotes(revision.content.notExplained),
+    gaps ? gapNotes(revision.content.notExplained) : {},
   );
   const commands = reviewCommands({
     connection: context.connection,
@@ -171,8 +187,7 @@ function RevisionDiffs({
     const reviewed = marks.files.some(
       (item) => item.path === file.path && item.fingerprint === fingerprint,
     );
-    const ReviewIcon = reviewed ? CheckIcon : SquareIcon;
-    const reviewText = reviewed ? 'File reviewed' : 'Mark file reviewed';
+    const stop = steps.findIndex((step) => step.pointer.path === file.path);
     return [
       {
         ...entry,
@@ -183,47 +198,64 @@ function RevisionDiffs({
           fingerprint,
           reviewed,
           control: (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size={decision ? 'icon-sm' : 'xs'}
-                    variant="outline"
-                    aria-pressed={reviewed}
-                    aria-label={reviewedControlLabel(
-                      file.path,
-                      reviewed ? 'reviewed' : 'unreviewed',
-                    )}
-                    disabled={
-                      !fingerprint || markResult.waiting || unmarkResult.waiting
-                    }
-                    onClick={() =>
-                      fingerprint &&
-                      (reviewed
-                        ? unmark({
-                            kind: 'file',
-                            path: file.path,
-                            headBlobOid: fingerprint,
-                          })
-                        : mark({
-                            kind: 'file',
-                            revision: revision.revision,
-                            path: file.path,
-                            headBlobOid: fingerprint,
-                          }))
-                    }
-                  />
-                }
-              >
-                {decision ? <ReviewIcon /> : reviewText}
-              </TooltipTrigger>
-              <TooltipContent>
-                {reviewedControlLabel(
-                  file.path,
-                  reviewed ? 'reviewed' : 'unreviewed',
-                )}
-              </TooltipContent>
-            </Tooltip>
+            <>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-xs"
+                      variant="outline"
+                      className={cn(
+                        'size-4 rounded-sm border-border-strong bg-background',
+                        reviewed &&
+                          'border-brand bg-brand text-brand-foreground hover:bg-brand hover:text-brand-foreground dark:bg-brand',
+                      )}
+                      aria-pressed={reviewed}
+                      aria-label={reviewedControlLabel(
+                        file.path,
+                        reviewed ? 'reviewed' : 'unreviewed',
+                      )}
+                      disabled={
+                        !fingerprint ||
+                        markResult.waiting ||
+                        unmarkResult.waiting
+                      }
+                      onClick={() =>
+                        fingerprint &&
+                        (reviewed
+                          ? unmark({
+                              kind: 'file',
+                              path: file.path,
+                              headBlobOid: fingerprint,
+                            })
+                          : mark({
+                              kind: 'file',
+                              revision: revision.revision,
+                              path: file.path,
+                              headBlobOid: fingerprint,
+                            }))
+                      }
+                    />
+                  }
+                >
+                  {reviewed && <CheckIcon className="size-3" />}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {reviewedControlLabel(
+                    file.path,
+                    reviewed ? 'reviewed' : 'unreviewed',
+                  )}
+                </TooltipContent>
+              </Tooltip>
+              {stop >= 0 && (
+                <span
+                  title={`Stop ${stop + 1}`}
+                  className="ml-1 grid size-4.5 shrink-0 place-items-center rounded-full bg-brand-soft font-sans text-2xs leading-none font-semibold text-brand tabular-nums"
+                >
+                  {stop + 1}
+                </span>
+              )}
+            </>
           ),
         },
       },
@@ -260,7 +292,9 @@ function RevisionDiffs({
           entries={entries}
           fullHeight
           threadMargin={decision}
-          decision={decision}
+          decision={card}
+          collapseInHeader
+          {...(commentLabel ? { commentLabel } : {})}
           onReview={(entry) => {
             const target = entry.review;
             if (
