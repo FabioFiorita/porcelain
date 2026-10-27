@@ -116,6 +116,7 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     if (notice.type === 'inventory')
       yield* reactivity.invalidate([
         queryKeys.inventory(connection.environmentId),
+        queryKeys.reviewGitSettings(connection.environmentId),
       ]);
     if (notice.type === 'worktree') {
       const reviewIds = yield* reads.reviewsFor(notice);

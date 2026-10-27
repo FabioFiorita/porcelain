@@ -7,6 +7,7 @@ import {
   SessionApi,
   ServiceUpdatesApi,
   RemoteAccessApi,
+  ReviewGitSettingsApi,
   HostAccessApi,
   OwnerAccessApi,
 } from '@porcelain/contracts/access';
@@ -27,6 +28,8 @@ import { type ReadServiceUpdateUseCase } from '../../../use-cases/access/read-se
 import { type ReadSessionUseCase } from '../../../use-cases/access/read-session.ts';
 import { type RedeemPairingUseCase } from '../../../use-cases/access/redeem-pairing.ts';
 import { type RenameEnvironmentUseCase } from '../../../use-cases/access/rename-environment.ts';
+import { type ReadReviewGitSettingsUseCase } from '../../../use-cases/access/read-review-git-settings.ts';
+import { type SaveReviewGitSettingsUseCase } from '../../../use-cases/access/save-review-git-settings.ts';
 import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
 import { type SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
 import { type SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
@@ -74,6 +77,14 @@ type AccessUseCases = {
   >;
   renameEnvironment: Pick<
     Context.Service.Shape<typeof RenameEnvironmentUseCase>,
+    'execute'
+  >;
+  readReviewGitSettings: Pick<
+    Context.Service.Shape<typeof ReadReviewGitSettingsUseCase>,
+    'execute'
+  >;
+  saveReviewGitSettings: Pick<
+    Context.Service.Shape<typeof SaveReviewGitSettingsUseCase>,
     'execute'
   >;
   revokeAccess: Pick<
@@ -270,6 +281,26 @@ export function accessRoutes(useCases: AccessUseCases) {
           }),
         ),
   );
+  const reviewGitSettingsHandlers = HttpApiBuilder.group(
+    ReviewGitSettingsApi,
+    'reviewGitSettings',
+    (handlers) =>
+      handlers
+        .handle('readReviewGitSettings', () =>
+          useCases.readReviewGitSettings.execute(),
+        )
+        .handle('saveReviewGitSettings', ({ payload }) =>
+          Effect.gen(function* () {
+            const viewer = yield* RequestCaller;
+            const { local } = yield* RequestConnection;
+            return yield* useCases.saveReviewGitSettings.execute({
+              viewer,
+              local,
+              save: payload,
+            });
+          }),
+        ),
+  );
   const environmentName = HttpApiBuilder.group(
     HostAccessApi,
     'environmentName',
@@ -314,6 +345,11 @@ export function accessRoutes(useCases: AccessUseCases) {
     ),
     remoteAccess: HttpApiBuilder.layer(RemoteAccessApi).pipe(
       Layer.provide(pairedRemoteAccess),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
+    ),
+    reviewGitSettings: HttpApiBuilder.layer(ReviewGitSettingsApi).pipe(
+      Layer.provide(reviewGitSettingsHandlers),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),

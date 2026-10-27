@@ -86,7 +86,7 @@ export function SummaryFrame({
                           className={cn(
                             'grid size-5 shrink-0 place-items-center rounded-full border text-2xs tabular-nums',
                             reviewed &&
-                              'border-graph-1 bg-graph-1 text-background',
+                              'border-brand bg-brand text-brand-foreground',
                           )}
                         >
                           {reviewed ? <CheckIcon className="size-3" /> : number}

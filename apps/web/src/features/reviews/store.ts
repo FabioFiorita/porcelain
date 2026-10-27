@@ -139,8 +139,13 @@ export function useCodeViewScroll() {
 export { tabs as tabLayoutState };
 
 const revisionSelection = Atom.family((_reviewId: string) =>
-  Atom.make<{ revision: number | undefined; request: number }>({
+  Atom.make<{
+    revision: number | undefined;
+    step: string | undefined;
+    request: number;
+  }>({
     revision: undefined,
+    step: undefined,
     request: 0,
   }).pipe(Atom.keepAlive),
 );
@@ -150,8 +155,8 @@ export function useReviewRevisionSelection(reviewId: string) {
   const set = useAtomSet(state);
   return {
     ...selection,
-    choose: (revision: number | undefined) =>
-      set((current) => ({ revision, request: current.request + 1 })),
+    choose: (revision: number | undefined, step?: string) =>
+      set((current) => ({ revision, step, request: current.request + 1 })),
   };
 }
 

@@ -1,24 +1,25 @@
 ---
 route: /reviews/$reviewId
 selectors:
-  - "Review walkthrough"
-  - "Review revisions"
-  - "You asked"
-  - "Recommendation"
-  - "Not proven"
-  - "Removed"
-  - "Continue at decision "
-  - "Close review"
-  - "Delete review…"
-  - "Delete review?"
-  - "Side panel"
-  - "Review sidebar"
-  - "Comment on the whole branch"
-  - "Try again"
+  - 'Review walkthrough'
+  - 'Review revisions'
+  - 'You asked'
+  - 'Recommendation'
+  - 'Not proven'
+  - 'Removed'
+  - 'Continue at decision '
+  - 'Close review'
+  - 'Delete review…'
+  - 'Delete review?'
+  - 'Side panel'
+  - 'Review sidebar'
+  - 'Comment on the whole branch'
+  - 'Try again'
 tests:
   - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-summary.test.tsx
   - apps/web/spec/integration/reviews-briefing.test.tsx
+  - apps/web/spec/integration/reviews-panel.test.tsx
   - apps/web/spec/e2e/reviews-live-refresh.e2e.ts
 api:
   - GET /api/reviews/:reviewId
@@ -46,7 +47,7 @@ One page owns the latest durable route, numbered revisions, decision links and t
 
 Preconditions: [surface baseline](README.md).
 
-The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Wide proof places checks beside media; Removed aligns with owners and Not proven with proof. Decision, Not explained, summary and Proof views do not repeat the verdict. The page's own Review panel holds Readiness, Changed files and Comments: at 1280px and wider it docks beside the page with a rail (button "Review", `Alt+2`; `Alt+Shift+R` hides or shows it); below 1280px button "Review" in the bar opens it as a sheet. Inside a worktree the branch Review tab uses the worktree's own panel instead. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths each margin section follows its matching content.
+The navigator has one status-grouped Reviews list across projects and environments; closed reviews are behind Closed. The briefing owns the verdict, proof and review details. Wide proof places checks beside media; Removed aligns with owners and Not proven with proof. Decision, Not explained and summary views do not repeat the verdict. The page has one pane bar and no separate Proof view; Readiness checks open the briefing. Back to workspace and the review state remain in the briefing margin. The page's own Review panel holds Readiness, Changed files and Comments: at 1280px and wider it docks beside the page with a rail (button "Review", `Alt+2`; `Alt+Shift+R` hides or shows it); below 1280px button "Review" in the bar opens it as a sheet. Inside a worktree the branch Review tab uses the worktree's own panel instead. In both panels an expanded decision's steps, and on the review page the Changed files rows, start their accessible names with the file's review state, "Not reviewed" or "Reviewed" (for example "Not reviewed 1 Read the retained revision"), shown as a dot or a check. Deleted paths and their behavior and reason appear in the briefing margin; at narrow widths each margin section follows its matching content.
 
 Check `free -g` before startup. Start one disposable instance and retain the connection card. Run `$C agent publish-revision 'Retain the committed revision after removing the publishing checkout'` twice. Each command commits on an owned fixture worktree and publishes through MCP, returning reviewId, revision, headOid, layerId and worktree. Keep both responses. The fixture has a deletion, a long decision title, passing and failing checks, and an explicit desktop gap.
 

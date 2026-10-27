@@ -1,4 +1,5 @@
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
+import type { ReviewPanelSelection } from '../../../shared/rules/workspace-session';
 import { Box } from '../../../components/ui/box';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -69,8 +70,7 @@ export function ReviewNavigation({
   onComparison,
   onFile,
   onOverview,
-  selectedPath,
-  overviewSelected = false,
+  selection,
   inlineOverview = false,
 }: {
   workspace: Workspace;
@@ -78,8 +78,7 @@ export function ReviewNavigation({
   onComparison: (comparison: ReviewComparison) => void;
   onFile: (path: string) => void;
   onOverview: () => void;
-  selectedPath?: string | undefined;
-  overviewSelected?: boolean;
+  selection?: ReviewPanelSelection | undefined;
   inlineOverview?: boolean;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
@@ -110,8 +109,7 @@ export function ReviewNavigation({
           comparison={comparison}
           onFile={onFile}
           onOverview={onOverview}
-          selectedPath={selectedPath}
-          overviewSelected={overviewSelected}
+          selection={selection}
           inlineOverview={inlineOverview}
         />
       ) : (
@@ -175,8 +173,7 @@ function ReviewNavigationList({
   comparison,
   onFile,
   onOverview,
-  selectedPath,
-  overviewSelected,
+  selection,
   inlineOverview,
 }: {
   workspace: Workspace;
@@ -184,8 +181,7 @@ function ReviewNavigationList({
   comparison: ReviewComparison;
   onFile: (path: string) => void;
   onOverview: () => void;
-  selectedPath: string | undefined;
-  overviewSelected: boolean;
+  selection: ReviewPanelSelection | undefined;
   inlineOverview: boolean;
 }) {
   const navigation = useReviewNavigation();
@@ -237,7 +233,7 @@ function ReviewNavigationList({
                 : 'Branch comparison'
             }
             leading={<Icon name="review" />}
-            selected={overviewSelected}
+            selected={selection?.kind === 'overview'}
             onPress={onOverview}
           />
         )}
@@ -271,6 +267,12 @@ function ReviewNavigationList({
                 {files.map((file) => (
                   <Item
                     key={file.path}
+                    {...(!inlineOverview
+                      ? {
+                          titleNumberOfLines: 1,
+                          descriptionNumberOfLines: 1,
+                        }
+                      : {})}
                     title={
                       inlineOverview
                         ? file.path
@@ -283,7 +285,11 @@ function ReviewNavigationList({
                     }
                     leading={inlineOverview ? undefined : <FileIcon />}
                     size={inlineOverview ? 'default' : 'sm'}
-                    selected={!inlineOverview && selectedPath === file.path}
+                    selected={
+                      !inlineOverview &&
+                      selection?.kind === 'file' &&
+                      selection.path === file.path
+                    }
                     accessibilityLabel={`Review ${file.path}`}
                     trailing={
                       inlineOverview ? (

@@ -10,6 +10,8 @@ import {
   MissingTailnetHostnameError,
   MissingTunnelHostnameError,
   NoLocalNetworkError,
+  ReviewGitSettingsNotConfiguredError,
+  ReviewGitSettingsTrustRequiredError,
   ServiceNotManagedError,
   ServiceUpdateNotOfferedError,
   ServiceUpdateRunningError,
@@ -52,6 +54,11 @@ import {
   setRemoteAccessRequestSchema,
   setRemoteAccessResponseSchema,
 } from './remote-access.ts';
+import {
+  readReviewGitSettingsResponseSchema,
+  saveReviewGitSettingsRequestSchema,
+  saveReviewGitSettingsResponseSchema,
+} from './review-git-settings.ts';
 import {
   readServiceUpdateResponseSchema,
   startServiceUpdateRequestSchema,
@@ -131,6 +138,24 @@ const updatesGroup = HttpApiGroup.make('serviceUpdates')
         httpFailure(ServiceNotManagedError, 'Conflict'),
         httpFailure(ServiceUpdateRunningError, 'Conflict'),
         httpFailure(ServiceUpdateNotOfferedError, 'Conflict'),
+      ],
+    }),
+  )
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
+const reviewGitSettingsGroup = HttpApiGroup.make('reviewGitSettings')
+  .add(
+    HttpApiEndpoint.get('readReviewGitSettings', '/review-git-settings', {
+      disableCodecs: true,
+      success: readReviewGitSettingsResponseSchema,
+    }),
+    HttpApiEndpoint.patch('saveReviewGitSettings', '/review-git-settings', {
+      disableCodecs: true,
+      payload: saveReviewGitSettingsRequestSchema,
+      success: saveReviewGitSettingsResponseSchema,
+      error: [
+        httpFailure(ReviewGitSettingsTrustRequiredError, 'Forbidden'),
+        httpFailure(ReviewGitSettingsNotConfiguredError, 'Conflict'),
       ],
     }),
   )
@@ -233,6 +258,9 @@ export class ServiceUpdatesApi extends porcelainApi
 export class RemoteAccessApi extends porcelainApi
   .add(remoteAccessGroup)
   .prefix('/api') {}
+export class ReviewGitSettingsApi extends porcelainApi
+  .add(reviewGitSettingsGroup)
+  .prefix('/api') {}
 export class HostAccessApi extends porcelainApi
   .add(administrationGroup, environmentNameGroup)
   .prefix('/api') {}
@@ -249,6 +277,7 @@ export class AccessApi extends porcelainApi
     sessionGroup,
     updatesGroup,
     remoteAccessGroup,
+    reviewGitSettingsGroup,
     administrationGroup,
     environmentNameGroup,
   )

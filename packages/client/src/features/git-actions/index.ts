@@ -28,5 +28,6 @@ export {
   runNetworkAction,
   restoreDiscardedItem,
   type DiscardedItem,
+  type GitMenuControls,
 } from './commands/git-menu.ts';
 export { lookAgainGitAction, refreshGitLook } from './commands/action-form.ts';

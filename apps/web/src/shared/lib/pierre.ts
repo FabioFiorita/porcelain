@@ -1,4 +1,5 @@
 import type { FileOptions, ThemesType } from '@pierre/diffs/react';
+import { registerCustomCSSVariableTheme } from '@pierre/diffs';
 import {
   CONTENT_VERSION_HASH_OFFSET,
   CONTENT_VERSION_HASH_PRIME,
@@ -8,6 +9,31 @@ export const PIERRE_THEME: ThemesType = {
   light: 'pierre-light',
   dark: 'pierre-dark',
 };
+
+export const PIERRE_DECISION_THEME = 'porcelain-review';
+
+registerCustomCSSVariableTheme(PIERRE_DECISION_THEME, {});
+
+export const PIERRE_DECISION_CSS = `
+[data-line-type='change-addition'] {
+  --diffs-computed-diff-line-bg: var(--add-bg);
+}
+[data-line-type='change-deletion'] {
+  --diffs-computed-diff-line-bg: var(--del-bg);
+}
+[data-diffs-header] {
+  min-height: calc(var(--spacing) * 10);
+  padding-inline: calc(var(--spacing) * 3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--muted);
+}
+pre {
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+`;
 
 export const PIERRE_HEADER_CSS = `
 @media (max-width: 720px) {

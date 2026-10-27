@@ -22,6 +22,8 @@ import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
 import { SetWaysInPermissionUseCase } from '../use-cases/access/set-ways-in-permission.ts';
 import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
+import { ReadReviewGitSettingsUseCase } from '../use-cases/access/read-review-git-settings.ts';
+import { SaveReviewGitSettingsUseCase } from '../use-cases/access/save-review-git-settings.ts';
 import { ReadServiceUpdateUseCase } from '../use-cases/access/read-service-update.ts';
 import { StartServiceUpdateUseCase } from '../use-cases/access/start-service-update.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
@@ -81,6 +83,8 @@ export function composeAccess(
     ReadServiceUpdateUseCase.layer,
     StartServiceUpdateUseCase.layer,
     RenameEnvironmentUseCase.layer,
+    ReadReviewGitSettingsUseCase.layer,
+    SaveReviewGitSettingsUseCase.layer,
     ReadRemoteAccessUseCase.layer,
     SetRemoteAccessUseCase.layer,
     OpenRemoteRoutesUseCase.layer,
@@ -113,6 +117,8 @@ export function composeAccess(
         readServiceUpdate: yield* ReadServiceUpdateUseCase,
         startServiceUpdate: yield* StartServiceUpdateUseCase,
         renameEnvironment: yield* RenameEnvironmentUseCase,
+        readReviewGitSettings: yield* ReadReviewGitSettingsUseCase,
+        saveReviewGitSettings: yield* SaveReviewGitSettingsUseCase,
         readRemoteAccess: yield* ReadRemoteAccessUseCase,
         setRemoteAccess: yield* SetRemoteAccessUseCase,
         openRemoteRoutes: yield* OpenRemoteRoutesUseCase,

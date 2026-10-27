@@ -1,6 +1,12 @@
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import type { Project } from '@porcelain/client/projects/rules';
-import { UpdatesButton, UpdatesSheet, useUpdatesIndicator } from '../../access';
+import {
+  UpdatesButton,
+  UpdatesSheet,
+  useEnvironments,
+  useEnvironmentStorageStatus,
+  useUpdatesIndicator,
+} from '../../access';
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -29,6 +35,7 @@ import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
+import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
 import { useWorktreeNavigator } from '../store';
 
@@ -53,6 +60,9 @@ export function WorktreeNavigator({
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
   const { preferences, setPreferences } = usePreferences();
+  const openComputers = useOpenComputers();
+  const paired = useEnvironments();
+  const storage = useEnvironmentStorageStatus();
   const { rows, filters, multipleProjects } = reviewListView(
     entries,
     query,
@@ -77,8 +87,26 @@ export function WorktreeNavigator({
       });
     }
   };
+  if (storage.status === 'ready' && paired.length === 0)
+    return (
+      <Box className="flex-1" testID="worktree-navigator">
+        <Box paddingX={4} paddingY={3} gap={2}>
+          <Text variant="subheading">No computers paired</Text>
+          <Text variant="caption" tone="muted">
+            Pair a computer to see its worktrees and reviews here.
+          </Text>
+          <Box className="items-start">
+            <Button
+              label="Add computer"
+              variant="outline"
+              onPress={openComputers}
+            />
+          </Box>
+        </Box>
+      </Box>
+    );
   return (
-    <Box className="flex-1" surface="background" testID="worktree-navigator">
+    <Box className="flex-1" testID="worktree-navigator">
       {nativeHeader ? (
         <Stack.Title asChild>
           <Box className="flex-row items-center" gap={3}>
@@ -130,11 +158,13 @@ export function WorktreeNavigator({
           />
         </Stack.Toolbar>
       ) : null}
-      <UpdatesSheet
-        presented={updates}
-        onClose={() => setUpdates(false)}
-        onManageComputers={() => router.push('/computers')}
-      />
+      {nativeHeader ? (
+        <UpdatesSheet
+          presented={updates}
+          onClose={() => setUpdates(false)}
+          onManageComputers={openComputers}
+        />
+      ) : null}
       <Box paddingX={4} paddingY={3} gap={2}>
         <Box className="flex-row items-center" gap={1}>
           <Box className="min-w-0 flex-1">
@@ -152,12 +182,6 @@ export function WorktreeNavigator({
           </Box>
           {!nativeHeader ? (
             <>
-              {updateIndicator.visible ? (
-                <UpdatesButton
-                  running={updateIndicator.running}
-                  onPress={() => setUpdates(true)}
-                />
-              ) : null}
               <IconButton
                 icon="filter"
                 accessibilityLabel="Filter worktrees"

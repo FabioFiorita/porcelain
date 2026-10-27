@@ -15,7 +15,7 @@ function project(id: string, available = true): Project {
         id: `${id}-main`,
         path: `/repo/${id}`,
         main: true,
-        branch: 'refs/heads/main',
+        branch: 'main',
         available: true,
         status: undefined,
       },
@@ -78,7 +78,7 @@ describe('choosing a workspace across paired environments', () => {
                   id: 'one-linked',
                   path: '/repo/linked',
                   main: false,
-                  branch: 'refs/heads/feature',
+                  branch: 'feature',
                   available: false,
                   status: undefined,
                 },
@@ -125,10 +125,7 @@ describe('choosing a workspace across paired environments', () => {
     ]);
     expect(
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
-    ).toEqual([
-      'No environments paired',
-      'This environment is no longer paired.',
-    ]);
+    ).toEqual(['This environment is no longer paired.']);
   });
 });
 

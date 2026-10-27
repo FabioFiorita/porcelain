@@ -20,10 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useAtomValue } from '@effect/atom-react';
 import { readReview, readReviewMarks } from '@porcelain/client/reviews';
 import {
-  walkthroughStops,
-  revisionReviewItems,
-  revisionDecisionStates,
-  stopDone,
+  revisionDecisionProgress,
   type ReviewResponse,
 } from '@porcelain/client/reviews/rules';
 import {
@@ -58,7 +55,7 @@ import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
 import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import {
   anchorBase,
   type RevealComment,
@@ -552,7 +549,9 @@ function PaneView({
         reviewCount={
           review?.reviewId ? (
             <ReviewTabProgress review={review} context={context} />
-          ) : undefined
+          ) : (
+            !reviewTitle && <ChangesTabCount scope={scope} context={context} />
+          )
         }
         leading={
           index === 0 ? (
@@ -639,6 +638,28 @@ function PaneView({
   );
 }
 
+function ChangesTabCount({
+  scope,
+  context,
+}: {
+  scope: PaneContext['scope'];
+  context: ConnectionContext;
+}) {
+  const count =
+    Option.getOrUndefined(
+      AsyncResult.value(useReviewOverview(scope, context.connection)),
+    )?.changes.length ?? 0;
+  if (count === 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="text-2xs leading-4 text-muted-foreground tabular-nums"
+    >
+      {count}
+    </span>
+  );
+}
+
 function ReviewTabProgress({
   review,
   context,
@@ -647,7 +668,7 @@ function ReviewTabProgress({
   context: ConnectionContext;
 }) {
   const selection = useReviewRevisionSelection(review.reviewId ?? '');
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const read = useAtomValue(
     readReview({
       connection: context.connection,
@@ -665,22 +686,15 @@ function ReviewTabProgress({
     }),
   );
   const marks = Option.getOrUndefined(AsyncResult.value(result));
-  let reviewed = 0;
-  if (revision) {
-    const items = revisionReviewItems(revision, marks);
-    const decisions = revisionDecisionStates(revision, marks);
-    reviewed = walkthroughStops(
-      revision.content,
-      revision.files.map((file) => file.path),
-      { specsApart: preferences.collapseSpecs },
-    ).filter(
-      (stop) => stop.kind === 'decision' && stopDone(stop, items, decisions),
-    ).length;
-  }
+  const reviewed = revision
+    ? revisionDecisionProgress(revision, marks, {
+        specsApart,
+      }).reviewed
+    : 0;
   return (
     <span
       aria-hidden="true"
-      className="text-2xs text-muted-foreground tabular-nums"
+      className="text-2xs leading-4 text-muted-foreground tabular-nums"
     >
       {reviewed}/{revision?.content.layers.length ?? review.layers.length}
     </span>

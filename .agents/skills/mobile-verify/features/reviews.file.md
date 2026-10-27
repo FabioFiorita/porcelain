@@ -31,10 +31,10 @@ Preconditions: [surface baseline](README.md).
 2. Mark reviewed, independently verify fingerprint, unmark. Change the file through the fixture: Changed since review. Fingerprint failures disable marking; read errors offer Read again.
 3. Tap added/deleted lines: same-side second tap extends from the first; opposite-side tap starts a new range. Context uses the active side's number. Wrapped segments select their source line; scrolling selects nothing. Comment on selected lines opens the sheet; Clear selection restores whole-file feedback. Read side/range/comparison/fingerprint through comment-threads; content refresh clears selection.
 4. Done/dismiss returns to the exact underlying file; unsent drafts keep discard confirmation. Phone Back returns to list; iPad Overview/another tab changes document. Close inactive/active tabs and confirm remaining selection. Removing the file shows No longer changed in its tab without selecting another.
-5. Drive binary, metadata-only, omitted, malformed, empty, conflicted and unsupported comparisons: explicit notices; metadata patch has no selectable text-line feedback. Change workspace: old phone route invalidates, iPad restores its own session. Changing inspector comparison/base preserves existing captured tabs.
+5. Drive binary, metadata-only, omitted, malformed, empty, conflicted and unsupported comparisons: explicit notices; metadata patch has no selectable text-line feedback. Change workspace: old phone route invalidates, iPad restores its own session. Changing panel comparison/base preserves existing captured tabs.
 
 Automated coverage: none named; retain the live action and readback evidence.
 
 ## Gotchas
 
-- Wide/narrow iPad inspector changes retain the same central tab; only phones push file routes. Code and comparison must remain from the displayed document when composing.
+- Wide/narrow iPad panel changes retain the same central tab; only phones push file routes. Code and comparison must remain from the displayed document when composing.

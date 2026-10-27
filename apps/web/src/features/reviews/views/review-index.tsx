@@ -24,7 +24,6 @@ import {
   BRANCH,
   type DocumentRef,
   entryKey,
-  PROOF,
   type OpenDocument,
 } from '../rules/documents';
 import type { ReadinessKey } from '@porcelain/client/reviews/rules';
@@ -34,13 +33,13 @@ import {
   type ReviewResponse,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { useWalkthroughPlace } from '../store';
+import { useReviewRevisionSelection, useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ChangeComment, CommentsView, ReviewViews } from './comments-view';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -78,6 +77,7 @@ export function ReviewIndex({
   const { setPlace } = useWalkthroughPlace(
     `${review?.reviewId ?? scope.worktreeId}:${review?.revision ?? ''}`,
   );
+  const selection = useReviewRevisionSelection(review?.reviewId ?? '');
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
@@ -92,7 +92,11 @@ export function ReviewIndex({
       return;
     }
     setView('layers');
-    if (key === 'checks') onOpen(PROOF);
+    if (key === 'checks') {
+      selection.choose(undefined);
+      setPlace('briefing');
+      onOpen({ kind: 'handoff' });
+    }
     if (key === 'unexplained') {
       if (review) setPlace('unexplained');
       onOpen({ kind: 'handoff' });
@@ -139,6 +143,7 @@ export function ReviewIndex({
         />
       ) : (
         <ChangeReadiness
+          context={context}
           files={changes}
           review={review}
           threads={threads}
@@ -236,13 +241,13 @@ function LayersView({
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
 }) {
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const [groups, setGroups] = useState({ changes: true, specs: false });
   const paths = list.changes.map((entry) => entry.path);
-  const mainPaths = preferences.collapseSpecs
+  const mainPaths = specsApart
     ? paths.filter((path) => !isSpecPath(path))
     : paths;
-  const specPaths = preferences.collapseSpecs ? paths.filter(isSpecPath) : [];
+  const specPaths = specsApart ? paths.filter(isSpecPath) : [];
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),

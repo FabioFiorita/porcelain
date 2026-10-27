@@ -1,3 +1,4 @@
+import { stopDone, walkthroughStops } from './walkthrough.ts';
 import type { ReviewRevision } from './verdict.ts';
 import type { ReviewMarks, ReviewStatus } from './review.ts';
 export function revisionReviewItems(
@@ -33,4 +34,27 @@ export function revisionDecisionStates(
       },
     ]),
   );
+}
+
+export function revisionDecisionProgress(
+  revision: {
+    files: ReviewRevision['files'];
+    content: Pick<ReviewRevision['content'], 'layers' | 'notExplained'>;
+  },
+  marks: ReviewMarks | undefined,
+  options: { specsApart: boolean },
+) {
+  const items = revisionReviewItems(revision, marks);
+  const decisions = revisionDecisionStates(revision, marks);
+  const stops = walkthroughStops(
+    revision.content,
+    revision.files.map((file) => file.path),
+    options,
+  );
+  return {
+    reviewed: stops.filter(
+      (stop) => stop.kind === 'decision' && stopDone(stop, items, decisions),
+    ).length,
+    total: revision.content.layers.length,
+  };
 }

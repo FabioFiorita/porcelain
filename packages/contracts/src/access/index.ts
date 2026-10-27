@@ -64,6 +64,16 @@ export {
   type SetRemoteAccessRequest,
   type SetRemoteAccessResponse,
 } from './remote-access.ts';
+export {
+  reviewGitSettingsSchema,
+  readReviewGitSettingsResponseSchema,
+  saveReviewGitSettingsResponseSchema,
+  type ReadReviewGitSettingsResponse,
+  type ReviewGitSettings,
+  type SaveReviewGitSettingsInput,
+  type SaveReviewGitSettingsRequest,
+  type SaveReviewGitSettingsResponse,
+} from './review-git-settings.ts';
 export { pairingLink } from './pairing-link.ts';
 export {
   PublicAccessApi,
@@ -72,6 +82,7 @@ export {
   SessionApi,
   ServiceUpdatesApi,
   RemoteAccessApi,
+  ReviewGitSettingsApi,
   HostAccessApi,
   OwnerAccessApi,
   AccessApi,

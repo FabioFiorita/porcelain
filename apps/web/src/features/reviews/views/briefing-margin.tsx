@@ -6,6 +6,7 @@ import {
   type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ReviewActions } from './review-actions';
 
@@ -16,6 +17,7 @@ export function BriefingMargin({
   context,
   onRevision,
   onDeleted,
+  onBack,
 }: {
   data: DurableReviewRead;
   revision: ReviewRevision;
@@ -23,6 +25,7 @@ export function BriefingMargin({
   context: ConnectionContext;
   onRevision: ((revision: number | undefined) => void) | undefined;
   onDeleted: () => void;
+  onBack: (() => void) | undefined;
 }) {
   const sections = verdictSections(revision);
   return (
@@ -68,6 +71,17 @@ export function BriefingMargin({
         <h3 className="border-b pb-2 font-medium text-muted-foreground">
           This review
         </h3>
+        <Badge variant="outline">{data.review?.state ?? 'open'}</Badge>
+        {data.review?.pullRequest && (
+          <a
+            href={data.review.pullRequest}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4"
+          >
+            PR #{data.review.pullRequest.split('/').filter(Boolean).at(-1)}
+          </a>
+        )}
         <p className="font-mono wrap-anywhere">
           {revision.branch} → {refLabel(revision.base)}
         </p>
@@ -75,6 +89,16 @@ export function BriefingMargin({
           Head {sections.header.shortHead} ·{' '}
           {publishedLabel(revision.publishedAt)}
         </p>
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="xs"
+            className="self-start"
+            onClick={onBack}
+          >
+            Back to workspace
+          </Button>
+        )}
         <ReviewActions
           reviewId={revision.reviewId}
           state={data.review?.state ?? 'open'}

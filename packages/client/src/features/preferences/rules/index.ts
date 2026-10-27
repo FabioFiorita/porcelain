@@ -2,5 +2,11 @@ export { resolvedTheme, nextAppearance } from './preferences.ts';
 export { archiveSettings, archiveOptions } from './archive.ts';
 export {
   generalSettingsSummary,
-  reviewsGitSettingsSummary,
+  REVIEWS_GIT_SETTINGS_SUMMARY,
 } from './settings-summary.ts';
+export {
+  confirmedReviewGitSettings,
+  specsApart,
+  reviewGitSettingsBlock,
+  type ReviewGitSettingsView,
+} from './review-git-settings.ts';

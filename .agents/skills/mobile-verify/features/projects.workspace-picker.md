@@ -7,6 +7,8 @@ selectors:
   - 'Filter worktrees'
   - 'Closed reviews'
   - 'No matching worktrees'
+  - 'No computers paired'
+  - 'Add computer'
   - 'Clear search'
   - 'current'
   - 'Read projects again'
@@ -48,11 +50,12 @@ Preconditions: seed active checkouts, reviews in every status and one closed rev
 3. Rows have one non-interactive status icon, a one-line truncated title and trailing muted reviewed/total count. The second line has project only when multiple projects survive filters and branch without separators; No review has its branch as the title and project below, without repeating the branch. Projects keeps the branch below its project title. Rows never name a computer. Full titles, status groups, reasons and progress remain in the row accessibilityLabel and existing review details; computer names remain searchable and available in filters. No information-circle icon, reason badge or row chevron. Check every status group, a long title, the TalkBack announcement, Search/icon and indentation in light and dark.
 4. Collapse two groups independently, leave/reopen, force-stop/relaunch: group choices persist. Reopen one without changing the other. Search title, branch, project, computer, PR and folder: Projects also filters, no matches is explicit, clearing preserves selection. Search, select intersecting project/computer filters and open an active checkout; reopen Worktrees from Review, Files and History and verify the search and filters remain. Repeat with no matches, no selected projects/computers and a long query. Clear search and filters independently and verify each cleared value survives leaving/reopening. Search, filters and Closed are session-only and start at their defaults after force-stop/relaunch.
 5. Filter worktrees has inline Projects/Computers checkbox sections. Filters intersect; deselecting the last shows no rows; Clear filters restores all. Closed shows only one Closed heading above the list, retained reviews remain readable; native Back returns to origin. Leave/reopen while Closed is on and while it is off: the choice, search and filters remain. Selecting an active checkout returns with workspace changed and draft guard intact.
-6. Retain expanded/collapsed/filter/Closed screenshots and Android recording; independently read records.
+6. With no computer paired, Worktrees (`worktree-navigator`; the iPad main pane has its own Add computer) shows only No computers paired, one line of guidance and Add computer: no Search, Filter worktrees, Closed reviews or filter wording, even with a search or Closed left on before forgetting the last computer. Add computer opens Computers (Settings → Computers on iPad). When saved computers cannot be read, the storage error and Read again show instead.
+7. Retain expanded/collapsed/filter/Closed screenshots and Android recording; independently read records.
 
 ### Archive a completed review
 
-Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, When archiving a review has worktree/local branch/remote branch switches, all default on.
+Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, the review's computer has confirmed settings (Use these settings for this computer); When archiving a review has worktree/local branch/remote branch switches. Until then Archive is disabled and says why.
 
 1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.

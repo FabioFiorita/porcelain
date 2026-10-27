@@ -63,6 +63,8 @@ async function fixture(owner = false) {
         }),
     },
     renameEnvironment: unused,
+    readReviewGitSettings: unused,
+    saveReviewGitSettings: unused,
     revokeAccess: unused,
     setDeviceTrust: unused,
     setRemoteAccess: unused,

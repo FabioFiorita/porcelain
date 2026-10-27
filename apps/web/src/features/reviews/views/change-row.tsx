@@ -134,11 +134,14 @@ export function ReviewStatusIcon({
   status: ReviewStatus | undefined;
 }) {
   const normalized = status ?? 'unreviewed';
+  const label = reviewStatusLabel(status);
   return (
     <span
+      role="img"
+      aria-label={label}
       className="grid w-3.5 shrink-0 place-items-center"
       data-review-state={normalized}
-      title={reviewStatusLabel(status)}
+      title={label}
     >
       <ReviewStatusMark status={normalized} />
     </span>

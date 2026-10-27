@@ -14,6 +14,8 @@ import {
   CheckLocalRequestService,
   CheckServiceUpdateService,
   RenameEnvironmentService,
+  ReadReviewGitSettingsService,
+  SaveReviewGitSettingsService,
   ReadRemoteAccessService,
   SetRemoteAccessService,
   FlushDeviceActivityService,
@@ -44,6 +46,7 @@ import {
   IssueLiveTicketOptions,
   RedeemLiveTicketOptions,
   EnvironmentNameStore,
+  ReviewGitSettingsStore,
   HostNameReader,
   RuntimeStatusReader,
   RemoteAccessOptions,
@@ -87,6 +90,8 @@ export function accessServicesLayer(
     CheckLocalRequestService.layer,
     CheckServiceUpdateService.layer,
     RenameEnvironmentService.layer,
+    ReadReviewGitSettingsService.layer,
+    SaveReviewGitSettingsService.layer,
     ReadRemoteAccessService.layer,
     SetRemoteAccessService.layer.pipe(
       Layer.provide(AuthorizeWaysInService.layer),
@@ -123,6 +128,7 @@ export function accessServicesLayer(
       Layer.succeed(IssueLiveTicketOptions, limits.liveTicket),
       Layer.succeed(RedeemLiveTicketOptions, limits.device),
       Layer.succeed(EnvironmentNameStore, stores.environmentName),
+      Layer.succeed(ReviewGitSettingsStore, stores.reviewGitSettings),
       Layer.succeed(HostNameReader, dependencies.shared.hostNames),
       Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
       Layer.succeed(RemoteAccessOptions, {

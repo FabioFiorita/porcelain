@@ -9,7 +9,7 @@ import { resolvedTheme } from '@porcelain/client/preferences/rules';
 import {
   preferencesSchema,
   defaultPreferences,
-  type Preferences,
+  type PreferenceChange,
 } from '@porcelain/client/preferences';
 
 const preferences = Atom.kvs({
@@ -32,9 +32,9 @@ export function usePreferences() {
   const dark = useAtomValue(systemDark);
   return {
     preferences: value,
-    setPreference: <K extends keyof Preferences>(
+    setPreference: <K extends keyof PreferenceChange>(
       key: K,
-      value: Preferences[K],
+      value: NonNullable<PreferenceChange[K]>,
     ) => set((current) => ({ ...current, [key]: value })),
     resolvedTheme: resolvedTheme(value.appearance, dark),
   };

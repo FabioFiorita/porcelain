@@ -42,6 +42,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+function revealTab(tab: HTMLElement | null) {
+  const viewport = tab?.closest('[role="tablist"]')?.parentElement;
+  if (!tab || !viewport) return;
+  const chip = tab.getBoundingClientRect();
+  const frame = viewport.getBoundingClientRect();
+  const left =
+    chip.left < frame.left
+      ? chip.left - frame.left
+      : Math.max(0, chip.right - frame.right);
+  viewport.scrollBy({ left });
+}
+
 function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
@@ -64,12 +76,6 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
         Icon: FlaskConicalIcon,
         title: 'Specs',
         hint: 'Changed spec and test files',
-      };
-    case 'proof':
-      return {
-        Icon: FlaskConicalIcon,
-        title: 'Proof',
-        hint: 'Checks and attachments the agent published',
       };
     case 'change':
       return {
@@ -171,11 +177,11 @@ export function DocumentTabs({
           ref={(viewport) => {
             if (!viewport) return;
             const reveal = () =>
-              viewport
-                .querySelector<HTMLElement>(
+              revealTab(
+                viewport.querySelector<HTMLElement>(
                   '[role="tab"][aria-selected="true"]',
-                )
-                ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                ),
+              );
             let frame = 0;
             const observer = new ResizeObserver(() => {
               cancelAnimationFrame(frame);
@@ -297,11 +303,7 @@ function DocumentTab({
               render={
                 <div
                   ref={(tab) => {
-                    if (active)
-                      tab?.scrollIntoView?.({
-                        block: 'nearest',
-                        inline: 'nearest',
-                      });
+                    if (active) revealTab(tab);
                   }}
                   role="tab"
                   tabIndex={0}
@@ -330,7 +332,11 @@ function DocumentTab({
             >
               <Icon className="size-3.5 shrink-0" />
               {label}
-              {tabKey === 'handoff' && reviewCount}
+              {tabKey === 'handoff' && reviewCount && (
+                <span className="shrink-0 whitespace-nowrap">
+                  {reviewCount}
+                </span>
+              )}
               {tabKey !== 'handoff' && pinned && (
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger

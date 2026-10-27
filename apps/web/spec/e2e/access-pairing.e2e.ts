@@ -108,7 +108,9 @@ test('a revoked browser session cannot regain access through its used link', asy
   await expect(
     page.getByRole('region', { name: 'Review content', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('code')).toContainText('A change to review.');
+  await expect(
+    page.getByRole('code').filter({ hasText: 'A change to review.' }),
+  ).toBeVisible();
   const browser = (await server.devices()).find(
     (device) => device.label === 'Journey browser',
   );
