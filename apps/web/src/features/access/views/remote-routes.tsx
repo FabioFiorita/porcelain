@@ -15,11 +15,16 @@ import {
   ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
-import { CopyIcon, ShieldAlertIcon } from 'lucide-react';
+import { ChevronDownIcon, CopyIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
@@ -53,6 +58,12 @@ const checkingLabels: Record<RemoteRouteName, string> = {
   cloudflare: 'Checking the tunnel',
 };
 
+const reachNotes: Record<RemoteRouteName, string | undefined> = {
+  lan: undefined,
+  tailnet: 'Encrypted, from anywhere',
+  cloudflare: 'Encrypted, from anywhere',
+};
+
 function RouteStatus({
   name,
   route,
@@ -78,45 +89,67 @@ function RouteStatus({
   if (status.kind === 'paused')
     return <Badge variant="outline">Paused on this network</Badge>;
   if (status.kind === 'failed')
-    return (
-      <div className="flex flex-col items-start gap-1">
-        <Badge variant="destructive">Failed</Badge>
-        <p className="text-xs text-muted-foreground">
-          {routeFailure(name, status.reason)}
-        </p>
-      </div>
-    );
+    return <Badge variant="destructive">Failed</Badge>;
   return (
-    <div className="flex flex-col items-start gap-1">
-      <Badge variant="secondary">{route.enabled ? 'On' : 'Stopping'}</Badge>
-      {status.urls.map((url) => (
-        <div key={url} className="flex max-w-full items-center gap-1">
-          <TruncatedText
-            className="font-mono text-xs text-muted-foreground"
-            text={url}
-          />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Copy ${url}`}
-                  onClick={() => copyText(url, 'address')}
-                >
-                  <CopyIcon />
-                </Button>
-              }
-            />
-            <TooltipContent
-              role="tooltip"
-              className="break-all"
-            >{`Copy ${url}`}</TooltipContent>
-          </Tooltip>
-        </div>
-      ))}
-    </div>
+    <Badge variant="secondary">
+      <span aria-hidden className="size-1.5 rounded-full bg-add-fg" />
+      {route.enabled ? 'On' : 'Stopping'}
+    </Badge>
   );
+}
+
+function RouteReach({
+  name,
+  route,
+  note,
+}: {
+  name: RemoteRouteName;
+  route: RemoteRoute;
+  note: string | undefined;
+}) {
+  const { status } = route;
+  if (status.kind === 'failed')
+    return (
+      <p className="text-xs leading-4.5 text-muted-foreground">
+        {routeFailure(name, status.reason)}
+      </p>
+    );
+  if (status.kind !== 'on' || status.urls.length === 0)
+    return (
+      <p className="text-xs leading-4.5 text-muted-foreground">
+        {descriptions[name]}
+      </p>
+    );
+  return status.urls.map((url) => (
+    <div
+      key={url}
+      className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs leading-4.5 text-muted-foreground"
+    >
+      <span className="flex min-w-0 max-w-full items-center gap-1">
+        <TruncatedText className="font-mono text-foreground-2" text={url} />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                className="size-5 rounded-sm text-muted-foreground"
+                aria-label={`Copy ${url}`}
+                onClick={() => copyText(url, 'address')}
+              >
+                <CopyIcon />
+              </Button>
+            }
+          />
+          <TooltipContent
+            role="tooltip"
+            className="break-all"
+          >{`Copy ${url}`}</TooltipContent>
+        </Tooltip>
+      </span>
+      {(note ?? reachNotes[name]) && <span>{note ?? reachNotes[name]}</span>}
+    </div>
+  ));
 }
 
 function RouteRow({
@@ -124,22 +157,58 @@ function RouteRow({
   route,
   disabled,
   onChange,
+  setup,
+  note,
   children,
 }: {
   name: RemoteRouteName;
   route: RemoteRoute;
   disabled: boolean;
   onChange: (enabled: boolean) => void;
+  setup?: { configured: boolean; open: boolean };
+  note?: string;
   children?: ReactNode;
 }) {
   const title = remoteRouteTitles[name];
+  const encrypted = name !== 'lan' || route.status.kind !== 'on';
   return (
-    <Item variant="outline">
+    <Collapsible
+      defaultOpen={setup?.open ?? false}
+      render={<Item variant="outline" className="min-h-14 gap-x-4 gap-y-2" />}
+    >
       <ItemContent>
-        <ItemTitle>{title}</ItemTitle>
-        <ItemDescription>{descriptions[name]}</ItemDescription>
+        <ItemTitle className="flex-wrap gap-x-2 gap-y-1">
+          {title}
+          <RouteStatus name={name} route={route} />
+          {!encrypted && (
+            <span className="flex items-center gap-1 text-xs leading-4 font-medium text-warn">
+              <ShieldAlertIcon aria-hidden className="size-3.5" />
+              Not encrypted
+            </span>
+          )}
+        </ItemTitle>
+        <RouteReach name={name} route={route} note={note} />
       </ItemContent>
       <ItemActions>
+        {setup && (
+          <CollapsibleTrigger
+            render={
+              <Button
+                size="sm"
+                variant={setup.configured ? 'ghost' : 'outline'}
+                className="group/setup rounded-md px-2.5 text-xs"
+              />
+            }
+          >
+            {setup.configured ? 'Setup' : 'Set up'}
+            {setup.configured && (
+              <ChevronDownIcon
+                aria-hidden
+                className="size-3.5 text-muted-foreground transition-transform group-data-panel-open/setup:rotate-180"
+              />
+            )}
+          </CollapsibleTrigger>
+        )}
         <Switch
           aria-label={title}
           checked={route.enabled}
@@ -147,13 +216,17 @@ function RouteRow({
           onCheckedChange={(enabled) => onChange(enabled)}
         />
       </ItemActions>
-      <ItemFooter>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <RouteStatus name={name} route={route} />
-          {children}
-        </div>
-      </ItemFooter>
-    </Item>
+      {children &&
+        (setup ? (
+          <CollapsibleContent className="basis-full">
+            <div className="flex min-w-0 flex-col gap-2">{children}</div>
+          </CollapsibleContent>
+        ) : (
+          <ItemFooter>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">{children}</div>
+          </ItemFooter>
+        ))}
+    </Collapsible>
   );
 }
 
@@ -170,31 +243,47 @@ function LocalNetworkSettings({
   const here = remote.localNetwork;
   const paused = lan.enabled && lan.status.kind === 'paused';
   return (
-    <div className="flex flex-col gap-2">
+    <>
       {paused && here && (
         <Button
           variant="outline"
           size="sm"
-          className="self-start"
+          className="self-start rounded-md px-2.5 text-xs"
           disabled={disabled}
           onClick={onTurnOn}
         >
           Turn on for {networkName(here)}
         </Button>
       )}
-      <p className="text-xs text-muted-foreground">
-        {localNetworkNote(remote)}
-      </p>
-      <Alert role="note" aria-label="Local network warning">
-        <ShieldAlertIcon />
-        <AlertTitle>Not encrypted</AlertTitle>
-        <AlertDescription>
+      {lan.status.kind !== 'on' && (
+        <p className="text-xs leading-4.5 text-muted-foreground">
+          {localNetworkNote(remote)}
+        </p>
+      )}
+      <Alert
+        role="note"
+        aria-label="Local network warning"
+        className="gap-1.5 rounded-xl border-warn-border bg-warn-soft px-3 pt-2.75 pb-3 text-warn lg:absolute lg:top-7 lg:left-full lg:ml-8 lg:w-62"
+      >
+        <span
+          aria-hidden
+          className="absolute top-6.5 -left-6.5 hidden size-1.5 rounded-full bg-warn lg:block"
+        />
+        <span
+          aria-hidden
+          className="absolute top-7.25 -left-5 hidden h-px w-5 bg-warn-border lg:block"
+        />
+        <AlertTitle className="flex items-center gap-1.5 text-xs leading-4 font-semibold">
+          <ShieldAlertIcon aria-hidden className="size-3.5" />
+          Not encrypted
+        </AlertTitle>
+        <AlertDescription className="text-xs leading-4.5 text-foreground-2">
           Anyone on the same network can read what Porcelain shows and the
           device credentials it sends. For an encrypted connection, use
           Tailscale.
         </AlertDescription>
       </Alert>
-    </div>
+    </>
   );
 }
 
@@ -239,7 +328,7 @@ function HostnameForm({
       <Button
         type="submit"
         variant="outline"
-        className="shrink-0"
+        className="shrink-0 rounded-md text-ui"
         disabled={
           disabled || hostname.trim() === '' || hostname.trim() === saved
         }
@@ -250,7 +339,7 @@ function HostnameForm({
         <Button
           type="button"
           variant="outline"
-          className="shrink-0"
+          className="shrink-0 rounded-md text-ui"
           disabled={disabled}
           onClick={onCheck}
         >
@@ -388,6 +477,7 @@ export function RemoteRoutes({
         <RouteRow
           name="lan"
           route={remote.routes.lan}
+          note={localNetworkNote(remote)}
           disabled={
             disabled ||
             (!remote.routes.lan.enabled && remote.localNetwork === undefined)
@@ -403,6 +493,10 @@ export function RemoteRoutes({
         <RouteRow
           name="tailnet"
           route={remote.routes.tailnet}
+          setup={{
+            configured: remote.tailnetHostname !== undefined,
+            open: remote.routes.tailnet.status.kind === 'failed',
+          }}
           disabled={disabled || remote.tailnetHostname === undefined}
           onChange={(tailnet) => setRemote({ tailnet })}
         >
@@ -423,6 +517,10 @@ export function RemoteRoutes({
         <RouteRow
           name="cloudflare"
           route={remote.routes.cloudflare}
+          setup={{
+            configured: remote.cloudflareHostname !== undefined,
+            open: remote.routes.cloudflare.status.kind === 'failed',
+          }}
           disabled={disabled || remote.cloudflareHostname === undefined}
           onChange={(cloudflare) => setRemote({ cloudflare })}
         >

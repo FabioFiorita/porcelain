@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import type { RemoteAccess } from '@porcelain/client/access/rules';
 import {
   agentMcpCommand,
+  commandParts,
   computerSummary,
   deviceKind,
   devicePlatformName,
@@ -115,3 +116,21 @@ it.each([
     expect(computerSummary(access(routes), devices)).toBe(expected);
   },
 );
+
+it('marks the program and each quoted argument of an MCP command', () => {
+  expect(
+    commandParts(
+      "claude mcp add porcelain -- '/Applications/Porcelain.app' --data-directory '/Users/me/Porcelain/server'",
+    ),
+  ).toEqual([
+    { text: 'claude', kind: 'program' },
+    { text: ' mcp add porcelain -- ', kind: 'plain' },
+    { text: "'/Applications/Porcelain.app'", kind: 'quoted' },
+    { text: ' --data-directory ', kind: 'plain' },
+    { text: "'/Users/me/Porcelain/server'", kind: 'quoted' },
+  ]);
+  expect(commandParts('codex mcp add porcelain -- porcelain mcp')).toEqual([
+    { text: 'codex', kind: 'program' },
+    { text: ' mcp add porcelain -- porcelain mcp', kind: 'plain' },
+  ]);
+});

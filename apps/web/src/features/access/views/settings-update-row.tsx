@@ -21,6 +21,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import {
   useSettingsUpdates,
@@ -30,12 +31,21 @@ import { useAppUpdateState } from '../queries/app-update';
 import { useLocalConnection } from '../store';
 import { appUpdateProgress } from '../rules/app-update';
 
+const updateNotes = {
+  'mac-app':
+    'The Mac app updates itself, then restarts. Update in the sidebar does this too.',
+  service:
+    'Porcelain updates from npm, then restarts. Update in the sidebar does this too.',
+};
+
 export function SettingsUpdateRow({
   row,
   showName = false,
+  prominent = false,
 }: {
   row: UpdateRow;
   showName?: boolean;
+  prominent?: boolean;
 }) {
   const { target, current } = row;
   const { batch, run } = useSettingsUpdates();
@@ -62,7 +72,7 @@ export function SettingsUpdateRow({
   let action: ReactNode;
   if (pending || progress)
     action = (
-      <p role="status" className="flex items-center gap-2 text-xs">
+      <p role="status" className="flex items-center gap-2 text-xs leading-4">
         <Spinner />
         {progress ?? (entry?.status === 'queued' ? 'Queued' : 'Updating…')}
       </p>
@@ -71,6 +81,7 @@ export function SettingsUpdateRow({
     action = (
       <Button
         size="sm"
+        className="rounded-md px-2.5 text-xs"
         aria-label={
           target.kind === 'mac-app'
             ? 'Restart to update'
@@ -84,7 +95,15 @@ export function SettingsUpdateRow({
     );
   else if (trust && target.kind === 'service' && target.state.available)
     action = (
-      <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+      <CollapsibleTrigger
+        render={
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-md px-2.5 text-xs"
+          />
+        }
+      >
         <LockKeyholeIcon />
         Needs trust
       </CollapsibleTrigger>
@@ -95,7 +114,7 @@ export function SettingsUpdateRow({
     if (target.kind === 'service' && !target.state.managed)
       label = 'Managed on that computer';
     action = !row.error && (
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs leading-4 text-muted-foreground">{label}</span>
     );
   }
   return (
@@ -105,16 +124,33 @@ export function SettingsUpdateRow({
         role="group"
         aria-label={`${target.name} update`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          className={cn(
+            'flex flex-wrap items-center justify-between',
+            prominent ? 'gap-x-6 gap-y-3' : 'gap-3',
+          )}
+        >
           <div className="min-w-0">
             {showName && <p className="text-sm font-medium">{target.name}</p>}
-            <p className="text-xs text-muted-foreground">
+            <p
+              className={cn(
+                'tabular-nums',
+                prominent
+                  ? 'text-sm leading-5 font-medium'
+                  : 'text-xs leading-4 text-muted-foreground',
+              )}
+            >
               <span>
                 {target.kind === 'mac-app' ? 'Mac app' : 'Porcelain'}{' '}
                 {current ?? 'development build'}
               </span>
               {settingsUpdateAvailable(target) && latest && <> → {latest}</>}
             </p>
+            {prominent && (
+              <p className="mt-0.5 text-ui leading-4.5 text-muted-foreground">
+                {updateNotes[target.kind]}
+              </p>
+            )}
           </div>
           {action}
         </div>
@@ -177,7 +213,7 @@ export function SettingsUpdateRow({
             <Button
               size="sm"
               variant="outline"
-              className="self-start"
+              className="self-start rounded-md px-2.5 text-xs"
               onClick={() => window.location.reload()}
             >
               Reload

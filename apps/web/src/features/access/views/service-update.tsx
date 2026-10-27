@@ -12,7 +12,13 @@ import { useLocalConnection } from '../store';
 import { useSettingsUpdates } from '../queries/settings-updates';
 import { SettingsUpdateRow } from './settings-update-row';
 
-function ServiceUpdate({ connection }: { connection: Connection }) {
+function ServiceUpdate({
+  connection,
+  prominent,
+}: {
+  connection: Connection;
+  prominent: boolean;
+}) {
   const { rows } = useSettingsUpdates();
   const row = rows.find(
     ({ target }) =>
@@ -20,7 +26,7 @@ function ServiceUpdate({ connection }: { connection: Connection }) {
   );
   const result = useServiceUpdate(connection);
   const refresh = useAtomRefresh(readServiceUpdate(connection));
-  if (row) return <SettingsUpdateRow row={row} />;
+  if (row) return <SettingsUpdateRow row={row} prominent={prominent} />;
   if (AsyncResult.isFailure(result))
     return (
       <Alert variant="destructive">
@@ -29,6 +35,7 @@ function ServiceUpdate({ connection }: { connection: Connection }) {
           <Button
             size="sm"
             variant="outline"
+            className="rounded-md px-2.5 text-xs"
             disabled={result.waiting}
             onClick={refresh}
           >
@@ -40,9 +47,17 @@ function ServiceUpdate({ connection }: { connection: Connection }) {
   return <Spinner />;
 }
 
-export function ServiceUpdateSettings() {
+export function ServiceUpdateSettings({
+  prominent = false,
+}: {
+  prominent?: boolean;
+}) {
   const connection = useLocalConnection();
-  return connection && <ServiceUpdate connection={connection} />;
+  return (
+    connection && (
+      <ServiceUpdate connection={connection} prominent={prominent} />
+    )
+  );
 }
 
 export function RemoteServiceUpdate({
@@ -50,5 +65,5 @@ export function RemoteServiceUpdate({
 }: {
   connection: Connection;
 }) {
-  return <ServiceUpdate connection={connection} />;
+  return <ServiceUpdate connection={connection} prominent />;
 }

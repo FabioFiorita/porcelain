@@ -258,6 +258,18 @@
   line-height: calc(var(--spacing) * 6);
 }
 
+.settings-content [data-slot='tabs-list'][data-size='sm'] {
+  border-radius: var(--radius-md);
+}
+
+.settings-content
+  [data-slot='tabs-list'][data-size='sm']
+  [data-slot='tabs-trigger'] {
+  height: calc(var(--spacing) * 5);
+  padding-inline: calc(var(--spacing) * 2);
+  line-height: calc(var(--spacing) * 5);
+}
+
 .settings-content [data-slot='tabs-trigger']:hover {
   color: var(--foreground);
 }
@@ -285,8 +297,8 @@
 }
 
 @media (min-width: 64rem) {
-  .settings-computer > [data-slot='field-set'] {
-    grid-column: span 2;
+  .settings-computer > :not(aside) {
+    grid-column: 1;
   }
 }
 

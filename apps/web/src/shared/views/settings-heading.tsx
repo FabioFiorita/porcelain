@@ -18,7 +18,7 @@ export function SettingsHeading({
   return (
     <div className="flex flex-col">
       {status && (
-        <div className="mb-2 flex min-w-0 items-center gap-2 text-ui leading-4.5">
+        <div className="mb-1.5 flex h-5.5 min-w-0 items-center gap-2 text-ui leading-4.5">
           {status}
         </div>
       )}

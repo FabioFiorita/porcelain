@@ -57,3 +57,20 @@ export function computerSummary(remote: RemoteAccess, devices: number) {
     devices === 1 ? '1 device' : `${devices} devices`,
   ].join(' · ');
 }
+
+export type CommandPart = {
+  text: string;
+  kind: 'program' | 'quoted' | 'plain';
+};
+
+export function commandParts(command: string): CommandPart[] {
+  const [program = '', ...rest] = command.split(/(?<=^\S+)(?=\s)/);
+  const parts: CommandPart[] = [{ text: program, kind: 'program' }];
+  for (const piece of rest.join('').split(/('[^']*')/))
+    if (piece !== '')
+      parts.push({
+        text: piece,
+        kind: piece.startsWith("'") ? 'quoted' : 'plain',
+      });
+  return parts;
+}
