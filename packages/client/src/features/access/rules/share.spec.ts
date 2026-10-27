@@ -10,6 +10,7 @@ import {
   routeFailure,
   routeStatusLabel,
   tailscaleServeCommand,
+  ANDROID_EMULATOR_HOST,
   waysInPermissionShown,
   waysInRefusal,
   type RemoteAccess,
@@ -206,13 +207,22 @@ describe('ways in copy', () => {
     ['http://localhost.:4173', ownAddress],
     ['http://app.localhost:4173', ownAddress],
     ['http://[::ffff:127.0.0.1]:4173', ownAddress],
-    ['http://10.0.2.2:4173', ownAddress],
     ['https://localhost.example.com', askOwner],
     ['https://127.example.com', askOwner],
-    ['http://10.0.2.3:4173', askOwner],
+    ['http://10.0.2.2:4173', askOwner],
   ])('explains a refused ways-in read over %s', (address, note) => {
     expect(waysInRefusal(address)).toBe(note);
   });
+
+  it.each([
+    ['http://10.0.2.2:4173', ownAddress],
+    ['http://10.0.2.3:4173', askOwner],
+  ])(
+    'explains a refused ways-in read over %s from an app that reaches its computer through the Android emulator',
+    (address, note) => {
+      expect(waysInRefusal(address, [ANDROID_EMULATOR_HOST])).toBe(note);
+    },
+  );
 
   it.each([
     ['lan', false, true],

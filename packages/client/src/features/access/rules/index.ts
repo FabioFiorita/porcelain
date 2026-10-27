@@ -14,6 +14,7 @@ export {
 } from './remotes.ts';
 export { connectionErrorMessage } from './connection-error-message.ts';
 export {
+  ANDROID_EMULATOR_HOST,
   deviceRouteTitles,
   LOCAL_NETWORK_WARNING,
   hostnameForm,

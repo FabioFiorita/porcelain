@@ -57,11 +57,14 @@ export function protectedRouteNote(route: RemoteRouteName): string {
 export const LOCAL_NETWORK_WARNING =
   'Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.';
 
-const ANDROID_EMULATOR_HOST = '10.0.2.2';
+export const ANDROID_EMULATOR_HOST = '10.0.2.2';
 const LOOPBACK_IPV4 = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;
 const LOOPBACK_MAPPED_IPV6 = /^::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}$/;
 
-function reachesOwnAddress(address: string): boolean {
+function reachesOwnAddress(
+  address: string,
+  ownAliases: readonly string[],
+): boolean {
   const hostname = new URL(address).hostname
     .replace(/^\[|\]$/g, '')
     .replace(/\.$/, '');
@@ -69,7 +72,7 @@ function reachesOwnAddress(address: string): boolean {
     hostname === 'localhost' ||
     hostname.endsWith('.localhost') ||
     hostname === '::1' ||
-    hostname === ANDROID_EMULATOR_HOST ||
+    ownAliases.includes(hostname) ||
     LOOPBACK_IPV4.test(hostname) ||
     LOOPBACK_MAPPED_IPV6.test(hostname)
   );
@@ -79,8 +82,11 @@ export function waysInPermissionShown(device: PairedDevice): boolean {
   return device.route !== 'loopback' || device.canEditWaysIn;
 }
 
-export function waysInRefusal(address: string): string {
-  return reachesOwnAddress(address)
+export function waysInRefusal(
+  address: string,
+  ownAliases: readonly string[] = [],
+): string {
+  return reachesOwnAddress(address, ownAliases)
     ? 'Ways in cannot be seen or changed over this connection, because it reaches the computer that runs Porcelain through that computer’s own address. Change them on that computer, or pair this device through the local network, Tailscale or a Cloudflare tunnel.'
     : 'This device cannot see or change ways in. An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
 }
