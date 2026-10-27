@@ -13,7 +13,6 @@ import {
   ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   useRevokeAccess,
@@ -155,12 +154,9 @@ function DeviceTrustControl({
   const [trust, setTrusted] = useSetDeviceTrust(connection, id);
   return (
     <>
-      <Label
-        aria-hidden
-        className="text-xs leading-4 font-normal text-muted-foreground"
-      >
+      <span aria-hidden className="text-xs text-muted-foreground">
         Can update
-      </Label>
+      </span>
       <Switch
         aria-label={`${label} can update Porcelain`}
         checked={trusted}
@@ -191,12 +187,9 @@ function WaysInPermissionControl({
   const [permission, setAllowed] = useSetWaysInPermission(connection, id);
   return (
     <>
-      <Label
-        aria-hidden
-        className="text-xs leading-4 font-normal text-muted-foreground"
-      >
+      <span aria-hidden className="text-xs text-muted-foreground">
         Can edit ways in
-      </Label>
+      </span>
       <Switch
         aria-label={`${label} can edit ways in`}
         checked={allowed}
