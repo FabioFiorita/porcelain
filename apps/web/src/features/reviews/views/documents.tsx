@@ -207,7 +207,7 @@ function NoReviewIntro({
     <header className="flex min-w-0 flex-col px-4 pt-8 pb-6">
       {place && (
         <div className="text-ui leading-5.5 font-medium text-muted-foreground">
-          <TruncatedText text={place} />
+          <TruncatedText text={place} className="block min-w-0" />
         </div>
       )}
       <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-[-0.04em]">
@@ -325,7 +325,7 @@ function PlainChangesDocument({
             target={interaction.toolbarTarget}
             barActions={null}
             title={changesTitle(specsOnly, interaction.entry)}
-            subtitle={`${changes.length} files`}
+            subtitle={`${changes.length} file${changes.length === 1 ? '' : 's'}`}
           >
             {collapseControl}
             <MarkAllReviewed

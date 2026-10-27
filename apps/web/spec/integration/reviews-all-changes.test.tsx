@@ -131,6 +131,12 @@ test('Changes explains how to get a review until the agent publishes one', async
   await expect
     .element(workspace.getByText('publish_review', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(workspace.getByRole('tab', { name: 'Changes', exact: true }))
+    .toHaveTextContent('Changes1');
+  await expect
+    .element(workspace.getByText('1 file', { exact: true }))
+    .toBeVisible();
   await agent.publishArchitecture();
   await expect.element(intro).not.toBeInTheDocument();
 });
