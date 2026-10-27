@@ -58,7 +58,14 @@ export function openToSide<T extends { key: string }>(
 
 export function visiblePanes<T extends { key: string }>(
   state: DocumentPanes<T>,
-  width: number,
+  layout: {
+    readonly width: number;
+    readonly orientation: 'landscape' | 'portrait';
+  },
 ): readonly PaneId[] {
-  return state.right && width >= 700 ? ['left', 'right'] : [state.focused];
+  return state.right &&
+    layout.orientation === 'landscape' &&
+    layout.width >= 700
+    ? ['left', 'right']
+    : [state.focused];
 }

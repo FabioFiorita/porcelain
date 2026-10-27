@@ -54,11 +54,31 @@ it('closes tabs in their own pane and folds only an emptied side pane', () => {
 
 it('shows the focused pane at narrow widths and restores both without changing their tabs', () => {
   const split = openToSide(openInPane(emptyPanes<typeof css>(), css), readme);
-  expect(visiblePanes(split, 699)).toEqual(['right']);
-  expect(visiblePanes(focusPane(split, 'left'), 699)).toEqual(['left']);
-  expect(visiblePanes(split, 700)).toEqual(['left', 'right']);
+  const landscape = (width: number) =>
+    ({ width, orientation: 'landscape' }) as const;
+  expect(visiblePanes(split, landscape(699))).toEqual(['right']);
+  expect(visiblePanes(focusPane(split, 'left'), landscape(699))).toEqual([
+    'left',
+  ]);
+  expect(visiblePanes(split, landscape(700))).toEqual(['left', 'right']);
   const single = emptyPanes<typeof css>();
   expect(focusPane(single, 'right')).toBe(single);
   expect(changePane(single, 'right', (tabs) => tabs)).toBe(single);
-  expect(visiblePanes(single, 1400)).toEqual(['left']);
+  expect(visiblePanes(single, landscape(1400))).toEqual(['left']);
 });
+
+it.each([
+  { focused: 'left', shown: ['left'] },
+  { focused: 'right', shown: ['right'] },
+] as const)(
+  'shows only the focused $focused pane in portrait however wide the page is',
+  ({ focused, shown }) => {
+    const split = focusPane(
+      openToSide(openInPane(emptyPanes<typeof css>(), css), readme),
+      focused,
+    );
+    expect(
+      visiblePanes(split, { width: 1024, orientation: 'portrait' }),
+    ).toEqual(shown);
+  },
+);

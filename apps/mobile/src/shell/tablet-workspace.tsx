@@ -93,12 +93,15 @@ function SelectedWorkspace({
     showReview,
     focus,
   } = useWorkspaceSession(workspace.key, initialMode);
-  const reviewTab = useReviewTab(workspace);
+  const reviewTab = useReviewTab(workspace, session.comparison);
   const window = useWindowDimensions();
   const landscape = window.width > window.height;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [contentWidth, setContentWidth] = useState(0);
-  const panes = visiblePanes(session, contentWidth);
+  const panes = visiblePanes(session, {
+    width: contentWidth,
+    orientation: landscape ? 'landscape' : 'portrait',
+  });
   const entries = panelEntries(reviewTab.title);
   const panelTitle =
     entries.find((entry) => entry.mode === session.mode)?.title ?? 'Files';
