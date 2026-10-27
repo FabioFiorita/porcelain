@@ -125,10 +125,7 @@ describe('choosing a workspace across paired environments', () => {
     ]);
     expect(
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
-    ).toEqual([
-      'No environments paired',
-      'This environment is no longer paired.',
-    ]);
+    ).toEqual(['This environment is no longer paired.']);
   });
 });
 

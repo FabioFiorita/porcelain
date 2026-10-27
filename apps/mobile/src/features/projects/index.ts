@@ -1,6 +1,7 @@
 export { WorkspacePicker } from './views/workspace-picker';
 export { WorktreeNavigator } from './views/worktree-navigator';
 export { WorkspaceGate } from './views/workspace-gate';
+export { useOpenComputers } from './views/open-computers';
 export type { Workspace } from './commands/workspace-connection';
 export {
   useWorkspaceSession,

@@ -24,7 +24,7 @@ Preconditions: [surface baseline](README.md).
 
 1. Open a commit. Verify subject, body, author/time, selectable full OID, refs, comparison and file list against independent server reads. Open added/modified/renamed/deleted files and return to the same commit/list. Renames retain old paths; deletions retain their path.
 2. Open a root commit: Root commit compares with the empty tree. Empty file list says No changed files; read failure offers Retry. Merge commits offer in-content Compare parent; choose each and compare files independently before opening a diff.
-3. On iPad open two commits, reopen one to activate its existing tab, change parent, switch away/back: parent stays. Close tabs, narrow/widen, change inspector, visit Settings and switch worktrees: use [workspace](app.workspace.md) for restoration. Empty center says Choose a document.
+3. On iPad open two commits, reopen one to activate its existing tab, change parent, switch away/back: parent stays. Close tabs, narrow/widen, change panel, visit Settings and switch worktrees: use [workspace](app.workspace.md) for restoration. The pinned Review or Changes tab remains when all documents close.
 4. Change workspace while old phone detail remains: it asks to return to History, never reading that OID against the new worktree.
 
 Automated coverage: none named; retain the live action and readback evidence.
