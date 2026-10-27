@@ -146,8 +146,8 @@ export function DecisionPage({
               Decision {stop.number} of {total}
             </span>
             {questions.length > 0 && (
-              <Badge variant="outline">
-                <CircleHelpIcon className="text-graph-1" /> Needs your decision
+              <Badge variant="brand-soft">
+                <CircleHelpIcon /> Needs your decision
               </Badge>
             )}
             {decision?.stale && (

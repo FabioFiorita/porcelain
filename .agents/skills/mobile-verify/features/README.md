@@ -12,7 +12,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - Preserve the card's complete agent-device invocation, including config, session, platform and device flags, on every command. Open `mobile.bundleIdentifier` with `--foreground`; iOS then needs `prepare ios-runner`. Refresh `snapshot -i` before pressing refs; use a full snapshot without `-i` for static text and counters. Use screenshots to confirm native tabs whose selected trait is absent.
 - For deep links and cold launches follow [driving](../references/driving.md): keep the development flags and reconnect to `mobile.metroUrl`. Pairing links expire and work once; wait for keyboard animation before Pair.
-- Phones use tabs and native Back/swipe. iPad uses worktree navigation, central document tabs and a right inspector: drive landscape first, then portrait/narrow panes. Verify entry and return paths, retained selection and draft protection.
+- Phones use tabs and native Back/swipe. iPad uses worktree navigation, central document tabs and a right panel: drive landscape first, then portrait/narrow panes. Verify entry and return paths, retained selection and draft protection.
 - Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.workspace-picker.md#driving-it-with-agent-device).
 - Preference storage readbacks use the owned development app's `porcelain-preferences.db`. Keep tokens, pairing links and driver configuration private.
 - Mobile has no E2E suite. Android, iPhone, iPad, physical-device LAN permissions and remote routing require separate proof; a loopback emulator run establishes only that platform/connection. See [Android setup](../references/android.md).
@@ -44,8 +44,8 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
 - [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
 - [app.phone-shell](app.phone-shell.md) — Native tabs and startup navigation.
-- [app.tablet-shell](app.tablet-shell.md) — Sidebar, inspector and central documents.
-- [app.workspace](app.workspace.md) — Per-worktree document tabs and inspector state.
+- [app.tablet-shell](app.tablet-shell.md) — Sidebar, panel and central documents.
+- [app.workspace](app.workspace.md) — Per-worktree document tabs and panel state.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.
 - [history.commit](history.commit.md) — Commit metadata, merge parents and file navigation.

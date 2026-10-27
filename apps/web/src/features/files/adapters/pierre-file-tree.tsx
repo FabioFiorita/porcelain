@@ -7,7 +7,7 @@ import { useId, useState } from 'react';
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { atomRegistry } from '@/shared/store';
 import { fileTreeInputs, type PierreFileTreeInput } from '../store';
-import { treeIconsFor } from './file-icons';
+import { FOLDER_ICON_CSS, treeIconsFor } from './file-icons';
 import {
   canDropPaths,
   directoryPaths,
@@ -114,8 +114,7 @@ function mountTree(
     flattenEmptyDirectories: true,
     initialExpansion: 'closed',
     icons: treeIconsFor(read().links),
-    unsafeCSS:
-      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
+    unsafeCSS: `${FOLDER_ICON_CSS} :not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }`,
     gitStatus: read().gitStatus,
     search: false,
     onSearchChange: (value) => {

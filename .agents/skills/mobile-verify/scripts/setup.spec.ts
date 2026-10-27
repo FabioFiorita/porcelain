@@ -97,8 +97,8 @@ it('pairs Android without invoking the Apple runner or iOS alerts and releases s
   expect(await commands()).toEqual([
     'open',
     'open',
-    'wait',
     'open',
+    'wait',
     'press',
     'press',
     'fill',

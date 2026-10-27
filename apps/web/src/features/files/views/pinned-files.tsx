@@ -118,7 +118,11 @@ export function PinnedFiles({
                           {marks.has(path) && (
                             <span
                               aria-hidden="true"
-                              className="ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground"
+                              className={cn(
+                                'ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground',
+                                marks.get(path) === STATUS_MARKS.modified &&
+                                  'text-brand',
+                              )}
                             >
                               {marks.get(path)}
                             </span>
