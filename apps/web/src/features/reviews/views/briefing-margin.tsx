@@ -6,11 +6,11 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { CircleDashedIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ReviewActions } from './review-actions';
+import { marginAction } from './review-controls';
 
 export function BriefingMargin({
   data,
@@ -46,19 +46,19 @@ export function BriefingMargin({
               const reading = entry.revision === revision.revision;
               return (
                 <li key={entry.revision}>
-                  <Button
-                    variant="ghost"
+                  <button
+                    type="button"
                     aria-label={
                       isLatest
                         ? `Revision ${entry.revision}, the latest`
                         : `Revision ${entry.revision}`
                     }
-                    aria-current={reading ? 'true' : undefined}
+                    aria-pressed={reading}
                     disabled={!onRevision}
                     onClick={() =>
                       onRevision?.(isLatest ? undefined : entry.revision)
                     }
-                    className="h-7.5 w-full justify-start gap-2 rounded-none px-0 text-xs leading-4 font-normal hover:bg-transparent disabled:opacity-100"
+                    className="flex h-7.5 w-full items-center gap-2 text-left text-xs leading-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 enabled:hover:bg-accent"
                   >
                     <span
                       aria-hidden="true"
@@ -81,7 +81,7 @@ export function BriefingMargin({
                     <span className="ml-auto text-muted-foreground tabular-nums">
                       {relativeTime(entry.publishedAt)}
                     </span>
-                  </Button>
+                  </button>
                 </li>
               );
             })}
@@ -122,14 +122,9 @@ export function BriefingMargin({
         </div>
         <div className="mt-2.5 flex flex-col items-start">
           {onBack && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-1.5 h-7 rounded-md px-1.5 text-xs leading-4"
-              onClick={onBack}
-            >
+            <button type="button" className={marginAction} onClick={onBack}>
               Back to workspace
-            </Button>
+            </button>
           )}
           <ReviewActions
             reviewId={revision.reviewId}

@@ -53,7 +53,7 @@ A decision page reads "Decision n of N", the numbered title and explanation, the
 
 Not explained and Specs form one closing page. Its "Review completion" card counts reviewed decisions and files, lists what Ready to merge needs (every decision reviewed and the agent recommending Merge), says whether the review is Ready to merge, waiting on the agent or still needs you, lists what is still open, and offers Ask the agent (a whole-change comment), Merge on GitHub while the linked pull request is open and Archive once it is merged or closed. The dock reads "Mark n files reviewed" for the current section's unreviewed files.
 
-The Agent summary view shows a credit line with the revision, a Sandboxed chip and the sandboxed frame; its margin explains the sandbox and lists "Links in this page" (each `#layer-N` link, a missing decision disabled). Branch moved, proof stale and code moved share one notice shape. A missing revision offers "Open rN, the latest".
+The Agent summary view shows a credit line with the revision, a Sandboxed chip and the sandboxed frame; its margin explains the sandbox and lists "Links in this page" (each `#layer-N` link, a missing decision disabled). Opening it after the signed link has expired fetches a fresh link first (the frame shows a loading state meanwhile), so the page never goes blank; if the fresh read fails, the view shows Could not display with Try again. Branch moved and proof stale share one notice shape; code moved shows as a chip beside "Decision n of N". A missing revision offers "Open rN, the latest".
 
 Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-page.test.tsx`, `reviews-unavailable-completion.test.tsx`, `reviews-decision-pages.test.tsx`.
 

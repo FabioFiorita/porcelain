@@ -8,7 +8,6 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
@@ -34,6 +33,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { MarginQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
+import { changeTags, chip } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -144,26 +144,32 @@ export function DecisionPage({
               Decision {stop.number} of {total}
             </span>
             {questions.length > 0 && (
-              <Badge variant="brand-soft" className={chipClass}>
+              <span
+                className={cn(
+                  chip,
+                  'border-transparent bg-brand-soft text-brand',
+                )}
+              >
                 <CircleHelpIcon /> Needs your decision
-              </Badge>
+              </span>
             )}
             {decision?.stale && (
-              <Badge
-                variant="outline"
+              <span
                 title="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
                 className={cn(
-                  chipClass,
+                  chip,
                   'border-warn-border bg-warn-soft text-warn',
                 )}
               >
                 <TriangleAlertIcon /> Code moved since it was explained
-              </Badge>
+              </span>
             )}
             {finished && (
-              <Badge variant="outline" className={chipClass}>
+              <span
+                className={cn(chip, 'border-border-strong text-foreground')}
+              >
                 <CheckIcon className="text-brand" /> Reviewed
-              </Badge>
+              </span>
             )}
           </div>
           <h2 className="text-page-title font-semibold wrap-anywhere">
@@ -206,23 +212,6 @@ export function DecisionPage({
   );
 }
 
-function changeVariant(change: NonNullable<DecisionLink['change']>) {
-  if (change === 'new') return 'default';
-  if (change === 'changed') return 'outline';
-  return 'destructive';
-}
-
-function changeClass(change: NonNullable<DecisionLink['change']>) {
-  if (change === 'new') return 'bg-foreground text-background';
-  if (change === 'changed') return 'border-border-strong';
-  return 'border-del-strong bg-del-bg text-del-fg';
-}
-
-const contractBadgeClass =
-  'h-4.5 shrink-0 rounded-sm px-1.5 py-0 text-2xs leading-4.5';
-
-const chipClass = 'h-5.5 rounded-full px-2 text-xs leading-5';
-
 function changeLabel(change: NonNullable<DecisionLink['change']>) {
   if (change === 'new') return 'New';
   if (change === 'changed') return 'Changed';
@@ -253,12 +242,9 @@ function Contracts({ links }: { links: readonly DecisionLink[] }) {
               )}
             </span>
             {link.change && (
-              <Badge
-                variant={changeVariant(link.change)}
-                className={cn(contractBadgeClass, changeClass(link.change))}
-              >
+              <span className={changeTags[link.change]}>
                 {changeLabel(link.change)}
-              </Badge>
+              </span>
             )}
           </li>
         ))}

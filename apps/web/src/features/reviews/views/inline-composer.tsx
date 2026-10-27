@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/shared/lib/utils';
+import { smallButton } from './review-controls';
 import { useCreateComment } from '../commands/comments';
 import {
   type CommentAnchor,
@@ -134,7 +135,6 @@ export function InlineComposer({
         id={id}
         autoFocus={autoFocus}
         {...(answer ? { rows: 4 } : { 'aria-label': 'Comment' })}
-        className={answer ? 'min-h-23 text-ui leading-4.75' : undefined}
         placeholder={answer ? 'Your answer…' : 'Share feedback…'}
         value={body}
         maxLength={Math.max(0, mutation.bodyLimit - quoteLength)}
@@ -164,29 +164,27 @@ export function InlineComposer({
             via MCP
           </span>
           {closable && (
-            <Button
+            <button
               type="button"
-              size="sm"
-              variant="ghost"
-              className="ml-auto rounded-lg px-2.5 text-xs"
+              className={`${smallButton} ml-auto hover:bg-accent`}
               disabled={mutation.result.waiting}
               onClick={onClose}
             >
               Cancel
-            </Button>
+            </button>
           )}
-          <Button
+          <button
             type="submit"
-            size="sm"
             className={cn(
-              'rounded-lg pr-2.5 pl-2 text-xs',
+              smallButton,
+              'bg-primary pr-2.5 pl-2 text-primary-foreground hover:bg-primary/80',
               !closable && 'ml-auto',
             )}
             disabled={!valid || mutation.result.waiting}
           >
-            <ArrowUpIcon data-icon="inline-start" className="size-3.25" />
+            <ArrowUpIcon className="size-3.25" />
             {mutation.result.waiting ? 'Sending…' : 'Send answer'}
-          </Button>
+          </button>
         </div>
       ) : (
         <div className="flex justify-end gap-2">

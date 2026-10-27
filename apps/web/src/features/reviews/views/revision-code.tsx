@@ -202,13 +202,12 @@ function RevisionDiffs({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button
-                      size="icon-xs"
-                      variant="outline"
+                    <button
+                      type="button"
                       className={cn(
-                        'size-4 rounded-sm border-border-strong bg-background',
+                        'grid size-4 shrink-0 place-items-center rounded-sm border border-border-strong bg-background outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50',
                         reviewed &&
-                          'border-brand bg-brand text-brand-foreground hover:bg-brand hover:text-brand-foreground dark:bg-brand',
+                          'border-brand bg-brand text-brand-foreground',
                       )}
                       aria-pressed={reviewed}
                       aria-label={reviewedControlLabel(

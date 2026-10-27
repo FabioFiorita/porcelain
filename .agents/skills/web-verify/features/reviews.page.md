@@ -21,6 +21,7 @@ tests:
   - apps/web/spec/integration/reviews-briefing.test.tsx
   - apps/web/spec/integration/reviews-panel.test.tsx
   - apps/web/spec/e2e/reviews-live-refresh.e2e.ts
+  - apps/web/spec/e2e/reviews-summary-link.e2e.ts
 api:
   - GET /api/reviews/:reviewId
   - GET /api/projects/:projectId/reviews

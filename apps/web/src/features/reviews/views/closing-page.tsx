@@ -146,15 +146,14 @@ export function ClosingPage({
                           ? spansLabel(gap.ranges)
                           : 'whole file'}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="h-auto gap-1 px-0 leading-4 text-brand hover:bg-transparent hover:text-brand hover:underline"
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-sm text-xs leading-4 font-medium text-brand outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/30"
                         onClick={() => onGo(gap.stop)}
                       >
                         Read in {placeName(stops, gap.stop)}
-                        <ChevronRightIcon data-icon="inline-end" />
-                      </Button>
+                        <ChevronRightIcon className="size-3" />
+                      </button>
                     </li>
                   ))}
                 </ul>

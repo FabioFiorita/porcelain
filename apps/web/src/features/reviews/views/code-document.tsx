@@ -10,7 +10,13 @@ import type {
   DiffLineAnnotation,
 } from '@pierre/diffs';
 import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
-import { useHotkey } from '@tanstack/react-hotkeys';
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
+import { Kbd } from '@/components/ui/kbd';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -63,6 +69,7 @@ import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
+import { headerButton, quietButton } from './review-controls';
 import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -372,22 +379,32 @@ function CodeSurface({
     folds.setCollapsed([id], !collapsed.has(id));
   };
 
-  const collapseControl =
-    entries.length > 1 ? (
-      <Button
-        size={collapseInHeader ? 'xs' : 'sm'}
-        variant="ghost"
-        className={collapseInHeader ? headerButtonClass : undefined}
-        onClick={() => setAllCollapsed(!allCollapsed)}
-      >
-        {allCollapsed ? (
-          <ChevronsUpDownIcon aria-hidden="true" data-icon="inline-start" />
-        ) : (
-          <ChevronsDownUpIcon aria-hidden="true" data-icon="inline-start" />
-        )}
-        {allCollapsed ? 'Expand all' : 'Collapse all'}
-      </Button>
-    ) : null;
+  const collapseIcon = allCollapsed ? (
+    <ChevronsUpDownIcon aria-hidden="true" data-icon="inline-start" />
+  ) : (
+    <ChevronsDownUpIcon aria-hidden="true" data-icon="inline-start" />
+  );
+  const collapseLabel = allCollapsed ? 'Expand all' : 'Collapse all';
+  const collapseButton = collapseInHeader ? (
+    <button
+      type="button"
+      className={headerButton}
+      onClick={() => setAllCollapsed(!allCollapsed)}
+    >
+      {collapseIcon}
+      {collapseLabel}
+    </button>
+  ) : (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={() => setAllCollapsed(!allCollapsed)}
+    >
+      {collapseIcon}
+      {collapseLabel}
+    </Button>
+  );
+  const collapseControl = entries.length > 1 ? collapseButton : null;
   const paneFile =
     interaction.toolbarTarget !== undefined &&
     /^(file|change|branch):/.test(interaction.entry);
@@ -725,24 +742,22 @@ function CodeSurface({
             const steps =
               decision && entries.length > 1 ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Previous file before ${entry.path}`}
+                  <HeaderStep
+                    label="Previous file"
+                    keys={SHORTCUTS.previousFile}
                     disabled={index === 0}
                     onClick={() => focusEntry(index - 1)}
                   >
-                    <ChevronUpIcon className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Next file after ${entry.path}`}
+                    <ChevronUpIcon />
+                  </HeaderStep>
+                  <HeaderStep
+                    label="Next file"
+                    keys={SHORTCUTS.nextFile}
                     disabled={index === entries.length - 1}
                     onClick={() => focusEntry(index + 1)}
                   >
-                    <ChevronDownIcon className="size-3.5" />
-                  </Button>
+                    <ChevronDownIcon />
+                  </HeaderStep>
                 </>
               ) : null;
             const leading = item.id === entries[0]?.id ? headerLeading : null;
@@ -751,25 +766,35 @@ function CodeSurface({
                 Changed since reviewed
               </span>
             ) : null;
-            const comment =
-              entry.comment && !paneFile ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  className={decision ? headerButtonClass : undefined}
-                  aria-label={
-                    commentLabel
-                      ? `${commentLabel} about ${entry.path}`
-                      : `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`
-                  }
-                  onClick={() => openFileComment(entry)}
-                >
-                  {decision ? <MessageSquareIcon /> : <MessageSquarePlusIcon />}
-                  <span className="max-narrow:sr-only">
-                    {commentLabel ?? 'Comment'}
-                  </span>
-                </Button>
-              ) : null;
+            const commentName = commentLabel
+              ? `${commentLabel} about ${entry.path}`
+              : `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`;
+            const commentButton = decision ? (
+              <button
+                type="button"
+                className={headerButton}
+                aria-label={commentName}
+                onClick={() => openFileComment(entry)}
+              >
+                <MessageSquareIcon />
+                <span className="max-narrow:sr-only">
+                  {commentLabel ?? 'Comment'}
+                </span>
+              </button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="xs"
+                aria-label={commentName}
+                onClick={() => openFileComment(entry)}
+              >
+                <MessageSquarePlusIcon />
+                <span className="max-narrow:sr-only">
+                  {commentLabel ?? 'Comment'}
+                </span>
+              </Button>
+            );
+            const comment = entry.comment && !paneFile ? commentButton : null;
             if (
               !stale &&
               !leading &&
@@ -783,11 +808,18 @@ function CodeSurface({
               <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
                 {stale}
                 {leading}
-                {(actions || comment) && (
-                  <ButtonGroup>
-                    {actions}
+                {decision ? (
+                  <>
+                    {actions && <ButtonGroup>{actions}</ButtonGroup>}
                     {comment}
-                  </ButtonGroup>
+                  </>
+                ) : (
+                  (actions || comment) && (
+                    <ButtonGroup>
+                      {actions}
+                      {comment}
+                    </ButtonGroup>
+                  )
                 )}
                 {collapseAll}
                 {steps && <span className="flex items-center">{steps}</span>}
@@ -862,8 +894,40 @@ function CodeSurface({
   );
 }
 
-const headerButtonClass =
-  'h-6.5 gap-1.5 rounded-md px-2 font-sans text-xs leading-4 [&_svg]:size-3.5';
+function HeaderStep({
+  label,
+  keys,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  keys: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+            className={`${quietButton} size-6 text-muted-foreground [&_svg]:size-3.5`}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>
+        {label} <Kbd>{formatForDisplay(keys)}</Kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function selectedRangeAnchor(
   selection: CodeViewLineSelection | null,

@@ -93,6 +93,8 @@ import { ReviewBoundary } from './review-boundary';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
+import { cn } from '@/shared/lib/utils';
+import { outlinePill, primaryPill } from './review-controls';
 import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
@@ -110,7 +112,6 @@ type ReviewPageProps = {
   liveScope?: ReviewScope | undefined;
   initialStep?: string | undefined;
   proofCurrent?: boolean | undefined;
-  onRefresh?: (() => void) | undefined;
 };
 
 export function ReviewPage({
@@ -159,7 +160,6 @@ export function ReviewPage({
       revision={data.revision}
       context={context}
       decision={decision}
-      latest={revision === undefined}
       onRevision={onRevision}
       onStop={onStop}
       onBack={onBack}
@@ -168,7 +168,7 @@ export function ReviewPage({
       initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
-      onRefresh={retry}
+      reread={{ run: retry, failed: AsyncResult.isFailure(result) }}
     />
   );
 }
@@ -223,7 +223,7 @@ function reviewReadState(
 ) {
   if (AsyncResult.isInitial(result))
     return <ReviewLoading navigation={navigation} />;
-  if (AsyncResult.isFailure(result))
+  if (AsyncResult.isFailure(result) && Option.isNone(AsyncResult.value(result)))
     return (
       <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
     );
@@ -261,7 +261,6 @@ function ReviewRevisionPage({
   revision,
   context,
   decision,
-  latest,
   onRevision,
   onStop,
   onBack,
@@ -270,11 +269,11 @@ function ReviewRevisionPage({
   initialStep,
   proofCurrent = true,
   active = true,
-  onRefresh,
+  reread,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
   revision: ReviewRevision;
-  latest: boolean;
+  reread: { run: () => void; failed: boolean };
 }) {
   const inventory = useInventory(context.connection);
   const project = inventory.projects.find(
@@ -307,7 +306,7 @@ function ReviewRevisionPage({
   const [expiredLink, setExpiredLink] = useState<string>();
   const renewSummaryLink = () => {
     setExpiredLink(review.summary.expires);
-    onRefresh?.();
+    reread.run();
   };
   const seenQuery = observeReviewSeen({
     connection: context.connection,
@@ -462,7 +461,7 @@ function ReviewRevisionPage({
   );
   const bar = (
     <>
-      {(showSummary || view === 'summary') && presentation}
+      {showSummary && presentation}
       <span
         aria-label="Review progress"
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
@@ -695,15 +694,6 @@ function ReviewRevisionPage({
           </p>
         }
       >
-        {view === 'summary' &&
-          !showSummary &&
-          AsyncResult.isFailure(summary) && (
-            <StateFailure
-              title="Could not display"
-              description="The agent's page could not be loaded. Try again, or read the walkthrough."
-              onRetry={renewSummaryLink}
-            />
-          )}
         {(view === 'walkthrough' || (view === 'summary' && showSummary)) && (
           <div className="flex min-w-0 flex-1 items-start">
             <WalkthroughSpine
@@ -721,23 +711,32 @@ function ReviewRevisionPage({
                   </Button>
                 </p>
               )}
-              {view === 'summary' && (
-                <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
-                  <SummaryFrame
-                    revision={revision}
-                    page={summaryPage}
-                    url={
-                      expiredLink === review.summary.expires
-                        ? undefined
-                        : summaryUrl
-                    }
-                    dark={dark}
-                    stops={stops}
-                    done={done}
-                    onGo={go}
+              {view === 'summary' &&
+                expiredLink === review.summary.expires &&
+                reread.failed && (
+                  <StateFailure
+                    description="A fresh link to the agent's page could not be read. Check the connection and try again."
+                    onRetry={reread.run}
                   />
-                </div>
-              )}
+                )}
+              {view === 'summary' &&
+                !(expiredLink === review.summary.expires && reread.failed) && (
+                  <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
+                    <SummaryFrame
+                      revision={revision}
+                      page={summaryPage}
+                      url={
+                        expiredLink === review.summary.expires
+                          ? undefined
+                          : summaryUrl
+                      }
+                      dark={dark}
+                      stops={stops}
+                      done={done}
+                      onGo={go}
+                    />
+                  </div>
+                )}
               {view === 'walkthrough' && file && (
                 <>
                   <Button
@@ -1046,10 +1045,9 @@ function DecisionMark({
   const [removed, unmark] = useAtom(commands.unmark);
   return (
     <>
-      <Button
-        size="sm"
-        className={dockButtonClass}
-        variant={reviewed ? 'outline' : 'default'}
+      <button
+        type="button"
+        className={cn(reviewed ? outlinePill : primaryPill, dockButtonClass)}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
         onClick={() =>
@@ -1063,9 +1061,9 @@ function DecisionMark({
               })
         }
       >
-        <CheckIcon data-icon="inline-start" />
+        <CheckIcon />
         {reviewed ? 'Decision reviewed' : 'Mark decision reviewed'}
-      </Button>
+      </button>
       {(AsyncResult.isFailure(result) || AsyncResult.isFailure(removed)) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Not saved. Try again.
@@ -1076,7 +1074,7 @@ function DecisionMark({
 }
 
 const dockButtonClass =
-  'h-8 gap-1.75 rounded-full pr-3.5 pl-3 text-ui leading-4 [&_svg]:size-3.5';
+  'h-8 gap-1.75 pr-3.5 pl-3 text-ui leading-4 [&_svg]:size-3.5';
 
 function FilesMark({
   revision,
@@ -1096,19 +1094,19 @@ function FilesMark({
   const [result, mark] = useAtom(commands.markFiles);
   return (
     <>
-      <Button
-        size="sm"
-        className={dockButtonClass}
+      <button
+        type="button"
+        className={cn(primaryPill, dockButtonClass)}
         disabled={!settled || files.length === 0 || result.waiting}
         onClick={() =>
           mark({ revision: revision.revision, files: blobFiles(files) })
         }
       >
-        <CheckIcon data-icon="inline-start" />
+        <CheckIcon />
         {files.length === 0
           ? 'Every file reviewed'
           : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
-      </Button>
+      </button>
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Some files were not marked. Try again.

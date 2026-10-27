@@ -6,8 +6,6 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
@@ -33,6 +31,12 @@ import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
 import { SectionHeading } from './section-heading';
+import {
+  changeTags,
+  primaryPill,
+  quietButton,
+  smallButton,
+} from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function WalkthroughBriefing({
@@ -109,8 +113,12 @@ export function WalkthroughBriefing({
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
-                  <Button
-                    className="h-auto min-h-9 max-w-full min-w-0 gap-2 rounded-full pr-3.5 pl-4 text-left leading-4 whitespace-normal"
+                  <button
+                    type="button"
+                    className={cn(
+                      primaryPill,
+                      'min-h-9 max-w-full min-w-0 gap-2 pr-3.5 pl-4 text-left text-sm leading-4 whitespace-normal',
+                    )}
                     onClick={() => onGo(next.key)}
                   >
                     <span className="min-w-0 wrap-anywhere">
@@ -118,8 +126,8 @@ export function WalkthroughBriefing({
                         ? `Continue at decision ${next.number}`
                         : `Continue at ${stopTitle(next)}`}
                     </span>
-                    <ArrowRightIcon data-icon="inline-end" />
-                  </Button>
+                    <ArrowRightIcon className="size-3.5" />
+                  </button>
                 ) : (
                   <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
                     <CheckIcon className="size-4" />
@@ -127,17 +135,17 @@ export function WalkthroughBriefing({
                   </p>
                 )}
                 {asked && (
-                  <Button
-                    variant="ghost"
-                    className="h-9 gap-1.75 rounded-full px-3 text-ui leading-4"
+                  <button
+                    type="button"
+                    className={cn(
+                      quietButton,
+                      'h-9 gap-1.75 rounded-full px-3 text-ui leading-4',
+                    )}
                     onClick={() => onGo(asked.key)}
                   >
-                    <TriangleAlertIcon
-                      data-icon="inline-start"
-                      className="size-3.5 text-warn"
-                    />
+                    <TriangleAlertIcon className="size-3.5 text-warn" />
                     Decision {asked.number} needs you
-                  </Button>
+                  </button>
                 )}
                 {stale > 0 && (
                   <span className="px-3 text-ui leading-4 text-warn">
@@ -426,13 +434,10 @@ function StopMark({
   );
 }
 
-const partBadges = {
-  New: { variant: 'default', className: 'bg-foreground text-background' },
-  Changed: { variant: 'outline', className: 'border-border-strong' },
-  Removed: {
-    variant: 'destructive',
-    className: 'border-del-strong bg-del-bg text-del-fg',
-  },
+const partTags = {
+  New: changeTags.new,
+  Changed: changeTags.changed,
+  Removed: changeTags.removed,
 } as const;
 
 function PartGroup({
@@ -442,7 +447,7 @@ function PartGroup({
   onGo,
   struck = false,
 }: {
-  title: keyof typeof partBadges;
+  title: keyof typeof partTags;
   parts: readonly SystemPart[];
   review: WalkthroughProps['review'];
   onGo: (key: WalkthroughKey) => void;
@@ -457,17 +462,7 @@ function PartGroup({
           className="flex min-h-8.5 min-w-0 flex-col items-start gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
         >
           <span className="shrink-0 @2xl/review:w-21">
-            {index === 0 && (
-              <Badge
-                variant={partBadges[title].variant}
-                className={cn(
-                  'h-4.5 rounded-sm px-1.5 py-0 text-2xs leading-4.5',
-                  partBadges[title].className,
-                )}
-              >
-                {title}
-              </Badge>
-            )}
+            {index === 0 && <span className={partTags[title]}>{title}</span>}
           </span>
           <TruncatedText
             className="min-w-0 flex-1 leading-4.5"
@@ -512,18 +507,17 @@ function DecisionLink({
     part.decision === undefined ? undefined : review.layers[part.decision - 1];
   if (!layer || part.decision === undefined) return null;
   return (
-    <Button
-      variant={inline ? 'ghost' : 'outline'}
-      size="sm"
+    <button
+      type="button"
       className={cn(
-        'shrink-0 rounded-lg text-xs',
-        inline &&
-          'h-6.5 gap-1.25 self-start rounded-md pr-1.5 pl-2 text-muted-foreground @2xl/review:self-center',
+        inline
+          ? `${quietButton} h-6.5 gap-1.25 self-start pr-1.5 pl-2 text-xs leading-4 text-muted-foreground hover:text-foreground @2xl/review:self-center`
+          : `${smallButton} border border-border bg-background hover:bg-muted`,
       )}
       onClick={() => onGo(decisionKey(layer.id))}
     >
       {label ?? `Decision ${part.decision}`}
-      <ArrowRightIcon data-icon="inline-end" className="size-3" />
-    </Button>
+      <ArrowRightIcon className="size-3" />
+    </button>
   );
 }
