@@ -44,16 +44,16 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
         execute: Effect.fn('ResolveProjectGitHubUseCase.execute')(
           function* (input) {
             const found = yield* find.execute(input);
+            const repository = githubRepository(
+              (yield* lanes.run(keys.project(found), 'read', () =>
+                origin.execute({ path: found.commonDirectory }),
+              )).originUrl,
+            );
             return yield* lanes.run(
-              keys.project(found),
+              keys.githubAccount(found),
               'write',
               () =>
                 Effect.gen(function* () {
-                  const repository = githubRepository(
-                    (yield* origin.execute({
-                      path: found.commonDirectory,
-                    })).originUrl,
-                  );
                   const preference = yield* accounts.execute({
                     projectId: input.projectId,
                     repository:

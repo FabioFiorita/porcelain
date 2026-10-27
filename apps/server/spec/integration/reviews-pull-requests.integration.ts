@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { writeFile, readFile, rm } from 'node:fs/promises';
+import { access, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { test } from '../kit/server-test.ts';
 import {
   commitReviewFixture,
@@ -20,6 +20,8 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     JSON.parse(await readFile(server.manifestPath, 'utf8')),
   );
   const statePath = join(session.projectHome, 'github-state.json');
+  const heldPath = join(session.projectHome, 'github-accounts-held');
+  const releasePath = join(session.projectHome, 'github-accounts-released');
   const ghPath = join(text(manifest.bin), 'gh');
   const secret = 'github-test-token-never-return-this';
   const state = {
@@ -28,6 +30,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     headBranch: (await session.git('branch', '--show-current')).trim(),
     accounts: ['personal', 'work'],
     readable: ['personal', 'work'],
+    holdAccounts: false,
   };
   const save = () => writeFile(statePath, JSON.stringify(state));
   await save();
@@ -38,9 +41,17 @@ import fs from 'node:fs';
 const args = process.argv.slice(2);
 const fixture = JSON.parse(fs.readFileSync(${JSON.stringify(statePath)}, 'utf8'));
 const secret = ${JSON.stringify(secret)};
-if (args[0] === 'auth' && args[1] === 'status') { console.log(JSON.stringify(fixture.accounts)); }
+if (args[0] === 'auth' && args[1] === 'status') {
+  for (let beat = 1; fixture.holdAccounts && !fs.existsSync(${JSON.stringify(releasePath)}); beat++) {
+    fs.writeFileSync(${JSON.stringify(heldPath + '.pending')}, String(beat));
+    fs.renameSync(${JSON.stringify(heldPath + '.pending')}, ${JSON.stringify(heldPath)});
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  console.log(JSON.stringify(fixture.accounts));
+}
 else if (args[0] === 'auth' && args[1] === 'token') { console.log(secret + '-' + args.at(-1)); }
 else if (fixture.mode !== 'ok') { console.error((fixture.mode === 'rate' ? 'HTTP 429 rate limit exceeded ' : 'network offline ') + process.env.GH_TOKEN); process.exitCode = 1; }
+else if (args.includes('number=999')) { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest)'); process.exitCode = 1; }
 else if (args.includes('repos/FabioFiorita/porcelain')) {
   if (fixture.readable.some(account => process.env.GH_TOKEN === secret + '-' + account)) console.log('{}');
   else { console.error('HTTP 404 ' + process.env.GH_TOKEN); process.exitCode = 1; }
@@ -161,6 +172,15 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       kind: 'not-linked',
     });
     state.headBranch = branch;
+    await save();
+    expect(
+      await setPull('https://github.com/FabioFiorita/porcelain/pull/999', 409),
+    ).toMatchObject({
+      message: 'GitHub has no pull request #999 in FabioFiorita/porcelain.',
+    });
+    expect(await request(`${review}/pull-request`)).toEqual({
+      kind: 'not-linked',
+    });
     state.mode = 'rate';
     await save();
     expect(await setPull(pullRequest)).toEqual({
@@ -210,6 +230,24 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
         timeline: [{ body: 'A comment' }],
       },
     });
+    state.holdAccounts = true;
+    await save();
+    const heldRead = request(`${review}/pull-request`);
+    await vi.waitFor(() => access(heldPath), { timeout: 5000 });
+    expect(await setPull(null)).toEqual({ kind: 'updated' });
+    const heldBeat = Number(await readFile(heldPath, 'utf8'));
+    await vi.waitFor(
+      async () =>
+        expect(Number(await readFile(heldPath, 'utf8'))).toBeGreaterThan(
+          heldBeat,
+        ),
+      { timeout: 5000 },
+    );
+    await writeFile(releasePath, '');
+    await heldRead;
+    state.holdAccounts = false;
+    await save();
+    expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     expect(await request(`${project}/pull-requests`)).toMatchObject({
       kind: 'available',
       pullRequests: [{ number: 423, reviewId }],
