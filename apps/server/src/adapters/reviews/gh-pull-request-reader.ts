@@ -1,4 +1,7 @@
-import { GitHubReadError } from '@porcelain/reviews/errors';
+import {
+  GitHubPullRequestNotFoundError,
+  GitHubReadError,
+} from '@porcelain/reviews/errors';
 import { Effect, Layer, Schema } from 'effect';
 import {
   captureGitPlatform,
@@ -48,6 +51,13 @@ const detailSchema = Schema.Struct({
   }),
 });
 
+const unavailable = (error: {
+  readonly reason: GitHubReadError['reason'] | 'not-found';
+}) =>
+  new GitHubReadError({
+    reason: error.reason === 'not-found' ? 'invalid-response' : error.reason,
+  });
+
 export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
   Layer.effect(
     GitHubReader,
@@ -56,26 +66,20 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
       const api = Effect.fn('GitHubReader.api')(function* (
         input: Parameters<typeof readGitHubApi>[0],
       ) {
-        return yield* readGitHubApi(input, limits).pipe(
-          provide,
-          Effect.mapError(
-            (error) => new GitHubReadError({ reason: error.reason }),
-          ),
-        );
+        return yield* readGitHubApi(input, limits).pipe(provide);
       });
       return GitHubReader.of({
         accounts: () =>
           listGitHubAccounts(limits).pipe(
             provide,
-            Effect.mapError(
-              (error) => new GitHubReadError({ reason: error.reason }),
-            ),
+            Effect.mapError(unavailable),
           ),
         canRead: (input) =>
           api({
             account: input.account,
             endpoint: `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
           }).pipe(
+            Effect.mapError(unavailable),
             Effect.as(true),
             Effect.catchIf(
               (error) => error.reason === 'no-access',
@@ -92,7 +96,13 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               repo: input.repo,
               number: input.number,
             },
-          });
+          }).pipe(
+            Effect.mapError((error) =>
+              error.reason === 'not-found'
+                ? new GitHubPullRequestNotFoundError()
+                : unavailable(error),
+            ),
+          );
           const decoded = yield* Schema.decodeEffect(
             Schema.fromJsonString(detailSchema),
           )(json).pipe(
@@ -108,7 +118,7 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
             endpoint: 'graphql',
             query: listQuery,
             variables: { owner: input.owner, repo: input.repo },
-          });
+          }).pipe(Effect.mapError(unavailable));
           const decoded = yield* Schema.decodeEffect(
             Schema.fromJsonString(listSchema),
           )(json).pipe(

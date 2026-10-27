@@ -87,11 +87,16 @@ export class SetReviewPullRequestUseCase extends Context.Service<
                   number,
                 })
                 .pipe(Effect.result);
-              if (result._tag === 'Failure')
+              if (result._tag === 'Failure') {
+                if (result.failure._tag === 'GitHubPullRequestNotFoundError')
+                  return yield* new Refused({
+                    message: `GitHub has no pull request #${number} in ${repository.owner}/${repository.repo}.`,
+                  });
                 return {
                   kind: 'unavailable' as const,
                   reason: result.failure.reason,
                 };
+              }
               pullRequest = { ...result.success, url: input.pullRequest };
             }
             yield* lanes.run(

@@ -66,7 +66,13 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
               })
               .pipe(Effect.result);
             if (result._tag === 'Failure')
-              return { kind: 'unavailable', reason: result.failure.reason };
+              return {
+                kind: 'unavailable',
+                reason:
+                  result.failure._tag === 'GitHubPullRequestNotFoundError'
+                    ? 'offline'
+                    : result.failure.reason,
+              };
             const observed = yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
