@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import { useAtom, useAtomRef, useAtomValue } from '@effect/atom-react';
-import { Platform } from 'react-native';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -9,7 +8,6 @@ import {
   type EnvironmentConnection,
 } from '@porcelain/client/access';
 import {
-  ANDROID_EMULATOR_HOST,
   connectionErrorMessage,
   hostnameForm,
   LOCAL_NETWORK_WARNING,
@@ -28,6 +26,7 @@ import {
 } from '@porcelain/client/access/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { remoteConnectionState } from '../../../shared/application/store';
+import { OWN_ADDRESS_ALIASES } from './own-address-aliases';
 import { Badge } from '../../../components/ui/badge';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
@@ -68,10 +67,7 @@ function ConnectedWaysIn({
   if (answer === null)
     return (
       <Text variant="caption" tone="muted">
-        {waysInRefusal(
-          connection.address,
-          Platform.OS === 'android' ? [ANDROID_EMULATOR_HOST] : [],
-        )}
+        {waysInRefusal(connection.address, OWN_ADDRESS_ALIASES)}
       </Text>
     );
   if (AsyncResult.isFailure(result))
