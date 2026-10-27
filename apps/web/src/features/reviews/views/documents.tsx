@@ -208,13 +208,10 @@ function NoReviewIntro({
       {place && (
         <TruncatedText text={place} className="text-xs text-muted-foreground" />
       )}
-      <h2 className="text-4xl font-semibold tracking-tight">
-        No review yet
-      </h2>
+      <h2 className="text-4xl font-semibold tracking-tight">No review yet</h2>
       <p className="max-w-prose text-lg leading-7 text-foreground-2">
         The agent has not published a review for this worktree. Ask it to
-        publish one (it calls{' '}
-        <code className="font-mono">publish_review</code>{' '}
+        publish one (it calls <code className="font-mono">publish_review</code>{' '}
         through Porcelain&rsquo;s MCP server), or read the changes below.
       </p>
     </header>
