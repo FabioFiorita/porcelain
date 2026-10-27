@@ -230,6 +230,14 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
         timeline: [{ body: 'A comment' }],
       },
     });
+    expect(
+      await setPull('https://github.com/FabioFiorita/porcelain/pull/999', 409),
+    ).toMatchObject({
+      message: 'GitHub has no pull request #999 in FabioFiorita/porcelain.',
+    });
+    expect(await request(review)).toMatchObject({
+      review: { pullRequest: pullRequest.toLowerCase() },
+    });
     state.holdAccounts = true;
     await save();
     const heldRead = request(`${review}/pull-request`);
@@ -244,7 +252,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       { timeout: 5000 },
     );
     await writeFile(releasePath, '');
-    await heldRead;
+    expect(await heldRead).toEqual({ kind: 'not-linked' });
     state.holdAccounts = false;
     await save();
     expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });

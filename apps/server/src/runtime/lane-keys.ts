@@ -17,7 +17,6 @@ export class LaneKeys extends Context.Service<
     readonly inventory: () => string;
     readonly filesystem: () => string;
     readonly project: (project: ListableProject) => string;
-    readonly githubAccount: (project: ListableProject) => string;
     readonly repository: (worktree: Worktree) => string;
     readonly receipts: (worktree: Worktree) => string;
     readonly reviews: (worktree: Pick<Worktree, 'repositoryId'>) => string;
@@ -44,9 +43,6 @@ export class LaneKeys extends Context.Service<
       function project(project: ListableProject): string {
         return project.repositoryIdentity;
       }
-      function githubAccount(project: ListableProject): string {
-        return `github-account:${project.repositoryIdentity}`;
-      }
       function repository(worktree: Worktree): string {
         return worktree.repositoryId;
       }
@@ -63,7 +59,6 @@ export class LaneKeys extends Context.Service<
         inventory,
         filesystem,
         project,
-        githubAccount,
         repository,
         receipts,
         reviews,
