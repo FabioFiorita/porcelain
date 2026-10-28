@@ -96,7 +96,7 @@ export function ReviewDocumentWorkspace({
   const specsApart = useSpecsApart(context.connection);
   const progress = revisionDecisionProgress(revision, marks, { specsApart });
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:flex-row">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-paper border bg-card md:flex-row">
       {layout.panes.map((_pane, index) => (
         <ReviewDocumentPane
           key={index}
@@ -162,7 +162,10 @@ function ReviewDocumentPane({
       aria-label={side ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
       onPointerDownCapture={() => layout.selectPane(index)}
       onFocusCapture={(event) => layout.focusPane(index, event.target)}
-      className="@container/pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-paper border bg-card"
+      className={cn(
+        '@container/pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+        index === 1 && 'border-t md:border-t-0 md:border-l',
+      )}
     >
       <DocumentTabs
         tabs={pane.tabs}

@@ -1,3 +1,4 @@
+import { cn } from '@/shared/lib/utils';
 import { createPortal } from 'react-dom';
 import { ListChecksIcon, FileTextIcon, PanelRightIcon } from 'lucide-react';
 import {
@@ -627,7 +628,10 @@ function ReviewRevisionPage({
     <section
       ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
-      className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-paper border bg-card wrap-anywhere"
+      className={cn(
+        '@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
+        !standalone && 'rounded-paper border',
+      )}
       style={{ containerName: 'pane review' }}
     >
       {toolbarTarget && createPortal(bar, toolbarTarget)}
