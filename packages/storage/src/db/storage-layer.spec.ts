@@ -540,7 +540,7 @@ describe('Native storage adoption', () => {
         database
           .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
           .get(),
-      ).toEqual({ count: 29 });
+      ).toEqual({ count: 30 });
       expect(
         database.prepare('SELECT revision FROM comment_revision').get(),
       ).toEqual({ revision: 37 });
@@ -618,7 +618,7 @@ describe('Native storage adoption', () => {
           stored
             .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
             .get(),
-        ).toEqual({ count: 29 });
+        ).toEqual({ count: 30 });
       } finally {
         stored.close();
       }

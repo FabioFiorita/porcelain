@@ -66,16 +66,32 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
               })
               .pipe(Effect.result);
             if (result._tag === 'Failure')
-              return { kind: 'unavailable', reason: result.failure.reason };
+              return {
+                kind: 'unavailable',
+                reason:
+                  result.failure._tag === 'GitHubPullRequestNotFoundError'
+                    ? 'offline'
+                    : result.failure.reason,
+              };
             const observed = yield* lanes.run(
               keys.reviews({ repositoryId: `review:${input.reviewId}` }),
               'write',
-              () => close.execute({ ...input, pullRequest: result.success }),
+              () =>
+                Effect.gen(function* () {
+                  const current = yield* reviews.execute(input);
+                  if (current.pullRequest !== record.pullRequest)
+                    return undefined;
+                  return yield* close.execute({
+                    ...input,
+                    pullRequest: result.success,
+                  });
+                }),
               {
                 succeeded: (value) =>
-                  value.closedReview ? events.inventoryChanged() : Effect.void,
+                  value?.closedReview ? events.inventoryChanged() : Effect.void,
               },
             );
+            if (!observed) return { kind: 'not-linked' as const };
             return {
               kind: 'available' as const,
               account: selection.choice?.account ?? '',

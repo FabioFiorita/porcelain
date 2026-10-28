@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
 import { eventually } from '../kit/reads.ts';
+import { waysInChange } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { record, type HttpRequest, type Session } from '../kit/session.ts';
 
@@ -32,11 +33,12 @@ async function checked(session: Session) {
 test('a tunnel hostname nothing answers at yet is still answered while the tunnel is checked and after', async ({
   session,
 }) => {
-  const turnedOn = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: SILENT_HOST },
-  });
+  const turnedOn = await session.send(
+    await waysInChange(session, {
+      cloudflare: true,
+      cloudflareHostname: SILENT_HOST,
+    }),
+  );
   const answered = await session.send(health(SILENT_HOST));
 
   expect(turnedOn.status).toBe(200);
@@ -57,11 +59,12 @@ test('a tunnel hostname nothing answers at yet is still answered while the tunne
 test('a tunnel hostname another server answers at is no longer answered once the check finds it', async ({
   session,
 }) => {
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: OTHER_SERVER_HOST },
-  });
+  const response = await session.send(
+    await waysInChange(session, {
+      cloudflare: true,
+      cloudflareHostname: OTHER_SERVER_HOST,
+    }),
+  );
 
   expect(response.status).toBe(200);
   expect(record(response.body).cloudflareHostname).toBe(OTHER_SERVER_HOST);

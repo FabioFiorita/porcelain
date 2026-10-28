@@ -25,6 +25,43 @@ export function reviewStoreContract(
     afterEach(async () => {
       await subject.close();
     });
+    it('changes only the pull request identity and returns to the branch when cleared', async () => {
+      await Effect.runPromise(subject.store.save(reviewSave(first)));
+      const url = 'https://github.com/example/project/pull/42';
+      await Effect.runPromise(
+        subject.store.setPullRequest({ ...key, pullRequest: url }),
+      );
+      expect(
+        await Effect.runPromise(subject.store.readRecord(key)),
+      ).toMatchObject({ pullRequest: url, latestRevision: 1, state: 'open' });
+      expect(
+        await Effect.runPromise(
+          subject.store.findOpen({
+            projectId: first.projectId,
+            branch: first.branch,
+            pullRequest: url,
+          }),
+        ),
+      ).toMatchObject(key);
+      await Effect.runPromise(
+        subject.store.setPullRequest({ ...key, pullRequest: undefined }),
+      );
+      await Effect.runPromise(
+        subject.store.setPullRequest({ ...key, pullRequest: undefined }),
+      );
+      expect(
+        await Effect.runPromise(subject.store.readRecord(key)),
+      ).not.toHaveProperty('pullRequest', url);
+      expect(
+        await Effect.runPromise(
+          subject.store.findOpen({
+            projectId: first.projectId,
+            branch: first.branch,
+          }),
+        ),
+      ).toMatchObject(key);
+      expect(await Effect.runPromise(subject.store.read(key))).toEqual(first);
+    });
     it('keeps immutable numbered revisions and rejects a stale writer without changing either revision', async () => {
       await Effect.runPromise(subject.store.save(reviewSave(first)));
       const second = {

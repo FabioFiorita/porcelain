@@ -178,6 +178,15 @@ export class InMemoryReviewStore implements ReviewStore {
     );
   }
 
+  setPullRequest(
+    input: Parameters<ReviewStore['setPullRequest']>[0],
+  ): ReturnType<ReviewStore['setPullRequest']> {
+    return Effect.sync(() => {
+      Object.assign(this.records.get(input.reviewId) ?? {}, {
+        pullRequest: input.pullRequest,
+      });
+    });
+  }
   setState(
     input: Parameters<ReviewStore['setState']>[0],
   ): ReturnType<ReviewStore['setState']> {

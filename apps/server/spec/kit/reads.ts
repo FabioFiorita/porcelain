@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { read, receiptPath, worktreePath } from './requests.ts';
+import { read, receiptPath, waysInChange, worktreePath } from './requests.ts';
 import {
   list,
   record,
@@ -135,11 +135,13 @@ export function eventually(
 }
 
 export async function tunnelOn(session: Session, hostname: string) {
-  await read(session, {
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: hostname },
-  });
+  await read(
+    session,
+    await waysInChange(session, {
+      cloudflare: true,
+      cloudflareHostname: hostname,
+    }),
+  );
   await eventually(
     session,
     { method: 'GET', path: '/api/remote-access' },

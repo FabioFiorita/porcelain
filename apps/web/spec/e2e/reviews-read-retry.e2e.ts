@@ -4,7 +4,9 @@ async function waitChanges(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Changes', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('code')).toContainText('A change to review.');
+  await expect(
+    page.getByRole('code').filter({ hasText: 'A change to review.' }),
+  ).toBeVisible();
 }
 
 async function expectNoFalseEmpty(page: Page) {

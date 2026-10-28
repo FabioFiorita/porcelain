@@ -4,6 +4,7 @@ import {
   CloseTunnelConnectionsService,
   PlanServiceUpdateCheckService,
   AuthorizeServiceUpdateService,
+  AuthorizeWaysInService,
   AuthenticateDeviceService,
   AuthenticateDesktopSessionService,
   IssueLiveTicketService,
@@ -27,6 +28,7 @@ import {
   RevokePairingGrantService,
   RevokeDeviceService,
   SetDeviceTrustService,
+  SetWaysInPermissionService,
 } from '@porcelain/access/services';
 import {
   RemoteAccessStore,
@@ -78,6 +80,7 @@ export function accessServicesLayer(
     CloseTunnelConnectionsService.layer,
     PlanServiceUpdateCheckService.layer,
     AuthorizeServiceUpdateService.layer,
+    AuthorizeWaysInService.layer,
     AuthenticateDeviceService.layer,
     AuthenticateDesktopSessionService.layer,
     IssueLiveTicketService.layer,
@@ -90,7 +93,9 @@ export function accessServicesLayer(
     ReadReviewGitSettingsService.layer,
     SaveReviewGitSettingsService.layer,
     ReadRemoteAccessService.layer,
-    SetRemoteAccessService.layer,
+    SetRemoteAccessService.layer.pipe(
+      Layer.provide(AuthorizeWaysInService.layer),
+    ),
     FlushDeviceActivityService.layer,
     IssuePairingService.layer,
     ListAccessService.layer,
@@ -101,6 +106,7 @@ export function accessServicesLayer(
     RevokePairingGrantService.layer,
     RevokeDeviceService.layer,
     SetDeviceTrustService.layer,
+    SetWaysInPermissionService.layer,
   ).pipe(
     Layer.provide([
       Layer.succeed(RemoteAccessStore, remoteAccess),

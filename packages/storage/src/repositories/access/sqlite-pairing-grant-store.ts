@@ -78,6 +78,7 @@ export const sqlitePairingGrantStoreLayer = Layer.effect(
             lastSeenAddress: device.lastSeenAddress ?? null,
             routeInferred: device.routeInferred === true,
             trusted: device.trusted === true,
+            canEditWaysIn: false,
             revokedAt: device.revokedAt ?? null,
           });
           yield* sql`INSERT INTO devices ${sql.insert(row)}`;

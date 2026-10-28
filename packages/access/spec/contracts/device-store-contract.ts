@@ -263,6 +263,51 @@ export function deviceStoreContract(
       expect(await Effect.runPromise(store.list())).toEqual([device('phone')]);
     });
 
+    it('keeps which devices may edit ways in, apart from trust, a device paired without it by default', async () => {
+      const store = await open([
+        device('phone'),
+        { ...device('tablet'), trusted: true },
+      ]);
+      await Effect.runPromise(store.find({ deviceId: 'phone' }));
+      await Effect.runPromise(
+        store.recordWaysInPermission({
+          device: device('phone'),
+          allowed: true,
+        }),
+      );
+      expect(
+        await Effect.runPromise(store.find({ deviceId: 'phone' })),
+      ).toEqual({ ...device('phone'), canEditWaysIn: true });
+      expect(
+        await Effect.runPromise(store.find({ deviceId: 'tablet' })),
+      ).toEqual({ ...device('tablet'), trusted: true });
+      await Effect.runPromise(
+        store.recordWaysInPermission({
+          device: device('phone'),
+          allowed: false,
+        }),
+      );
+      expect(
+        await Effect.runPromise(store.find({ deviceId: 'phone' })),
+      ).toEqual(device('phone'));
+    });
+
+    it('keeps the permission to edit ways in when trust changes, and trust when the permission changes', async () => {
+      const store = await open([device('phone')]);
+      await Effect.runPromise(
+        store.recordWaysInPermission({
+          device: device('phone'),
+          allowed: true,
+        }),
+      );
+      await Effect.runPromise(
+        store.recordTrust({ device: device('phone'), trusted: true }),
+      );
+      expect(
+        await Effect.runPromise(store.find({ deviceId: 'phone' })),
+      ).toEqual({ ...device('phone'), trusted: true, canEditWaysIn: true });
+    });
+
     it('hands out copies, so changing a returned device leaves the stored one unchanged', async () => {
       const store = await open([device('phone')]);
       Object.assign(

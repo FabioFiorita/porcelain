@@ -8,6 +8,9 @@ selectors:
   - 'Not proven'
   - 'Removed'
   - 'Continue at decision '
+  - 'Pull request'
+  - 'Link pull request'
+  - 'Unlink pull request'
   - 'Close review'
   - 'Delete review…'
   - 'Delete review?'
@@ -30,6 +33,9 @@ api:
   - POST /api/reviews/:reviewId/marks/removal
   - GET /api/reviews/:reviewId/comments
   - POST /api/reviews/:reviewId/comments
+  - GET /api/reviews/:reviewId/pull-request
+  - PUT /api/reviews/:reviewId/pull-request
+  - GET /api/projects/:projectId/pull-requests
   - PATCH /api/reviews/:reviewId
   - DELETE /api/reviews/:reviewId
 ---
@@ -71,3 +77,9 @@ Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
 ## Gotchas
 
 - Summary links expire shortly after reading; a late frame needs a full reload. Native remote summary proof is separate from desktop-mode web views.
+
+## Pull request linking
+
+The top of the Review panel finds open pull requests for the review's branch from the project's existing list. Use Find pull requests again to refresh, Link to this review to select a found request, or paste a GitHub pull request URL and select Link pull request. A different repository or head branch, or a pull request number GitHub does not have, is refused without changing the review. A review that is not linked in a repository without a GitHub remote shows no block; it appears once the repository has a GitHub `origin` and the review is opened again. After Link or Unlink by keyboard, focus moves to Unlink pull request or the URL input. A new malformed-link message replaces an earlier failure alert. Pending writes disable repeat submissions; refusal explains why and keeps the input editable.
+
+A linked block shows open, draft, merged or closed, GitHub checks separately from the agent's proof, and both head SHAs when they differ. Open pull request goes to GitHub. Read pull request again retries a failed read; a missing or unauthorised GitHub account is fixed on the computer with `gh auth login`, then Read pull request again. Unlink pull request works even when GitHub is unreachable or a GitHub account lookup is still running, preserves the review and revisions, and follows the branch again. Closed reviews remain closed. Phone's native review shows the link and Unlink; linking uses web or desktop.

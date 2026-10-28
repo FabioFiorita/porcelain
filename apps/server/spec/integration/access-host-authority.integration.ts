@@ -15,6 +15,11 @@ const notOnThisComputer = apiError(
   'Forbidden',
   'Sharing is managed from a browser on the computer that runs Porcelain',
 );
+const waysInPermissionRequired = apiError(
+  403,
+  'Forbidden',
+  'An owner must let this device edit ways in on the computer that runs Porcelain before it can see or change them',
+);
 const TUNNEL_PAGE = 'https://porcelain.example.com';
 
 function hostPage(session: Session) {
@@ -126,9 +131,9 @@ test('a browser that asked from another page is refused sharing and changes noth
     })),
   ).toStrictEqual([
     { status: 403, body: notOnThisComputer },
+    { status: 403, body: waysInPermissionRequired },
     { status: 403, body: notOnThisComputer },
-    { status: 403, body: notOnThisComputer },
-    { status: 403, body: notOnThisComputer },
+    { status: 403, body: waysInPermissionRequired },
     { status: 403, body: notOnThisComputer },
   ]);
   expect(await sharing(session)).toStrictEqual(before);

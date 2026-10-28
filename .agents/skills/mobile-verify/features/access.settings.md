@@ -12,16 +12,23 @@ selectors:
   - 'This computer'
   - 'Devices'
   - 'Pair a device'
+  - 'Ways in'
+  - 'Local network'
+  - 'Tailscale'
+  - 'Cloudflare tunnel'
 tests:
   - apps/mobile/src/shell/destinations.spec.ts
   - packages/client/src/features/preferences/rules/settings-summary.spec.ts
   - packages/client/src/features/access/rules/settings-updates.spec.ts
-api: []
+  - packages/client/src/features/access/commands/share.spec.ts
+api:
+  - GET /api/remote-access
+  - PATCH /api/remote-access
 ---
 
 # access.settings
 
-Settings offers General, Reviews & Git and Computers, with the app version. Computers is the only place a computer is named. Each saved computer opens This computer, with Devices and Pair a device. Device administration belongs to a browser on the computer running Porcelain, so the phone shows that requirement instead of host-only controls.
+Settings offers General, Reviews & Git and Computers, with the app version. Computers is the only place a computer is named. Each saved computer opens This computer, with Ways in, Devices and Pair a device. Ways in shows that computer's local network, Tailscale and Cloudflare tunnel when its owner let this phone edit ways in; the way in the phone is connected through is locked with an explanation, and without the permission it says this device cannot see or change ways in; over a connection to the computer's own address (127.0.0.1, localhost or the emulator's 10.0.2.2, as `adb reverse` and the Android emulator connect) it says ways in cannot be seen or changed over this connection. Device administration belongs to a browser on the computer running Porcelain, so the phone shows that requirement instead of host-only controls.
 
 ## How to get to it (user POV)
 
@@ -40,5 +47,6 @@ Automated coverage: `destinations.spec.ts`.
 
 ## Gotchas
 
+- Grant or remove "<device> can edit ways in" from a host browser's Paired devices, then reopen This computer to see the editor appear or disappear; the phone cannot grant it to itself.
 - This computer names the selected host, not the phone. Native clients cannot administer devices or create pairing links; the server requires a local browser. Broken disposable credential storage is needed to prove storage failure; normal startup cannot.
 - Settings does not change the native release version.

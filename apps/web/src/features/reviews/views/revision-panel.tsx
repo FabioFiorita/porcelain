@@ -1,3 +1,4 @@
+import { PullRequestBlock } from './pull-request-block';
 import { RevisionNavigation } from './review-navigation';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
@@ -61,6 +62,7 @@ export function RevisionPanel({
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <PullRequestBlock reviewId={revision.reviewId} context={context} />
       <WholeChangeComment
         target={view === 'layers' ? actionsTarget : null}
         branch

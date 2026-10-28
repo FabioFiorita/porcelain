@@ -10,6 +10,7 @@ export type Device = {
   route: DeviceRoute;
   routeInferred?: boolean | undefined;
   trusted?: boolean | undefined;
+  canEditWaysIn?: boolean | undefined;
 };
 
 export type StoredDevice = Device & {
@@ -29,3 +30,5 @@ export type DeviceSighting = { device: StoredDevice };
 export type DeviceRevocation = { device: StoredDevice; revokedAt: string };
 
 export type DeviceTrust = { device: StoredDevice; trusted: boolean };
+
+export type DeviceWaysInPermission = { device: StoredDevice; allowed: boolean };

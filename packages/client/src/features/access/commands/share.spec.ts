@@ -1,12 +1,39 @@
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { Effect, Exit } from 'effect';
+import { Effect, Exit, Schema } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { expect, it } from 'vitest';
 
 import { revokeAccess, setDeviceTrust, setRemoteAccess } from './share.ts';
 import { readRemoteAccess } from '@porcelain/client/access';
+import {
+  readRemoteAccessResponseSchema,
+  type ReadRemoteAccessResponse,
+  type SetRemoteAccessRequest,
+} from '@porcelain/contracts/access';
 
 const fixture = clientFixtures('environment');
+const fingerprint = (digit: string) =>
+  Schema.decodeUnknownSync(readRemoteAccessResponseSchema.fields.editing)({
+    fingerprint: digit.repeat(64),
+  }).fingerprint;
+
+async function save(
+  { connection, registry }: ReturnType<typeof fixture>,
+  edit: SetRemoteAccessRequest,
+) {
+  const state = readRemoteAccess(connection);
+  registry.mount(state);
+  await Effect.runPromise(AtomRegistry.getResult(registry, state));
+  const command = setRemoteAccess(connection);
+  registry.mount(command);
+  registry.set(command, edit);
+  return {
+    state,
+    finished: Effect.runPromiseExit(
+      AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
+    ),
+  };
+}
 
 it('a failed device write rejects its queued follower without sending it, then allows an explicit new action', async () => {
   const requests: string[] = [];
@@ -72,9 +99,10 @@ it('a failed device write rejects its queued follower without sending it, then a
 
 it('closing the connection aborts a settings write and never publishes a late reply into its confirmed state', async () => {
   const off = { enabled: false, status: { kind: 'off' as const } };
-  const current = {
+  const current: ReadRemoteAccessResponse = {
     routes: { lan: off, tailnet: off, cloudflare: off },
     serviceUrl: 'http://127.0.0.1:4173',
+    editing: { fingerprint: fingerprint('a') },
   };
   let release: ((response: Response) => void) | undefined;
   let entered: (() => void) | undefined;
@@ -82,7 +110,7 @@ it('closing the connection aborts a settings write and never publishes a late re
   const started = new Promise<void>((resolve) => {
     entered = resolve;
   });
-  const { connection, registry } = fixture((_path, init) => {
+  const environment = fixture((_path, init) => {
     if (init?.method !== 'PATCH')
       return Promise.resolve(Response.json(current));
     signal = init.signal;
@@ -91,15 +119,11 @@ it('closing the connection aborts a settings write and never publishes a late re
       entered?.();
     });
   });
-  const state = readRemoteAccess(connection);
-  registry.mount(state);
-  await Effect.runPromise(AtomRegistry.getResult(registry, state));
-  const command = setRemoteAccess(connection);
-  registry.mount(command);
-  registry.set(command, { cloudflareHostname: 'porcelain.example.com' });
-  const finished = Effect.runPromiseExit(
-    AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
-  );
+  const { connection, registry } = environment;
+  const { state, finished } = await save(environment, {
+    expected: current.editing.fingerprint,
+    change: { cloudflareHostname: 'porcelain.example.com' },
+  });
   await started;
   await connection.close();
   expect(signal?.aborted).toBe(true);
@@ -111,4 +135,59 @@ it('closing the connection aborts a settings write and never publishes a late re
     AtomRegistry.getResult(registry, state),
   );
   expect(answer).toEqual(current);
+});
+
+it('a save refused because the ways in changed reads them again and shows the newer ways in, without sending the save twice', async () => {
+  const off = { enabled: false, status: { kind: 'off' as const } };
+  const first: ReadRemoteAccessResponse = {
+    routes: { lan: off, tailnet: off, cloudflare: off },
+    serviceUrl: 'http://127.0.0.1:4173',
+    editing: { fingerprint: fingerprint('a'), protectedRoute: 'tailnet' },
+  };
+  const newer: ReadRemoteAccessResponse = {
+    ...first,
+    routes: { ...first.routes, lan: { enabled: true, status: off.status } },
+    editing: { ...first.editing, fingerprint: fingerprint('b') },
+  };
+  const requests: string[] = [];
+  const environment = fixture((path, init) => {
+    requests.push(`${init?.method ?? 'GET'} ${path}`);
+    if (init?.method === 'PATCH')
+      return Promise.resolve(
+        Response.json(
+          {
+            statusCode: 409,
+            error: 'Conflict',
+            message:
+              'The ways in changed since you last looked. Check them again, then save your change.',
+          },
+          { status: 409 },
+        ),
+      );
+    return Promise.resolve(
+      Response.json(requests.length === 1 ? first : newer),
+    );
+  });
+  const { registry } = environment;
+  const { state, finished } = await save(environment, {
+    expected: first.editing.fingerprint,
+    change: { cloudflare: false },
+  });
+
+  const saved = await finished;
+
+  expect(Exit.isFailure(saved)).toBe(true);
+  await expect(Effect.runPromise(saved)).rejects.toMatchObject({
+    _tag: 'WaysInChangedError',
+    message:
+      'The ways in changed since you last looked. Check them again, then save your change.',
+  });
+  await expect
+    .poll(() => Effect.runPromise(AtomRegistry.getResult(registry, state)))
+    .toEqual(newer);
+  expect(requests).toEqual([
+    'GET /api/remote-access',
+    'PATCH /api/remote-access',
+    'GET /api/remote-access',
+  ]);
 });
