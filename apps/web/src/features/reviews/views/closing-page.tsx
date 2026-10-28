@@ -1,7 +1,7 @@
 import {
   ArchiveIcon,
+  CheckIcon,
   ChevronRightIcon,
-  CircleCheckIcon,
   CircleIcon,
   ExternalLinkIcon,
   LoaderCircleIcon,
@@ -279,13 +279,15 @@ function CompletionCard({
   return (
     <section
       aria-label="Review completion"
-      className="flex min-w-0 flex-col gap-4 rounded-paper border bg-card p-4 text-xs shadow-sm"
+      className="flex min-w-0 flex-col gap-3 rounded-paper border bg-card px-3 pt-3.5 pb-3 text-xs shadow-sm"
     >
-      <header className="flex items-start gap-2.5">
+      <header className="flex items-start gap-2">
         {allDecisions ? (
-          <CircleCheckIcon className="mt-0.5 size-5 shrink-0 text-graph-1" />
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground">
+            <CheckIcon className="size-2.75" strokeWidth={3} />
+          </span>
         ) : (
-          <CircleIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <CircleIcon className="size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <h3 className="text-card-title font-semibold">
@@ -300,9 +302,9 @@ function CompletionCard({
       </header>
       <section
         aria-label="Ready to merge needs"
-        className="flex flex-col gap-1.5 border-t pt-3"
+        className="flex flex-col gap-1.25 border-t pt-3"
       >
-        <h4 className="font-medium text-muted-foreground">
+        <h4 className="mb-0.25 font-medium text-muted-foreground">
           Ready to merge needs
         </h4>
         <Need met={allDecisions}>Every decision reviewed</Need>
@@ -318,23 +320,23 @@ function CompletionCard({
         <p
           role="status"
           className={cn(
-            'flex items-center gap-1.5',
+            'mt-0.75 flex items-center gap-1.5',
             group === 'Ready to merge'
               ? 'font-medium text-graph-1'
               : 'text-muted-foreground',
           )}
         >
           {group === 'Waiting on agent' && (
-            <LoaderCircleIcon className="size-3.5 shrink-0" />
+            <LoaderCircleIcon className="size-3 shrink-0" />
           )}
           {groupLabel(group)}
         </p>
       </section>
       <section
         aria-label="Still open"
-        className="flex flex-col gap-1 border-t pt-3"
+        className="flex flex-col gap-0.5 border-t pt-3"
       >
-        <h4 className="font-medium text-muted-foreground">Still open</h4>
+        <h4 className="mb-1 font-medium text-muted-foreground">Still open</h4>
         <OpenRow label="Not explained">
           {count(unexplained?.paths.length ?? 0, 'file')}
         </OpenRow>
@@ -346,7 +348,7 @@ function CompletionCard({
         </OpenRow>
         <OpenRow label="Not proven">{notProven}</OpenRow>
       </section>
-      <div className="flex flex-col gap-2 border-t pt-3">
+      <div className="flex flex-col gap-1.5 border-t pt-3">
         <button
           ref={setAskButton}
           type="button"
@@ -416,11 +418,12 @@ function count(total: number, noun: string) {
 
 function Need({ met, children }: { met: boolean; children: ReactNode }) {
   return (
-    <p className="flex items-start gap-1.5 text-ui leading-4.5">
+    <p className="flex items-start gap-1.75 text-ui leading-4.5">
       {met ? (
-        <CircleCheckIcon
+        <CheckIcon
           aria-label="Met"
           className="mt-0.5 size-3.5 shrink-0 text-graph-2"
+          strokeWidth={2.25}
         />
       ) : (
         <CircleIcon

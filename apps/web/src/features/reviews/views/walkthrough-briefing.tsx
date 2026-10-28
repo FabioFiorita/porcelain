@@ -514,7 +514,7 @@ function DecisionLink({
       className={cn(
         inline
           ? `${quietButton} h-6.5 gap-1.25 self-start pr-1.5 pl-2 text-xs leading-4 text-muted-foreground hover:text-foreground @2xl/review:self-center`
-          : `${smallButton} border border-border bg-background hover:bg-muted`,
+          : `${smallButton} border border-border bg-background pr-2.5 pl-3 hover:bg-muted`,
       )}
       onClick={() => onGo(decisionKey(layer.id))}
     >

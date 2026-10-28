@@ -5,16 +5,16 @@ export const primaryPill = `${control} rounded-full bg-primary font-medium text-
 
 export const outlinePill = `${control} rounded-full border border-border bg-background font-medium hover:bg-muted`;
 
-export const quietButton = `${control} rounded-md font-medium hover:bg-accent`;
+export const quietButton = `${control} rounded-sm font-medium hover:bg-accent`;
 
-export const smallButton = `${control} h-7 gap-1.5 rounded-lg px-2.5 text-xs leading-4 font-medium`;
+export const smallButton = `${control} h-7 gap-1.5 rounded-md px-2.5 text-xs leading-4 font-medium`;
 
 export const marginAction = `${quietButton} -ml-1.5 h-7 gap-1.75 pr-2 pl-1.5 text-xs leading-4 [&_svg]:size-3.5`;
 
 export const headerButton = `${quietButton} h-6.5 gap-1.5 px-2 font-sans text-xs leading-4 [&_svg]:size-3.5`;
 
 const tag =
-  'inline-flex h-4.5 shrink-0 items-center rounded-sm border px-1.5 text-2xs font-medium whitespace-nowrap';
+  'inline-flex h-4.5 shrink-0 items-center rounded-[--spacing(1.25)] border px-1.5 text-2xs font-medium whitespace-nowrap';
 
 export const changeTags = {
   new: `${tag} border-transparent bg-foreground leading-4.5 text-background`,
