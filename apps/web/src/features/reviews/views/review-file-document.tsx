@@ -154,8 +154,10 @@ function RetainedFile({
     AsyncResult.value(useAtomValue(readReviewMarks(input))),
   );
   const commands = reviewCommands(input);
-  const [markResult, mark] = useAtom(commands.mark, { mode: 'promise' });
-  const [unmarkResult, unmark] = useAtom(commands.unmark, { mode: 'promise' });
+  const [markResult, mark] = useAtom(commands.mark, { mode: 'promiseExit' });
+  const [unmarkResult, unmark] = useAtom(commands.unmark, {
+    mode: 'promiseExit',
+  });
   const fingerprint = changed?.newOid ?? changed?.oldOid;
   const reviewed =
     marks?.files.some(

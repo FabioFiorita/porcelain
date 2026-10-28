@@ -104,7 +104,7 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(search.side === undefined);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);

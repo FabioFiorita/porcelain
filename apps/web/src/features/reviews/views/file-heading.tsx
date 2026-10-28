@@ -26,11 +26,11 @@ export function FileHeading({
   return (
     <header
       data-file-heading=""
-      className="@container/file-heading flex min-h-11 shrink-0 items-center gap-2.5 px-4 text-muted-foreground"
+      className="@container/file-heading flex min-h-11 shrink-0 items-center gap-2.5 px-4 text-ui leading-[1.4] whitespace-nowrap text-foreground"
     >
       <TruncatedText
         text={path}
-        className="min-w-0 font-mono text-caption leading-4"
+        className="min-w-0 font-mono text-[length:var(--text-caption)] leading-4 text-muted-foreground"
         render={<h1 />}
       >
         {parts.length > 0 && (
@@ -47,9 +47,9 @@ export function FileHeading({
         {diff && (
           <span
             aria-label={`${deletions} deletions, ${additions} additions`}
-            className="flex gap-1.5 font-mono text-xs font-medium tabular-nums"
+            className="font-mono text-xs font-medium tabular-nums"
           >
-            <span className="text-del-fg">−{deletions}</span>
+            <span className="text-del-fg">−{deletions}</span>{' '}
             <span className="text-add-fg">+{additions}</span>
           </span>
         )}

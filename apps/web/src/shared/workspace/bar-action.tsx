@@ -32,42 +32,51 @@ export function BarAction({
 }) {
   return (
     <>
-      {(iconOnly ? (['compact'] as const) : (['compact', 'full'] as const)).map(
-        (mode) => (
-          <Tooltip key={mode}>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={variant}
-                  size={mode === 'compact' ? 'icon-sm' : 'xs'}
-                  className={cn(
-                    !iconOnly && mode === 'compact' && '@min-3xl/pane:hidden',
-                    mode === 'full' && 'hidden h-7 @min-3xl/pane:inline-flex',
-                  )}
-                  aria-label={label}
-                  aria-keyshortcuts={shortcut}
-                  aria-pressed={pressed}
-                  disabled={disabled}
-                  focusableWhenDisabled
-                  onClick={onClick}
-                />
-              }
-            >
+      {(iconOnly
+        ? (['compact'] as const)
+        : (['compact', 'key', 'full'] as const)
+      ).map((mode) => (
+        <Tooltip key={mode}>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={variant}
+                size={mode === 'compact' ? 'icon-sm' : 'xs'}
+                className={cn(
+                  !iconOnly && mode === 'compact' && '@min-lg/pane:hidden',
+                  mode === 'key' &&
+                    'hidden @min-lg/pane:inline-flex @min-3xl/pane:hidden',
+                  mode === 'full' && 'hidden @min-3xl/pane:inline-flex',
+                  shortcut && 'h-7',
+                )}
+                aria-label={label}
+                aria-keyshortcuts={shortcut}
+                aria-pressed={pressed}
+                disabled={disabled}
+                focusableWhenDisabled
+                onClick={onClick}
+              />
+            }
+          >
+            {pressed === false ? (
+              <span
+                aria-hidden="true"
+                className="size-3.5 shrink-0 rounded-sm border-[--spacing(0.375)] border-border-strong bg-background"
+              />
+            ) : (
               <Icon className="size-3.5" />
-              {mode === 'full' && (
-                <>
-                  <span>{label}</span>
-                  {shortcut && <Kbd>{formatForDisplay(shortcut)}</Kbd>}
-                </>
-              )}
-            </TooltipTrigger>
-            <TooltipContent role="tooltip">
-              {description ?? label}
-              {shortcut && <Kbd>{formatForDisplay(shortcut)}</Kbd>}
-            </TooltipContent>
-          </Tooltip>
-        ),
-      )}
+            )}
+            {mode === 'full' && <span>{label}</span>}
+            {shortcut && mode !== 'compact' && (
+              <Kbd>{formatForDisplay(shortcut)}</Kbd>
+            )}
+          </TooltipTrigger>
+          <TooltipContent role="tooltip">
+            {description ?? label}
+            {shortcut && <Kbd>{formatForDisplay(shortcut)}</Kbd>}
+          </TooltipContent>
+        </Tooltip>
+      ))}
     </>
   );
 }

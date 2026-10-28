@@ -166,7 +166,8 @@ export function DocumentTabs({
     <div
       data-pane-bar=""
       className={cn(
-        'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5',
+        'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
+        side !== null && side !== undefined && 'gap-2',
         side !== null && side !== undefined && focused && 'bg-muted/40',
       )}
     >
@@ -343,6 +344,7 @@ function DocumentTab({
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent/50',
+                    active && tabKey !== 'handoff' && !pinned && 'pr-0.5',
                   )}
                   onClick={() => onActivate(tabKey)}
                   onAuxClick={(event) => {
