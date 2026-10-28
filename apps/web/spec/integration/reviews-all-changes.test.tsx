@@ -203,6 +203,29 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       )
       .toEqual([repo.readme.path]);
 
+    await repo.write('notes.md', 'First note\nSecond note\n');
+    const both = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const notes = both.getByRole('button', {
+      name: 'notes.md −0 +2',
+      exact: true,
+    });
+    await notes.click();
+    await expect.element(notes).toHaveAttribute('aria-current', 'true');
+    await expect
+      .element(
+        both.getByRole('button', {
+          name: `${repo.readme.path} −0 +2`,
+          exact: true,
+        }),
+      )
+      .not.toHaveAttribute('aria-current');
+    await expect
+      .element(workspace.getByText('Second note', { exact: true }))
+      .toBeVisible();
+
     const compare = workspace
       .getByRole('toolbar', { name: 'Document controls', exact: true })
       .getByRole('tablist', { name: 'Compare', exact: true });
@@ -210,14 +233,14 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       .element(compare.getByRole('tab', { name: 'Uncommitted', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
     await compare.getByRole('tab', { name: 'Branch', exact: true }).click();
-    await expect.element(table).not.toBeInTheDocument();
+    await expect.element(both).not.toBeInTheDocument();
     await expect
       .element(compare.getByRole('tab', { name: 'Branch', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
     await compare
       .getByRole('tab', { name: 'Uncommitted', exact: true })
       .click();
-    await expect.element(table).toBeVisible();
+    await expect.element(both).toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }

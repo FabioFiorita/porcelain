@@ -27,6 +27,7 @@ import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_CARD_CSS,
+  PIERRE_CHANGES_HEADER_CSS,
   PIERRE_COMMENT_CSS,
   PIERRE_DECISION_CSS,
   PIERRE_DECISION_THEME,
@@ -362,7 +363,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CARD_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${column ? `${PIERRE_CARD_CSS}${PIERRE_CHANGES_HEADER_CSS}` : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -429,14 +430,16 @@ function CodeSurface({
     ) : (
       (emptyActions ?? headerActions)
     ));
-  const headerControls: CodeHeaderControls = {
-    collapse: collapseControl,
-    current: entries[focused]?.path,
-    counts: lineCounts(entries),
-    open: (path) =>
-      focusEntry(entries.findIndex((entry) => entry.path === path)),
-  };
-  const renderHeader = header && (() => header(headerControls));
+  const renderHeader =
+    header &&
+    (() =>
+      header({
+        collapse: collapseControl,
+        current: entries[focused]?.path,
+        counts: lineCounts(entries),
+        open: (path) =>
+          focusEntry(entries.findIndex((entry) => entry.path === path)),
+      }));
   const selectionAnchor = selectedRangeAnchor(
     selection,
     composer !== null && composer !== undefined,

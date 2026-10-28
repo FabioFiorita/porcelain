@@ -42,7 +42,7 @@ import { BranchReviewPage } from './branch-review-page';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-type ChangeScopeControl = {
+export type ChangeScopeControl = {
   scope: ChangeScope;
   onScope: (scope: ChangeScope) => void;
 };

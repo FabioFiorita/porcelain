@@ -47,7 +47,6 @@ import {
 } from '@/features/git-actions/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import type {
-  ChangeScope,
   SetWorkspaceSearch,
   Surface,
   WorkspaceSearch,
@@ -69,7 +68,7 @@ import {
   type TabCount,
 } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
-import { DocumentView } from './documents';
+import { type ChangeScopeControl, DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -382,7 +381,7 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
-  changes: { scope: ChangeScope; onScope: (scope: ChangeScope) => void };
+  changes: ChangeScopeControl;
   onOpen: OpenDocument;
   onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;

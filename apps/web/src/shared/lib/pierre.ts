@@ -17,10 +17,21 @@ registerCustomCSSVariableTheme(PIERRE_DECISION_THEME, {});
 export const PIERRE_CARD_CSS = `
 [data-diffs-header] {
   min-height: calc(var(--spacing) * 10);
-  padding-inline: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5);
+  padding-inline: calc(var(--spacing) * 3);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--muted);
+}
+pre {
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+`;
+
+export const PIERRE_CHANGES_HEADER_CSS = `
+[data-diffs-header] {
+  padding-inline: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5);
 }
 [data-diffs-header] [data-change-icon] {
   display: none;
@@ -44,11 +55,6 @@ export const PIERRE_CARD_CSS = `
 }
 [data-diffs-header] [data-additions-count] {
   color: var(--add-fg);
-}
-pre {
-  border: 1px solid var(--border);
-  border-top: 0;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 `;
 

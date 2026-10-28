@@ -1,5 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import type {
   ReviewChangeItem,
   ReviewScope,
@@ -23,6 +23,7 @@ export function ChangeTable({
   controls: CodeHeaderControls;
   actions?: ReactNode;
 }) {
+  const [latest, setLatest] = useState<string>();
   const reviewed = items.filter(
     (item) => item.reviewStatus === 'reviewed',
   ).length;
@@ -58,14 +59,12 @@ export function ChangeTable({
                 path={item.path}
                 fingerprint={item.fingerprint}
                 status={item.reviewStatus}
+                latest={latest === item.path}
+                onStart={() => setLatest(item.path)}
               />
-              <button
-                type="button"
-                aria-current={
-                  controls.current === item.path ? 'true' : undefined
-                }
-                onClick={() => controls.open(item.path)}
-                className="flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+              <RowTarget
+                current={controls.current === item.path}
+                onOpen={counts ? () => controls.open(item.path) : undefined}
               >
                 <TruncatedText
                   className="min-w-0 font-mono text-caption leading-4"
@@ -82,11 +81,35 @@ export function ChangeTable({
                     <span className="text-add-fg">+{counts.additions}</span>
                   </span>
                 )}
-              </button>
+              </RowTarget>
             </li>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+function RowTarget({
+  current,
+  onOpen,
+  children,
+}: {
+  current: boolean;
+  onOpen: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  const className =
+    'flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground';
+  if (!onOpen) return <div className={className}>{children}</div>;
+  return (
+    <button
+      type="button"
+      aria-current={current ? 'true' : undefined}
+      onClick={onOpen}
+      className={`${className} outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring`}
+    >
+      {children}
+    </button>
   );
 }

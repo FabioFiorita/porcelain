@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   Tooltip,
@@ -149,57 +150,78 @@ export function ReviewedCheckbox({
   path,
   fingerprint,
   status,
+  latest,
+  onStart,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   path: string;
   fingerprint: string | null | undefined;
   status: ReviewStatus;
+  latest: boolean;
+  onStart: () => void;
 }) {
   const mark = useMarkReviewed(scope, context, WORKTREE_RANGE);
   const unmark = useUnmarkReviewed(scope, context, WORKTREE_RANGE);
-  const pending = mark.result.waiting || unmark.result.waiting;
-  const error = reviewedCommandFailure(mark.result, unmark.result);
+  const busy = mark.result.waiting || unmark.result.waiting;
+  const pending = latest && busy;
+  const failure = reviewedCommandFailure(mark.result, unmark.result);
+  const error = latest ? failure : undefined;
+  const hintId = useId();
   const reviewed = status === 'reviewed';
   const reviewable = fingerprint !== null && fingerprint !== undefined;
   const staleHint =
     status === 'stale' ? 'Changed since reviewed' : 'Toggle reviewed';
   const hint = reviewable ? staleHint : unavailableReviewText([path]);
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={reviewed}
-            aria-label={`${path} reviewed`}
-            aria-invalid={error !== undefined}
-            disabled={pending || !reviewable}
-            onClick={() => {
-              if (fingerprint === null || fingerprint === undefined) return;
-              if (reviewed) unmark.start(path);
-              else mark.start({ path, fingerprint });
-            }}
-            className={cn(
-              'grid size-4 shrink-0 place-items-center rounded-checkbox border-(length:--border-checkbox) border-border-strong bg-background text-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-              reviewed && 'border-foreground bg-foreground',
-              status === 'stale' && 'border-warn',
-              error !== undefined && 'border-destructive',
-            )}
-          />
-        }
-      >
-        {pending ? (
-          <LoaderCircleIcon className="size-3 animate-spin text-muted-foreground" />
-        ) : (
-          reviewed && <CheckIcon className="size-3" strokeWidth={3} />
-        )}
-      </TooltipTrigger>
-      <TooltipContent role="tooltip" className="break-all">
-        {error === undefined ? hint : reviewErrorMessage(error)}
-      </TooltipContent>
-    </Tooltip>
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={reviewed}
+              aria-label={`${path} reviewed`}
+              aria-describedby={hintId}
+              aria-invalid={error !== undefined}
+              aria-disabled={busy || !reviewable}
+              onClick={() => {
+                if (busy || fingerprint === null || fingerprint === undefined)
+                  return;
+                onStart();
+                if (reviewed) unmark.start(path);
+                else mark.start({ path, fingerprint });
+              }}
+              className={cn(
+                'grid size-4 shrink-0 place-items-center rounded-checkbox border-(length:--border-checkbox) border-border-strong bg-background text-background outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed',
+                !reviewable && 'opacity-50',
+                reviewed && 'border-foreground bg-foreground',
+                status === 'stale' && 'border-warn',
+                error !== undefined && 'border-destructive',
+              )}
+            />
+          }
+        >
+          {pending ? (
+            <LoaderCircleIcon className="size-3 animate-spin text-muted-foreground" />
+          ) : (
+            reviewed && <CheckIcon className="size-3" strokeWidth={3} />
+          )}
+        </TooltipTrigger>
+        <TooltipContent role="tooltip" className="break-all">
+          {error === undefined ? hint : reviewErrorMessage(error)}
+        </TooltipContent>
+      </Tooltip>
+      <span id={hintId} hidden>
+        {hint}
+      </span>
+      {error !== undefined && (
+        <span role="alert" className="sr-only">
+          {reviewErrorMessage(error)}
+        </span>
+      )}
+    </>
   );
 }
 
