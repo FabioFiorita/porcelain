@@ -89,7 +89,7 @@ test.for(['server', 'web', 'desktop', 'mobile'])(
   },
 );
 
-test('web and desktop retained evidence and repeated stop work without an installed browser driver', async ({
+test('web and desktop retained evidence, repeated stop and board options work without an installed browser driver', async ({
   onTestFinished,
 }) => {
   const copy = await checkoutCopy(onTestFinished);
@@ -104,6 +104,20 @@ test('web and desktop retained evidence and repeated stop work without an instal
   expect(existsSync(join(copy, 'node_modules/playwright'))).toBe(false);
   expect(existsSync(join(copy, '.agents/skills/node_modules/playwright'))).toBe(
     false,
+  );
+  const probe = '.agents/skills/web-verify/scripts/board-options-probe.ts';
+  await writeFile(
+    join(copy, probe),
+    `#!${process.execPath}
+import { boardDiffOptions } from './board-options.ts';
+boardDiffOptions(['board-diff', '--board', 'sidebar', '--route', '//other.example']);
+`,
+    { mode: 0o700 },
+  );
+  const options = await cli(copy, probe);
+  expect(options.code).toBe(1);
+  expect(options.stderr).toContain(
+    '--route must be a path on the running app.',
   );
   const id = 'abc12345';
   for (const surface of ['web', 'desktop']) {
