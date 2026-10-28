@@ -51,6 +51,9 @@ export function PairDevice({
       ? issue.value
       : null;
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
+  const issuedRoute =
+    issued &&
+    addresses.find(({ url }) => issued.link.startsWith(`${url}/pair#`))?.route;
   if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">
@@ -154,11 +157,11 @@ export function PairDevice({
       )}
       {issued && (
         <div className="flex flex-col gap-2.5 border-t pt-2.5">
-          <div className="flex gap-2.5">
+          <div className="flex flex-wrap gap-2.5">
             <div className="shrink-0 rounded-lg bg-white p-1 inset-ring inset-ring-border">
               <PairingQr link={issued.link} />
             </div>
-            <div className="flex min-w-0 flex-col gap-1 pt-0.5">
+            <div className="flex min-w-0 flex-1 basis-20 flex-col gap-1 pt-0.5">
               <p className="text-ui leading-4.5 font-medium">
                 Scan on {issued.label}
               </p>
@@ -167,7 +170,8 @@ export function PairDevice({
                 <span className="tabular-nums">
                   {new Date(issued.expiresAt).toLocaleTimeString()}
                 </span>
-                , through {remoteRouteTitles[target.route]}.
+                {issuedRoute && <>, through {remoteRouteTitles[issuedRoute]}</>}
+                .
               </p>
             </div>
           </div>

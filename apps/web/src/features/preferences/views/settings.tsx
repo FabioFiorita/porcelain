@@ -339,69 +339,71 @@ function ComputerPicker({
 
 export function GeneralSettings() {
   return (
-    <>
+    <div className="flex flex-col">
       <SettingsHeading
         section="Settings"
         title="General"
         lead="How Porcelain looks, and how code and documents open."
       />
-      <FieldSet>
-        <FieldLegend variant="label">Appearance</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Theme"
-            description="System follows your operating system."
-            name="appearance"
-            options={[
-              { value: 'system', label: 'System' },
-              { value: 'light', label: 'Light' },
-              { value: 'dark', label: 'Dark' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Code</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Diff layout"
-            description="Split shows old and new side by side."
-            name="diffStyle"
-            options={[
-              { value: 'unified', label: 'Unified' },
-              { value: 'split', label: 'Split' },
-            ]}
-          />
-          <Separator />
-          <Choice
-            label="Long lines"
-            description="Wrap keeps every line visible without scrolling."
-            name="lineOverflow"
-            options={[
-              { value: 'scroll', label: 'Scroll' },
-              { value: 'wrap', label: 'Wrap' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Documents</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Documents open as"
-            description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
-            name="documentsDefault"
-            options={[
-              { value: 'rendered', label: 'Rendered' },
-              { value: 'source', label: 'Source' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <p className="text-xs text-muted-foreground">
+      <div className="mt-8 flex flex-col gap-7">
+        <FieldSet>
+          <FieldLegend variant="label">Appearance</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Theme"
+              description="System follows your operating system."
+              name="appearance"
+              options={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Code</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Diff layout"
+              description="Split shows old and new side by side."
+              name="diffStyle"
+              options={[
+                { value: 'unified', label: 'Unified' },
+                { value: 'split', label: 'Split' },
+              ]}
+            />
+            <Separator />
+            <Choice
+              label="Long lines"
+              description="Wrap keeps every line visible without scrolling."
+              name="lineOverflow"
+              options={[
+                { value: 'scroll', label: 'Scroll' },
+                { value: 'wrap', label: 'Wrap' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Documents</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Documents open as"
+              description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+              name="documentsDefault"
+              options={[
+                { value: 'rendered', label: 'Rendered' },
+                { value: 'source', label: 'Source' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">
         These preferences are saved on this device.
       </p>
-    </>
+    </div>
   );
 }
 
