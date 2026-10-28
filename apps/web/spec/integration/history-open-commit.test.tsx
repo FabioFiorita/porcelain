@@ -86,6 +86,26 @@ test('opening a commit leads with its subject and summarizes its files before th
         .getByText('README.md', { exact: true }),
     )
     .toBeVisible();
+  const changedFiles = workspace.getByRole('list', {
+    name: 'Changed files',
+    exact: true,
+  });
+  await expect
+    .element(changedFiles.getByText('+2', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(changedFiles.getByText('−0', { exact: true }))
+    .toBeVisible();
+  const [commit] = (await server.commits()).commits;
+  if (!commit) throw new Error('The committed change must be listed');
+  await expect
+    .element(
+      workspace.getByRole('tab', {
+        name: `${commit.oid.slice(0, 7)} ${subject}`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
   await expect
     .element(workspace.getByText('A change to review.', { exact: true }))
     .toBeVisible();
@@ -120,5 +140,39 @@ test('a binary file in a commit is listed without a code preview and says it is 
     .toBeVisible();
   await expect
     .element(withoutPreview.getByText('added · Binary change', { exact: true }))
+    .toBeVisible();
+});
+
+test('a retained commit only names the checkout branch while its history contains that commit', async ({
+  repo,
+  server,
+  render,
+}) => {
+  await repo.branch('topic');
+  await repo.switch('topic');
+  await repo.commit('Keep this commit open');
+  const workspace = await render.workspace();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: /^Keep this commit open/ })
+    .click();
+  await expect
+    .element(workspace.getByText('on topic', { exact: true }))
+    .toBeVisible();
+  await repo.switch(repo.initialBranch);
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.subject)
+    .toBe('Initial commit');
+  await expect
+    .element(workspace.getByText('on topic', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace.getByRole('heading', {
+        name: 'Keep this commit open',
+        exact: true,
+      }),
+    )
     .toBeVisible();
 });

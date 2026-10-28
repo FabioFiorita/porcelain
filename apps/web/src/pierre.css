@@ -38,3 +38,9 @@ diffs-container {
 .pierre-file-icon {
   color: var(--muted-foreground);
 }
+
+.commit-code diffs-container {
+  margin-inline: auto;
+  width: calc(100% - var(--spacing) * 14);
+  max-width: calc(var(--container-commit) - var(--spacing) * 14);
+}

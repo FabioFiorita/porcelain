@@ -97,6 +97,7 @@ type Props = {
   range?: ReviewRange;
   threadMargin?: boolean;
   decision?: boolean;
+  framed?: boolean;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -142,6 +143,7 @@ function CodeSurface({
   collapsible = false,
   threadMargin = false,
   decision = false,
+  framed = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -320,7 +322,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: decision ? PIERRE_DECISION_THEME : PIERRE_THEME,
+    theme: decision || framed ? PIERRE_DECISION_THEME : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -348,7 +350,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${decision || framed ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -425,7 +427,8 @@ function CodeSurface({
     <div
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
-        decision && 'decision-code',
+        (decision || framed) && 'decision-code',
+        framed && 'commit-code',
       )}
     >
       {interaction.toolbarTarget &&
@@ -746,7 +749,7 @@ function CodeSurface({
               </div>
             );
           }}
-          disableWorkerPool={decision}
+          disableWorkerPool={decision || framed}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }

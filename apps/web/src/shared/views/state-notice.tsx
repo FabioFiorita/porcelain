@@ -41,6 +41,7 @@ export function StateNotice({
 }) {
   return (
     <section
+      data-slot="state-notice"
       role={role}
       className="flex w-full min-w-0 max-w-xl flex-col gap-3 p-6 text-left"
     >

@@ -546,6 +546,7 @@ function PaneView({
       )}
     >
       <DocumentTabs
+        commitContext={{ connection: context.connection, scope }}
         reviewCount={
           review?.reviewId ? (
             <ReviewTabProgress review={review} context={context} />

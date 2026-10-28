@@ -87,20 +87,20 @@ export function HistoryNavigation({
             sideLabel={sideLabel}
           />
         )}
+        {history.commits.length > 0 && (
+          <div className="shrink-0 border-t p-1.5">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={onOpenGraph}
+            >
+              <GitGraphIcon />
+              Open graph
+              <ChevronRightIcon className="ml-auto text-muted-foreground" />
+            </Button>
+          </div>
+        )}
       </ScrollArea>
-      {history.commits.length > 0 && (
-        <div className="shrink-0 border-t p-1.5">
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            onClick={onOpenGraph}
-          >
-            <GitGraphIcon />
-            Open graph
-            <ChevronRightIcon className="ml-auto text-muted-foreground" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -113,10 +113,10 @@ export function HistoryHeading({
   return (
     <>
       {history.snapshot !== null && history.snapshot !== undefined && (
-        <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3.5 font-mono text-ui text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <TruncatedText
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 font-medium text-foreground"
             text={historyHeading(history.snapshot)}
           />
         </div>

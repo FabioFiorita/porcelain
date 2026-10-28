@@ -311,6 +311,20 @@ async function shoot(
     const text = await settledText(page);
     if (text === undefined) record('the content kept changing for 15 s');
     else if (text.trim() === '') record('the page rendered no text');
+    for (const title of ['Page not found', 'Computer unavailable'])
+      if (
+        await page
+          .locator('[data-slot="state-notice"]')
+          .getByRole('heading', { name: title, exact: true })
+          .or(
+            page
+              .locator('[data-slot="breadcrumb-page"][aria-current="page"]')
+              .filter({ hasText: new RegExp(`^${title}$`) }),
+          )
+          .first()
+          .isVisible()
+      )
+        record(`the page rendered ${title}`);
     const landed = new URL(page.url());
     if (`${landed.pathname}${landed.search}` !== `${url.pathname}${url.search}`)
       record(`landed on ${landed.pathname}${landed.search} instead`);

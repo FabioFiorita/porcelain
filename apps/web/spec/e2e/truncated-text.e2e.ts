@@ -86,7 +86,7 @@ for (const width of [1440, 414]) {
         name: 'Open documents',
         exact: true,
       });
-      const commitTab = documents.getByRole('tab', { name: /^[0-9a-f]{7}$/ });
+      const commitTab = documents.getByRole('tab', { name: /^[0-9a-f]{7} / });
       for (const key of ['Enter', 'Space']) {
         await documents
           .getByRole('tab', { name: 'Changes', exact: true })
@@ -99,7 +99,7 @@ for (const width of [1440, 414]) {
       await page.keyboard.press('Tab');
       await expect(commitTab).toBeFocused();
       await expect(
-        page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40}$/ }),
+        page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40} · / }),
       ).toBeVisible();
     });
   }

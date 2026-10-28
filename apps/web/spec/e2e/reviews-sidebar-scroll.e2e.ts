@@ -36,7 +36,7 @@ async function checkScrolling(
     .toEqual({ headerTop: beforeControl.y, clearsScrollbar: true });
 }
 
-test('History keeps the branch and graph header fixed and its rows outside the scrollbar lane', async ({
+test('History keeps its branch fixed, scrolls the graph action with its rows, and clears the scrollbar lane', async ({
   app,
   repo,
 }) => {
@@ -58,12 +58,28 @@ test('History keeps the branch and graph header fixed and its rows outside the s
     await expect(
       sidebar.getByRole('button', { name: 'Open graph', exact: true }),
     ).toBeVisible();
+    const graph = sidebar.getByRole('button', {
+      name: 'Open graph',
+      exact: true,
+    });
+    const row = sidebar.getByRole('button', { name: /^Sidebar history 18 / });
+    await row.hover();
+    const beforeGraph = await graph.boundingBox();
+    if (!beforeGraph)
+      throw new Error(
+        'The graph action must be rendered after the history rows.',
+      );
     await checkScrolling(
       page,
       sidebar,
-      sidebar.getByRole('button', { name: 'Open graph', exact: true }),
-      sidebar.getByRole('button', { name: /^Sidebar history 18 / }),
+      sidebar.getByRole('region', { name: 'Branch', exact: true }),
+      row,
     );
+    await expect
+      .poll(async () => (await graph.boundingBox())?.y)
+      .toBe(beforeGraph.y - 300);
+    await graph.scrollIntoViewIfNeeded();
+    await expect(graph).toBeInViewport();
     if (width === 414) {
       await page.keyboard.press('Escape');
       await expect(

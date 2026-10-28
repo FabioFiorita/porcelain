@@ -22,7 +22,9 @@ export function GraphRows({
   selected,
   onSelect,
   sideLabel,
+  highlightHead = false,
 }: {
+  highlightHead?: boolean;
   label: string;
   layout: CommitRowLayout;
   history: History;
@@ -51,7 +53,7 @@ export function GraphRows({
               height={rowHeight}
               inset={width + HISTORY_GRAPH_ROW_GAP}
               layout={layout}
-              head={layout === 'columns' && commit.oid === tip}
+              head={highlightHead && commit.oid === tip}
               headRef={headRef}
               onSelect={(toSide) => onSelect(commit.oid, toSide)}
               openToSide={{
