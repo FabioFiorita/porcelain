@@ -59,3 +59,5 @@ Automated coverage: `reviews-edit-comment.test.tsx`.
 ## Gotchas
 
 - Delete acts immediately without confirmation. Scope Comment actions to the intended reviewer message if others exist. Escape in Edit comment cancels.
+
+In the Changes document, the file comment button uses its comparison label ("unstaged · modified") at wide widths and a Comment icon in a narrow pane. Its full accessible name is unchanged.

@@ -26,7 +26,7 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 
 - Open files as tabs: Review → sidebar tab "Files" → right-click a changed file's treeitem → menuitem "Open file" (a plain click on a changed file opens its diff instead).
 - Pin a tab: right-click the tab → menuitem "Pin"; the tab's close button becomes "Unpin <name>" and pinned tabs move to the front. Right-click → "Unpin" or the "Unpin <name>" button undoes it.
-- Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" in the toolbar folds every file.
+- Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" folds every file; in Changes, open File review actions at the progress count to reach it.
 - Reload: any full page load of the workspace.
 
 ## Driving it with browser
@@ -48,7 +48,7 @@ printf '# Notes\n' > "$REPO/notes.md"
 4. Right-click tab `/README.md/`, then click menuitem `Pin`
    Expect: button "Unpin README.md" (the README.md tab now reads "README.md Unpin README.md" and sits first); no "Close README.md".
 5. Click button `Review`, then click tab `Changes`, then click button `All changes`
-   Expect: the sheet closes; tab "Changes" selected; heading "Changes", text "2 files", buttons "Collapse README.md" and "Collapse notes.md". URL carries `entry=handoff`.
+   Expect: the sheet closes; tab "Changes" selected; heading "2 uncommitted changes", buttons "Collapse README.md" and "Collapse notes.md". URL carries `entry=handoff`.
 6. Click button `Collapse README.md`
    Expect: button "Expand README.md" (aria-expanded false).
 7. Navigate to `<path and query of the URL step 6 printed>` (the reload)

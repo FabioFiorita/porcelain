@@ -77,8 +77,14 @@ test('Spec files creates a separate collapsed section only while the setting is 
     .getByRole('button', { name: 'Open all specs', exact: true })
     .click();
   await expect(
-    pairedPage.getByRole('heading', { name: 'Specs', exact: true }),
+    pairedPage.getByRole('heading', {
+      name: '1 uncommitted spec change',
+      exact: true,
+    }),
   ).toBeVisible();
+  await pairedPage
+    .getByRole('button', { name: /^File review actions:/ })
+    .click();
   await pairedPage
     .getByRole('button', { name: 'Mark all 1 files reviewed', exact: true })
     .click();

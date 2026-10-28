@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -271,6 +272,7 @@ function PlainChangesDocument({
   specsOnly = false,
   intro = false,
 }: DocumentProps & { specsOnly?: boolean; intro?: boolean }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
   const specsApart = useSpecsApart(context.connection);
@@ -282,6 +284,7 @@ function PlainChangesDocument({
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
+  if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (!specsOnly && changes.length === 0)
     return (
       <StateNotice
@@ -346,6 +349,8 @@ function PlainChangesDocument({
               label={changesLabel(specsOnly, changes.length)}
               items={changes}
               controls={controls}
+              actionsOpen={actionsOpen}
+              onActionsOpenChange={setActionsOpen}
               actions={
                 <MarkAllReviewed
                   scope={scope}

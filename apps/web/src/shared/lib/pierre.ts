@@ -30,8 +30,19 @@ pre {
 `;
 
 export const PIERRE_CHANGES_HEADER_CSS = `
+:host {
+  --diffs-font-size: var(--text-caption);
+  --diffs-line-height: calc(var(--spacing) * 5.5);
+}
+[data-diffs-header] [data-deletions-count] {
+  order: -1;
+}
+[data-code] {
+  padding-block: 0;
+}
+
 [data-diffs-header] {
-  padding-inline: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5);
+  padding-inline: calc(var(--spacing) * 2);
 }
 [data-diffs-header] [data-change-icon] {
   display: none;

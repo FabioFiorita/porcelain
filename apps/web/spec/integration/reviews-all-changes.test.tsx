@@ -29,6 +29,9 @@ test('all changes includes every changed file, including unexplained, deleted an
     )
     .toBeVisible();
   await workspace
+    .getByRole('button', { name: /^File review actions:/ })
+    .click();
+  await workspace
     .getByRole('button', { name: 'Mark all 5 files reviewed', exact: true })
     .click();
   const marks = async () =>
@@ -243,5 +246,81 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
     await expect.element(both).toBeVisible();
   } finally {
     await page.viewport(414, 896);
+  }
+});
+
+test('Changes file buttons follow the displayed file order', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  await repo.write('zz-notes.md', 'First note\nSecond note\n');
+  const workspace = await render.workspace();
+  const table = workspace.getByRole('region', {
+    name: '2 uncommitted changes',
+    exact: true,
+  });
+  const currentRows = () => reviewLayout.currentChangeRows(table);
+  await table
+    .getByRole('button', { name: 'zz-notes.md −0 +2', exact: true })
+    .click();
+  await expect.poll(currentRows).toEqual(['zz-notes.md−0+2']);
+  await workspace
+    .getByRole('button', { name: 'Previous file', exact: true })
+    .last()
+    .click();
+  await expect.poll(currentRows).toEqual(['README.md−0+2']);
+  await workspace
+    .getByRole('button', { name: 'Next file', exact: true })
+    .first()
+    .click();
+  await expect.poll(currentRows).toEqual(['zz-notes.md−0+2']);
+});
+
+test('Changes reopens a collapsed file from its table', async ({
+  workspace,
+  repo,
+}) => {
+  const code = workspace.getByText('A change to review.', { exact: true });
+  await expect.element(code).toBeVisible();
+  await workspace
+    .getByRole('button', { name: `Collapse ${repo.readme.path}`, exact: true })
+    .click();
+  await expect.element(code).not.toBeInTheDocument();
+  await workspace
+    .getByRole('region', { name: '1 uncommitted change', exact: true })
+    .getByRole('button', { name: `${repo.readme.path} −0 +2`, exact: true })
+    .click();
+  await expect.element(code).toBeVisible();
+});
+
+test('Changes keeps the selected file when an earlier diff finishes loading', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('zz-notes.md', 'A later file\n');
+  const held = fetchGate.holdNextChangeDiff();
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const currentRows = () => reviewLayout.currentChangeRows(table);
+    await table
+      .getByRole('button', { name: 'zz-notes.md −0 +1', exact: true })
+      .click();
+    await expect.poll(currentRows).toEqual(['zz-notes.md−0+1']);
+    held.release();
+    await expect
+      .element(workspace.getByText('A change to review.', { exact: true }))
+      .toBeInTheDocument();
+    await expect.poll(currentRows).toEqual(['zz-notes.md−0+1']);
+  } finally {
+    held.release();
   }
 });

@@ -354,7 +354,10 @@ function CountedTab({
                 />
               }
             >
-              <Icon className="size-3.5 shrink-0" />
+              <Icon
+                className="size-3.5 shrink-0"
+                strokeWidth={tabKey === 'handoff' ? 1.75 : undefined}
+              />
               {label}
               {count && (
                 <span

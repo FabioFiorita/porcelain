@@ -20,6 +20,11 @@ function highlightedLines(locator: Locator) {
 }
 
 export const reviewLayout = {
+  currentChangeRows(table: Locator) {
+    return [
+      ...table.element().querySelectorAll('button[aria-current="true"]'),
+    ].map((button) => button.textContent?.replace(/\s/g, ''));
+  },
   reviewControlLabels(controls: Locator) {
     return controls
       .elements()

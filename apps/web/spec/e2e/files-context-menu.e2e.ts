@@ -10,6 +10,7 @@ test('consecutive right-clicks position the menu at the second row for every fil
   await repo.write('guide.md', 'Guide\n');
   const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   const row = (name: string) =>
     page.getByRole('treeitem', { name, exact: true, includeHidden: true });
   for (const [first, second] of [
@@ -68,6 +69,7 @@ test('a menu at the bottom right keeps every label on one line and every action 
     );
   const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   const bottomRow = page.getByRole('treeitem', {
     name: 'qa-21.md',
     exact: true,
@@ -123,6 +125,7 @@ test('one outside pointer press dismisses the menu and clears accessible and vis
   await repo.write('guide.md', 'Guide\n');
   const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   const owner = page.getByRole('treeitem', {
     name: 'guide.md',
     exact: true,

@@ -43,7 +43,7 @@ The race needs the README.md diff request to reach the server only after the rew
 2. Click button `Review`
    Expect: button "All changes"; rows "README.md · unstaged" and "second.md · unstaged".
 3. Click button `All changes`
-   Expect: the sheet closes; heading "Changes" (All changes is the document titled "Changes", the one the workspace opens on); code holding "An earlier change to review." and "A second changed file."; no "Loading changes…".
+   Expect: the sheet closes; heading "2 uncommitted changes" (All changes is the document titled "Changes", the one the workspace opens on); code holding "An earlier change to review." and "A second changed file."; no "Loading changes…".
 4. Click button `Review`, then hold matching `POST /api/worktrees/:worktreeId/changes/diffs` requests in the browser before they reach the server (see [routing recipes and per-map instructions](../references/failure-injection.md))
    Expect: rows "README.md · unstaged" and "second.md · unstaged" again; the browser gate is armed for the next diff POST.
 5. Click button `README.md · unstaged`, then drop the live WebSocket and reject reconnects (see [routing recipes and per-map instructions](../references/failure-injection.md))

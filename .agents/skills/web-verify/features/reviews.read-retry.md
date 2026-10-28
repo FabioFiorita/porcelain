@@ -25,7 +25,7 @@ Preconditions: [surface baseline](README.md).
 1. Answer matching `GET /api/worktrees/:worktreeId/changes` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `/`.
    Expect: button Try again in the review surface.
 2. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then click button `Try again`.
-   Expect: heading Changes and the sample diff; Try again is gone, and the workspace address is unchanged.
+   Expect: heading "1 uncommitted change" and the sample diff; Try again is gone, and the workspace address is unchanged.
 3. Inspect HTTP traffic.
    Expect: the refused Changes read followed by a successful read after Try again.
 4. Inspect console, then `$C stop`.

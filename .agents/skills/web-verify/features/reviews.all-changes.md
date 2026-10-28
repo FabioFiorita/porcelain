@@ -26,7 +26,7 @@ All changes opens one scrollable document of every current changed file, also wi
 - Review (sheet at phone width, dialog "Worktree review") → tab "Review" → nav "Walkthrough" → button "All changes".
 - With no review published, the handoff tab "Changes" is the same document under the "No review yet" introduction.
 
-The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", then Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that scrolls to the file's diff and carries `aria-current` for the current file.
+The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that unfolds and scrolls to the file's diff and carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.
 
 ## Driving it with browser
 
@@ -37,10 +37,10 @@ Required instance mode: `$C start --review-sample`. Before loading, remove `"$RE
 It includes unexplained files, deleted files and specs. With a review published, the files come in walkthrough order, each with the name of its stop beside it ("<n>. <decision title>", "Not explained" or "Specs"), and the agent's notes carry decision-numbered markers such as "1.2". Each file can be collapsed and marked reviewed; the bulk mark covers the same complete file set. Unsupported content is listed, not silently removed.
 
 1. Open Review → tab "Review" → button "All changes".
-   Expect: the All changes document with heading "5 uncommitted changes", five rows and, in that header, button "Mark all 5 files reviewed". The revoke-access change retains its decision's agent notes.
+   Expect: the All changes document with heading "5 uncommitted changes", five rows and a progress button "File review actions: 0 of 5 files reviewed". Open it to reach "Mark all 5 files reviewed". The revoke-access change retains its decision's agent notes.
 2. Click "Collapse all", scroll to the end and expand an individual file.
    Expect: all five paths, including the removed packages/workspace/src/actor.ts, scripts/migrate-workspaces.ts and tests/publish-note.spec.ts. Expanding a file restores its content.
-3. Click "Mark all 5 files reviewed" and wait for "Unmark all" to become enabled.
+3. Open File review actions if closed, then click "Mark all 5 files reviewed" and wait for "Unmark all" to become enabled.
    Expect: `$C server reviewed-files` holds exactly those five marks. The bulk action records current-file marks, not a reviewed decision on the retained revision.
 4. Click "Unmark all" and wait for "Mark all 5 files reviewed" to become enabled.
    Expect: `$C server reviewed-files` holds no marks.
@@ -65,3 +65,5 @@ Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Chan
 
 - The bulk count leaves out current files already reviewed. Unmark first if the fixture has marks from an earlier run.
 - Files committed in a retained review are not all current worktree changes. Use the retained walkthrough to read the complete published revision.
+
+Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Click the comparison label (for example "unstaged · modified", or the Comment icon in a narrow pane) to comment on that file; its accessible name remains "Comment on <path> (<note>)".

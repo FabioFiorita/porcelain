@@ -1,3 +1,9 @@
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { type ReactNode, useState } from 'react';
 import type {
@@ -15,6 +21,8 @@ export function ChangeTable({
   items,
   controls,
   actions,
+  actionsOpen,
+  onActionsOpenChange,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
@@ -22,6 +30,8 @@ export function ChangeTable({
   items: readonly ReviewChangeItem[];
   controls: CodeHeaderControls;
   actions?: ReactNode;
+  actionsOpen: boolean;
+  onActionsOpenChange: (open: boolean) => void;
 }) {
   const [latest, setLatest] = useState<string>();
   const reviewed = items.filter(
@@ -33,16 +43,26 @@ export function ChangeTable({
         <h2 className="text-ui leading-4 font-medium text-foreground">
           {label}
         </h2>
-        <span className="ml-auto">
-          {reviewed} of {items.length} {items.length === 1 ? 'file' : 'files'}{' '}
-          reviewed
-        </span>
-        {(controls.collapse || actions) && (
-          <span className="flex items-center gap-1">
+        <Popover open={actionsOpen} onOpenChange={onActionsOpenChange}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="ml-auto"
+                aria-label={`File review actions: ${reviewed} of ${items.length} ${items.length === 1 ? 'file' : 'files'} reviewed`}
+              />
+            }
+          >
+            {reviewed} of {items.length} {items.length === 1 ? 'file' : 'files'}{' '}
+            reviewed
+          </PopoverTrigger>
+          <PopoverContent aria-label="File review actions" align="end">
             {controls.collapse}
             {actions}
-          </span>
-        )}
+          </PopoverContent>
+        </Popover>
       </div>
       <ol>
         {items.map((item) => {
