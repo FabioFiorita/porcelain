@@ -184,7 +184,7 @@ export function GitButton({
                   render={
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="xs"
                       aria-label={
                         running
                           ? `${networkLabel(running.name)} in progress: show progress`
@@ -195,7 +195,7 @@ export function GitButton({
                         (primary.kind === 'hint' || primaryBlocked)
                       }
                       focusableWhenDisabled
-                      className="aria-disabled:cursor-default"
+                      className="h-7 aria-disabled:cursor-default"
                       onClick={() => {
                         if (running || result) return;
                         if (primary.kind === 'commit') choose('commit');
@@ -217,7 +217,7 @@ export function GitButton({
                   className="size-3.5"
                 />
               )}
-              <span aria-hidden="true">
+              <span aria-hidden="true" className="hidden @min-xl/pane:inline">
                 {running ? `${networkLabel(running.name)}…` : primary.label}
                 {!running &&
                   count !== null &&
