@@ -363,7 +363,7 @@ function DocumentTab({
               <Icon className="size-3.5 shrink-0" />
               {label}
               {tabKey === 'handoff' && reviewCount && (
-                <span className="shrink-0 whitespace-nowrap">
+                <span className="shrink-0 text-2xs leading-4 whitespace-nowrap">
                   {reviewCount}
                 </span>
               )}
@@ -398,7 +398,7 @@ function DocumentTab({
                           event.stopPropagation();
                           onClose(tabKey);
                         }}
-                        className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                        className="mr-0.5 grid size-5 place-items-center rounded-[--spacing(1.25)] text-ui leading-[normal] font-normal text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
                       />
                     }
                   >

@@ -968,12 +968,30 @@ Names without `.html` are also accepted for the first mapped screen using that H
         }
       },
       {
+        "role": "review progress",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents\"] > [role=\"tab\"]:first-child > span:last-child"
+        },
+        "app": {
+          "selector": "[data-entry=\"handoff\"] > span:last-child"
+        }
+      },
+      {
         "role": "file tab",
         "board": {
           "selector": "[role=\"tablist\"][aria-label=\"Open documents\"] [role=\"tab\"][aria-selected=\"true\"]"
         },
         "app": {
           "selector": "[role=\"tab\"][data-entry^=\"review-file:\"][aria-selected=\"true\"]"
+        }
+      },
+      {
+        "role": "close file tab",
+        "board": {
+          "selector": "button[aria-label^=\"Close \"]"
+        },
+        "app": {
+          "selector": "[role=\"tab\"][data-entry^=\"review-file:\"] button[aria-label^=\"Close \"]"
         }
       },
       {
@@ -1126,12 +1144,30 @@ Names without `.html` are also accepted for the first mapped screen using that H
         }
       },
       {
+        "role": "review progress",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents, left pane\"] > [role=\"tab\"]:first-child > span:last-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Left pane\"] [data-entry=\"handoff\"] > span:last-child"
+        }
+      },
+      {
         "role": "file tab",
         "board": {
           "selector": "[role=\"tablist\"][aria-label=\"Open documents, right pane\"] [role=\"tab\"][aria-selected=\"true\"]"
         },
         "app": {
           "selector": "[aria-label=\"Right pane\"] [role=\"tab\"][data-entry^=\"review-file:\"][aria-selected=\"true\"]"
+        }
+      },
+      {
+        "role": "close file tab",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[aria-label^=\"Close \"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [role=\"tab\"][data-entry^=\"review-file:\"] button[aria-label^=\"Close \"]"
         }
       },
       {
