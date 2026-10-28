@@ -118,7 +118,16 @@ function makeAccessCommands(connection: RuntimeConnection) {
             )
             .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
         ),
-      setRemote: (change: SetRemoteAccessRequest) =>
+      allowWaysIn: (input: { id: string; allowed: boolean }) =>
+        run(
+          'paired-access',
+          client
+            .request((api) =>
+              api.administration.setWaysInPermission({ payload: input }),
+            )
+            .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
+        ),
+      setRemote: (edit: SetRemoteAccessRequest) =>
         run(
           'remote-access',
           confirm(
@@ -126,9 +135,12 @@ function makeAccessCommands(connection: RuntimeConnection) {
             snapshots.remote,
             client
               .request((api) =>
-                api.administration.setRemoteAccess({ payload: change }),
+                api.remoteAccess.setRemoteAccess({ payload: edit }),
               )
-              .pipe(Effect.tap(() => currentAnswerEffect(connection))),
+              .pipe(
+                Effect.tap(() => currentAnswerEffect(connection)),
+                Effect.tapError(() => refresh(readRemoteAccess(connection))),
+              ),
           ),
         ),
       startUpdate: (version: string) =>
@@ -193,10 +205,18 @@ export const setDeviceTrust = Atom.family(
       { concurrent: true },
     ),
 );
+export const setWaysInPermission = Atom.family(
+  ({ connection, id }: { connection: RuntimeConnection; id: string }) =>
+    accessCommandRuntime(connection).fn(
+      (allowed: boolean) =>
+        AccessCommands.use((commands) => commands.allowWaysIn({ id, allowed })),
+      { concurrent: true },
+    ),
+);
 export const setRemoteAccess = Atom.family((connection: RuntimeConnection) =>
   accessCommandRuntime(connection).fn(
-    (change: SetRemoteAccessRequest) =>
-      AccessCommands.use((commands) => commands.setRemote(change)),
+    (edit: SetRemoteAccessRequest) =>
+      AccessCommands.use((commands) => commands.setRemote(edit)),
     { concurrent: true },
   ),
 );

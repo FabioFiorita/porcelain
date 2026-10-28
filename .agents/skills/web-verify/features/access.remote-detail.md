@@ -9,6 +9,7 @@ selectors:
   - 'Address'
   - 'Computer ID'
   - 'Ways in'
+  - 'Saved connections'
   - 'Forget on this app'
   - 'Close Settings'
 tests:
@@ -17,6 +18,8 @@ api:
   - GET /api/environment
   - GET /api/session
   - POST /api/pair
+  - GET /api/remote-access
+  - PATCH /api/remote-access
 ---
 
 # access.remote-detail
@@ -33,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 
 This computer comes first, followed by saved computers. A saved row has an explicit Open <name> action, status, version/update information when online, and no search or filter. `/settings/computers/<environmentId>` opens its detail with the computer name in the breadcrumb. Browser and desktop both accept this route. A missing saved computer explains how to return to Computers and pair again.
 
-Open Settings → Computers, paste a remote pairing link and click Add. Open the named row. Overview shows live name/status, address, Computer ID, version and this device's ID; Ways in lists saved addresses read-only. Update progress stays consistent with the computer list. Offline detail keeps saved identity, labels it stale and explains Pair again. Forget on this app lives in the Danger zone and protects unsaved drafts.
+Open Settings → Computers, paste a remote pairing link and click Add. Open the named row. Overview shows live name/status, address, Computer ID, version and this device's ID; Saved connections lists saved addresses read-only. While the computer is online, Ways in shows that computer's live local network, Tailscale and Cloudflare tunnel settings when its owner let this app's device edit ways in, with the way in this app is connected through locked and explained; otherwise it says this device cannot see or change ways in. When this app reaches the computer through that computer's own address (127.0.0.1 or localhost, as the sandbox's remote does), it says instead that ways in cannot be seen or changed over this connection, granted or not. Update progress stays consistent with the computer list. Offline detail keeps saved identity, labels it stale and explains Pair again. Forget on this app lives in the Danger zone and protects unsaved drafts.
 
 Close Settings, the Computers breadcrumb and browser Back restore list scroll and the Open <name> button's focus. Immediate Escape works after click or keyboard activation; input Escape is ignored. Forget removes the row and moves focus to Computers list, so the next Escape can leave Settings. Direct detail URLs reload safely. An extra segment on any other section is not found.
 

@@ -56,6 +56,7 @@ export class ListAccessService extends Context.Service<
                   route,
                   routeInferred,
                   trusted,
+                  canEditWaysIn,
                 }) => ({
                   id,
                   label,
@@ -66,6 +67,7 @@ export class ListAccessService extends Context.Service<
                   route,
                   ...(routeInferred === true ? { routeInferred } : {}),
                   trusted: trusted === true,
+                  canEditWaysIn: canEditWaysIn === true,
                   ...(id === input?.viewerDeviceId ? { current: true } : {}),
                 }),
               ),

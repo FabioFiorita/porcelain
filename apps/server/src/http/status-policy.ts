@@ -23,6 +23,9 @@ import {
   TooManyPairingAttemptsError,
   TooManyLiveTicketsError,
   UntrustedDeviceError,
+  RemoteRouteInUseError,
+  WaysInChangedError,
+  WaysInPermissionRequiredError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -104,6 +107,7 @@ import {
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
+  GitHubPullRequestNotFoundError,
   GitHubReadError,
   UnknownBoxLayerError,
   CommentAuthorMismatchError,
@@ -120,6 +124,7 @@ import {
   ReviewConflictError,
   ReviewArchiveRefusedError,
   ReviewPublishRefusedError,
+  ReviewPullRequestRefusedError,
   ReviewNotFoundError,
   ReviewedMarkConflictError,
   ReviewLayerNotFoundError,
@@ -163,10 +168,19 @@ const rules: readonly StatusRule[] = [
     message: 'GitHub is unavailable',
   },
   {
-    errors: [ReviewPublishRefusedError, ReviewArchiveRefusedError],
+    errors: [
+      ReviewPublishRefusedError,
+      ReviewArchiveRefusedError,
+      ReviewPullRequestRefusedError,
+    ],
     statusCode: 409,
   },
   { errors: [ReviewNotFoundError], statusCode: 404 },
+  {
+    errors: [GitHubPullRequestNotFoundError],
+    statusCode: 404,
+    message: 'GitHub has no such pull request',
+  },
   {
     errors: [
       InvalidPairingAddressError,
@@ -215,6 +229,7 @@ const rules: readonly StatusRule[] = [
       CommentAuthorMismatchError,
       DeviceViewerRequiredError,
       UntrustedDeviceError,
+      WaysInPermissionRequiredError,
       ReviewGitSettingsTrustRequiredError,
     ],
     statusCode: 403,
@@ -259,6 +274,8 @@ const rules: readonly StatusRule[] = [
       ServiceUpdateRunningError,
       NoLocalNetworkError,
       UnidentifiedLocalNetworkError,
+      WaysInChangedError,
+      RemoteRouteInUseError,
       ReviewGitSettingsNotConfiguredError,
     ],
     statusCode: 409,

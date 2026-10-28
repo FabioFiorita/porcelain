@@ -58,6 +58,7 @@ const deviceSchema = Schema.Struct({
   route: deviceRouteSchema,
   routeInferred: Schema.optional(Schema.Boolean),
   trusted: Schema.Boolean,
+  canEditWaysIn: Schema.Boolean,
   current: Schema.optional(Schema.Boolean),
 });
 
@@ -106,6 +107,15 @@ export const setDeviceTrustResponseSchema = Schema.Struct({
   trusted: Schema.Boolean,
 });
 
+export const setWaysInPermissionRequestSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isMinLength(1)),
+  allowed: Schema.Boolean,
+});
+export const setWaysInPermissionResponseSchema = Schema.Struct({
+  id: Schema.String,
+  allowed: Schema.Boolean,
+});
+
 export const clearBrowserSessionResponseSchema = Schema.Undefined;
 
 type RedeemPairingRequest = typeof redeemPairingRequestSchema.Type;
@@ -120,5 +130,9 @@ export type RevokeAccessRequest = typeof revokeAccessRequestSchema.Type;
 export type RevokeAccessResponse = typeof revokeAccessResponseSchema.Type;
 export type SetDeviceTrustRequest = typeof setDeviceTrustRequestSchema.Type;
 export type SetDeviceTrustResponse = typeof setDeviceTrustResponseSchema.Type;
+export type SetWaysInPermissionRequest =
+  typeof setWaysInPermissionRequestSchema.Type;
+export type SetWaysInPermissionResponse =
+  typeof setWaysInPermissionResponseSchema.Type;
 export type ClearBrowserSessionResponse =
   typeof clearBrowserSessionResponseSchema.Type;

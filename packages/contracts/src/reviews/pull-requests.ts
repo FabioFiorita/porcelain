@@ -49,3 +49,21 @@ const projectGitHubAccountOverrideSchema = Schema.Struct({
 });
 export type ProjectGitHubAccountOverride =
   typeof projectGitHubAccountOverrideSchema.Type;
+
+export const setReviewPullRequestRequestSchema = Schema.Struct({
+  pullRequest: nullableAsUndefined(
+    Schema.String.check(
+      Schema.isPattern(
+        /^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/pull\/[1-9][0-9]*$/,
+      ),
+    ),
+  ),
+});
+export const setReviewPullRequestResponseSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('updated') }),
+  githubUnavailableSchema,
+]);
+export type SetReviewPullRequestRequest =
+  typeof setReviewPullRequestRequestSchema.Type;
+export type SetReviewPullRequestResponse =
+  typeof setReviewPullRequestResponseSchema.Type;

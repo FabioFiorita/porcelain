@@ -3,6 +3,7 @@ import type { GitHubPullRequest, PullRequest } from '../models/pull-request.ts';
 import { ReviewNotFoundError } from '../errors/review-not-found-error.ts';
 import { ReviewStore } from '../ports/review-store.ts';
 import { SetReviewStateService } from './set-review-state-service.ts';
+import { normalizedReviewPullRequest } from '../rules/review-publication.ts';
 import { mapPullRequest } from '../rules/pull-request.ts';
 export class ObserveReviewPullRequestService extends Context.Service<
   ObserveReviewPullRequestService,
@@ -33,7 +34,10 @@ export class ObserveReviewPullRequestService extends Context.Service<
             const record = yield* reviews.readRecord(input);
             if (record === undefined) return yield* new ReviewNotFoundError();
             const closedReview =
-              pullRequest.state !== 'open' && record.state === 'open';
+              pullRequest.state !== 'open' &&
+              record.state === 'open' &&
+              normalizedReviewPullRequest(record.pullRequest) ===
+                normalizedReviewPullRequest(input.pullRequest.url);
             if (closedReview)
               yield* close.execute({
                 reviewId: input.reviewId,

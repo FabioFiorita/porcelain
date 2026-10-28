@@ -8,6 +8,7 @@ export class GitHubAccountPreferenceService extends Context.Service<
       projectId: string;
       repository: string;
       override?: { account: string | undefined };
+      detected?: string;
     }) => Effect.Effect<GitHubAccountPreference | undefined>;
   }
 >()('@porcelain/reviews/GitHubAccountPreferenceService') {
@@ -23,6 +24,12 @@ export class GitHubAccountPreferenceService extends Context.Service<
                 projectId: input.projectId,
                 repository: input.repository,
                 account: input.override.account,
+              });
+            if (input.detected !== undefined)
+              yield* store.detect({
+                projectId: input.projectId,
+                repository: input.repository,
+                account: input.detected,
               });
             return yield* store.read(input);
           },

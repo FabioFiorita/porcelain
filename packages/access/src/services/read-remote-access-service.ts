@@ -1,15 +1,16 @@
 import { Effect, Context, Layer } from 'effect';
-import type { RemoteAccess } from '../models/remote-access.ts';
+import type { WaysInSnapshot } from '../models/ways-in.ts';
 import { NetworkAddressReader } from '../ports/network-address-reader.ts';
 import { RemoteAccessStore } from '../ports/remote-access-store.ts';
 import { RouteStateStore } from '../ports/route-state-store.ts';
 import { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
 import { localNetwork } from '../rules/local-network.ts';
 import { remoteAccessView } from '../rules/remote-access.ts';
+import { waysInFingerprint } from '../rules/ways-in.ts';
 
 export class ReadRemoteAccessService extends Context.Service<
   ReadRemoteAccessService,
-  { readonly execute: () => Effect.Effect<RemoteAccess, never> }
+  { readonly execute: () => Effect.Effect<WaysInSnapshot, never> }
 >()('@porcelain/access/ReadRemoteAccessService') {
   static readonly layer = Layer.effect(
     ReadRemoteAccessService,
@@ -21,17 +22,21 @@ export class ReadRemoteAccessService extends Context.Service<
 
       return {
         execute: Effect.fn('ReadRemoteAccessService.execute')(
-          function* (): Effect.fn.Return<RemoteAccess, never> {
+          function* (): Effect.fn.Return<WaysInSnapshot, never> {
             const here = localNetwork(
               networkAddresses.list(),
               yield* networkAddresses.defaultRoutes(),
             );
-            return remoteAccessView(
-              yield* remoteAccess.read(),
-              routeStates.read(),
-              runtimeStatusReader.current().address,
-              here,
-            );
+            const settings = yield* remoteAccess.read();
+            return {
+              remote: remoteAccessView(
+                settings,
+                routeStates.read(),
+                runtimeStatusReader.current().address,
+                here,
+              ),
+              fingerprint: waysInFingerprint(settings, here),
+            };
           },
         ),
       };
