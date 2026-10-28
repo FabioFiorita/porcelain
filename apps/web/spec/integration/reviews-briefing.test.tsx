@@ -208,7 +208,7 @@ test.for([
       .toEqual({ withinThreeLines: true, clipped });
     await expect
       .element(briefing.getByRole('region', { name: 'You asked', exact: true }))
-      .toMatchTextContent(`You asked: ${asked}`);
+      .toMatchTextContent(`You asked: “${asked}”`);
     if (clipped) {
       reviewLayout.focus(title);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');

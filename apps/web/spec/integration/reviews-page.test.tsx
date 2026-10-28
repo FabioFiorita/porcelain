@@ -105,7 +105,7 @@ test('the briefing owns the verdict, revisions retain immutable code after check
     .element(review.getByText('Desktop app', { exact: true }))
     .toBeVisible();
   await expect
-    .element(review.getByText(' · Mac is off', { exact: true }))
+    .element(review.getByText('Mac is off', { exact: true }))
     .toBeVisible();
   await review
     .getByRole('button', { name: 'Continue at decision 1', exact: true })
@@ -385,7 +385,7 @@ test('review-owned marks persist, closing keeps the review readable, and Delete 
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { state: 'closed' } });
   await expect
-    .element(review.getByText('closed', { exact: true }))
+    .element(review.getByText('Closed', { exact: true }))
     .toBeVisible();
   await expect
     .element(review.getByRole('button', { name: 'Close review', exact: true }))
