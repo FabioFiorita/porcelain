@@ -28,6 +28,14 @@ for (const [width, entry] of [
       name: 'Review walkthrough',
       exact: true,
     });
+    await expect
+      .element(
+        review.getByRole('region', {
+          name: '2. Revoke access across devices',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
     return {
       screen,
       review,
