@@ -1,7 +1,7 @@
 import { useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { TriangleAlertIcon } from 'lucide-react';
+import { GitPullRequestIcon, TriangleAlertIcon } from 'lucide-react';
 import {
   readProjectPullRequests,
   readReviewPullRequest,
@@ -68,7 +68,7 @@ function LinkedChip({
           ? 'Reading pull request'
           : 'GitHub unavailable. Open the Review panel to recover.'
       }
-      icon={waiting ? undefined : TriangleAlertIcon}
+      icon={GitPullRequestIcon}
       onClick={(event) => onShowPanel(event.currentTarget, false)}
     >
       {number && (
@@ -77,7 +77,16 @@ function LinkedChip({
           <Dot />
         </>
       )}
-      <span className={waiting ? 'text-muted-foreground' : 'text-warn'}>
+      <span
+        className={
+          waiting
+            ? 'text-muted-foreground'
+            : 'inline-flex items-center gap-1 text-warn'
+        }
+      >
+        {!waiting && (
+          <TriangleAlertIcon aria-hidden="true" className="size-3" />
+        )}
         {waiting ? 'Reading…' : 'GitHub unavailable'}
       </span>
     </PullRequestChip>
@@ -97,6 +106,7 @@ function AvailableChip({
     pull.checksSummary,
   );
   const newer = pull.state === 'open' && !pull.matchesReviewHead;
+  const details = pull.state !== 'open' ? 'Review closed' : checks.label;
   const status = () => {
     if (pull.state !== 'open')
       return <span className="text-muted-foreground">review closed</span>;
@@ -118,7 +128,7 @@ function AvailableChip({
   return (
     <PullRequestChip
       variant="linked"
-      description={`Open pull request #${pull.number}`}
+      description={`Open pull request #${pull.number}: ${pullRequestStateLabel(pull)}. ${newer ? 'New commits' : details}.`}
       icon={pullStateIcon(pull)}
       onClick={() => onOpen(pull.number)}
     >
