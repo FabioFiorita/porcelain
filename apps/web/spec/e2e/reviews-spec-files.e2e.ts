@@ -8,14 +8,15 @@ test('Spec files creates a separate collapsed section only while the setting is 
 }) => {
   await repo.write('search.spec.ts', 'export const spec = true;\n');
   await repo.write('search.ts', 'export const search = true;\n');
-  const rows = pairedPage.getByRole('button', {
+  const sidebar = pairedPage.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  const rows = sidebar.getByRole('button', {
     name: /^(README\.md|search\.spec\.ts|search\.ts)( · .+)?$/,
   });
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage
-    .getByRole('complementary', { name: 'Review sidebar', exact: true })
-    .getByRole('tab', { name: 'Changes', exact: true })
-    .click();
+  await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
   for (const [index, name] of [
     /^README\.md/,
     /^search\.spec\.ts/,
@@ -63,12 +64,9 @@ test('Spec files creates a separate collapsed section only while the setting is 
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await expect(
-    pairedPage.getByRole('button', { name: /^search\.spec\.ts/ }),
+    sidebar.getByRole('button', { name: /^search\.spec\.ts/ }),
   ).not.toBeVisible();
-  await pairedPage
-    .getByRole('complementary', { name: 'Review sidebar', exact: true })
-    .getByText('Specs · 1 files', { exact: true })
-    .click();
+  await sidebar.getByText('Specs · 1 files', { exact: true }).click();
   await expect(
     pairedPage.getByRole('button', { name: 'Open all specs', exact: true }),
   ).toBeVisible();
