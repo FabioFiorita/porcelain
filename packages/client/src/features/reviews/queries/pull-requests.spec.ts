@@ -62,35 +62,23 @@ it('updates the mounted account picker after choosing and resetting without chan
   });
   const stop = chosen.registry.mount(picker);
   const stopOther = other.registry.mount(otherPicker);
+  const choices = async () => ({
+    selected: (await readClientAtom(chosen.registry, picker)).choice,
+    other: (await readClientAtom(other.registry, otherPicker)).choice,
+  });
+  const detected = { account: 'personal', source: 'detected' };
+  const initial = { selected: detected, other: detected };
   try {
-    expect((await readClientAtom(chosen.registry, picker)).choice).toEqual({
-      account: 'personal',
-      source: 'detected',
-    });
-    expect((await readClientAtom(other.registry, otherPicker)).choice).toEqual({
-      account: 'personal',
-      source: 'detected',
-    });
+    expect(await choices()).toEqual(initial);
     chosen.registry.set(command, { account: 'work' });
     await readClientAtom(chosen.registry, command);
-    expect((await readClientAtom(chosen.registry, picker)).choice).toEqual({
-      account: 'work',
-      source: 'overridden',
-    });
-    expect((await readClientAtom(other.registry, otherPicker)).choice).toEqual({
-      account: 'personal',
-      source: 'detected',
+    expect(await choices()).toEqual({
+      selected: { account: 'work', source: 'overridden' },
+      other: detected,
     });
     chosen.registry.set(command, { account: undefined });
     await readClientAtom(chosen.registry, command);
-    expect((await readClientAtom(chosen.registry, picker)).choice).toEqual({
-      account: 'personal',
-      source: 'detected',
-    });
-    expect((await readClientAtom(other.registry, otherPicker)).choice).toEqual({
-      account: 'personal',
-      source: 'detected',
-    });
+    expect(await choices()).toEqual(initial);
   } finally {
     stop();
     stopOther();

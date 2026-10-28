@@ -10,8 +10,8 @@ selectors:
   - 'Read settings again'
   - 'Update this computer to sync settings'
   - 'GitHub account for pull requests'
-  - 'GitHub account for {project}'
-  - 'Use the detected account for {project}'
+  - 'GitHub account for'
+  - 'Use the detected account for'
 tests:
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts
   - apps/server/spec/integration/access-review-git-settings.integration.ts

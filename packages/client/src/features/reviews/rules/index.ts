@@ -151,6 +151,5 @@ export {
   pullReviewState,
   type FoundPullRequest,
   type PullRequestRead,
-  type GitHubUnavailableAction,
   type PullChecksTone,
 } from './pull-request.ts';

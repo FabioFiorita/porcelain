@@ -4,6 +4,7 @@ import {
   githubUnavailable,
   pullRequestChecks,
   pullCheckDuration,
+  pullCheckTone,
   pullRequestMergeable,
   pullRequestNumber,
   pullRequestRepository,
@@ -212,3 +213,12 @@ it.each([
     expect(pullRequestChecks([passed], true, summary)).toEqual(expected);
   },
 );
+
+it.each([
+  [passed, 'passed'],
+  [failed, 'failed'],
+  [running, 'running'],
+  [{ ...failed, conclusion: 'STALE' }, 'failed'],
+] as const)('reports the individual check %j as %s', (check, expected) => {
+  expect(pullCheckTone(check)).toBe(expected);
+});

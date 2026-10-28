@@ -38,7 +38,7 @@ function checkOutcome(check: PullCheck): Exclude<PullChecksTone, 'none'> {
 export function pullRequestChecks(
   checks: readonly PullCheck[],
   truncated: boolean,
-  summary?: string | undefined,
+  summary?: string,
 ): { tone: PullChecksTone; label: string; short: string } {
   const total = `${checks.length}${truncated ? '+' : ''}`;
   if (truncated) {
@@ -92,7 +92,7 @@ export function pullRequestRollup(summary: string | undefined): {
   return { tone: 'none', label: 'No checks' };
 }
 
-export type GitHubUnavailableAction =
+type GitHubUnavailableAction =
   | { kind: 'settings'; label: 'Choose an account' }
   | { kind: 'install'; label: 'How to install'; url: string }
   | { kind: 'copy'; label: 'Copy gh auth login'; text: 'gh auth login' }
