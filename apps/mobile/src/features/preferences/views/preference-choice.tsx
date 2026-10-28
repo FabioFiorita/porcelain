@@ -12,7 +12,7 @@ export function PreferenceChoice<T extends string | boolean>({
 }: {
   label: string;
   description: string;
-  value: T;
+  value: T | undefined;
   options: readonly { value: T; label: string; id: string }[];
   disabled: boolean;
   onChange: (value: T) => void;

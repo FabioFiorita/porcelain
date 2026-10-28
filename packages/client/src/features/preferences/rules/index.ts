@@ -6,6 +6,8 @@ export {
 } from './settings-summary.ts';
 export {
   confirmedReviewGitSettings,
+  reviewGitSettingsKeptMessage,
+  shownReviewGitSettings,
   specsApart,
   reviewGitSettingsBlock,
   type ReviewGitSettingsView,
