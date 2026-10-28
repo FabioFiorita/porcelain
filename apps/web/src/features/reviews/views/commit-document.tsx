@@ -290,7 +290,7 @@ function CommitHeader({
         {commit.comparison.kind === 'parent' ? (
           <span>
             <span aria-hidden="true">· </span>parent{' '}
-            <span className="font-mono text-foreground">
+            <span className="font-mono text-caption leading-5 text-foreground">
               {shortOid(commit.comparison.baseOid)}
             </span>
             {commit.commit.parentOids.length > 1 &&
