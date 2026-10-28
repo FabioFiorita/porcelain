@@ -331,7 +331,7 @@ test('history side menu and Alt-click open the real commit identity', async ({
   await workspace
     .getByRole('menuitem', { name: 'Open to the side', exact: true })
     .click();
-  const name = `${initial.oid.slice(0, 7)}`;
+  const name = `${initial.oid.slice(0, 7)} ${initial.subject}`;
   const rightTab = workspace
     .getByRole('region', { name: 'Right pane', exact: true })
     .getByRole('tab', { name, exact: true });
@@ -443,7 +443,7 @@ test('graph commit rows offer a side menu and Alt-click without replacing the gr
     .element(left.getByRole('tab', { name: 'Graph', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   const destination = right.getByRole('tab', {
-    name: `${initial.oid.slice(0, 7)}`,
+    name: `${initial.oid.slice(0, 7)} ${initial.subject}`,
     exact: true,
   });
   await expect
@@ -503,7 +503,7 @@ test('timeline commit side actions preserve the file comparison and leave the ti
     )
     .toBeVisible();
   const destination = right.getByRole('tab', {
-    name: `${initial.oid.slice(0, 7)}`,
+    name: `${initial.oid.slice(0, 7)} ${initial.subject}`,
     exact: true,
   });
   await expect

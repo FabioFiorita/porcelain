@@ -51,9 +51,14 @@ export function CommitRow({
     onSelect(openToSide !== undefined && event.altKey);
   const current = (ref: string) =>
     headRef !== undefined && (ref === headRef || ref === refLabel(headRef));
-  const refs = shownRefs(commit.refs)
-    .filter((ref) => layout !== 'stacked' || !current(ref))
-    .toSorted((left, right) => Number(current(right)) - Number(current(left)));
+  const refs = shownRefs(commit.refs).toSorted(
+    (left, right) => Number(current(right)) - Number(current(left)),
+  );
+  const headBadge = head ? (
+    <Badge variant="brand" className="relative h-4 shrink-0">
+      HEAD
+    </Badge>
+  ) : null;
   const subject = (
     <span
       className={cn(
@@ -69,14 +74,10 @@ export function CommitRow({
         />
       )}
       <TruncatedText text={commit.subject} />
+      {layout === 'stacked' && headBadge}
     </span>
   );
   const age = relativeTime(commit.author.timestamp);
-  const headBadge = head ? (
-    <Badge variant="brand" className="relative h-4 shrink-0">
-      HEAD
-    </Badge>
-  ) : null;
   return (
     <ContextMenu
       onOpenChange={(open) => {
@@ -100,12 +101,12 @@ export function CommitRow({
         }
       >
         {layout === 'stacked' ? (
-          <div className="flex w-full min-w-0 items-start gap-2">
+          <>
             <button
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className="flex min-w-0 flex-1 flex-col text-left before:absolute before:inset-0 before:rounded-lg"
+              className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span className="flex gap-1.5 text-xs text-muted-foreground">
@@ -116,17 +117,10 @@ export function CommitRow({
               </span>
               {children}
             </button>
-            {headBadge}
             {refs.length > 0 && (
-              <div className="min-w-0 max-w-2/5 flex-1">
-                <CommitRefs
-                  refs={refs}
-                  current={current}
-                  onOpenCommit={select}
-                />
-              </div>
+              <CommitRefs refs={refs} current={current} onOpenCommit={select} />
             )}
-          </div>
+          </>
         ) : (
           <>
             <code className="hidden w-16 shrink-0 font-mono text-xs text-muted-foreground @md/graph:block">
