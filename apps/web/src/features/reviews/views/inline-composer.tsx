@@ -1,6 +1,6 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useId, useState } from 'react';
+import { type ChangeEvent, type KeyboardEvent, useId, useState } from 'react';
 import { ArrowUpIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
@@ -97,6 +97,26 @@ export function InlineComposer({
     );
   };
   const answer = variant === 'answer';
+  const field = {
+    id,
+    autoFocus,
+    value: body,
+    maxLength: Math.max(0, mutation.bodyLimit - quoteLength),
+    disabled: mutation.result.waiting,
+    onChange: (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setDraft({ body: event.target.value, pending: undefined });
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
+      if (closable && event.key === 'Escape' && !mutation.result.waiting) {
+        event.stopPropagation();
+        onClose();
+      }
+    },
+  };
   return (
     <form
       className={
@@ -131,28 +151,20 @@ export function InlineComposer({
               .filter((part) => part !== null && part !== undefined)
               .join(' · ')}
       </label>
-      <Textarea
-        id={id}
-        autoFocus={autoFocus}
-        {...(answer ? { rows: 4 } : { 'aria-label': 'Comment' })}
-        placeholder={answer ? 'Your answer…' : 'Share feedback…'}
-        value={body}
-        maxLength={Math.max(0, mutation.bodyLimit - quoteLength)}
-        disabled={mutation.result.waiting}
-        onChange={(event) => {
-          setDraft({ body: event.target.value, pending: undefined });
-        }}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault();
-            submit();
-          }
-          if (closable && event.key === 'Escape' && !mutation.result.waiting) {
-            event.stopPropagation();
-            onClose();
-          }
-        }}
-      />
+      {answer ? (
+        <textarea
+          {...field}
+          rows={4}
+          placeholder="Your answer…"
+          className="block h-23 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.75 text-ui leading-4.75 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-brand-soft disabled:opacity-50"
+        />
+      ) : (
+        <Textarea
+          {...field}
+          aria-label="Comment"
+          placeholder="Share feedback…"
+        />
+      )}
       {AsyncResult.isFailure(mutation.result) && (
         <p role="alert" className="text-xs text-destructive">
           {reviewErrorMessage(Cause.squash(mutation.result.cause))}

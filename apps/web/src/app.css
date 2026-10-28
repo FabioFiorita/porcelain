@@ -57,6 +57,9 @@
   --text-section: 1rem;
   --text-section--line-height: 1.375rem;
   --text-section--letter-spacing: -0.015em;
+  --text-card-title: 0.875rem;
+  --text-card-title--line-height: 1.25rem;
+  --text-card-title--letter-spacing: -0.01em;
   --text-reading: 0.9375rem;
   --text-reading--line-height: 1.375rem;
   --breakpoint-narrow: 45rem;

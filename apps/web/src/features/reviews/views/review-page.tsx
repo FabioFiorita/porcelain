@@ -93,7 +93,6 @@ import { ReviewBoundary } from './review-boundary';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
-import { cn } from '@/shared/lib/utils';
 import { outlinePill, primaryPill } from './review-controls';
 import { useDesktopReview } from '../adapters/desktop-review';
 
@@ -721,7 +720,7 @@ function ReviewRevisionPage({
                 )}
               {view === 'summary' &&
                 !(expiredLink === review.summary.expires && reread.failed) && (
-                  <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
+                  <div className="mx-auto w-full max-w-264 px-4 pt-6 pb-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
                     <SummaryFrame
                       revision={revision}
                       page={summaryPage}
@@ -803,7 +802,7 @@ function ReviewRevisionPage({
                   }
                   className="flex min-w-0 flex-col"
                 >
-                  <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 @2xl/review:px-6">
+                  <div className="mx-auto flex w-full max-w-264 flex-col gap-8 px-4 pt-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
                     {stop.kind === 'decision' ? (
                       <>
                         <DecisionPage
@@ -1007,7 +1006,7 @@ function PanelKeys({
 
 function MarginRowDock({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-2 pb-4 @md/review:px-4 @2xl/review:px-6">
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-264 px-2 pb-4 @md/review:px-4 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
       <MarginRow>{children}</MarginRow>
     </div>
   );
@@ -1047,7 +1046,7 @@ function DecisionMark({
     <>
       <button
         type="button"
-        className={cn(reviewed ? outlinePill : primaryPill, dockButtonClass)}
+        className={`${reviewed ? outlinePill : primaryPill} ${dockButtonClass}`}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
         onClick={() =>
@@ -1096,7 +1095,7 @@ function FilesMark({
     <>
       <button
         type="button"
-        className={cn(primaryPill, dockButtonClass)}
+        className={`${primaryPill} ${dockButtonClass}`}
         disabled={!settled || files.length === 0 || result.waiting}
         onClick={() =>
           mark({ revision: revision.revision, files: blobFiles(files) })

@@ -47,12 +47,11 @@ export function ReviewVerdict({ revision }: { revision: ReviewRevision }) {
           className="flex flex-wrap items-center gap-x-2.5 gap-y-1"
         >
           <span
-            className={cn(
-              'inline-flex h-7 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-ui leading-6.5 font-semibold',
+            className={`inline-flex h-7 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-ui leading-6.5 font-semibold ${
               merge
                 ? 'border-brand-soft bg-brand-soft text-brand'
-                : 'border-warn-border bg-warn-soft text-warn',
-            )}
+                : 'border-warn-border bg-warn-soft text-warn'
+            }`}
           >
             <RecommendationIcon
               aria-hidden="true"

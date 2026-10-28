@@ -57,7 +57,7 @@ export function AnswerableQuestion({
     null,
   );
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-brand/40 bg-brand-soft px-4 py-3.5">
+    <div className="flex min-w-0 flex-col rounded-paper border border-brand/40 bg-brand-soft px-4 py-3.5">
       <p className="flex min-w-0 items-start gap-2 text-xs leading-4 font-medium text-brand">
         <CircleHelpIcon className="size-3.5 shrink-0" />
         <span className="min-w-0 wrap-anywhere">
@@ -116,7 +116,7 @@ export function MarginQuestion({
   return (
     <section
       aria-label={`Needs your decision: ${part.label}`}
-      className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-pop"
+      className="flex min-w-0 flex-col gap-2.5 rounded-paper border bg-card p-3 shadow-pop"
     >
       <p className="flex items-center gap-1.5 text-xs leading-4 font-semibold text-brand">
         <CircleHelpIcon className="size-3.5 shrink-0" />

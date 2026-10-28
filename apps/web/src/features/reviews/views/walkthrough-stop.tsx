@@ -147,7 +147,7 @@ export function DecisionPage({
               <span
                 className={cn(
                   chip,
-                  'border-transparent bg-brand-soft text-brand',
+                  'border-transparent bg-brand-soft leading-5.5 text-brand',
                 )}
               >
                 <CircleHelpIcon /> Needs your decision
@@ -257,13 +257,10 @@ function Summary({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const long = text.length > LONG_DECISION_SUMMARY;
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-start gap-1 text-foreground-2">
       <MarkdownView
         text={text}
-        className={cn(
-          'text-lead text-pretty text-foreground-2 [&_p]:leading-7',
-          long && !open && 'line-clamp-3',
-        )}
+        className={`text-lead text-pretty [&_p]:leading-7 ${long && !open ? 'line-clamp-3' : ''}`}
       />
       {long && (
         <Button
@@ -320,20 +317,20 @@ function RouteTable({
         </span>
       </div>
       <ol aria-label="Steps" className="flex flex-col">
-        {layer.steps.map((step, index) => (
-          <li key={step.id}>
-            <RouteRow
-              step={step}
-              index={index}
-              lane={
-                index === 0 || layer.steps[index - 1]?.lane !== step.lane
-                  ? layer.lanes[step.lane]
-                  : undefined
-              }
-              onStep={onStep}
-            />
-          </li>
-        ))}
+        {layer.steps.map((step, index) => {
+          const lane =
+            index === 0 || layer.steps[index - 1]?.lane !== step.lane
+              ? layer.lanes[step.lane]
+              : undefined;
+          return (
+            <li
+              key={step.id}
+              className={lane !== undefined && index > 0 ? 'border-t' : ''}
+            >
+              <RouteRow step={step} index={index} lane={lane} onStep={onStep} />
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -361,7 +358,6 @@ function RouteRow({
           onClick={() => onStep(step)}
           className={cn(
             'flex min-h-8 w-full min-w-0 items-start gap-3 rounded-md py-1.5 pr-1.5 text-left hover:bg-accent @2xl/review:items-center',
-            lane !== undefined && index > 0 && 'border-t',
           )}
         >
           {clip(

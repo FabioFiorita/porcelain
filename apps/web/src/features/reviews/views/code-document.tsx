@@ -389,10 +389,11 @@ function CodeSurface({
     <button
       type="button"
       className={headerButton}
+      aria-label={collapseLabel}
       onClick={() => setAllCollapsed(!allCollapsed)}
     >
       {collapseIcon}
-      {collapseLabel}
+      <span className="max-narrow:sr-only">{collapseLabel}</span>
     </button>
   ) : (
     <Button
@@ -649,7 +650,7 @@ function CodeSurface({
                   'm-3 flex flex-col gap-3 font-sans',
                   threadMargin &&
                     note.lineNumber > 0 &&
-                    '@5xl/review:absolute @5xl/review:left-full @5xl/review:z-10 @5xl/review:my-0 @5xl/review:mr-0 @5xl/review:ml-8 @5xl/review:w-60',
+                    '@5xl/review:absolute @5xl/review:left-full @5xl/review:z-10 @5xl/review:my-0 @5xl/review:mr-0 @5xl/review:ml-7 @5xl/review:w-51',
                 )}
               >
                 {note.threads.map(({ thread, stale }) => (
@@ -822,7 +823,11 @@ function CodeSurface({
                   )
                 )}
                 {collapseAll}
-                {steps && <span className="flex items-center">{steps}</span>}
+                {steps && (
+                  <span className="flex items-center max-narrow:hidden">
+                    {steps}
+                  </span>
+                )}
               </div>
             );
           }}

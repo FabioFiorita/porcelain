@@ -12,7 +12,6 @@ import { cn } from '@/shared/lib/utils';
 import {
   briefingTitle,
   decisionKey,
-  decisionQuestions,
   type DecisionState,
   decisionRoute,
   filesReviewed,
@@ -80,14 +79,17 @@ export function WalkthroughBriefing({
     (stop) => decisions.get(stop.layer.id)?.stale,
   ).length;
   const unexplained = stops.find((stop) => stop.kind === 'unexplained');
-  const asked = decisionStops.find(
-    (stop) => decisionQuestions(review, stop).length > 0,
+  const askedNumbers = new Set(
+    parts.questions.flatMap((part) =>
+      part.decision === undefined ? [] : [part.decision],
+    ),
   );
+  const asked = decisionStops.find((stop) => askedNumbers.has(stop.number));
   const hasParts =
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-9 px-4 pt-8 pb-16 @2xl/review:px-6">
+      <div className="mx-auto flex w-full max-w-264 flex-col gap-9 px-4 pt-8 pb-16 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
         <MarginRow margin={margin}>
           <div className="flex min-w-0 flex-col gap-10">
             <header className="flex min-w-0 flex-col gap-5">
@@ -276,7 +278,7 @@ export function WalkthroughBriefing({
                 const progress = filesReviewed(stop.paths, items);
                 const route =
                   decisionRoute(stop.layer).join(' → ') || 'No changed code';
-                const needsYou = decisionQuestions(review, stop).length > 0;
+                const needsYou = askedNumbers.has(stop.number);
                 return (
                   <WalkthroughRow
                     key={stop.key}
@@ -424,8 +426,8 @@ function StopMark({
   return (
     <span
       className={cn(
-        'grid size-5 shrink-0 place-items-center rounded-full border border-border-strong bg-background text-2xs leading-none font-medium text-muted-foreground tabular-nums',
-        current && 'border-brand font-semibold text-brand',
+        'grid size-5 shrink-0 place-items-center rounded-full border border-border-strong text-2xs leading-none font-medium text-muted-foreground tabular-nums',
+        current && 'border-brand bg-background font-semibold text-brand',
         done && 'border-brand bg-brand text-brand-foreground',
       )}
     >
@@ -470,7 +472,7 @@ function PartGroup({
           >
             <span
               className={cn(
-                'text-sm font-medium',
+                'text-sm leading-4.5 font-medium',
                 struck && 'text-muted-foreground line-through',
               )}
             >

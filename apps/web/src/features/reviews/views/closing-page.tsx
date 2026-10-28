@@ -24,12 +24,12 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { Button, buttonVariants } from '@/components/ui/button';
 import { ArchiveReview } from '@/features/projects/index';
 import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { InlineComposer } from './inline-composer';
 import { MarginRow } from './margin-row';
+import { outlineButton, primaryButton } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type ClosingStop = Extract<
@@ -241,10 +241,7 @@ function ClosingHeading({
         {title}
       </h2>
       <p
-        className={cn(
-          'text-pretty text-foreground-2',
-          size === 'page' ? 'text-lead' : 'text-reading',
-        )}
+        className={`text-pretty text-foreground-2 ${size === 'page' ? 'text-lead' : 'text-reading'}`}
       >
         {lead}
       </p>
@@ -282,7 +279,7 @@ function CompletionCard({
   return (
     <section
       aria-label="Review completion"
-      className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 text-xs shadow-sm"
+      className="flex min-w-0 flex-col gap-4 rounded-paper border bg-card p-4 text-xs shadow-sm"
     >
       <header className="flex items-start gap-2.5">
         {allDecisions ? (
@@ -291,7 +288,7 @@ function CompletionCard({
           <CircleIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-sm font-semibold">
+          <h3 className="text-card-title font-semibold">
             {allDecisions
               ? 'Every decision is reviewed'
               : `${status.reviewed} of ${status.total} decisions reviewed`}
@@ -305,7 +302,9 @@ function CompletionCard({
         aria-label="Ready to merge needs"
         className="flex flex-col gap-1.5 border-t pt-3"
       >
-        <h4 className="text-muted-foreground">Ready to merge needs</h4>
+        <h4 className="font-medium text-muted-foreground">
+          Ready to merge needs
+        </h4>
         <Need met={allDecisions}>Every decision reviewed</Need>
         <Need met={merge}>
           The agent recommends Merge
@@ -335,7 +334,7 @@ function CompletionCard({
         aria-label="Still open"
         className="flex flex-col gap-1 border-t pt-3"
       >
-        <h4 className="text-muted-foreground">Still open</h4>
+        <h4 className="font-medium text-muted-foreground">Still open</h4>
         <OpenRow label="Not explained">
           {count(unexplained?.paths.length ?? 0, 'file')}
         </OpenRow>
@@ -348,14 +347,16 @@ function CompletionCard({
         <OpenRow label="Not proven">{notProven}</OpenRow>
       </section>
       <div className="flex flex-col gap-2 border-t pt-3">
-        <Button
+        <button
           ref={setAskButton}
+          type="button"
+          className={primaryButton}
           aria-expanded={asking}
           onClick={() => setAsking(true)}
         >
-          <MessageSquareIcon data-icon="inline-start" />
+          <MessageSquareIcon />
           Ask the agent
-        </Button>
+        </button>
         {asking && (
           <InlineComposer
             scope={scope}
@@ -372,13 +373,16 @@ function CompletionCard({
         )}
         {pullRequest?.state === 'open' && (
           <a
-            className={cn(buttonVariants({ variant: 'outline' }))}
+            className={outlineButton}
             href={pullRequest.url}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Merge on GitHub #{pullRequest.number}
-            <ExternalLinkIcon data-icon="inline-end" />
+            Merge on GitHub
+            <span className="text-muted-foreground tabular-nums">
+              #{pullRequest.number}
+            </span>
+            <ExternalLinkIcon />
           </a>
         )}
         {archivable && record ? (
@@ -412,16 +416,16 @@ function count(total: number, noun: string) {
 
 function Need({ met, children }: { met: boolean; children: ReactNode }) {
   return (
-    <p className="flex items-start gap-1.5">
+    <p className="flex items-start gap-1.5 text-ui leading-4.5">
       {met ? (
         <CircleCheckIcon
           aria-label="Met"
-          className="mt-px size-3.5 shrink-0 text-graph-2"
+          className="mt-0.5 size-3.5 shrink-0 text-graph-2"
         />
       ) : (
         <CircleIcon
           aria-label="Not met"
-          className="mt-px size-3.5 shrink-0 text-muted-foreground"
+          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
         />
       )}
       <span className="min-w-0">{children}</span>
@@ -431,7 +435,7 @@ function Need({ met, children }: { met: boolean; children: ReactNode }) {
 
 function OpenRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <p className="flex items-baseline justify-between gap-3">
+    <p className="flex items-baseline justify-between gap-3 text-ui leading-4.5">
       <span>{label}</span>
       <span className="text-muted-foreground tabular-nums">{children}</span>
     </p>
