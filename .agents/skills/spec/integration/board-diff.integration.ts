@@ -7,6 +7,7 @@ import {
   measureRoles,
 } from '../../web-verify/scripts/board-styles.ts';
 import { unavailablePage } from '../../web-verify/scripts/browser.ts';
+import { revealBoardRoles } from '../../web-verify/scripts/board-diff.ts';
 
 let browser: Browser;
 beforeAll(async () => {
@@ -38,7 +39,7 @@ it('measures the same role with different wording and detects a real style chang
       colour: '#62626b',
       padding: '4px 8px 4px 8px',
       radius: '7px 7px 7px 7px',
-      gap: '6px 6px',
+      gap: '0px 6px',
       height: '28.000px',
       icon: 'present',
     });
@@ -171,5 +172,209 @@ it.each([
   } finally {
     await app.close();
     await board.close();
+  }
+});
+
+it('compares mapped text properties without treating different wrapping as a height defect', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  const textRoles: BoardRole[] = [
+    {
+      role: 'title',
+      properties: [
+        'fontSize',
+        'lineHeight',
+        'fontWeight',
+        'letterSpacing',
+        'colour',
+      ],
+      board: { selector: 'h2' },
+      app: { selector: 'h2' },
+    },
+  ];
+  try {
+    await board.setContent(
+      '<h2 style="font:500 13px/17px sans-serif;width:90px">Short title</h2>',
+    );
+    await app.setContent(
+      '<h2 style="font:500 13px/17px sans-serif;width:90px">A much longer fixture title that wraps</h2>',
+    );
+    const expected = await measureRoles(board, textRoles, 'board');
+    expect(
+      compareRoles(expected, await measureRoles(app, textRoles, 'app')),
+    ).toStrictEqual([
+      {
+        role: 'title',
+        property: 'fontSize',
+        board: '13px',
+        app: '13px',
+        match: true,
+      },
+      {
+        role: 'title',
+        property: 'lineHeight',
+        board: '17px',
+        app: '17px',
+        match: true,
+      },
+      {
+        role: 'title',
+        property: 'fontWeight',
+        board: '500',
+        app: '500',
+        match: true,
+      },
+      {
+        role: 'title',
+        property: 'letterSpacing',
+        board: '0px',
+        app: '0px',
+        match: true,
+      },
+      {
+        role: 'title',
+        property: 'colour',
+        board: '#000000',
+        app: '#000000',
+        match: true,
+      },
+    ]);
+    await app.locator('h2').evaluate((element) => {
+      element.style.fontSize = '15px';
+    });
+    expect(
+      compareRoles(expected, await measureRoles(app, textRoles, 'app')).filter(
+        (row) => !row.match,
+      ),
+    ).toStrictEqual([
+      {
+        role: 'title',
+        property: 'fontSize',
+        board: '13px',
+        app: '15px',
+        match: false,
+      },
+    ]);
+  } finally {
+    await app.close();
+    await board.close();
+  }
+});
+
+it('compares rendered rounded corners rather than oversized CSS radius values', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(
+      html('A control', 'width:80px;border-radius:999px;'),
+    );
+    await app.setContent(
+      html('A control', 'width:80px;border-radius:33554400px;'),
+    );
+    const expected = await measureRoles(board, roles, 'board');
+    expect(expected[0]?.styles.radius).toBe('14px 14px 14px 14px');
+    expect(
+      compareRoles(expected, await measureRoles(app, roles, 'app')).every(
+        (row) => row.match,
+      ),
+    ).toBe(true);
+    await app.locator('h2').evaluate((element) => {
+      element.style.borderRadius = '7px';
+    });
+    expect(
+      compareRoles(expected, await measureRoles(app, roles, 'app')).filter(
+        (row) => !row.match,
+      ),
+    ).toStrictEqual([
+      {
+        role: 'row title',
+        property: 'radius',
+        board: '14px 14px 14px 14px',
+        app: '7px 7px 7px 7px',
+        match: false,
+      },
+    ]);
+  } finally {
+    await app.close();
+    await board.close();
+  }
+});
+
+it('does not compare a nowrap flex row gap that cannot separate children', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(html('A control'));
+    await app.setContent(html('A control', 'row-gap:22px;'));
+    expect(
+      compareRoles(
+        await measureRoles(board, roles, 'board'),
+        await measureRoles(app, roles, 'app'),
+      ).every((row) => row.match),
+    ).toBe(true);
+    await app.locator('h2').evaluate((element) => {
+      element.style.columnGap = '12px';
+    });
+    expect(
+      compareRoles(
+        await measureRoles(board, roles, 'board'),
+        await measureRoles(app, roles, 'app'),
+      ).filter((row) => !row.match),
+    ).toStrictEqual([
+      {
+        role: 'row title',
+        property: 'gap',
+        board: '0px 6px',
+        app: '0px 12px',
+        match: false,
+      },
+    ]);
+  } finally {
+    await app.close();
+    await board.close();
+  }
+});
+
+it('limits explicitly desktop-only roles without suppressing a hidden applicable role', async () => {
+  const page = await browser.newPage();
+  const desktop: BoardRole[] = [
+    {
+      role: 'desktop label',
+      board: { selector: 'h2' },
+      app: { selector: 'h2' },
+      minWidth: 768,
+    },
+  ];
+  try {
+    await page.setContent(
+      '<h2 hidden>Desktop label replaced by a phone icon</h2>',
+    );
+    expect(await measureRoles(page, desktop, 'app', 414)).toStrictEqual([]);
+    expect((await measureRoles(page, desktop, 'app', 1440))[0]?.problem).toBe(
+      'element is hidden or has no size',
+    );
+  } finally {
+    await page.close();
+  }
+});
+
+it('reveals a phone panel and its tab without toggling an already visible target closed', async () => {
+  const page = await browser.newPage();
+  const map = {
+    reveal: [
+      { target: '#panel', trigger: '#open' },
+      { target: '#history', trigger: '#tab' },
+    ],
+  };
+  try {
+    await page.setContent(
+      '<button id="open" onclick="panel.hidden=!panel.hidden">Review</button><aside id="panel" hidden><button id="tab" onclick="historyContent.hidden=false">History</button><h2 id="historyContent" hidden><span id="history">History heading</span></h2></aside>',
+    );
+    await revealBoardRoles(page, map);
+    expect(await page.locator('#history').isVisible()).toBe(true);
+    await revealBoardRoles(page, map);
+    expect(await page.locator('#panel').isVisible()).toBe(true);
+  } finally {
+    await page.close();
   }
 });

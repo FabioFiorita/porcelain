@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import type { Page } from 'playwright';
-import type { BoardRole } from './board-maps.ts';
+import { styleProperties, type BoardRole } from './board-maps.ts';
 import type {
   BrowserComputedStyle,
   BrowserDocument,
@@ -12,22 +12,11 @@ declare const getComputedStyle: (
   element: BrowserElement,
 ) => BrowserComputedStyle;
 
-const styleProperties = [
-  'fontSize',
-  'lineHeight',
-  'fontWeight',
-  'letterSpacing',
-  'colour',
-  'padding',
-  'radius',
-  'gap',
-  'height',
-  'icon',
-] as const;
 type StyleProperty = (typeof styleProperties)[number];
 const stylesSchema = Schema.Record(Schema.String, Schema.String);
 const sampleSchema = Schema.Struct({
   role: Schema.String,
+  properties: Schema.Array(Schema.Literals(styleProperties)),
   problem: Schema.optional(Schema.String),
   styles: stylesSchema,
 });
@@ -44,12 +33,19 @@ export async function measureRoles(
   page: Page,
   roles: readonly BoardRole[],
   side: 'board' | 'app',
+  width = 1440,
 ): Promise<readonly StyleSample[]> {
-  const targets = roles.map((role) => ({ role: role.role, ...role[side] }));
+  const targets = roles
+    .filter((role) => width >= (role.minWidth ?? 320))
+    .map((role) => ({
+      role: role.role,
+      properties: role.properties ?? styleProperties,
+      ...role[side],
+    }));
   return Schema.decodeUnknownSync(Schema.Array(sampleSchema))(
     await page.evaluate(
       (targets) =>
-        targets.map(({ role, selector, index }) => {
+        targets.map(({ role, selector, index, properties }) => {
           const matches = [...document.querySelectorAll(selector)];
           const elements = matches.filter((node) =>
             node.checkVisibility({
@@ -60,6 +56,7 @@ export async function measureRoles(
           if (matches.length > 0 && elements.length === 0)
             return {
               role,
+              properties,
               problem: 'element is hidden or has no size',
               styles: {},
             };
@@ -67,6 +64,7 @@ export async function measureRoles(
           if (!element || (index === undefined && elements.length !== 1))
             return {
               role,
+              properties,
               problem:
                 'selector matched ' +
                 elements.length +
@@ -88,6 +86,7 @@ export async function measureRoles(
           )
             return {
               role,
+              properties,
               problem: 'element is hidden or has no size',
               styles: {},
             };
@@ -117,8 +116,35 @@ export async function measureRoles(
               node.getBoundingClientRect().width > 0 &&
               node.getBoundingClientRect().height > 0,
           );
+          const corners = [
+            s.borderTopLeftRadius,
+            s.borderTopRightRadius,
+            s.borderBottomRightRadius,
+            s.borderBottomLeftRadius,
+          ];
+          const radii = corners.map((value) =>
+            value.endsWith('px') ? Number(value.slice(0, -2)) : NaN,
+          );
+          const [tl = 0, tr = 0, br = 0, bl = 0] = radii;
+          const scale = Math.min(
+            1,
+            ...[
+              [rect.width, tl + tr],
+              [rect.width, bl + br],
+              [rect.height, tl + bl],
+              [rect.height, tr + br],
+            ].map(([length = 0, sum = 0]) => (sum > 0 ? length / sum : 1)),
+          );
+          const radius = radii.every(
+            (value) => Number.isFinite(value) && value >= 0,
+          )
+            ? radii
+                .map((value) => `${Number((value * scale).toFixed(6))}px`)
+                .join(' ')
+            : corners.join(' ');
           return {
             role,
+            properties,
             styles: {
               fontSize: s.fontSize,
               lineHeight: s.lineHeight,
@@ -132,13 +158,19 @@ export async function measureRoles(
                 s.paddingBottom,
                 s.paddingLeft,
               ].join(' '),
-              radius: [
-                s.borderTopLeftRadius,
-                s.borderTopRightRadius,
-                s.borderBottomRightRadius,
-                s.borderBottomLeftRadius,
-              ].join(' '),
-              gap: [s.rowGap, s.columnGap]
+              radius,
+              gap: [
+                s.display.includes('flex') &&
+                s.flexWrap === 'nowrap' &&
+                s.flexDirection.startsWith('row')
+                  ? '0px'
+                  : s.rowGap,
+                s.display.includes('flex') &&
+                s.flexWrap === 'nowrap' &&
+                s.flexDirection.startsWith('column')
+                  ? '0px'
+                  : s.columnGap,
+              ]
                 .map((v) => (v === 'normal' ? '0px' : v))
                 .join(' '),
               height: rect.height.toFixed(3) + 'px',
@@ -210,7 +242,7 @@ export function compareRoles(
           match: false,
         },
       ];
-    return styleProperties.map((property) => {
+    return expected.properties.map((property) => {
       const left = expected.styles[property] ?? 'missing';
       const right = actual.styles[property] ?? 'missing';
       return {
