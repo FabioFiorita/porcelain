@@ -7,8 +7,7 @@ import {
   setProjectGitHubAccount,
 } from '@porcelain/client/reviews';
 import { githubUnavailable } from '@porcelain/client/reviews/rules';
-import { readInventory } from '@porcelain/client/projects';
-import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import { useGitHubAccountProjects } from '../queries/review-git-settings';
 import type { Connection } from '@/shared/workspace/connection';
 import { copyText } from '@/shared/workspace/copy';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -38,7 +37,7 @@ import {
 } from '@/components/ui/tooltip';
 
 export function GitHubAccounts({ connection }: { connection: Connection }) {
-  const { projects } = useConfirmedRead(readInventory(connection)).value;
+  const projects = useGitHubAccountProjects(connection);
   return (
     <FieldSet>
       <FieldLegend variant="label">
