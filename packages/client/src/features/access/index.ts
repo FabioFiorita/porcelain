@@ -28,6 +28,7 @@ export {
   revokeAccess,
   setDeviceTrust,
   setRemoteAccess,
+  setWaysInPermission,
   startServiceUpdate,
 } from './commands/share.ts';
 export { renameEnvironment } from './commands/environment-name.ts';

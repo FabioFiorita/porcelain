@@ -4,6 +4,7 @@ import {
   revokeAccess,
   setDeviceTrust,
   setRemoteAccess,
+  setWaysInPermission,
   renameEnvironment,
 } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
@@ -16,6 +17,9 @@ export function useRevokeAccess(connection: Connection, id: string) {
 }
 export function useSetDeviceTrust(connection: Connection, id: string) {
   return useAtom(setDeviceTrust({ connection, id }));
+}
+export function useSetWaysInPermission(connection: Connection, id: string) {
+  return useAtom(setWaysInPermission({ connection, id }));
 }
 export function useSetRemoteAccess(connection: Connection) {
   return useAtom(setRemoteAccess(connection));

@@ -20,6 +20,7 @@ import { IdentifyRequestClientUseCase } from '../use-cases/access/identify-reque
 import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
 import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
+import { SetWaysInPermissionUseCase } from '../use-cases/access/set-ways-in-permission.ts';
 import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
 import { ReadReviewGitSettingsUseCase } from '../use-cases/access/read-review-git-settings.ts';
 import { SaveReviewGitSettingsUseCase } from '../use-cases/access/save-review-git-settings.ts';
@@ -100,6 +101,7 @@ export function composeAccess(
     RefundPairingAttemptUseCase.layer,
     RevokeAccessUseCase.layer,
     SetDeviceTrustUseCase.layer,
+    SetWaysInPermissionUseCase.layer,
   ).pipe(Layer.provideMerge(native));
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(services);
@@ -133,6 +135,7 @@ export function composeAccess(
         refundPairingAttempt: yield* RefundPairingAttemptUseCase,
         revokeAccess: yield* RevokeAccessUseCase,
         setDeviceTrust: yield* SetDeviceTrustUseCase,
+        setWaysInPermission: yield* SetWaysInPermissionUseCase,
       };
       return { ...useCases, routes: accessRoutes(useCases) };
     }).pipe(Effect.provideContext(runtime));

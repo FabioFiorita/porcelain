@@ -1,3 +1,4 @@
+import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -22,7 +23,7 @@ const environment = {
   environmentId,
   name: 'home-server',
   version: '1.2.0',
-  protocol: 2,
+  protocol: ENVIRONMENT_PROTOCOL,
 };
 
 describe('remoteStatus', () => {
@@ -44,7 +45,14 @@ describe('remoteStatus', () => {
     [
       {
         kind: 'described' as const,
-        environment: { ...environment, protocol: 1 },
+        environment: { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
+      },
+      { kind: 'incompatible' },
+    ],
+    [
+      {
+        kind: 'described' as const,
+        environment: { ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 },
       },
       { kind: 'incompatible' },
     ],

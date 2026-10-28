@@ -11,9 +11,9 @@ import { Spinner } from '@/components/ui/spinner';
 import { SettingsHeading } from '@/shared/views/settings-heading';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { desktopShell } from '@/shared/shell';
-import { usePairedAccess, useRemoteAccess } from '../queries/share';
+import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
+import type { Environment, PairedAccess } from '@porcelain/client/access/rules';
 import { useConnectedContext } from '../store';
 import { DisconnectBrowser } from './disconnect-browser';
 
@@ -24,29 +24,29 @@ import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
 import { AgentsSetting } from './agents-setting';
 import { PairedDevices } from './paired-devices';
-import { RemoteRoutes } from './remote-routes';
+import { WaysIn, WaysInGate } from './ways-in';
 import { type Connection } from '@/shared/workspace/connection';
 
-function RemoteAccessGate({
+function HostGate({
   connection,
   children,
 }: {
   connection: Connection;
-  children: (remote: RemoteAccess) => ReactNode;
+  children: (access: PairedAccess) => ReactNode;
 }) {
-  const remote = useRemoteAccess(connection);
-  const answer = Option.getOrUndefined(AsyncResult.value(remote));
+  const access = usePairedAccess(connection);
+  const answer = Option.getOrUndefined(AsyncResult.value(access));
   if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
         Sharing is managed from a browser on the computer that runs Porcelain.
       </p>
     );
-  if (AsyncResult.isFailure(remote))
+  if (AsyncResult.isFailure(access))
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(Cause.squash(remote.cause))}
+          {connectionErrorMessage(Cause.squash(access.cause))}
         </AlertDescription>
       </Alert>
     );
@@ -71,7 +71,7 @@ export function ComputerSettings({
 }) {
   const { connection } = useConnectedContext();
   const access = Option.getOrUndefined(
-    AsyncResult.value(useRemoteAccess(connection)),
+    AsyncResult.value(usePairedAccess(connection)),
   );
   const named = `${environment.custom}:${environment.name}`;
   const [renamingFrom, setRenamingFrom] = useState<string | null>(null);
@@ -156,7 +156,7 @@ export function ComputerSettings({
             </ItemContent>
           </Item>
         </ItemGroup>
-        <WaysInSettings />
+        <WaysIn connection={connection} />
         <DevicesSettings />
         <AgentsSetting />
         {!desktopShell && (
@@ -181,52 +181,48 @@ export function ComputerSettings({
   );
 }
 
-function WaysInSettings() {
-  const { connection } = useConnectedContext();
-  return (
-    <FieldSet id="ways-in" className="relative">
-      <FieldLegend variant="label">Ways in</FieldLegend>
-      <RemoteAccessGate connection={connection}>
-        {(remote) => <RemoteRoutes connection={connection} remote={remote} />}
-      </RemoteAccessGate>
-    </FieldSet>
-  );
-}
-
 function DevicesSettings() {
   const { connection } = useConnectedContext();
   const paired = Option.getOrUndefined(
     AsyncResult.value(usePairedAccess(connection)),
   );
   return (
-    <RemoteAccessGate connection={connection}>
-      {(remote) => (
-        <>
-          <FieldSet id="devices" className="min-w-0">
-            <FieldLegend variant="label">
-              <span className="flex items-center gap-1">
-                Devices
-                {paired && (
-                  <span className="tabular-nums">{paired.devices.length}</span>
-                )}
-              </span>
-            </FieldLegend>
-            <PairedDevices connection={connection} />
-          </FieldSet>
-          <aside
-            aria-label="Pair a device"
-            className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-pop lg:col-start-2 lg:row-span-2 lg:row-start-3"
-          >
-            <div>
-              <p className="text-ui leading-4.5 font-semibold">Pair a device</p>
-              <p className="mt-0.5 text-xs leading-4.25 text-muted-foreground">
-                A link works once, for a few minutes.
-              </p>
-            </div>
-            <PairDevice connection={connection} remote={remote} />
-          </aside>
-        </>
+    <HostGate connection={connection}>
+      {(access) => (
+        <WaysInGate connection={connection}>
+          {(remote) => (
+            <>
+              <FieldSet id="devices" className="min-w-0">
+                <FieldLegend variant="label">
+                  <span className="flex items-center gap-1">
+                    Devices
+                    {paired && (
+                      <span className="tabular-nums">
+                        {paired.devices.length}
+                      </span>
+                    )}
+                  </span>
+                </FieldLegend>
+                <PairedDevices connection={connection} access={access} />
+              </FieldSet>
+              <aside
+                aria-label="Pair a device"
+                className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-pop lg:col-start-2 lg:row-span-2 lg:row-start-3"
+              >
+                <div>
+                  <p className="text-ui leading-4.5 font-semibold">
+                    Pair a device
+                  </p>
+                  <p className="mt-0.5 text-xs leading-4.25 text-muted-foreground">
+                    A link works once, for a few minutes.
+                  </p>
+                </div>
+                <PairDevice connection={connection} remote={remote} />
+              </aside>
+            </>
+          )}
+        </WaysInGate>
       )}
-    </RemoteAccessGate>
+    </HostGate>
   );
 }

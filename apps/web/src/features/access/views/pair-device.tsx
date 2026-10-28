@@ -47,7 +47,7 @@ export function PairDevice({
   const issued =
     AsyncResult.isSuccess(issue) &&
     AsyncResult.isSuccess(access) &&
-    access.value.grants.some((grant) => grant.id === issue.value?.id)
+    access.value?.grants.some((grant) => grant.id === issue.value?.id) === true
       ? issue.value
       : null;
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];

@@ -23,8 +23,14 @@ async function settled(session: Session, route: string, kind: string) {
 }
 
 const remoteAccess = owner({ method: 'GET', path: '/remote-access' });
-const change = (body: unknown) =>
-  owner({ method: 'PATCH', path: '/remote-access', body });
+async function change(session: Session, body: unknown) {
+  const current = await read(session, remoteAccess);
+  return owner({
+    method: 'PATCH',
+    path: '/remote-access',
+    body: { expected: record(current.editing).fingerprint, change: body },
+  });
+}
 
 test('the owner reads every sharing route off at first, with the address the service answers at', async ({
   session,
@@ -46,13 +52,18 @@ test('the owner reads every sharing route off at first, with the address the ser
     cloudflare: off,
   });
   expect(record(response.body).serviceUrl).toBe(session.address);
+  expect(record(record(response.body).editing).protectedRoute).toBeUndefined();
 });
 
 test('the owner turns the local network and the tailnet on, and each comes up with its address', async ({
   session,
 }) => {
   const response = await session.send(
-    change({ lan: true, tailnet: true, tailnetHostname: TAILNET_HOST }),
+    await change(session, {
+      lan: true,
+      tailnet: true,
+      tailnetHostname: TAILNET_HOST,
+    }),
   );
 
   expect(response.status).toBe(200);
@@ -79,7 +90,7 @@ test('turning an active route on again checks it again and it comes back at the 
 }) => {
   const before = await settled(session, 'lan', 'on');
 
-  const response = await session.send(change({ lan: true }));
+  const response = await session.send(await change(session, { lan: true }));
 
   expect(response.status).toBe(200);
   expect(record(record(response.body).routes).lan).toStrictEqual({
@@ -94,7 +105,7 @@ test('turning an active route on again checks it again and it comes back at the 
 test('the owner turns the local network off and the route closes', async ({
   session,
 }) => {
-  const response = await session.send(change({ lan: false }));
+  const response = await session.send(await change(session, { lan: false }));
 
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject({
@@ -110,11 +121,16 @@ test('invalid sharing choices are refused and change nothing', async ({
 }) => {
   const before = await read(session, remoteAccess);
 
-  const empty = await session.send(change({}));
+  const empty = await session.send(await change(session, {}));
   const tailscaleName = await session.send(
-    change({ tailnet: true, tailnetHostname: 'porcelain.example.com' }),
+    await change(session, {
+      tailnet: true,
+      tailnetHostname: 'porcelain.example.com',
+    }),
   );
-  const cloudflareHostname = await session.send(change({ cloudflare: true }));
+  const cloudflareHostname = await session.send(
+    await change(session, { cloudflare: true }),
+  );
 
   expect(empty.status).toBe(400);
   expect(empty.body).toStrictEqual(invalidRequest);

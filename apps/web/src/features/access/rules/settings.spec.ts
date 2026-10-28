@@ -1,3 +1,5 @@
+import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
+import { Schema } from 'effect';
 import { expect, it } from 'vitest';
 import type { RemoteAccess } from '@porcelain/client/access/rules';
 import {
@@ -91,7 +93,13 @@ const off = { enabled: false, status: { kind: 'off' as const } };
 const starting = { enabled: true, status: { kind: 'starting' as const } };
 
 function access(routes: RemoteAccess['routes']): RemoteAccess {
-  return { routes, serviceUrl: 'http://127.0.0.1:4173' };
+  return {
+    routes,
+    serviceUrl: 'http://127.0.0.1:4173',
+    editing: Schema.decodeUnknownSync(
+      readRemoteAccessResponseSchema.fields.editing,
+    )({ fingerprint: 'a'.repeat(64) }),
+  };
 }
 
 it.each([

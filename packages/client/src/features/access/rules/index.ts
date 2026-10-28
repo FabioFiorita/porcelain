@@ -14,18 +14,29 @@ export {
 } from './remotes.ts';
 export { connectionErrorMessage } from './connection-error-message.ts';
 export {
+  ANDROID_EMULATOR_HOST,
   deviceRouteTitles,
+  LOCAL_NETWORK_WARNING,
+  hostnameForm,
   localNetworkNote,
   networkName,
   pairingAddresses,
+  protectedRouteNote,
+  remoteRouteDescriptions,
   remoteRouteNames,
   remoteRouteTitles,
   routeFailure,
+  routeStatusLabel,
   tailscaleServeCommand,
   type Environment,
+  type HostnameFormInput,
+  type PairedAccess,
   type RemoteAccess,
+  type RemoteAccessChange,
   type RemoteRoute,
   type RemoteRouteName,
+  waysInPermissionShown,
+  waysInRefusal,
 } from './share.ts';
 export {
   serviceUpdateOutcome,

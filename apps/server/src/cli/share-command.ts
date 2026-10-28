@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import {
   type ReadRemoteAccessResponse,
-  type SetRemoteAccessRequest,
+  type RemoteAccessChange,
 } from '@porcelain/contracts/access';
 import type { Limits } from '../config/limits.ts';
 import type { ShareAction } from './settings.ts';
@@ -90,7 +90,7 @@ function report(access: ReadRemoteAccessResponse): string {
 function change(
   action: ShareAction,
   current: ReadRemoteAccessResponse,
-): SetRemoteAccessRequest | undefined {
+): RemoteAccessChange | undefined {
   switch (action.kind) {
     case 'show':
       return undefined;
@@ -156,7 +156,7 @@ const readSharing = Effect.fn('readSharing')(function* (
     (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    )).administration.readRemoteAccess(),
+    )).remoteAccess.readRemoteAccess(),
   );
 });
 
@@ -192,7 +192,9 @@ export const shareRemoteAccess = Effect.fn('shareRemoteAccess')(function* (
     (yield* ownerClient(
       dataDirectory,
       limits.owner.requestTimeoutMs,
-    )).administration.setRemoteAccess({ payload: requested }),
+    )).remoteAccess.setRemoteAccess({
+      payload: { expected: current.editing.fingerprint, change: requested },
+    }),
   );
   const access = yield* settled(dataDirectory, changed, limits);
   output.stdout(report(access));

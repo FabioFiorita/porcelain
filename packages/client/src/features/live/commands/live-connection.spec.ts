@@ -1,3 +1,4 @@
+import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect, it } from 'vitest';
 import {
   Redacted,
@@ -64,7 +65,7 @@ it('adopts a replacement remote connection without releasing application drafts 
           environmentId: 'environment',
           name: 'Development server',
           version: null,
-          protocol: 2,
+          protocol: ENVIRONMENT_PROTOCOL,
         }),
       );
     if (url.pathname === '/api/session')
