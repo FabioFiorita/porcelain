@@ -19,9 +19,7 @@ test('the briefing keeps system owners and questions, the decisions open retaine
     )
     .toBeVisible();
   await expect
-    .element(
-      review.getByText(/^Delivery outbox · Decision \d+ · /),
-    )
+    .element(review.getByText(/^Delivery outbox · Decision \d+ · /))
     .toBeVisible();
   await expect
     .element(review.getByText('Page-owned writes', { exact: true }))
