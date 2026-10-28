@@ -409,7 +409,7 @@ function DecisionMark({
         aria-hidden
         className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground"
       >
-        <CheckIcon className="size-2.5" />
+        <CheckIcon strokeWidth={3} className="size-2.5" />
       </span>
     );
   return (
@@ -494,7 +494,11 @@ function ClosingRow({
         active && 'bg-muted inset-ring inset-ring-border',
       )}
     >
-      <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+      <Icon
+        strokeWidth={1.75}
+        aria-hidden
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
       <TruncatedText className="min-w-0 flex-1" text={label} />
       {count && (
         <span

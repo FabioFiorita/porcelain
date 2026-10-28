@@ -51,9 +51,9 @@ export function ReviewViews({
           value: 'comments',
           label:
             openComments > 0 ? (
-              <>
+              <span>
                 Comments <span className="tabular-nums">({openComments})</span>
-              </>
+              </span>
             ) : (
               'Comments'
             ),
@@ -88,7 +88,10 @@ export function WholeChangeComment({
           />
         }
       >
-        <MessageSquarePlusIcon className="text-muted-foreground" />
+        <MessageSquarePlusIcon
+          strokeWidth={1.75}
+          className="text-muted-foreground"
+        />
       </TooltipTrigger>
       <TooltipContent role="tooltip">{label}</TooltipContent>
     </Tooltip>,

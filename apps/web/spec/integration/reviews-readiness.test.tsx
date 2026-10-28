@@ -75,12 +75,10 @@ test('the readiness panel follows reviewed and stale files, waiting comments and
     ],
     screenshot: 'Saved notice',
   });
-  await expect
-    .poll(async () => (await server.publishedReview()).review?.notExplained)
-    .toEqual([
-      { path: readme, ranges: [{ startLine: 4, endLine: 4 }] },
-      { path: 'notes.md', ranges: [{ startLine: 1, endLine: 1 }] },
-    ]);
+  expect((await server.publishedReview()).review?.notExplained).toEqual([
+    { path: readme, ranges: [{ startLine: 4, endLine: 4 }] },
+    { path: 'notes.md', ranges: [{ startLine: 1, endLine: 1 }] },
+  ]);
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
   await expect.element(line('Proof is incomplete')).toBeVisible();
   await expect.element(line('0 of 1 decisions reviewed')).toBeVisible();

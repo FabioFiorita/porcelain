@@ -406,12 +406,26 @@ function ReadinessRow({
 function ToneIcon({ tone }: { tone: RowTone }) {
   if (tone === 'progress' || tone === 'open') return null;
   if (tone === 'ok')
-    return <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />;
+    return (
+      <CheckIcon
+        strokeWidth={1.75}
+        aria-hidden
+        className="size-3.5 shrink-0 text-add-fg"
+      />
+    );
   if (tone === 'failing')
     return (
-      <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-destructive" />
+      <CircleXIcon
+        strokeWidth={1.75}
+        aria-hidden
+        className="size-3.5 shrink-0 text-destructive"
+      />
     );
   return (
-    <CircleAlertIcon aria-hidden className="size-3.5 shrink-0 text-warn" />
+    <CircleAlertIcon
+      strokeWidth={1.75}
+      aria-hidden
+      className="size-3.5 shrink-0 text-warn"
+    />
   );
 }
