@@ -77,7 +77,7 @@ Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
 
 ## Gotchas
 
-- Summary links expire shortly after reading; a late frame needs a full reload. Native remote summary proof is separate from desktop-mode web views.
+- Opening Agent summary after its signed link expires requests a fresh link before mounting the frame. A failed refresh shows Could not display with Try again. Native remote summary proof is separate from desktop-mode web views.
 
 ## Pull request linking
 
