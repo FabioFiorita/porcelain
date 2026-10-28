@@ -40,6 +40,10 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
                           and with the long-text and many-items seeds; write index.md; fail
                           on a page or console error, an HTTP failure, a redirect,
                           horizontal overflow or a theme that did not apply
+  board-diff --board <name> --route <path> [--width 1440,414] [--theme light,dark]
+             [--board-directory <folder>]
+                          compare mapped roles with approved HTML; write Markdown and JSON;
+                          fail on style mismatches, missing roles or unavailable pages
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-architecture | seed long-text|many-items
   agent publish-revision "<title>" | advance-review-branch | remove-review-worktree
@@ -192,6 +196,10 @@ async function command(args: readonly string[]): Promise<string> {
       'review-sample': { type: 'boolean', default: false },
       'git-interruption': { type: 'boolean', default: false },
       board: { type: 'string', multiple: true },
+      route: { type: 'string' },
+      width: { type: 'string' },
+      theme: { type: 'string' },
+      'board-directory': { type: 'string' },
     },
     allowPositionals: true,
     strict: true,
@@ -209,7 +217,10 @@ async function command(args: readonly string[]): Promise<string> {
       gitInterruption: values['git-interruption'],
     });
   if (name === 'doctor') return doctor();
-  if (name === undefined || (values.board !== undefined && name !== 'sweep'))
+  if (
+    name === undefined ||
+    (values.board !== undefined && name !== 'sweep' && name !== 'board-diff')
+  )
     throw new Usage(usage);
   if (name === 'stop') {
     const result = await registry.stopById(values.instance);
@@ -219,12 +230,23 @@ async function command(args: readonly string[]): Promise<string> {
   if (name === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
   if (
-    !['logs', 'agent', 'server', 'pairing-link', 'remote', 'sweep'].includes(
-      name,
-    )
+    ![
+      'logs',
+      'agent',
+      'server',
+      'pairing-link',
+      'remote',
+      'sweep',
+      'board-diff',
+    ].includes(name)
   )
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
+  if (name === 'board-diff')
+    return registry.drive(instance, args, async () => {
+      const { boardDiff } = await import('./board-diff.ts');
+      return boardDiff(instance, args);
+    });
   if (name === 'sweep')
     return registry.drive(instance, args, async () => {
       const { sweep } = await import('./sweep.ts');
