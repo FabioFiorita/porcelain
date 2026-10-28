@@ -247,7 +247,7 @@ export function ProjectNavigator({
         </NavigatorHeader>
         <div className="navigator-filters mt-0.5 mb-2.5 flex items-center gap-0.5 px-1">
           {searching && (
-            <InputGroup className="h-7 min-w-0 flex-1">
+            <InputGroup className="min-w-0 flex-1">
               <InputGroupInput
                 autoFocus
                 type="search"
