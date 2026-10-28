@@ -48,6 +48,7 @@ const tones = {
   secondaryForeground: 'accent-secondary-foreground',
   primary: 'accent-primary',
   brand: 'accent-brand',
+  background: 'accent-background',
 };
 export type IconName = keyof typeof symbols;
 export function Icon({
@@ -57,10 +58,18 @@ export function Icon({
 }: {
   name: IconName;
   tone?: keyof typeof tones;
-  size?: 'small' | 'default' | 'large';
+  size?: 'tiny' | 'caption' | 'small' | 'default' | 'large';
 }) {
   const dimensions = useResolveClassNames(
-    size === 'small' ? 'size-3.5' : size === 'large' ? 'size-6' : 'size-4.5',
+    size === 'tiny'
+      ? 'size-2.25'
+      : size === 'caption'
+        ? 'size-3.25'
+        : size === 'small'
+          ? 'size-3.5'
+          : size === 'large'
+            ? 'size-6'
+            : 'size-4.5',
   );
   const dimension = Number(dimensions.width);
   return (

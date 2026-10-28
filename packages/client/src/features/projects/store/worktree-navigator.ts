@@ -7,9 +7,7 @@ import {
 export const worktreeNavigatorState = Atom.make<{
   readonly query: string;
   readonly filter: ReviewListFilter;
-  readonly closed: boolean;
 }>({
   query: '',
   filter: emptyReviewListFilter,
-  closed: false,
 }).pipe(Atom.keepAlive);

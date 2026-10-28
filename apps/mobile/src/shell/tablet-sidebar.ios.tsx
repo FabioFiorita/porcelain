@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, useGlobalSearchParams } from 'expo-router';
 import { Box } from '../components/ui/box';
 import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
@@ -24,6 +24,10 @@ const StyledSafeAreaView = withUniwind(SafeAreaView);
 export function TabletSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const params = useGlobalSearchParams<{
+    reviewId?: string;
+    environment?: string;
+  }>();
   const inSettings = destinationForPath(pathname).group === '(settings)';
   const updateIndicator = useUpdatesIndicator();
   const [updates, setUpdates] = useState(false);
@@ -39,6 +43,13 @@ export function TabletSidebar() {
         </Box>
       </Box>
       <WorktreeNavigator
+        openReview={
+          pathname.startsWith('/reviews/') &&
+          params.reviewId &&
+          params.environment
+            ? { reviewId: params.reviewId, environmentId: params.environment }
+            : undefined
+        }
         onSelect={() => {
           if (pathname !== '/files') router.replace('/files');
         }}

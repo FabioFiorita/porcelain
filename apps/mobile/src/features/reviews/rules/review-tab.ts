@@ -1,3 +1,8 @@
+import {
+  stopDone,
+  type WalkthroughStop,
+  type ReviewStatus,
+} from '@porcelain/client/reviews/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 
 export type ReviewTab =
@@ -6,14 +11,21 @@ export type ReviewTab =
 
 export function reviewTab(
   published: boolean | undefined,
-  decisions: readonly { readonly reviewed: boolean }[] | undefined,
+  progress:
+    | {
+        stops: readonly WalkthroughStop[];
+        items: readonly { path: string; reviewStatus: ReviewStatus }[];
+        decisions: ReadonlyMap<string, { reviewed: boolean; stale: boolean }>;
+      }
+    | undefined,
   comparison: ReviewComparison,
 ): ReviewTab {
   if (published === false) return { title: 'Changes', progress: undefined };
-  if (comparison.kind === 'branch' || !decisions || decisions.length === 0)
+  const decisions = progress?.stops.filter((stop) => stop.kind === 'decision');
+  if (comparison.kind === 'branch' || !progress || !decisions?.length)
     return { title: 'Review', progress: undefined };
   return {
     title: 'Review',
-    progress: `${decisions.filter((decision) => decision.reviewed).length}/${decisions.length}`,
+    progress: `${decisions.filter((stop) => stopDone(stop, progress.items, progress.decisions)).length}/${decisions.length}`,
   };
 }
