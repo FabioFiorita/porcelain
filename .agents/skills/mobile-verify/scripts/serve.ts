@@ -151,6 +151,8 @@ export function serve(folder: string): Promise<void> {
         `simulator ${simulator.udid}\ninstalled ${simulator.installed}\nsetup session ${setupSession}\n`,
       );
     if (options.manualPairing) {
+      setupCommand(agent, ['open', identity.bundleIdentifier, '--foreground']);
+      if (platform === 'ios') setupCommand(agent, ['prepare', 'ios-runner']);
       setupCommand(agent, [
         'open',
         identity.bundleIdentifier,
