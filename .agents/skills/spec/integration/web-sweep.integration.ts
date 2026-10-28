@@ -15,9 +15,9 @@ import {
 const SWEEP_CASE_MS = 10 * 60_000;
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
 const pages = {
-  'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<h1>Page not found</h1><p>Fits every width.</p><pre>Computer unavailable</pre>`,
+  'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<h1>Page not found</h1><p>Fits every width.</p><pre>Computer unavailable</pre><span data-slot="breadcrumb-page" aria-current="page">Computer unavailable</span>`,
   'sweep-not-found.html': `<!doctype html><title>Not found</title>${themed}<section data-slot="state-notice"><h2>Page not found</h2></section>`,
-  'sweep-unavailable.html': `<!doctype html><title>Unavailable</title>${themed}<span data-slot="breadcrumb-page" aria-current="page">Computer unavailable</span>`,
+  'sweep-unavailable.html': `<!doctype html><title>Unavailable</title>${themed}<div role="alert" data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>`,
   'sweep-error.html': `<!doctype html><title>Sweep error</title>${themed}<script>throw new Error('sweep fixture page error');</script>`,
   'sweep-crash-text.html': `<!doctype html><title>Sweep crash text</title>${themed}<p>Fits every width.</p><script>if (innerWidth === 414) console.error('Target crashed: the review socket has been closed');</script>`,
   'sweep-overflow.html': `<!doctype html><title>Sweep overflow</title><style>body{margin:0}</style>${themed}<div aria-label="Too wide" style="width:2000px">Wide</div>`,

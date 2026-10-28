@@ -316,11 +316,7 @@ async function shoot(
         await page
           .locator('[data-slot="state-notice"]')
           .getByRole('heading', { name: title, exact: true })
-          .or(
-            page
-              .locator('[data-slot="breadcrumb-page"][aria-current="page"]')
-              .filter({ hasText: new RegExp(`^${title}$`) }),
-          )
+          .or(page.locator(`[data-unavailable-page="${title}"]`))
           .first()
           .isVisible()
       )
