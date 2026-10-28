@@ -352,7 +352,7 @@ function CommitHeader({
               </span>
               <TruncatedText
                 text={commitPaths(file).join(' → ')}
-                className="flex-1 font-mono"
+                className="flex-1 font-mono font-medium"
               />
               <LineCounts count={counts.get(commitPath(file))} />
               {patchOf(file)?.kind === 'binary' && (

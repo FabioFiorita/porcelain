@@ -113,7 +113,7 @@ export function HistoryHeading({
   return (
     <>
       {history.snapshot !== null && history.snapshot !== undefined && (
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3.5 font-mono text-ui text-muted-foreground">
+        <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3.5 font-mono text-caption leading-4 text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <TruncatedText
             className="min-w-0 flex-1 font-medium text-foreground"
