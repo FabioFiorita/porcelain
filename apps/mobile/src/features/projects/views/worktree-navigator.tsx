@@ -10,7 +10,7 @@ import {
 import { ArchiveReview } from './archive-review';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import {
@@ -40,6 +40,7 @@ import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
+import { retainedReviewRoute } from '../rules/retained-review-route';
 import { useWorktreeNavigator } from '../store';
 
 export function WorktreeNavigator({
@@ -63,6 +64,7 @@ export function WorktreeNavigator({
   const updateIndicator = useUpdatesIndicator();
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
+  const [group] = useSegments();
   const { preferences, setPreferences } = usePreferences();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
@@ -99,7 +101,7 @@ export function WorktreeNavigator({
       );
       if (!remote) return;
       router.push({
-        pathname: '/(review)/reviews/[reviewId]',
+        pathname: retainedReviewRoute(nativeHeader ? group : undefined),
         params: {
           reviewId: entry.reviewId,
           environment: entry.environmentId,

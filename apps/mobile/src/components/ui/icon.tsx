@@ -1,5 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { useWindowDimensions } from 'react-native';
 import { withUniwind, useResolveClassNames } from 'uniwind';
+import { iconSize } from './icon-size';
 const StyledSymbol = withUniwind(SymbolView);
 const symbols = {
   add: { ios: 'plus', android: 'add' },
@@ -60,6 +62,7 @@ export function Icon({
   tone?: keyof typeof tones;
   size?: 'tiny' | 'caption' | 'small' | 'default' | 'large';
 }) {
+  const { fontScale } = useWindowDimensions();
   const dimensions = useResolveClassNames(
     size === 'tiny'
       ? 'size-2.25'
@@ -75,7 +78,7 @@ export function Icon({
   return (
     <StyledSymbol
       name={symbols[name]}
-      size={dimension}
+      size={iconSize(dimension, fontScale)}
       style={dimensions}
       tintColorClassName={tones[tone]}
       accessible={false}

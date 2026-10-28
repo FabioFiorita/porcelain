@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
 import { usePathname, useRouter, useGlobalSearchParams } from 'expo-router';
@@ -22,6 +23,7 @@ import { destinationForPath } from './destinations';
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export function TabletSidebar() {
+  const { fontScale } = useWindowDimensions();
   const pathname = usePathname();
   const router = useRouter();
   const params = useGlobalSearchParams<{
@@ -55,10 +57,16 @@ export function TabletSidebar() {
         }}
       />
       <Separator />
-      <Box className="flex-row items-center" gap={2} paddingX={4} paddingY={3}>
-        <Box className="min-w-0 flex-1">
+      <Box
+        className={fontScale > 1 ? 'items-stretch' : 'flex-row items-center'}
+        gap={2}
+        paddingX={4}
+        paddingY={3}
+      >
+        <Box className={fontScale > 1 ? 'min-w-0' : 'min-w-0 flex-1'}>
           <Item
             title="Settings"
+            titleNumberOfLines={1}
             leading={<Icon name="settings" />}
             selected={inSettings}
             accessibilityLabel="Settings"

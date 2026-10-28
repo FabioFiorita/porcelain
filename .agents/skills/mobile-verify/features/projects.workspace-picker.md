@@ -23,6 +23,7 @@ tests:
   - packages/client/src/features/reviews/rules/archive-review.spec.ts
   - packages/client/src/features/reviews/queries/review-list.spec.ts
   - apps/mobile/src/features/projects/rules/worktree-row.spec.ts
+  - apps/mobile/src/features/projects/rules/retained-review-route.spec.ts
 api:
   - POST /api/reviews/:reviewId/archive
   - POST /api/inventory/refresh
@@ -61,14 +62,14 @@ Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, 
 1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.
 3. Confirm for the selected worktree: selection leaves before deletion. Closed retains readable review and Archived in accessible label/detail. A kept closed-only worktree remains reachable through Closed → Open worktree, and appears in No review while selected. Capture before, confirmation, Closed and settings.
-4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
+4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Repeat on iPad in landscape and portrait, with normal and larger Dynamic Type; the native page-sized sheet contains its footer. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
 
 Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspace-selection.spec.ts`, `inventory-state.spec.ts`, `archive-review.spec.ts`, `review-list.spec.ts`.
 
 ## Gotchas
 
 - Merged/closed PR reviews and manually closed reviews without a PR appear only in Closed. Update offers are covered by [Updates](access.updates.md).
-- Selecting/archiving must retain document-leave protection. Tablet presentation requires its own proof.
+- Selecting/archiving must retain document-leave protection. A retained review stays in the Files, Review or History stack that opened Worktrees, so native Back returns to that list with its search and filters. Tablet presentation requires its own proof.
 
 ### Unavailable pull request state
 
