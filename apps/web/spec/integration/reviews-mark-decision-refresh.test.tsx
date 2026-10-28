@@ -20,7 +20,12 @@ test('an open latest review follows a new publication while a numbered revision 
     .toBeVisible();
   const second = await repo.review('Read the second immutable decision');
   await expect
-    .element(review.getByRole('button', { name: 'r2', exact: true }))
+    .element(
+      review.getByRole('button', {
+        name: 'Revision 2, the latest',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -30,7 +35,7 @@ test('an open latest review follows a new publication while a numbered revision 
       }),
     )
     .toBeVisible();
-  await review.getByRole('button', { name: 'r1', exact: true }).click();
+  await review.getByRole('button', { name: 'Revision 1', exact: true }).click();
   await expect
     .element(
       review.getByRole('heading', {
@@ -53,9 +58,9 @@ test('sidebar decisions return from an older revision or summary to the latest w
     name: 'Review walkthrough',
     exact: true,
   });
-  await review.getByRole('button', { name: 'r1', exact: true }).click();
+  await review.getByRole('button', { name: 'Revision 1', exact: true }).click();
   await expect
-    .element(review.getByRole('button', { name: 'r1', exact: true }))
+    .element(review.getByRole('button', { name: 'Revision 1', exact: true }))
     .toHaveAttribute('aria-pressed', 'true');
   await workspace
     .getByRole('tab', { name: 'Agent summary', exact: true })
@@ -82,6 +87,11 @@ test('sidebar decisions return from an older revision or summary to the latest w
     .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
   await expect
-    .element(review.getByRole('button', { name: 'latest', exact: true }))
+    .element(
+      review.getByRole('button', {
+        name: 'Revision 2, the latest',
+        exact: true,
+      }),
+    )
     .toHaveAttribute('aria-pressed', 'true');
 });

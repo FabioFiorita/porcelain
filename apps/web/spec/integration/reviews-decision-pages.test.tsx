@@ -24,6 +24,26 @@ test('decision diffs follow the route from the entry point through its owners an
   });
   await expect
     .poll(() =>
+      reviewLayout.routeSteps(
+        decision
+          .getByRole('region', {
+            name: 'Route through the system',
+            exact: true,
+          })
+          .getByRole('button', { name: /^Go to step /u }),
+      ),
+    )
+    .toEqual([
+      { number: '1', current: 'step', weight: '600' },
+      { number: '2', current: null, weight: '500' },
+      { number: '3', current: null, weight: '500' },
+      { number: '4', current: null, weight: '500' },
+      { number: '5', current: null, weight: '500' },
+      { number: '6', current: null, weight: '500' },
+      { number: '7', current: null, weight: '500' },
+    ]);
+  await expect
+    .poll(() =>
       reviewLayout.reviewControlLabels(
         decision.getByRole('button', { name: /^Mark .+ as reviewed$/u }),
       ),
@@ -64,20 +84,15 @@ test('a decision connected to a question pins it beside the decision, and its an
     name: 'Decision details',
     exact: true,
   });
-  await expect
-    .element(
-      details.getByText('Needs your decision · Delivery outbox', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await details
-    .getByRole('button', { name: 'Answer this question', exact: true })
-    .click();
-  await details
-    .getByRole('textbox', { name: 'Comment', exact: true })
+  const card = details.getByRole('region', {
+    name: 'Needs your decision: Delivery outbox',
+    exact: true,
+  });
+  await expect.element(card).toBeVisible();
+  await card
+    .getByRole('textbox', { name: 'Answer the agent', exact: true })
     .fill('Keep one transaction in the outbox owner.');
-  await details.getByRole('button', { name: 'Comment', exact: true }).click();
+  await card.getByRole('button', { name: 'Send answer', exact: true }).click();
   await expect
     .poll(() => server.reviewComments(published.reviewId ?? ''))
     .toMatchObject([

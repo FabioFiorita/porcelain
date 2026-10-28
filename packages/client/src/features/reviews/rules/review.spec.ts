@@ -7,7 +7,22 @@ import {
   reviewSummaryUrl,
   summaryLayerLinks,
   summaryLayerNumber,
+  summaryLinkExpiring,
 } from './review.ts';
+
+describe('summaryLinkExpiring', () => {
+  const now = Date.parse('2026-10-27T12:00:00.000Z');
+  it.each([
+    ['an hour away', '2026-10-27T13:00:00.000Z', false],
+    ['two minutes away', '2026-10-27T12:02:00.000Z', false],
+    ['exactly one minute away', '2026-10-27T12:01:00.000Z', true],
+    ['thirty seconds away', '2026-10-27T12:00:30.000Z', true],
+    ['already past', '2026-10-27T11:59:00.000Z', true],
+    ['unreadable', 'not a date', true],
+  ])('a link expiring %s needs a fresh one: %s', (_, expires, expected) => {
+    expect(summaryLinkExpiring({ expires }, now)).toBe(expected);
+  });
+});
 
 describe('reviewSummaryUrl', () => {
   const summary = {

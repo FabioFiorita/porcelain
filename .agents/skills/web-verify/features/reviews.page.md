@@ -24,6 +24,7 @@ tests:
   - apps/web/spec/integration/reviews-briefing.test.tsx
   - apps/web/spec/integration/reviews-panel.test.tsx
   - apps/web/spec/e2e/reviews-live-refresh.e2e.ts
+  - apps/web/spec/e2e/reviews-summary-link.e2e.ts
 api:
   - GET /api/reviews/:reviewId
   - GET /api/projects/:projectId/reviews
@@ -59,8 +60,8 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 
 1. In a fresh unpaired browser, open `/reviews/<reviewId>?decision=<layerId>`. Expect `/pair` and "This browser is not paired". Redeem the card's fresh pairing link in the same tab. Expect the original route and its latest decision, with the pairing fragment consumed.
 2. Open `/reviews/<reviewId>`. Check the briefing order: two-tone title, You asked and links, Recommendation, Continue at decision n, Needs your decision, What this adds, Proven at the short head SHA, and The walkthrough. The margin holds revisions, branch/head, Close review, Delete review…, Removed and Not proven. The removed group names `retired.ts` and its behavior and reason. The proof keeps its failing check first. Not proven names Desktop app and Mac is off.
-3. Open the project navigator and its unified Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review. Publish a revision to include it." Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
-4. Select r1, r2 and latest. The SHA and committed code follow the selected revision. Open the first decision with Continue at decision 1. Return with Open the briefing before selecting revisions. Its code uses the revision file/diffs endpoints, and each pointer opens the retained full file.
+3. Open the project navigator and its unified Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review." with "Publish a revision to include it." beneath it. At 414 and 1440 in light and dark, the complete notice heading wraps without ellipsis or clipping. Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
+4. In the margin's Revisions rows (newest first, the latest with a dot and "Latest", each with its age), select r1, then the latest row. The SHA and committed code follow the selected revision. Open the first decision with Continue at decision 1. Return with Open the briefing before selecting revisions. Its code uses the revision file/diffs endpoints, and each pointer opens the retained full file.
 5. On a decision, comment on `review-page.ts` from its code; in the Review panel's Comments tab use "Comment on the whole branch". Use `$C agent remove-review-worktree`, reload each route, and check that verdict, explanations, code and proof remain readable, and that the Review panel's Comments tab still lists both threads; reply to one and resolve the other. This removes only the fixture worktree created by publish-revision.
 6. Mark a decision reviewed. Inspect PUT `/api/reviews/<id>/marks` and GET of the same endpoint: its files and decision are review-owned. Unmarking a decision keeps file marks. A file toggle changes the completion indicator without removing the decision mark.
 7. On the briefing, choose Close review. The closed review stays readable. The margin keeps Delete review… and removes Close review. Delete review… opens a confirmation covering every revision and its owned proof, comments and marks. Cancel keeps it; Delete removes it and returns to the workspace.
@@ -70,13 +71,15 @@ Check `free -g` before startup. Start one disposable instance and retain the con
 
 Opening an unseen revision records it once per connection epoch. If that acknowledgement fails, the review remains readable and an inline alert offers Try again; retry is disabled while pending and clears the alert on success. Reconnect rechecks canonical seen state without repeating an acknowledged write.
 
+If a live review refresh fails after a new publication, keep the last loaded revision readable and show "This review could not be refreshed. Showing the last loaded revision." with Try again. Restore the read, retry, and expect the latest revision with the warning cleared. While renewing an expired Agent summary link, its existing fresh-link error owns the retry instead of showing a second alert.
+
 Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, revision controls, links, deletion paths, menus, comment controls and the wrapping Continue button for overflow. Publish a decision containing a long unbroken filename as well as prose: The title and walkthrough row must retain the full decision text; the Continue at decision n button must fit the viewport. Scroll the complete button into view before retaining phone light/dark screenshots. Electron bridge and macOS behavior require desktop-verify; this web run does not prove them.
 
 Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
 
 ## Gotchas
 
-- Summary links expire shortly after reading; a late frame needs a full reload. Native remote summary proof is separate from desktop-mode web views.
+- Opening Agent summary after its signed link expires requests a fresh link before mounting the frame. A failed refresh shows Could not display with Try again. Native remote summary proof is separate from desktop-mode web views.
 
 ## Pull request linking
 
