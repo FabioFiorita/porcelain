@@ -5,12 +5,21 @@ import { archiveReviewDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause } from 'effect';
 import type { Connection } from '@/shared/workspace/connection';
-import { archiveOptions } from '@porcelain/client/preferences/rules';
+import {
+  archiveOptions,
+  confirmedReviewGitSettings,
+  reviewGitSettingsBlock,
+} from '@porcelain/client/preferences/rules';
 import {
   archiveDescription,
   archiveFailureMessage,
 } from '@porcelain/client/reviews/rules';
-import { usePreferences } from '@/features/preferences';
+import { useReviewGitSettings } from '@/features/preferences';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useArchiveReview } from '../commands/archive-review';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -34,10 +43,13 @@ export function ArchiveReview({
   beforeLeave?: () => void;
   menuItem?: boolean;
 }) {
-  const { preferences } = usePreferences();
+  const view = useReviewGitSettings(connection);
+  const settings = confirmedReviewGitSettings(view);
+  const block = reviewGitSettingsBlock(view);
   const { submit } = useArchiveReview(connection, reviewId);
   const open = () => {
-    const options = archiveOptions(preferences);
+    if (!settings) return;
+    const options = archiveOptions(settings);
     archiveReviewDialog.openWithPayload({
       connection,
       reviewId,
@@ -47,12 +59,29 @@ export function ArchiveReview({
     });
     void submit({ options });
   };
-  return menuItem ? (
-    <ContextMenuItem onClick={open}>Archive</ContextMenuItem>
-  ) : (
-    <Button variant="outline" size="sm" onClick={open}>
+  if (menuItem)
+    return (
+      <ContextMenuItem disabled={!settings} onClick={open}>
+        Archive
+      </ContextMenuItem>
+    );
+  const button = (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={!settings}
+      focusableWhenDisabled
+      onClick={open}
+    >
       Archive
     </Button>
+  );
+  if (settings || !block) return button;
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent>{block}</TooltipContent>
+    </Tooltip>
   );
 }
 

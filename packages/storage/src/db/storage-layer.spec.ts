@@ -179,6 +179,7 @@ describe('Native storage adoption', () => {
         { migration_id: 2, name: 'project_review_revisions' },
         { migration_id: 3, name: 'project_github_accounts' },
         { migration_id: 4, name: 'archive_reviews' },
+        { migration_id: 5, name: 'review_git_settings' },
       ]);
     } finally {
       database.close();
@@ -539,7 +540,7 @@ describe('Native storage adoption', () => {
         database
           .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
           .get(),
-      ).toEqual({ count: 29 });
+      ).toEqual({ count: 30 });
       expect(
         database.prepare('SELECT revision FROM comment_revision').get(),
       ).toEqual({ revision: 37 });
@@ -557,6 +558,7 @@ describe('Native storage adoption', () => {
         { migration_id: 2, name: 'project_review_revisions' },
         { migration_id: 3, name: 'project_github_accounts' },
         { migration_id: 4, name: 'archive_reviews' },
+        { migration_id: 5, name: 'review_git_settings' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -610,12 +612,13 @@ describe('Native storage adoption', () => {
           { migration_id: 2, name: 'project_review_revisions' },
           { migration_id: 3, name: 'project_github_accounts' },
           { migration_id: 4, name: 'archive_reviews' },
+          { migration_id: 5, name: 'review_git_settings' },
         ]);
         expect(
           stored
             .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
             .get(),
-        ).toEqual({ count: 29 });
+        ).toEqual({ count: 30 });
       } finally {
         stored.close();
       }

@@ -4,6 +4,7 @@ import {
   CloseTunnelConnectionsService,
   PlanServiceUpdateCheckService,
   AuthorizeServiceUpdateService,
+  AuthorizeWaysInService,
   AuthenticateDeviceService,
   AuthenticateDesktopSessionService,
   IssueLiveTicketService,
@@ -13,6 +14,8 @@ import {
   CheckLocalRequestService,
   CheckServiceUpdateService,
   RenameEnvironmentService,
+  ReadReviewGitSettingsService,
+  SaveReviewGitSettingsService,
   ReadRemoteAccessService,
   SetRemoteAccessService,
   FlushDeviceActivityService,
@@ -25,6 +28,7 @@ import {
   RevokePairingGrantService,
   RevokeDeviceService,
   SetDeviceTrustService,
+  SetWaysInPermissionService,
 } from '@porcelain/access/services';
 import {
   RemoteAccessStore,
@@ -42,6 +46,7 @@ import {
   IssueLiveTicketOptions,
   RedeemLiveTicketOptions,
   EnvironmentNameStore,
+  ReviewGitSettingsStore,
   HostNameReader,
   RuntimeStatusReader,
   RemoteAccessOptions,
@@ -75,6 +80,7 @@ export function accessServicesLayer(
     CloseTunnelConnectionsService.layer,
     PlanServiceUpdateCheckService.layer,
     AuthorizeServiceUpdateService.layer,
+    AuthorizeWaysInService.layer,
     AuthenticateDeviceService.layer,
     AuthenticateDesktopSessionService.layer,
     IssueLiveTicketService.layer,
@@ -84,8 +90,12 @@ export function accessServicesLayer(
     CheckLocalRequestService.layer,
     CheckServiceUpdateService.layer,
     RenameEnvironmentService.layer,
+    ReadReviewGitSettingsService.layer,
+    SaveReviewGitSettingsService.layer,
     ReadRemoteAccessService.layer,
-    SetRemoteAccessService.layer,
+    SetRemoteAccessService.layer.pipe(
+      Layer.provide(AuthorizeWaysInService.layer),
+    ),
     FlushDeviceActivityService.layer,
     IssuePairingService.layer,
     ListAccessService.layer,
@@ -96,6 +106,7 @@ export function accessServicesLayer(
     RevokePairingGrantService.layer,
     RevokeDeviceService.layer,
     SetDeviceTrustService.layer,
+    SetWaysInPermissionService.layer,
   ).pipe(
     Layer.provide([
       Layer.succeed(RemoteAccessStore, remoteAccess),
@@ -117,6 +128,7 @@ export function accessServicesLayer(
       Layer.succeed(IssueLiveTicketOptions, limits.liveTicket),
       Layer.succeed(RedeemLiveTicketOptions, limits.device),
       Layer.succeed(EnvironmentNameStore, stores.environmentName),
+      Layer.succeed(ReviewGitSettingsStore, stores.reviewGitSettings),
       Layer.succeed(HostNameReader, dependencies.shared.hostNames),
       Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
       Layer.succeed(RemoteAccessOptions, {

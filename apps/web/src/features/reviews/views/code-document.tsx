@@ -43,7 +43,11 @@ import {
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { usePreferences, useTheme } from '@/features/preferences/index';
+import {
+  usePreferences,
+  useSpecsApart,
+  useTheme,
+} from '@/features/preferences/index';
 import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
@@ -158,9 +162,8 @@ function CodeSurface({
 }) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
-  const entries = decision
-    ? given
-    : groupSpecPaths(given, preferences.collapseSpecs);
+  const specsApart = useSpecsApart(gitContext.connection);
+  const entries = decision ? given : groupSpecPaths(given, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll();
   const margin = useMarginStack();
@@ -184,7 +187,7 @@ function CodeSurface({
             entry.id,
             (entries.length > 1 && entry.review?.reviewed === true) ||
               ((collapsible || entries.length > 1) &&
-                preferences.collapseSpecs &&
+                specsApart &&
                 isSpecPath(entry.path)),
           ),
       )
@@ -857,7 +860,7 @@ function CodeSurface({
             return (
               <span className="flex items-center gap-1">
                 {!decision &&
-                  preferences.collapseSpecs &&
+                  specsApart &&
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">

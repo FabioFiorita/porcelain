@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 86;
+const PAIRED_ROUTES = 90;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -76,10 +76,13 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'GET /api/reviews/:reviewId/compare',
         'GET /api/reviews/:reviewId/interdiff',
         'GET /api/reviews/:reviewId/pull-request',
+        'PUT /api/reviews/:reviewId/pull-request',
         'POST /api/reviews/:reviewId/archive',
         'GET /api/projects/:projectId/pull-requests',
         'GET /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/github-account',
+        'GET /api/review-git-settings',
+        'PATCH /api/review-git-settings',
       ]),
     );
 

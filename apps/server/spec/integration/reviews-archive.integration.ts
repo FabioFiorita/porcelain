@@ -73,7 +73,12 @@ type Fixture = {
   remote: string;
   git: (...args: string[]) => Promise<string>;
   trace: string[];
-  state: { hold: boolean; failCleanup: boolean; pull: ReadPullRequestResponse };
+  state: {
+    hold: boolean;
+    failCleanup: boolean;
+    pull: ReadPullRequestResponse;
+    readPull?: () => Effect.Effect<ReadPullRequestResponse>;
+  };
   started: Deferred.Deferred<void>;
   release: Deferred.Deferred<void>;
   cleaning: Deferred.Deferred<void>;
@@ -286,7 +291,8 @@ async function withArchive<E>(
                     Layer.succeed(Lanes, lanes),
                     Layer.succeed(EventPublisher, events),
                     Layer.succeed(ReadReviewPullRequestUseCasePort, {
-                      execute: () => Effect.succeed(state.pull),
+                      execute: () =>
+                        state.readPull?.() ?? Effect.succeed(state.pull),
                     }),
                   ),
                 ),
@@ -1008,5 +1014,46 @@ test('stale bytes with the same dirty status refuse deletion, then a new preview
           confirmation: { plan: current.plan, discardChanges: true },
         })).archived,
       ).toBe(true);
+    }),
+  ));
+
+test('relinking after GitHub is read refuses archive before deleting real Git state', () =>
+  withArchive((f) =>
+    Effect.gen(function* () {
+      const preview = yield* f.archive.execute(f.input);
+      const stale = f.state.pull;
+      f.state.readPull = () =>
+        f.store
+          .setPullRequest({
+            reviewId: f.input.reviewId,
+            pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/424',
+          })
+          .pipe(Effect.orDie, Effect.as(stale));
+      const result = yield* f.archive
+        .execute({
+          ...f.input,
+          confirmation: { plan: preview.plan, discardChanges: false },
+        })
+        .pipe(Effect.result);
+      expect(result).toMatchObject({
+        _tag: 'Failure',
+        failure: { _tag: 'ReviewArchiveRefusedError' },
+      });
+      expect(yield* f.store.readRecord(f.input)).toMatchObject({
+        archived: false,
+        pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/424',
+      });
+      expect(
+        yield* Effect.promise(() => f.git('branch', '--list', 'feature')),
+      ).toContain('feature');
+      expect(
+        yield* Effect.promise(() => f.git('worktree', 'list', '--porcelain')),
+      ).toContain(f.worktree);
+      expect(
+        yield* Effect.promise(() =>
+          f.git('ls-remote', '--heads', 'origin', 'feature'),
+        ),
+      ).toContain('refs/heads/feature');
+      expect(f.trace).not.toContain('inventory');
     }),
   ));

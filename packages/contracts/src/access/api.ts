@@ -10,12 +10,17 @@ import {
   MissingTailnetHostnameError,
   MissingTunnelHostnameError,
   NoLocalNetworkError,
+  ReviewGitSettingsNotConfiguredError,
+  ReviewGitSettingsTrustRequiredError,
   ServiceNotManagedError,
   ServiceUpdateNotOfferedError,
   ServiceUpdateRunningError,
   TooManyLiveTicketsError,
   UnidentifiedLocalNetworkError,
   UntrustedDeviceError,
+  RemoteRouteInUseError,
+  WaysInChangedError,
+  WaysInPermissionRequiredError,
 } from '@porcelain/access/errors';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -40,6 +45,8 @@ import {
   revokeAccessResponseSchema,
   setDeviceTrustRequestSchema,
   setDeviceTrustResponseSchema,
+  setWaysInPermissionRequestSchema,
+  setWaysInPermissionResponseSchema,
 } from './pairing.ts';
 import { readSessionResponseSchema } from './principal.ts';
 import {
@@ -47,6 +54,11 @@ import {
   setRemoteAccessRequestSchema,
   setRemoteAccessResponseSchema,
 } from './remote-access.ts';
+import {
+  readReviewGitSettingsResponseSchema,
+  saveReviewGitSettingsRequestSchema,
+  saveReviewGitSettingsResponseSchema,
+} from './review-git-settings.ts';
 import {
   readServiceUpdateResponseSchema,
   startServiceUpdateRequestSchema,
@@ -131,6 +143,24 @@ const updatesGroup = HttpApiGroup.make('serviceUpdates')
   )
   .middleware(PairedRequest)
   .middleware(ClientRequest);
+const reviewGitSettingsGroup = HttpApiGroup.make('reviewGitSettings')
+  .add(
+    HttpApiEndpoint.get('readReviewGitSettings', '/review-git-settings', {
+      disableCodecs: true,
+      success: readReviewGitSettingsResponseSchema,
+    }),
+    HttpApiEndpoint.patch('saveReviewGitSettings', '/review-git-settings', {
+      disableCodecs: true,
+      payload: saveReviewGitSettingsRequestSchema,
+      success: saveReviewGitSettingsResponseSchema,
+      error: [
+        httpFailure(ReviewGitSettingsTrustRequiredError, 'Forbidden'),
+        httpFailure(ReviewGitSettingsNotConfiguredError, 'Conflict'),
+      ],
+    }),
+  )
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
 const administrationGroup = HttpApiGroup.make('administration')
   .add(
     HttpApiEndpoint.get('listAccess', '/access', {
@@ -158,15 +188,33 @@ const administrationGroup = HttpApiGroup.make('administration')
       success: setDeviceTrustResponseSchema,
       error: httpFailure(DeviceNotFoundError, 'NotFound'),
     }),
+    HttpApiEndpoint.post('setWaysInPermission', '/access/ways-in-permission', {
+      disableCodecs: true,
+      payload: setWaysInPermissionRequestSchema,
+      success: setWaysInPermissionResponseSchema,
+      error: httpFailure(DeviceNotFoundError, 'NotFound'),
+    }),
+  )
+  .middleware(PairedRequest);
+const waysInPermissionRequired = httpFailure(
+  WaysInPermissionRequiredError,
+  'Forbidden',
+);
+const remoteAccessGroup = HttpApiGroup.make('remoteAccess')
+  .add(
     HttpApiEndpoint.get('readRemoteAccess', '/remote-access', {
       disableCodecs: true,
       success: readRemoteAccessResponseSchema,
+      error: waysInPermissionRequired,
     }),
     HttpApiEndpoint.patch('setRemoteAccess', '/remote-access', {
       disableCodecs: true,
       payload: setRemoteAccessRequestSchema,
       success: setRemoteAccessResponseSchema,
       error: [
+        waysInPermissionRequired,
+        httpFailure(WaysInChangedError, 'Conflict'),
+        httpFailure(RemoteRouteInUseError, 'Conflict'),
         httpFailure(InvalidTailnetHostnameError, 'BadRequest'),
         httpFailure(InvalidTunnelHostnameError, 'BadRequest'),
         httpFailure(MissingTailnetHostnameError, 'BadRequest'),
@@ -176,7 +224,8 @@ const administrationGroup = HttpApiGroup.make('administration')
       ],
     }),
   )
-  .middleware(PairedRequest);
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
 const environmentNameGroup = HttpApiGroup.make('environmentName')
   .add(
     HttpApiEndpoint.put('renameEnvironment', '/environment/name', {
@@ -206,11 +255,18 @@ export class SessionApi extends porcelainApi.add(sessionGroup).prefix('/api') {}
 export class ServiceUpdatesApi extends porcelainApi
   .add(updatesGroup)
   .prefix('/api') {}
+export class RemoteAccessApi extends porcelainApi
+  .add(remoteAccessGroup)
+  .prefix('/api') {}
+export class ReviewGitSettingsApi extends porcelainApi
+  .add(reviewGitSettingsGroup)
+  .prefix('/api') {}
 export class HostAccessApi extends porcelainApi
   .add(administrationGroup, environmentNameGroup)
   .prefix('/api') {}
 export class OwnerAccessApi extends porcelainApi.add(
   administrationGroup,
+  remoteAccessGroup,
   ownerStatusGroup,
 ) {}
 export class AccessApi extends porcelainApi
@@ -220,6 +276,8 @@ export class AccessApi extends porcelainApi
     pairingGroup,
     sessionGroup,
     updatesGroup,
+    remoteAccessGroup,
+    reviewGitSettingsGroup,
     administrationGroup,
     environmentNameGroup,
   )

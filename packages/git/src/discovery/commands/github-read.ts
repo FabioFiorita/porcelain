@@ -11,6 +11,7 @@ class GitHubCommandError extends Schema.TaggedError<GitHubCommandError>()(
       'rate-limited',
       'offline',
       'invalid-response',
+      'not-found',
     ]),
   },
 ) {}
@@ -60,11 +61,13 @@ const output = Effect.fn('Git.githubOutput')(function* (
       message.includes('rate_limit') ||
       message.includes('http 429')
         ? 'rate-limited'
-        : message.includes('http 40') ||
-            message.includes('could not resolve to a repository') ||
-            message.includes('not logged')
-          ? 'no-access'
-          : 'offline';
+        : message.includes('could not resolve to a pullrequest')
+          ? 'not-found'
+          : message.includes('http 40') ||
+              message.includes('could not resolve to a repository') ||
+              message.includes('not logged')
+            ? 'no-access'
+            : 'offline';
     return yield* new GitHubCommandError({ reason });
   }
   const text = result.stdout.toString('utf8');

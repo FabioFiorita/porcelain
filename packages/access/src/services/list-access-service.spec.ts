@@ -107,6 +107,7 @@ describe('ListAccessService', () => {
         lastSeenAt: '2026-09-23T09:00:00.000Z',
         route: 'lan',
         trusted: false,
+        canEditWaysIn: false,
       },
       {
         id: '2',
@@ -117,6 +118,7 @@ describe('ListAccessService', () => {
         lastSeenAddress: '100.64.0.9',
         route: 'tailnet',
         trusted: false,
+        canEditWaysIn: false,
       },
     ]);
   });

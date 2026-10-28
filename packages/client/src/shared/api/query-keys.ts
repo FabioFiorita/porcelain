@@ -43,6 +43,8 @@ export const queryKeys = {
     ['project-review', environmentId, reviewId] as const,
   environment: (environmentId: string) =>
     ['environment', environmentId] as const,
+  reviewGitSettings: (environmentId: string) =>
+    ['review-git-settings', environmentId] as const,
   filePreferences: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId, 'file-preferences'] as const,
   inventory: (environmentId: string | undefined) =>

@@ -9,12 +9,14 @@ export class InMemoryDeviceStore implements DeviceStore {
   private readonly revocations = new Map<string, string>();
   private readonly sightings = new Map<string, Sighting>();
   private readonly trust = new Map<string, true | undefined>();
+  private readonly waysIn = new Map<string, true | undefined>();
 
   add(device: StoredDevice): void {
     this.devices.set(device.id, { ...device });
     this.revocations.delete(device.id);
     this.sightings.delete(device.id);
     this.trust.set(device.id, device.trusted || undefined);
+    this.waysIn.set(device.id, device.canEditWaysIn || undefined);
   }
 
   find(input: { deviceId: string }): Effect.Effect<StoredDevice | undefined> {
@@ -59,11 +61,21 @@ export class InMemoryDeviceStore implements DeviceStore {
     });
   }
 
+  recordWaysInPermission(input: {
+    device: StoredDevice;
+    allowed: boolean;
+  }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.waysIn.set(input.device.id, input.allowed || undefined);
+    });
+  }
+
   private current(device: StoredDevice): StoredDevice {
     return {
       ...device,
       ...this.sightings.get(device.id),
       trusted: this.trust.get(device.id),
+      canEditWaysIn: this.waysIn.get(device.id),
       revokedAt: this.revocations.get(device.id) ?? device.revokedAt,
     };
   }

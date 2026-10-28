@@ -1,3 +1,4 @@
+import { PullRequestBlock } from './pull-request-block';
 import { ReviewNavigation } from './review-navigation';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -39,7 +40,7 @@ import { ChangeRow } from './change-row';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ChangeComment, CommentsView, ReviewViews } from './comments-view';
 import { isSpecPath } from '@porcelain/client/reviews/rules';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -111,6 +112,9 @@ export function ReviewIndex({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {review?.reviewId && (
+        <PullRequestBlock reviewId={review.reviewId} context={context} />
+      )}
       <div className="shrink-0 px-2">
         <Tabs
           value={changeScope}
@@ -241,13 +245,13 @@ function LayersView({
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
 }) {
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const [groups, setGroups] = useState({ changes: true, specs: false });
   const paths = list.changes.map((entry) => entry.path);
-  const mainPaths = preferences.collapseSpecs
+  const mainPaths = specsApart
     ? paths.filter((path) => !isSpecPath(path))
     : paths;
-  const specPaths = preferences.collapseSpecs ? paths.filter(isSpecPath) : [];
+  const specPaths = specsApart ? paths.filter(isSpecPath) : [];
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),

@@ -6,6 +6,7 @@ import { GitHubAccountStore } from '../ports/github-account-store.ts';
 import { InMemoryGitHubAccountStore } from '../../spec/fakes/in-memory-github-account-store.ts';
 import { githubPullRequest } from '../../spec/fixtures/github-pull-request.ts';
 import { SelectGitHubAccountService } from './select-github-account-service.ts';
+import { GitHubAccountPreferenceService } from './github-account-preference-service.ts';
 function subject(
   accounts: readonly string[] = ['personal', 'work'],
   readable: readonly string[] = ['personal'],
@@ -30,7 +31,10 @@ function subject(
     read: () => Effect.succeed(githubPullRequest()),
     list: () => Effect.succeed({ open: [], recent: [], truncated: false }),
   };
-  const layer = SelectGitHubAccountService.layer.pipe(
+  const layer = Layer.mergeAll(
+    SelectGitHubAccountService.layer,
+    GitHubAccountPreferenceService.layer,
+  ).pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(GitHubReader, reader),
@@ -43,9 +47,24 @@ function subject(
     probes,
     read: () =>
       Effect.runPromise(
-        Effect.flatMap(SelectGitHubAccountService, (service) =>
-          service.execute({ projectId: 'project', owner: 'a', repo: 'b' }),
-        ).pipe(Effect.provide(layer)),
+        Effect.gen(function* () {
+          const preferences = yield* GitHubAccountPreferenceService;
+          const result = yield* (yield* SelectGitHubAccountService).execute({
+            owner: 'a',
+            repo: 'b',
+            preference: yield* preferences.execute({
+              projectId: 'project',
+              repository: 'a/b',
+            }),
+          });
+          if (result.choice?.source === 'detected')
+            yield* preferences.execute({
+              projectId: 'project',
+              repository: 'a/b',
+              detected: result.choice.account,
+            });
+          return result;
+        }).pipe(Effect.provide(layer)),
       ),
   };
 }

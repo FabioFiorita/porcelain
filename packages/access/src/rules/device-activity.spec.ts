@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
-import { deviceRevoked, deviceUsable, sightingDue } from './device-activity.ts';
+import {
+  deviceRevoked,
+  deviceTrusted,
+  deviceUsable,
+  sightingDue,
+} from './device-activity.ts';
 
 const lifetimeMs = 60_000;
 
@@ -18,6 +23,17 @@ function device(overrides: Partial<StoredDevice> = {}): StoredDevice {
 }
 
 describe('device activity', () => {
+  it('trusts only a known, unrevoked device the owner trusted', () => {
+    expect(deviceTrusted(device({ trusted: true }))).toBe(true);
+    expect(deviceTrusted(device())).toBe(false);
+    expect(deviceTrusted(undefined)).toBe(false);
+    expect(
+      deviceTrusted(
+        device({ trusted: true, revokedAt: '2026-09-24T11:00:00.000Z' }),
+      ),
+    ).toBe(false);
+  });
+
   it('counts a device as revoked once it carries a revocation time', () => {
     expect(deviceRevoked(device())).toBe(false);
     expect(

@@ -40,6 +40,7 @@ it.each([false, true])(
       service.execute({
         reviewId: review.reviewId,
         pullRequestClosed,
+        observedPullRequest: 'https://github.com/owner/repo/pull/1',
         repositoryIdentity: 'repository',
         options: {
           deleteWorktree: true,
@@ -68,3 +69,56 @@ it.each([false, true])(
     ).toBe('a'.repeat(40));
   },
 );
+
+it('refuses cleanup when the linked pull request changed after GitHub was read', async () => {
+  const store = new InMemoryReviewStore();
+  const review = reviewFixture();
+  await Effect.runPromise(
+    store.save(
+      reviewSave(review, {
+        state: 'closed',
+        pullRequest: 'https://github.com/owner/repo/pull/2',
+      }),
+    ),
+  );
+  let cleaned = false;
+  const layer = ArchiveReviewService.layer.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(ReviewStore, store),
+        Layer.succeed(ReviewArchiver, {
+          execute: () =>
+            Effect.sync(() => {
+              cleaned = true;
+              return plan;
+            }),
+        }),
+      ),
+    ),
+  );
+  const result = await Effect.runPromise(
+    Effect.flatMap(ArchiveReviewService, (service) =>
+      service.execute({
+        reviewId: review.reviewId,
+        pullRequestClosed: true,
+        observedPullRequest: 'https://github.com/owner/repo/pull/1',
+        repositoryIdentity: 'repository',
+        options: {
+          deleteWorktree: true,
+          deleteLocalBranch: true,
+          deleteRemoteBranch: true,
+        },
+        confirmation: { plan, discardChanges: false },
+      }),
+    ).pipe(Effect.provide(layer), Effect.result),
+  );
+  expect(result).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'ReviewArchiveRefusedError' },
+  });
+  expect(cleaned).toBe(false);
+  expect(await Effect.runPromise(store.readRecord(review))).toMatchObject({
+    archived: false,
+    pullRequest: 'https://github.com/owner/repo/pull/2',
+  });
+});

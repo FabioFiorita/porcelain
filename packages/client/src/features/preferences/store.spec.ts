@@ -24,15 +24,19 @@ function fixture(storage: {
   );
 }
 
-it('keeps every other saved preference when one changes and restores it after a restart', async () => {
-  let saved: Preferences = { ...defaultPreferences, appearance: 'dark' };
-  const storage = {
+function memoryStorage(initial: Preferences) {
+  let saved = initial;
+  return {
     read: () => Promise.resolve(saved),
     write: (preferences: Preferences) => {
       saved = preferences;
       return Promise.resolve();
     },
   };
+}
+
+it('keeps every other saved preference when one changes and restores it after a restart', async () => {
+  const storage = memoryStorage({ ...defaultPreferences, appearance: 'dark' });
   const store = fixture(storage);
   await Effect.runPromise(store.load());
   await Effect.runPromise(store.change({ lineOverflow: 'wrap' }));
@@ -47,6 +51,30 @@ it('keeps every other saved preference when one changes and restores it after a 
     },
     status: 'ready',
     error: undefined,
+  });
+});
+
+it('keeps the Reviews & Git import candidate unchanged when a General preference changes and after a restart', async () => {
+  const candidate = {
+    pullStrategy: 'rebase',
+    collapseSpecs: true,
+    archiveDeleteWorktree: false,
+    archiveDeleteLocalBranch: false,
+    archiveDeleteRemoteBranch: true,
+  } as const;
+  const storage = memoryStorage({
+    ...defaultPreferences,
+    reviewGitSettingsImportCandidate: candidate,
+  });
+  const store = fixture(storage);
+  await Effect.runPromise(store.load());
+  await Effect.runPromise(store.change({ appearance: 'dark' }));
+  const restarted = fixture(storage);
+  await Effect.runPromise(restarted.load());
+  expect(restarted.state.value.preferences).toEqual({
+    ...defaultPreferences,
+    appearance: 'dark',
+    reviewGitSettingsImportCandidate: candidate,
   });
 });
 

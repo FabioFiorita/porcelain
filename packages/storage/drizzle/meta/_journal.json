@@ -204,6 +204,13 @@
       "when": 1791743820853,
       "tag": "0028_reset_legacy_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1793048902870,
+      "tag": "0029_ways_in_permission",
+      "breakpoints": true
     }
   ]
 }

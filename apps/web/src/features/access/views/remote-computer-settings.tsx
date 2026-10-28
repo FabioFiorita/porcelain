@@ -23,6 +23,7 @@ import { useRemoteStatus } from '../queries/remotes';
 import { remoteStatusVariant } from '../rules/remotes';
 import { useRemoteConnection, useSavedEnvironments } from '../store';
 import { SavedWaysIn } from './saved-ways-in';
+import { WaysIn } from './ways-in';
 import { RemoteServiceUpdate } from './service-update';
 
 export function RemoteComputerName({ remote }: { remote: Remote }) {
@@ -125,6 +126,7 @@ function RemoteDetails({
           )}
         </ItemGroup>
       </FieldSet>
+      {online && entry && <WaysIn connection={entry.connection} />}
       <SavedWaysIn remote={remote} />
       {!online && (
         <Item variant="outline">

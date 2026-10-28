@@ -28,30 +28,23 @@ import { submitForm } from '@/shared/lib/submit-form';
 import { useSetRemoteAccess } from '../commands/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
+  LOCAL_NETWORK_WARNING,
+  hostnameForm,
   localNetworkNote,
   networkName,
+  protectedRouteNote,
+  remoteRouteDescriptions,
   remoteRouteTitles,
   routeFailure,
+  routeStatusLabel,
   tailscaleServeCommand,
+  type HostnameFormInput,
   type RemoteAccess,
+  type RemoteAccessChange,
   type RemoteRoute,
   type RemoteRouteName,
 } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
-
-const descriptions: Record<RemoteRouteName, string> = {
-  lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
-  tailnet:
-    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. You set up tailscale serve once; Porcelain checks that it reaches here.',
-  cloudflare:
-    'Your own Cloudflare tunnel and hostname, over HTTPS from anywhere.',
-};
-
-const checkingLabels: Record<RemoteRouteName, string> = {
-  lan: 'Starting',
-  tailnet: 'Checking the Tailscale name',
-  cloudflare: 'Checking the tunnel',
-};
 
 function RouteStatus({
   name,
@@ -61,26 +54,20 @@ function RouteStatus({
   route: RemoteRoute;
 }) {
   const { status } = route;
-  if (status.kind === 'off')
-    return route.enabled ? (
-      <Badge variant="outline">
-        <Spinner />
-        Starting
-      </Badge>
-    ) : null;
-  if (status.kind === 'starting')
+  const label = routeStatusLabel(name, route);
+  if (label === null) return null;
+  if (status.kind === 'off' || status.kind === 'starting')
     return (
       <Badge variant="outline">
         <Spinner />
-        {checkingLabels[name]}
+        {label}
       </Badge>
     );
-  if (status.kind === 'paused')
-    return <Badge variant="outline">Paused on this network</Badge>;
+  if (status.kind === 'paused') return <Badge variant="outline">{label}</Badge>;
   if (status.kind === 'failed')
     return (
       <div className="flex flex-col items-start gap-1">
-        <Badge variant="destructive">Failed</Badge>
+        <Badge variant="destructive">{label}</Badge>
         <p className="text-xs text-muted-foreground">
           {routeFailure(name, status.reason)}
         </p>
@@ -88,7 +75,7 @@ function RouteStatus({
     );
   return (
     <div className="flex flex-col items-start gap-1">
-      <Badge variant="secondary">{route.enabled ? 'On' : 'Stopping'}</Badge>
+      <Badge variant="secondary">{label}</Badge>
       {status.urls.map((url) => (
         <div key={url} className="flex max-w-full items-center gap-1">
           <TruncatedText
@@ -123,12 +110,14 @@ function RouteRow({
   name,
   route,
   disabled,
+  connectedThrough,
   onChange,
   children,
 }: {
   name: RemoteRouteName;
   route: RemoteRoute;
   disabled: boolean;
+  connectedThrough: boolean;
   onChange: (enabled: boolean) => void;
   children?: ReactNode;
 }) {
@@ -137,20 +126,26 @@ function RouteRow({
     <Item variant="outline">
       <ItemContent>
         <ItemTitle>{title}</ItemTitle>
-        <ItemDescription>{descriptions[name]}</ItemDescription>
+        <ItemDescription>{remoteRouteDescriptions[name]}</ItemDescription>
       </ItemContent>
       <ItemActions>
         <Switch
           aria-label={title}
           checked={route.enabled}
-          disabled={disabled}
+          disabled={disabled || connectedThrough}
           onCheckedChange={(enabled) => onChange(enabled)}
         />
       </ItemActions>
       <ItemFooter>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <RouteStatus name={name} route={route} />
-          {children}
+          {connectedThrough ? (
+            <p className="text-xs text-muted-foreground">
+              {protectedRouteNote(name)}
+            </p>
+          ) : (
+            children
+          )}
         </div>
       </ItemFooter>
     </Item>
@@ -188,51 +183,34 @@ function LocalNetworkSettings({
       <Alert role="note" aria-label="Local network warning">
         <ShieldAlertIcon />
         <AlertTitle>Not encrypted</AlertTitle>
-        <AlertDescription>
-          Anyone on the same network can read what Porcelain shows and the
-          device credentials it sends. For an encrypted connection, use
-          Tailscale.
-        </AlertDescription>
+        <AlertDescription>{LOCAL_NETWORK_WARNING}</AlertDescription>
       </Alert>
     </div>
   );
 }
 
 function HostnameForm({
-  label,
-  saveLabel,
-  placeholder,
-  saved,
-  failed,
+  route,
+  remote,
   disabled,
-  onSave,
-  onCheck,
-}: {
-  label: string;
-  saveLabel: string;
-  placeholder: string;
-  saved: string;
-  failed: boolean;
-  disabled: boolean;
-  onSave: (hostname: string) => void;
-  onCheck: () => void;
-}) {
+  onChange,
+}: HostnameFormInput) {
   const [draft, setDraft] = useState<string | null>(null);
-  const hostname = draft ?? saved;
+  const form = hostnameForm(remote, route, draft);
   return (
     <form
       className="flex flex-col gap-2 sm:flex-row"
       onSubmit={(event) =>
         submitForm(event, async () => {
-          onSave(hostname.trim());
+          onChange(form.save);
           setDraft(null);
         })
       }
     >
       <Input
-        aria-label={label}
-        placeholder={placeholder}
-        value={hostname}
+        aria-label={form.label}
+        placeholder={form.placeholder}
+        value={form.value}
         disabled={disabled}
         onChange={(event) => setDraft(event.target.value)}
       />
@@ -240,19 +218,17 @@ function HostnameForm({
         type="submit"
         variant="outline"
         className="shrink-0"
-        disabled={
-          disabled || hostname.trim() === '' || hostname.trim() === saved
-        }
+        disabled={disabled || !form.canSave}
       >
-        {saveLabel}
+        {form.saveLabel}
       </Button>
-      {failed && (
+      {form.failed && (
         <Button
           type="button"
           variant="outline"
           className="shrink-0"
           disabled={disabled}
-          onClick={onCheck}
+          onClick={() => onChange(form.check)}
         >
           Check again
         </Button>
@@ -264,13 +240,11 @@ function HostnameForm({
 function TailnetSettings({
   remote,
   disabled,
-  onSave,
-  onCheck,
+  onChange,
 }: {
   remote: RemoteAccess;
   disabled: boolean;
-  onSave: (hostname: string) => void;
-  onCheck: () => void;
+  onChange: (change: RemoteAccessChange) => void;
 }) {
   const tailnet = remote.routes.tailnet;
   const command =
@@ -280,14 +254,10 @@ function TailnetSettings({
   return (
     <div className="flex flex-col gap-2">
       <HostnameForm
-        label="Tailscale name"
-        saveLabel="Save name"
-        placeholder="laptop.tail1234.ts.net"
-        saved={remote.tailnetHostname ?? ''}
-        failed={tailnet.enabled && tailnet.status.kind === 'failed'}
+        route="tailnet"
+        remote={remote}
         disabled={disabled}
-        onSave={onSave}
-        onCheck={onCheck}
+        onChange={onChange}
       />
       {remote.tailnetHostname === undefined && (
         <p className="text-xs text-muted-foreground">
@@ -342,26 +312,19 @@ function TailnetSettings({
 function TunnelSettings({
   remote,
   disabled,
-  onSave,
-  onCheck,
+  onChange,
 }: {
   remote: RemoteAccess;
   disabled: boolean;
-  onSave: (hostname: string) => void;
-  onCheck: () => void;
+  onChange: (change: RemoteAccessChange) => void;
 }) {
-  const cloudflare = remote.routes.cloudflare;
   return (
     <div className="flex flex-col gap-2">
       <HostnameForm
-        label="Public hostname"
-        saveLabel="Save hostname"
-        placeholder="porcelain.example.com"
-        saved={remote.cloudflareHostname ?? ''}
-        failed={cloudflare.enabled && cloudflare.status.kind === 'failed'}
+        route="cloudflare"
+        remote={remote}
         disabled={disabled}
-        onSave={onSave}
-        onCheck={onCheck}
+        onChange={onChange}
       />
       <p className="text-xs text-muted-foreground">
         In Cloudflare, publish this hostname from your tunnel to{' '}
@@ -380,14 +343,19 @@ export function RemoteRoutes({
   connection: Connection;
   remote: RemoteAccess;
 }) {
-  const [change, setRemote] = useSetRemoteAccess(connection);
+  const [change, save] = useSetRemoteAccess(connection);
   const disabled = change.waiting;
+  const connectedThrough = (name: RemoteRouteName) =>
+    remote.editing.protectedRoute === name;
+  const setRemote = (edit: RemoteAccessChange) =>
+    save({ expected: remote.editing.fingerprint, change: edit });
   return (
     <>
       <ItemGroup>
         <RouteRow
           name="lan"
           route={remote.routes.lan}
+          connectedThrough={connectedThrough('lan')}
           disabled={
             disabled ||
             (!remote.routes.lan.enabled && remote.localNetwork === undefined)
@@ -403,41 +371,27 @@ export function RemoteRoutes({
         <RouteRow
           name="tailnet"
           route={remote.routes.tailnet}
+          connectedThrough={connectedThrough('tailnet')}
           disabled={disabled || remote.tailnetHostname === undefined}
           onChange={(tailnet) => setRemote({ tailnet })}
         >
           <TailnetSettings
             remote={remote}
             disabled={disabled}
-            onSave={(tailnetHostname) =>
-              setRemote({
-                tailnetHostname,
-                ...(remote.tailnetHostname === undefined
-                  ? { tailnet: true }
-                  : {}),
-              })
-            }
-            onCheck={() => setRemote({ tailnet: true })}
+            onChange={setRemote}
           />
         </RouteRow>
         <RouteRow
           name="cloudflare"
           route={remote.routes.cloudflare}
+          connectedThrough={connectedThrough('cloudflare')}
           disabled={disabled || remote.cloudflareHostname === undefined}
           onChange={(cloudflare) => setRemote({ cloudflare })}
         >
           <TunnelSettings
             remote={remote}
             disabled={disabled}
-            onSave={(cloudflareHostname) =>
-              setRemote({
-                cloudflareHostname,
-                ...(remote.cloudflareHostname === undefined
-                  ? { cloudflare: true }
-                  : {}),
-              })
-            }
-            onCheck={() => setRemote({ cloudflare: true })}
+            onChange={setRemote}
           />
         </RouteRow>
       </ItemGroup>

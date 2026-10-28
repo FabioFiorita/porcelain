@@ -1,7 +1,8 @@
 import { it } from '@effect/vitest';
 import { setRemoteAccess, startServiceUpdate } from '@porcelain/client/access';
 import { ConnectionError } from '@porcelain/client/transport';
-import { Clock, Effect, Fiber, Layer, Option, Stream } from 'effect';
+import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
+import { Clock, Effect, Fiber, Layer, Option, Schema, Stream } from 'effect';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import { TestClock } from 'effect/testing';
 import { expect } from 'vitest';
@@ -16,10 +17,11 @@ import {
 const fixture = clientFixtures('environment');
 
 const off = { enabled: false, status: { kind: 'off' as const } };
-const remote = {
+const remote = Schema.decodeUnknownSync(readRemoteAccessResponseSchema)({
   routes: { lan: off, tailnet: off, cloudflare: off },
   serviceUrl: 'http://127.0.0.1:4173',
-};
+  editing: { fingerprint: 'a'.repeat(64) },
+});
 const offered = {
   managed: true,
   version: '1.0.0',
@@ -41,7 +43,7 @@ const updated = {
   last: { ...running.last, stage: 'updated' },
 };
 
-it('treats a remotely managed sharing configuration as unavailable here, while preserving other HTTP failures', async () => {
+it('treats ways in and paired devices this device may not see as unavailable here, while preserving other HTTP failures', async () => {
   const denied = fixture(() =>
     Promise.resolve(new Response(null, { status: 403 })),
   );
@@ -50,6 +52,35 @@ it('treats a remotely managed sharing configuration as unavailable here, while p
       AtomRegistry.getResult(
         denied.registry,
         readRemoteAccess(denied.connection),
+      ),
+    ),
+  ).toBeNull();
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(
+        denied.registry,
+        readPairedAccess(denied.connection),
+      ),
+    ),
+  ).toBeNull();
+  const refused = fixture(() =>
+    Promise.resolve(
+      Response.json(
+        {
+          statusCode: 403,
+          error: 'Forbidden',
+          message:
+            'An owner must let this device edit ways in on the computer that runs Porcelain before it can see or change them',
+        },
+        { status: 403 },
+      ),
+    ),
+  );
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(
+        refused.registry,
+        readRemoteAccess(refused.connection),
       ),
     ),
   ).toBeNull();
@@ -186,7 +217,10 @@ it('publishes only the confirmed sharing reply while the subsequent read is stil
   await Effect.runPromise(AtomRegistry.getResult(registry, atom));
   const command = setRemoteAccess(connection);
   registry.mount(command);
-  registry.set(command, { tailnetHostname: 'OWNER.TAIL123.TS.NET' });
+  registry.set(command, {
+    expected: remote.editing.fingerprint,
+    change: { tailnetHostname: 'OWNER.TAIL123.TS.NET' },
+  });
   await Effect.runPromise(
     AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
   );

@@ -65,6 +65,8 @@ export class ArchiveReviewUseCase extends Context.Service<
                   pull.pullRequest.state === 'merged'
                     ? pull.pullRequest.headSha
                     : undefined,
+                observedPullRequest:
+                  pull.kind === 'available' ? pull.pullRequest.url : undefined,
                 pullRequestClosed:
                   pull.kind === 'available' &&
                   pull.pullRequest.state !== 'open',

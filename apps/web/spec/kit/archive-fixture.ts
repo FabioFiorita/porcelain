@@ -97,6 +97,20 @@ export async function archiveFixture(main: string) {
   const request = toolCall(session, 1, 'publish_review', body);
   request.headers = { ...request.headers, 'x-porcelain-cwd': tree };
   const result = await session.read(request);
+  await session.read({
+    method: 'PATCH',
+    path: '/api/review-git-settings',
+    body: {
+      kind: 'initialize',
+      settings: {
+        pullStrategy: 'merge',
+        collapseSpecs: false,
+        archiveDeleteWorktree: true,
+        archiveDeleteLocalBranch: true,
+        archiveDeleteRemoteBranch: true,
+      },
+    },
+  });
   return {
     pullRequestUnavailable,
     lock: () => git('worktree', 'lock', tree),

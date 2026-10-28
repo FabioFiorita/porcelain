@@ -19,7 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { usePreferences } from '@/features/preferences/index';
+import { useSpecsApart } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
@@ -279,7 +279,7 @@ function usePublishedProgress({
     readReview({ connection: context.connection, reviewId }),
   );
   const refreshMarks = useAtomRefresh(markQuery);
-  const { preferences } = usePreferences();
+  const specsApart = useSpecsApart(context.connection);
   const snapshot = Option.getOrUndefined(AsyncResult.value(result))?.revision;
   const currentMarks =
     marks ?? Option.getOrUndefined(AsyncResult.value(markResult));
@@ -290,7 +290,7 @@ function usePublishedProgress({
     progress:
       !failed && snapshot && currentMarks
         ? revisionDecisionProgress(snapshot, currentMarks, {
-            specsApart: preferences.collapseSpecs,
+            specsApart,
           })
         : undefined,
     failed,

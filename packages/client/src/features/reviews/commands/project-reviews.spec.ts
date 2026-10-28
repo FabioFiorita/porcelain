@@ -100,3 +100,29 @@ it('marks each file in order and stops at the first file that fails', async () =
     },
   ]);
 });
+
+it.each([undefined, 'https://github.com/example/project/pull/42'])(
+  'sets the review pull request to %s through the connection',
+  async (pullRequest) => {
+    const sent: unknown[] = [];
+    const subject = create((path, init) => {
+      expect(path).toBe(`/api/reviews/${reviewId}/pull-request`);
+      expect(init?.method).toBe('PUT');
+      sent.push(
+        init?.body instanceof Uint8Array
+          ? JSON.parse(new TextDecoder().decode(init.body))
+          : null,
+      );
+      return Promise.resolve(Response.json({ kind: 'updated' }));
+    });
+    const command = reviewCommands({
+      connection: subject.connection,
+      reviewId,
+    }).setPullRequest;
+    subject.registry.set(command, { pullRequest });
+    expect(await readClientAtom(subject.registry, command)).toEqual({
+      kind: 'updated',
+    });
+    expect(sent).toEqual([{ pullRequest: pullRequest ?? null }]);
+  },
+);

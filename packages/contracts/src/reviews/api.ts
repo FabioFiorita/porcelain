@@ -10,6 +10,8 @@ import {
   readReviewInterdiffResponseSchema,
 } from './review-comparison.ts';
 import {
+  setReviewPullRequestRequestSchema,
+  setReviewPullRequestResponseSchema,
   readPullRequestResponseSchema,
   listPullRequestsResponseSchema,
   githubAccountResultSchema,
@@ -37,6 +39,7 @@ import {
 import {
   InvalidReviewComparisonError,
   ReviewNotFoundError,
+  ReviewPullRequestRefusedError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentRevisionMismatchError,
@@ -167,6 +170,23 @@ export class ReviewsApi extends porcelainApi.add(
             }),
             httpFailure(CommitNotFoundError, 'NotFound'),
             httpFailure(IncompleteDiffReadError, 'UnprocessableEntity'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.put(
+        'setReviewPullRequest',
+        '/api/reviews/:reviewId/pull-request',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          payload: setReviewPullRequestRequestSchema,
+          success: setReviewPullRequestResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+            httpFailure(ReviewPullRequestRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
           ],
         },
       ),

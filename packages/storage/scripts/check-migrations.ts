@@ -20,6 +20,7 @@ import { InventoryProjectRow } from '../src/db/models/inventory-projects.ts';
 import { PairingGrantRow } from '../src/db/models/pairing-grants.ts';
 import { FilePreferenceRow } from '../src/db/models/project-file-preferences.ts';
 import { RemoteAccessRow } from '../src/db/models/remote-access.ts';
+import { ReviewGitSettingsRow } from '../src/db/models/review-git-settings.ts';
 import { ProofFileRow } from '../src/db/models/review-proof-files.ts';
 import { ReviewedFileRow } from '../src/db/models/reviewed-files.ts';
 import { ReviewedLayerRow } from '../src/db/models/reviewed-layers.ts';
@@ -49,6 +50,7 @@ const models = [
   PairingGrantRow,
   FilePreferenceRow,
   RemoteAccessRow,
+  ReviewGitSettingsRow,
   ProofFileRow,
   ReviewedFileRow,
   ReviewedLayerRow,

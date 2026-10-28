@@ -2,6 +2,7 @@ import {
   listAccessResponseSchema,
   readHealthResponseSchema,
   readRemoteAccessResponseSchema,
+  readReviewGitSettingsResponseSchema,
   readServiceUpdateResponseSchema,
 } from '@porcelain/contracts/access';
 import {
@@ -118,6 +119,8 @@ export function serverReaders(transport: ServerTransport) {
       read(readRemoteAccessResponseSchema, '/api/remote-access'),
     serviceUpdate: () =>
       read(readServiceUpdateResponseSchema, '/api/service/update'),
+    reviewGitSettings: () =>
+      read(readReviewGitSettingsResponseSchema, '/api/review-git-settings'),
     filePreferences: async () =>
       read(
         listFilePreferencesResponseSchema,
