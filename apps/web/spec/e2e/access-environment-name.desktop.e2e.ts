@@ -26,6 +26,8 @@ test('the owner names this computer in Settings, tab titles and pairing while th
     exact: true,
   });
   await openThisComputer(pairedPage);
+  const rename = settings.getByRole('button', { name: 'Rename', exact: true });
+  await rename.click();
   const name = settings.getByRole('textbox', {
     name: 'Name of this computer',
     exact: true,
@@ -38,10 +40,13 @@ test('the owner names this computer in Settings, tab titles and pairing while th
   await expect
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: 'Workstation', custom: true });
+  await expect(name).not.toBeAttached();
   await expect(
-    settings.getByText(/to connect it to Workstation\./),
+    settings.getByRole('heading', {
+      name: 'Computers. Workstation',
+      exact: true,
+    }),
   ).toBeVisible();
-  await expect(save).toBeDisabled();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
   await settings
     .getByRole('button', { name: 'Close Settings', exact: true })
@@ -64,6 +69,8 @@ test('the owner names this computer in Settings, tab titles and pairing while th
     .click();
   await openThisComputer(pairedPage);
 
+  await rename.click();
+  await expect(name).toHaveValue('Workstation');
   await name.fill('');
   await save.click();
   await expect

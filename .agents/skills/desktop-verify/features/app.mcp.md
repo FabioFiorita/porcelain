@@ -1,6 +1,5 @@
 ---
 selectors:
-  - 'Porcelain MCP server'
   - 'Copy MCP configuration'
   - 'Retry MCP configuration'
 tests:
@@ -20,7 +19,7 @@ root; MCP mode requires the explicit server data directory.
 
 ## How to get to it (user POV)
 
-- Settings > Computers > This computer > Agents > Porcelain MCP server > Copy MCP configuration.
+- Settings > Computers > This computer > Agents > Copy MCP configuration.
 - The copied command registers this local app server with Claude Code. The app
   must be running, including when the renderer is viewing a remote computer.
 
@@ -28,7 +27,7 @@ root; MCP mode requires the explicit server data directory.
 
 Preconditions: [surface baseline](README.md).
 
-1. In Settings → Computers → This computer → Agents → Porcelain MCP server, read and copy the command. Run its executable portion in a fresh terminal whose working directory is the registered sample repository. Initialize MCP and call `list_comments`.
+1. In Settings → Computers → This computer → Agents, read and copy the command. Run its executable portion in a fresh terminal whose working directory is the registered sample repository. Initialize MCP and call `list_comments`.
 2. Confirm comments belong to that repository, the window remains usable and the captured server PID is unchanged. End stdin; expect the final response followed by clean exit. Keep stdout restricted to protocol messages; errors/help use stderr.
 3. Repeat with a missing disposable server path: a request returns a protocol error and starts no server.
 4. For separate signed packaged proof, use the release skill's `--signed-verification` mode in an isolated exact-head Mac checkout. Launch the non-installed bundle's absolute executable with an isolated profile, without debugger switches. Record signature, hardened runtime/entitlements, ASAR and locked fuses, then repeat the MCP/coexistence/EOF journey.

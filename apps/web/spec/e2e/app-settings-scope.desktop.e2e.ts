@@ -37,10 +37,7 @@ test('desktop Settings uses the shared three sections and nests this computer an
     settings.getByRole('switch', { name: 'Local network', exact: true }),
   ).toBeVisible();
   await expect(
-    settings.getByRole('textbox', {
-      name: 'Name of this computer',
-      exact: true,
-    }),
+    settings.getByRole('button', { name: 'Rename', exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByRole('button', {
@@ -49,7 +46,10 @@ test('desktop Settings uses the shared three sections and nests this computer an
     }),
   ).not.toBeAttached();
   await expect(
-    settings.getByText('Paired devices', { exact: true }),
+    settings.getByRole('list', {
+      name: 'Paired devices and links',
+      exact: true,
+    }),
   ).toBeVisible();
   await sections
     .getByRole('button', { name: 'Computers', exact: true })
@@ -64,6 +64,9 @@ test('desktop Settings uses the shared three sections and nests this computer an
   ).toBeVisible();
   await openThisComputer(pairedPage);
   await expect(
-    settings.getByText('Porcelain MCP server', { exact: true }),
+    settings.getByRole('button', {
+      name: 'Copy MCP configuration',
+      exact: true,
+    }),
   ).toBeVisible();
 });

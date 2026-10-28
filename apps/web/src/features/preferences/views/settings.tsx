@@ -47,6 +47,7 @@ import { Separator } from '@/components/ui/separator';
 import { Fragment, useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SettingsHeading } from '@/shared/views/settings-heading';
 import { usePreferences } from '../store';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
@@ -376,72 +377,71 @@ function ComputerPicker({
 
 export function GeneralSettings() {
   return (
-    <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> General
-        </h1>
-        <p className="text-base">
-          How Porcelain looks, and how code and documents open.
-        </p>
+    <div className="flex flex-col">
+      <SettingsHeading
+        section="Settings"
+        title="General"
+        lead="How Porcelain looks, and how code and documents open."
+      />
+      <div className="mt-8 flex flex-col gap-7">
+        <FieldSet>
+          <FieldLegend variant="label">Appearance</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Theme"
+              description="System follows your operating system."
+              name="appearance"
+              options={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Code</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Diff layout"
+              description="Split shows old and new side by side."
+              name="diffStyle"
+              options={[
+                { value: 'unified', label: 'Unified' },
+                { value: 'split', label: 'Split' },
+              ]}
+            />
+            <Separator />
+            <Choice
+              label="Long lines"
+              description="Wrap keeps every line visible without scrolling."
+              name="lineOverflow"
+              options={[
+                { value: 'scroll', label: 'Scroll' },
+                { value: 'wrap', label: 'Wrap' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Documents</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Documents open as"
+              description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+              name="documentsDefault"
+              options={[
+                { value: 'rendered', label: 'Rendered' },
+                { value: 'source', label: 'Source' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
       </div>
-      <FieldSet>
-        <FieldLegend variant="label">Appearance</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Theme"
-            description="System follows your operating system."
-            name="appearance"
-            options={[
-              { value: 'system', label: 'System' },
-              { value: 'light', label: 'Light' },
-              { value: 'dark', label: 'Dark' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Code</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Diff layout"
-            description="Split shows old and new side by side."
-            name="diffStyle"
-            options={[
-              { value: 'unified', label: 'Unified' },
-              { value: 'split', label: 'Split' },
-            ]}
-          />
-          <Separator />
-          <Choice
-            label="Long lines"
-            description="Wrap keeps every line visible without scrolling."
-            name="lineOverflow"
-            options={[
-              { value: 'scroll', label: 'Scroll' },
-              { value: 'wrap', label: 'Wrap' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Documents</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Documents open as"
-            description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
-            name="documentsDefault"
-            options={[
-              { value: 'rendered', label: 'Rendered' },
-              { value: 'source', label: 'Source' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <p className="text-xs text-muted-foreground">
+      <p className="mt-4 text-xs text-muted-foreground">
         These preferences are saved on this device.
       </p>
-    </>
+    </div>
   );
 }
 
@@ -474,15 +474,11 @@ export function ReviewsGitSettings() {
     computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> Reviews &amp;
-          Git
-        </h1>
-        <p className="text-base">
-          How reviews read, and what Git does when you pull and archive.
-        </p>
-      </div>
+      <SettingsHeading
+        section="Settings"
+        title="Reviews & Git"
+        lead="How reviews read, and what Git does when you pull and archive."
+      />
       {computers.length > 1 && (
         <ComputerPicker
           computers={computers}
