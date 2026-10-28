@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { boardDiffOptions } from './board-diff.ts';
+import { boardDiffOptions } from './board-options.ts';
 import { stylesMatch, styleTable } from './board-styles.ts';
 
 it.each([
