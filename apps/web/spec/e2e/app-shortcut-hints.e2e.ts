@@ -33,7 +33,10 @@ test('touch opens the sidebar without holding a tooltip', async ({
     ).toBeVisible();
     await expect(tooltip).not.toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Open project', exact: true }),
+      page.getByRole('button', {
+        name: 'Search reviews and worktrees',
+        exact: true,
+      }),
     ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -161,7 +164,10 @@ for (const width of [1280, 414]) {
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole('button', { name: 'Open project', exact: true }),
+        page.getByRole('button', {
+          name: 'Search reviews and worktrees',
+          exact: true,
+        }),
       ).toBeFocused();
       await page.keyboard.press('Escape');
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');

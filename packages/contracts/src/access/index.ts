@@ -26,6 +26,7 @@ export {
   redeemPairingResponseSchema,
   revokeAccessResponseSchema,
   setDeviceTrustResponseSchema,
+  setWaysInPermissionResponseSchema,
   type ClearBrowserSessionResponse,
   type IssuePairingRequest,
   type IssuePairingResponse,
@@ -37,6 +38,8 @@ export {
   type RevokeAccessResponse,
   type SetDeviceTrustRequest,
   type SetDeviceTrustResponse,
+  type SetWaysInPermissionRequest,
+  type SetWaysInPermissionResponse,
 } from './pairing.ts';
 export {
   type Principal,
@@ -54,7 +57,10 @@ export {
 export {
   readRemoteAccessResponseSchema,
   setRemoteAccessResponseSchema,
+  type ReadRemoteAccessRequest,
   type ReadRemoteAccessResponse,
+  type RemoteAccessChange,
+  type SetRemoteAccessInput,
   type SetRemoteAccessRequest,
   type SetRemoteAccessResponse,
 } from './remote-access.ts';
@@ -75,6 +81,7 @@ export {
   PairingApi,
   SessionApi,
   ServiceUpdatesApi,
+  RemoteAccessApi,
   ReviewGitSettingsApi,
   HostAccessApi,
   OwnerAccessApi,

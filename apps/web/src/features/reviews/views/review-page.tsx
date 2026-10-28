@@ -566,7 +566,7 @@ function ReviewRevisionPage({
           reviewCount={
             <span
               aria-hidden="true"
-              className="text-2xs text-muted-foreground tabular-nums"
+              className="text-2xs leading-4 text-muted-foreground tabular-nums"
             >
               {reviewedDecisions}/{review.layers.length}
             </span>

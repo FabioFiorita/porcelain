@@ -57,6 +57,7 @@ export {
   pullRequestSchema,
   pullRequestSummarySchema,
   type GitHubRepository,
+  type GitHubPullRequest,
   type GitHubAccountResult,
 } from './pull-request.ts';
 export * from './review-archive.ts';

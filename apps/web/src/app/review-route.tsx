@@ -87,7 +87,10 @@ export function ReviewRoute({
       </ConnectedWorkspace>
     );
   return (
-    <ConnectedWorkspace {...(remote ? { remote } : {})}>
+    <ConnectedWorkspace
+      openReview={{ reviewId, environment }}
+      {...(remote ? { remote } : {})}
+    >
       <ReviewPage
         navigation={
           <Tooltip>

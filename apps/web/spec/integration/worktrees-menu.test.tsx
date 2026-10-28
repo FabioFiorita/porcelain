@@ -9,7 +9,7 @@ test('worktrees without reviews remain reachable in the flat checkout menu', asy
     name: 'Closed reviews',
     exact: true,
   });
-  await expect.element(closed).toHaveTextContent('Closed · 0');
+  await expect.element(closed).toHaveTextContent('Closed 0');
   await expect.element(closed).toHaveAttribute('aria-expanded', 'false');
   await closed.click();
   await expect

@@ -9,6 +9,7 @@ function storedDevice({
   revokedAt,
   routeInferred,
   trusted,
+  canEditWaysIn,
   ...device
 }: DeviceRow): StoredDevice {
   return {
@@ -16,6 +17,7 @@ function storedDevice({
     ...(lastSeenAddress === null ? {} : { lastSeenAddress }),
     ...(routeInferred ? { routeInferred } : {}),
     ...(trusted ? { trusted } : {}),
+    ...(canEditWaysIn ? { canEditWaysIn } : {}),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
 }
@@ -67,6 +69,15 @@ export const sqliteDeviceStoreLayer = Layer.effect(
           Effect.orDie,
         );
       }),
+      recordWaysInPermission: Effect.fn('DeviceStore.recordWaysInPermission')(
+        function* (
+          input: Parameters<DeviceStore['recordWaysInPermission']>[0],
+        ) {
+          yield* sql`UPDATE devices SET can_edit_ways_in = ${input.allowed ? 1 : 0} WHERE id = ${input.device.id}`.pipe(
+            Effect.orDie,
+          );
+        },
+      ),
     });
   }),
 );

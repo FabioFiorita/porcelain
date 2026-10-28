@@ -1,6 +1,9 @@
 import type { ReviewMarks, ReviewRecord } from './review.ts';
 import type { ReviewRevision } from './verdict.ts';
-import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
+import type {
+  ListPullRequestsResponse,
+  ReadPullRequestResponse,
+} from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export const reviewListGroups = [
@@ -242,6 +245,55 @@ export function reviewListRowContext(
   };
 }
 
+type ReviewListCheckoutKey = Pick<
+  ReviewListEntry,
+  'environmentId' | 'worktreeId'
+>;
+
+export function reviewListWithoutClosedCheckouts(
+  entries: readonly ReviewListEntry[],
+  selected: ReviewListCheckoutKey | undefined,
+) {
+  const checkout = (entry: ReviewListCheckoutKey) =>
+    `${entry.environmentId}/${entry.worktreeId}`;
+  const closed = new Set(
+    entries
+      .filter((entry) => entry.closed && entry.worktreeId !== undefined)
+      .map(checkout),
+  );
+  if (selected?.worktreeId !== undefined) closed.delete(checkout(selected));
+  return entries.filter(
+    (entry) => entry.group !== 'No review' || !closed.has(checkout(entry)),
+  );
+}
+
+export function compareNoReviewRows(a: ReviewListEntry, b: ReviewListEntry) {
+  return (
+    Number(b.group === 'Projects') - Number(a.group === 'Projects') ||
+    reviewListRow(a).title.localeCompare(reviewListRow(b).title) ||
+    a.projectName.localeCompare(b.projectName) ||
+    a.key.localeCompare(b.key)
+  );
+}
+
+export function reviewListRow(entry: ReviewListEntry) {
+  if (entry.reviewId)
+    return {
+      kind: 'review' as const,
+      title: entry.title,
+      progress: `${entry.reviewed}/${entry.total}`,
+      project: entry.projectName,
+      branch: entry.branch,
+    };
+  const checkout = reviewListCheckout(entry);
+  return {
+    kind: 'worktree' as const,
+    title: checkout.name,
+    project: entry.projectName,
+    location: checkout.parent,
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt
@@ -329,4 +381,33 @@ export function reviewListView(
       },
     ],
   };
+}
+
+export function pullRequestStateLabel(pull: {
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+}) {
+  if (pull.state === 'open' && pull.draft) return 'Draft';
+  return { open: 'Open', closed: 'Closed', merged: 'Merged' }[pull.state];
+}
+
+export function pullRequestBlockHidden(
+  linked: string | undefined,
+  projectPullRequests: ListPullRequestsResponse | undefined,
+) {
+  return (
+    linked === undefined &&
+    projectPullRequests?.kind === 'unavailable' &&
+    projectPullRequests.reason === 'not-github'
+  );
+}
+
+export function pullRequestLink(text: string): string | undefined {
+  const match =
+    /^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/pull\/([1-9][0-9]*)(?:\/[^?#]*)?(?:[?#].*)?$/.exec(
+      text.trim(),
+    );
+  return match
+    ? `https://github.com/${match[1]}/${match[2]}/pull/${match[3]}`
+    : undefined;
 }

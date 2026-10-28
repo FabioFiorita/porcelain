@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
+import { useInventory } from '@/features/projects/index';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
@@ -177,7 +180,49 @@ function HandoffDocument(props: DocumentProps) {
         active={props.interaction.active}
       />
     );
-  return <PlainChangesDocument {...props} />;
+  return (
+    <PlainChangesDocument
+      {...props}
+      intro={
+        Option.isSome(AsyncResult.value(published.result)) && !published.review
+      }
+    />
+  );
+}
+
+function NoReviewIntro({
+  scope,
+  context,
+  branch,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  branch: string | undefined;
+}) {
+  const project = useInventory(context.connection).projects.find(
+    (entry) => entry.id === scope.projectId,
+  );
+  const place = [branch, project?.name].filter(Boolean).join(' · ');
+  return (
+    <header className="flex min-w-0 flex-col px-4 pt-8 pb-6">
+      {place && (
+        <div className="text-ui leading-5.5 font-medium text-muted-foreground">
+          <TruncatedText text={place} className="block min-w-0" />
+        </div>
+      )}
+      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-[-0.04em]">
+        No review yet
+      </h2>
+      <p className="mt-4 max-w-180 text-lg leading-7 tracking-[-0.005em] text-foreground-2">
+        The agent has not published a review for this worktree. Ask it to
+        publish one (it calls{' '}
+        <code className="font-mono text-base leading-7 text-foreground">
+          publish_review
+        </code>{' '}
+        through Porcelain&rsquo;s MCP server), or read the changes below.
+      </p>
+    </header>
+  );
 }
 
 function changesTitle(specsOnly: boolean, entry: string) {
@@ -192,7 +237,8 @@ function PlainChangesDocument({
   interaction,
   onBrowse,
   specsOnly = false,
-}: DocumentProps & { specsOnly?: boolean }) {
+  intro = false,
+}: DocumentProps & { specsOnly?: boolean; intro?: boolean }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
   const specsApart = useSpecsApart(context.connection);
@@ -252,6 +298,17 @@ function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
+        {...(intro
+          ? {
+              header: () => (
+                <NoReviewIntro
+                  scope={scope}
+                  context={context}
+                  branch={list.branch?.name}
+                />
+              ),
+            }
+          : {})}
         {...(review
           ? {
               files: story,
@@ -268,7 +325,7 @@ function PlainChangesDocument({
             target={interaction.toolbarTarget}
             barActions={null}
             title={changesTitle(specsOnly, interaction.entry)}
-            subtitle={`${changes.length} files`}
+            subtitle={`${changes.length} file${changes.length === 1 ? '' : 's'}`}
           >
             {collapseControl}
             <MarkAllReviewed

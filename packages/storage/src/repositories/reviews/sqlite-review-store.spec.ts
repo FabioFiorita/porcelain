@@ -81,3 +81,36 @@ it('retains a review and all revisions after worktree and project removal', asyn
     await opened.close();
   }
 });
+
+it('reports a conflicting PR identity without losing either review or its branch identity', async () => {
+  const first = reviewFixture();
+  const opened = await openStore([first.worktreeId]);
+  const url = 'https://github.com/example/project/pull/42';
+  const other = reviewFixture({
+    reviewId: '10000000-0000-4000-8000-000000000002',
+    branch: 'another',
+    summaryToken: 'summary-other',
+  });
+  try {
+    await Effect.runPromise(
+      opened.store.save(reviewSave(first, { pullRequest: url })),
+    );
+    await Effect.runPromise(opened.store.save(reviewSave(other)));
+    expect(
+      await Effect.runPromise(
+        opened.store
+          .setPullRequest({ reviewId: other.reviewId, pullRequest: url })
+          .pipe(Effect.flip),
+      ),
+    ).toMatchObject({ _tag: 'ReviewPullRequestRefusedError' });
+    expect(
+      await Effect.runPromise(opened.store.readRecord(other)),
+    ).toMatchObject({ branch: 'another', state: 'open', latestRevision: 1 });
+    expect(
+      await Effect.runPromise(opened.store.readRecord(first)),
+    ).toMatchObject({ pullRequest: url });
+    expect(await Effect.runPromise(opened.store.read(other))).toEqual(other);
+  } finally {
+    await opened.close();
+  }
+});

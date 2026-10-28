@@ -1,4 +1,5 @@
 import type { GitHubReadError } from '../errors/github-read-error.ts';
+import type { GitHubPullRequestNotFoundError } from '../errors/github-pull-request-not-found-error.ts';
 import { Context, type Effect } from 'effect';
 import type {
   GitHubPullRequest,
@@ -12,7 +13,10 @@ export interface GitHubReader {
   ): Effect.Effect<boolean, GitHubReadError>;
   read(
     input: GitHubRepository & { account: string; number: number },
-  ): Effect.Effect<GitHubPullRequest, GitHubReadError>;
+  ): Effect.Effect<
+    GitHubPullRequest,
+    GitHubReadError | GitHubPullRequestNotFoundError
+  >;
   list(input: GitHubRepository & { account: string }): Effect.Effect<
     {
       open: readonly GitHubPullSummary[];

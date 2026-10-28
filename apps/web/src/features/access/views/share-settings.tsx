@@ -12,9 +12,9 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
-import { useRemoteAccess } from '../queries/share';
+import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
+import type { Environment, PairedAccess } from '@porcelain/client/access/rules';
 import { useConnectedContext } from '../store';
 import { DisconnectBrowser } from './disconnect-browser';
 
@@ -25,29 +25,29 @@ import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
 import { AgentsSetting } from './agents-setting';
 import { PairedDevices } from './paired-devices';
-import { RemoteRoutes } from './remote-routes';
+import { WaysIn, WaysInGate } from './ways-in';
 import { type Connection } from '@/shared/workspace/connection';
 
-function RemoteAccessGate({
+function HostGate({
   connection,
   children,
 }: {
   connection: Connection;
-  children: (remote: RemoteAccess) => ReactNode;
+  children: (access: PairedAccess) => ReactNode;
 }) {
-  const remote = useRemoteAccess(connection);
-  const answer = Option.getOrUndefined(AsyncResult.value(remote));
+  const access = usePairedAccess(connection);
+  const answer = Option.getOrUndefined(AsyncResult.value(access));
   if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
         Sharing is managed from a browser on the computer that runs Porcelain.
       </p>
     );
-  if (AsyncResult.isFailure(remote))
+  if (AsyncResult.isFailure(access))
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          {connectionErrorMessage(Cause.squash(remote.cause))}
+          {connectionErrorMessage(Cause.squash(access.cause))}
         </AlertDescription>
       </Alert>
     );
@@ -111,7 +111,7 @@ export function ComputerSettings({
             </Item>
           </ItemGroup>
         </FieldSet>
-        <WaysInSettings />
+        <WaysIn connection={connection} />
         <DevicesSettings environment={environment} />
         <AgentsSetting />
         {!desktopShell && (
@@ -138,8 +138,8 @@ function ComputerName({
   connection: Connection;
   environment: Environment;
 }) {
-  const remote = useRemoteAccess(connection);
-  const access = Option.getOrUndefined(AsyncResult.value(remote));
+  const paired = usePairedAccess(connection);
+  const access = Option.getOrUndefined(AsyncResult.value(paired));
   if (access)
     return (
       <EnvironmentName connection={connection} environment={environment} />
@@ -152,47 +152,39 @@ function ComputerName({
   );
 }
 
-function WaysInSettings() {
-  const { connection } = useConnectedContext();
-  return (
-    <FieldSet id="ways-in">
-      <FieldLegend variant="label">Ways in</FieldLegend>
-      <RemoteAccessGate connection={connection}>
-        {(remote) => <RemoteRoutes connection={connection} remote={remote} />}
-      </RemoteAccessGate>
-    </FieldSet>
-  );
-}
-
 function DevicesSettings({ environment }: { environment: Environment }) {
   const { connection } = useConnectedContext();
   return (
-    <RemoteAccessGate connection={connection}>
-      {(remote) => (
-        <>
-          <FieldSet className="min-w-0">
-            <FieldLegend variant="label">Paired devices</FieldLegend>
-            <PairedDevices connection={connection} />
-          </FieldSet>
-          <aside className="min-w-0 rounded-xl border bg-card p-3 lg:col-start-3 lg:row-start-3 lg:row-span-2">
-            <FieldSet className="min-w-0">
-              <FieldLegend variant="label">Pair a device</FieldLegend>
-              <ItemGroup>
-                <Item variant="outline">
-                  <ItemContent>
-                    <ItemDescription>
-                      Open the link or scan the code on the other device to
-                      connect it to {environment.name}. Each link works once,
-                      for a few minutes.
-                    </ItemDescription>
-                    <PairDevice connection={connection} remote={remote} />
-                  </ItemContent>
-                </Item>
-              </ItemGroup>
-            </FieldSet>
-          </aside>
-        </>
+    <HostGate connection={connection}>
+      {(access) => (
+        <WaysInGate connection={connection}>
+          {(remote) => (
+            <>
+              <FieldSet className="min-w-0">
+                <FieldLegend variant="label">Paired devices</FieldLegend>
+                <PairedDevices connection={connection} access={access} />
+              </FieldSet>
+              <aside className="min-w-0 rounded-xl border bg-card p-3 lg:col-start-3 lg:row-start-3 lg:row-span-2">
+                <FieldSet className="min-w-0">
+                  <FieldLegend variant="label">Pair a device</FieldLegend>
+                  <ItemGroup>
+                    <Item variant="outline">
+                      <ItemContent>
+                        <ItemDescription>
+                          Open the link or scan the code on the other device to
+                          connect it to {environment.name}. Each link works
+                          once, for a few minutes.
+                        </ItemDescription>
+                        <PairDevice connection={connection} remote={remote} />
+                      </ItemContent>
+                    </Item>
+                  </ItemGroup>
+                </FieldSet>
+              </aside>
+            </>
+          )}
+        </WaysInGate>
       )}
-    </RemoteAccessGate>
+    </HostGate>
   );
 }

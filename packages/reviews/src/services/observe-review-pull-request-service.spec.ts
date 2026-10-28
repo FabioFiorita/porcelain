@@ -48,3 +48,29 @@ it.each([
     ).toMatchObject({ headOid: 'a'.repeat(40), revision: 1 });
   },
 );
+
+it.each([undefined, 'https://github.com/fabiofiorita/porcelain/pull/424'])(
+  'does not close the review when a delayed merged observation no longer matches its link %s',
+  async (pullRequest) => {
+    const store = new InMemoryReviewStore();
+    const review = reviewFixture();
+    await Effect.runPromise(store.save(reviewSave(review, { pullRequest })));
+    const layer = ObserveReviewPullRequestService.layer.pipe(
+      Layer.provide(SetReviewStateService.layer),
+      Layer.provide(Layer.succeed(ReviewStore, store)),
+    );
+    const answer = await Effect.runPromise(
+      Effect.flatMap(ObserveReviewPullRequestService, (service) =>
+        service.execute({
+          reviewId: review.reviewId,
+          pullRequest: githubPullRequest({ state: 'MERGED' }),
+        }),
+      ).pipe(Effect.provide(layer)),
+    );
+    expect(answer.closedReview).toBe(false);
+    expect(await Effect.runPromise(store.readRecord(review))).toMatchObject({
+      state: 'open',
+      pullRequest,
+    });
+  },
+);

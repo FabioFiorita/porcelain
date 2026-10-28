@@ -17,6 +17,7 @@ export type PairedUseCases = {
     routes: {
       session: HttpApplication;
       updates: HttpApplication;
+      remoteAccess: HttpApplication;
       reviewGitSettings: HttpApplication;
     };
   };
@@ -36,8 +37,9 @@ export function pairedScope(options: {
     cookieMaxAgeSeconds: limits.access.device.cookieMaxAgeSeconds,
   });
   return Layer.mergeAll(
-    Layer.merge(
+    Layer.mergeAll(
       application.access.routes.updates,
+      application.access.routes.remoteAccess,
       application.access.routes.reviewGitSettings,
     ).pipe(
       Layer.provide(
