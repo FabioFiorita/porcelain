@@ -172,12 +172,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "section heading",
         "board": {
-          "selector": "main h2",
-          "index": 0
+          "selector": "#b-adds"
         },
         "app": {
-          "selector": "[aria-label=\"Briefing\"] h3",
-          "index": 0
+          "selector": "#briefing-system"
         }
       },
       {
@@ -315,11 +313,11 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "decision row",
         "board": {
-          "selector": "ol[aria-label=\"Decisions\"] > li",
+          "selector": "ol[aria-label=\"Decisions\"] > li > a",
           "index": 0
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Decisions\"] > li",
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded]:not([aria-haspopup])",
           "index": 0
         }
       },
@@ -565,12 +563,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "section heading",
         "board": {
-          "selector": "main article h2",
-          "index": 0
+          "selector": "#t-ways"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
-          "index": 0
+          "selector": "#ways-in > [data-slot=\"field-legend\"]"
         }
       },
       {
@@ -579,7 +575,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Paired devices\"] > li:first-child"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [aria-label=\"Paired devices\"] [data-slot=\"item\"]",
+          "selector": "main[aria-label=\"Settings\"] [aria-label=\"Paired devices and links\"] > [data-slot=\"item\"]",
           "index": 0
         }
       }

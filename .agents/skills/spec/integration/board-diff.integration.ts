@@ -141,13 +141,19 @@ it('rejects an unavailable computer shown in the Settings breadcrumb', async () 
   }
 });
 
-it('reports a removed icon on the same mapped control', async () => {
+it.each([
+  ['', 'removed'],
+  ['<svg width="12" height="0"></svg>', 'zero height'],
+  ['<svg width="0" height="12"></svg>', 'zero width'],
+  ['<svg style="opacity:0" width="12" height="12"></svg>', 'transparent'],
+  ['<svg style="display:none" width="12" height="12"></svg>', 'hidden'],
+])('reports an absent icon when %s (%s)', async (icon) => {
   const board = await browser.newPage();
   const app = await browser.newPage();
   try {
     await board.setContent(html('A control'));
     await app.setContent(
-      html('A control').replace('<svg width="12" height="12"></svg>', ''),
+      html('A control').replace('<svg width="12" height="12"></svg>', icon),
     );
     const rows = compareRoles(
       await measureRoles(board, roles, 'board'),

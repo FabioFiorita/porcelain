@@ -21,6 +21,10 @@ import {
   type StyleRow,
 } from './board-styles.ts';
 import { registry, type WebInstance } from './instance.ts';
+import type { BrowserDocument, BrowserHtmlElement } from './browser-dom.ts';
+
+declare const document: BrowserDocument;
+declare const HTMLElement: new () => BrowserHtmlElement;
 
 type Theme = 'light' | 'dark';
 type Capture = {

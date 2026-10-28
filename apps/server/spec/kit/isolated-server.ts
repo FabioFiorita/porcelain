@@ -1,5 +1,4 @@
 import { IsolatedProcess } from './isolated-process.ts';
-import { NodeSocket } from '@effect/platform-node';
 import { randomUUID } from 'node:crypto';
 import { Writable } from 'node:stream';
 import {
@@ -892,7 +891,7 @@ export class ServerHandle {
       recorder.secret(options.ticket);
       url.searchParams.set('ticket', options.ticket);
     }
-    const socket = new NodeSocket.NodeWS.WebSocket(url, {
+    const socket = new WebSocket(url, {
       headers: {
         ...(options ? {} : { authorization: `Bearer ${this.credential}` }),
         ...(origin === undefined ? {} : { origin }),
@@ -906,7 +905,7 @@ export class ServerHandle {
       for (const waiter of waiters) waiter();
     };
     socket.addEventListener('message', (event) => {
-      const value = record(JSON.parse(text(event.data)));
+      const value = record(JSON.parse(String(event.data)));
       if (value._tag === 'Exit' && value.requestId === '999999') {
         rejected.push(value);
         step.received.push(value);

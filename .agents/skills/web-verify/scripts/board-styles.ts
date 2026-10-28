@@ -1,6 +1,16 @@
 import { Schema } from 'effect';
 import type { Page } from 'playwright';
 import type { BoardRole } from './board-maps.ts';
+import type {
+  BrowserComputedStyle,
+  BrowserDocument,
+  BrowserElement,
+} from './browser-dom.ts';
+
+declare const document: BrowserDocument;
+declare const getComputedStyle: (
+  element: BrowserElement,
+) => BrowserComputedStyle;
 
 const styleProperties = [
   'fontSize',
@@ -103,7 +113,9 @@ export async function measureRoles(
               node.checkVisibility({
                 checkOpacity: true,
                 checkVisibilityCSS: true,
-              }) && node.getBoundingClientRect().width > 0,
+              }) &&
+              node.getBoundingClientRect().width > 0 &&
+              node.getBoundingClientRect().height > 0,
           );
           return {
             role,

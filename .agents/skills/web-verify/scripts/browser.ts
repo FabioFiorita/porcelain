@@ -4,6 +4,9 @@ import { pairingLink } from '@porcelain/contracts/access';
 import type { Recorder } from '@porcelain/server/kit/isolated-server';
 import { issuedLink } from '../../verify-core/fixtures.ts';
 import type { WebInstance } from './instance.ts';
+import type { BrowserDocument } from './browser-dom.ts';
+
+declare const document: BrowserDocument;
 
 const pairedMs = 30_000;
 const settledMs = 15_000;
