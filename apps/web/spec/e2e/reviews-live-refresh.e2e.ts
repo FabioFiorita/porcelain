@@ -19,6 +19,8 @@ test('a failed live refresh keeps the retained review readable, warns, and retri
   });
   await expect(failure).toBeVisible();
   await expect(briefing).toContainText('Revision 1 of 1');
+  await page.waitForLoadState('networkidle');
+  await expect(failure).toBeVisible();
   await endOutage();
   await failure.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(briefing).toContainText('Revision 2 of 2');
