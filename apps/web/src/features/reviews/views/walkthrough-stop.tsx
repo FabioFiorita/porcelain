@@ -327,7 +327,13 @@ function RouteTable({
               key={step.id}
               className={lane !== undefined && index > 0 ? 'border-t' : ''}
             >
-              <RouteRow step={step} index={index} lane={lane} onStep={onStep} />
+              <RouteRow
+                step={step}
+                index={index}
+                lane={lane}
+                current={index === 0}
+                onStep={onStep}
+              />
             </li>
           );
         })}
@@ -340,11 +346,13 @@ function RouteRow({
   step,
   index,
   lane,
+  current,
   onStep,
 }: {
   step: ReviewStep;
   index: number;
   lane: string | undefined;
+  current: boolean;
   onStep: (step: ReviewStep) => void;
 }) {
   const value = [lane, step.pointer.path].filter(Boolean).join(' · ');
@@ -355,6 +363,7 @@ function RouteRow({
         <button
           type="button"
           aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
+          aria-current={current ? 'step' : undefined}
           onClick={() => onStep(step)}
           className={cn(
             'flex min-h-8 w-full min-w-0 items-start gap-3 rounded-md py-1.5 pr-1.5 text-left hover:bg-accent @2xl/review:items-center',
@@ -366,9 +375,12 @@ function RouteRow({
           )}
           <span
             className={cn(
-              'grid size-5 shrink-0 place-items-center rounded-full bg-brand-soft text-2xs leading-none font-semibold text-brand tabular-nums',
+              'grid size-5 shrink-0 place-items-center rounded-full text-2xs leading-none tabular-nums',
+              current
+                ? 'bg-brand-soft font-semibold text-brand'
+                : 'border border-border-strong font-medium text-muted-foreground',
               step.kind === 'context' &&
-                'border border-dashed border-border-strong bg-transparent font-medium text-muted-foreground',
+                'border border-dashed border-border-strong',
             )}
           >
             {index + 1}

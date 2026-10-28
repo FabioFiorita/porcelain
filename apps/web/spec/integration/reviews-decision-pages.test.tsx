@@ -24,6 +24,26 @@ test('decision diffs follow the route from the entry point through its owners an
   });
   await expect
     .poll(() =>
+      reviewLayout.routeSteps(
+        decision
+          .getByRole('region', {
+            name: 'Route through the system',
+            exact: true,
+          })
+          .getByRole('button', { name: /^Go to step /u }),
+      ),
+    )
+    .toEqual([
+      { number: '1', current: 'step', weight: '600' },
+      { number: '2', current: null, weight: '500' },
+      { number: '3', current: null, weight: '500' },
+      { number: '4', current: null, weight: '500' },
+      { number: '5', current: null, weight: '500' },
+      { number: '6', current: null, weight: '500' },
+      { number: '7', current: null, weight: '500' },
+    ]);
+  await expect
+    .poll(() =>
       reviewLayout.reviewControlLabels(
         decision.getByRole('button', { name: /^Mark .+ as reviewed$/u }),
       ),

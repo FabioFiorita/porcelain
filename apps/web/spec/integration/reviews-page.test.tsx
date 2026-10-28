@@ -548,30 +548,40 @@ test('the review page keeps whole-change and inline comments in its Review panel
   }
 });
 
-test('durable routes warn when the live branch tip differs from the latest published revision', async ({
-  repo,
-  render,
-}) => {
-  const fixture = await repo.review(title);
-  await repo.advanceReviewBranch();
-  const app = await render.route(`/reviews/${fixture.reviewId}`);
-  const notice = app.page.getByRole('status').filter({
-    hasText: 'The branch tip differs from this review.',
-  });
-  await expect
-    .element(
-      notice.getByRole('heading', {
-        name: 'The branch tip differs from this review.',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      notice.getByText('Publish a revision to include it.', { exact: true }),
-    )
-    .toBeVisible();
-});
+test.for([414, 1440])(
+  'durable routes warn without clipping at %i px when the live branch tip differs from the latest published revision',
+  async (width, { repo, render, reviewLayout }) => {
+    await page.viewport(width, 896);
+    try {
+      const fixture = await repo.review(title);
+      await repo.advanceReviewBranch();
+      const app = await render.route(`/reviews/${fixture.reviewId}`);
+      const notice = app.page.getByRole('status').filter({
+        hasText: 'The branch tip differs from this review.',
+      });
+      await expect
+        .element(
+          notice.getByRole('heading', {
+            name: 'The branch tip differs from this review.',
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+      await expect
+        .poll(() => reviewLayout.fitsViewport(notice.getByRole('heading')))
+        .toEqual({ insideViewport: true, contentFits: true });
+      await expect
+        .element(
+          notice.getByText('Publish a revision to include it.', {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
 
 test('stored changed-step excerpts remain readable when the project Git repository is unavailable', async ({
   repo,

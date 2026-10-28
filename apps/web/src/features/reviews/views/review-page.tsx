@@ -167,7 +167,11 @@ export function ReviewPage({
       initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
-      reread={{ run: retry, failed: AsyncResult.isFailure(result) }}
+      reread={{
+        run: retry,
+        failed: AsyncResult.isFailure(result),
+        waiting: result.waiting,
+      }}
     />
   );
 }
@@ -272,7 +276,7 @@ function ReviewRevisionPage({
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
   revision: ReviewRevision;
-  reread: { run: () => void; failed: boolean };
+  reread: { run: () => void; failed: boolean; waiting: boolean };
 }) {
   const inventory = useInventory(context.connection);
   const project = inventory.projects.find(
@@ -658,6 +662,27 @@ function ReviewRevisionPage({
           headOid={latestHead}
         />
       )}
+      {reread.failed &&
+        !(view === 'summary' && expiredLink === review.summary.expires) && (
+          <div className="px-4 py-2">
+            <Alert variant="destructive">
+              <AlertDescription>
+                This review could not be refreshed. Showing the last loaded
+                revision.
+              </AlertDescription>
+              <AlertAction>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reread.waiting}
+                  onClick={reread.run}
+                >
+                  Try again
+                </Button>
+              </AlertAction>
+            </Alert>
+          </div>
+        )}
       {AsyncResult.isFailure(seen) && (
         <div className="px-4 py-2">
           <Alert variant="destructive">
