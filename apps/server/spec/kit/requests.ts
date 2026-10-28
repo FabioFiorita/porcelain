@@ -52,17 +52,43 @@ export async function pairingGrant(
   };
 }
 
-export async function pairDevice(session: Session, label = 'Second device') {
+export async function pairDevice(
+  session: Session,
+  label = 'Second device',
+  headers: HttpRequest['headers'] = {},
+) {
   const code = await issuePairing(session, label);
   const paired = await read(session, {
     method: 'POST',
     path: '/api/pair',
     auth: 'none',
+    headers,
     body: { code, platform: 'Verification' },
   });
   return {
     credential: text(paired.credential),
     deviceId: text(record(paired.device).id),
+  };
+}
+
+export async function waysInChange(
+  session: Session,
+  change: Record<string, unknown>,
+  request: Omit<HttpRequest, 'method' | 'path' | 'body'> = {},
+): Promise<HttpRequest> {
+  const current = await read(session, {
+    ...request,
+    method: 'GET',
+    path: '/api/remote-access',
+  });
+  return {
+    ...request,
+    method: 'PATCH',
+    path: '/api/remote-access',
+    body: {
+      expected: record(current.editing).fingerprint,
+      change,
+    },
   };
 }
 

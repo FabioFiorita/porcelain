@@ -1,5 +1,7 @@
 import { Schema } from 'effect';
 import { TUNNEL_HOSTNAME_LENGTH } from '../shared/limits.ts';
+import type { DeviceRoute } from './pairing.ts';
+import type { Principal } from './principal.ts';
 
 const routeStateSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal('off') }),
@@ -32,6 +34,12 @@ const routeSchema = Schema.Struct({
   status: routeStateSchema,
 });
 
+const waysInFingerprintSchema = Schema.String.check(
+  Schema.isPattern(/^[a-f0-9]{64}$/),
+).pipe(Schema.brand('WaysInFingerprint'));
+
+const protectedRouteSchema = Schema.Literals(['lan', 'tailnet', 'cloudflare']);
+
 export const readRemoteAccessResponseSchema = Schema.Struct({
   routes: Schema.Struct({
     lan: routeSchema,
@@ -44,9 +52,13 @@ export const readRemoteAccessResponseSchema = Schema.Struct({
   tailnetTarget: Schema.optional(Schema.String),
   cloudflareHostname: Schema.optional(Schema.String),
   serviceUrl: Schema.String,
+  editing: Schema.Struct({
+    fingerprint: waysInFingerprintSchema,
+    protectedRoute: Schema.optional(protectedRouteSchema),
+  }),
 });
 
-export const setRemoteAccessRequestSchema = Schema.Struct({
+const remoteAccessChangeSchema = Schema.Struct({
   lan: Schema.optional(Schema.Boolean),
   tailnet: Schema.optional(Schema.Boolean),
   tailnetHostname: Schema.optional(
@@ -67,9 +79,22 @@ export const setRemoteAccessRequestSchema = Schema.Struct({
   ),
 );
 
+export const setRemoteAccessRequestSchema = Schema.Struct({
+  expected: waysInFingerprintSchema,
+  change: remoteAccessChangeSchema,
+});
+
 export const setRemoteAccessResponseSchema = readRemoteAccessResponseSchema;
 
+export type ReadRemoteAccessRequest = {
+  viewer: Principal;
+  local: boolean;
+  route: DeviceRoute;
+};
+export type SetRemoteAccessInput = SetRemoteAccessRequest &
+  ReadRemoteAccessRequest;
 export type ReadRemoteAccessResponse =
   typeof readRemoteAccessResponseSchema.Type;
 export type SetRemoteAccessRequest = typeof setRemoteAccessRequestSchema.Type;
+export type RemoteAccessChange = typeof remoteAccessChangeSchema.Type;
 export type SetRemoteAccessResponse = typeof setRemoteAccessResponseSchema.Type;

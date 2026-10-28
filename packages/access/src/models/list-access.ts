@@ -5,6 +5,7 @@ export type ListAccessInput = { viewerDeviceId?: string | undefined };
 
 type ListedDevice = Device & {
   trusted: boolean;
+  canEditWaysIn: boolean;
   current?: boolean | undefined;
 };
 

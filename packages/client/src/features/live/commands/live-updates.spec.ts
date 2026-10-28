@@ -1,3 +1,4 @@
+import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect, it } from '@effect/vitest';
 import { Cause, Effect, Exit, Queue, Scope, Stream, Redacted } from 'effect';
 import { createRouteTransport } from '../../access/store/route-transport.ts';
@@ -304,7 +305,7 @@ function routedFixture() {
               environmentId: 'computer',
               name: 'Computer',
               version: null,
-              protocol: 2,
+              protocol: ENVIRONMENT_PROTOCOL,
             }
           : url.pathname === '/api/live/tickets'
             ? { ticket: 'ticket', expiresAt: '2026-10-18T00:00:00.000Z' }

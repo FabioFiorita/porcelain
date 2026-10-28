@@ -23,6 +23,9 @@ import {
   TooManyPairingAttemptsError,
   TooManyLiveTicketsError,
   UntrustedDeviceError,
+  RemoteRouteInUseError,
+  WaysInChangedError,
+  WaysInPermissionRequiredError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -226,6 +229,7 @@ const rules: readonly StatusRule[] = [
       CommentAuthorMismatchError,
       DeviceViewerRequiredError,
       UntrustedDeviceError,
+      WaysInPermissionRequiredError,
       ReviewGitSettingsTrustRequiredError,
     ],
     statusCode: 403,
@@ -270,6 +274,8 @@ const rules: readonly StatusRule[] = [
       ServiceUpdateRunningError,
       NoLocalNetworkError,
       UnidentifiedLocalNetworkError,
+      WaysInChangedError,
+      RemoteRouteInUseError,
       ReviewGitSettingsNotConfiguredError,
     ],
     statusCode: 409,

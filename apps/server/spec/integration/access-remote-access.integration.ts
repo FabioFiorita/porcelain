@@ -7,7 +7,7 @@ import {
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { eventually } from '../kit/reads.ts';
-import { issuePairing, read } from '../kit/requests.ts';
+import { read, waysInChange } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   record,
@@ -17,11 +17,6 @@ import {
 } from '../kit/session.ts';
 
 const TUNNEL_HOST = 'porcelain.example.com';
-const notOnThisComputer = apiError(
-  403,
-  'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
-);
 const notAnswered = apiError(
   403,
   'Forbidden',
@@ -77,10 +72,13 @@ test('every way in is off at first and the local network the computer is on is r
     ),
   );
   const off = { enabled: false, status: { kind: 'off' } };
+  const fingerprint = text(record(record(response.body).editing).fingerprint);
+  expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
   expect(response.body).toStrictEqual({
     routes: { lan: off, tailnet: off, cloudflare: off },
     localNetwork: fixtureNetwork,
     serviceUrl: session.address,
+    editing: { fingerprint },
   });
 });
 
@@ -89,41 +87,35 @@ test('changing the ways in with invalid input, a missing or unreadable hostname 
 }) => {
   const before = await read(session, remoteAccess);
 
-  const empty = await session.send({
+  const empty = await session.send(await waysInChange(session, {}));
+  const flat = await session.send({
     method: 'PATCH',
     path: '/api/remote-access',
-    body: {},
+    body: { lan: true },
   });
-  const malformed = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { lan: 'yes' },
-  });
-  const missingHostname = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true },
-  });
-  const unreadableHostname = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: {
+  const malformed = await session.send(
+    await waysInChange(session, { lan: 'yes' }),
+  );
+  const missingHostname = await session.send(
+    await waysInChange(session, { cloudflare: true }),
+  );
+  const unreadableHostname = await session.send(
+    await waysInChange(session, {
       cloudflare: true,
       cloudflareHostname: 'http://x.example.com',
-    },
-  });
-  const missingTailscaleName = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { tailnet: true },
-  });
-  const foreignTailscaleName = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { tailnet: true, tailnetHostname: 'porcelain.example.com' },
-  });
+    }),
+  );
+  const missingTailscaleName = await session.send(
+    await waysInChange(session, { tailnet: true }),
+  );
+  const foreignTailscaleName = await session.send(
+    await waysInChange(session, {
+      tailnet: true,
+      tailnetHostname: 'porcelain.example.com',
+    }),
+  );
 
-  for (const response of [empty, malformed]) {
+  for (const response of [empty, flat, malformed]) {
     expect(response.status).toBe(400);
     expect(response.body).toStrictEqual(invalidRequest);
   }
@@ -165,15 +157,13 @@ test('changing the ways in with invalid input, a missing or unreadable hostname 
 test('turning on the local network and the tailnet serves the private address and the Tailscale name, which pairing links can name', async ({
   session,
 }) => {
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: {
+  const response = await session.send(
+    await waysInChange(session, {
       lan: true,
       tailnet: true,
       tailnetHostname: 'Porcelain.Tail0000.ts.net',
-    },
-  });
+    }),
+  );
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
@@ -236,11 +226,9 @@ test('turning the local network off saves it off, closes the route and stops pai
 }) => {
   const before = await settled(session, 'lan', 'on');
 
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { lan: false },
-  });
+  const response = await session.send(
+    await waysInChange(session, { lan: false }),
+  );
 
   expect(response.status).toBe(200);
   expect(routes(record(response.body)).lan).toStrictEqual({
@@ -274,11 +262,9 @@ test('turning the tailnet off stops the route, keeps the Tailscale name, names n
 }) => {
   const before = await settled(session, 'tailnet', 'on');
 
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { tailnet: false },
-  });
+  const response = await session.send(
+    await waysInChange(session, { tailnet: false }),
+  );
 
   expect(response.status).toBe(200);
   expect(routes(record(response.body)).tailnet).toStrictEqual({
@@ -296,6 +282,7 @@ test('turning the tailnet off stops the route, keeps the Tailscale name, names n
     'localNetwork',
     'tailnetHostname',
     'serviceUrl',
+    'editing',
   ]);
   const refused = await session.send(throughTailnet);
   expect(refused.status).toBe(403);
@@ -312,14 +299,12 @@ test('the tunnel hostname is answered only while Cloudflare is on and pairing li
   session,
 }) => {
   const refusedBefore = await session.send(throughTunnel);
-  const turnedOn = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: {
+  const turnedOn = await session.send(
+    await waysInChange(session, {
       cloudflare: true,
       cloudflareHostname: `https://${TUNNEL_HOST}/`,
-    },
-  });
+    }),
+  );
   const answered = await session.send(throughTunnel);
 
   expect(refusedBefore.status).toBe(403);
@@ -345,49 +330,12 @@ test('the tunnel hostname is answered only while Cloudflare is on and pairing li
   );
 });
 
-test('a device paired through a route or a relayed request cannot change or read the ways in', async ({
-  session,
-}) => {
-  const paired = await read(session, {
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    headers: { host: TUNNEL_HOST, origin: `https://${TUNNEL_HOST}` },
-    body: { code: await issuePairing(session, 'Phone'), platform: 'iOS' },
-  });
-  const before = await read(session, remoteAccess);
-  const bearer = text(paired.credential);
-
-  const responses = [
-    await session.send({
-      method: 'PATCH',
-      path: '/api/remote-access',
-      auth: { bearer },
-      headers: { host: TUNNEL_HOST, origin: `https://${TUNNEL_HOST}` },
-      body: { lan: true },
-    }),
-    await session.send({
-      method: 'GET',
-      path: '/api/remote-access',
-      headers: { 'x-forwarded-for': '203.0.113.9' },
-    }),
-  ];
-
-  for (const response of responses) {
-    expect(response.status).toBe(403);
-    expect(response.body).toStrictEqual(notOnThisComputer);
-  }
-  expect(await read(session, remoteAccess)).toStrictEqual(before);
-});
-
 test('turning Cloudflare off keeps the hostname, refuses it again and closes the route', async ({
   session,
 }) => {
-  const turnedOff = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: false },
-  });
+  const turnedOff = await session.send(
+    await waysInChange(session, { cloudflare: false }),
+  );
   const refused = await session.send(throughTunnel);
 
   expect(turnedOff.status).toBe(200);
@@ -402,11 +350,12 @@ test('turning Cloudflare off keeps the hostname, refuses it again and closes the
 test('a tunnel hostname nothing answers at fails the tunnel as unreachable', async ({
   session,
 }) => {
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: 'porcelain.invalid' },
-  });
+  const response = await session.send(
+    await waysInChange(session, {
+      cloudflare: true,
+      cloudflareHostname: 'porcelain.invalid',
+    }),
+  );
 
   expect(response.status).toBe(200);
   expect(status(record(response.body), 'cloudflare')).toStrictEqual({
@@ -420,11 +369,12 @@ test('a tunnel hostname nothing answers at fails the tunnel as unreachable', asy
 test('a Tailscale name nothing answers at fails the tailnet as unreachable', async ({
   session,
 }) => {
-  const response = await session.send({
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { tailnet: true, tailnetHostname: 'porcelain.invalid.ts.net' },
-  });
+  const response = await session.send(
+    await waysInChange(session, {
+      tailnet: true,
+      tailnetHostname: 'porcelain.invalid.ts.net',
+    }),
+  );
 
   expect(response.status).toBe(200);
   expect(status(record(response.body), 'tailnet')).toStrictEqual({

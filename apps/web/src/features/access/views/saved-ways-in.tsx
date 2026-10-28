@@ -25,7 +25,7 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
   const routes = connectionRoutes(remote);
   return (
     <FieldSet>
-      <FieldLegend variant="label">Ways in</FieldLegend>
+      <FieldLegend variant="label">Saved connections</FieldLegend>
       <ItemGroup>
         {routes.map(({ address }) => (
           <Item key={address}>
@@ -57,7 +57,7 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
         ))}
       </ItemGroup>
       <p className="text-xs text-muted-foreground">
-        Saved connections. Manage ways in on that computer.
+        The addresses this app tries, in order, to reach that computer.
       </p>
     </FieldSet>
   );

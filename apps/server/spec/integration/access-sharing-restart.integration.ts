@@ -66,13 +66,13 @@ const host = {
 function owner<A, E>(
   state: string,
   request: (
-    client: Effect.Success<ReturnType<typeof ownerClient>>['administration'],
+    client: Effect.Success<ReturnType<typeof ownerClient>>['remoteAccess'],
   ) => Effect.Effect<A, E>,
 ) {
   return Effect.runPromise(
     Effect.gen(function* () {
       const client = yield* ownerClient(state, 5_000);
-      return yield* ownerRequest(request(client.administration));
+      return yield* ownerRequest(request(client.remoteAccess));
     }),
   );
 }
@@ -126,8 +126,16 @@ test('local network sharing turned on stays on at the same address after the ser
   };
   try {
     await start();
+    const before: ReadRemoteAccessResponse = await owner(state, (client) =>
+      client.readRemoteAccess(),
+    );
     await owner(state, (client) =>
-      client.setRemoteAccess({ payload: { lan: true } }),
+      client.setRemoteAccess({
+        payload: {
+          expected: before.editing.fingerprint,
+          change: { lan: true },
+        },
+      }),
     );
     const shared = await settledLan(state);
 

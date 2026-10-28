@@ -22,6 +22,17 @@ describe('connectionErrorMessage', () => {
     ).toBe('Could not reach Porcelain.');
   });
 
+  it('shows the reason of an error the server contract declares', () => {
+    expect(
+      connectionErrorMessage(
+        Object.assign(new Error('The ways in changed since you last looked.'), {
+          name: 'WaysInChangedError',
+          _tag: 'WaysInChangedError',
+        }),
+      ),
+    ).toBe('The ways in changed since you last looked.');
+  });
+
   it('hides unexpected errors and non-errors behind a stable message', () => {
     expect(connectionErrorMessage(new Error('parser detail'))).toBe(
       'Could not connect to the environment. Try again.',

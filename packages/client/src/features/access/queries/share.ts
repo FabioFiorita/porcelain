@@ -5,6 +5,7 @@ import {
   Effect,
   Exit,
   Option,
+  Predicate,
   Ref,
   Schedule,
   Stream,
@@ -99,9 +100,23 @@ function accessObservation<A, E, R>(
     observe(connection, select(snapshots), request),
   );
 }
+function deniedAsNull<A, E, R>(request: Effect.Effect<A, E, R>) {
+  return request.pipe(
+    Effect.catch((error) =>
+      (error instanceof RequestError && error.status === 403) ||
+      Predicate.isTagged(error, 'WaysInPermissionRequiredError')
+        ? Effect.succeed(null)
+        : Effect.fail(error),
+    ),
+  );
+}
 export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
   clientRuntime(connection)
-    .atom(requestApi(connection, (api) => api.administration.listAccess()))
+    .atom(
+      deniedAsNull(
+        requestApi(connection, (api) => api.administration.listAccess()),
+      ),
+    )
     .pipe(Atom.setIdleTTL(0)),
 );
 export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
@@ -110,14 +125,8 @@ export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
     accessObservation(
       connection,
       (snapshots) => snapshots.remote,
-      requestApi(connection, (api) =>
-        api.administration.readRemoteAccess(),
-      ).pipe(
-        Effect.catch((error) =>
-          error instanceof RequestError && error.status === 403
-            ? Effect.succeed(null)
-            : Effect.fail(error),
-        ),
+      deniedAsNull(
+        requestApi(connection, (api) => api.remoteAccess.readRemoteAccess()),
       ),
     ),
     REMOTE_ACCESS_SETTLING_POLL_MS,
