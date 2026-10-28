@@ -16,7 +16,7 @@ export function SegmentedTabs<Value extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('segmented-tabs shrink-0', className)}>
+    <div className={cn('shrink-0', className)}>
       <Tabs
         value={value}
         onValueChange={(next: unknown) => {
@@ -24,7 +24,7 @@ export function SegmentedTabs<Value extends string>({
           if (option) onValue(option.value);
         }}
       >
-        <TabsList aria-label={label}>
+        <TabsList aria-label={label} className="w-full">
           {options.map((option) => (
             <TabsTrigger
               key={option.value}

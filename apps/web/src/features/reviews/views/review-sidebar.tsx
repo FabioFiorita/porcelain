@@ -96,7 +96,7 @@ export function SidePanel({
   const toolbar = (
     <div
       ref={setActionsTarget}
-      className="panel-actions ml-auto flex shrink-0 items-center gap-0.5"
+      className="ml-auto flex shrink-0 items-center gap-0.5"
     />
   );
   const content = children(actionsTarget);
