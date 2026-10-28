@@ -28,12 +28,13 @@ export class SelectGitHubAccountService extends Context.Service<
       return {
         execute: Effect.fn('SelectGitHubAccountService.execute')(
           function* (input) {
-            const repository = `${input.owner}/${input.repo}`.toLowerCase();
+            const repository = `${input.owner}/${input.repo}`;
             const preference = input.preference;
             const override = preference?.override;
             const accountsResult = yield* github.accounts().pipe(Effect.result);
             if (accountsResult._tag === 'Failure')
               return {
+                repository,
                 accounts: [],
                 choice: undefined,
                 override: override ?? undefined,
@@ -45,6 +46,7 @@ export class SelectGitHubAccountService extends Context.Service<
             const accounts = accountsResult.success;
             if (accounts.length === 0)
               return {
+                repository,
                 accounts,
                 choice: undefined,
                 override: override ?? undefined,
@@ -53,7 +55,7 @@ export class SelectGitHubAccountService extends Context.Service<
             const candidates = githubAccountCandidates(
               accounts,
               preference,
-              repository,
+              repository.toLowerCase(),
             );
             let unavailableReason: GitHubReadError['reason'] | undefined;
             for (const account of candidates) {
@@ -70,6 +72,7 @@ export class SelectGitHubAccountService extends Context.Service<
               );
               if (choice !== undefined)
                 return {
+                  repository,
                   accounts,
                   choice,
                   override: override ?? undefined,
@@ -77,6 +80,7 @@ export class SelectGitHubAccountService extends Context.Service<
                 };
             }
             return {
+              repository,
               accounts,
               choice: undefined,
               override: override ?? undefined,

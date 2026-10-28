@@ -43,6 +43,7 @@ export function WalkthroughBriefing({
   title,
   margin,
   proofCurrent,
+  pullRequestChip,
   scope,
   context,
 }: WalkthroughProps & {
@@ -50,6 +51,7 @@ export function WalkthroughBriefing({
   title: string;
   margin: ReactNode;
   proofCurrent: boolean;
+  pullRequestChip?: ReactNode;
   stops: readonly WalkthroughStop[];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
@@ -79,9 +81,10 @@ export function WalkthroughBriefing({
         <MarginRow margin={margin}>
           <div className="flex min-w-0 flex-col gap-8">
             <header className="flex min-w-0 flex-col gap-5">
-              <p className="text-xs text-muted-foreground">
-                Briefing · Revision {review.revision}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>Briefing · Revision {review.revision}</span>
+                {pullRequestChip}
+              </div>
               <h2 className="text-briefing-title font-semibold tracking-tight wrap-anywhere">
                 <TruncatedText
                   text={title}

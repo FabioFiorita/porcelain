@@ -43,6 +43,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePreferences } from '../store';
+import { GitHubAccounts } from './github-accounts';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
 
@@ -275,6 +276,7 @@ function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
           />
         </ItemGroup>
       </FieldSet>
+      <GitHubAccounts connection={connection} />
       <FieldSet>
         <FieldLegend variant="label">When archiving a review</FieldLegend>
         <ItemGroup>
@@ -431,7 +433,8 @@ export function ReviewsGitSettings() {
           Git
         </h1>
         <p className="text-base">
-          How reviews read, and what Git does when you pull and archive.
+          How reviews read, which GitHub account opens pull requests, and what
+          Git does when you pull and archive.
         </p>
       </div>
       {computers.length > 1 && (

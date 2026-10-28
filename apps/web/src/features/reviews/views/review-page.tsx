@@ -68,7 +68,11 @@ import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { reviewListTitle } from '@porcelain/client/reviews/rules';
 import { useReviewSummary } from '../queries/summary';
-import { useReviewPanelOpen, useWalkthroughPlace } from '../store';
+import {
+  useReviewPanelOpen,
+  useWalkthroughPlace,
+  usePullRequestLinkFocus,
+} from '../store';
 import { GitButton } from '@/features/git-actions/index';
 import { DocumentTabs } from './document-tabs';
 import { ProgressMeter } from './progress-meter';
@@ -89,6 +93,8 @@ import {
   StateSkeleton,
 } from '@/shared/views/state-notice';
 import { ReviewBoundary } from './review-boundary';
+import { ReviewPullRequestChip } from './review-pull-request-chip';
+import { PullRequestDocument } from './pull-request-document';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -96,6 +102,8 @@ import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
   toolbarTarget?: HTMLElement | null | undefined;
+  onOpenPullRequest?: ((number: number) => void) | undefined;
+  onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
   navigation?: ReactNode;
   revision?: number | undefined;
@@ -125,6 +133,8 @@ export function ReviewPage({
   liveScope,
   initialStep,
   proofCurrent = true,
+  onOpenPullRequest,
+  onShowReviewPanel,
   active = true,
 }: ReviewPageProps) {
   const query = readReview({
@@ -166,6 +176,8 @@ export function ReviewPage({
       initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
+      onOpenPullRequest={onOpenPullRequest}
+      onShowReviewPanel={onShowReviewPanel}
     />
   );
 }
@@ -266,6 +278,8 @@ function ReviewRevisionPage({
   liveScope,
   initialStep,
   proofCurrent = true,
+  onOpenPullRequest,
+  onShowReviewPanel,
   active = true,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
@@ -344,6 +358,12 @@ function ReviewRevisionPage({
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
     revision.reviewId,
   );
+  const linkFocus = usePullRequestLinkFocus(revision.reviewId);
+  const [pullNumber, setPullNumber] = useState<number>();
+  const openPullRequest = (number: number) => {
+    if (onOpenPullRequest) onOpenPullRequest(number);
+    else setPullNumber(number);
+  };
   const [sheetOpen, setSheetOpen] = useState(false);
   const railToggle = useElement<HTMLButtonElement>();
   const scroller = useElement<HTMLElement>();
@@ -494,6 +514,21 @@ function ReviewRevisionPage({
     if (desktop) setPanelOpen(true);
     else setSheetOpen(true);
   };
+  const pullRequestChip = (
+    <ReviewPullRequestChip
+      reviewId={revision.reviewId}
+      projectId={revision.projectId}
+      branch={revision.branch}
+      url={data.review?.pullRequest}
+      context={context}
+      onOpen={openPullRequest}
+      onShowPanel={(trigger, focusInput) => {
+        if (focusInput) linkFocus.request();
+        if (onShowReviewPanel) onShowReviewPanel(trigger);
+        else showPanel();
+      }}
+    />
+  );
   const togglePanel = () => {
     if (!desktop) {
       setSheetOpen((open) => !open);
@@ -545,11 +580,38 @@ function ReviewRevisionPage({
             }
             onStop={(key) => reveal(() => go(key))}
             onProof={() => reveal(() => go('briefing'))}
+            onOpenPullRequest={(number) =>
+              reveal(() => openPullRequest(number))
+            }
           />
         </ReviewBoundary>
       )}
     </SidePanel>
   );
+  if (pullNumber !== undefined)
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 self-start"
+          onClick={() => setPullNumber(undefined)}
+        >
+          Back to the review
+        </Button>
+        <PullRequestDocument
+          reviewId={revision.reviewId}
+          number={pullNumber}
+          context={context}
+          onBack={() => setPullNumber(undefined)}
+          onFile={(path) => {
+            setPullNumber(undefined);
+            setView('walkthrough');
+            setFile({ path });
+          }}
+        />
+      </div>
+    );
   const page = (
     <section
       ref={(element) => scroller.attach(element)}
@@ -745,6 +807,7 @@ function ReviewRevisionPage({
                   {...props}
                   revision={revision}
                   title={title}
+                  pullRequestChip={pullRequestChip}
                   proofCurrent={proofCurrent && revision.headOid === latestHead}
                   margin={
                     <BriefingMargin
@@ -784,6 +847,7 @@ function ReviewRevisionPage({
                           }
                           stop={stop}
                           total={decisionCount}
+                          pullRequestChip={pullRequestChip}
                           review={review}
                           revision={revision}
                           scope={scope}

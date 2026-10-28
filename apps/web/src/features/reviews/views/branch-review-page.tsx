@@ -1,3 +1,4 @@
+import type { OpenDocument } from '../rules/documents';
 import { useState } from 'react';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
@@ -16,11 +17,18 @@ export function BranchReviewPage({
   context,
   active,
   toolbarTarget,
+  onOpen,
+  onBrowse,
 }: {
   toolbarTarget?: HTMLElement | null | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   active?: boolean | undefined;
+  onOpen: OpenDocument;
+  onBrowse: (
+    surface: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => void;
 }) {
   const published = usePublishedReview(scope, context);
   const [deleted, setDeleted] = useState<string>();
@@ -58,6 +66,10 @@ export function BranchReviewPage({
         setDeleted(reviewId);
         published.refresh();
       }}
+      onOpenPullRequest={(number) =>
+        onOpen({ kind: 'pull-request', reviewId, number })
+      }
+      onShowReviewPanel={(trigger) => onBrowse('changes', trigger)}
       liveScope={scope}
     />
   );

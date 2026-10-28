@@ -113,7 +113,14 @@ export function ReviewIndex({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {review?.reviewId && (
-        <PullRequestBlock reviewId={review.reviewId} context={context} />
+        <PullRequestBlock
+          reviewId={review.reviewId}
+          context={context}
+          onOpenPullRequest={(number) =>
+            review.reviewId &&
+            onOpen({ kind: 'pull-request', reviewId: review.reviewId, number })
+          }
+        />
       )}
       <div className="shrink-0 px-2">
         <Tabs

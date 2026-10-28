@@ -10,7 +10,10 @@ selectors:
   - 'Continue at decision '
   - 'Pull request'
   - 'Link pull request'
-  - 'Unlink pull request'
+  - 'Pull request actions'
+  - 'Pull request link'
+  - 'Open pull request'
+  - 'Open on GitHub'
   - 'Close review'
   - 'Delete review…'
   - 'Delete review?'
@@ -80,6 +83,8 @@ Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
 
 ## Pull request linking
 
-The top of the Review panel finds open pull requests for the review's branch from the project's existing list. Use Find pull requests again to refresh, Link to this review to select a found request, or paste a GitHub pull request URL and select Link pull request. A different repository or head branch, or a pull request number GitHub does not have, is refused without changing the review. A review that is not linked in a repository without a GitHub remote shows no block; it appears once the repository has a GitHub `origin` and the review is opened again. After Link or Unlink by keyboard, focus moves to Unlink pull request or the URL input. A new malformed-link message replaces an earlier failure alert. Pending writes disable repeat submissions; refusal explains why and keeps the input editable.
+The review's first row has a PR chip, and the top of the Review panel has the PR block. The chip opens the PR tab when linked, or the Review panel when linking or recovery is needed. The panel finds open pull requests for this branch from the project's list. Select Link to this review on a found PR, or paste its URL in Pull request link and select Link (accessible name Link pull request). A PR held by another open review names that review and explains how to unlink it there first. A different repository or branch and an unknown PR are refused without changing this review. A repository without a GitHub remote shows neither chip nor block. After linking or unlinking by keyboard, focus returns to Pull request actions or Pull request link. Malformed input replaces any earlier failure; pending writes disable repeat submissions.
 
-A linked block shows open, draft, merged or closed, GitHub checks separately from the agent's proof, and both head SHAs when they differ. Open pull request goes to GitHub. Read pull request again retries a failed read; a missing or unauthorised GitHub account is fixed on the computer with `gh auth login`, then Read pull request again. Unlink pull request works even when GitHub is unreachable or a GitHub account lookup is still running, preserves the review and revisions, and follows the branch again. Closed reviews remain closed. Phone's native review shows the link and Unlink; linking uses web or desktop.
+Check the eight drawn states: not linked with no match, found for this branch, linked open, draft, head differs, GitHub unavailable, merged and closed. The block says 12 checks passed, names both heads when they differ, and explains that merged or closed reviews remain readable under Closed. Open pull request opens a PR tab in the worktree and an inline PR viewer on standalone review routes. The tab shows its title/state, author, base and head branches, labels, description, read-only conversation with review states and file links, and GitHub checks with durations and Details links. Back to the review returns to the review; Open on GitHub opens the external PR. Removed or changed links cannot leave a different PR under an old tab's number.
+
+Pull request actions opens a menu with Open on GitHub, Copy link and Unlink #n. Unlink works while GitHub is unreachable, preserves review/revisions and keeps closed reviews closed. GitHub unavailable explains each reason: Choose an account opens Settings → Reviews & Git; How to install opens the GitHub CLI site; Copy gh auth login copies the sign-in command; Try again retries transient failures. A transport failure offers Try again and never claims checks passed from retained data. Drive long titles/branches, empty/many/truncated checks and conversation, request failures/recovery, 1440/1080/414 light and dark. Phone native keeps its existing linked block and Unlink; device verification is separate.

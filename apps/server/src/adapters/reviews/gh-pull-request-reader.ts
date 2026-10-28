@@ -18,7 +18,7 @@ import type { Limits } from '../../config/limits.ts';
 const PAGE = 'pageInfo { hasNextPage }';
 const summaryFields = `number title url state isDraft author { login } headRefName updatedAt
   commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
-    nodes { __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } ${PAGE}
+    nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {

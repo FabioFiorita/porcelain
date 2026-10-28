@@ -138,3 +138,19 @@ export {
   type ReviewListEntry,
 } from './review-list.ts';
 export { archiveDescription, archiveFailureMessage } from './archive-review.ts';
+export {
+  foundPullRequests,
+  githubUnavailable,
+  pullCheckTone,
+  pullCheckDuration,
+  pullRequestChecks,
+  pullRequestMergeable,
+  pullRequestNumber,
+  pullRequestRepository,
+  pullRequestRollup,
+  pullReviewState,
+  type FoundPullRequest,
+  type PullRequestRead,
+  type GitHubUnavailableAction,
+  type PullChecksTone,
+} from './pull-request.ts';

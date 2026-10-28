@@ -9,13 +9,19 @@ selectors:
   - 'When archiving a review'
   - 'Read settings again'
   - 'Update this computer to sync settings'
+  - 'GitHub account for pull requests'
+  - 'GitHub account for {project}'
+  - 'Use the detected account for {project}'
 tests:
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts
   - apps/server/spec/integration/access-review-git-settings.integration.ts
   - packages/client/src/features/preferences/rules/review-git-settings.spec.ts
+  - packages/client/src/features/reviews/queries/pull-requests.spec.ts
 api:
   - GET /api/review-git-settings
   - PATCH /api/review-git-settings
+  - GET /api/projects/:projectId/github-account
+  - PUT /api/projects/:projectId/github-account
 ---
 
 # preferences.reviews-git
@@ -37,6 +43,8 @@ Preconditions: [surface baseline](README.md).
 4. Pair a second device through the server CLI without trust and PATCH a change with its bearer from another origin: 403 "An owner must trust this device…". The browser on this computer can still change settings.
 5. Stop the server while Settings is open: controls disable and the destructive notice offers Read settings again; Pull and Archive stay disabled. Restart and Read settings again restores them.
 6. Pair a remote computer and reopen Reviews & Git: the Computer picker names This computer and the remote. Its settings are separate; switching computers never shows the other computer's values.
+7. In GitHub account for pull requests, each GitHub project shows its repository and the account detected by `gh`. Choose another signed-in account: the badge becomes Chosen. Use the detected account for the project clears the override and restores Detected. The choice is saved on the project's computer, for every device. Non-GitHub projects have no row.
+8. A project no signed-in account can read shows No signed-in account can open it. A missing `gh` offers How to install, no signed-in accounts offers Copy gh auth login, and transient GitHub failures offer Try again. Request failures show Could not display the GitHub account with Try again. Check long project names, repository names and accounts at phone width in light and dark.
 
 Automated coverage: `reviews-spec-files.e2e.ts` (import then change), `access-review-git-settings.integration.ts` (contract, trust, merge), `review-git-settings.spec.ts` (view states).
 

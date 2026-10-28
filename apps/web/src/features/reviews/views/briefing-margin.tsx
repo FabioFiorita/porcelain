@@ -72,16 +72,6 @@ export function BriefingMargin({
           This review
         </h3>
         <Badge variant="outline">{data.review?.state ?? 'open'}</Badge>
-        {data.review?.pullRequest && (
-          <a
-            href={data.review.pullRequest}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-4"
-          >
-            PR #{data.review.pullRequest.split('/').filter(Boolean).at(-1)}
-          </a>
-        )}
         <p className="font-mono wrap-anywhere">
           {revision.branch} → {refLabel(revision.base)}
         </p>

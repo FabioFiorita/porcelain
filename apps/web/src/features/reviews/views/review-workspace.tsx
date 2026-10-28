@@ -199,7 +199,10 @@ function ReviewWorkspaceContent({
     ignoreInputs: true,
   });
   const browseTrigger = useElement<HTMLButtonElement>();
-  const browse = (next: 'files' | 'history', trigger: HTMLButtonElement) => {
+  const browse = (
+    next: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => {
     browseTrigger.attach(trigger);
     showSurface(next);
   };
@@ -365,7 +368,10 @@ type PaneContext = {
   context: ConnectionContext;
   base: string | undefined;
   onOpen: OpenDocument;
-  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
+  onBrowse: (
+    surface: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;

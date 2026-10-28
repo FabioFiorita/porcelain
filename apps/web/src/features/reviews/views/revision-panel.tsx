@@ -31,6 +31,7 @@ export function RevisionPanel({
   onChange,
   onStop,
   onProof,
+  onOpenPullRequest,
   activeStop,
   onStep,
 }: {
@@ -45,6 +46,7 @@ export function RevisionPanel({
   activeStop: string;
   onStep: (step: ReviewStep) => void;
   onProof: () => void;
+  onOpenPullRequest: (number: number) => void;
 }) {
   const { threads } = useComments(scope, context);
   const { view, setView } = useReviewPanelView(revision.reviewId);
@@ -52,7 +54,11 @@ export function RevisionPanel({
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PullRequestBlock reviewId={revision.reviewId} context={context} />
+      <PullRequestBlock
+        reviewId={revision.reviewId}
+        context={context}
+        onOpenPullRequest={onOpenPullRequest}
+      />
       <ChangeReadiness
         context={context}
         marks={marks}
