@@ -39,7 +39,7 @@ function ComputerReviewGitSettings({
 }) {
   const view = useReviewGitSettings(connection);
   const untrusted = useReviewGitSettingsTrust(connection);
-  const { save, saving, failure, kept, readAgain } =
+  const { save, saving, failure, kept, readAgain, checkTrustAgain } =
     useReviewGitSettingsCommands(connection);
   const settings = shownReviewGitSettings(view, candidate);
   const disabled = confirmedReviewGitSettings(view) === undefined || saving;
@@ -52,7 +52,9 @@ function ComputerReviewGitSettings({
         <Loading label="Reading Reviews & Git settings…" />
       ) : null}
       {view.kind === 'unsupported' ? (
-        <ErrorState message="Update Porcelain on this computer to use its Reviews & Git settings." />
+        <ErrorState
+          message={`Update Porcelain on ${computer} to use its Reviews & Git settings.`}
+        />
       ) : null}
       {block && (view.kind === 'unreadable' || view.kind === 'configured') ? (
         <ErrorState
@@ -71,6 +73,13 @@ function ComputerReviewGitSettings({
             <Text variant="ui" tone="muted">
               {untrusted}
             </Text>
+          ) : null}
+          {untrusted ? (
+            <Button
+              label="Check again"
+              variant="outline"
+              onPress={checkTrustAgain}
+            />
           ) : null}
           <Button
             label={`Use these settings for ${computer}`}
@@ -122,7 +131,7 @@ function ComputerReviewGitSettings({
         <Text variant="subheading">Git</Text>
         <PreferenceChoice
           label="Pull strategy"
-          description="Used when pulling changes on this computer."
+          description={`Used when pulling changes on ${computer}.`}
           value={settings?.pullStrategy}
           options={[
             { value: 'merge', label: 'Merge', id: 'pull-merge' },

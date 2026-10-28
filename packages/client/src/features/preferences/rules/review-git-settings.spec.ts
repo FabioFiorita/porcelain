@@ -35,7 +35,7 @@ const missingRoute = new RequestError({
   code: undefined,
 });
 const unreadable =
-  'Reviews & Git settings could not be read from this computer. The computer is offline.';
+  'Reviews & Git settings could not be read. The computer is offline.';
 
 it.each([
   {

@@ -222,7 +222,7 @@ function ReviewGitSettingsForm({
   const view = useReviewGitSettings(connection);
   const untrusted = useReviewGitSettingsTrust(connection);
   const { preferences } = usePreferences();
-  const { save, saving, failure, kept, readAgain } =
+  const { save, saving, failure, kept, readAgain, checkTrustAgain } =
     useReviewGitSettingsCommands(connection);
   const settings = shownReviewGitSettings(
     view,
@@ -249,19 +249,25 @@ function ReviewGitSettingsForm({
               {computer.phrase}.
             </p>
             {untrusted && <p>{untrusted}</p>}
-            <Button
-              className="mt-3"
-              size="sm"
-              disabled={saving || untrusted !== undefined}
-              onClick={() =>
-                save({
-                  kind: 'initialize',
-                  settings: preferences.reviewGitSettingsImportCandidate,
-                })
-              }
-            >
-              Use these settings for {computer.phrase}
-            </Button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={saving || untrusted !== undefined}
+                onClick={() =>
+                  save({
+                    kind: 'initialize',
+                    settings: preferences.reviewGitSettingsImportCandidate,
+                  })
+                }
+              >
+                Use these settings for {computer.phrase}
+              </Button>
+              {untrusted && (
+                <Button size="sm" variant="outline" onClick={checkTrustAgain}>
+                  Check again
+                </Button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}

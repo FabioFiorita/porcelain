@@ -15,8 +15,7 @@ export type ReviewGitSettingsView =
       unreadable: string | undefined;
     };
 
-const UNREADABLE =
-  'Reviews & Git settings could not be read from this computer.';
+const UNREADABLE = 'Reviews & Git settings could not be read.';
 
 function failureMessage(error: unknown): string {
   return error instanceof Error &&
