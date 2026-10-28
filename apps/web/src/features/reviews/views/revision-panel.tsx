@@ -62,7 +62,8 @@ export function RevisionPanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <WholeChangeComment
-        target={actionsTarget}
+        target={view === 'layers' ? actionsTarget : null}
+        branch
         onCompose={() => {
           setView('comments');
           setComposing(true);

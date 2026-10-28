@@ -216,10 +216,17 @@
   line-height: calc(var(--spacing) * 6);
 }
 
+.segmented-tabs [data-slot='tabs-trigger']:hover {
+  color: var(--foreground);
+}
+
 .segmented-tabs [data-slot='tabs-trigger'][data-active] {
   background: var(--background);
-  box-shadow: var(--shadow-row);
   color: var(--foreground);
+}
+
+.segmented-tabs [data-slot='tabs-trigger'][data-active]:not(:focus-visible) {
+  box-shadow: var(--shadow-row);
 }
 
 .panel-actions button {

@@ -65,12 +65,17 @@ export function ReviewViews({
 
 export function WholeChangeComment({
   target,
+  branch,
   onCompose,
 }: {
   target: HTMLElement | null;
+  branch: boolean;
   onCompose: () => void;
 }) {
   if (!target) return null;
+  const label = branch
+    ? 'Comment on the whole branch'
+    : 'Comment on the whole change';
   return createPortal(
     <Tooltip>
       <TooltipTrigger
@@ -78,16 +83,14 @@ export function WholeChangeComment({
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label="Comment on the whole change"
+            aria-label={label}
             onClick={onCompose}
           />
         }
       >
         <MessageSquarePlusIcon className="text-muted-foreground" />
       </TooltipTrigger>
-      <TooltipContent role="tooltip">
-        Comment on the whole change
-      </TooltipContent>
+      <TooltipContent role="tooltip">{label}</TooltipContent>
     </Tooltip>,
     target,
   );

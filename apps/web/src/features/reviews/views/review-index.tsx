@@ -125,7 +125,8 @@ export function ReviewIndex({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <WholeChangeComment
-        target={actionsTarget}
+        target={view === 'layers' ? actionsTarget : null}
+        branch={branch}
         onCompose={() => {
           setView('comments');
           setComposing(true);
@@ -356,13 +357,15 @@ function LayersView({
               setGroups({ changes: expanded, specs: expanded })
             }
           >
-            <SidebarDocumentRow
-              label="Open all specs"
-              active={activeEntry === 'specs'}
-              onOpen={() => onOpen(SPECS)}
-            >
-              Open all specs
-            </SidebarDocumentRow>
+            {!review && (
+              <SidebarDocumentRow
+                label="Open all specs"
+                active={activeEntry === 'specs'}
+                onOpen={() => onOpen(SPECS)}
+              >
+                Open all specs
+              </SidebarDocumentRow>
+            )}
             {specPaths.map(renderChange)}
           </SidebarGroup>
         )}

@@ -294,7 +294,7 @@ export function RevisionNavigation({
                           <FileCheck
                             path={step.pointer.path}
                             checked={item.reviewStatus === 'reviewed'}
-                            disabled={pending}
+                            disabled={pending || marks === undefined}
                             onToggle={() => toggleFile(step.pointer.path)}
                           />
                         ) : (
