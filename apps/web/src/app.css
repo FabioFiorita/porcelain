@@ -114,14 +114,6 @@
   }
 }
 
-@media (width < 48rem) {
-  [data-slot='input'],
-  [data-slot='textarea'],
-  [data-slot='input-group-control'] {
-    font-size: var(--text-base);
-  }
-}
-
 .pierre-preview {
   display: block;
   border-block: 1px solid var(--border);
@@ -267,22 +259,6 @@
 
 .settings-nav [data-slot='button'][aria-current='page'] svg {
   color: var(--foreground);
-}
-
-.settings-content [class~='group/button'] {
-  border-radius: var(--radius-md);
-}
-
-.settings-content [class~='group/button'][class~='h-7'] {
-  padding-inline: calc(var(--spacing) * 2.5);
-  font-size: var(--text-xs);
-  line-height: calc(var(--spacing) * 4);
-}
-
-.settings-content [class~='group/button'][class~='h-8'] {
-  padding-inline: calc(var(--spacing) * 3.5);
-  font-size: var(--text-ui);
-  line-height: calc(var(--spacing) * 4);
 }
 
 .settings-content .settings-danger [class~='group/button'] {
@@ -433,11 +409,6 @@
   box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
-.settings-content [data-slot='switch-thumb'] {
-  width: calc(var(--spacing) * 3.5);
-  height: calc(var(--spacing) * 3.5);
-}
-
 .settings-content
   [data-slot='switch'][data-unchecked]
   [data-slot='switch-thumb'] {
@@ -483,8 +454,6 @@
   height: calc(var(--spacing) * 6);
   padding-inline: calc(var(--spacing) * 2.5);
   border-radius: var(--radius-sm);
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
   line-height: calc(var(--spacing) * 6);
 }
 
@@ -498,10 +467,6 @@
   height: calc(var(--spacing) * 5);
   padding-inline: calc(var(--spacing) * 2);
   line-height: calc(var(--spacing) * 5);
-}
-
-.settings-content [data-slot='tabs-trigger']:hover {
-  color: var(--foreground);
 }
 
 .settings-content [data-slot='tabs-trigger'][data-active] {
@@ -536,6 +501,20 @@
 .settings-content [data-slot='badge'][data-variant='outline'] {
   border-color: var(--border-strong);
   background: transparent;
+}
+
+@media (width < 48rem) {
+  [data-slot='input'],
+  [data-slot='textarea'],
+  [data-slot='input-group-control'],
+  .settings-content
+    :is(
+      [data-slot='input'],
+      [data-slot='textarea'],
+      [data-slot='input-group-control']
+    ) {
+    font-size: var(--text-base);
+  }
 }
 
 @media (min-width: 64rem) {
