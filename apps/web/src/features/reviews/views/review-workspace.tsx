@@ -607,7 +607,10 @@ function PaneView({
         }
       />
       {pane.tabs
-        .filter((key) => key === 'handoff' || key === pane.active)
+        .filter(
+          (key) =>
+            key === pane.active || (key === 'handoff' && review !== undefined),
+        )
         .map((key) => {
           const ref = parseEntry(key);
           if (!ref) return null;
