@@ -3,6 +3,7 @@
 @import '@porcelain/theme/tokens.css';
 
 @theme {
+  --text-badge: 0.625rem;
   --font-sans: 'Geist';
   --font-mono: 'Geist Mono';
 }

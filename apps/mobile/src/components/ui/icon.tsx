@@ -57,10 +57,16 @@ export function Icon({
 }: {
   name: IconName;
   tone?: keyof typeof tones;
-  size?: 'small' | 'default' | 'large';
+  size?: 'small' | 'control' | 'default' | 'large';
 }) {
   const dimensions = useResolveClassNames(
-    size === 'small' ? 'size-3.5' : size === 'large' ? 'size-6' : 'size-4.5',
+    size === 'small'
+      ? 'size-3.5'
+      : size === 'control'
+        ? 'size-4'
+        : size === 'large'
+          ? 'size-6'
+          : 'size-4.5',
   );
   const dimension = Number(dimensions.width);
   return (

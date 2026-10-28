@@ -21,7 +21,13 @@ export function IconButton({
       size={size === 'sm' ? 'iconSm' : 'icon'}
       pending={pending}
     >
-      {pending ? null : <Icon name={icon} tone={buttonTones[variant]} />}
+      {pending ? null : (
+        <Icon
+          name={icon}
+          tone={buttonTones[variant]}
+          size={size === 'sm' ? 'small' : 'control'}
+        />
+      )}
     </ButtonSurface>
   );
 }

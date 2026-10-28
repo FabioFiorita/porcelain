@@ -143,11 +143,22 @@ export function PrimitivePreview({ name }: { name: string }) {
         <Text variant="heading">{name}</Text>
         {name === 'Badge' ? (
           <Box className="flex-row flex-wrap" gap={3}>
-            {(['default', 'secondary', 'outline', 'destructive'] as const).map(
-              (variant) => (
-                <Badge key={variant} label={variant} variant={variant} />
-              ),
-            )}
+            {(
+              [
+                'default',
+                'secondary',
+                'outline',
+                'destructive',
+                'brand',
+                'brand-soft',
+                'open',
+                'draft',
+                'merged',
+                'closed',
+              ] as const
+            ).map((variant) => (
+              <Badge key={variant} label={variant} variant={variant} />
+            ))}
           </Box>
         ) : null}
         {name === 'Item' ? (

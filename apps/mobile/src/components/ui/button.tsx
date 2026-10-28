@@ -22,7 +22,7 @@ export function Button({
     >
       <Text
         accessible={false}
-        variant={variant === 'link' ? 'link' : 'ui'}
+        variant={variant === 'link' ? 'controlLink' : 'control'}
         weight="medium"
         tone={buttonTones[variant]}
         className="shrink text-center"

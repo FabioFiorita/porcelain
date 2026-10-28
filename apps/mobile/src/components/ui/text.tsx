@@ -6,6 +6,9 @@ import {
 const variants = {
   body: 'text-base leading-6',
   ui: 'text-ui leading-5',
+  control: 'text-xs leading-4.5',
+  controlLink: 'text-xs leading-4.5 underline',
+  badge: 'text-badge leading-3.5',
   caption: 'text-caption leading-5',
   small: 'text-2xs leading-4',
   heading: 'text-xl leading-7',
@@ -21,6 +24,9 @@ const tones = {
   card: 'text-card-foreground',
   primary: 'text-primary',
   brand: 'text-brand',
+  brandForeground: 'text-brand-foreground',
+  add: 'text-add-fg',
+  del: 'text-del-fg',
   primaryForeground: 'text-primary-foreground',
   secondaryForeground: 'text-secondary-foreground',
 };
