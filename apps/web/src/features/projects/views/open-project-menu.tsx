@@ -40,7 +40,7 @@ export function OpenProjectMenu({
             />
           }
         >
-          <PlusIcon />
+          <PlusIcon className="text-muted-foreground" />
         </TooltipTrigger>
         <TooltipContent role="tooltip">Open project</TooltipContent>
       </Tooltip>
@@ -62,7 +62,7 @@ export function OpenProjectMenu({
             />
           }
         >
-          <PlusIcon />
+          <PlusIcon className="text-muted-foreground" />
         </TooltipTrigger>
         <TooltipContent role="tooltip">Open project</TooltipContent>
       </Tooltip>

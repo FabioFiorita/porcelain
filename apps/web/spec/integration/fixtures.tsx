@@ -180,6 +180,7 @@ function Navigator({
     <ProjectNavigator
       remotes={remotes}
       selected={undefined}
+      openReview={undefined}
       onSelect={() => {}}
       onOpenProject={() => {}}
       onOpenSettings={() => {}}
