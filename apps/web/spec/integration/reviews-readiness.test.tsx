@@ -75,7 +75,9 @@ test('the readiness panel follows reviewed and stale files, waiting comments and
     ],
     screenshot: 'Saved notice',
   });
-  expect((await server.publishedReview()).review?.notExplained).toEqual([
+  await expect(
+    server.publishedReview().then(({ review }) => review?.notExplained),
+  ).resolves.toEqual([
     { path: readme, ranges: [{ startLine: 4, endLine: 4 }] },
     { path: 'notes.md', ranges: [{ startLine: 1, endLine: 1 }] },
   ]);
