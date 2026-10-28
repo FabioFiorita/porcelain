@@ -9,19 +9,25 @@ test.for([414, 1080, 1440])(
     await page.viewport(width, 896);
     try {
       const app = await render.route('/settings/computers/this-computer');
-      await app.page
-        .getByRole('textbox', { name: 'Name of this computer', exact: true })
-        .fill(name);
-      const save = app.page.getByRole('button', { name: 'Save', exact: true });
-      await save.click();
-      await expect.element(save).toBeDisabled();
-      const description = app.page.getByText(
-        `Open the link or scan the code on the other device to connect it to ${name}. Each link works once, for a few minutes.`,
-        { exact: true },
-      );
-      await expect.element(description).toBeVisible();
+      const rename = app.page.getByRole('button', {
+        name: 'Rename',
+        exact: true,
+      });
+      await rename.click();
+      const field = app.page.getByRole('textbox', {
+        name: 'Name of this computer',
+        exact: true,
+      });
+      await field.fill(name);
+      await app.page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.element(field).not.toBeInTheDocument();
+      const heading = app.page.getByRole('heading', {
+        name: `Computers. ${name}`,
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
       await expect
-        .poll(() => reviewLayout.fitsViewport(description))
+        .poll(() => reviewLayout.fitsViewport(heading))
         .toEqual({ insideViewport: true, contentFits: true });
       await app.navigate('/settings/computers');
       const list = app.page.getByRole('region', {
@@ -47,23 +53,12 @@ test.for([414, 1080, 1440])(
       reviewLayout.focus(open);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
       await expect.element(open).toHaveFocus();
-      if (width === 1440)
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .not.toBeInTheDocument();
-      else
-        await expect
-          .element(app.page.getByRole('tooltip'))
-          .toHaveTextContent(name);
-      await open.click();
       await expect
-        .element(
-          app.page.getByRole('textbox', {
-            name: 'Name of this computer',
-            exact: true,
-          }),
-        )
-        .toHaveValue(name);
+        .element(app.page.getByRole('tooltip'))
+        .toHaveTextContent(name);
+      await open.click();
+      await rename.click();
+      await expect.element(field).toHaveValue(name);
     } finally {
       await page.viewport(414, 896);
     }
@@ -112,12 +107,9 @@ test.for([414, 1080, 1440])(
         .getByRole('navigation', { name: 'breadcrumb', exact: true })
         .getByLabelText(remoteName, { exact: true });
       await expect.element(breadcrumb).toHaveAccessibleName(remoteName);
-      if (width !== 414) {
+      if (width > 414)
         await expect.element(breadcrumb).not.toHaveAttribute('tabindex');
-        await expect
-          .poll(() => reviewLayout.fitsViewport(breadcrumb))
-          .toEqual({ insideViewport: true, contentFits: true });
-      } else {
+      else {
         reviewLayout.focus(breadcrumb);
         await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
         await expect.element(breadcrumb).toHaveFocus();
@@ -134,3 +126,52 @@ test.for([414, 1080, 1440])(
     }
   },
 );
+
+test('the rename field closes on Save, Cancel and Escape and gives focus back to Rename', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/computers/this-computer');
+  const rename = app.page.getByRole('button', { name: 'Rename', exact: true });
+  const field = app.page.getByRole('textbox', {
+    name: 'Name of this computer',
+    exact: true,
+  });
+
+  await rename.click();
+  await expect.element(field).toHaveFocus();
+  await app.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+
+  await rename.click();
+  await field.fill('Escape draft');
+  await userEvent.keyboard('{Escape}');
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+  await expect
+    .element(app.page.getByRole('main', { name: 'Settings', exact: true }))
+    .toBeVisible();
+
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'Computers. Escape draft',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+
+  await rename.click();
+  await field.fill('Studio');
+  await app.page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'Computers. Studio',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect.element(field).not.toBeInTheDocument();
+  await expect.element(rename).toHaveFocus();
+});

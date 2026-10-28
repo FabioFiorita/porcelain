@@ -1,16 +1,23 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { devicePlatformName } from '../rules/settings';
+import {
+  deviceKind,
+  devicePlatformName,
+  type DeviceKind,
+} from '../rules/settings';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { GlobeIcon, LinkIcon, SmartphoneIcon, TabletIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import {
   Item,
   ItemActions,
   ItemContent,
   ItemDescription,
   ItemGroup,
+  ItemMedia,
   ItemTitle,
 } from '@/components/ui/item';
 import { Switch } from '@/components/ui/switch';
@@ -26,6 +33,12 @@ import {
   type PairedAccess,
 } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
+
+const deviceIcons: Record<DeviceKind, ReactNode> = {
+  phone: <SmartphoneIcon aria-hidden />,
+  tablet: <TabletIcon aria-hidden />,
+  browser: <GlobeIcon aria-hidden />,
+};
 
 export function PairedDevices({
   connection,
@@ -46,6 +59,9 @@ export function PairedDevices({
             role="listitem"
             aria-label={device.label}
           >
+            <ItemMedia variant="icon">
+              {deviceIcons[deviceKind(device.platform)]}
+            </ItemMedia>
             <ItemContent className="basis-48">
               <ItemTitle className="flex-wrap">
                 {device.label}
@@ -104,6 +120,9 @@ export function PairedDevices({
             role="listitem"
             aria-label={grant.label}
           >
+            <ItemMedia variant="icon">
+              <LinkIcon aria-hidden />
+            </ItemMedia>
             <ItemContent className="min-w-0">
               <ItemTitle>
                 {grant.label}
@@ -125,7 +144,7 @@ export function PairedDevices({
           </Item>
         ))}
       </ItemGroup>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs leading-4.5 text-muted-foreground">
         Each device has its own credential, which works only through the way in
         it was paired over, so a credential seen on one network cannot be used
         through another. A phone that uses two ways in is paired once through
@@ -223,6 +242,7 @@ function RevokeControl({
       <Button
         size="sm"
         variant="outline"
+        className="ml-1"
         aria-label={
           cancelLink ? `Cancel the link for ${label}` : `Revoke ${label}`
         }

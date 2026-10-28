@@ -71,6 +71,18 @@ None on disk. The default server has two paired devices, both bound to "This com
    - listitem "My phone" containing "Pending link", with a button "Cancel the link for My phone";
    - listitem "Verification browser" containing "This browser" and "This computer", with no "Revoke Verification browser" button;
    - listitem "Development setup" containing "This computer", with a button "Revoke Development setup".
+
+   Capture the QR alone at browser zoom 100% and device pixel ratio 1. Decode
+   those original pixels and a 0.5 px blurred copy, comparing both results with
+   the issued link in memory. Repeat with independently issued links. Retain
+   only decoder results and screenshots with the QR and link masked. At 414 px,
+   the QR, scan caption and expiry must fit without horizontal overflow.
+   With multiple ways in available, change Opens through after issuing a link:
+   the existing link's caption must keep the way in that issued it, and the
+   link and QR must stay unchanged until another link is created.
+   If that way in becomes unavailable, omit the route claim rather than name
+   another way in; enabling the original way in restores its caption.
+
 7. Click button `Revoke Development setup`
    Expect: no listitem "Development setup".
 8. Navigate to `/settings/devices`

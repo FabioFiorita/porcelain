@@ -23,7 +23,7 @@ type IssuedLink = {
   expiresAt: string;
 };
 
-const remoteRouteNames: readonly RemoteRouteName[] = [
+export const remoteRouteNames: readonly RemoteRouteName[] = [
   'lan',
   'tailnet',
   'cloudflare',
@@ -88,7 +88,7 @@ export function waysInRefusal(
 ): string {
   return reachesOwnAddress(address, ownAliases)
     ? 'Ways in cannot be seen or changed over this connection, because it reaches the computer that runs Porcelain through that computer’s own address. Change them on that computer, or pair this device through the local network, Tailscale or a Cloudflare tunnel.'
-    : 'This device cannot see or change ways in. An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
+    : 'This device cannot see or change ways in. An owner can let it in Devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
 }
 
 type Network = NonNullable<RemoteAccess['localNetwork']>;
