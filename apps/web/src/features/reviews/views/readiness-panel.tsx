@@ -372,7 +372,7 @@ function ReadinessRow({
   return (
     <TruncatedText
       text={label}
-      renderTrigger={(_, clip) => (
+      renderTrigger={(formatted, clip) => (
         <button
           type="button"
           aria-label={label}
@@ -390,16 +390,17 @@ function ReadinessRow({
           >
             {meter}
             <ToneIcon tone={tone} />
-            {clip(value)}
-            {code && (
-              <span className="shrink-0 font-mono text-xs leading-4.5">
-                {code}
-              </span>
-            )}
+            {code ? formatted : clip(value)}
           </span>
         </button>
       )}
-    />
+    >
+      {code ? (
+        <>
+          {value} <span className="font-mono text-xs leading-4.5">{code}</span>
+        </>
+      ) : undefined}
+    </TruncatedText>
   );
 }
 
