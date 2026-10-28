@@ -88,8 +88,9 @@ export function lineCounts(
     if (entry.kind === 'file')
       sum.additions += entry.contents
         .split('\n')
-        .filter((line, index, lines) => index < lines.length - 1 || line)
-        .length;
+        .filter(
+          (line, index, lines) => index < lines.length - 1 || line,
+        ).length;
     else
       for (const hunk of entry.fileDiff.hunks) {
         sum.additions += hunk.additionLines;
