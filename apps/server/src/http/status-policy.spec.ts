@@ -68,6 +68,23 @@ describe('status policy', () => {
     });
   });
 
+  it('answers a pull request linking refusal as a conflict with its reason', () => {
+    expect(
+      toStatusResponse(
+        new reviewsErrors.ReviewPullRequestRefusedError({
+          message: 'The pull request head must be feature.',
+        }),
+      ),
+    ).toEqual({
+      statusCode: 409,
+      body: {
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'The pull request head must be feature.',
+      },
+    });
+  });
+
   it('answers an unknown failure as an unexpected failure', () => {
     expect(toStatusResponse(new Error('boom')).statusCode).toBe(500);
   });

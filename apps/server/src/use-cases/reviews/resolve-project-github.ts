@@ -15,6 +15,11 @@ import type {
   GitHubRepository,
 } from '@porcelain/reviews/models';
 
+const repositoryKey = (repository: GitHubRepository | undefined) =>
+  repository === undefined
+    ? ''
+    : `${repository.owner}/${repository.repo}`.toLowerCase();
+
 export class ResolveProjectGitHubUseCase extends Context.Service<
   ResolveProjectGitHubUseCase,
   {
@@ -44,7 +49,7 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
         execute: Effect.fn('ResolveProjectGitHubUseCase.execute')(
           function* (input) {
             const found = yield* find.execute(input);
-            return yield* lanes.run(
+            const { repository, preference } = yield* lanes.run(
               keys.project(found),
               'write',
               () =>
@@ -56,30 +61,12 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
                   );
                   const preference = yield* accounts.execute({
                     projectId: input.projectId,
-                    repository:
-                      repository === undefined
-                        ? ''
-                        : `${repository.owner}/${repository.repo}`.toLowerCase(),
+                    repository: repositoryKey(repository),
                     ...(input.override === undefined
                       ? {}
                       : { override: input.override }),
                   });
-                  const selection: GitHubAccountResult =
-                    repository === undefined
-                      ? {
-                          accounts: [],
-                          choice: undefined,
-                          override: preference?.override,
-                          unavailable: {
-                            kind: 'unavailable',
-                            reason: 'not-github',
-                          },
-                        }
-                      : yield* select.execute({
-                          ...repository,
-                          projectId: input.projectId,
-                        });
-                  return { repository, selection };
+                  return { repository, preference };
                 }),
               {
                 succeeded: () =>
@@ -88,6 +75,29 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
                     : Effect.void,
               },
             );
+            if (repository === undefined)
+              return {
+                repository,
+                selection: {
+                  accounts: [],
+                  choice: undefined,
+                  override: preference?.override,
+                  unavailable: { kind: 'unavailable', reason: 'not-github' },
+                },
+              };
+            const selection = yield* lanes.unqueued(() =>
+              select.execute({ ...repository, preference }),
+            );
+            const detected = selection.choice;
+            if (detected?.source === 'detected')
+              yield* lanes.run(keys.project(found), 'write', () =>
+                accounts.execute({
+                  projectId: input.projectId,
+                  repository: repositoryKey(repository),
+                  detected: detected.account,
+                }),
+              );
+            return { repository, selection };
           },
         ),
       };

@@ -9,6 +9,7 @@ import type {
   ReviewSummaryKey,
 } from '../models/review.ts';
 import type { ProofFile } from '../models/review-proof.ts';
+import type { ReviewPullRequestRefusedError } from '../errors/review-pull-request-refused-error.ts';
 import type { ReviewConflictError } from '../errors/review-conflict-error.ts';
 
 export interface ReviewStore {
@@ -31,6 +32,10 @@ export interface ReviewStore {
     revision?: number | undefined;
     proofId: string;
   }): Effect.Effect<ProofFile | undefined>;
+  setPullRequest(input: {
+    reviewId: string;
+    pullRequest: string | undefined;
+  }): Effect.Effect<void, ReviewPullRequestRefusedError>;
   setState(input: {
     reviewId: string;
     state: 'open' | 'closed';
