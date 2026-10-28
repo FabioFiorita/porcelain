@@ -112,9 +112,12 @@ test.for([414, 1080, 1440])(
         .getByRole('navigation', { name: 'breadcrumb', exact: true })
         .getByLabelText(remoteName, { exact: true });
       await expect.element(breadcrumb).toHaveAccessibleName(remoteName);
-      if (width === 1440)
+      if (width !== 414) {
         await expect.element(breadcrumb).not.toHaveAttribute('tabindex');
-      else {
+        await expect
+          .poll(() => reviewLayout.fitsViewport(breadcrumb))
+          .toEqual({ insideViewport: true, contentFits: true });
+      } else {
         reviewLayout.focus(breadcrumb);
         await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
         await expect.element(breadcrumb).toHaveFocus();
