@@ -461,7 +461,7 @@ function PartGroup({
       {parts.map((part, index) => (
         <li
           key={part.id}
-          className="flex min-h-8.5 min-w-0 flex-col items-start gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
+          className="flex min-h-8.5 min-w-0 flex-col items-stretch gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
         >
           <span className="shrink-0 @2xl/review:w-21">
             {index === 0 && <span className={partTags[title]}>{title}</span>}
