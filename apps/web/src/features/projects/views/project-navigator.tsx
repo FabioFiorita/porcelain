@@ -281,9 +281,9 @@ export function ProjectNavigator({
                     render={
                       <Button
                         variant={filtered ? 'secondary' : 'ghost'}
-                        size={searching ? 'icon-sm' : 'xs'}
+                        size={searching ? 'icon-sm' : 'default'}
                         className={cn(
-                          !searching && 'h-7 min-w-0 flex-1 justify-start',
+                          !searching && 'min-w-0 flex-1 justify-start',
                         )}
                         aria-label="Filter reviews"
                       />
@@ -704,7 +704,6 @@ export function ProjectNavigator({
                 <Button
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
-                  size="sm"
                   className="min-w-0 shrink"
                   onClick={onOpenSettings}
                 />
@@ -782,7 +781,7 @@ export function ProjectNavigator({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label="Keyboard shortcuts"
                     onClick={onOpenShortcuts}
                   />
