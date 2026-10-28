@@ -2,6 +2,7 @@ import type { ArchiveReviewUseCase } from '../../../use-cases/reviews/archive-re
 import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-review.ts';
 import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
 import type { ReadProjectGitHubAccountUseCase } from '../../../use-cases/reviews/read-project-github-account.ts';
+import type { SetReviewPullRequestUseCase } from '../../../use-cases/reviews/set-review-pull-request.ts';
 import type { ReadReviewPullRequestUseCase } from '../../../use-cases/reviews/read-review-pull-request.ts';
 import type { ListProjectPullRequestsUseCase } from '../../../use-cases/reviews/list-project-pull-requests.ts';
 import { type RemoveReviewMarkUseCase } from '../../../use-cases/reviews/remove-review-mark.ts';
@@ -65,6 +66,9 @@ type ReviewsUseCases = {
   readReviewDiffs: Context.Service.Shape<typeof ReadReviewDiffsUseCase>;
   readReviewFile: Context.Service.Shape<typeof ReadReviewFileUseCase>;
   setReviewState: Context.Service.Shape<typeof SetReviewStateUseCase>;
+  setReviewPullRequest: Context.Service.Shape<
+    typeof SetReviewPullRequestUseCase
+  >;
   setReviewSeen: Context.Service.Shape<typeof SetReviewSeenUseCase>;
   listProjectReviews: Context.Service.Shape<typeof ListProjectReviewsUseCase>;
   readReview: Context.Service.Shape<typeof ReadReviewUseCase>;
@@ -150,6 +154,9 @@ export function reviewsRoutes(
       )
       .handle('readReviewInterdiff', ({ params, query }) =>
         useCases.readReviewInterdiff.execute({ ...params, ...query }),
+      )
+      .handle('setReviewPullRequest', ({ params, payload }) =>
+        useCases.setReviewPullRequest.execute({ ...params, ...payload }),
       )
       .handle('readReviewPullRequest', ({ params }) =>
         useCases.readReviewPullRequest.execute(params),

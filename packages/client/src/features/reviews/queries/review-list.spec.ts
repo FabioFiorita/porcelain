@@ -337,7 +337,7 @@ it('includes a pending linked PR in loading without hiding its main-checkout rev
 });
 
 const linkedReviewId = '40000000-0000-4000-8000-000000000001';
-function linkedReviewClient(pull: () => Promise<Response>) {
+function linkedReviewClient(pull: () => Promise<Response>, count = 1) {
   const inventory = inventoryAnswer(ids[0]!, 0);
   const client = create(
     (path) => {
@@ -345,18 +345,16 @@ function linkedReviewClient(pull: () => Promise<Response>) {
       const answer = path.startsWith('/api/inventory')
         ? inventory
         : path.endsWith('/reviews')
-          ? [
-              {
-                reviewId: linkedReviewId,
-                projectId: inventory.projects[0]!.id,
-                branch: 'main',
-                state: 'open',
-                archived: false,
-                latestRevision: 1,
-                lastSeenRevision: 0,
-                pullRequest: 'https://github.com/example/project/pull/42',
-              },
-            ]
+          ? Array.from({ length: count }, (_, index) => ({
+              reviewId: `40000000-0000-4000-8000-00000000000${index + 1}`,
+              projectId: inventory.projects[0]!.id,
+              branch: 'main',
+              state: index === 0 ? 'open' : 'closed',
+              archived: false,
+              latestRevision: 1,
+              lastSeenRevision: 0,
+              pullRequest: `https://github.com/example/project/pull/${42 + index}`,
+            }))
           : path.endsWith('/marks')
             ? { files: [], decisions: [] }
             : { review: null, revision: null, revisions: [] };
@@ -416,5 +414,26 @@ it('refreshes a main-checkout PR after an open read removes its review from the 
     expect(reads).toBe(3);
   } finally {
     fixture.stop();
+  }
+});
+
+it('shows one GitHub outage notice when open and closed reviews share a branch', async () => {
+  const { client, list, stop } = linkedReviewClient(
+    () =>
+      Promise.resolve(
+        Response.json({ kind: 'unavailable', reason: 'offline' }),
+      ),
+    2,
+  );
+  try {
+    await expect.poll(() => client.registry.get(list).loading).toBe(false);
+    expect(
+      client.registry.get(list).entries.filter((entry) => entry.reviewId),
+    ).toHaveLength(2);
+    expect(client.registry.get(list).messages).toEqual([
+      'main: PR state unavailable: GitHub could not be reached.',
+    ]);
+  } finally {
+    stop();
   }
 });
