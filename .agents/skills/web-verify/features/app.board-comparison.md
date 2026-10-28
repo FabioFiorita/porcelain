@@ -36,28 +36,27 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 
 ## Board names
 
-| Name                          | Approved HTML                    | App setup                                              |
-| ----------------------------- | -------------------------------- | ------------------------------------------------------ |
-| sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator    |
-| review-page                   | Narrative-desktop-briefing       | Review briefing                                        |
-| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                      |
-| review-panel                  | Narrative-desktop-review-panel   | Worktree with `?surface=changes`                       |
-| file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context            |
-| file-flow                     | Narrative-flow-open-file         | Retained file; miniatures use diagram-scale dimensions |
-| file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane   |
-| changes                       | Narrative-desktop-no-review      | Worktree without a published review                    |
-| settings-general              | Narrative-settings-general       | `/settings/general`                                    |
-| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                        |
-| settings-computers            | Narrative-settings-computers     | `/settings/computers`                                  |
-| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                    |
-| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                    |
-| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                       |
-| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                           |
-| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                          |
-| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented       |
-| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel              |
+| Name                          | Approved HTML                    | App setup                                            |
+| ----------------------------- | -------------------------------- | ---------------------------------------------------- |
+| sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator  |
+| review-page                   | Narrative-desktop-briefing       | Review briefing                                      |
+| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                    |
+| review-panel                  | Narrative-desktop-review-panel   | Worktree with `?surface=changes`                     |
+| file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context          |
+| file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane |
+| changes                       | Narrative-desktop-no-review      | Worktree without a published review                  |
+| settings-general              | Narrative-settings-general       | `/settings/general`                                  |
+| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                      |
+| settings-computers            | Narrative-settings-computers     | `/settings/computers`                                |
+| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                  |
+| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                  |
+| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                     |
+| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                         |
+| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                        |
+| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented     |
+| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel            |
 
-File maps compare the desktop boards at `--width 1440`; responsive widths are driven through the file-tab journey. Seed one line comment with an agent reply for the comment-marker role. Use `?entry=review-file:<reviewId>:<revision>:<path>&surface=files` for `file-tab`, and `?entry=handoff&side=review-file:<reviewId>:<revision>:<path>` for `file-split`.
+The opening-file flow is verified through its navigation sequence; its explanatory miniatures are not pixel targets. File maps compare the desktop boards at `--width 1440`; responsive widths are driven through the file-tab journey. Seed one line comment with an agent reply for the comment-marker role. Use `?entry=review-file:<reviewId>:<revision>:<path>&surface=files` for `file-tab`, and `?entry=handoff&side=review-file:<reviewId>:<revision>:<path>` for `file-split`.
 
 Names without `.html` are also accepted for the first mapped screen using that HTML. Use the short name when the same board covers more than one screen (sidebar/decision, commit/history).
 
@@ -1259,83 +1258,6 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Right pane\"] [aria-label=\"Document controls\"] button[aria-label=\"Reviewed\"] kbd"
-        }
-      }
-    ]
-  },
-  "file-flow": {
-    "html": "Narrative-flow-open-file.html",
-    "roles": [
-      {
-        "role": "pane bar",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:first-child"
-        },
-        "app": {
-          "selector": "[data-pane-bar]"
-        }
-      },
-      {
-        "role": "Review tab",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child [role=\"tab\"]:first-child"
-        },
-        "app": {
-          "selector": "[data-entry=\"handoff\"]"
-        }
-      },
-      {
-        "role": "file tab",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child [role=\"tab\"][aria-selected=\"true\"]"
-        },
-        "app": {
-          "selector": "[role=\"tab\"][data-entry^=\"review-file:\"][aria-selected=\"true\"]"
-        }
-      },
-      {
-        "role": "review context banner",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:nth-child(2) > div:first-child"
-        },
-        "app": {
-          "selector": "[data-review-file-banner]"
-        }
-      },
-      {
-        "role": "back to walkthrough",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:nth-child(2) > div:first-child > div:last-child"
-        },
-        "app": {
-          "selector": "[data-review-file-banner] > button"
-        }
-      },
-      {
-        "role": "file header",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:nth-child(2) > div:nth-child(2)"
-        },
-        "app": {
-          "selector": "[data-file-heading]"
-        }
-      },
-      {
-        "role": "breadcrumb",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:nth-child(2) > div:nth-child(2) > span:first-child"
-        },
-        "app": {
-          "selector": "[data-file-heading] h1"
-        }
-      },
-      {
-        "role": "comment marker",
-        "board": {
-          "selector": "figure[aria-label=\"Step 2: the file opened in a tab\"] > div:first-child > div:nth-child(2) > div:nth-child(3) > div:has(> span[aria-hidden=\"true\"])"
-        },
-        "app": {
-          "selector": "[data-file-thread-marker]"
         }
       }
     ]
