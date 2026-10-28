@@ -1,6 +1,9 @@
 import type { ReviewMarks, ReviewRecord } from './review.ts';
 import type { ReviewRevision } from './verdict.ts';
-import type { ReadPullRequestResponse } from '@porcelain/contracts/reviews';
+import type {
+  ListPullRequestsResponse,
+  ReadPullRequestResponse,
+} from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export const reviewListGroups = [
@@ -329,4 +332,33 @@ export function reviewListView(
       },
     ],
   };
+}
+
+export function pullRequestStateLabel(pull: {
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+}) {
+  if (pull.state === 'open' && pull.draft) return 'Draft';
+  return { open: 'Open', closed: 'Closed', merged: 'Merged' }[pull.state];
+}
+
+export function pullRequestBlockHidden(
+  linked: string | undefined,
+  projectPullRequests: ListPullRequestsResponse | undefined,
+) {
+  return (
+    linked === undefined &&
+    projectPullRequests?.kind === 'unavailable' &&
+    projectPullRequests.reason === 'not-github'
+  );
+}
+
+export function pullRequestLink(text: string): string | undefined {
+  const match =
+    /^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/pull\/([1-9][0-9]*)(?:\/[^?#]*)?(?:[?#].*)?$/.exec(
+      text.trim(),
+    );
+  return match
+    ? `https://github.com/${match[1]}/${match[2]}/pull/${match[3]}`
+    : undefined;
 }

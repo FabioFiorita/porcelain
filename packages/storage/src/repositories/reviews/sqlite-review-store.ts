@@ -5,7 +5,10 @@ import {
 import { Effect, Layer, Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/sql';
 import { ReviewStore } from '@porcelain/reviews/ports';
-import { ReviewConflictError } from '@porcelain/reviews/errors';
+import {
+  ReviewConflictError,
+  ReviewPullRequestRefusedError,
+} from '@porcelain/reviews/errors';
 import { ReviewRow, ReviewRecordRow } from '../../db/models/reviews.ts';
 import { ProofFileRow } from '../../db/models/review-proof-files.ts';
 
@@ -173,6 +176,22 @@ export const sqliteReviewStoreLayer = Layer.effect(
           ),
         );
       }),
+      setPullRequest: Effect.fn('ReviewStore.setPullRequest')(
+        function* (input) {
+          yield* sql`UPDATE reviews SET pull_request = ${input.pullRequest ?? null}, pull_request_number = ${reviewPullRequestNumber(input.pullRequest) ?? null} WHERE review_id = ${input.reviewId}`.pipe(
+            Effect.catchTag('SqlError', (error) =>
+              error.reason._tag === 'UniqueViolation'
+                ? Effect.fail(
+                    new ReviewPullRequestRefusedError({
+                      message:
+                        'Another open review already follows this pull request or branch.',
+                    }),
+                  )
+                : Effect.die(error),
+            ),
+          );
+        },
+      ),
       setState: Effect.fn('ReviewStore.setState')(function* (input) {
         yield* sql`UPDATE reviews SET state = ${input.state} WHERE review_id = ${input.reviewId}`.pipe(
           Effect.orDie,

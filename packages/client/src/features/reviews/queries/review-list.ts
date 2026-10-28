@@ -175,6 +175,6 @@ export const readReviewList = Atom.family(
           a.title.localeCompare(b.title) ||
           a.key.localeCompare(b.key),
       );
-      return { entries, loading, messages, projects };
+      return { entries, loading, messages: [...new Set(messages)], projects };
     }),
 );

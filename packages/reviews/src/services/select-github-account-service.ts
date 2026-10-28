@@ -1,11 +1,11 @@
 import type { GitHubReadError } from '../errors/github-read-error.ts';
 import { Context, Effect, Layer } from 'effect';
 import type {
+  GitHubAccountPreference,
   GitHubAccountResult,
   GitHubRepository,
 } from '../models/pull-request.ts';
 import { GitHubReader } from '../ports/github-reader.ts';
-import { GitHubAccountStore } from '../ports/github-account-store.ts';
 import {
   githubAccountCandidates,
   pickGitHubAccount,
@@ -15,7 +15,9 @@ export class SelectGitHubAccountService extends Context.Service<
   SelectGitHubAccountService,
   {
     readonly execute: (
-      input: GitHubRepository & { projectId: string },
+      input: GitHubRepository & {
+        preference: GitHubAccountPreference | undefined;
+      },
     ) => Effect.Effect<GitHubAccountResult>;
   }
 >()('@porcelain/reviews/SelectGitHubAccountService') {
@@ -23,12 +25,11 @@ export class SelectGitHubAccountService extends Context.Service<
     SelectGitHubAccountService,
     Effect.gen(function* () {
       const github = yield* GitHubReader;
-      const store = yield* GitHubAccountStore;
       return {
         execute: Effect.fn('SelectGitHubAccountService.execute')(
           function* (input) {
             const repository = `${input.owner}/${input.repo}`.toLowerCase();
-            const preference = yield* store.read(input);
+            const preference = input.preference;
             const override = preference?.override;
             const accountsResult = yield* github.accounts().pipe(Effect.result);
             if (accountsResult._tag === 'Failure')
@@ -67,20 +68,13 @@ export class SelectGitHubAccountService extends Context.Service<
                 [{ account, canRead: probe.success }],
                 override,
               );
-              if (choice !== undefined) {
-                if (choice.source === 'detected')
-                  yield* store.detect({
-                    projectId: input.projectId,
-                    repository,
-                    account,
-                  });
+              if (choice !== undefined)
                 return {
                   accounts,
                   choice,
                   override: override ?? undefined,
                   unavailable: undefined,
                 };
-              }
             }
             return {
               accounts,

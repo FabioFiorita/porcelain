@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
 import type {
   ArchiveReviewRequest,
+  SetReviewPullRequestRequest,
   SetReviewMarkRequest,
   RemoveReviewMarkRequest,
   CreateCommentThreadRequest,
@@ -24,6 +25,17 @@ export const reviewCommands = Atom.family(
       queryKeys.durableReview(input.connection.environmentId, input.reviewId),
     ]);
     return {
+      setPullRequest: runtime.fn(
+        Effect.fn('Reviews.setPullRequest')(function* (
+          payload: SetReviewPullRequestRequest,
+        ) {
+          const answer = yield* requestApi(input.connection, (api) =>
+            api.reviews.setReviewPullRequest({ params, payload }),
+          );
+          if (answer.kind === 'updated') yield* invalidate;
+          return answer;
+        }),
+      ),
       archive: runtime.fn(
         Effect.fn('Reviews.archive')(function* (payload: ArchiveReviewRequest) {
           const answer = yield* requestApi(input.connection, (api) =>

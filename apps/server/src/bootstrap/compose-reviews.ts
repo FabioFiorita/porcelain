@@ -48,6 +48,8 @@ import { SetReviewMarkUseCase } from '../use-cases/reviews/set-review-mark.ts';
 import { ListReviewMarksUseCase } from '../use-cases/reviews/list-review-marks.ts';
 import { ReadReviewDiffsUseCase } from '../use-cases/reviews/read-review-diffs.ts';
 import { ReadReviewFileUseCase } from '../use-cases/reviews/read-review-file.ts';
+import { SetReviewPullRequestService } from '@porcelain/reviews/services';
+import { SetReviewPullRequestUseCase } from '../use-cases/reviews/set-review-pull-request.ts';
 import { SetReviewStateUseCase } from '../use-cases/reviews/set-review-state.ts';
 import { SetReviewSeenUseCase } from '../use-cases/reviews/set-review-seen.ts';
 import { ListProjectReviewsUseCase } from '../use-cases/reviews/list-project-reviews.ts';
@@ -262,6 +264,7 @@ export function composeReviews(
     ListProjectReviewsService.layer,
     SetReviewSeenService.layer,
     SetReviewStateService.layer,
+    SetReviewPullRequestService.layer,
     ListReviewMarksService.layer,
     SetReviewMarkService.layer,
     RemoveReviewMarkService.layer,
@@ -315,6 +318,7 @@ export function composeReviews(
     ReadReviewDiffsUseCase.layer,
     ReadReviewFileUseCase.layer,
     SetReviewStateUseCase.layer,
+    SetReviewPullRequestUseCase.layer,
     SetReviewSeenUseCase.layer,
     ListProjectReviewsUseCase.layer,
     ReadReviewUseCase.layer,
@@ -373,6 +377,7 @@ export function composeReviews(
         readReviewDiffs: yield* ReadReviewDiffsUseCase,
         readReviewFile: yield* ReadReviewFileUseCase,
         setReviewState: yield* SetReviewStateUseCase,
+        setReviewPullRequest: yield* SetReviewPullRequestUseCase,
         setReviewSeen: yield* SetReviewSeenUseCase,
         listProjectReviews: yield* ListProjectReviewsUseCase,
         readReview: yield* ReadReviewUseCase,

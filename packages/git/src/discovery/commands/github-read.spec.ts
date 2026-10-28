@@ -36,6 +36,7 @@ if (args[0] === 'auth' && args[1] === 'status') { console.log('["personal","work
 else if (args[0] === 'auth') { console.log('secret-' + args.at(-1)); }
 else if (mode === 'rate') { console.error('HTTP 403 API rate limit exceeded ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'offline') { console.error('dial tcp: network is unreachable ' + process.env.GH_TOKEN); process.exitCode = 1; }
+else if (mode === 'missing-pull') { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest) ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'no-access') { console.error('HTTP 404 Not Found ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'leak') { console.log(process.env.GH_TOKEN); }
 else if (mode === 'large') { console.log('x'.repeat(3000)); }
@@ -97,6 +98,7 @@ it.each([
   ['rate', 'rate-limited'],
   ['offline', 'offline'],
   ['no-access', 'no-access'],
+  ['missing-pull', 'not-found'],
   ['leak', 'invalid-response'],
   ['large', 'invalid-response'],
   ['hang', 'offline'],
