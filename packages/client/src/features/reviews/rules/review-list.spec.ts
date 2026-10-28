@@ -14,6 +14,9 @@ import {
   pullRequestLink,
   reviewListMeta,
   reviewListSignal,
+  reviewListRow,
+  reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
   reviewListRowContext,
   reviewListCheckout,
   reviewListView,
@@ -410,6 +413,172 @@ it.each([
     });
   },
 );
+
+it.each([
+  [
+    'a review names its project and branch under the title',
+    entry,
+    {
+      kind: 'review',
+      title: 'Shared reviews',
+      progress: '1/2',
+      project: 'Porcelain',
+      branch: 'feature',
+    },
+  ],
+  [
+    'a main checkout is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'Projects' as const,
+      title: 'Porcelain',
+      branch: 'main',
+    },
+    {
+      kind: 'worktree',
+      title: 'main',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a checkout without a review is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      title: 'feature',
+    },
+    {
+      kind: 'worktree',
+      title: 'feature',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a detached checkout is titled by its folder with its parent path',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      branch: 'Detached HEAD',
+      detached: true,
+      path: '/code/worktrees/qa-531',
+    },
+    {
+      kind: 'worktree',
+      title: 'qa-531',
+      project: 'Porcelain',
+      location: '/code/worktrees',
+    },
+  ],
+])('%s', (_, row, expected) => {
+  expect(reviewListRow(row)).toEqual(expected);
+});
+
+const checkoutRow = {
+  ...entry,
+  key: 'checkout',
+  reviewId: undefined,
+  group: 'No review' as const,
+  title: 'feature',
+};
+const closedReview = {
+  ...entry,
+  key: 'closed',
+  group: 'Closed' as const,
+  closed: true,
+};
+it.each([
+  [
+    'drops a checkout whose only review is closed',
+    [checkoutRow, closedReview],
+    ['closed'],
+  ],
+  [
+    'keeps the main checkout beside its closed review',
+    [{ ...checkoutRow, group: 'Projects' as const }, closedReview],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review is on another computer',
+    [checkoutRow, { ...closedReview, environmentId: 'mac' }],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review lost its worktree',
+    [checkoutRow, { ...closedReview, worktreeId: undefined }],
+    ['checkout', 'closed'],
+  ],
+  ['keeps a checkout with no review at all', [checkoutRow], ['checkout']],
+])('%s', (_, rows, keys) => {
+  expect(
+    reviewListWithoutClosedCheckouts(rows, undefined).map((row) => row.key),
+  ).toEqual(keys);
+});
+
+it.each([
+  [
+    'keeps a closed-only checkout while it is the selected worktree',
+    { environmentId: 'beelink', worktreeId: 'worktree' },
+    ['checkout', 'closed'],
+  ],
+  [
+    'drops it when the selected worktree is the same id on another computer',
+    { environmentId: 'mac', worktreeId: 'worktree' },
+    ['closed'],
+  ],
+  [
+    'drops it when another worktree is selected',
+    { environmentId: 'beelink', worktreeId: 'other' },
+    ['closed'],
+  ],
+])('%s', (_, selected, keys) => {
+  expect(
+    reviewListWithoutClosedCheckouts([checkoutRow, closedReview], selected).map(
+      (row) => row.key,
+    ),
+  ).toEqual(keys);
+});
+
+const unreviewed = (
+  key: string,
+  branch: string,
+  projectName: string,
+  group: 'Projects' | 'No review' = 'No review',
+): ReviewListEntry => ({
+  ...entry,
+  key,
+  reviewId: undefined,
+  publishedAt: undefined,
+  group,
+  title: group === 'Projects' ? projectName : branch,
+  branch,
+  projectName,
+});
+it('lists main checkouts first, then rows by their shown title, with the project breaking ties', () => {
+  expect(
+    [
+      unreviewed('1', 'topic', 'zeta'),
+      unreviewed('2', 'fix/flaky-history', 'porcelain'),
+      unreviewed('3', 'trunk', 'alpha', 'Projects'),
+      unreviewed('4', 'topic', 'alpha'),
+      unreviewed('5', 'main', 'zeta', 'Projects'),
+      unreviewed('6', 'main', 'beta', 'Projects'),
+    ]
+      .sort(compareNoReviewRows)
+      .map((row) => `${row.branch} ${row.projectName}`),
+  ).toEqual([
+    'main beta',
+    'main zeta',
+    'trunk alpha',
+    'fix/flaky-history porcelain',
+    'topic alpha',
+    'topic zeta',
+  ]);
+});
 
 it('keeps the branch as the label of an attached checkout', () => {
   expect(reviewListCheckout(entry)).toEqual({

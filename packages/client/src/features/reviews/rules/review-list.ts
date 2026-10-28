@@ -245,6 +245,55 @@ export function reviewListRowContext(
   };
 }
 
+type ReviewListCheckoutKey = Pick<
+  ReviewListEntry,
+  'environmentId' | 'worktreeId'
+>;
+
+export function reviewListWithoutClosedCheckouts(
+  entries: readonly ReviewListEntry[],
+  selected: ReviewListCheckoutKey | undefined,
+) {
+  const checkout = (entry: ReviewListCheckoutKey) =>
+    `${entry.environmentId}/${entry.worktreeId}`;
+  const closed = new Set(
+    entries
+      .filter((entry) => entry.closed && entry.worktreeId !== undefined)
+      .map(checkout),
+  );
+  if (selected?.worktreeId !== undefined) closed.delete(checkout(selected));
+  return entries.filter(
+    (entry) => entry.group !== 'No review' || !closed.has(checkout(entry)),
+  );
+}
+
+export function compareNoReviewRows(a: ReviewListEntry, b: ReviewListEntry) {
+  return (
+    Number(b.group === 'Projects') - Number(a.group === 'Projects') ||
+    reviewListRow(a).title.localeCompare(reviewListRow(b).title) ||
+    a.projectName.localeCompare(b.projectName) ||
+    a.key.localeCompare(b.key)
+  );
+}
+
+export function reviewListRow(entry: ReviewListEntry) {
+  if (entry.reviewId)
+    return {
+      kind: 'review' as const,
+      title: entry.title,
+      progress: `${entry.reviewed}/${entry.total}`,
+      project: entry.projectName,
+      branch: entry.branch,
+    };
+  const checkout = reviewListCheckout(entry);
+  return {
+    kind: 'worktree' as const,
+    title: checkout.name,
+    project: entry.projectName,
+    location: checkout.parent,
+  };
+}
+
 export function reviewListMeta(entry: ReviewListEntry, now: number) {
   if (entry.group === 'Projects') return entry.branch;
   const seconds = entry.publishedAt
