@@ -20,6 +20,17 @@ function highlightedLines(locator: Locator) {
 }
 
 export const reviewLayout = {
+  routeSteps(steps: Locator) {
+    return steps.elements().map((step) => {
+      const number = step.querySelector('span:nth-child(2)');
+      if (!number) throw new Error('The route step has no number');
+      return {
+        number: number.textContent,
+        current: step.getAttribute('aria-current'),
+        weight: getComputedStyle(number).fontWeight,
+      };
+    });
+  },
   reviewControlLabels(controls: Locator) {
     return controls
       .elements()

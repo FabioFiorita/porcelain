@@ -105,7 +105,7 @@ test('the briefing owns the verdict, revisions retain immutable code after check
     .element(review.getByText('Desktop app', { exact: true }))
     .toBeVisible();
   await expect
-    .element(review.getByText(' · Mac is off', { exact: true }))
+    .element(review.getByText('Mac is off', { exact: true }))
     .toBeVisible();
   await review
     .getByRole('button', { name: 'Continue at decision 1', exact: true })
@@ -127,7 +127,9 @@ test('the briefing owns the verdict, revisions retain immutable code after check
   await app.page
     .getByRole('menuitem', { name: 'Open the briefing', exact: true })
     .click();
-  await review.getByRole('button', { name: 'latest', exact: true }).click();
+  await review
+    .getByRole('button', { name: 'Revision 2, the latest', exact: true })
+    .click();
   await expect.poll(() => app.location()).toBe(`/reviews/${first.reviewId}`);
   await expect
     .element(
@@ -383,7 +385,7 @@ test('review-owned marks persist, closing keeps the review readable, and Delete 
     .poll(() => server.review(fixture.reviewId))
     .toMatchObject({ review: { state: 'closed' } });
   await expect
-    .element(review.getByText('closed', { exact: true }))
+    .element(review.getByText('Closed', { exact: true }))
     .toBeVisible();
   await expect
     .element(review.getByRole('button', { name: 'Close review', exact: true }))
@@ -546,22 +548,40 @@ test('the review page keeps whole-change and inline comments in its Review panel
   }
 });
 
-test('durable routes warn when the live branch tip differs from the latest published revision', async ({
-  repo,
-  render,
-}) => {
-  const fixture = await repo.review(title);
-  await repo.advanceReviewBranch();
-  const app = await render.route(`/reviews/${fixture.reviewId}`);
-  await expect
-    .element(
-      app.page.getByText(
-        'The branch tip differs from this review. Publish a revision to include it.',
-        { exact: true },
-      ),
-    )
-    .toBeVisible();
-});
+test.for([414, 1440])(
+  'durable routes warn without clipping at %i px when the live branch tip differs from the latest published revision',
+  async (width, { repo, render, reviewLayout }) => {
+    await page.viewport(width, 896);
+    try {
+      const fixture = await repo.review(title);
+      await repo.advanceReviewBranch();
+      const app = await render.route(`/reviews/${fixture.reviewId}`);
+      const notice = app.page.getByRole('status').filter({
+        hasText: 'The branch tip differs from this review.',
+      });
+      await expect
+        .element(
+          notice.getByRole('heading', {
+            name: 'The branch tip differs from this review.',
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+      await expect
+        .poll(() => reviewLayout.fitsViewport(notice.getByRole('heading')))
+        .toEqual({ insideViewport: true, contentFits: true });
+      await expect
+        .element(
+          notice.getByText('Publish a revision to include it.', {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);
 
 test('stored changed-step excerpts remain readable when the project Git repository is unavailable', async ({
   repo,

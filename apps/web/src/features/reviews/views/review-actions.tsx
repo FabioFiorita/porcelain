@@ -1,5 +1,6 @@
 import { useReviewDeletion } from '../commands/project-review';
 import { useState } from 'react';
+import { ArchiveIcon, Trash2Icon } from 'lucide-react';
 import { useAtom } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { reviewCommands } from '@porcelain/client/reviews';
@@ -15,6 +16,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import type { ConnectionContext } from '@/shared/workspace/connection';
+import { marginAction } from './review-controls';
 
 export function ReviewActions({
   reviewId,
@@ -40,21 +42,28 @@ export function ReviewActions({
         if (!removed.waiting) setConfirming(open);
       }}
     >
-      <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-col items-start">
         {state === 'open' && (
-          <Button
-            size="xs"
-            variant="ghost"
+          <button
+            type="button"
+            className={marginAction}
             disabled={pending}
             onClick={() => close()}
           >
+            <ArchiveIcon className="text-muted-foreground" />
             Close review
-          </Button>
+          </button>
         )}
         <AlertDialogTrigger
           disabled={pending}
-          render={<Button size="xs" variant="destructive" />}
+          render={
+            <button
+              type="button"
+              className={`${marginAction} text-destructive`}
+            />
+          }
         >
+          <Trash2Icon />
           Delete review…
         </AlertDialogTrigger>
       </div>
