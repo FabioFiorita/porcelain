@@ -66,6 +66,47 @@ export function confirmedReviewGitSettings(
     : undefined;
 }
 
+export function shownReviewGitSettings(
+  view: ReviewGitSettingsView,
+  importCandidate: ReviewGitSettings,
+): ReviewGitSettings | undefined {
+  switch (view.kind) {
+    case 'configured':
+      return view.settings;
+    case 'unconfigured':
+      return importCandidate;
+    case 'reading':
+    case 'unsupported':
+    case 'unreadable':
+      return undefined;
+  }
+}
+
+export function reviewGitSettingsImportKept(
+  sent: ReviewGitSettings,
+  answer: ReviewGitSettings,
+): boolean {
+  return (
+    sent.pullStrategy !== answer.pullStrategy ||
+    sent.collapseSpecs !== answer.collapseSpecs ||
+    sent.archiveDeleteWorktree !== answer.archiveDeleteWorktree ||
+    sent.archiveDeleteLocalBranch !== answer.archiveDeleteLocalBranch ||
+    sent.archiveDeleteRemoteBranch !== answer.archiveDeleteRemoteBranch
+  );
+}
+
+export function reviewGitSettingsKeptMessage(computer: string): string {
+  return `${computer} already had settings; yours weren’t used.`;
+}
+
+export function reviewGitSettingsTrustBlock(
+  canChange: boolean | undefined,
+): string | undefined {
+  return canChange === false
+    ? 'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.'
+    : undefined;
+}
+
 export function specsApart(view: ReviewGitSettingsView): boolean {
   return view.kind === 'configured' && view.settings.collapseSpecs;
 }

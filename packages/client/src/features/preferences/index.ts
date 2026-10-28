@@ -5,7 +5,10 @@ export {
   type PreferenceChange,
   type Preferences,
 } from './store/saved-preferences.ts';
-export { readReviewGitSettingsView } from './queries/review-git-settings.ts';
+export {
+  readReviewGitSettingsView,
+  reviewGitSettingsTrust,
+} from './queries/review-git-settings.ts';
 export type { ReviewGitSettings } from '@porcelain/contracts/access';
 export {
   refreshReviewGitSettings,

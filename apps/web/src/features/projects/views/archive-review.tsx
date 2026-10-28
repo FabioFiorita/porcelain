@@ -62,7 +62,14 @@ export function ArchiveReview({
   if (menuItem)
     return (
       <ContextMenuItem disabled={!settings} onClick={open}>
-        Archive
+        <span className="flex min-w-0 flex-col">
+          Archive
+          {!settings && block && (
+            <span className="text-xs whitespace-normal text-muted-foreground">
+              {block}
+            </span>
+          )}
+        </span>
       </ContextMenuItem>
     );
   const button = (

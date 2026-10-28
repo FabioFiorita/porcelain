@@ -1,7 +1,11 @@
 import { Cause, Effect, Option, Stream } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import { reviewGitSettingsView } from '../rules/review-git-settings.ts';
+import { readServiceUpdate } from '../../access/queries/share.ts';
+import {
+  reviewGitSettingsTrustBlock,
+  reviewGitSettingsView,
+} from '../rules/review-git-settings.ts';
 import {
   ReviewGitSettingsState,
   reviewGitSettingsRuntime,
@@ -29,5 +33,14 @@ export const readReviewGitSettingsView = Atom.family(
           ? { error: Cause.squash(result.cause) }
           : undefined,
       }),
+    ),
+);
+
+export const reviewGitSettingsTrust = Atom.family(
+  (connection: RuntimeConnection) =>
+    Atom.map(readServiceUpdate(connection), (result) =>
+      reviewGitSettingsTrustBlock(
+        AsyncResult.isSuccess(result) ? result.value.canUpdate : undefined,
+      ),
     ),
 );

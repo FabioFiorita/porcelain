@@ -3,7 +3,10 @@ import { AsyncResult, Atom } from 'effect/reactivity';
 import type { SaveReviewGitSettingsRequest } from '@porcelain/contracts/access';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { reviewGitSettingsSaveMessage } from '../rules/review-git-settings.ts';
+import {
+  reviewGitSettingsImportKept,
+  reviewGitSettingsSaveMessage,
+} from '../rules/review-git-settings.ts';
 import {
   ReviewGitSettingsState,
   reviewGitSettingsRuntime,
@@ -16,7 +19,7 @@ export const saveReviewGitSettings = Atom.family(
         Effect.gen(function* () {
           const client = yield* porcelainClient(connection);
           const settings = yield* ReviewGitSettingsState;
-          return yield* settings.confirm(
+          const answer = yield* settings.confirm(
             client.request((api) =>
               input.kind === 'initialize'
                 ? api.reviewGitSettings.saveReviewGitSettings({
@@ -26,8 +29,14 @@ export const saveReviewGitSettings = Atom.family(
                     payload: input,
                   }),
             ),
-            (_, answer) => Option.some(answer),
+            (_, saved) => Option.some(saved),
           );
+          return {
+            answer,
+            kept:
+              input.kind === 'initialize' &&
+              reviewGitSettingsImportKept(input.settings, answer.settings),
+          };
         }),
       { concurrent: true },
     ),
@@ -54,6 +63,7 @@ export const reviewGitSettingsSaving = Atom.family(
   (connection: RuntimeConnection) =>
     Atom.map(saveReviewGitSettings(connection), (result) => ({
       saving: result.waiting,
+      kept: AsyncResult.isSuccess(result) && result.value.kept,
       failure: AsyncResult.isFailure(result)
         ? reviewGitSettingsSaveMessage(Cause.squash(result.cause))
         : undefined,

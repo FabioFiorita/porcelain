@@ -7,8 +7,16 @@ import {
 import type { RuntimeConnection } from '@porcelain/client/transport';
 
 export function useReviewGitSettingsCommands(connection: RuntimeConnection) {
-  const { saving, failure } = useAtomValue(reviewGitSettingsSaving(connection));
+  const { saving, failure, kept } = useAtomValue(
+    reviewGitSettingsSaving(connection),
+  );
   const save = useAtomSet(saveReviewGitSettings(connection));
   const readAgain = useAtomSet(refreshReviewGitSettings(connection));
-  return { saving, failure, save, readAgain: () => readAgain(undefined) };
+  return {
+    saving,
+    failure,
+    kept,
+    save,
+    readAgain: () => readAgain(undefined),
+  };
 }
