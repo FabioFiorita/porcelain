@@ -28,6 +28,7 @@ import {
   reviewListCheckout,
   reviewListRow,
   reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -145,11 +146,15 @@ export function ProjectNavigator({
         .map((entry) => [`${entry.environmentId}/${entry.worktreeId}`, entry]),
     ).values(),
   ];
-  const currentCheckout = checkouts.find(
-    (entry) =>
-      selected?.worktreeId === entry.worktreeId &&
-      (selected?.remote ?? connection.environmentId) === entry.environmentId,
-  );
+  const selectedCheckout = selected && {
+    environmentId: selected.remote ?? connection.environmentId,
+    worktreeId: selected.worktreeId,
+  };
+  const isSelectedCheckout = (entry: ReviewListEntry) =>
+    entry.worktreeId !== undefined &&
+    entry.worktreeId === selectedCheckout?.worktreeId &&
+    entry.environmentId === selectedCheckout.environmentId;
+  const currentCheckout = checkouts.find(isSelectedCheckout);
   const firstCheckoutKey = checkouts.find((entry) => !entry.disabled)?.key;
   const lastCheckoutKey = checkouts.findLast((entry) => !entry.disabled)?.key;
   const setQuery = (query: string) =>
@@ -168,18 +173,24 @@ export function ProjectNavigator({
   if (projects.length === 0)
     emptyDescription = 'Open a Git repository to get started.';
   const { rows, filters } = reviewListView(
-    reviewListWithoutClosedCheckouts(entries),
+    reviewListWithoutClosedCheckouts(
+      entries,
+      openReview === undefined ? selectedCheckout : undefined,
+    ),
     query,
     filter,
     false,
   );
   const closedRows = reviewListView(entries, query, filter, true).rows;
+  const noReviewRows = rows
+    .filter((row) => row.group === 'No review' || row.group === 'Projects')
+    .toSorted(compareNoReviewRows);
   const closeSearch = () => {
     setQuery('');
     setSearching(false);
     searchButton.element?.focus();
   };
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar();
   const openWorktree = (entry: ReviewListEntry) => {
     if (!entry.worktreeId) return;
     onSelect({
@@ -201,7 +212,38 @@ export function ProjectNavigator({
         aria-label="Projects and worktrees"
       >
         <NavigatorHeader>
-          <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
+          <div className="ml-auto flex shrink-0 items-center">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    ref={(element) => searchButton.attach(element)}
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      searching
+                        ? 'Close search'
+                        : 'Search reviews and worktrees'
+                    }
+                    aria-expanded={searching}
+                    onClick={() =>
+                      searching ? closeSearch() : setSearching(true)
+                    }
+                  />
+                }
+              >
+                {searching ? (
+                  <XIcon className="text-muted-foreground" />
+                ) : (
+                  <SearchIcon className="text-muted-foreground" />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {searching ? 'Close search' : 'Search reviews and worktrees'}
+              </TooltipContent>
+            </Tooltip>
+            <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
+          </div>
         </NavigatorHeader>
         <div className="navigator-filters mt-0.5 mb-2.5 flex items-center gap-0.5 px-1">
           {searching && (
@@ -405,92 +447,6 @@ export function ProjectNavigator({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="shrink-0"
-                        aria-label="Manage projects"
-                      />
-                    }
-                  />
-                }
-              >
-                <FolderCogIcon className="text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>Manage projects</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent
-              align="end"
-              className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
-            >
-              {projects.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>No projects registered</EmptyTitle>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                projects.map((source) => (
-                  <div
-                    role="group"
-                    aria-label={
-                      source.connection.environmentId ===
-                      connection.environmentId
-                        ? 'This computer'
-                        : source.environmentName
-                    }
-                    key={`${source.connection.environmentId}/${source.project.id}`}
-                  >
-                    <ProjectActions
-                      key={`${source.connection.environmentId}/${source.project.id}`}
-                      environmentId={
-                        source.connection.environmentId ===
-                        connection.environmentId
-                          ? null
-                          : source.connection.environmentId
-                      }
-                      project={source.project}
-                      onRetry={() => retry(undefined)}
-                    />
-                  </div>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  ref={(element) => searchButton.attach(element)}
-                  variant="ghost"
-                  size="icon-sm"
-                  className="ml-auto size-7"
-                  aria-label={
-                    searching ? 'Close search' : 'Search reviews and worktrees'
-                  }
-                  aria-expanded={searching}
-                  onClick={() =>
-                    searching ? closeSearch() : setSearching(true)
-                  }
-                />
-              }
-            >
-              {searching ? (
-                <XIcon className="text-muted-foreground" />
-              ) : (
-                <SearchIcon className="text-muted-foreground" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {searching ? 'Close search' : 'Search reviews and worktrees'}
-            </TooltipContent>
-          </Tooltip>
         </div>
         <SidebarContent>
           {loading && (
@@ -504,14 +460,9 @@ export function ProjectNavigator({
               ...reviewListGroups.filter((group) => group !== 'Projects'),
               'Closed' as const,
             ].map((group) => {
-              const grouped =
-                group === 'Closed'
-                  ? closedRows
-                  : rows.filter(
-                      (row) =>
-                        row.group === group ||
-                        (group === 'No review' && row.group === 'Projects'),
-                    );
+              let grouped = rows.filter((row) => row.group === group);
+              if (group === 'No review') grouped = noReviewRows;
+              if (group === 'Closed') grouped = closedRows;
               if (grouped.length === 0 && group !== 'Closed') return null;
               return (
                 <SidebarGroup key={group}>
@@ -562,12 +513,7 @@ export function ProjectNavigator({
                               : undefined;
                           const active =
                             openReview === undefined
-                              ? !entry.closed &&
-                                entry.worktreeId !== undefined &&
-                                selected?.worktreeId === entry.worktreeId &&
-                                (selected?.remote ??
-                                  connection.environmentId) ===
-                                  entry.environmentId
+                              ? !entry.closed && isSelectedCheckout(entry)
                               : entry.reviewId === openReview.reviewId &&
                                 entry.environmentId ===
                                   (openReview.environment ??
@@ -607,7 +553,7 @@ export function ProjectNavigator({
                                       'h-auto min-w-0 flex-1',
                                       row.kind === 'worktree' &&
                                         !row.location &&
-                                        'min-h-7.5',
+                                        (isMobile ? 'min-h-10' : 'min-h-7.5'),
                                     )}
                                     aria-label={
                                       entry.reviewId
@@ -642,14 +588,14 @@ export function ProjectNavigator({
                                   >
                                     {row.kind === 'review' ? (
                                       <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-baseline gap-2">
+                                        <div className="flex min-w-0 items-center gap-2">
                                           <TruncatedText
-                                            className="min-w-0 flex-1 text-ui leading-4 font-medium"
+                                            className="min-w-0 flex-1 text-ui leading-4.25 font-medium"
                                             text={row.title}
                                           />
                                           <span
                                             className={cn(
-                                              'shrink-0 text-xs tabular-nums',
+                                              'shrink-0 text-xs leading-4.25 tabular-nums',
                                               active
                                                 ? 'font-medium text-brand'
                                                 : 'text-muted-foreground',
@@ -675,7 +621,7 @@ export function ProjectNavigator({
                                       <div className="min-w-0 flex-1">
                                         <div className="flex min-w-0 items-baseline gap-2">
                                           <TruncatedText
-                                            className="min-w-0 max-w-3/4 shrink-0 text-ui leading-4 font-medium"
+                                            className="min-w-0 max-w-3/4 shrink-0 text-ui leading-4.25 font-medium"
                                             text={row.title}
                                           />
                                           <TruncatedText
@@ -759,12 +705,13 @@ export function ProjectNavigator({
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
                   size="sm"
+                  className="min-w-0 shrink"
                   onClick={onOpenSettings}
                 />
               }
             >
               <SettingsIcon className="text-muted-foreground" />
-              Settings
+              <TruncatedText text="Settings" />
             </TooltipTrigger>
             <TooltipContent role="tooltip">
               Settings <Kbd>{formatForDisplay(SHORTCUTS.openSettings)}</Kbd>
@@ -772,6 +719,64 @@ export function ProjectNavigator({
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0"
+                          aria-label="Manage projects"
+                        />
+                      }
+                    />
+                  }
+                >
+                  <FolderCogIcon className="text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Manage projects</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+              >
+                {projects.length === 0 ? (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>No projects registered</EmptyTitle>
+                    </EmptyHeader>
+                  </Empty>
+                ) : (
+                  projects.map((source) => (
+                    <div
+                      role="group"
+                      aria-label={
+                        source.connection.environmentId ===
+                        connection.environmentId
+                          ? 'This computer'
+                          : source.environmentName
+                      }
+                      key={`${source.connection.environmentId}/${source.project.id}`}
+                    >
+                      <ProjectActions
+                        key={`${source.connection.environmentId}/${source.project.id}`}
+                        environmentId={
+                          source.connection.environmentId ===
+                          connection.environmentId
+                            ? null
+                            : source.connection.environmentId
+                        }
+                        project={source.project}
+                        onRetry={() => retry(undefined)}
+                      />
+                    </div>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -783,7 +788,7 @@ export function ProjectNavigator({
                   />
                 }
               >
-                <KeyboardIcon />
+                <KeyboardIcon className="text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent role="tooltip">
                 Keyboard shortcuts{' '}

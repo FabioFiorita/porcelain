@@ -6,6 +6,7 @@ import type { Project } from '../../projects/rules/inventory.ts';
 import { worktreeLabel } from '../../projects/rules/inventory.ts';
 import {
   checkoutFolder,
+  compareReviewListEntries,
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
@@ -169,12 +170,7 @@ export const readReviewList = Atom.family(
           }
         }
       }
-      entries.sort(
-        (a, b) =>
-          (b.publishedAt ?? '').localeCompare(a.publishedAt ?? '') ||
-          a.title.localeCompare(b.title) ||
-          a.key.localeCompare(b.key),
-      );
+      entries.sort(compareReviewListEntries);
       return { entries, loading, messages, projects };
     }),
 );

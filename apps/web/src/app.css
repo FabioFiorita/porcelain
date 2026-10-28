@@ -241,6 +241,10 @@
   font-family: var(--font-mono);
 }
 
+.review-navigator {
+  --navigator-control-radius: calc(var(--radius) * 0.7);
+}
+
 .review-navigator [data-slot='sidebar-group'] {
   padding: 0;
 }
@@ -276,13 +280,26 @@
 .review-navigator .navigator-filters > button:first-child {
   gap: calc(var(--spacing) * 2);
   padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--navigator-control-radius);
 }
 
 .review-navigator .navigator-footer > button:first-child {
   gap: calc(var(--spacing) * 2);
   padding-inline: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--navigator-control-radius);
   font-size: var(--text-ui);
   line-height: calc(var(--spacing) * 4);
+}
+
+.review-navigator
+  :is(.desktop-sidebar-header, .navigator-footer)
+  [data-slot='tooltip-trigger'] {
+  border-radius: var(--navigator-control-radius);
+}
+
+.review-navigator .navigator-footer [data-slot='popover-trigger'] {
+  padding: 0 calc(var(--spacing) * 1.75);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: calc(var(--spacing) * 5);
 }

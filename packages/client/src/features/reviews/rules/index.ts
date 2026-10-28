@@ -131,6 +131,7 @@ export {
   reviewListSignal,
   reviewListRow,
   reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
   reviewListRowContext,
   reviewListCheckout,
   emptyReviewListFilter,

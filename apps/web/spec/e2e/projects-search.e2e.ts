@@ -528,7 +528,7 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   const row = sidebar.getByRole('link', {
     name: /Read one committed review after checkout cleanup/,
   });
-  await expect(row).toHaveCSS('height', '40px');
+  await expect(row).toHaveCSS('height', '41px');
   await expect(row.getByText('0/1', { exact: true })).toBeVisible();
   await expect(row.getByText('durable-review', { exact: true })).toBeVisible();
   await expect(
@@ -643,7 +643,7 @@ for (const { width, colorScheme } of [
       const topic = page.getByRole('button', {
         name: /^no-review-with-a-very-long-branch/,
       });
-      await expect(topic).toHaveCSS('height', '30px');
+      await expect(topic).toHaveCSS('height', width === 414 ? '40px' : '30px');
       await expect(
         topic.getByText(
           'no-review-with-a-very-long-branch-name-that-must-not-wrap',

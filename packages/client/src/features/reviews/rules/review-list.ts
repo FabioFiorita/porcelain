@@ -242,18 +242,34 @@ export function reviewListRowContext(
   };
 }
 
+type ReviewListCheckoutKey = Pick<
+  ReviewListEntry,
+  'environmentId' | 'worktreeId'
+>;
+
 export function reviewListWithoutClosedCheckouts(
   entries: readonly ReviewListEntry[],
+  selected: ReviewListCheckoutKey | undefined,
 ) {
-  const checkout = (entry: ReviewListEntry) =>
+  const checkout = (entry: ReviewListCheckoutKey) =>
     `${entry.environmentId}/${entry.worktreeId}`;
   const closed = new Set(
     entries
       .filter((entry) => entry.closed && entry.worktreeId !== undefined)
       .map(checkout),
   );
+  if (selected?.worktreeId !== undefined) closed.delete(checkout(selected));
   return entries.filter(
     (entry) => entry.group !== 'No review' || !closed.has(checkout(entry)),
+  );
+}
+
+export function compareNoReviewRows(a: ReviewListEntry, b: ReviewListEntry) {
+  return (
+    Number(b.group === 'Projects') - Number(a.group === 'Projects') ||
+    reviewListRow(a).title.localeCompare(reviewListRow(b).title) ||
+    a.projectName.localeCompare(b.projectName) ||
+    a.key.localeCompare(b.key)
   );
 }
 

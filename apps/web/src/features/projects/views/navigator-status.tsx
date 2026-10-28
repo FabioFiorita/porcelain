@@ -1,10 +1,5 @@
 import { useId, useState } from 'react';
-import {
-  CircleIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CircleDashedIcon,
-} from 'lucide-react';
+import { CircleIcon, CircleAlertIcon, CircleCheckIcon } from 'lucide-react';
 import {
   reviewListMeta,
   reviewListSignal,
@@ -30,11 +25,26 @@ const glyphs = {
   'No review': quiet,
   'Needs you': <span aria-hidden className="size-2 rounded-full bg-brand" />,
   'Waiting on agent': (
-    <CircleDashedIcon
+    <svg
       aria-hidden
-      strokeWidth={3}
+      viewBox="0 0 12 12"
+      fill="none"
+      strokeWidth={1.5}
       className="size-3 text-muted-foreground"
-    />
+    >
+      <circle
+        cx="6"
+        cy="6"
+        r="4.75"
+        stroke="currentColor"
+        strokeDasharray="2 2"
+      />
+      <path
+        d="M6 1.25A4.75 4.75 0 0 1 10.75 6"
+        strokeLinecap="round"
+        className="stroke-foreground"
+      />
+    </svg>
   ),
   'Ready to merge': (
     <CircleCheckIcon

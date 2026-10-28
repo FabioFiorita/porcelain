@@ -13,6 +13,7 @@ import {
   reviewListSignal,
   reviewListRow,
   reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
   reviewListRowContext,
   reviewListCheckout,
   reviewListView,
@@ -510,9 +511,70 @@ it.each([
   ],
   ['keeps a checkout with no review at all', [checkoutRow], ['checkout']],
 ])('%s', (_, rows, keys) => {
-  expect(reviewListWithoutClosedCheckouts(rows).map((row) => row.key)).toEqual(
-    keys,
-  );
+  expect(
+    reviewListWithoutClosedCheckouts(rows, undefined).map((row) => row.key),
+  ).toEqual(keys);
+});
+
+it.each([
+  [
+    'keeps a closed-only checkout while it is the selected worktree',
+    { environmentId: 'beelink', worktreeId: 'worktree' },
+    ['checkout', 'closed'],
+  ],
+  [
+    'drops it when the selected worktree is the same id on another computer',
+    { environmentId: 'mac', worktreeId: 'worktree' },
+    ['closed'],
+  ],
+  [
+    'drops it when another worktree is selected',
+    { environmentId: 'beelink', worktreeId: 'other' },
+    ['closed'],
+  ],
+])('%s', (_, selected, keys) => {
+  expect(
+    reviewListWithoutClosedCheckouts([checkoutRow, closedReview], selected).map(
+      (row) => row.key,
+    ),
+  ).toEqual(keys);
+});
+
+const unreviewed = (
+  key: string,
+  branch: string,
+  projectName: string,
+  group: 'Projects' | 'No review' = 'No review',
+): ReviewListEntry => ({
+  ...entry,
+  key,
+  reviewId: undefined,
+  publishedAt: undefined,
+  group,
+  title: group === 'Projects' ? projectName : branch,
+  branch,
+  projectName,
+});
+it('lists main checkouts first, then rows by their shown title, with the project breaking ties', () => {
+  expect(
+    [
+      unreviewed('1', 'topic', 'zeta'),
+      unreviewed('2', 'fix/flaky-history', 'porcelain'),
+      unreviewed('3', 'trunk', 'alpha', 'Projects'),
+      unreviewed('4', 'topic', 'alpha'),
+      unreviewed('5', 'main', 'zeta', 'Projects'),
+      unreviewed('6', 'main', 'beta', 'Projects'),
+    ]
+      .sort(compareNoReviewRows)
+      .map((row) => `${row.branch} ${row.projectName}`),
+  ).toEqual([
+    'main beta',
+    'main zeta',
+    'trunk alpha',
+    'fix/flaky-history porcelain',
+    'topic alpha',
+    'topic zeta',
+  ]);
 });
 
 it('keeps the branch as the label of an attached checkout', () => {
