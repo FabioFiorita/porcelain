@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, expect } from 'vitest';
 import { test as it } from '@porcelain/server/kit/server-test';
 import { chromium, type Browser } from 'playwright';
-import type { BoardRole } from '../../web-verify/scripts/board-maps.ts';
+import type {
+  BoardRole,
+  BoardMap,
+} from '../../web-verify/scripts/board-maps.ts';
 import {
   compareRoles,
   measureRoles,
@@ -239,9 +242,7 @@ it('compares mapped text properties without treating different wrapping as a hei
         match: true,
       },
     ]);
-    await app.locator('h2').evaluate((element) => {
-      element.style.fontSize = '15px';
-    });
+    await app.addStyleTag({ content: 'h2 { font-size:15px; }' });
     expect(
       compareRoles(expected, await measureRoles(app, textRoles, 'app')).filter(
         (row) => !row.match,
@@ -278,9 +279,7 @@ it('compares rendered rounded corners rather than oversized CSS radius values', 
         (row) => row.match,
       ),
     ).toBe(true);
-    await app.locator('h2').evaluate((element) => {
-      element.style.borderRadius = '7px';
-    });
+    await app.addStyleTag({ content: 'h2 { border-radius:7px; }' });
     expect(
       compareRoles(expected, await measureRoles(app, roles, 'app')).filter(
         (row) => !row.match,
@@ -312,9 +311,7 @@ it('does not compare a nowrap flex row gap that cannot separate children', async
         await measureRoles(app, roles, 'app'),
       ).every((row) => row.match),
     ).toBe(true);
-    await app.locator('h2').evaluate((element) => {
-      element.style.columnGap = '12px';
-    });
+    await app.addStyleTag({ content: 'h2 { column-gap:12px; }' });
     expect(
       compareRoles(
         await measureRoles(board, roles, 'board'),
@@ -360,7 +357,7 @@ it('limits explicitly desktop-only roles without suppressing a hidden applicable
 
 it('reveals a phone panel and its tab without toggling an already visible target closed', async () => {
   const page = await browser.newPage();
-  const map = {
+  const map: Pick<BoardMap, 'reveal'> = {
     reveal: [
       { target: '#panel', trigger: '#open' },
       { target: '#history', trigger: '#tab' },

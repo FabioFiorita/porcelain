@@ -37,7 +37,6 @@ async function boardPage(
   browser: Browser,
   map: BoardMap,
   directory: string,
-  width: number,
   theme: Theme,
 ): Promise<Page> {
   const stem = map.html.replace(/\.html$/, '');
@@ -152,7 +151,6 @@ async function capture(
       browser,
       options.board,
       options.directory,
-      width,
       theme,
     );
     try {
