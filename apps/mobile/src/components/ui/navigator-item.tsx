@@ -65,45 +65,33 @@ export function NavigatorItem({
         <View className="min-w-0 flex-1">
           <View className="min-w-0 flex-row items-center gap-2.5">
             <Text
-              variant="ui"
+              variant={phone ? 'navigatorPhoneTitle' : 'navigatorTitle'}
               weight="medium"
               numberOfLines={1}
-              className={
-                phone
-                  ? 'min-w-0 flex-1 text-base leading-5.25 tracking-[-0.01em]'
-                  : 'min-w-0 flex-1 text-sm leading-5'
-              }
+              className="min-w-0 flex-1"
             >
               {title}
             </Text>
             {detail ? (
               <Text
-                variant="ui"
+                variant={
+                  progress
+                    ? phone
+                      ? 'navigatorPhoneProgress'
+                      : 'navigatorProgress'
+                    : 'navigatorCaption'
+                }
                 tone={selected && progress ? 'brand' : 'muted'}
                 weight={selected && progress ? 'medium' : 'normal'}
                 numberOfLines={1}
-                className={[
-                  progress
-                    ? 'shrink-0 tabular-nums'
-                    : 'min-w-0 max-w-1/2 shrink',
-                  progress
-                    ? phone
-                      ? 'text-sm leading-5.25'
-                      : 'text-ui leading-5'
-                    : 'text-ui leading-4.5',
-                ].join(' ')}
+                className={progress ? 'shrink-0' : 'min-w-0 max-w-1/2 shrink'}
               >
                 {detail}
               </Text>
             ) : null}
           </View>
           {subtitle ? (
-            <Text
-              variant="ui"
-              tone="muted"
-              numberOfLines={1}
-              className="leading-4.5"
-            >
+            <Text variant="navigatorCaption" tone="muted" numberOfLines={1}>
               {subtitle}
             </Text>
           ) : null}

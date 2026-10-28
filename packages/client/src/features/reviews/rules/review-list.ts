@@ -314,7 +314,7 @@ export function reviewListSections(
     .filter(
       (entry) => entry.group === 'No review' || entry.group === 'Projects',
     )
-    .toSorted(compareNoReviewRows);
+    .sort(compareNoReviewRows);
   return {
     filters: active.filters,
     rows: [...active.rows, ...closed],

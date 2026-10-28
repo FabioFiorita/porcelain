@@ -73,15 +73,17 @@ export function WorktreeNavigator({
   const selectedWorktree = selectedProject?.worktrees.find(
     (row) => row.selected,
   );
-  const selection: ReviewListSelection | undefined = openReview
-    ? { kind: 'review', ...openReview }
-    : selectedProject && selectedWorktree
+  const selectedCheckout: ReviewListSelection | undefined =
+    selectedProject && selectedWorktree
       ? {
           kind: 'worktree',
           environmentId: selectedProject.environmentId,
           worktreeId: selectedWorktree.worktree.id,
         }
       : undefined;
+  const selection: ReviewListSelection | undefined = openReview
+    ? { kind: 'review', ...openReview }
+    : selectedCheckout;
   const { rows, filters, groups } = reviewListSections(
     entries,
     query,
@@ -261,13 +263,9 @@ export function WorktreeNavigator({
             <Box key={group}>
               <ButtonSurface
                 variant="ghost"
-                size="sm"
+                size={nativeHeader ? 'navigatorPhoneGroup' : 'navigatorGroup'}
                 expanded={expanded}
-                className={
-                  nativeHeader
-                    ? 'min-h-9 justify-start gap-1.5 rounded-md px-1.5 py-0'
-                    : 'min-h-9 justify-start gap-2 rounded-md px-2 py-0'
-                }
+                className="justify-start"
                 accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
                 onPress={() =>
                   setPreferences({
@@ -284,19 +282,14 @@ export function WorktreeNavigator({
                   tone="muted"
                 />
                 <Text
-                  variant="ui"
+                  variant="navigatorCaption"
                   tone="muted"
                   weight="medium"
-                  className="flex-1 leading-4.5"
+                  className="flex-1"
                 >
                   {group}
                 </Text>
-                <Text
-                  variant="ui"
-                  tone="muted"
-                  weight="medium"
-                  className="tabular-nums leading-4.5"
-                >
+                <Text variant="navigatorCount" tone="muted" weight="medium">
                   {grouped.length}
                 </Text>
               </ButtonSurface>
@@ -304,44 +297,45 @@ export function WorktreeNavigator({
               group === 'Closed' &&
               grouped.length === 0 &&
               !loading ? (
-                <Text variant="ui" tone="muted" className="px-2 py-3">
-                  No closed reviews
-                </Text>
+                <Box paddingX={2} paddingY={3}>
+                  <Text variant="ui" tone="muted">
+                    No closed reviews
+                  </Text>
+                </Box>
               ) : null}
               {expanded ? (
-                <Box className="gap-0.5">
+                <Box gap={0.5}>
                   {grouped.map((entry) => {
                     const selected = reviewListIsSelected(entry, selection);
                     const row = worktreeRow(entry, selected);
                     const worktreeId = entry.worktreeId;
                     return (
-                      <NavigatorItem
-                        key={entry.key}
-                        title={row.title}
-                        subtitle={
-                          row.kind === 'review'
-                            ? `${row.project} · ${row.branch}`
-                            : row.location
-                        }
-                        detail={
-                          row.kind === 'review' ? row.progress : row.project
-                        }
-                        progress={row.kind === 'review'}
-                        leading={
-                          <ReviewStatus
-                            status={row.status}
-                            phone={nativeHeader}
-                          />
-                        }
-                        phone={nativeHeader}
-                        selected={selected}
-                        disabled={
-                          picker.disabled || (!entry.closed && entry.disabled)
-                        }
-                        accessibilityLabel={row.accessibilityLabel}
-                        action={
-                          <Box className="flex-row items-center">
-                            {entry.closed && worktreeId ? (
+                      <Box key={entry.key} gap={1}>
+                        <NavigatorItem
+                          title={row.title}
+                          subtitle={
+                            row.kind === 'review'
+                              ? `${row.project} · ${row.branch}`
+                              : row.location
+                          }
+                          detail={
+                            row.kind === 'review' ? row.progress : row.project
+                          }
+                          progress={row.kind === 'review'}
+                          leading={
+                            <ReviewStatus
+                              status={row.status}
+                              phone={nativeHeader}
+                            />
+                          }
+                          phone={nativeHeader}
+                          selected={selected}
+                          disabled={
+                            picker.disabled || (!entry.closed && entry.disabled)
+                          }
+                          accessibilityLabel={row.accessibilityLabel}
+                          action={
+                            entry.closed && worktreeId ? (
                               <IconButton
                                 icon="openFolder"
                                 accessibilityLabel={`Open worktree: ${entry.branch}`}
@@ -354,17 +348,20 @@ export function WorktreeNavigator({
                                   )
                                 }
                               />
-                            ) : null}
-                            {entry.archivable ? (
-                              <ArchiveAction
-                                entry={entry}
-                                projects={projects}
-                              />
-                            ) : null}
+                            ) : undefined
+                          }
+                          onPress={() => open(entry)}
+                        />
+                        {entry.archivable ? (
+                          <Box
+                            className="min-w-0 items-start"
+                            gap={1}
+                            paddingX={2}
+                          >
+                            <ArchiveAction entry={entry} projects={projects} />
                           </Box>
-                        }
-                        onPress={() => open(entry)}
-                      />
+                        ) : null}
+                      </Box>
                     );
                   })}
                 </Box>

@@ -33,6 +33,8 @@ const sizes = {
   sm: 'min-h-9 min-w-9 px-3 py-1.5',
   icon: 'h-11 w-11',
   iconSm: 'h-9 w-9',
+  navigatorGroup: 'min-h-9 min-w-9 gap-2 rounded-md px-2 py-0',
+  navigatorPhoneGroup: 'min-h-9 min-w-9 gap-1.5 rounded-md px-1.5 py-0',
 };
 export type ButtonSurfaceProps = Omit<
   PressableProps,
