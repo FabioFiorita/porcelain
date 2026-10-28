@@ -26,11 +26,11 @@ export function FileHeading({
   return (
     <header
       data-file-heading=""
-      className="@container/file-heading flex min-h-11 shrink-0 items-center gap-2.5 px-4"
+      className="@container/file-heading flex min-h-11 shrink-0 items-center gap-2.5 px-4 text-muted-foreground"
     >
       <TruncatedText
         text={path}
-        className="min-w-0 font-mono text-caption leading-4 text-muted-foreground"
+        className="min-w-0 font-mono text-caption leading-4"
         render={<h1 />}
       >
         {parts.length > 0 && (
