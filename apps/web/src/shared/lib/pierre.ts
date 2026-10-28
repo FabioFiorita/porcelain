@@ -14,7 +14,7 @@ export const PIERRE_DECISION_THEME = 'porcelain-review';
 
 registerCustomCSSVariableTheme(PIERRE_DECISION_THEME, {});
 
-export const PIERRE_CARD_CSS = `
+const PIERRE_CARD_CSS = `
 [data-diffs-header] {
   min-height: calc(var(--spacing) * 10);
   padding-inline: calc(var(--spacing) * 3);
@@ -33,15 +33,24 @@ export const PIERRE_CHANGES_HEADER_CSS = `
 :host {
   --diffs-font-size: var(--text-caption);
   --diffs-line-height: calc(var(--spacing) * 5.5);
+  --diffs-fg-number-addition-override: var(--muted-foreground);
+  --diffs-fg-number-deletion-override: var(--muted-foreground);
+  --diffs-min-number-column-width: calc(var(--spacing) * 4.5);
+  --diffs-gap-style: calc(var(--spacing) * .5) solid transparent;
 }
 [data-diffs-header] [data-deletions-count] {
   order: -1;
 }
 [data-code] {
   padding-block: 0;
+  scrollbar-gutter: auto;
+}
+pre {
+  overflow: hidden;
 }
 
 [data-diffs-header] {
+  min-height: calc(var(--spacing) * 10.25);
   padding-inline: calc(var(--spacing) * 2);
 }
 [data-diffs-header] [data-change-icon] {
