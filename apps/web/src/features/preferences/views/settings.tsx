@@ -251,6 +251,7 @@ function ReviewGitSettingsForm({
             {untrusted && <p>{untrusted}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
+                className="h-auto min-h-7 max-w-full whitespace-normal"
                 size="sm"
                 disabled={saving || untrusted !== undefined}
                 onClick={() =>

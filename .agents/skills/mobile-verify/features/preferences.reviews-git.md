@@ -45,6 +45,6 @@ Automated coverage: `review-git-settings.spec.ts`, `store.spec.ts`, `folders.spe
 
 ## Gotchas
 
-- An untrusted device reached over the local network or a remote route can read but not change the computer's settings: the import button is disabled with that reason, and a refused change explains it.
+- An untrusted device reached over the local network or a remote route can read but not change the computer's settings: the import button is disabled with that reason, and a refused change explains it. While device trust is unknown or its refresh failed, import stays disabled with the trust-confirmation reason and Check again. A failed Check again keeps the retry available; a successful read enables import only if the computer trusts the device.
 - If the computer already kept another device's import, choosing Use these settings shows the computer's values and says that computer already had settings and yours weren’t used.
 - Mobile has no Pull action; pull strategy is used by the web and desktop Git menu.

@@ -159,7 +159,12 @@ it('names the computer that kept its own settings', () => {
 
 it.each([
   { state: 'a device the computer trusts', canChange: true, block: undefined },
-  { state: 'trust not known yet', canChange: undefined, block: undefined },
+  {
+    state: 'trust not known yet or its refresh failed',
+    canChange: undefined,
+    block:
+      'Device trust could not be confirmed. Check again before changing Reviews & Git settings.',
+  },
   {
     state: 'a device the computer does not trust',
     canChange: false,

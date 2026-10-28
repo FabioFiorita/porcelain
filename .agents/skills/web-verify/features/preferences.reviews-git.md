@@ -37,10 +37,11 @@ Preconditions: [surface baseline](README.md).
 4. Pair a second device through the server CLI without trust and PATCH a change with its bearer from another origin: 403 "An owner must trust this device…". The browser on this computer can still change settings.
 5. Stop the server while Settings is open: controls disable and the destructive notice offers Read settings again; Pull and Archive stay disabled. Restart and Read settings again restores them.
 6. Pair a remote computer and reopen Reviews & Git: the Computer picker names This computer and the remote. Its settings are separate; switching computers never shows the other computer's values. With the remote chosen, the notice and button name it (Use these settings for <remote name>).
-7. With the remote chosen from a device the remote does not trust, the import button is disabled and the notice says an owner must trust this device.
-8. Open the preview, then import different values from a second device with `$C server` PATCH before the page hears the live notice, and choose Use these settings for this computer: the page shows the computer's values and says This computer already had settings; yours weren’t used.
-9. Make the first settings read fail: the controls are disabled with no values (no Pull strategy tab selected, switches off) instead of this browser's preview. After a confirmed read, a later failure keeps the confirmed values.
-10. On a computer without settings, right-click a closed review row: Archive is disabled and shows the row button's reason under its label.
+7. With the remote chosen from a device the remote does not trust, the import button is disabled and the notice says an owner must trust this device. Refuse only GET /api/service/update with 503, then choose Check again: import stays disabled, the notice says device trust could not be confirmed, and Check again remains available. Restore the read: Check again restores the untrusted reason; after the owner trusts this device, Check again enables import. An initial pending or failed trust read also disables import.
+8. Name the remote Studio Mac development and release verification workstation. At 1440 and 414, light and dark, the notice title, explanation and import button wrap within the pane with the full name readable. Repeat with a 64-character name without spaces.
+9. Open the preview, then import different values from a second device with `$C server` PATCH before the page hears the live notice, and choose Use these settings for this computer: the page shows the computer's values and says This computer already had settings; yours weren’t used.
+10. Make the first settings read fail: the controls are disabled with no values (no Pull strategy tab selected, switches off) instead of this browser's preview. After a confirmed read, a later failure keeps the confirmed values.
+11. On a computer without settings, right-click a closed review row: Archive is disabled and shows the row button's reason under its label.
 
 Automated coverage: `reviews-spec-files.e2e.ts` (import then change), `access-review-git-settings.integration.ts` (contract, trust, merge), `review-git-settings.spec.ts` (view states).
 

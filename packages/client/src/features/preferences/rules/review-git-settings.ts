@@ -101,9 +101,11 @@ export function reviewGitSettingsKeptMessage(computer: string): string {
 export function reviewGitSettingsTrustBlock(
   canChange: boolean | undefined,
 ): string | undefined {
-  return canChange === false
-    ? 'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.'
-    : undefined;
+  if (canChange === undefined)
+    return 'Device trust could not be confirmed. Check again before changing Reviews & Git settings.';
+  return canChange
+    ? undefined
+    : 'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.';
 }
 
 export function specsApart(view: ReviewGitSettingsView): boolean {
