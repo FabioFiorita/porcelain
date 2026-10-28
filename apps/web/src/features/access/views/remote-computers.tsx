@@ -196,7 +196,7 @@ export function RemoteComputers({
       )}
       <section
         aria-labelledby="computers-heading"
-        className="flex min-w-0 flex-col gap-2"
+        className="@container flex min-w-0 flex-col gap-2"
       >
         <div className="mb-1.5 flex min-h-7 items-center justify-between gap-2">
           <h2
@@ -311,7 +311,7 @@ function ComputerRow({
     <Item
       role="listitem"
       aria-label={label}
-      className="relative grid grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] sm:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
+      className="relative grid grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] @2xl:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
     >
       <span
         aria-hidden
@@ -342,13 +342,13 @@ function ComputerRow({
         </p>
       </div>
       {update && (
-        <div className="relative col-span-2 col-start-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-start-1 sm:max-w-80">
+        <div className="relative col-span-2 col-start-2 row-start-2 min-w-0 @2xl:col-span-1 @2xl:col-start-3 @2xl:row-start-1 @2xl:max-w-80">
           {update}
         </div>
       )}
       <ChevronRightIcon
         aria-hidden
-        className="col-start-3 row-start-1 size-4 justify-self-center text-muted-foreground sm:col-start-4"
+        className="col-start-3 row-start-1 size-4 justify-self-center text-muted-foreground @2xl:col-start-4"
       />
     </Item>
   );

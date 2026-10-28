@@ -63,12 +63,12 @@ export function PairedDevices({ connection }: { connection: Connection }) {
             <ItemContent className="min-w-0">
               <ItemTitle className="flex-wrap">
                 {device.label}
-                <Badge variant="outline">
-                  {deviceRouteTitles[device.route]}
-                </Badge>
                 {device.current && (
                   <Badge variant="secondary">This browser</Badge>
                 )}
+                <Badge variant="outline">
+                  {deviceRouteTitles[device.route]}
+                </Badge>
               </ItemTitle>
               <ItemDescription>
                 Last seen {relativeTime(device.lastSeenAt)} ·{' '}

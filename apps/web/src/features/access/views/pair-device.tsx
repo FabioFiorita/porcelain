@@ -130,11 +130,15 @@ export function PairDevice({
       <Field orientation="horizontal">
         <Switch
           id="pairing-trusted"
-          aria-label="The paired device can update Porcelain"
           checked={trusted}
           onCheckedChange={setTrusted}
         />
-        <Label htmlFor="pairing-trusted">Can update Porcelain</Label>
+        <Label htmlFor="pairing-trusted">
+          <span className="sr-only">
+            The paired device can update Porcelain
+          </span>
+          <span aria-hidden>Can update Porcelain</span>
+        </Label>
       </Field>
       <p className="text-xs leading-4.25 text-muted-foreground">
         The link opens through {remoteRouteTitles[target.route]}. The device
