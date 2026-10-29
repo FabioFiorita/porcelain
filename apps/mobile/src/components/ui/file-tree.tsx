@@ -48,7 +48,6 @@ export function FileTree({
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
-  const indent = useResolveClassNames('pl-4');
   return (
     <FlatList
       contentInsetAdjustmentBehavior="automatic"
@@ -74,97 +73,140 @@ export function FileTree({
           />
         ) : undefined
       }
-      renderItem={({ item: { entry: node, depth } }) => {
-        const path = node.path.replace(/\/$/, '');
-        const busy = node.kind === 'directory' && Boolean(loading?.has(path));
-        const annotation =
-          node.kind === 'directory' ? undefined : annotations?.get(path);
-        const status =
-          node.kind === 'directory' ? undefined : changes?.files.get(path);
-        const mark = status ? changeStatusMarks[status] : undefined;
-        const containsChanges =
-          node.kind === 'directory' && Boolean(changes?.folders.has(path));
-        const parent = flat ? fileTreeAncestors(path).at(-1) : undefined;
-        const item: ItemProps = {
-          title: entryName(node.path),
-          ...(parent ? { detail: parent } : {}),
-          titleNumberOfLines: 1,
-          size: 'sm',
-          selected: path === selected,
-          accessibilityLabel: [
-            `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${path}`,
-            busy ? 'loading' : undefined,
-            mark?.label,
-            containsChanges ? 'contains changes' : undefined,
-            annotation,
-          ]
-            .filter(Boolean)
-            .join(', '),
-          leading: (
-            <View
-              className="flex-row items-center gap-2"
-              style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
-            >
-              {node.kind === 'directory' ? (
-                <FolderIndicator expanded={expanded.has(path)} loading={busy} />
-              ) : null}
-              <FileIcon
-                kind={
-                  node.kind === 'directory' && expanded.has(path)
-                    ? 'openFolder'
-                    : node.kind === 'directory'
-                      ? 'folder'
-                      : isNativeImagePath(node.path)
-                        ? 'image'
-                        : 'file'
-                }
-              />
-            </View>
-          ),
-          trailing:
-            node.kind === 'symlink' ||
-            node.kind === 'submodule' ||
-            node.kind === 'other' ||
-            node.ignored ||
-            mark ||
-            containsChanges ? (
-              <View className="flex-row items-center gap-2">
-                {node.kind === 'symlink' ||
-                node.kind === 'submodule' ||
-                node.kind === 'other' ||
-                node.ignored ? (
-                  <Badge
-                    label={
-                      node.kind === 'symlink'
-                        ? 'Symlink'
-                        : node.kind === 'submodule'
-                          ? 'Submodule'
-                          : node.kind === 'other'
-                            ? 'Unsupported'
-                            : 'Ignored'
-                    }
-                    variant="outline"
-                  />
-                ) : null}
-                {mark || containsChanges ? (
-                  <ChangeMark letter={mark?.letter} />
-                ) : null}
-              </View>
-            ) : undefined,
-          onPress: () =>
-            node.kind === 'directory' ? onToggle(path) : onSelect(path),
-        };
-        return (
-          <>
-            {contextMenu ? (
-              <ItemMenu {...item} actions={contextMenu(node)} />
-            ) : (
-              <Item {...item} />
-            )}
-          </>
-        );
-      }}
+      renderItem={({ item: { entry, depth } }) => (
+        <FileTreeItem
+          node={entry}
+          depth={depth}
+          expanded={expanded}
+          selected={selected}
+          loading={loading}
+          onToggle={onToggle}
+          onSelect={onSelect}
+          contextMenu={contextMenu}
+          showParent={flat}
+          annotations={annotations}
+          changes={changes}
+        />
+      )}
     />
+  );
+}
+
+export function FileTreeItem({
+  node,
+  depth,
+  expanded,
+  selected,
+  loading,
+  onToggle,
+  onSelect,
+  contextMenu,
+  showParent = false,
+  pinned = false,
+  annotations,
+  changes,
+}: {
+  node: FileTreeEntry;
+  depth: number;
+  expanded: ReadonlySet<string>;
+  selected?: string | undefined;
+  loading?: ReadonlySet<string> | undefined;
+  onToggle: (path: string) => void;
+  onSelect: (path: string) => void;
+  contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
+  showParent?: boolean;
+  pinned?: boolean;
+  annotations?: ReadonlyMap<string, string> | undefined;
+  changes?: FileChangeMarks | undefined;
+}) {
+  const indent = useResolveClassNames('pl-4');
+  const path = node.path.replace(/\/$/, '');
+  const busy = node.kind === 'directory' && Boolean(loading?.has(path));
+  const annotation =
+    node.kind === 'directory' ? undefined : annotations?.get(path);
+  const status =
+    node.kind === 'directory' ? undefined : changes?.files.get(path);
+  const mark = status ? changeStatusMarks[status] : undefined;
+  const containsChanges =
+    node.kind === 'directory' && Boolean(changes?.folders.has(path));
+  const parent = showParent ? fileTreeAncestors(path).at(-1) : undefined;
+  const item: ItemProps = {
+    title: entryName(node.path),
+    ...(parent ? { detail: parent } : {}),
+    titleNumberOfLines: 1,
+    size: 'sm',
+    selected: path === selected,
+    accessibilityLabel: [
+      `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${pinned ? `pinned ${node.kind === 'directory' ? 'folder' : 'file'} ` : ''}${path}`,
+      busy ? 'loading' : undefined,
+      mark?.label,
+      containsChanges ? 'contains changes' : undefined,
+      annotation,
+    ]
+      .filter(Boolean)
+      .join(', '),
+    leading: (
+      <View
+        className="flex-row items-center gap-2"
+        style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
+      >
+        {node.kind === 'directory' ? (
+          <FolderIndicator expanded={expanded.has(path)} loading={busy} />
+        ) : null}
+        <FileIcon
+          kind={
+            node.kind === 'directory' && expanded.has(path)
+              ? 'openFolder'
+              : node.kind === 'directory'
+                ? 'folder'
+                : isNativeImagePath(node.path)
+                  ? 'image'
+                  : 'file'
+          }
+        />
+      </View>
+    ),
+    trailing:
+      node.kind === 'symlink' ||
+      node.kind === 'submodule' ||
+      node.kind === 'other' ||
+      node.ignored ||
+      mark ||
+      containsChanges ? (
+        <View className="flex-row items-center gap-2">
+          {node.kind === 'symlink' ||
+          node.kind === 'submodule' ||
+          node.kind === 'other' ||
+          node.ignored ? (
+            <Badge
+              label={
+                node.kind === 'symlink'
+                  ? 'Symlink'
+                  : node.kind === 'submodule'
+                    ? 'Submodule'
+                    : node.kind === 'other'
+                      ? 'Unsupported'
+                      : 'Ignored'
+              }
+              variant="outline"
+            />
+          ) : null}
+          {mark || containsChanges ? (
+            <ChangeMark letter={mark?.letter} />
+          ) : null}
+        </View>
+      ) : undefined,
+    onPress: () =>
+      node.kind === 'directory' ? onToggle(path) : onSelect(path),
+  };
+  return (
+    <>
+      {contextMenu ? (
+        <ItemMenu {...item} actions={contextMenu(node)} />
+      ) : (
+        <Item {...item} />
+      )}
+    </>
   );
 }
 

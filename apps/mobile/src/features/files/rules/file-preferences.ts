@@ -5,6 +5,8 @@ import type {
 import {
   entryName,
   entryTreeActions,
+  fileTreeAncestors,
+  visibleFileTreeRows,
   quickOpenMatches,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
@@ -49,8 +51,52 @@ export function filePreferenceEntries({
       visibleFileTreePaths(paths, hidden, showHidden),
       query,
     ).map((path) => ({ path, kind: 'file' as const })),
-    pinnedPaths: visibleFileTreePaths([...pinned], hidden, showHidden),
+    pinnedEntries: visibleFileTreePaths([...pinned], hidden, showHidden).map(
+      (path): FileTreeEntry =>
+        entries.find(
+          (entry) => canonicalPreferencePath(entry.path) === path,
+        ) ?? { path, kind: 'file' },
+    ),
   };
+}
+
+export function pinnedParentDirectories(
+  preferences: ListFilePreferencesResponse['preferences'],
+) {
+  return [
+    ...new Set(
+      preferences
+        .filter((preference) => preference.pinned)
+        .flatMap((preference) => fileTreeAncestors(preference.path)),
+    ),
+  ];
+}
+
+export function pinnedFileTreeRows(
+  pins: readonly FileTreeEntry[],
+  entries: readonly FileTreeEntry[],
+  expanded: ReadonlySet<string>,
+) {
+  return pins.flatMap((pin) => {
+    const path = canonicalPreferencePath(pin.path);
+    const ancestors = fileTreeAncestors(pin.path);
+    const children =
+      pin.kind === 'directory'
+        ? entries.filter(
+            (entry) =>
+              entry.path.startsWith(`${path}/`) && entry.path !== pin.path,
+          )
+        : [];
+    return visibleFileTreeRows(
+      [pin, ...children],
+      new Set([...expanded, ...ancestors]),
+    ).map(({ entry, depth }) => ({
+      entry,
+      depth: depth - ancestors.length,
+      pin: entry.path === pin.path,
+      key: `${pin.path}:${entry.path}`,
+    }));
+  });
 }
 
 export function filePreferenceActions(
@@ -78,18 +124,30 @@ export function filePreferenceActions(
       hiddenEntry,
       ownHidden: hiddenEntry === path,
       hiddenName: hiddenEntry === null ? '' : entryName(hiddenEntry),
-      pinned: entry.kind === 'file' ? pinned.has(path) : undefined,
+      pinned:
+        entry.kind === 'file' || entry.kind === 'directory'
+          ? pinned.has(path)
+          : undefined,
       openToSideLabel: openToSide ? 'Open to the side' : undefined,
-    }).filter(
-      ({ id }) =>
-        id === 'new-file' ||
-        id === 'new-folder' ||
-        id === 'open' ||
-        id === 'open-to-side' ||
-        id === 'rename' ||
-        id === 'trash' ||
-        id === 'pin' ||
-        id === 'hide',
-    ),
+    })
+      .filter(
+        ({ id }) =>
+          id === 'new-file' ||
+          id === 'new-folder' ||
+          id === 'open' ||
+          id === 'open-to-side' ||
+          id === 'rename' ||
+          id === 'trash' ||
+          id === 'pin' ||
+          id === 'hide',
+      )
+      .map((action) =>
+        action.id === 'pin' && entry.kind === 'directory'
+          ? {
+              ...action,
+              label: pinned.has(path) ? 'Unpin folder' : 'Pin folder',
+            }
+          : action,
+      ),
   };
 }

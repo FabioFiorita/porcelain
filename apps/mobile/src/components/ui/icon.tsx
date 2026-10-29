@@ -31,6 +31,7 @@ const symbols = {
   comment: { ios: 'bubble', android: 'chat_bubble' },
   lock: { ios: 'lock', android: 'lock' },
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
+  branch: { ios: 'arrow.triangle.branch', android: 'fork_right' },
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },

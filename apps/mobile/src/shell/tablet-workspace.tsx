@@ -204,6 +204,7 @@ function SelectedWorkspace({
         <HistoryNavigation
           selection={workspace}
           workspace={workspace.key}
+          project={workspace.project.name}
           selected={
             historySelection?.kind === 'commit' ||
             historySelection?.kind === 'diff'

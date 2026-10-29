@@ -11,15 +11,19 @@ import {
 } from '../queries/history';
 import { commitEntry, historyBoundary } from '@porcelain/client/history/rules';
 import { historyStatus } from '../rules/status';
+import { commitAge } from '../rules/commit-age';
+import { Icon } from '../../../components/ui/icon';
 
 export function HistoryNavigation({
   selection,
   workspace,
+  project,
   selected,
   onOpen,
 }: {
   selection: HistorySelection;
   workspace: string;
+  project: string;
   selected?: string | undefined;
   onOpen: (oid: string, workspace: string) => void;
 }) {
@@ -35,7 +39,7 @@ export function HistoryNavigation({
       <HistoryList
         header={
           <Box gap={2} divider="bottom" paddingX={4} paddingY={3}>
-            <BranchStatus status={status} branch={branch} />
+            <BranchStatus status={status} branch={branch} project={project} />
             {value?.restarted ? (
               <Text variant="caption" tone="muted">
                 History changed. Showing it from the top.
@@ -50,6 +54,7 @@ export function HistoryNavigation({
         entries={
           value?.commits.map((commit) => ({
             ...commitEntry(commit),
+            time: commitAge(commit.author.timestamp),
             graph: {
               merge: commit.parentOids.length > 1,
               continues: commit.parentOids.length > 0,
@@ -70,35 +75,41 @@ export function HistoryNavigation({
 function BranchStatus({
   status,
   branch,
+  project,
 }: {
   status: ReturnType<typeof useHistoryStatus>;
   branch: ReturnType<typeof historyStatus> | undefined;
+  project: string;
 }) {
   if (branch)
     return (
-      <>
-        <Text
-          variant="code"
-          weight="medium"
-          numberOfLines={1}
-          accessibilityLabel={branch.name}
-        >
-          {branch.name}
-        </Text>
-        {branch.counts !== null ? (
-          <Text variant="caption" tone="muted">
-            {branch.counts}
+      <Box className="flex-row items-center" gap={3}>
+        <Box className="size-8 items-center justify-center rounded-lg border border-border bg-muted">
+          <Icon name="branch" size="small" />
+        </Box>
+        <Box className="min-w-0 flex-1" gap={0.5}>
+          <Text
+            variant="code"
+            weight="medium"
+            numberOfLines={1}
+            accessibilityLabel={branch.name}
+          >
+            {branch.name}
           </Text>
-        ) : null}
-        <Text
-          variant="caption"
-          tone="muted"
-          numberOfLines={1}
-          accessibilityLabel={branch.upstream}
-        >
-          {branch.upstream}
-        </Text>
-      </>
+          <Text
+            variant="caption"
+            tone="muted"
+            numberOfLines={2}
+            accessibilityLabel={[project, branch.counts, branch.upstream]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            {[project, branch.counts, branch.upstream]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        </Box>
+      </Box>
     );
   if (AsyncResult.isFailure(status.result))
     return (
