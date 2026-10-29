@@ -344,12 +344,12 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     state.state = 'OPEN';
     await save();
-    expect(await request(`${project}/pull-requests`)).toMatchObject({
+    const reopened = await request(`${project}/pull-requests`);
+    expect(reopened).toMatchObject({
       kind: 'available',
-      pullRequests: [
-        expect.not.objectContaining({ reviewId: expect.anything() }),
-      ],
+      pullRequests: [{ number: 423 }],
     });
+    expect(reopened).not.toMatchObject({ pullRequests: [{ reviewId }] });
     state.state = 'MERGED';
     await save();
     const preview = await request(`${review}/archive`, 'POST', {
