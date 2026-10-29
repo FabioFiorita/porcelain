@@ -84,7 +84,12 @@ function BranchStatus({
   if (branch)
     return (
       <Box className="flex-row items-center" gap={3}>
-        <Box className="size-8 items-center justify-center rounded-lg border border-border bg-muted">
+        <Box
+          className="size-8 items-center justify-center rounded-lg border border-border bg-muted"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <Icon name="branch" size="small" />
         </Box>
         <Box className="min-w-0 flex-1" gap={0.5}>
