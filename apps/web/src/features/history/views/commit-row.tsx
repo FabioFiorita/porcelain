@@ -54,8 +54,19 @@ export function CommitRow({
   const refs = shownRefs(commit.refs).toSorted(
     (left, right) => Number(current(right)) - Number(current(left)),
   );
+  const headBadge = head ? (
+    <Badge variant="brand" className="relative shrink-0">
+      HEAD
+    </Badge>
+  ) : null;
   const subject = (
-    <span className="flex min-w-0 items-center gap-1 text-caption leading-tight">
+    <span
+      className={cn(
+        'flex min-w-0 items-center gap-1 text-ui leading-4.5 font-normal',
+        layout === 'stacked' && 'font-medium',
+        (head || selected) && 'font-semibold',
+      )}
+    >
       {commit.parentOids.length > 1 && (
         <GitMergeIcon
           aria-label="Merge commit"
@@ -63,6 +74,7 @@ export function CommitRow({
         />
       )}
       <TruncatedText text={commit.subject} />
+      {layout === 'stacked' && headBadge}
     </span>
   );
   const age = relativeTime(commit.author.timestamp);
@@ -82,35 +94,51 @@ export function CommitRow({
                 ? 'flex-col justify-center gap-0.5'
                 : 'items-center gap-3',
               height === undefined && 'py-1.5',
-              selected && 'bg-accent',
+              selected && 'bg-muted ring-1 ring-border ring-inset',
+              head && 'bg-muted ring-1 ring-border ring-inset',
             )}
           />
         }
       >
         {layout === 'stacked' ? (
-          <>
+          <div className="flex min-w-0 items-start gap-1.5">
             <button
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
+              className={cn(
+                'block min-w-0 text-left before:absolute before:inset-0 before:rounded-lg',
+                refs.length > 0 ? 'max-w-3/5' : 'flex-1',
+              )}
             >
               {subject}
-              <span className="flex gap-1.5 text-2xs text-muted-foreground">
+              <span
+                style={{ left: inset }}
+                className="absolute inset-x-2 mt-0.5 flex min-w-0 gap-1.5 text-xs text-muted-foreground"
+              >
                 <code className="font-mono">{shortOid(commit.oid)}</code>
                 <TruncatedText text={commit.author.name} />
                 <span aria-hidden="true">·</span>
                 <span className="shrink-0">{age}</span>
               </span>
-              {children}
+              <span aria-hidden="true" className="mt-0.5 block h-4" />
+              {children !== undefined && (
+                <span className="flex min-w-0">{children}</span>
+              )}
             </button>
             {refs.length > 0 && (
-              <CommitRefs refs={refs} current={current} onOpenCommit={select} />
+              <div className="flex h-4.5 min-w-0 flex-1 flex-col justify-center">
+                <CommitRefs
+                  refs={refs}
+                  current={current}
+                  onOpenCommit={select}
+                />
+              </div>
             )}
-          </>
+          </div>
         ) : (
           <>
-            <code className="hidden w-16 shrink-0 font-mono text-2xs text-muted-foreground @md/graph:block">
+            <code className="hidden w-16 shrink-0 font-mono text-xs text-muted-foreground @md/graph:block">
               {shortOid(commit.oid)}
             </code>
             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -125,11 +153,7 @@ export function CommitRow({
                   {` ${shortOid(commit.oid)} ${commit.author.name} ${age}`}
                 </span>
               </button>
-              {head && (
-                <Badge variant="brand" className="relative h-4 shrink-0">
-                  HEAD
-                </Badge>
-              )}
+              {headBadge}
               <div className="min-w-0 flex-1 overflow-hidden">
                 {refs.length > 0 && (
                   <CommitRefs
@@ -141,12 +165,12 @@ export function CommitRow({
               </div>
             </div>
             <TruncatedText
-              className="hidden w-28 shrink-0 text-2xs text-muted-foreground @2xl/graph:block"
+              className="hidden w-28 shrink-0 text-xs text-muted-foreground @2xl/graph:block"
               text={commit.author.name}
             />
             <span
               aria-hidden="true"
-              className="shrink-0 text-right text-2xs whitespace-nowrap text-muted-foreground tabular-nums"
+              className="shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums"
             >
               {age}
             </span>

@@ -53,7 +53,19 @@ for (const width of [1440, 414]) {
       await page.keyboard.press('Shift+Tab');
       await page.keyboard.press('Tab');
       await expect(row(short)).toBeFocused();
-      await expect(page.getByRole('tooltip')).toHaveCount(0);
+      await expect(
+        page.getByRole('tooltip', { name: short, exact: true }),
+      ).toHaveCount(0);
+      if (width === 1440) {
+        const author = page.getByRole('tooltip', {
+          name: 'Porcelain Verification',
+          exact: true,
+        });
+        await expect(author).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(author).not.toBeVisible();
+        await expect(row(short)).toBeFocused();
+      } else await expect(page.getByRole('tooltip')).toHaveCount(0);
       await row(subjects[0]).focus();
       await page.keyboard.press('Shift+Tab');
       await page.keyboard.press('Tab');
@@ -86,7 +98,7 @@ for (const width of [1440, 414]) {
         name: 'Open documents',
         exact: true,
       });
-      const commitTab = documents.getByRole('tab', { name: /^[0-9a-f]{7}$/ });
+      const commitTab = documents.getByRole('tab', { name: /^[0-9a-f]{7} / });
       for (const key of ['Enter', 'Space']) {
         await documents
           .getByRole('tab', { name: 'Changes', exact: true })
@@ -99,7 +111,7 @@ for (const width of [1440, 414]) {
       await page.keyboard.press('Tab');
       await expect(commitTab).toBeFocused();
       await expect(
-        page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40}$/ }),
+        page.getByRole('tooltip', { name: /^Commit [0-9a-f]{40} · / }),
       ).toBeVisible();
     });
   }

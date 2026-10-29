@@ -20,6 +20,11 @@ function highlightedLines(locator: Locator) {
 }
 
 export const reviewLayout = {
+  currentChangeRows(table: Locator) {
+    return [
+      ...table.element().querySelectorAll('button[aria-current="true"]'),
+    ].map((button) => button.textContent?.replace(/\s/g, ''));
+  },
   routeSteps(steps: Locator) {
     return steps.elements().map((step) => {
       const number = step.querySelector('span:nth-child(2)');

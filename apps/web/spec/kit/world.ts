@@ -164,6 +164,10 @@ export class World {
       return '';
     }
     if (step.kind === 'read') return repository.readFile(step.path);
+    if (step.kind === 'symlink') {
+      await repository.symlink(step.target, step.path);
+      return '';
+    }
     if (step.kind === 'rename')
       return repository.git('mv', '--', step.from, step.to);
     if (step.kind === 'commit') {
@@ -171,6 +175,7 @@ export class World {
       return repository.git('commit', '--message', step.message);
     }
     if (step.kind === 'branch') return repository.git('branch', step.name);
+    if (step.kind === 'tag') return repository.git('tag', step.name);
     if (step.kind === 'merge')
       return repository.git('merge', '--no-ff', '--no-edit', step.name);
     if (step.kind === 'fifo') {

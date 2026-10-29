@@ -50,6 +50,8 @@ test('History keeps the branch and graph header fixed and its rows outside the s
     if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
       await page.getByRole('tab', { name: 'History', exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: 'History', exact: true }).click();
     }
     const sidebar = page.getByRole('complementary', {
       name: 'Review sidebar',
@@ -97,6 +99,8 @@ test('both Changes lists keep rows outside the scrollbar lane', async ({
     if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
       await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: 'Changes', exact: true }).click();
     }
     for (const scope of ['Uncommitted', 'Branch']) {
       const control = sidebar.getByRole('tab', { name: scope, exact: true });

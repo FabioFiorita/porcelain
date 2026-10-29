@@ -26,7 +26,9 @@ test('a branch deep link keeps valid selections when another optional search val
       .getByRole('tab', { name: 'Changes', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await expect(
-    pairedPage.getByRole('tab', { name: 'Branch', exact: true }),
+    pairedPage
+      .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      .getByRole('tab', { name: 'Branch', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await expect(
     pairedPage.getByText('1 commit on feature since main', { exact: true }),

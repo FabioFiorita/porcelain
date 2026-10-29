@@ -136,6 +136,10 @@ test('the persistent Files tree reopens its selected file after focus moves to t
   const workspace = await render.workspace();
   await page.viewport(1440, 1000);
   try {
+    await workspace
+      .getByRole('navigation', { name: 'Side panel', exact: true })
+      .getByRole('button', { name: 'Files', exact: true })
+      .click();
     const row = workspace.getByRole('treeitem', {
       name: 'guide.txt',
       exact: true,
