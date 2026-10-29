@@ -41,7 +41,6 @@ diffs-container {
 
 .commit-code diffs-container {
   --diffs-font-size: var(--text-caption);
-  --diffs-line-height: calc(var(--spacing) * 5.5);
   margin-inline: auto;
   width: calc(100% - var(--spacing) * 14);
   max-width: calc(var(--container-commit) - var(--spacing) * 14);
