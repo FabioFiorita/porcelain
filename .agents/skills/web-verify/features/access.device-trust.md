@@ -68,7 +68,7 @@ None on disk. The default server has two paired devices: "Development setup" (th
    Expect: img "Pairing QR code"; text "Scan on Release laptop"; the Pairing link text `http://192.168.1.20:<port>/pair#c=<one-time code>&e=…`; listitem "Release laptop" containing "Pending link".
 10. `$C server pending-links`
     Expect: the link labelled "Release laptop" with `"trusted": true`.
-11. Stay on Paired devices
+11. Stay on Devices
     Expect: listitem "Development setup" has switch "Development setup can update Porcelain" and no switch "Development setup can edit ways in".
 12. Turn on Cloudflare tunnel with hostname `porcelain.example.com` in Ways in, wait for On, then pair a device through it from the server-verify kit (`POST /api/pair` with `Host: porcelain.example.com`) labelled "Tunnel phone" and reload
     Expect: switch "Tunnel phone can edit ways in" not checked; click it and it is checked while "Tunnel phone can update Porcelain" is unchanged; after a reload it is still checked; click it again and it is not checked after another reload.

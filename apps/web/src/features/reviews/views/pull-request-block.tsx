@@ -172,14 +172,13 @@ export function PullRequestBlock({
                             )
                           }
                           variant="ghost"
-                          size="icon-xs"
-                          className="size-5.5"
+                          size="icon-sm"
                           aria-label="Pull request actions"
                           disabled={mutation.waiting}
                         />
                       }
                     >
-                      <EllipsisIcon className="size-3.5" />
+                      <EllipsisIcon />
                     </DropdownMenuTrigger>
                   }
                 />
@@ -187,23 +186,18 @@ export function PullRequestBlock({
               </Tooltip>
               <DropdownMenuContent align="end" className="w-59">
                 <DropdownMenuItem
-                  className=""
                   render={<a href={linked} target="_blank" rel="noreferrer" />}
                 >
-                  <ArrowUpRightIcon
-                    strokeWidth={1.75}
-                    className="mr-0.5 size-3.5"
-                  />
+                  <ArrowUpRightIcon />
                   Open on GitHub
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className=""
                   onClick={() => copyText(linked, 'pull request link')}
                 >
-                  <CopyIcon strokeWidth={1.75} className="mr-0.5 size-3.5" />
+                  <CopyIcon />
                   Copy link
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="mx-0" />
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="items-start"
                   onClick={() => {
@@ -211,13 +205,10 @@ export function PullRequestBlock({
                     setPullRequest({ pullRequest: undefined });
                   }}
                 >
-                  <UnlinkIcon
-                    strokeWidth={1.75}
-                    className="mt-0.5 mr-0.5 size-3.5"
-                  />
+                  <UnlinkIcon className="mt-0.5" />
                   <span className="flex min-w-0 flex-col">
                     <span>Unlink {number ? `#${number}` : 'pull request'}</span>
-                    <span className="text-xs leading-4 font-normal text-muted-foreground">
+                    <span className="text-muted-foreground">
                       {closedReview
                         ? 'The review stays closed and readable under Closed.'
                         : 'The review stays and follows its branch again.'}
@@ -421,7 +412,6 @@ function OpenPullRequest({
   return onOpen && number !== undefined ? (
     <Button
       variant="outline"
-      size="xs"
       className={wideButton}
       onClick={() => onOpen(number)}
     >
@@ -430,7 +420,6 @@ function OpenPullRequest({
   ) : (
     <Button
       variant="outline"
-      size="xs"
       className={wideButton}
       nativeButton={false}
       render={<a href={url} target="_blank" rel="noreferrer" />}
@@ -451,7 +440,7 @@ function GitPullRequestGlyph() {
   );
 }
 
-const wideButton = 'mt-2.5 h-7 w-full';
+const wideButton = 'mt-2.5 w-full';
 
 function PullUnavailable({
   reason,
@@ -481,7 +470,6 @@ function PullUnavailable({
       {action.kind === 'settings' && (
         <Button
           variant="outline"
-          size="xs"
           className={cn(wideButton, 'mt-2')}
           onClick={() =>
             void navigate({
@@ -501,7 +489,6 @@ function PullUnavailable({
       {action.kind === 'install' && (
         <Button
           variant="outline"
-          size="xs"
           className={cn(wideButton, 'mt-2')}
           nativeButton={false}
           render={<a href={action.url} target="_blank" rel="noreferrer" />}
@@ -516,7 +503,6 @@ function PullUnavailable({
       {action.kind === 'copy' && (
         <Button
           variant="outline"
-          size="xs"
           className={cn(wideButton, 'mt-2')}
           onClick={() => copyText(action.text, 'command')}
         >
@@ -530,7 +516,6 @@ function PullUnavailable({
       {(action.kind === 'retry' || action.kind === 'copy') && (
         <Button
           variant={action.kind === 'retry' ? 'outline' : 'ghost'}
-          size="xs"
           className={cn(wideButton, 'mt-2')}
           disabled={retrying}
           onClick={onRetry}
@@ -590,8 +575,8 @@ function GitHubLink({
         render={
           <Button
             variant="ghost"
-            size="xs"
-            className="ml-auto h-5.5"
+            size="sm"
+            className="ml-auto"
             nativeButton={false}
             render={<a href={url} target="_blank" rel="noreferrer" />}
           />
@@ -669,8 +654,7 @@ function FoundPull({
             GitHub has it for this branch. Link it so the review follows it.
           </p>
           <Button
-            size="xs"
-            className="mt-2.5 h-7 w-full"
+            className="mt-2.5 w-full"
             disabled={pending}
             onClick={() => onLink(pull.url)}
           >
@@ -770,7 +754,7 @@ function PullRequestDiscovery({
       return (
         <Button
           variant="ghost"
-          size="xs"
+          size="sm"
           nativeButton={false}
           render={
             <a
@@ -779,10 +763,10 @@ function PullRequestDiscovery({
               rel="noreferrer"
             />
           }
-          className="ml-auto h-5.5"
+          className="ml-auto"
         >
           Create on GitHub
-          <ArrowUpRightIcon aria-hidden="true" className="size-3" />
+          <ArrowUpRightIcon aria-hidden="true" />
         </Button>
       );
     return undefined;
@@ -862,14 +846,13 @@ function PullRequestDiscovery({
             }}
             disabled={pending}
             aria-invalid={malformed || undefined}
-            className="h-7 min-w-0 flex-1"
+            className="min-w-0 flex-1"
           />
           <Button
             type="submit"
-            size="xs"
             variant="outline"
             aria-label="Link pull request"
-            className="h-7 shrink-0"
+            className="shrink-0"
             disabled={pending || url.trim() === ''}
           >
             <LinkIcon aria-hidden="true" className="size-3.5" />

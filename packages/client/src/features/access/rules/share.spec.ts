@@ -7,6 +7,7 @@ import {
   localNetworkNote,
   protectedRouteNote,
   remoteRouteDescriptions,
+  remoteRouteNames,
   routeFailure,
   routeStatusLabel,
   tailscaleServeCommand,
@@ -158,6 +159,10 @@ describe('routeFailure', () => {
   });
 });
 
+it('orders the ways in from the nearest network to the public tunnel', () => {
+  expect(remoteRouteNames).toEqual(['lan', 'tailnet', 'cloudflare']);
+});
+
 describe('routeStatusLabel', () => {
   it.each([
     ['lan', { enabled: false, status: { kind: 'off' } }, null],
@@ -194,7 +199,7 @@ describe('ways in copy', () => {
   const ownAddress =
     'Ways in cannot be seen or changed over this connection, because it reaches the computer that runs Porcelain through that computer’s own address. Change them on that computer, or pair this device through the local network, Tailscale or a Cloudflare tunnel.';
   const askOwner =
-    'This device cannot see or change ways in. An owner can let it in Paired devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
+    'This device cannot see or change ways in. An owner can let it in Devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
 
   it.each([
     ['http://127.0.0.1:4173', ownAddress],

@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
+  pullRequestState,
   pullRequestStateLabel,
   type PullChecksTone,
+  type PullRequestState,
 } from '@porcelain/client/reviews/rules';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,26 +26,14 @@ import {
 import { cn } from '@/shared/lib/utils';
 
 type PullState = { state: 'open' | 'closed' | 'merged'; draft: boolean };
-type Tone = 'open' | 'draft' | 'merged' | 'closed';
 
-function pullTone(pull: PullState): Tone {
-  if (pull.state === 'open') return pull.draft ? 'draft' : 'open';
-  return pull.state;
-}
-
-const stateIcons: Record<Tone, LucideIcon> = {
+const stateIcons: Record<PullRequestState, LucideIcon> = {
   open: GitPullRequestIcon,
   draft: GitPullRequestDraftIcon,
   merged: GitMergeIcon,
   closed: GitPullRequestClosedIcon,
 };
-const pillVariants = {
-  open: 'outline',
-  draft: 'secondary',
-  merged: 'brand-soft',
-  closed: 'destructive',
-} as const;
-const stateText: Record<Tone, string> = {
+const stateText: Record<PullRequestState, string> = {
   open: 'text-add-fg',
   draft: 'text-muted-foreground',
   merged: 'text-brand',
@@ -51,24 +41,18 @@ const stateText: Record<Tone, string> = {
 };
 
 export function pullStateIcon(pull: PullState) {
-  return stateIcons[pullTone(pull)];
+  return stateIcons[pullRequestState(pull)];
 }
 
 export function pullStateText(pull: PullState) {
-  return stateText[pullTone(pull)];
+  return stateText[pullRequestState(pull)];
 }
 
-export function PullStatePill({
-  pull,
-  large = false,
-}: {
-  pull: PullState;
-  large?: boolean;
-}) {
-  const tone = pullTone(pull);
-  const Icon = stateIcons[tone];
+export function PullStatePill({ pull }: { pull: PullState }) {
+  const state = pullRequestState(pull);
+  const Icon = stateIcons[state];
   return (
-    <Badge variant={pillVariants[tone]} className={large ? 'h-6' : undefined}>
+    <Badge variant={state}>
       <Icon aria-hidden="true" />
       {pullRequestStateLabel(pull)}
     </Badge>

@@ -19,6 +19,29 @@ export type FoundPullRequest = Extract<
   { kind: 'available' }
 >['pullRequests'][number];
 
+export type PullRequestState = 'open' | 'draft' | 'merged' | 'closed';
+
+export function pullRequestState(pull: {
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+}): PullRequestState {
+  return pull.state === 'open' && pull.draft ? 'draft' : pull.state;
+}
+
+const pullRequestStateLabels: Record<PullRequestState, string> = {
+  open: 'Open',
+  draft: 'Draft',
+  merged: 'Merged',
+  closed: 'Closed',
+};
+
+export function pullRequestStateLabel(pull: {
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+}) {
+  return pullRequestStateLabels[pullRequestState(pull)];
+}
+
 export type PullChecksTone = 'passed' | 'running' | 'failed' | 'none';
 const failedConclusions = new Set([
   'FAILURE',

@@ -1,7 +1,7 @@
 import {
   ArchiveIcon,
-  ArrowRightIcon,
-  CircleCheckIcon,
+  CheckIcon,
+  ChevronRightIcon,
   CircleIcon,
   ExternalLinkIcon,
   LoaderCircleIcon,
@@ -24,12 +24,12 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { Button, buttonVariants } from '@/components/ui/button';
 import { ArchiveReview } from '@/features/projects/index';
 import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { InlineComposer } from './inline-composer';
 import { MarginRow } from './margin-row';
+import { outlineButton, primaryButton } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type ClosingStop = Extract<
@@ -114,9 +114,9 @@ export function ClosingPage({
               <section aria-labelledby="closing-partial">
                 <h3
                   id="closing-partial"
-                  className="flex justify-between border-b pb-2 text-xs text-muted-foreground"
+                  className="flex justify-between gap-3.5 border-b pb-1.5 text-xs leading-4 text-muted-foreground"
                 >
-                  <span>
+                  <span className="font-medium tabular-nums">
                     {unexplained.partial.length}{' '}
                     {unexplained.partial.length === 1 ? 'place' : 'places'}{' '}
                     inside explained files
@@ -127,33 +127,33 @@ export function ClosingPage({
                 </h3>
                 <ul
                   aria-label="Unexplained lines in explained files"
-                  className="flex flex-col divide-y"
+                  className="flex flex-col"
                 >
                   {unexplained.partial.map((gap) => (
                     <li
                       key={gap.path}
-                      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm"
+                      className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 py-1 pr-1.5 pl-0.5"
                     >
-                      <TriangleAlertIcon className="size-4 shrink-0 text-graph-4" />
+                      <TriangleAlertIcon className="size-3.5 shrink-0 text-warn" />
                       <span
-                        className="min-w-0 flex-1 font-mono text-xs break-all"
+                        className="min-w-0 flex-1 font-mono text-caption leading-4 break-all"
                         title={gap.path}
                       >
                         {gap.path}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs leading-4 text-muted-foreground tabular-nums">
                         {gap.ranges.length > 0
                           ? spansLabel(gap.ranges)
                           : 'whole file'}
                       </span>
-                      <Button
-                        variant="link"
-                        size="xs"
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-sm text-xs leading-4 font-medium text-brand outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/30"
                         onClick={() => onGo(gap.stop)}
                       >
                         Read in {placeName(stops, gap.stop)}
-                        <ArrowRightIcon data-icon="inline-end" />
-                      </Button>
+                        <ChevronRightIcon className="size-3" />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -166,9 +166,9 @@ export function ClosingPage({
               >
                 <h3
                   id="closing-files"
-                  className="flex justify-between pb-2 text-xs text-muted-foreground"
+                  className="flex justify-between pb-1 text-xs leading-4 text-muted-foreground"
                 >
-                  <span>
+                  <span className="font-medium">
                     {unexplained.paths.length}{' '}
                     {unexplained.paths.length === 1 ? 'file' : 'files'} no
                     decision points at
@@ -190,6 +190,7 @@ export function ClosingPage({
             className="flex min-w-0 scroll-mt-4 flex-col gap-5"
           >
             <ClosingHeading
+              size="subpage"
               eyebrow="Set apart by your settings"
               title="Specs"
               lead="Specs are folded because agents follow the project's spec rules. Open the ones that matter to you; the countdown still includes them."
@@ -214,18 +215,36 @@ function ClosingHeading({
   eyebrow,
   title,
   lead,
+  size = 'page',
 }: {
   eyebrow: string;
   title: string;
   lead: string;
+  size?: 'page' | 'subpage';
 }) {
   return (
-    <header className="flex min-w-0 flex-col gap-3">
-      <p className="text-xs text-muted-foreground">{eyebrow}</p>
-      <h2 className="text-3xl leading-tight font-semibold tracking-tight">
+    <header
+      className={cn(
+        'flex min-w-0 flex-col',
+        size === 'page' ? 'gap-2.5' : 'gap-1.5',
+      )}
+    >
+      <p className="text-ui leading-5.5 font-medium text-muted-foreground">
+        {eyebrow}
+      </p>
+      <h2
+        className={cn(
+          'font-semibold text-balance',
+          size === 'page' ? 'text-page-title' : 'text-subpage-title',
+        )}
+      >
         {title}
       </h2>
-      <p className="text-base text-pretty">{lead}</p>
+      <p
+        className={`text-pretty text-foreground-2 ${size === 'page' ? 'text-lead' : 'text-reading'}`}
+      >
+        {lead}
+      </p>
     </header>
   );
 }
@@ -260,16 +279,18 @@ function CompletionCard({
   return (
     <section
       aria-label="Review completion"
-      className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 text-xs shadow-sm"
+      className="flex min-w-0 flex-col gap-3 rounded-paper border bg-card px-3 pt-3.5 pb-3 text-xs shadow-sm"
     >
-      <header className="flex items-start gap-2.5">
+      <header className="flex items-start gap-2">
         {allDecisions ? (
-          <CircleCheckIcon className="mt-0.5 size-5 shrink-0 text-graph-1" />
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground">
+            <CheckIcon className="size-2.75" strokeWidth={3} />
+          </span>
         ) : (
-          <CircleIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <CircleIcon className="size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-sm font-semibold">
+          <h3 className="text-card-title font-semibold">
             {allDecisions
               ? 'Every decision is reviewed'
               : `${status.reviewed} of ${status.total} decisions reviewed`}
@@ -281,9 +302,11 @@ function CompletionCard({
       </header>
       <section
         aria-label="Ready to merge needs"
-        className="flex flex-col gap-1.5 border-t pt-3"
+        className="flex flex-col gap-1.25 border-t pt-3"
       >
-        <h4 className="text-muted-foreground">Ready to merge needs</h4>
+        <h4 className="mb-0.25 font-medium text-muted-foreground">
+          Ready to merge needs
+        </h4>
         <Need met={allDecisions}>Every decision reviewed</Need>
         <Need met={merge}>
           The agent recommends Merge
@@ -297,23 +320,23 @@ function CompletionCard({
         <p
           role="status"
           className={cn(
-            'flex items-center gap-1.5',
+            'mt-0.75 flex items-center gap-1.5',
             group === 'Ready to merge'
               ? 'font-medium text-graph-1'
               : 'text-muted-foreground',
           )}
         >
           {group === 'Waiting on agent' && (
-            <LoaderCircleIcon className="size-3.5 shrink-0" />
+            <LoaderCircleIcon className="size-3 shrink-0" />
           )}
           {groupLabel(group)}
         </p>
       </section>
       <section
         aria-label="Still open"
-        className="flex flex-col gap-1 border-t pt-3"
+        className="flex flex-col gap-0.5 border-t pt-3"
       >
-        <h4 className="text-muted-foreground">Still open</h4>
+        <h4 className="mb-1 font-medium text-muted-foreground">Still open</h4>
         <OpenRow label="Not explained">
           {count(unexplained?.paths.length ?? 0, 'file')}
         </OpenRow>
@@ -325,15 +348,17 @@ function CompletionCard({
         </OpenRow>
         <OpenRow label="Not proven">{notProven}</OpenRow>
       </section>
-      <div className="flex flex-col gap-2 border-t pt-3">
-        <Button
+      <div className="flex flex-col gap-1.5 border-t pt-3">
+        <button
           ref={setAskButton}
+          type="button"
+          className={primaryButton}
           aria-expanded={asking}
           onClick={() => setAsking(true)}
         >
-          <MessageSquareIcon data-icon="inline-start" />
+          <MessageSquareIcon />
           Ask the agent
-        </Button>
+        </button>
         {asking && (
           <InlineComposer
             scope={scope}
@@ -350,13 +375,16 @@ function CompletionCard({
         )}
         {pullRequest?.state === 'open' && (
           <a
-            className={cn(buttonVariants({ variant: 'outline' }))}
+            className={outlineButton}
             href={pullRequest.url}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Merge on GitHub #{pullRequest.number}
-            <ExternalLinkIcon data-icon="inline-end" />
+            Merge on GitHub
+            <span className="text-muted-foreground tabular-nums">
+              #{pullRequest.number}
+            </span>
+            <ExternalLinkIcon />
           </a>
         )}
         {archivable && record ? (
@@ -390,16 +418,17 @@ function count(total: number, noun: string) {
 
 function Need({ met, children }: { met: boolean; children: ReactNode }) {
   return (
-    <p className="flex items-start gap-1.5">
+    <p className="flex items-start gap-1.75 text-ui leading-4.5">
       {met ? (
-        <CircleCheckIcon
+        <CheckIcon
           aria-label="Met"
-          className="mt-px size-3.5 shrink-0 text-graph-2"
+          className="mt-0.5 size-3.5 shrink-0 text-graph-2"
+          strokeWidth={2.25}
         />
       ) : (
         <CircleIcon
           aria-label="Not met"
-          className="mt-px size-3.5 shrink-0 text-muted-foreground"
+          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
         />
       )}
       <span className="min-w-0">{children}</span>
@@ -409,7 +438,7 @@ function Need({ met, children }: { met: boolean; children: ReactNode }) {
 
 function OpenRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <p className="flex items-baseline justify-between gap-3">
+    <p className="flex items-baseline justify-between gap-3 text-ui leading-4.5">
       <span>{label}</span>
       <span className="text-muted-foreground tabular-nums">{children}</span>
     </p>

@@ -53,8 +53,6 @@ export function useWorktreeNavigator() {
     setQuery: (query: string) => setState((current) => ({ ...current, query })),
     setFilter: (filter: typeof state.filter) =>
       setState((current) => ({ ...current, filter })),
-    setClosed: (closed: boolean) =>
-      setState((current) => ({ ...current, closed })),
   };
 }
 

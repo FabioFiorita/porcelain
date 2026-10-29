@@ -8,7 +8,6 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
@@ -32,9 +31,9 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { AnswerableQuestion } from './walkthrough-question';
+import { MarginQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { StateNotice } from '@/shared/views/state-notice';
+import { changeTags, chip } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -81,13 +80,12 @@ export function DecisionPage({
           className="flex min-w-0 flex-col gap-6 text-xs"
         >
           {questions.map((part) => (
-            <AnswerableQuestion
+            <MarginQuestion
               key={part.id}
               part={part}
               revision={revision}
               scope={scope}
               context={context}
-              compact
             />
           ))}
           {links.length > 0 && <Contracts links={links} />}
@@ -142,43 +140,49 @@ export function DecisionPage({
       }
     >
       <div className="flex min-w-0 flex-col gap-6">
-        <header className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>
+        <header className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex min-h-5.5 flex-wrap items-center gap-2.5">
+            <span className="text-ui leading-5.5 font-medium text-muted-foreground tabular-nums">
               Decision {stop.number} of {total}
             </span>
             {questions.length > 0 && (
-              <Badge variant="brand-soft">
+              <span
+                className={cn(
+                  chip,
+                  'border-transparent bg-brand-soft leading-5.5 text-brand',
+                )}
+              >
                 <CircleHelpIcon /> Needs your decision
-              </Badge>
+              </span>
             )}
             {decision?.stale && (
-              <Badge variant="outline">
-                <TriangleAlertIcon className="text-graph-4" /> Code moved
-              </Badge>
+              <span
+                title="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
+                className={cn(
+                  chip,
+                  'border-warn-border bg-warn-soft text-warn',
+                )}
+              >
+                <TriangleAlertIcon /> Code moved since it was explained
+              </span>
             )}
             {finished && (
-              <Badge variant="outline">
-                <CheckIcon className="text-graph-2" /> Reviewed
-              </Badge>
+              <span
+                className={cn(chip, 'border-border-strong text-foreground')}
+              >
+                <CheckIcon className="text-brand" /> Reviewed
+              </span>
             )}
             {pullRequestChip}
           </div>
-          <h2 className="text-4xl font-semibold tracking-tight wrap-anywhere">
-            <span aria-hidden="true" className="text-muted-foreground">
+          <h2 className="text-page-title font-semibold wrap-anywhere">
+            <span aria-hidden="true" className="text-title-dim">
               {stop.number}.{' '}
             </span>
             {layer.title}
           </h2>
           <Summary text={layer.summary} />
         </header>
-        {decision?.stale && (
-          <StateNotice
-            role="status"
-            title="Code moved since it was explained"
-            description="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
-          />
-        )}
         <RouteTable
           layer={layer}
           reviewed={progress.reviewed}
@@ -211,12 +215,6 @@ export function DecisionPage({
   );
 }
 
-function changeVariant(change: NonNullable<DecisionLink['change']>) {
-  if (change === 'new') return 'default';
-  if (change === 'changed') return 'outline';
-  return 'destructive';
-}
-
 function changeLabel(change: NonNullable<DecisionLink['change']>) {
   if (change === 'new') return 'New';
   if (change === 'changed') return 'Changed';
@@ -226,32 +224,30 @@ function changeLabel(change: NonNullable<DecisionLink['change']>) {
 function Contracts({ links }: { links: readonly DecisionLink[] }) {
   return (
     <section aria-label="Contracts" className="flex min-w-0 flex-col gap-2">
-      <h3 className="border-b pb-2 font-medium text-muted-foreground">
-        Contracts
-      </h3>
+      <h3 className="leading-4 font-medium text-muted-foreground">Contracts</h3>
       <ul
         aria-label="Connections"
-        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y"
+        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y @5xl/review:border-y"
       >
         {links.map((link) => (
           <li
             key={link.part.id}
-            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2.5"
+            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2"
           >
             <span className="flex min-w-0 items-baseline gap-1.5 wrap-anywhere @5xl/review:flex-col @5xl/review:gap-0.5">
-              <span className="text-muted-foreground">
+              <span className="leading-4.5 text-muted-foreground">
                 {link.outgoing ? link.verb : `${link.part.label} ${link.verb}`}
               </span>
               {link.outgoing && (
-                <span className="text-caption font-medium text-foreground">
+                <span className="text-ui leading-4.5 font-medium text-foreground">
                   {link.part.label}
                 </span>
               )}
             </span>
             {link.change && (
-              <Badge variant={changeVariant(link.change)}>
+              <span className={changeTags[link.change]}>
                 {changeLabel(link.change)}
-              </Badge>
+              </span>
             )}
           </li>
         ))}
@@ -264,13 +260,10 @@ function Summary({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const long = text.length > LONG_DECISION_SUMMARY;
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-start gap-1 text-foreground-2">
       <MarkdownView
         text={text}
-        className={cn(
-          'text-lg text-pretty [&_p]:leading-7',
-          long && !open && 'line-clamp-3',
-        )}
+        className={`text-lead text-pretty [&_p]:leading-7 ${long && !open ? 'line-clamp-3' : ''}`}
       />
       {long && (
         <Button
@@ -300,12 +293,12 @@ function RouteTable({
   const route = decisionRoute(layer);
   return (
     <section aria-label="Route through the system" className="flex flex-col">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b pb-2 text-xs">
-        <span className="text-muted-foreground tabular-nums">
-          {layer.steps.length} {layer.steps.length === 1 ? 'step' : 'steps'}
+      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b pb-1.5 text-xs text-muted-foreground">
+        <span className="font-medium tabular-nums">
+          {layer.steps.length} {layer.steps.length === 1 ? 'stop' : 'stops'}
         </span>
         {route.length > 0 && (
-          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 font-medium @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
+          <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 text-ui leading-4 font-medium text-foreground @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
             {route.map((lane, index) => (
               <li
                 key={`${lane}:${index}`}
@@ -322,25 +315,31 @@ function RouteTable({
             ))}
           </ol>
         )}
-        <span className="ml-auto text-muted-foreground tabular-nums">
+        <span className="ml-auto tabular-nums">
           {reviewed} of {total} files reviewed here
         </span>
       </div>
       <ol aria-label="Steps" className="flex flex-col">
-        {layer.steps.map((step, index) => (
-          <li key={step.id}>
-            <RouteRow
-              step={step}
-              index={index}
-              lane={
-                index === 0 || layer.steps[index - 1]?.lane !== step.lane
-                  ? layer.lanes[step.lane]
-                  : undefined
-              }
-              onStep={onStep}
-            />
-          </li>
-        ))}
+        {layer.steps.map((step, index) => {
+          const lane =
+            index === 0 || layer.steps[index - 1]?.lane !== step.lane
+              ? layer.lanes[step.lane]
+              : undefined;
+          return (
+            <li
+              key={step.id}
+              className={lane !== undefined && index > 0 ? 'border-t' : ''}
+            >
+              <RouteRow
+                step={step}
+                index={index}
+                lane={lane}
+                current={index === 0}
+                onStep={onStep}
+              />
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -350,11 +349,13 @@ function RouteRow({
   step,
   index,
   lane,
+  current,
   onStep,
 }: {
   step: ReviewStep;
   index: number;
   lane: string | undefined;
+  current: boolean;
   onStep: (step: ReviewStep) => void;
 }) {
   const value = [lane, step.pointer.path].filter(Boolean).join(' · ');
@@ -365,26 +366,30 @@ function RouteRow({
         <button
           type="button"
           aria-label={`Go to step ${index + 1}: ${step.title} · ${value}`}
+          aria-current={current ? 'step' : undefined}
           onClick={() => onStep(step)}
           className={cn(
-            'flex w-full min-w-0 items-start gap-3 py-2 text-left hover:bg-accent/50 @2xl/review:items-baseline',
-            lane !== undefined && index > 0 && 'border-t',
+            'flex min-h-8 w-full min-w-0 items-start gap-3 rounded-md py-1.5 pr-1.5 text-left hover:bg-accent @2xl/review:items-center',
           )}
         >
           {clip(
             lane ?? '',
-            'hidden w-24 shrink-0 text-xs text-muted-foreground @2xl/review:block',
+            'hidden w-22 shrink-0 text-xs text-muted-foreground @2xl/review:block',
           )}
           <span
             className={cn(
-              'grid size-5 shrink-0 place-items-center rounded-full border text-2xs font-semibold text-graph-1 tabular-nums',
-              step.kind === 'context' && 'border-dashed text-muted-foreground',
+              'grid size-5 shrink-0 place-items-center rounded-full text-2xs leading-none tabular-nums',
+              current
+                ? 'bg-brand-soft font-semibold text-brand'
+                : 'border border-border-strong font-medium text-muted-foreground',
+              step.kind === 'context' &&
+                'border border-dashed border-border-strong',
             )}
           >
             {index + 1}
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 @2xl/review:flex-row @2xl/review:items-baseline @2xl/review:gap-3">
-            <span className="min-w-0 text-sm font-medium wrap-anywhere @2xl/review:flex-1">
+            <span className="min-w-0 text-sm leading-4.5 font-medium wrap-anywhere @2xl/review:flex-1">
               {step.title}
               <StepMarker step={step} />
             </span>
@@ -416,7 +421,7 @@ function StepMarker({ step }: { step: ReviewStep }): ReactNode {
         'ml-2 text-xs font-normal text-muted-foreground',
         (step.location.state === 'changed' ||
           step.location.state === 'broken') &&
-          'text-graph-4',
+          'font-medium text-warn',
       )}
     >
       {marker}

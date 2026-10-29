@@ -3,7 +3,6 @@ import { CloudOffIcon, InfoIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
-import { TruncatedText } from '@/shared/views/truncated-text';
 
 export function StateFrame({
   navigation,
@@ -51,11 +50,9 @@ export function StateNotice({
         >
           {icon ?? <InfoIcon />}
         </span>
-        <TruncatedText
-          text={title}
-          render={<h2 />}
-          className="text-base font-semibold"
-        />
+        <h2 className="min-w-0 text-base font-semibold wrap-anywhere">
+          {title}
+        </h2>
       </div>
       {description && (
         <div className="text-ui leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">

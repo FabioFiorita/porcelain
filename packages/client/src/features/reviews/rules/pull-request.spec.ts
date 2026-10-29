@@ -9,6 +9,8 @@ import {
   pullRequestNumber,
   pullRequestRepository,
   pullRequestRollup,
+  pullRequestState,
+  pullRequestStateLabel,
   pullReviewState,
 } from './pull-request.ts';
 
@@ -222,3 +224,17 @@ it.each([
 ] as const)('reports the individual check %j as %s', (check, expected) => {
   expect(pullCheckTone(check)).toBe(expected);
 });
+
+it.each([
+  ['open', false, 'open', 'Open'],
+  ['open', true, 'draft', 'Draft'],
+  ['closed', false, 'closed', 'Closed'],
+  ['closed', true, 'closed', 'Closed'],
+  ['merged', true, 'merged', 'Merged'],
+] as const)(
+  'shows a %s PR with draft %s as %s, labelled %s',
+  (state, draft, shown, label) => {
+    expect(pullRequestState({ state, draft })).toBe(shown);
+    expect(pullRequestStateLabel({ state, draft })).toBe(label);
+  },
+);

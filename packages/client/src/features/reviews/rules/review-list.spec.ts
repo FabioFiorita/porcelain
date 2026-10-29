@@ -9,7 +9,6 @@ import {
   reviewListStatus,
   reviewListTitle,
   reviewPullRequestNotice,
-  pullRequestStateLabel,
   pullRequestBlockHidden,
   pullRequestLink,
   reviewListMeta,
@@ -17,7 +16,8 @@ import {
   reviewListRow,
   reviewListWithoutClosedCheckouts,
   compareNoReviewRows,
-  reviewListRowContext,
+  reviewListSections,
+  reviewListIsSelected,
   reviewListCheckout,
   reviewListView,
   reviewListOptions,
@@ -406,9 +406,10 @@ it.each([
     };
     expect(checkoutFolder(path)).toEqual({ name, parent });
     expect(reviewListCheckout(detached)).toEqual({ name, parent, full: path });
-    expect(reviewListRowContext(detached, false)).toEqual({
+    expect(reviewListRow(detached)).toEqual({
+      kind: 'worktree',
+      title: name,
       project: 'Porcelain',
-      branch: undefined,
       location: parent,
     });
   },
@@ -588,59 +589,6 @@ it('keeps the branch as the label of an attached checkout', () => {
   });
 });
 
-it('adds project context only for multiple visible projects and avoids repeating unreviewed branches', () => {
-  expect(reviewListRowContext(entry, false)).toEqual({
-    project: undefined,
-    branch: 'feature',
-  });
-  expect(reviewListRowContext(entry, true)).toEqual({
-    project: 'Porcelain',
-    branch: 'feature',
-  });
-  expect(reviewListRowContext({ ...entry, group: 'Projects' }, true)).toEqual({
-    project: undefined,
-    branch: 'feature',
-  });
-  expect(
-    reviewListRowContext(
-      { ...entry, group: 'No review', reviewId: undefined },
-      false,
-    ),
-  ).toEqual({ project: 'Porcelain', branch: undefined });
-  expect(
-    reviewListView([entry, other], '', emptyReviewListFilter, false)
-      .multipleProjects,
-  ).toBe(true);
-  expect(
-    reviewListView([entry, other], 'porcelain', emptyReviewListFilter, false)
-      .multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, other],
-      '',
-      { projects: ['beelink/porcelain'], environments: undefined },
-      false,
-    ).multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, { ...entry, key: 'duplicate' }],
-      '',
-      emptyReviewListFilter,
-      false,
-    ).multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, { ...entry, environmentId: 'mac' }],
-      '',
-      emptyReviewListFilter,
-      false,
-    ).multipleProjects,
-  ).toBe(true);
-});
-
 it.each([
   ['an open pull request', false, 'open', false],
   ['a merged pull request', false, 'merged', true],
@@ -736,15 +684,6 @@ it('explains a GitHub failure without treating it as a known pull request state'
 });
 
 it.each([
-  ['open', false, 'Open'],
-  ['open', true, 'Draft'],
-  ['closed', true, 'Closed'],
-  ['merged', true, 'Merged'],
-] as const)('labels a %s PR with draft %s as %s', (state, draft, expected) => {
-  expect(pullRequestStateLabel({ state, draft })).toBe(expected);
-});
-
-it.each([
   [
     'https://github.com/FabioFiorita/porcelain/pull/423',
     'https://github.com/FabioFiorita/porcelain/pull/423',
@@ -801,5 +740,132 @@ it.each([
   'hides the pull request block for link %j and project answer %j: %j',
   (linked, projectPullRequests, hidden) => {
     expect(pullRequestBlockHidden(linked, projectPullRequests)).toBe(hidden);
+  },
+);
+
+it('groups main checkouts with No review, sorts shown branches and keeps Closed last', () => {
+  const closed = {
+    ...entry,
+    key: 'closed',
+    group: 'Closed' as const,
+    closed: true,
+  };
+  const rows = [
+    { ...unreviewed('topic', 'topic', 'Porcelain'), worktreeId: 'topic' },
+    { ...entry, key: 'waiting', group: 'Waiting on agent' as const },
+    unreviewed('main', 'main', 'Porcelain', 'Projects'),
+    entry,
+    { ...entry, key: 'ready', group: 'Ready to merge' as const },
+    closed,
+  ];
+  expect(
+    reviewListSections(rows, '', emptyReviewListFilter, undefined).groups.map(
+      ({ group, rows }) => [group, rows.map((row) => row.key)],
+    ),
+  ).toEqual([
+    ['Needs you', [entry.key]],
+    ['Waiting on agent', ['waiting']],
+    ['Ready to merge', ['ready']],
+    ['No review', ['main', 'topic']],
+    ['Closed', ['closed']],
+  ]);
+});
+
+it.each([
+  [undefined, []],
+  [
+    {
+      kind: 'worktree',
+      environmentId: entry.environmentId,
+      worktreeId: 'worktree',
+    },
+    ['checkout'],
+  ],
+  [{ kind: 'worktree', environmentId: 'other', worktreeId: 'worktree' }, []],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'review' },
+    [],
+  ],
+] as const)(
+  'keeps a closed-only checkout only while that checkout is selected: %j',
+  (selection, expected) => {
+    const closed = { ...entry, closed: true, group: 'Closed' as const };
+    const checkout = {
+      ...entry,
+      key: 'checkout',
+      reviewId: undefined,
+      group: 'No review' as const,
+    };
+    const view = reviewListSections(
+      [checkout, closed],
+      '',
+      emptyReviewListFilter,
+      selection,
+    );
+    expect(
+      view.groups
+        .find((section) => section.group === 'No review')
+        ?.rows.map((row) => row.key),
+    ).toEqual(expected);
+    expect(view.groups.at(-1)?.rows.map((row) => row.key)).toEqual([entry.key]);
+  },
+);
+
+it.each([
+  [undefined, false],
+  [
+    {
+      kind: 'worktree',
+      environmentId: entry.environmentId,
+      worktreeId: 'worktree',
+    },
+    true,
+  ],
+  [{ kind: 'worktree', environmentId: 'other', worktreeId: 'worktree' }, false],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'review' },
+    true,
+  ],
+  [{ kind: 'review', environmentId: 'other', reviewId: 'review' }, false],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'other' },
+    false,
+  ],
+] as const)(
+  'matches only the selected destination on its computer: %j',
+  (selection, expected) => {
+    expect(reviewListIsSelected(entry, selection)).toBe(expected);
+    expect(
+      reviewListIsSelected(
+        { ...entry, closed: true, group: 'Closed' },
+        selection,
+      ),
+    ).toBe(selection?.kind === 'review' && expected);
+  },
+);
+
+it.each([
+  ['absent', emptyReviewListFilter],
+  ['', { projects: [], environments: undefined }],
+  ['', { projects: undefined, environments: [] }],
+  ['', { projects: ['other/project'], environments: undefined }],
+] as const)(
+  'filters active and closed sections together: %s, %j',
+  (query, filter) => {
+    const view = reviewListSections(
+      [entry, { ...entry, closed: true, group: 'Closed' }],
+      query,
+      filter,
+      undefined,
+    );
+    expect(view.rows).toEqual([]);
+    expect(view.groups.map((section) => section.rows)).toEqual([
+      [],
+      [],
+      [],
+      [],
+      [],
+    ]);
+    expect(view.filters.map((section) => section.items.length)).toEqual([1, 1]);
   },
 );

@@ -237,7 +237,7 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         {pull.title}
       </TruncatedText>
       <div className="mt-3.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-2 text-ui leading-5 text-muted-foreground">
-        <PullStatePill pull={pull} large />
+        <PullStatePill pull={pull} />
         {pull.author && (
           <>
             <span
@@ -309,7 +309,7 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         <ul aria-label="Labels" className="mt-3 flex min-w-0 flex-wrap gap-1.5">
           {pull.labels.map((label, index) => (
             <li key={`${label.name}:${index}`} className="min-w-0 max-w-full">
-              <Badge variant="outline" className="h-5.5 max-w-full">
+              <Badge variant="outline" className="max-w-full">
                 <TruncatedText text={label.name} />
               </Badge>
             </li>
@@ -374,7 +374,7 @@ function PullRequestConversation({
       )}
       <p className="mt-4 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-4 text-muted-foreground @min-3xl/pr:ml-7.5">
         Comments to the agent stay in the review.
-        <Button variant="link" size="xs" className="h-auto" onClick={onBack}>
+        <Button variant="link" size="sm" onClick={onBack}>
           Back to the review
         </Button>
       </p>
@@ -447,9 +447,9 @@ function PullRequestTimelineItem({
             {onFile && item.path !== undefined ? (
               <Button
                 variant="ghost"
-                size="xs"
+                size="sm"
                 aria-label={`Open ${file}`}
-                className="h-6 max-w-full min-w-0 justify-start"
+                className="max-w-full min-w-0 justify-start"
                 onClick={() => {
                   if (path !== undefined) onFile(path);
                 }}

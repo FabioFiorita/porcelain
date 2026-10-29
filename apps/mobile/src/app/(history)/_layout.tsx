@@ -7,6 +7,10 @@ function HistoryLayout() {
   return (
     <DestinationLayout name="history" title="History">
       <Stack.Screen
+        name="retained-review/[reviewId]"
+        options={{ title: 'Published review' }}
+      />
+      <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}
       />

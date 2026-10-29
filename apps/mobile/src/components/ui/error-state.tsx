@@ -9,7 +9,7 @@ export function ErrorState({
   retry?: { label: string; onPress: () => void; pending?: boolean };
 }) {
   return (
-    <View className="gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
+    <View className="gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
       <Text accessibilityRole="alert" variant="ui" tone="destructive">
         {message}
       </Text>

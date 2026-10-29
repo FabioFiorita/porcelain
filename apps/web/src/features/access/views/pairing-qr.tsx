@@ -11,13 +11,16 @@ export function PairingQr({ link }: { link: string }) {
       row.flatMap((dark, x) => (dark ? [`M${x} ${y}h1v1h-1z`] : [])),
     )
     .join('');
+  const pixels = size * 2;
   return (
     <svg
       role="img"
       aria-label="Pairing QR code"
+      width={pixels}
+      height={pixels}
       viewBox={`0 0 ${size} ${size}`}
       shapeRendering="crispEdges"
-      className="size-40 shrink-0 rounded-md bg-white text-black"
+      className="shrink-0 rounded-sm bg-white text-black"
     >
       <path d={path} fill="currentColor" />
     </svg>

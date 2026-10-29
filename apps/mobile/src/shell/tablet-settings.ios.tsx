@@ -94,6 +94,7 @@ export function TabletSettings() {
                     <Item
                       key={entry.id}
                       title={entry.title}
+                      accessibilityLabel={entry.title}
                       leading={<Icon name={entry.icon} />}
                       size="sm"
                       testID={entry.testID}
