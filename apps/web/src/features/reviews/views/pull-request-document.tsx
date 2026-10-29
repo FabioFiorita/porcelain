@@ -69,6 +69,12 @@ type Props = {
   onFile?: ((path: string) => void) | undefined;
 };
 
+const reviewStateBadges = {
+  passed: 'open',
+  failed: 'closed',
+  none: 'outline',
+} as const;
+
 export function PullRequestDocument({
   reviewId,
   number,
@@ -124,7 +130,7 @@ export function PullRequestDocument({
       <article
         aria-busy={result.waiting}
         aria-label={`Pull request #${number}`}
-        className="mx-auto w-full max-w-280 min-w-0 px-4 pt-9 pb-12 @min-3xl/pr:px-7"
+        className="mx-auto w-full max-w-280 min-w-0 px-4 pt-9 pb-12 text-ui @min-3xl/pr:px-7"
       >
         <PullRequestHeader pull={pull} />
         <div className="mt-7 flex min-w-0 flex-col gap-x-11 gap-y-7 @min-4xl/pr:flex-row">
@@ -412,9 +418,7 @@ function PullRequestTimelineItem({
             className="text-ui leading-4.5 font-semibold text-foreground"
           />
           {review && (
-            <Badge
-              variant={review.tone === 'failed' ? 'destructive' : 'outline'}
-            >
+            <Badge variant={reviewStateBadges[review.tone]}>
               {review.label}
             </Badge>
           )}
