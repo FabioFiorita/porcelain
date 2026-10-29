@@ -62,6 +62,12 @@ None on disk. The default server has two paired devices, both bound to "This com
    Expect: switch "Local network" checked and the text `http://192.168.1.20:<port>`. A badge "Starting" may show first; inspect the accessibility tree again after a second.
 4. Stay on This computer and scroll to Pair a device
    Expect: textbox "Device name"; the text "The link opens through Local network. The device will work only through the way in it pairs over. To use it through another way in too, pair it again through that one."
+   With multiple ways in enabled, Opens through shows the selected way-in name
+   and its full address on a separate wrapping line. Open the chooser: every
+   option discloses its full address, wrapping as needed. Check at 1440, 1080
+   and 414 px in light and dark, including keyboard selection and Escape
+   returning focus to the trigger. Changing the selection updates the address
+   below the trigger.
 5. Fill textbox `Device name` with 'My phone'
    Expect: button "Create pairing link" enabled.
 6. Click button `Create pairing link`

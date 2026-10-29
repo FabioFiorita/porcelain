@@ -107,17 +107,29 @@ export function PairDevice({
                 if (value) setChosen(value);
               }}
             >
-              <SelectTrigger id="pairing-address" className="h-7.5 w-full">
-                <SelectValue />
+              <SelectTrigger
+                id="pairing-address"
+                aria-describedby="pairing-address-url"
+                className="h-7.5 w-full"
+              >
+                <SelectValue>{remoteRouteTitles[target.route]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {addresses.map(({ route, url }) => (
                   <SelectItem key={url} value={url}>
-                    {`${remoteRouteTitles[route]} · ${url}`}
+                    <span className="mr-4 min-w-0 whitespace-normal [overflow-wrap:anywhere]">
+                      {`${remoteRouteTitles[route]} · ${url}`}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p
+              id="pairing-address-url"
+              className="text-xs text-muted-foreground [overflow-wrap:anywhere]"
+            >
+              {target.url}
+            </p>
           </Field>
         )}
         <Button
