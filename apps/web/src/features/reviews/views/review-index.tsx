@@ -140,7 +140,10 @@ export function ReviewIndex({
         label="Changes to review"
         className="px-2.5 pt-3"
         value={changeScope}
-        onValue={onChangeScope}
+        onValue={(next) => {
+          setComposing(false);
+          onChangeScope(next);
+        }}
         options={CHANGE_SCOPES}
       />
       {branch ? (
@@ -163,7 +166,10 @@ export function ReviewIndex({
       )}
       <ReviewViews
         view={view}
-        onView={setView}
+        onView={(next) => {
+          setComposing(false);
+          setView(next);
+        }}
         filesLabel={review && !branch ? 'Explore' : 'Changed files'}
         openComments={openComments}
       />
@@ -361,15 +367,13 @@ function LayersView({
               setGroups({ changes: expanded, specs: expanded })
             }
           >
-            {!review && (
-              <SidebarDocumentRow
-                label="Open all specs"
-                active={activeEntry === 'specs'}
-                onOpen={() => onOpen(SPECS)}
-              >
-                Open all specs
-              </SidebarDocumentRow>
-            )}
+            <SidebarDocumentRow
+              label="Open all specs"
+              active={activeEntry === 'specs'}
+              onOpen={() => onOpen(SPECS)}
+            >
+              Open all specs
+            </SidebarDocumentRow>
             {specPaths.map(renderChange)}
           </SidebarGroup>
         )}

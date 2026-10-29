@@ -105,7 +105,6 @@ function PublishedNavigation({
       marks={marks}
       context={context}
       activeStop={activeEntry === 'handoff' ? place.place : undefined}
-      activeStep={selection.step}
       onStop={open}
       onStep={(step) => {
         const owner = snapshot.content.layers.find((layer) =>

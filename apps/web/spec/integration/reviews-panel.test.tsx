@@ -255,12 +255,12 @@ test('a decision step marks its file reviewed and the header starts a whole-chan
     await panel.getByRole('tab', { name: 'Review', exact: true }).click();
   };
   await open();
-  await expect
-    .element(panel.getByText('No changes', { exact: true }))
-    .not.toBeInTheDocument();
-  await panel
-    .getByRole('button', { name: /^1 Mark the step from the panel/ })
-    .click();
+  const decision = panel.getByRole('button', {
+    name: /^1 Mark the step from the panel/,
+  });
+  await expect.element(decision).toBeVisible();
+  expect(panel.getByText('No changes', { exact: true }).query()).toBeNull();
+  await decision.click();
   await open();
   const reviewed = panel
     .getByRole('list', { name: 'Stops of decision 1', exact: true })
