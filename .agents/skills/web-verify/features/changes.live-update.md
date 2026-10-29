@@ -8,6 +8,7 @@ selectors:
   - 'Changes'
 tests:
   - apps/web/spec/integration/changes-live-update.test.tsx
+  - apps/web/spec/integration/files-disk-refresh.test.tsx
 api:
   - GET /api/live
   - GET /api/worktrees/:worktreeId/changes
@@ -76,7 +77,11 @@ Continuing with the sheet open on tab "Changes" and "live-note.md · untracked" 
 
 No reload between mutations. Disk agrees with rendered text/tree; `git status --porcelain` adds then removes live-note.md. Refreshed text/directory/changes reads answer 200.
 
-Automated coverage: `changes-live-update.test.tsx`.
+Repeat the open-file update with the file tab's context menu → Open to the side. Both clean panes show the new text, including when another writer restores an earlier version. Open Edit afterward and confirm the editor starts with the latest disk text. The console stays free of React render-update warnings throughout.
+
+With an unsaved edit in one pane, repeat the disk update. The other pane shows the disk text while the editor keeps its draft. Done reports the existing conflict; Reload shows the disk text. Follow [files.edit-conflict](files.edit-conflict.md) for the conflict controls and independent disk readback.
+
+Automated coverage: `changes-live-update.test.tsx`, `files-disk-refresh.test.tsx`.
 
 ## Gotchas
 

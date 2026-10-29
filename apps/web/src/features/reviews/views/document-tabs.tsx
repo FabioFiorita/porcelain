@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/tooltip';
 
 function revealTab(tab: HTMLElement | null) {
-  const viewport = tab?.closest('[role="tablist"]')?.parentElement;
+  const viewport = tab?.closest<HTMLElement>('[data-tab-viewport]');
   if (!tab || !viewport) return;
   const chip = tab.getBoundingClientRect();
   const frame = viewport.getBoundingClientRect();
@@ -86,6 +86,8 @@ function describeTab(key: string, reviewTitle: ReviewTitle | undefined) {
         hint: `${ref.path} · changes`,
       };
     case 'file':
+    case 'review-file':
+    case 'review-change':
       return {
         Icon: FileCodeIcon,
         title: basename(ref.path),
@@ -171,85 +173,109 @@ export function DocumentTabs({
     <div
       data-pane-bar=""
       className={cn(
-        'flex h-12 shrink-0 items-center gap-1 border-b px-1.5',
+        'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
+        side !== null && side !== undefined && 'gap-2',
         side !== null && side !== undefined && focused && 'bg-muted/40',
       )}
     >
       {leading !== null && leading !== undefined && (
-        <div className="flex shrink-0 items-center pl-1">{leading}</div>
+        <div className="flex shrink-0 items-center">{leading}</div>
       )}
-      <ScrollAreaPrimitive.Root className="@container/tabs relative h-full min-w-0 flex-1">
-        <ScrollAreaPrimitive.Viewport
-          className="size-full overflow-y-hidden"
-          ref={(viewport) => {
-            if (!viewport) return;
-            const reveal = () =>
-              revealTab(
-                viewport.querySelector<HTMLElement>(
-                  '[role="tab"][aria-selected="true"]',
-                ),
-              );
-            let frame = 0;
-            const observer = new ResizeObserver(() => {
-              cancelAnimationFrame(frame);
-              frame = requestAnimationFrame(reveal);
-            });
-            observer.observe(viewport);
-            return () => {
-              cancelAnimationFrame(frame);
-              observer.disconnect();
-            };
-          }}
-        >
-          <div
-            role="tablist"
-            aria-label={
-              side === null || side === undefined
-                ? 'Open documents'
-                : `Open documents, ${side} pane`
-            }
-            className="flex h-full w-max min-w-full items-center gap-1 px-1.5"
+      <div
+        role="tablist"
+        aria-label={
+          side === null || side === undefined
+            ? 'Open documents'
+            : `Open documents, ${side} pane`
+        }
+        className="flex h-full min-w-0 flex-1 items-center gap-1"
+      >
+        {tabs.includes('handoff') && (
+          <span className="flex shrink-0">
+            <DocumentTab
+              tabKey="handoff"
+              reviewCount={reviewCount}
+              active={active === 'handoff'}
+              pinned={false}
+              hasUnpinned={tabs.some(
+                (key) => key !== 'handoff' && !pinned.includes(key),
+              )}
+              reviewTitle={reviewTitle}
+              side={side}
+              {...actions}
+            />
+          </span>
+        )}
+        <ScrollAreaPrimitive.Root className="@container/tabs relative h-full min-w-0 flex-1">
+          <ScrollAreaPrimitive.Viewport
+            data-tab-viewport=""
+            className="size-full overflow-y-hidden"
+            ref={(viewport) => {
+              if (!viewport) return;
+              const reveal = () =>
+                revealTab(
+                  viewport.querySelector<HTMLElement>(
+                    '[role="tab"][aria-selected="true"]',
+                  ),
+                );
+              let frame = 0;
+              const observer = new ResizeObserver(() => {
+                cancelAnimationFrame(frame);
+                frame = requestAnimationFrame(reveal);
+              });
+              observer.observe(viewport);
+              return () => {
+                cancelAnimationFrame(frame);
+                observer.disconnect();
+              };
+            }}
           >
-            {tabs.map((key, index) => {
-              const isPinned = pinned.includes(key);
-              const endOfPinned =
-                isPinned &&
-                !pinned.includes(tabs[index + 1] ?? '') &&
-                index < tabs.length - 1;
-              return (
-                <span key={key} className="contents">
-                  <DocumentTab
-                    tabKey={key}
-                    reviewCount={reviewCount}
-                    active={key === active}
-                    pinned={isPinned}
-                    hasUnpinned={tabs.some(
-                      (item) => item !== 'handoff' && !pinned.includes(item),
-                    )}
-                    reviewTitle={reviewTitle}
-                    side={side}
-                    {...actions}
-                  />
-                  {endOfPinned && (
+            <div className="flex h-full w-max min-w-full items-center gap-1 px-1.5">
+              {tabs
+                .filter((key) => key !== 'handoff')
+                .map((key, index) => {
+                  const isPinned = pinned.includes(key);
+                  const endOfPinned =
+                    isPinned &&
+                    !pinned.includes(tabs[index + 1] ?? '') &&
+                    index < tabs.length - 1;
+                  return (
                     <span
-                      aria-hidden="true"
-                      className="mx-0.5 h-4 w-px shrink-0 bg-border"
-                    />
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        </ScrollAreaPrimitive.Viewport>
-        <ScrollBar
-          orientation="horizontal"
-          className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
-        />
-      </ScrollAreaPrimitive.Root>
+                      key={key}
+                      className="flex min-w-0 shrink-0 items-center"
+                    >
+                      <DocumentTab
+                        tabKey={key}
+                        reviewCount={reviewCount}
+                        active={key === active}
+                        pinned={isPinned}
+                        hasUnpinned={tabs.some(
+                          (item) =>
+                            item !== 'handoff' && !pinned.includes(item),
+                        )}
+                        reviewTitle={reviewTitle}
+                        side={side}
+                        {...actions}
+                      />
+                      {endOfPinned && (
+                        <span
+                          aria-hidden="true"
+                          className="mx-0.5 h-4 w-px shrink-0 bg-border"
+                        />
+                      )}
+                    </span>
+                  );
+                })}
+            </div>
+          </ScrollAreaPrimitive.Viewport>
+          <ScrollBar
+            orientation="horizontal"
+            className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
+          />
+        </ScrollAreaPrimitive.Root>
+      </div>
       {trailing !== null && trailing !== undefined && (
-        <div className="flex shrink-0 items-center gap-0.5 px-1.5">
-          {trailing}
-        </div>
+        <div className="flex shrink-0 items-center gap-0.5">{trailing}</div>
       )}
     </div>
   );
@@ -295,14 +321,17 @@ function DocumentTab({
   };
 
   return (
-    <span className="inline-flex">
+    <span className="inline-flex min-w-0 flex-1">
       <ContextMenu
         onOpenChange={(open) => {
           if (open) setOpeningSide(false);
         }}
       >
         <TruncatedText
-          className={cn('min-w-0', tabKey.startsWith('file:') && 'italic')}
+          className={cn(
+            'min-w-0 flex-1',
+            tabKey.startsWith('file:') && 'italic',
+          )}
           text={pinned ? `${hint} · pinned` : hint}
           disclose="always"
           renderTrigger={(label) => (
@@ -318,10 +347,11 @@ function DocumentTab({
                   aria-label={accessibleName}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-[--spacing(1.75)] px-2 text-xs font-medium transition-colors',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent/50',
+                    active && tabKey !== 'handoff' && !pinned && 'pr-0.5',
                   )}
                   onClick={() => onActivate(tabKey)}
                   onAuxClick={(event) => {
@@ -340,7 +370,7 @@ function DocumentTab({
               <Icon className="size-3.5 shrink-0" />
               {label}
               {tabKey === 'handoff' && reviewCount && (
-                <span className="shrink-0 whitespace-nowrap">
+                <span className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground">
                   {reviewCount}
                 </span>
               )}
@@ -375,7 +405,7 @@ function DocumentTab({
                           event.stopPropagation();
                           onClose(tabKey);
                         }}
-                        className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                        className="mr-0.5 grid size-5 place-items-center rounded-[--spacing(1.25)] text-ui leading-[normal] font-normal text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
                       />
                     }
                   >

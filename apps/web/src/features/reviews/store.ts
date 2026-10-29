@@ -141,11 +141,9 @@ export { tabs as tabLayoutState };
 const revisionSelection = Atom.family((_reviewId: string) =>
   Atom.make<{
     revision: number | undefined;
-    step: string | undefined;
     request: number;
   }>({
     revision: undefined,
-    step: undefined,
     request: 0,
   }).pipe(Atom.keepAlive),
 );
@@ -155,8 +153,8 @@ export function useReviewRevisionSelection(reviewId: string) {
   const set = useAtomSet(state);
   return {
     ...selection,
-    choose: (revision: number | undefined, step?: string) =>
-      set((current) => ({ revision, step, request: current.request + 1 })),
+    choose: (revision: number | undefined) =>
+      set((current) => ({ revision, request: current.request + 1 })),
   };
 }
 
@@ -191,5 +189,19 @@ export function usePullRequestLinkFocus(reviewId: string) {
       element.focus();
       set(false);
     },
+  };
+}
+
+const reviewFileOrigins = Atom.family((_revision: string) =>
+  Atom.make<Readonly<Record<string, string>>>({}).pipe(Atom.keepAlive),
+);
+
+export function useReviewFileOrigins(reviewId: string, revision: number) {
+  const atom = reviewFileOrigins(`${reviewId}:${revision}`);
+  const set = useAtomSet(atom);
+  return {
+    steps: useAtomValue(atom),
+    choose: (path: string, stepId: string) =>
+      set((current) => ({ ...current, [path]: stepId })),
   };
 }

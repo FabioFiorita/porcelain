@@ -1,4 +1,6 @@
 import type { OpenDocument } from '../rules/documents';
+import { Option } from 'effect';
+import { PlainChangesDocument, type DocumentProps } from './documents';
 import { useState } from 'react';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
@@ -12,7 +14,7 @@ import {
   StateSkeleton,
 } from '@/shared/views/state-notice';
 
-export function BranchReviewPage({
+function BranchReviewPage({
   scope,
   context,
   active,
@@ -54,11 +56,11 @@ export function BranchReviewPage({
     <ReviewPage
       key={selection.request}
       toolbarTarget={toolbarTarget}
+      onOpen={onOpen}
       proofCurrent={published.review?.proof.current}
       active={active}
       reviewId={reviewId}
       revision={selection.revision}
-      initialStep={selection.step}
       context={context}
       onRevision={selection.choose}
       onBack={() => selection.choose(undefined)}
@@ -66,11 +68,28 @@ export function BranchReviewPage({
         setDeleted(reviewId);
         published.refresh();
       }}
-      onOpenPullRequest={(number) =>
-        onOpen({ kind: 'pull-request', reviewId, number })
-      }
       onShowReviewPanel={(trigger) => onBrowse('changes', trigger)}
       liveScope={scope}
+    />
+  );
+}
+
+export function HandoffDocument(props: DocumentProps) {
+  const published = usePublishedReview(props.scope, props.context);
+  if (published.review?.reviewId)
+    return (
+      <BranchReviewPage
+        {...props}
+        toolbarTarget={props.interaction.toolbarTarget}
+        active={props.interaction.active}
+      />
+    );
+  return (
+    <PlainChangesDocument
+      {...props}
+      intro={
+        Option.isSome(AsyncResult.value(published.result)) && !published.review
+      }
     />
   );
 }

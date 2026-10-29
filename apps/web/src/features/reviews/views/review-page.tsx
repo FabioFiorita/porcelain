@@ -1,3 +1,4 @@
+import { cn } from '@/shared/lib/utils';
 import { createPortal } from 'react-dom';
 import { ListChecksIcon, FileTextIcon, PanelRightIcon } from 'lucide-react';
 import {
@@ -13,7 +14,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { useElement } from '@/shared/hooks/use-element';
 import type { Surface } from '@/shared/workspace/search';
@@ -55,7 +55,6 @@ import {
   walkthroughStops,
   revisionReviewItems,
   type ReviewRevision,
-  type ReviewStep,
   type ReviewScope,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
@@ -72,9 +71,8 @@ import {
   useReviewPanelOpen,
   useWalkthroughPlace,
   usePullRequestLinkFocus,
+  useReviewFileOrigins,
 } from '../store';
-import { GitButton } from '@/features/git-actions/index';
-import { DocumentTabs } from './document-tabs';
 import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
@@ -85,7 +83,11 @@ import { MarginRow } from './margin-row';
 import { SummaryFrame } from './summary-frame';
 import { WalkthroughDock } from './walkthrough-dock';
 import { useComments } from '../queries/comments';
-import { RevisionCode, RevisionFile } from './revision-code';
+import { ReviewDocumentWorkspace } from './review-document-workspace';
+import { entryKey, type OpenDocument } from '../rules/documents';
+import { useTabLayout, type PaneIndex } from '../adapters/tab-layout';
+import type { WorkspaceSearch } from '@/shared/workspace/search';
+import { RevisionCode } from './revision-code';
 import {
   StateFrame,
   StateFailure,
@@ -94,7 +96,6 @@ import {
 } from '@/shared/views/state-notice';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewPullRequestChip } from './review-pull-request-chip';
-import { PullRequestDocument } from './pull-request-document';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -102,8 +103,8 @@ import { outlinePill, primaryPill } from './review-controls';
 import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
+  onOpen?: OpenDocument | undefined;
   toolbarTarget?: HTMLElement | null | undefined;
-  onOpenPullRequest?: ((number: number) => void) | undefined;
   onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
   navigation?: ReactNode;
@@ -116,12 +117,12 @@ type ReviewPageProps = {
   onBack: () => void;
   onDeleted?: (() => void) | undefined;
   liveScope?: ReviewScope | undefined;
-  initialStep?: string | undefined;
   proofCurrent?: boolean | undefined;
 };
 
 export function ReviewPage({
   reviewId,
+  onOpen,
   toolbarTarget,
   navigation,
   revision,
@@ -132,9 +133,7 @@ export function ReviewPage({
   onBack,
   onDeleted,
   liveScope,
-  initialStep,
   proofCurrent = true,
-  onOpenPullRequest,
   onShowReviewPanel,
   active = true,
 }: ReviewPageProps) {
@@ -162,8 +161,9 @@ export function ReviewPage({
   return (
     <ReviewRevisionPage
       key={`${reviewId}:${data.revision.revision}`}
-      navigation={navigation}
       toolbarTarget={toolbarTarget}
+      navigation={navigation}
+      onOpen={onOpen}
       data={data}
       revision={data.revision}
       context={context}
@@ -173,10 +173,8 @@ export function ReviewPage({
       onBack={onBack}
       onDeleted={onDeleted}
       liveScope={liveScope}
-      initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
-      onOpenPullRequest={onOpenPullRequest}
       onShowReviewPanel={onShowReviewPanel}
       reread={{
         run: retry,
@@ -271,6 +269,7 @@ function ReviewFailure({
 function ReviewRevisionPage({
   toolbarTarget,
   navigation,
+  onOpen,
   data,
   revision,
   context,
@@ -280,9 +279,7 @@ function ReviewRevisionPage({
   onBack,
   onDeleted,
   liveScope,
-  initialStep,
   proofCurrent = true,
-  onOpenPullRequest,
   onShowReviewPanel,
   active = true,
   reread,
@@ -349,32 +346,45 @@ function ReviewRevisionPage({
   const place = useWalkthroughPlace(
     `${revision.reviewId}:${revision.revision}`,
   );
+  const origins = useReviewFileOrigins(revision.reviewId, revision.revision);
   const [chosen, setChosen] = useState<string>();
   const [view, setView] = useState<'walkthrough' | 'summary'>('walkthrough');
-  const [file, setFile] = useState<
-    | {
-        path: string;
-        step?: ReviewStep;
-        change?: true;
-      }
-    | undefined
-  >(() => {
-    const step = review.layers
-      .flatMap((layer) => layer.steps)
-      .find((step) => step.id === initialStep);
-    return step ? { path: step.pointer.path, step } : undefined;
-  });
   const standalone = toolbarTarget === undefined;
+  const [tabSearch, setTabSearch] = useState<WorkspaceSearch>({
+    entry: 'handoff',
+  });
+  const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
+  const tabLayout = useTabLayout({
+    worktreeId: `review:${revision.reviewId}:${revision.revision}`,
+    entry: tabSearch.entry,
+    side: tabSearch.side,
+    onSearch: (updates) =>
+      setTabSearch((current) => ({ ...current, ...updates })),
+    fallback: 'handoff',
+    ready: standalone,
+    focused: focusedPane,
+    setFocused: setFocusedPane,
+    focusBoundary: null,
+    focusBoundaryOpen: false,
+  });
+  const openDocument: OpenDocument = (ref, anchor, options) => {
+    if (!standalone) {
+      onOpen?.(ref, anchor, options);
+      return;
+    }
+    if (options?.toSide) tabLayout.openToSide(focusedPane, entryKey(ref));
+    else tabLayout.open(focusedPane, entryKey(ref));
+  };
+  const reviewActive =
+    active &&
+    (!standalone || tabLayout.panes[focusedPane]?.active === 'handoff');
   const desktop = useDesktopReview();
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
     revision.reviewId,
   );
   const linkFocus = usePullRequestLinkFocus(revision.reviewId);
-  const [pullNumber, setPullNumber] = useState<number>();
-  const openPullRequest = (number: number) => {
-    if (onOpenPullRequest) onOpenPullRequest(number);
-    else setPullNumber(number);
-  };
+  const openPullRequest = (number: number) =>
+    openDocument({ kind: 'pull-request', reviewId: revision.reviewId, number });
   const [sheetOpen, setSheetOpen] = useState(false);
   const railToggle = useElement<HTMLButtonElement>();
   const scroller = useElement<HTMLElement>();
@@ -383,7 +393,6 @@ function ReviewRevisionPage({
     setRouted(decision);
     setChosen(undefined);
     setView('walkthrough');
-    setFile(undefined);
   }
   const stops = walkthroughStops(
     review,
@@ -416,21 +425,34 @@ function ReviewRevisionPage({
     setChosen(key);
     place.setPlace(key);
     setView('walkthrough');
-    setFile(undefined);
+    if (standalone) tabLayout.activate(0, 'handoff');
     onStop?.(review.layers.find((entry) => decisionKey(entry.id) === key)?.id);
   };
   const interaction = {
-    active,
+    active: reviewActive,
     worktreeId: revision.reviewId,
     entry: `review:${revision.revision}`,
   };
+  const openStep = (
+    step: ReviewRevision['content']['layers'][number]['steps'][number],
+  ) => {
+    origins.choose(step.pointer.path, step.id);
+    openPath(step.pointer.path);
+  };
+  const openPath = (path: string) =>
+    openDocument({
+      kind: 'review-file',
+      reviewId: revision.reviewId,
+      revision: revision.revision,
+      path,
+    });
   const props = {
     review,
     scope,
     context,
     interaction,
     onOpen: (document: { kind: string; path?: string }) => {
-      if (document.path) setFile({ path: document.path });
+      if (document.path) openPath(document.path);
     },
   };
   const presentation = (
@@ -445,7 +467,6 @@ function ReviewRevisionPage({
           )
             renewSummaryLink();
           setView(value);
-          setFile(undefined);
         }
       }}
     >
@@ -574,20 +595,25 @@ function ReviewRevisionPage({
             onStep={(step) =>
               reveal(() => {
                 setView('walkthrough');
-                setFile({ path: step.pointer.path, step });
+                openStep(step);
               })
             }
-            file={file?.path}
+            file={undefined}
             onFile={(path) =>
               reveal(() => {
                 setView('walkthrough');
-                setFile({ path });
+                openPath(path);
               })
             }
             onChange={(path) =>
               reveal(() => {
                 setView('walkthrough');
-                setFile({ path, change: true });
+                openDocument({
+                  kind: 'review-change',
+                  reviewId: revision.reviewId,
+                  revision: revision.revision,
+                  path,
+                });
               })
             }
             onStop={(key) => reveal(() => go(key))}
@@ -600,100 +626,38 @@ function ReviewRevisionPage({
       )}
     </SidePanel>
   );
-  if (pullNumber !== undefined)
-    return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 self-start"
-          onClick={() => setPullNumber(undefined)}
-        >
-          Back to the review
-        </Button>
-        <PullRequestDocument
-          reviewId={revision.reviewId}
-          number={pullNumber}
-          context={context}
-          onBack={() => setPullNumber(undefined)}
-          onFile={(path) => {
-            setPullNumber(undefined);
-            setView('walkthrough');
-            setFile({ path });
-          }}
-        />
-      </div>
-    );
+  const panelControl = (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={names.changes}
+            onClick={() => (desktop ? togglePanel() : setSheetOpen(true))}
+          />
+        }
+      >
+        <PanelRightIcon className="size-3.5" />
+      </TooltipTrigger>
+      <TooltipContent>
+        {names.changes}
+        <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
   const page = (
     <section
       ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
-      className="@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-paper border bg-card wrap-anywhere"
+      className={cn(
+        '@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
+        !standalone && 'rounded-paper border',
+      )}
       style={{ containerName: 'pane review' }}
     >
-      {toolbarTarget === undefined && (
-        <DocumentTabs
-          tabs={['handoff']}
-          pinned={[]}
-          active="handoff"
-          reviewTitle="Review"
-          reviewCount={
-            <span
-              aria-hidden="true"
-              className="text-2xs leading-4 text-muted-foreground tabular-nums"
-            >
-              {reviewedDecisions}/{review.layers.length}
-            </span>
-          }
-          side={null}
-          focused={active}
-          leading={navigation}
-          trailing={
-            <>
-              {bar}
-              {currentScope && (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="mx-1 h-5 w-px bg-border"
-                  />
-                  <GitButton scope={currentScope} context={context} />
-                </>
-              )}
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <SheetTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="xl:hidden"
-                          aria-label={names.changes}
-                          aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                        />
-                      }
-                    >
-                      <PanelRightIcon />
-                    </SheetTrigger>
-                  }
-                />
-                <TooltipContent>
-                  {names.changes}{' '}
-                  <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
-                </TooltipContent>
-              </Tooltip>
-            </>
-          }
-          onActivate={() => {}}
-          onClose={() => {}}
-          onCloseOthers={() => {}}
-          onCloseUnpinned={() => {}}
-          onTogglePin={() => {}}
-        />
-      )}
       {toolbarTarget && createPortal(bar, toolbarTarget)}
-      {active && view === 'walkthrough' && (
+      {reviewActive && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
       )}
       {currentScope && (
@@ -802,37 +766,7 @@ function ReviewRevisionPage({
                     />
                   </div>
                 )}
-              {view === 'walkthrough' && file && (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="self-start"
-                    onClick={() => setFile(undefined)}
-                  >
-                    Back to decision
-                  </Button>
-                  {file.change ? (
-                    <RevisionCode
-                      revision={revision}
-                      paths={[file.path]}
-                      scope={scope}
-                      context={context}
-                      active={active}
-                      marks={marks ?? { files: [], decisions: [] }}
-                    />
-                  ) : (
-                    <RevisionFile
-                      revision={revision}
-                      scope={scope}
-                      context={context}
-                      path={file.path}
-                      step={file.step}
-                      active={active}
-                    />
-                  )}
-                </>
-              )}
-              {view === 'walkthrough' && !file && stop.kind === 'briefing' && (
+              {view === 'walkthrough' && stop.kind === 'briefing' && (
                 <WalkthroughBriefing
                   {...props}
                   revision={revision}
@@ -859,7 +793,7 @@ function ReviewRevisionPage({
                   onGo={go}
                 />
               )}
-              {view === 'walkthrough' && !file && stop.kind !== 'briefing' && (
+              {view === 'walkthrough' && stop.kind !== 'briefing' && (
                 <section
                   role="region"
                   aria-label={
@@ -888,9 +822,7 @@ function ReviewRevisionPage({
                           finished={done(stop)}
                           items={items}
                           onGo={go}
-                          onStep={(step) =>
-                            setFile({ path: step.pointer.path, step })
-                          }
+                          onStep={openStep}
                         />
                         <MarginRow>
                           <RevisionCode
@@ -899,7 +831,7 @@ function ReviewRevisionPage({
                             paths={stop.paths}
                             scope={scope}
                             context={context}
-                            active={active}
+                            active={reviewActive}
                             marks={marks ?? { files: [], decisions: [] }}
                             steps={stop.layer.steps}
                             decision
@@ -949,7 +881,7 @@ function ReviewRevisionPage({
                             paths={section.paths}
                             scope={scope}
                             context={context}
-                            active={active && section.key === stop.key}
+                            active={reviewActive && section.key === stop.key}
                             marks={marks ?? { files: [], decisions: [] }}
                             card
                             gaps={false}
@@ -1027,7 +959,17 @@ function ReviewRevisionPage({
     <Sheet open={sheetOpen && !desktop} onOpenChange={setSheetOpen}>
       <PanelKeys onShow={showPanel} onToggle={togglePanel} />
       <div className="flex min-h-0 min-w-0 flex-1">
-        {page}
+        <ReviewDocumentWorkspace
+          revision={revision}
+          context={context}
+          navigation={navigation}
+          layout={tabLayout}
+          focused={focusedPane}
+          onOpen={openDocument}
+          review={page}
+          reviewActions={bar}
+          panelControl={panelControl}
+        />
         {desktop && panelOpen && (
           <div className="ml-2 w-80 shrink-0">{panel('docked')}</div>
         )}

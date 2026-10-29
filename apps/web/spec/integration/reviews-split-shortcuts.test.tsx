@@ -1,5 +1,68 @@
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
+
+for (const [width, labelled] of [
+  [1440, true],
+  [1080, false],
+  [414, false],
+] as const) {
+  const splitTest = test.extend('splitGitControls', async ({
+    render,
+    server,
+    repo,
+  }, { onCleanup }) => {
+    onCleanup(() => page.viewport(414, 896));
+    const project = await server.project();
+    const worktree = project.worktrees.find((entry) => entry.main);
+    if (!worktree) throw new Error('The fixture has no main worktree');
+    const { page: workspace } = await render.route(
+      `/${project.id}/${worktree.id}`,
+    );
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+    await workspace
+      .getByRole('treeitem', { name: repo.readme.path, exact: true })
+      .click({ button: 'right' });
+    await workspace
+      .getByRole('menuitem', { name: 'Open file', exact: true })
+      .click();
+    await workspace
+      .getByRole('tab', { name: new RegExp(repo.readme.path), exact: true })
+      .click({ button: 'right' });
+    await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+    await page.viewport(width, 896);
+    if (width === 1440)
+      await workspace
+        .getByRole('button', { name: 'Hide side panel', exact: true })
+        .click();
+    const right = workspace.getByRole('region', {
+      name: 'Right pane',
+      exact: true,
+    });
+    await expect.element(right).toBeVisible();
+    return { workspace, right };
+  });
+
+  splitTest(
+    `split Git controls keep their label only when the pane has room at ${width} px`,
+    async ({ splitGitControls: { workspace, right } }) => {
+      const commit = right.getByRole('button', { name: 'Commit', exact: true });
+      await expect.element(commit).toBeVisible();
+      const label = commit.getByText('Commit', { exact: true });
+      if (labelled) await expect.element(label).toBeVisible();
+      else await expect.element(label).not.toBeVisible();
+      await right
+        .getByRole('button', { name: 'Git actions', exact: true })
+        .click();
+      await expect
+        .element(workspace.getByRole('menuitem', { name: /^Commit…/ }))
+        .toBeVisible();
+      await userEvent.keyboard('{Escape}');
+    },
+  );
+}
 
 test('split tabs register their shortcuts once and Alt+W closes the focused pane alone', async ({
   workspace,

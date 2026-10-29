@@ -6,8 +6,6 @@ import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 import { useInventory } from '@/features/projects/index';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
@@ -27,6 +25,7 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ReviewFileDocument } from './review-file-document';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
@@ -35,11 +34,11 @@ import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
 import { PullRequestDocument } from './pull-request-document';
-import { BranchReviewPage } from './branch-review-page';
+import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-type DocumentProps = {
+export type DocumentProps = {
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -62,10 +61,10 @@ export function DocumentView({
   reveal,
   base,
   toolbarTarget,
+  handoff: Handoff,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  document: DocumentRef;
   toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
@@ -73,7 +72,10 @@ export function DocumentView({
   active?: boolean;
   reveal?: RevealComment | undefined;
   base?: string | undefined;
-}) {
+} & (
+  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; handoff?: never }
+  | { document: DocumentRef; handoff: ComponentType<DocumentProps> }
+)) {
   const props = {
     scope,
     context,
@@ -90,13 +92,16 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
-      return <HandoffDocument {...props} />;
+      return Handoff ? <Handoff {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
+    case 'review-file':
+    case 'review-change':
+      return <ReviewFileDocument {...props} document={document} />;
     case 'file':
       return <FileDocument {...props} path={document.path} />;
     case 'commit':
@@ -185,26 +190,6 @@ function TimelineDocument({
   );
 }
 
-function HandoffDocument(props: DocumentProps) {
-  const published = usePublishedReview(props.scope, props.context);
-  if (published.review?.reviewId)
-    return (
-      <BranchReviewPage
-        {...props}
-        toolbarTarget={props.interaction.toolbarTarget}
-        active={props.interaction.active}
-      />
-    );
-  return (
-    <PlainChangesDocument
-      {...props}
-      intro={
-        Option.isSome(AsyncResult.value(published.result)) && !published.review
-      }
-    />
-  );
-}
-
 function NoReviewIntro({
   scope,
   context,
@@ -246,7 +231,7 @@ function changesTitle(specsOnly: boolean, entry: string) {
   return 'Changes';
 }
 
-function PlainChangesDocument({
+export function PlainChangesDocument({
   scope,
   context,
   interaction,
@@ -392,6 +377,7 @@ function ChangeDocument({
             headerActions={
               <BarAction
                 label="Timeline"
+                iconOnly
                 icon={HistoryIcon}
                 onClick={() => onOpen({ kind: 'timeline', path })}
               />

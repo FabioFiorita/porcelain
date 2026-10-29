@@ -75,3 +75,24 @@ it.each([
     expect(parseEntry(`pull-request:${value}`)).toBeNull();
   },
 );
+
+it.each([
+  [
+    'review-file:review-id:2:apps/web/src/file:variant.ts',
+    {
+      kind: 'review-file',
+      reviewId: 'review-id',
+      revision: 2,
+      path: 'apps/web/src/file:variant.ts',
+    },
+  ],
+  ['review-file:review-id:0:a.ts', null],
+  ['review-file:review-id:1.5:a.ts', null],
+  ['review-file:review-id:2:', null],
+  ['review-file::2:a.ts', null],
+])(
+  'restores retained file tabs only with a valid revision and path: %s',
+  (key, expected) => {
+    expect(parseEntry(key)).toEqual(expected);
+  },
+);
