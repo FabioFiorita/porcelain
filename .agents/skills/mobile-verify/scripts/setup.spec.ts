@@ -125,6 +125,7 @@ it('pairs Android without invoking the Apple runner or iOS alerts and releases s
   expect(await commands()).toEqual([
     'open',
     'open',
+    'wait',
     'open',
     'wait',
     'press',
@@ -172,6 +173,16 @@ it.each(['ios', 'android'])(
     );
     pairClient(driver, 'http://localhost:5183', 'setup');
     const args = await calls();
+    const ready = args.findIndex(
+      (call) => call[0] === 'wait' && call[1] === 'label="Add computer"',
+    );
+    expect(ready).toBeGreaterThan(0);
+    expect(ready).toBeLessThan(
+      args.findIndex(
+        (call) =>
+          call[0] === 'open' && call[2]?.startsWith('porcelain.dev://settings'),
+      ),
+    );
     expect(
       args.map((call) => call.slice(0, call.indexOf('--session'))),
     ).toContainEqual(['press', 'id="development-pairing-link"', '--settle']);

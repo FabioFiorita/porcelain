@@ -6,7 +6,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - From the repository root set `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C doctor` and `$C start --fixture focused` with the owned device flags. Android uses `--device android --serial <serial>` on a booted emulator. A missing matching native build must be resolved before startup.
 - Read the card and private `connection.json`; set `REPO` to `fixtures.repositoryPath`. The focused fixture has a small README repository without published reviews/comments. Use the map's publication/setup commands when needed; restart to reset. The development fixture is a separate richer sample.
-- Startup pairs through Settings → Computers → Add computer → Use development server → Pair, waits for the Pair control to become enabled, independently checks the registered device and closes its setup session. The app obtains its link directly from Metro; the driver never types the long link. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
+- Startup waits for the fresh unpaired app’s Add computer control before opening Settings, so its deep link is handled by the loaded app. It pairs through Settings → Computers → Add computer → Use development server → Pair, waits for the Pair control to become enabled, independently checks the registered device and closes its setup session. The app obtains its link directly from Metro; the driver never types the long link. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
 
 ## Driving conventions
 

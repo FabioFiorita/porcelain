@@ -211,6 +211,7 @@ export function pairClient(
     run(['open', identity.bundleIdentifier, '--foreground']);
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
     if (ios) run(['alert', 'accept', '5000'], true);
+    run(['wait', 'label="Add computer"', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
     run(['wait', 'text', 'General', '60000']);
     if (ios) run(['alert', 'accept', '5000'], true);
