@@ -25,7 +25,12 @@ const role = Schema.Struct({
   minWidth: Schema.optional(
     Schema.Int.check(Schema.isGreaterThanOrEqualTo(320)),
   ),
-  stock: Schema.optional(Schema.NonEmptyString),
+  stock: Schema.optional(
+    Schema.Struct({
+      primitive: Schema.NonEmptyString,
+      classes: Schema.NonEmptyArray(Schema.NonEmptyString),
+    }),
+  ),
   board: target,
   app: target,
 });
@@ -61,7 +66,7 @@ function block(markdown: string, name: string): unknown {
 
 export function parseBoardMaps(
   markdown: string,
-  primitives: ReadonlySet<string>,
+  pinnedClasses: (primitive: string) => readonly string[] | undefined,
 ): Record<string, BoardMap> {
   const sets = Schema.decodeUnknownSync(
     Schema.Record(Schema.String, Schema.NonEmptyArray(role)),
@@ -90,13 +95,21 @@ export function parseBoardMaps(
         throw new Error(
           `Board ${name} measures role ${repeated.role} twice; rows pair by role name.`,
         );
-      const unpinned = roles.find(
-        (role) => role.stock !== undefined && !primitives.has(role.stock),
-      );
-      if (unpinned !== undefined)
-        throw new Error(
-          `Role ${unpinned.role} on board ${name} names ${unpinned.stock} as its stock primitive, but only pinned shadcn primitives can be: ${[...primitives].join(', ')}.`,
+      for (const { role, stock } of roles) {
+        if (stock === undefined) continue;
+        const source = pinnedClasses(stock.primitive);
+        if (source === undefined)
+          throw new Error(
+            `Role ${role} on board ${name} names ${stock.primitive} as its stock primitive, but only pinned shadcn primitives can be.`,
+          );
+        const foreign = stock.classes.filter(
+          (token) => !source.includes(token),
         );
+        if (foreign.length > 0)
+          throw new Error(
+            `Role ${role} on board ${name} lists ${foreign.join(', ')} as stock, but the pinned ${stock.primitive}.tsx has no such class.`,
+          );
+      }
       return [name, { ...map, roles }];
     }),
   );
@@ -118,10 +131,13 @@ const pinned = new Set(
     .map((file) => file.slice(0, -'.tsx'.length)),
 );
 
-export function stockClasses(primitive: string): readonly string[] {
+function pinnedClasses(primitive: string): readonly string[] | undefined {
+  if (!pinned.has(primitive)) return undefined;
   return [
     ...new Set(
-      readFileSync(new URL(`${primitive}.tsx`, ui), 'utf8').split(/[\s"'`]+/),
+      readFileSync(new URL(`${primitive}.tsx`, ui), 'utf8')
+        .split(/\s+/)
+        .map((token) => token.replace(/^["'`(]+|["'`),;]+$/g, '')),
     ),
   ];
 }
@@ -131,5 +147,5 @@ export const boards = parseBoardMaps(
     new URL('../features/app.board-comparison.md', import.meta.url),
     'utf8',
   ),
-  pinned,
+  pinnedClasses,
 );

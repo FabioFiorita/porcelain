@@ -98,11 +98,15 @@ it('accepts defaults, deduplicates widths and finds a board by its HTML name', (
   }
 });
 
-const pinned = new Set(['button', 'tabs']);
+const sources = new Map([
+  ['button', ['h-6', 'px-2']],
+  ['tabs', ['rounded-lg']],
+]);
+const pinned = (primitive: string) => sources.get(primitive);
 const mapsMarkdown = (
   include: string,
   own = 'Timeline control',
-  stock = 'button',
+  stock = { primitive: 'button', classes: ['h-6'] },
 ) =>
   [
     '```json board-role-sets',
@@ -160,16 +164,26 @@ it('refuses a board whose shared and own roles share a name', () => {
   );
 });
 
-it('refuses a stock primitive that is not a pinned shadcn file', () => {
-  expect(() =>
-    parseBoardMaps(
-      mapsMarkdown('pane bar Git', 'Timeline control', 'review-controls'),
-      pinned,
-    ),
-  ).toThrow(
-    'Role Git button on board file-tab names review-controls as its stock primitive, but only pinned shadcn primitives can be: button, tabs.',
-  );
-});
+it.each([
+  [
+    { primitive: 'review-controls', classes: ['h-6'] },
+    'Role Git button on board file-tab names review-controls as its stock primitive, but only pinned shadcn primitives can be.',
+  ],
+  [
+    { primitive: 'button', classes: ['h-6', 'h-9'] },
+    'Role Git button on board file-tab lists h-9 as stock, but the pinned button.tsx has no such class.',
+  ],
+])(
+  'refuses stock that the pinned primitive does not render: %o',
+  (stock, message) => {
+    expect(() =>
+      parseBoardMaps(
+        mapsMarkdown('pane bar Git', 'Timeline control', stock),
+        pinned,
+      ),
+    ).toThrow(message);
+  },
+);
 
 it('marks an accepted stock difference and explains it in the pasteable table', () => {
   expect(

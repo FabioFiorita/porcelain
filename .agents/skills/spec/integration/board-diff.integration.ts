@@ -378,44 +378,46 @@ it('reveals a phone panel and its tab without toggling an already visible target
   }
 });
 
-it('accepts a difference produced by the pinned primitive and fails one the app adds', async () => {
+it('accepts a difference produced by the classes a role lists as stock and fails what the app adds', async () => {
   const board = await browser.newPage();
   const app = await browser.newPage();
+  const stock = {
+    primitive: 'button',
+    classes: ['inline-flex', 'h-6', 'px-2', 'leading-relaxed'],
+  } as const;
   const stockRoles: BoardRole[] = [
     {
       role: 'Git button',
-      stock: 'button',
+      stock,
       properties: ['height', 'lineHeight', 'padding'],
       board: { selector: 'button' },
       app: { selector: 'button' },
     },
     {
       role: 'Git button label',
-      stock: 'button',
-      properties: ['lineHeight'],
+      stock,
+      properties: ['lineHeight', 'colour'],
       board: { selector: 'button' },
       app: { selector: 'button > span' },
     },
   ];
   const styles =
-    '<style>button{font:500 12px/16px sans-serif;padding:0 10px;height:26px;border:0}.h-6{height:24px}.leading-relaxed{line-height:19.5px}.px-2{padding-left:8px;padding-right:8px}.h-7{height:28px}.hidden{display:none}.md\\:inline-flex{display:inline-flex}</style>';
-  const source = () => ['inline-flex', 'h-6', 'px-2', 'leading-relaxed'];
+    '<style>button{font:500 12px/16px sans-serif;padding:0 10px;height:26px;border:0;color:#000}.inline-flex{display:inline-flex}.h-6{height:24px}.h-7{height:28px}.leading-relaxed{line-height:19.5px}.px-2{padding-left:8px;padding-right:8px}.hidden{display:none}.md\\:inline-flex{display:inline-flex}.app-red{color:#ff0000}.app-red button{color:inherit}</style>';
   try {
     await board.setContent(`${styles}<button>Commit</button>`);
     const expected = await measureRoles(board, stockRoles, 'board');
     await app.setContent(
-      `${styles}<button class="hidden md:inline-flex h-6 px-2 leading-relaxed"><span>Commit</span></button>`,
+      `${styles}<button class="hidden md:inline-flex inline-flex h-6 px-2 leading-relaxed"><span>Commit</span></button>`,
     );
     expect(
-      compareRoles(
-        expected,
-        await measureRoles(app, stockRoles, 'app', 1440, source),
-      ).map(({ role, property, match, accepted }) => ({
-        role,
-        property,
-        match,
-        accepted,
-      })),
+      compareRoles(expected, await measureRoles(app, stockRoles, 'app')).map(
+        ({ role, property, match, accepted }) => ({
+          role,
+          property,
+          match,
+          accepted,
+        }),
+      ),
     ).toStrictEqual([
       {
         role: 'Git button',
@@ -443,15 +445,32 @@ it('accepts a difference produced by the pinned primitive and fails one the app 
         accepted:
           'stock (accepted): `leading-relaxed` from the pinned button.tsx',
       },
+      {
+        role: 'Git button label',
+        property: 'colour',
+        match: true,
+        accepted: undefined,
+      },
     ]);
+    const html = app.locator('html');
+    expect(await html.innerHTML()).toContain(
+      'class="hidden md:inline-flex inline-flex h-6 px-2 leading-relaxed"',
+    );
     await app.setContent(
-      `${styles}<button class="inline-flex h-7 px-2 leading-relaxed"><span class="hidden">Commit</span></button>`,
+      `${styles}<div class="app-red"><button class="inline-flex h-6 h-7 px-2 leading-relaxed"><span class="hidden">Commit</span></button></div><p><button class="inline-flex h-6 px-2 leading-relaxed"></button></p>`,
+    );
+    const overridden = await measureRoles(
+      app,
+      stockRoles.map((role) => ({
+        ...role,
+        app: { selector: `.app-red ${role.app.selector}` },
+      })),
+      'app',
     );
     expect(
-      compareRoles(
-        expected,
-        await measureRoles(app, stockRoles, 'app', 1440, source),
-      ).filter((row) => row.accepted === undefined && !row.match),
+      compareRoles(expected, overridden).filter(
+        (row) => row.accepted === undefined && !row.match,
+      ),
     ).toStrictEqual([
       {
         role: 'Git button',
@@ -468,58 +487,69 @@ it('accepts a difference produced by the pinned primitive and fails one the app 
         match: false,
       },
     ]);
+    await app.setContent(
+      `${styles}<div class="app-red"><button class="inline-flex h-6 px-2 leading-relaxed"><span>Commit</span></button></div>`,
+    );
+    expect(
+      compareRoles(expected, await measureRoles(app, stockRoles, 'app')).find(
+        (row) => row.property === 'colour',
+      ),
+    ).toStrictEqual({
+      role: 'Git button label',
+      property: 'colour',
+      board: '#000000',
+      app: '#ff0000',
+      match: false,
+    });
+    expect(await app.locator('style').count()).toBe(1);
   } finally {
     await app.close();
     await board.close();
   }
 });
 
-it('accepts a box style the primitive leaves unset unless an app class sets it', async () => {
+it('accepts a box style the listed stock classes leave unset unless app classes set it', async () => {
   const board = await browser.newPage();
   const app = await browser.newPage();
   const switchRoles: BoardRole[] = [
     {
       role: 'review view switch',
-      stock: 'tabs',
+      stock: { primitive: 'tabs', classes: ['flex', 'rounded-lg'] },
       properties: ['gap'],
       board: { selector: 'div' },
       app: { selector: 'div' },
     },
   ];
   const styles =
-    '<style>div{display:flex;flex-wrap:wrap}.gap-0\\.5{gap:2px}.gap-3{gap:12px}</style>';
-  const source = () => ['inline-flex', 'rounded-lg'];
+    '<style>div{flex-wrap:wrap}.flex{display:flex}.rounded-lg{border-radius:8px}.gap-0\\.5{gap:2px}.gap-3{gap:12px}.gap-\\[12px\\]{gap:12px}</style>';
   try {
     await board.setContent(
-      `${styles}<div class="gap-0.5"><b>a</b><b>b</b></div>`,
+      `${styles}<div class="flex gap-0.5"><b>a</b><b>b</b></div>`,
     );
     const expected = await measureRoles(board, switchRoles, 'board');
-    await app.setContent(
-      `${styles}<div class="inline-flex rounded-lg"><b>a</b><b>b</b></div>`,
-    );
-    expect(
-      compareRoles(
+    const gapRow = async (classes: string) => {
+      await app.setContent(
+        `${styles}<div class="${classes}"><b>a</b><b>b</b></div>`,
+      );
+      return compareRoles(
         expected,
-        await measureRoles(app, switchRoles, 'app', 1440, source),
-      )[0]?.accepted,
-    ).toBe(
-      'stock (accepted): the pinned tabs.tsx; no class the app adds changes it',
+        await measureRoles(app, switchRoles, 'app'),
+      )[0];
+    };
+    expect((await gapRow('flex rounded-lg'))?.accepted).toBe(
+      'stock (accepted): the pinned tabs.tsx classes listed for this role; no class the app adds changes it',
     );
-    await app.setContent(
-      `${styles}<div class="inline-flex rounded-lg gap-3"><b>a</b><b>b</b></div>`,
-    );
-    expect(
-      compareRoles(
-        expected,
-        await measureRoles(app, switchRoles, 'app', 1440, source),
-      )[0],
-    ).toStrictEqual({
-      role: 'review view switch',
-      property: 'gap',
-      board: '2px 2px',
-      app: '12px 12px',
-      match: false,
-    });
+    for (const classes of [
+      'flex rounded-lg gap-3',
+      'flex rounded-lg gap-3 gap-[12px]',
+    ])
+      expect(await gapRow(classes)).toStrictEqual({
+        role: 'review view switch',
+        property: 'gap',
+        board: '2px 2px',
+        app: '12px 12px',
+        match: false,
+      });
   } finally {
     await app.close();
     await board.close();

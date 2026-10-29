@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import type { Page } from 'playwright';
-import { stockClasses, styleProperties, type BoardRole } from './board-maps.ts';
+import { styleProperties, type BoardRole } from './board-maps.ts';
 import type {
   BrowserComputedStyle,
   BrowserDocument,
@@ -19,7 +19,6 @@ const sampleSchema = Schema.Struct({
   properties: Schema.Array(Schema.Literals(styleProperties)),
   problem: Schema.optional(Schema.String),
   styles: stylesSchema,
-  stock: Schema.optional(Schema.String),
   origins: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
 type StyleSample = typeof sampleSchema.Type;
@@ -37,7 +36,6 @@ export async function measureRoles(
   roles: readonly BoardRole[],
   side: 'board' | 'app',
   width = 1440,
-  classes: (primitive: string) => readonly string[] = stockClasses,
 ): Promise<readonly StyleSample[]> {
   const targets = roles
     .filter((role) => width >= (role.minWidth ?? 320))
@@ -46,11 +44,13 @@ export async function measureRoles(
       properties: role.properties ?? styleProperties,
       ...role[side],
       ...(side === 'app' && role.stock !== undefined
-        ? { stock: role.stock, classes: classes(role.stock) }
+        ? { stock: role.stock }
         : {}),
     }));
   return Schema.decodeUnknownSync(Schema.Array(sampleSchema))(
     await page.evaluate((targets) => {
+      const shown = (node: BrowserElement) =>
+        node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
       const read = (element: BrowserElement): Record<string, string> => {
         const s = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -73,10 +73,7 @@ export async function measureRoles(
           element.matches('svg, img, [role="img"]') ? [element] : icons
         ).some(
           (node) =>
-            node.checkVisibility({
-              checkOpacity: true,
-              checkVisibilityCSS: true,
-            }) &&
+            shown(node) &&
             node.getBoundingClientRect().width > 0 &&
             node.getBoundingClientRect().height > 0,
         );
@@ -148,83 +145,97 @@ export async function measureRoles(
         element: BrowserElement,
         properties: readonly string[],
         primitive: string,
-        stock: ReadonlySet<string>,
+        listed: ReadonlySet<string>,
       ) => {
-        const freeze = document.createElement('style');
-        freeze.textContent =
-          '*, *::before, *::after { transition: none !important; animation: none !important; }';
-        document.head.append(freeze);
-        const rendered = () =>
-          element.checkVisibility({
-            checkOpacity: true,
-            checkVisibilityCSS: true,
-          }) &&
-          element.getBoundingClientRect().width > 0 &&
-          element.getBoundingClientRect().height > 0;
-        try {
-          const measured = read(element);
-          const toggles = new Set<string>();
-          const origins: Record<string, string> = {};
-          for (const property of properties) {
-            if (property === 'icon') continue;
-            let owner: BrowserElement | null = element;
-            for (
-              let depth = 0;
-              owner !== null && depth < (inherited.has(property) ? 8 : 1);
-              depth += 1, owner = owner.parentElement
-            ) {
-              const original = owner.getAttribute('class');
-              const tokens = (original ?? '').split(/\s+/).filter(Boolean);
-              const producing = tokens.filter((token) => {
-                owner?.setAttribute(
-                  'class',
-                  tokens.filter((other) => other !== token).join(' '),
-                );
-                const shown = rendered();
-                const value = read(element)[property];
-                if (original === null) owner?.removeAttribute('class');
-                else owner?.setAttribute('class', original);
-                if (!shown && owner === element) toggles.add(token);
-                return shown && value !== measured[property];
-              });
-              if (producing.length === 0) continue;
-              if (producing.every((token) => stock.has(token)))
-                origins[property] =
-                  producing.map((token) => `\`${token}\``).join(' ') +
-                  ` from the pinned ${primitive}.tsx`;
-              owner = null;
-              break;
-            }
-            if (owner === null || inherited.has(property)) continue;
-            const original = element.getAttribute('class') ?? '';
-            const tokens = original.split(/\s+/).filter(Boolean);
-            if (!tokens.some((token) => stock.has(token))) continue;
-            element.setAttribute(
-              'class',
-              tokens
-                .filter((token) => stock.has(token) || toggles.has(token))
-                .join(' '),
-            );
-            const value = read(element)[property];
-            element.setAttribute('class', original);
-            if (value === measured[property])
-              origins[property] =
-                `the pinned ${primitive}.tsx; no class the app adds changes it`;
-          }
-          return origins;
-        } finally {
-          freeze.remove();
+        const classesOf = (node: BrowserElement) =>
+          (node.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+        const chain: BrowserElement[] = [];
+        let root: BrowserElement | null = element;
+        for (
+          let depth = 0;
+          root !== null && depth < 8;
+          depth += 1, root = root.parentElement
+        ) {
+          chain.push(root);
+          const present = new Set(classesOf(root));
+          if ([...listed].every((token) => present.has(token))) break;
         }
-      };
-      return targets.map(
-        ({ role, selector, index, properties, stock, classes }) => {
-          const matches = [...document.querySelectorAll(selector)];
-          const elements = matches.filter((node) =>
-            node.checkVisibility({
-              checkOpacity: true,
-              checkVisibilityCSS: true,
-            }),
+        if (root === null) return {};
+        const measured = read(element);
+        const valueWithout = (
+          owner: BrowserElement,
+          kept: readonly string[],
+        ) => {
+          const original = owner.getAttribute('class') ?? '';
+          owner.setAttribute('class', kept.join(' '));
+          try {
+            return { visible: shown(element), value: read(element) };
+          } finally {
+            owner.setAttribute('class', original);
+          }
+        };
+        const origins: Record<string, string> = {};
+        for (const property of properties) {
+          if (property === 'icon') continue;
+          const owners = inherited.has(property)
+            ? chain
+            : chain.length === 1
+              ? chain
+              : [];
+          let decided = false;
+          for (const owner of owners) {
+            const tokens = classesOf(owner);
+            const producing = tokens.filter((token) => {
+              const probe = valueWithout(
+                owner,
+                tokens.filter((other) => other !== token),
+              );
+              return (
+                probe.visible && probe.value[property] !== measured[property]
+              );
+            });
+            if (producing.length === 0) continue;
+            decided = true;
+            if (owner === root && producing.every((token) => listed.has(token)))
+              origins[property] =
+                producing.map((token) => `\`${token}\``).join(' ') +
+                ` from the pinned ${primitive}.tsx`;
+            break;
+          }
+          if (decided || inherited.has(property) || chain.length !== 1)
+            continue;
+          const tokens = classesOf(element);
+          const toggles = tokens.filter(
+            (token) =>
+              !listed.has(token) &&
+              !valueWithout(
+                element,
+                tokens.filter((other) => other !== token),
+              ).visible,
           );
+          const stripped = valueWithout(
+            element,
+            tokens.filter(
+              (token) => listed.has(token) || toggles.includes(token),
+            ),
+          );
+          if (
+            stripped.visible &&
+            stripped.value[property] === measured[property]
+          )
+            origins[property] =
+              `the pinned ${primitive}.tsx classes listed for this role; no class the app adds changes it`;
+        }
+        return origins;
+      };
+      const freeze = document.createElement('style');
+      freeze.textContent =
+        '*, *::before, *::after { transition: none !important; }';
+      document.head.append(freeze);
+      try {
+        return targets.map(({ role, selector, index, properties, stock }) => {
+          const matches = [...document.querySelectorAll(selector)];
+          const elements = matches.filter(shown);
           if (matches.length > 0 && elements.length === 0)
             return {
               role,
@@ -247,14 +258,7 @@ export async function measureRoles(
               styles: {},
             };
           const rect = element.getBoundingClientRect();
-          if (
-            !element.checkVisibility({
-              checkOpacity: true,
-              checkVisibilityCSS: true,
-            }) ||
-            rect.width === 0 ||
-            rect.height === 0
-          )
+          if (!shown(element) || rect.width === 0 || rect.height === 0)
             return {
               role,
               properties,
@@ -265,20 +269,21 @@ export async function measureRoles(
             role,
             properties,
             styles: read(element),
-            ...(stock !== undefined && classes !== undefined
+            ...(stock !== undefined
               ? {
-                  stock,
                   origins: stockOrigin(
                     element,
                     properties,
-                    stock,
-                    new Set(classes),
+                    stock.primitive,
+                    new Set(stock.classes),
                   ),
                 }
               : {}),
           };
-        },
-      );
+        });
+      } finally {
+        freeze.remove();
+      }
     }, targets),
   );
 }

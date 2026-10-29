@@ -23,7 +23,7 @@ Start a clean instance. Sidebar review-row comparisons need a non-main worktree 
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
-Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed. Controls every pane bar draws live once in the `board-role-sets` block; a map lists the sets its board draws in `include`, and their roles are measured before its own. `pane bar Git` covers the Git split button (the primary's height and icon, its label and layout from 768px, and the Git actions chevron) on every map whose board draws a pane bar; `review view switch` covers the Walkthrough | Agent summary switch and `review progress` the files and decisions progress beside it. Role names stay unique within a map, because rows pair by name. `stock` names the pinned shadcn primitive (`button`, `tabs`, `kbd`, …, a file in `apps/web/src/components/ui` listed in `architecture/shadcn-pins.json`) that renders the app element. When such a role's property differs, the command removes each class from the app element in turn (and, for typography, from the nearest ancestor whose class sets it) to find the classes that produce the measured value; a class whose removal hides the element is a responsive show/hide switch, not a style source. When no single class produces it (the primitive leaves it unset, or two of its classes set it alike), it is stock while removing every class the app adds leaves it unchanged. If every one of them appears in that primitive's pinned source, the row reads `stock` with the classes and file in Why, and does not fail the run: stock Mira values win over board pixels. A class the app adds, a missing or hidden element, and any role without `stock` still fail.
+Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed. Controls every pane bar draws live once in the `board-role-sets` block; a map lists the sets its board draws in `include`, and their roles are measured before its own. `pane bar Git` covers the Git split button (the primary's height and icon, its label and layout from 768px, and the Git actions chevron) on every map whose board draws a pane bar; `review view switch` covers the Walkthrough | Agent summary switch and `review progress` the files and decisions progress beside it. Role names stay unique within a map, because rows pair by name. `stock` names the pinned shadcn primitive that renders the app element (a file in `apps/web/src/components/ui` listed in `architecture/shadcn-pins.json`) and the classes its variant and size render there, as `cn` merges them; parsing refuses a class the pinned file does not contain, so a re-pin that drops one fails loudly. List only classes that set measured styles (display, size, spacing, radius, border, type, colour), not state or child selectors, and only those `cn` keeps on the element: a role measured across widths where the control changes size lists the classes both sizes share. When such a role's property differs, the command finds the element carrying every listed class (the element itself, or for typography the nearest ancestor up to it) and removes each of its classes in turn to find the classes that produce the measured value; a class whose removal hides the element is a responsive show/hide switch, not a style source. If every producing class is listed, the row reads `stock` with the classes and file in Why, and does not fail the run: stock Mira values win over board pixels. When no single class produces a box value (the listed classes leave it unset, or two of them set it alike), it is stock while removing every unlisted class leaves it unchanged. Inline styles and parent rules aimed at the element are not classes on it, so check those visually. A class the app adds, a missing or hidden element, and any role without `stock` still fail.
 
 ## Gotchas
 
@@ -34,7 +34,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 - Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
 - The board draws the Git split's outline on its group, while the app draws it on the joined buttons, so the split compares each half; check its corners visually. A label hidden in a narrow pane fails from 768px, because the board draws it.
-- A class the app passes that also appears in the primitive's source (the same token in both) reads as stock.
+- An app class identical to a listed stock class reads as stock; one that `cn` merges over a listed class removes it, so the role's stock check stops applying and its differences fail.
 - `minWidth` counts the viewport while the app folds bar labels and progress by pane width, so a pane narrower than the board's fails those roles as hidden: at 1440 with the sidebar and a docked panel the progress is hidden, and the board shows it. The board's bold progress counts are a pixel detail and stay unmapped.
 - The review view switch appears only for a review with an agent summary; the review sample has one.
 - The closing page needs the review sample with Settings → Reviews & Git → Spec files on (choose Use these settings for this computer first), so both Not explained and Specs appear; the map opens Not explained from the briefing's walkthrough list at every width.
@@ -75,7 +75,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
     {
       "role": "Git button",
       "properties": ["height", "icon"],
-      "stock": "button",
+      "stock": {
+        "primitive": "button",
+        "classes": [
+          "inline-flex",
+          "rounded-md",
+          "border",
+          "font-medium",
+          "border-border",
+          "h-6",
+          "gap-1",
+          "px-2",
+          "text-xs/relaxed"
+        ]
+      },
       "board": {
         "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
       },
@@ -93,7 +106,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "colour"
       ],
       "minWidth": 768,
-      "stock": "button",
+      "stock": {
+        "primitive": "button",
+        "classes": [
+          "inline-flex",
+          "rounded-md",
+          "border",
+          "font-medium",
+          "border-border",
+          "h-6",
+          "gap-1",
+          "px-2",
+          "text-xs/relaxed"
+        ]
+      },
       "board": {
         "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
       },
@@ -105,7 +131,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Git button layout",
       "properties": ["padding", "gap"],
       "minWidth": 768,
-      "stock": "button",
+      "stock": {
+        "primitive": "button",
+        "classes": [
+          "inline-flex",
+          "rounded-md",
+          "border",
+          "font-medium",
+          "border-border",
+          "h-6",
+          "gap-1",
+          "px-2",
+          "text-xs/relaxed"
+        ]
+      },
       "board": {
         "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
       },
@@ -116,7 +155,18 @@ Names without `.html` are also accepted for the first mapped screen using that H
     {
       "role": "Git actions chevron",
       "properties": ["padding", "height", "icon"],
-      "stock": "button",
+      "stock": {
+        "primitive": "button",
+        "classes": [
+          "inline-flex",
+          "rounded-md",
+          "border",
+          "text-xs/relaxed",
+          "font-medium",
+          "border-border",
+          "size-6"
+        ]
+      },
       "board": {
         "selector": "[role=\"group\"][aria-label=\"Git\"] > button[aria-label=\"Git actions\"]"
       },
@@ -129,7 +179,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
     {
       "role": "review view switch",
       "properties": ["padding", "radius", "gap", "height"],
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "rounded-lg",
+          "p-[3px]",
+          "text-muted-foreground",
+          "group-data-horizontal/tabs:h-8"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"]"
       },
@@ -140,7 +199,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
     {
       "role": "Walkthrough control",
       "properties": ["radius", "height"],
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
@@ -152,7 +226,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Walkthrough label",
       "properties": ["fontSize", "fontWeight", "letterSpacing", "colour"],
       "minWidth": 768,
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
@@ -164,7 +253,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Walkthrough layout",
       "properties": ["padding", "gap"],
       "minWidth": 768,
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
@@ -175,7 +279,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
     {
       "role": "Agent summary control",
       "properties": ["radius", "height"],
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
@@ -187,7 +306,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Agent summary label",
       "properties": ["fontSize", "fontWeight", "letterSpacing", "colour"],
       "minWidth": 768,
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
@@ -199,7 +333,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Agent summary layout",
       "properties": ["padding", "gap"],
       "minWidth": 768,
-      "stock": "tabs",
+      "stock": {
+        "primitive": "tabs",
+        "classes": [
+          "inline-flex",
+          "h-[calc(100%-1px)]",
+          "gap-1.5",
+          "rounded-md",
+          "border",
+          "border-transparent",
+          "px-1.5",
+          "py-0.5",
+          "text-xs",
+          "font-medium",
+          "text-foreground/60"
+        ]
+      },
       "board": {
         "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
@@ -1348,7 +1497,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "copy hash",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Copy the full commit hash\"]"
         },
@@ -1359,7 +1517,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "open in graph",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Open the history graph at this commit\"]"
         },
@@ -1389,7 +1556,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "letterSpacing",
           "colour"
         ],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Copy the full commit hash\"]"
         },
@@ -1401,7 +1580,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "copy hash layout",
         "properties": ["padding", "gap"],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Copy the full commit hash\"]"
         },
@@ -1419,7 +1610,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "letterSpacing",
           "colour"
         ],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Open the history graph at this commit\"]"
         },
@@ -1431,7 +1634,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "open in graph layout",
         "properties": ["padding", "gap"],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "main button[title=\"Open the history graph at this commit\"]"
         },
@@ -2094,7 +2309,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Reviewed control",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "font-medium",
+            "border-border",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "button[role=\"checkbox\"]"
         },
@@ -2104,7 +2331,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Comment control",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "button[title^=\"Comment\" i]"
         },
@@ -2115,7 +2354,17 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "Timeline control",
         "properties": ["padding", "radius", "gap", "height", "icon"],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "text-xs/relaxed",
+            "font-medium",
+            "size-7"
+          ]
+        },
         "board": {
           "selector": "button[title*=\"timeline\" i]"
         },
@@ -2125,7 +2374,21 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "review shortcut",
-        "stock": "kbd",
+        "stock": {
+          "primitive": "kbd",
+          "classes": [
+            "inline-flex",
+            "h-5",
+            "min-w-5",
+            "gap-1",
+            "rounded-xs",
+            "px-1",
+            "font-sans",
+            "text-[0.625rem]",
+            "font-medium",
+            "text-muted-foreground"
+          ]
+        },
         "board": {
           "selector": "button[role=\"checkbox\"] > kbd"
         },
@@ -2276,7 +2539,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Reviewed control",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "font-medium",
+            "border-border",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "section[aria-label^=\"Right pane:\"] button[role=\"checkbox\"]"
         },
@@ -2286,7 +2561,19 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Comment control",
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "font-medium",
+            "h-7",
+            "gap-1",
+            "px-2",
+            "text-xs/relaxed"
+          ]
+        },
         "board": {
           "selector": "section[aria-label^=\"Right pane:\"] button[title^=\"Comment\" i]"
         },
@@ -2297,7 +2584,17 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "Timeline control",
         "properties": ["padding", "radius", "gap", "height", "icon"],
-        "stock": "button",
+        "stock": {
+          "primitive": "button",
+          "classes": [
+            "rounded-md",
+            "border",
+            "border-transparent",
+            "text-xs/relaxed",
+            "font-medium",
+            "size-7"
+          ]
+        },
         "board": {
           "selector": "button[title*=\"timeline\" i]"
         },
@@ -2307,7 +2604,21 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "review shortcut",
-        "stock": "kbd",
+        "stock": {
+          "primitive": "kbd",
+          "classes": [
+            "inline-flex",
+            "h-5",
+            "min-w-5",
+            "gap-1",
+            "rounded-xs",
+            "px-1",
+            "font-sans",
+            "text-[0.625rem]",
+            "font-medium",
+            "text-muted-foreground"
+          ]
+        },
         "board": {
           "selector": "section[aria-label^=\"Right pane:\"] button[role=\"checkbox\"] > kbd"
         },
