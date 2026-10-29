@@ -91,7 +91,7 @@ export function CommitRow({
             className={cn(
               'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent',
               layout === 'stacked'
-                ? 'items-center gap-1'
+                ? 'flex-col justify-center gap-0.5'
                 : 'items-center gap-3',
               height === undefined && 'py-1.5',
               selected && 'bg-muted ring-1 ring-border ring-inset',
@@ -101,24 +101,31 @@ export function CommitRow({
         }
       >
         {layout === 'stacked' ? (
-          <>
+          <div className="flex min-w-0 items-start gap-1.5">
             <button
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className="flex min-w-0 flex-1 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
+              className={cn(
+                'block min-w-0 text-left before:absolute before:inset-0 before:rounded-lg',
+                refs.length > 0 ? 'max-w-3/5' : 'flex-1',
+              )}
             >
               {subject}
-              <span className="flex gap-1.5 text-xs text-muted-foreground">
+              <span
+                style={{ left: inset }}
+                className="absolute inset-x-2 mt-0.5 flex min-w-0 gap-1.5 text-xs text-muted-foreground"
+              >
                 <code className="font-mono">{shortOid(commit.oid)}</code>
                 <TruncatedText text={commit.author.name} />
                 <span aria-hidden="true">·</span>
                 <span className="shrink-0">{age}</span>
               </span>
+              <span aria-hidden="true" className="mt-0.5 block h-4" />
               {children}
             </button>
             {refs.length > 0 && (
-              <div className="min-w-0 max-w-2/5 flex-1 self-start pt-1">
+              <div className="flex h-4.5 min-w-0 flex-1 flex-col justify-center">
                 <CommitRefs
                   refs={refs}
                   current={current}
@@ -126,7 +133,7 @@ export function CommitRow({
                 />
               </div>
             )}
-          </>
+          </div>
         ) : (
           <>
             <code className="hidden w-16 shrink-0 font-mono text-xs text-muted-foreground @md/graph:block">
