@@ -421,6 +421,16 @@ it('the History map compares the selected commit after the uncommitted row', asy
       await measureRoles(board, roles, 'board'),
       await measureRoles(app, roles, 'app'),
     );
+    expect(rows.find((row) => row.property === 'height')).toMatchObject({
+      board: '44.000px',
+      app: '44.000px',
+      match: true,
+    });
+    expect(rows.find((row) => row.property === 'fontWeight')).toMatchObject({
+      board: '600',
+      app: '600',
+      match: true,
+    });
     expect(rows.every((row) => row.match)).toBe(true);
   } finally {
     await board.close();
