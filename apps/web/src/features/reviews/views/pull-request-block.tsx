@@ -28,6 +28,7 @@ import {
   githubUnavailable,
   pullRequestBlockHidden,
   pullRequestChecks,
+  pullRequestHeadLabel,
   pullRequestLink,
   pullRequestNumber,
   pullRequestRepository,
@@ -331,7 +332,7 @@ function LinkedState({
     pull.checksTruncated,
     pull.checksSummary,
   );
-  const newer = pull.state === 'open' && !pull.matchesReviewHead;
+  const headDiffers = pull.state === 'open' && !pull.matchesReviewHead;
   return (
     <>
       <PullTitle number={pull.number} title={pull.title} />
@@ -367,14 +368,14 @@ function LinkedState({
           </>
         )}
       </StateLine>
-      {newer && (
+      {headDiffers && (
         <p className="mt-2 flex items-start gap-1.5 text-xs leading-4.25 font-medium text-warn">
           <TriangleAlertIcon
             aria-hidden="true"
             className="mt-0.5 size-3 shrink-0"
           />
           <span className="min-w-0">
-            GitHub has commits newer than this review.
+            {pullRequestHeadLabel(pull)}.
             <span className="block font-mono font-normal wrap-anywhere text-muted-foreground">
               PR at {shortOid(pull.headSha)} · review read{' '}
               {reviewHead ? shortOid(reviewHead) : 'unknown'}

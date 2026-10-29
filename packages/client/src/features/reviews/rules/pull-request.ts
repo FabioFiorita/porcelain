@@ -22,6 +22,14 @@ export type FoundPullRequest = Extract<
 
 export type PullRequestState = 'open' | 'draft' | 'merged' | 'closed';
 
+export function pullRequestHeadLabel(
+  pull: Pick<LinkedPullRequest, 'matchesReviewHead'>,
+): string {
+  return pull.matchesReviewHead
+    ? 'Same head as the review'
+    : 'Different head from the review';
+}
+
 export function pullRequestState(pull: {
   state: 'open' | 'closed' | 'merged';
   draft: boolean;

@@ -10,6 +10,7 @@ import {
   foundPullRequests,
   pullRequestBlockHidden,
   pullRequestChecks,
+  pullRequestHeadLabel,
   pullRequestNumber,
   pullRequestStateLabel,
 } from '@porcelain/client/reviews/rules';
@@ -105,16 +106,16 @@ function AvailableChip({
     pull.checksTruncated,
     pull.checksSummary,
   );
-  const newer = pull.state === 'open' && !pull.matchesReviewHead;
+  const headDiffers = pull.state === 'open' && !pull.matchesReviewHead;
   const details = pull.state !== 'open' ? 'Review closed' : checks.label;
   const status = () => {
     if (pull.state !== 'open')
       return <span className="text-muted-foreground">review closed</span>;
-    if (newer)
+    if (headDiffers)
       return (
         <span className="inline-flex items-center gap-1 text-warn">
           <TriangleAlertIcon aria-hidden="true" className="size-3" />
-          New commits
+          {pullRequestHeadLabel(pull)}
         </span>
       );
     return (
@@ -128,7 +129,7 @@ function AvailableChip({
   return (
     <PullRequestChip
       variant="linked"
-      description={`Open pull request #${pull.number}: ${pullRequestStateLabel(pull)}. ${newer ? 'New commits' : details}.`}
+      description={`Open pull request #${pull.number}: ${pullRequestStateLabel(pull)}. ${headDiffers ? pullRequestHeadLabel(pull) : details}.`}
       icon={pullStateIcon(pull)}
       onClick={() => onOpen(pull.number)}
     >
