@@ -45,13 +45,12 @@ function subject(
   return {
     store,
     probes,
-    read: () =>
+    read: (repository = { owner: 'a', repo: 'b' }) =>
       Effect.runPromise(
         Effect.gen(function* () {
           const preferences = yield* GitHubAccountPreferenceService;
           const result = yield* (yield* SelectGitHubAccountService).execute({
-            owner: 'a',
-            repo: 'b',
+            ...repository,
             preference: yield* preferences.execute({
               projectId: 'project',
               repository: 'a/b',
@@ -71,6 +70,7 @@ function subject(
 it('tries accounts, persists the accessible choice and probes that choice first on subsequent reads', async () => {
   const s = subject(['personal', 'work'], ['work']);
   expect(await s.read()).toEqual({
+    repository: 'a/b',
     accounts: ['personal', 'work'],
     choice: { account: 'work', source: 'detected' },
     override: undefined,
@@ -153,4 +153,25 @@ it('redetects when a remembered account loses access', async () => {
   readable.splice(0, 1, 'personal');
   expect(await s.read()).toMatchObject({ choice: { account: 'personal' } });
   expect(s.probes).toEqual(['personal', 'work', 'work', 'personal']);
+});
+
+it.each([
+  [undefined, ['personal'], ['personal']],
+  ['gh-not-installed', ['personal'], ['personal']],
+  ['offline', ['personal'], ['personal']],
+  [undefined, [], []],
+  [undefined, ['personal'], []],
+] as const)(
+  'keeps the repository visible when account selection returns %s',
+  async (failure, accounts, readable) => {
+    expect(await subject(accounts, readable, failure).read()).toMatchObject({
+      repository: 'a/b',
+    });
+  },
+);
+
+it('preserves the repository owner and name as read from the origin', async () => {
+  expect(
+    await subject().read({ owner: 'FabioFiorita', repo: 'Porcelain' }),
+  ).toMatchObject({ repository: 'FabioFiorita/Porcelain' });
 });

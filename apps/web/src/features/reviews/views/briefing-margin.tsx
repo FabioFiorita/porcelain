@@ -110,16 +110,6 @@ export function BriefingMargin({
           {data.review?.state === 'closed' && (
             <p className="text-muted-foreground">Closed</p>
           )}
-          {data.review?.pullRequest && (
-            <a
-              href={data.review.pullRequest}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="self-start underline underline-offset-4"
-            >
-              PR #{data.review.pullRequest.split('/').filter(Boolean).at(-1)}
-            </a>
-          )}
         </div>
         <div className="mt-2.5 flex flex-col items-start">
           {onBack && (

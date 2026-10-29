@@ -35,6 +35,7 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
+import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -46,7 +47,10 @@ export type DocumentProps = {
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
   sideLabel: string;
-  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
+  onBrowse: (
+    surface: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => void;
 };
 
 export function DocumentView({
@@ -113,6 +117,17 @@ export function DocumentView({
       return <TimelineDocument {...props} path={document.path} />;
     case 'graph':
       return <GraphDocument {...props} />;
+    case 'pull-request':
+      return (
+        <PullRequestDocument
+          reviewId={document.reviewId}
+          number={document.number}
+          context={context}
+          toolbarTarget={toolbarTarget}
+          onBack={() => onOpen({ kind: 'handoff' })}
+          onFile={(path) => onOpen({ kind: 'file', path })}
+        />
+      );
   }
 }
 

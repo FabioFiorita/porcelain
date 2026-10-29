@@ -50,7 +50,6 @@ import {
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
-  reviewPullRequestNotice,
   stopName,
   stopTitle,
   summaryLinkExpiring,
@@ -72,6 +71,7 @@ import { useReviewSummary } from '../queries/summary';
 import {
   useReviewPanelOpen,
   useWalkthroughPlace,
+  usePullRequestLinkFocus,
   useReviewFileOrigins,
 } from '../store';
 import { ProgressMeter } from './progress-meter';
@@ -96,6 +96,7 @@ import {
   StateSkeleton,
 } from '@/shared/views/state-notice';
 import { ReviewBoundary } from './review-boundary';
+import { ReviewPullRequestChip } from './review-pull-request-chip';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -105,6 +106,7 @@ import { useDesktopReview } from '../adapters/desktop-review';
 type ReviewPageProps = {
   onOpen?: OpenDocument | undefined;
   toolbarTarget?: HTMLElement | null | undefined;
+  onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
   navigation?: ReactNode;
   revision?: number | undefined;
@@ -133,6 +135,7 @@ export function ReviewPage({
   onDeleted,
   liveScope,
   proofCurrent = true,
+  onShowReviewPanel,
   active = true,
 }: ReviewPageProps) {
   const query = readReview({
@@ -173,6 +176,7 @@ export function ReviewPage({
       liveScope={liveScope}
       proofCurrent={proofCurrent}
       active={active}
+      onShowReviewPanel={onShowReviewPanel}
       reread={{
         run: retry,
         failed: AsyncResult.isFailure(result),
@@ -277,6 +281,7 @@ function ReviewRevisionPage({
   onDeleted,
   liveScope,
   proofCurrent = true,
+  onShowReviewPanel,
   active = true,
   reread,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
@@ -383,6 +388,9 @@ function ReviewRevisionPage({
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
     revision.reviewId,
   );
+  const linkFocus = usePullRequestLinkFocus(revision.reviewId);
+  const openPullRequest = (number: number) =>
+    openDocument({ kind: 'pull-request', reviewId: revision.reviewId, number });
   const [sheetOpen, setSheetOpen] = useState(false);
   const railToggle = useElement<HTMLButtonElement>();
   const scroller = useElement<HTMLElement>();
@@ -528,16 +536,12 @@ function ReviewRevisionPage({
   );
   const pullQuery = readReviewPullRequest(titleInput);
   const pullResult = useAtomValue(pullQuery);
-  const retryPull = useAtomRefresh(pullQuery);
   const pullValue = AsyncResult.isFailure(pullResult)
     ? { kind: 'failed' as const }
     : (Option.getOrUndefined(AsyncResult.value(pullResult)) ?? {
         kind: 'loading' as const,
       });
   const pull = data.review?.pullRequest ? pullValue : undefined;
-  const pullNotice = data.review?.pullRequest
-    ? reviewPullRequestNotice(pull)
-    : undefined;
   const title = reviewListTitle(
     data.review ?? revision,
     latestReview?.revision ?? revision,
@@ -549,6 +553,21 @@ function ReviewRevisionPage({
     if (desktop) setPanelOpen(true);
     else setSheetOpen(true);
   };
+  const pullRequestChip = (
+    <ReviewPullRequestChip
+      reviewId={revision.reviewId}
+      projectId={revision.projectId}
+      branch={revision.branch}
+      url={data.review?.pullRequest}
+      context={context}
+      onOpen={openPullRequest}
+      onShowPanel={(trigger, focusInput) => {
+        if (focusInput) linkFocus.request();
+        if (onShowReviewPanel) onShowReviewPanel(trigger);
+        else showPanel();
+      }}
+    />
+  );
   const togglePanel = () => {
     if (!desktop) {
       setSheetOpen((open) => !open);
@@ -607,6 +626,9 @@ function ReviewRevisionPage({
             }
             onStop={(key) => reveal(() => go(key))}
             onProof={() => reveal(() => go('briefing'))}
+            onOpenPullRequest={(number) =>
+              reveal(() => openPullRequest(number))
+            }
           />
         </ReviewBoundary>
       )}
@@ -645,22 +667,6 @@ function ReviewRevisionPage({
       {toolbarTarget && createPortal(bar, toolbarTarget)}
       {reviewActive && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
-      )}
-      {pullNotice && (
-        <div className="px-4 py-2">
-          <StateNotice role="status" title={pullNotice}>
-            {pull?.kind !== 'loading' && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pullResult.waiting}
-                onClick={retryPull}
-              >
-                Read pull request again
-              </Button>
-            )}
-          </StateNotice>
-        </div>
       )}
       {branchTip && branchTip.head.oid !== latestHead && (
         <div className="px-4 pt-3">
@@ -779,6 +785,7 @@ function ReviewRevisionPage({
                     data.review?.latestRevision ?? revision.revision
                   }
                   title={title}
+                  pullRequestChip={pullRequestChip}
                   proofCurrent={proofCurrent && revision.headOid === latestHead}
                   margin={
                     <BriefingMargin
@@ -817,6 +824,7 @@ function ReviewRevisionPage({
                           }
                           stop={stop}
                           total={decisionCount}
+                          pullRequestChip={pullRequestChip}
                           review={review}
                           revision={revision}
                           scope={scope}

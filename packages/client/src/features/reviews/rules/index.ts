@@ -130,7 +130,6 @@ export {
   reviewListStatus,
   reviewListTitle,
   reviewPullRequestNotice,
-  pullRequestStateLabel,
   pullRequestBlockHidden,
   pullRequestLink,
   reviewListView,
@@ -148,3 +147,21 @@ export {
   type ReviewListEntry,
 } from './review-list.ts';
 export { archiveDescription, archiveFailureMessage } from './archive-review.ts';
+export {
+  foundPullRequests,
+  githubUnavailable,
+  pullCheckTone,
+  pullCheckDuration,
+  pullRequestChecks,
+  pullRequestMergeable,
+  pullRequestNumber,
+  pullRequestRepository,
+  pullRequestRollup,
+  pullRequestState,
+  pullRequestStateLabel,
+  pullReviewState,
+  type FoundPullRequest,
+  type PullRequestRead,
+  type PullChecksTone,
+  type PullRequestState,
+} from './pull-request.ts';

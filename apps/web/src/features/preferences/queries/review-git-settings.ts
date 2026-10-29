@@ -1,4 +1,7 @@
 import { useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { readInventory } from '@porcelain/client/projects';
 import {
   readReviewGitSettingsView,
   reviewGitSettingsTrust,
@@ -16,4 +19,12 @@ export function useSpecsApart(connection: Connection) {
 
 export function useReviewGitSettingsTrust(connection: Connection) {
   return useAtomValue(reviewGitSettingsTrust(connection));
+}
+
+export function useGitHubAccountProjects(connection: Connection) {
+  const result = useAtomValue(readInventory(connection));
+  return {
+    projects: Option.getOrUndefined(AsyncResult.value(result))?.projects,
+    failed: AsyncResult.isFailure(result),
+  };
 }

@@ -10,7 +10,6 @@ import {
   reviewListStatus,
   reviewListTitle,
   reviewPullRequestNotice,
-  pullRequestStateLabel,
   pullRequestBlockHidden,
   pullRequestLink,
   reviewListMeta,
@@ -714,15 +713,6 @@ it('explains a GitHub failure without treating it as a known pull request state'
     reviewPullRequestNotice({ kind: 'unavailable', reason: 'offline' }),
   ).toBe('PR state unavailable: GitHub could not be reached.');
   expect(reviewPullRequestNotice({ kind: 'not-linked' })).toBeUndefined();
-});
-
-it.each([
-  ['open', false, 'Open'],
-  ['open', true, 'Draft'],
-  ['closed', true, 'Closed'],
-  ['merged', true, 'Merged'],
-] as const)('labels a %s PR with draft %s as %s', (state, draft, expected) => {
-  expect(pullRequestStateLabel({ state, draft })).toBe(expected);
 });
 
 it.each([

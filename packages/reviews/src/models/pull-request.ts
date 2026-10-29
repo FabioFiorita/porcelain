@@ -25,6 +25,7 @@ export type GitHubAccountPreference = {
   override: string | undefined;
 };
 export const githubAccountResultSchema = Schema.Struct({
+  repository: Schema.optional(Schema.String),
   accounts: Schema.Array(Schema.String),
   choice: Schema.optional(githubChoiceSchema),
   override: Schema.optional(Schema.String),
@@ -40,6 +41,8 @@ const checkSchema = Schema.Union([
     status: Schema.String,
     conclusion: Schema.NullOr(Schema.String),
     detailsUrl: Schema.NullOr(Schema.String),
+    startedAt: Schema.optional(Schema.NullOr(Schema.String)),
+    completedAt: Schema.optional(Schema.NullOr(Schema.String)),
   }),
   Schema.Struct({
     __typename: Schema.Literal('StatusContext'),
@@ -130,6 +133,7 @@ const pullCheckSchema = Schema.Struct({
   status: Schema.String,
   conclusion: Schema.optional(Schema.String),
   detailsUrl: Schema.optional(Schema.String),
+  durationMs: Schema.optional(Schema.Int),
 });
 export const pullRequestSummarySchema = Schema.Struct({
   number: Schema.Int,
