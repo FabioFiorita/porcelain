@@ -17,10 +17,33 @@ registerCustomCSSVariableTheme(PIERRE_DECISION_THEME, {});
 const PIERRE_CARD_CSS = `
 [data-diffs-header] {
   min-height: calc(var(--spacing) * 10);
-  padding-inline: calc(var(--spacing) * 3);
+  padding-inline: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--muted);
+}
+[data-diffs-header] [data-change-icon] {
+  display: none;
+}
+[data-diffs-header] [data-title] {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: calc(var(--spacing) * 4);
+  color: var(--foreground);
+}
+[data-diffs-header] [data-deletions-count],
+[data-diffs-header] [data-additions-count] {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: calc(var(--spacing) * 4);
+}
+[data-diffs-header] [data-deletions-count] {
+  color: var(--del-fg);
+}
+[data-diffs-header] [data-additions-count] {
+  color: var(--add-fg);
 }
 pre {
   border: 1px solid var(--border);

@@ -5,7 +5,8 @@ selectors:
   - 'Worktrees by review status'
   - 'Search reviews and worktrees'
   - 'Filter worktrees'
-  - 'Closed reviews'
+  - 'Closed'
+  - 'Open worktree:'
   - 'No matching worktrees'
   - 'No computers paired'
   - 'Add computer'
@@ -22,6 +23,7 @@ tests:
   - packages/client/src/features/reviews/rules/archive-review.spec.ts
   - packages/client/src/features/reviews/queries/review-list.spec.ts
   - apps/mobile/src/features/projects/rules/worktree-row.spec.ts
+  - apps/mobile/src/features/projects/rules/retained-review-route.spec.ts
 api:
   - POST /api/reviews/:reviewId/archive
   - POST /api/inventory/refresh
@@ -45,29 +47,29 @@ Preconditions: [surface baseline](README.md).
 
 Preconditions: seed active checkouts, reviews in every status and one closed review on the disposable server.
 
-1. From Review tap workspace header: Worktrees with native Back, icon-only Filter worktrees/Closed reviews, no Choose workspace modal/Close. Repeat from Files/History. iPad uses its embedded navigator.
-2. Projects is first (one main checkout/project, never duplicated in status groups), then Needs you, Waiting on agent, Ready to merge, No review (non-main unreviewed checkouts only). Verify counts against server marks/reviews. Unavailable checkouts are disabled.
-3. Rows have one non-interactive status icon, a one-line truncated title and trailing muted reviewed/total count. The second line has project only when multiple projects survive filters and branch without separators; No review has its branch as the title and project below, without repeating the branch. Projects keeps the branch below its project title. Rows never name a computer. Full titles, status groups, reasons and progress remain in the row accessibilityLabel and existing review details; computer names remain searchable and available in filters. No information-circle icon, reason badge or row chevron. Check every status group, a long title, the TalkBack announcement, Search/icon and indentation in light and dark.
-4. Collapse two groups independently, leave/reopen, force-stop/relaunch: group choices persist. Reopen one without changing the other. Search title, branch, project, computer, PR and folder: Projects also filters, no matches is explicit, clearing preserves selection. Search, select intersecting project/computer filters and open an active checkout; reopen Worktrees from Review, Files and History and verify the search and filters remain. Repeat with no matches, no selected projects/computers and a long query. Clear search and filters independently and verify each cleared value survives leaving/reopening. Search, filters and Closed are session-only and start at their defaults after force-stop/relaunch.
-5. Filter worktrees has inline Projects/Computers checkbox sections. Filters intersect; deselecting the last shows no rows; Clear filters restores all. Closed shows only one Closed heading above the list, retained reviews remain readable; native Back returns to origin. Leave/reopen while Closed is on and while it is off: the choice, search and filters remain. Selecting an active checkout returns with workspace changed and draft guard intact.
-6. With no computer paired, Worktrees (`worktree-navigator`; the iPad main pane has its own Add computer) shows only No computers paired, one line of guidance and Add computer: no Search, Filter worktrees, Closed reviews or filter wording, even with a search or Closed left on before forgetting the last computer. Add computer opens Computers (Settings → Computers on iPad). When saved computers cannot be read, the storage error and Read again show instead.
+1. From Review tap workspace header: Worktrees with native Back and Filter worktrees, no Choose workspace modal/Close. Repeat from Files/History. iPad uses its embedded navigator.
+2. Groups are Needs you, Waiting on agent, Ready to merge, No review, then Closed. Main checkouts join No review, first, followed by shown branch/project order. Verify counts against server marks/reviews. Unavailable checkouts are disabled. Closed is collapsed by default and has a right-aligned count, including zero; every group has a left chevron, label and separate count.
+3. Review rows have one non-interactive status mark: brand dot, dashed waiting ring, filled check, failure alert or archive for Closed. They show the full review title (truncated visually), trailing reviewed/total and `project · branch` underneath even for one project. No review shows branch and project on one line, with an open ring; detached checkouts show folder name and parent path. Selected rows have the selected surface and brand progress. Full titles, status groups, reasons and progress remain in the accessibilityLabel. Rows never name a computer; computer names remain searchable and available in filters. Check every group, long titles, many rows, VoiceOver/TalkBack, light/dark, iPad landscape/portrait and phone width.
+4. Collapse two groups independently, leave/reopen and force-stop/relaunch: expansion choices persist. Search title, branch, project, computer, PR and folder; filters apply to both active and closed rows. Search/filter selections survive leaving/reopening from Review, Files and History, but start unfiltered after force-stop. Clear search and filters independently; test no matches, no projects/computers selected and a long query. Opening a worktree preserves the draft leave guard.
+5. Filter worktrees has inline Projects/Computers checkboxes. Filters intersect; Clear filters restores all. Expand Closed: tapping a review opens that retained review, and native Back returns. Its separate Open worktree action selects the available checkout and returns to Files/the originating phone screen. A closed-only checkout otherwise appears only in Closed; while selected it gains its own raised No review row, which disappears after selecting another checkout. Opening the closed review raises only its Closed row on iPad. Repeat with colliding worktree/review ids on two computers and with a deleted or unavailable checkout (no enabled Open worktree). Retain screenshots of Closed collapsed/expanded, review detail, selected checkout and return path.
+6. With no computer paired, Worktrees (`worktree-navigator`; the iPad main pane has its own Add computer) shows only No computers paired, one line of guidance and Add computer: no Search, Filter worktrees, Closed or filter wording, even with retained search/filters before forgetting the last computer. Add computer opens Computers (Settings → Computers on iPad). When saved computers cannot be read, the storage error and Read again show instead.
 7. Retain expanded/collapsed/filter/Closed screenshots and Android recording; independently read records.
 
 ### Archive a completed review
 
-Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, the review's computer has confirmed settings (Use these settings for this computer); When archiving a review has worktree/local branch/remote branch switches. Until then Archive is disabled and says why.
+Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, the review's computer has confirmed settings (Use these settings for <computer name>); When archiving a review has worktree/local branch/remote branch switches. Until then Archive is disabled and says why.
 
 1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.
-3. Confirm for the selected worktree: selection leaves before deletion. Closed retains readable review and Archived in accessible label/detail. A kept worktree remains under No review (Projects for main). Capture before, confirmation, Closed and settings.
-4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
+3. Confirm for the selected worktree: selection leaves before deletion. Closed retains readable review and Archived in accessible label/detail. A kept closed-only worktree remains reachable through Closed → Open worktree, and appears in No review while selected. Capture before, confirmation, Closed and settings.
+4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Repeat on iPad in landscape and portrait, with normal and larger Dynamic Type; the native page-sized sheet contains its footer. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
 
 Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspace-selection.spec.ts`, `inventory-state.spec.ts`, `archive-review.spec.ts`, `review-list.spec.ts`.
 
 ## Gotchas
 
 - Merged/closed PR reviews and manually closed reviews without a PR appear only in Closed. Update offers are covered by [Updates](access.updates.md).
-- Selecting/archiving must retain document-leave protection. Tablet presentation requires its own proof.
+- Selecting/archiving must retain document-leave protection. A retained review stays in the Files, Review or History stack that opened Worktrees, so native Back returns to that list with its search and filters. Tablet presentation requires its own proof.
 
 ### Unavailable pull request state
 

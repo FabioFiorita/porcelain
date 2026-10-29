@@ -1,5 +1,40 @@
 import { expect, test } from './fixtures.ts';
 
+test('a failed live refresh keeps the retained review readable, warns, and retries the latest revision', async ({
+  pairedPage: page,
+  app,
+  repo,
+  live,
+}) => {
+  const review = await repo.review('Original retained review');
+  await app.open(`/reviews/${review.reviewId}`);
+  const briefing = page.getByRole('region', { name: 'Briefing', exact: true });
+  await expect(briefing).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  const endOutage = await live.failDurableReviewRead(review.reviewId);
+  await repo.review('New published revision');
+  const failure = page.getByRole('alert').filter({
+    hasText:
+      'This review could not be refreshed. Showing the last loaded revision.',
+  });
+  await expect(failure).toBeVisible();
+  await expect(briefing).toContainText('Revision 1 of 1');
+  const paused = live.hold();
+  try {
+    const retry = failure.getByRole('button', {
+      name: 'Try again',
+      exact: true,
+    });
+    await expect(retry).toBeEnabled();
+    await endOutage();
+    await retry.click();
+    await expect(briefing).toContainText('Revision 2 of 2');
+    await expect(failure).not.toBeAttached();
+  } finally {
+    paused.release();
+  }
+});
+
 for (const revision of ['', '/1']) {
   test(`opening a durable review${revision} records it seen once after its live refresh settles`, async ({
     pairedPage,

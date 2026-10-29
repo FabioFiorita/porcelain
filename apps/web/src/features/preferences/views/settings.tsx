@@ -2,6 +2,8 @@ import {
   archiveSettings,
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
+  reviewGitSettingsKeptMessage,
+  shownReviewGitSettings,
   type ReviewGitSettingsView,
 } from '@porcelain/client/preferences/rules';
 import type { PreferenceChange } from '@porcelain/client/preferences';
@@ -28,7 +30,10 @@ import {
   useRemoteConnections,
 } from '@/features/access/index';
 import { type Connection } from '@/shared/workspace/connection';
-import { useReviewGitSettings } from '../queries/review-git-settings';
+import {
+  useReviewGitSettings,
+  useReviewGitSettingsTrust,
+} from '../queries/review-git-settings';
 import { useReviewGitSettingsCommands } from '../commands/review-git-settings';
 import {
   Item,
@@ -42,6 +47,7 @@ import { Separator } from '@/components/ui/separator';
 import { Fragment, useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SettingsHeading } from '@/shared/views/settings-heading';
 import { usePreferences } from '../store';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
@@ -93,7 +99,7 @@ function ChoiceItem<V extends string>({
 }: {
   label: string;
   description: string;
-  value: V;
+  value: V | undefined;
   options: ChoiceOption<V>[];
   disabled?: boolean;
   onChange: (value: V) => void;
@@ -101,7 +107,7 @@ function ChoiceItem<V extends string>({
   return (
     <SettingItem label={label} description={description}>
       <Tabs
-        value={value}
+        value={value ?? null}
         onValueChange={(next: unknown) => {
           const selected = options.find((option) => option.value === next);
           if (selected) onChange(selected.value);
@@ -173,17 +179,19 @@ function SwitchItem({
 
 function SettingsNotice({
   view,
+  computer,
   onRetry,
 }: {
   view: ReviewGitSettingsView;
+  computer: string;
   onRetry: () => void;
 }) {
   if (view.kind === 'unsupported')
     return (
       <Alert>
-        <AlertTitle>Update this computer to sync settings</AlertTitle>
+        <AlertTitle>Update {computer} to sync settings</AlertTitle>
         <AlertDescription>
-          Porcelain on this computer is older and keeps no Reviews &amp; Git
+          Porcelain on {computer} is older and keeps no Reviews &amp; Git
           settings. Update it from Computers to choose them here.
         </AlertDescription>
       </Alert>
@@ -205,39 +213,70 @@ function SettingsNotice({
   );
 }
 
-function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
+function ReviewGitSettingsForm({
+  connection,
+  computer,
+}: {
+  connection: Connection;
+  computer: SettingsComputer;
+}) {
   const view = useReviewGitSettings(connection);
+  const untrusted = useReviewGitSettingsTrust(connection);
   const { preferences } = usePreferences();
-  const { save, saving, failure, readAgain } =
+  const { save, saving, failure, kept, readAgain, checkTrustAgain } =
     useReviewGitSettingsCommands(connection);
-  const settings =
-    view.kind === 'configured'
-      ? view.settings
-      : preferences.reviewGitSettingsImportCandidate;
+  const settings = shownReviewGitSettings(
+    view,
+    preferences.reviewGitSettingsImportCandidate,
+  );
   const editable = confirmedReviewGitSettings(view) !== undefined && !saving;
   const change = (next: ReviewGitSettingsChange) =>
     save({ kind: 'change', change: next });
   return (
     <>
-      <SettingsNotice view={view} onRetry={() => readAgain(undefined)} />
+      <SettingsNotice
+        view={view}
+        computer={computer.phrase}
+        onRetry={() => readAgain(undefined)}
+      />
       {view.kind === 'unconfigured' && (
         <Alert>
-          <AlertTitle>Choose settings for this computer</AlertTitle>
+          <AlertTitle>Choose settings for {computer.phrase}</AlertTitle>
           <AlertDescription>
             <p>
-              Every device connected to this computer uses the same Reviews
+              Every device connected to {computer.phrase} uses the same Reviews
               &amp; Git settings. These are the ones this browser used before;
-              check the archive deletions below, then use them for this
-              computer.
+              check the archive deletions below, then use them for{' '}
+              {computer.phrase}.
             </p>
-            <Button
-              className="mt-3"
-              size="sm"
-              disabled={saving}
-              onClick={() => save({ kind: 'initialize', settings })}
-            >
-              Use these settings for this computer
-            </Button>
+            {untrusted && <p>{untrusted}</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                className="h-auto min-h-7 max-w-full whitespace-normal"
+                size="sm"
+                disabled={saving || untrusted !== undefined}
+                onClick={() =>
+                  save({
+                    kind: 'initialize',
+                    settings: preferences.reviewGitSettingsImportCandidate,
+                  })
+                }
+              >
+                Use these settings for {computer.phrase}
+              </Button>
+              {untrusted && (
+                <Button size="sm" variant="outline" onClick={checkTrustAgain}>
+                  Check again
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      {kept && (
+        <Alert>
+          <AlertDescription>
+            {reviewGitSettingsKeptMessage(computer.name)}
           </AlertDescription>
         </Alert>
       )}
@@ -253,7 +292,7 @@ function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
           <SwitchItem
             label="Spec files"
             description="Group specs separately and start them collapsed, in a review and in the changed files."
-            checked={settings.collapseSpecs}
+            checked={settings?.collapseSpecs ?? false}
             disabled={!editable}
             onChange={(collapseSpecs) => change({ collapseSpecs })}
           />
@@ -265,7 +304,7 @@ function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
           <ChoiceItem
             label="Pull strategy"
             description="Used by Pull in the Git menu."
-            value={settings.pullStrategy}
+            value={settings?.pullStrategy}
             disabled={!editable}
             options={[
               { value: 'merge', label: 'Merge' },
@@ -283,7 +322,7 @@ function ReviewGitSettingsForm({ connection }: { connection: Connection }) {
               <SwitchItem
                 label={label}
                 description={archiveDescriptions[key]}
-                checked={settings[key]}
+                checked={settings?.[key] ?? false}
                 disabled={!editable}
                 onChange={(checked) => change({ [key]: checked })}
               />
@@ -338,85 +377,95 @@ function ComputerPicker({
 
 export function GeneralSettings() {
   return (
-    <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> General
-        </h1>
-        <p className="text-base">
-          How Porcelain looks, and how code and documents open.
-        </p>
+    <div className="flex flex-col">
+      <SettingsHeading
+        section="Settings"
+        title="General"
+        lead="How Porcelain looks, and how code and documents open."
+      />
+      <div className="mt-8 flex flex-col gap-7">
+        <FieldSet>
+          <FieldLegend variant="label">Appearance</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Theme"
+              description="System follows your operating system."
+              name="appearance"
+              options={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Code</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Diff layout"
+              description="Split shows old and new side by side."
+              name="diffStyle"
+              options={[
+                { value: 'unified', label: 'Unified' },
+                { value: 'split', label: 'Split' },
+              ]}
+            />
+            <Separator />
+            <Choice
+              label="Long lines"
+              description="Wrap keeps every line visible without scrolling."
+              name="lineOverflow"
+              options={[
+                { value: 'scroll', label: 'Scroll' },
+                { value: 'wrap', label: 'Wrap' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Documents</FieldLegend>
+          <ItemGroup>
+            <Choice
+              label="Documents open as"
+              description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+              name="documentsDefault"
+              options={[
+                { value: 'rendered', label: 'Rendered' },
+                { value: 'source', label: 'Source' },
+              ]}
+            />
+          </ItemGroup>
+        </FieldSet>
       </div>
-      <FieldSet>
-        <FieldLegend variant="label">Appearance</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Theme"
-            description="System follows your operating system."
-            name="appearance"
-            options={[
-              { value: 'system', label: 'System' },
-              { value: 'light', label: 'Light' },
-              { value: 'dark', label: 'Dark' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Code</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Diff layout"
-            description="Split shows old and new side by side."
-            name="diffStyle"
-            options={[
-              { value: 'unified', label: 'Unified' },
-              { value: 'split', label: 'Split' },
-            ]}
-          />
-          <Separator />
-          <Choice
-            label="Long lines"
-            description="Wrap keeps every line visible without scrolling."
-            name="lineOverflow"
-            options={[
-              { value: 'scroll', label: 'Scroll' },
-              { value: 'wrap', label: 'Wrap' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Documents</FieldLegend>
-        <ItemGroup>
-          <Choice
-            label="Documents open as"
-            description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
-            name="documentsDefault"
-            options={[
-              { value: 'rendered', label: 'Rendered' },
-              { value: 'source', label: 'Source' },
-            ]}
-          />
-        </ItemGroup>
-      </FieldSet>
-      <p className="text-xs text-muted-foreground">
+      <p className="mt-4 text-xs text-muted-foreground">
         These preferences are saved on this device.
       </p>
-    </>
+    </div>
   );
 }
 
-type SettingsComputer = { id: string; name: string; connection: Connection };
+type SettingsComputer = {
+  id: string;
+  name: string;
+  phrase: string;
+  connection: Connection;
+};
 
 export function ReviewsGitSettings() {
   const { connection } = useConnectedContext();
   const remotes = useRemoteConnections();
   const computers: readonly SettingsComputer[] = [
-    { id: 'this-computer', name: 'This computer', connection },
+    {
+      id: 'this-computer',
+      name: 'This computer',
+      phrase: 'this computer',
+      connection,
+    },
     ...remotes.map((entry) => ({
       id: entry.remote.environmentId,
       name: entry.remote.name,
+      phrase: entry.remote.name,
       connection: entry.connection,
     })),
   ];
@@ -425,15 +474,11 @@ export function ReviewsGitSettings() {
     computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> Reviews &amp;
-          Git
-        </h1>
-        <p className="text-base">
-          How reviews read, and what Git does when you pull and archive.
-        </p>
-      </div>
+      <SettingsHeading
+        section="Settings"
+        title="Reviews & Git"
+        lead="How reviews read, and what Git does when you pull and archive."
+      />
       {computers.length > 1 && (
         <ComputerPicker
           computers={computers}
@@ -445,6 +490,7 @@ export function ReviewsGitSettings() {
         <ReviewGitSettingsForm
           key={computer.id}
           connection={computer.connection}
+          computer={computer}
         />
       )}
       <p className="text-xs text-muted-foreground">

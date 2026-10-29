@@ -1,9 +1,12 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useId, useState } from 'react';
+import { type ChangeEvent, type KeyboardEvent, useId, useState } from 'react';
+import { ArrowUpIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/shared/lib/utils';
+import { smallButton } from './review-controls';
 import { useCreateComment } from '../commands/comments';
 import {
   type CommentAnchor,
@@ -41,12 +44,18 @@ export function InlineComposer({
   quote,
   draft: controlledDraft,
   onDraftChange,
+  variant = 'comment',
+  autoFocus = true,
+  closable = true,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor;
   onClose: () => void;
   quote?: string | undefined;
+  variant?: 'comment' | 'answer';
+  autoFocus?: boolean;
+  closable?: boolean;
 } & DraftControl) {
   const id = useId();
   const [localDraft, setLocalDraft] = useState<InlineCommentDraft>({
@@ -82,77 +91,133 @@ export function InlineComposer({
         ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
       },
       () => {
-        setDraft({ ...draft, pending: undefined });
+        setDraft({ body: '', pending: undefined });
         onClose();
       },
     );
   };
+  const answer = variant === 'answer';
+  const field = {
+    id,
+    autoFocus,
+    value: body,
+    maxLength: Math.max(0, mutation.bodyLimit - quoteLength),
+    disabled: mutation.result.waiting,
+    onChange: (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setDraft({ body: event.target.value, pending: undefined });
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
+      if (closable && event.key === 'Escape' && !mutation.result.waiting) {
+        event.stopPropagation();
+        onClose();
+      }
+    },
+  };
   return (
     <form
-      className="m-3 flex flex-col gap-2 rounded-lg border bg-card p-3 font-sans"
+      className={
+        answer
+          ? 'flex flex-col gap-1.5 font-sans'
+          : 'm-3 flex flex-col gap-2 rounded-lg border bg-card p-3 font-sans'
+      }
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
     >
-      <label htmlFor={id} className="text-xs text-muted-foreground">
-        {[
-          anchorPath(anchor),
-          anchorLabel(anchor),
-          anchor.kind === 'change' &&
-          anchor.revision !== null &&
-          anchor.revision !== undefined
-            ? `at ${shortOid(anchor.revision)}`
-            : undefined,
-        ]
-          .filter((part) => part !== null && part !== undefined)
-          .join(' · ')}
+      <label
+        htmlFor={id}
+        className={
+          answer
+            ? 'text-xs leading-4 font-medium text-muted-foreground'
+            : 'text-xs text-muted-foreground'
+        }
+      >
+        {answer
+          ? 'Answer the agent'
+          : [
+              anchorPath(anchor),
+              anchorLabel(anchor),
+              anchor.kind === 'change' &&
+              anchor.revision !== null &&
+              anchor.revision !== undefined
+                ? `at ${shortOid(anchor.revision)}`
+                : undefined,
+            ]
+              .filter((part) => part !== null && part !== undefined)
+              .join(' · ')}
       </label>
-      <Textarea
-        id={id}
-        autoFocus
-        aria-label="Comment"
-        placeholder="Share feedback…"
-        value={body}
-        maxLength={Math.max(0, mutation.bodyLimit - quoteLength)}
-        disabled={mutation.result.waiting}
-        onChange={(event) => {
-          setDraft({ body: event.target.value, pending: undefined });
-        }}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault();
-            submit();
-          }
-          if (event.key === 'Escape' && !mutation.result.waiting) {
-            event.stopPropagation();
-            onClose();
-          }
-        }}
-      />
+      {answer ? (
+        <textarea
+          {...field}
+          rows={4}
+          placeholder="Your answer…"
+          className="block h-23 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.75 text-ui leading-4.75 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-brand-soft disabled:opacity-50"
+        />
+      ) : (
+        <Textarea
+          {...field}
+          aria-label="Comment"
+          placeholder="Share feedback…"
+        />
+      )}
       {AsyncResult.isFailure(mutation.result) && (
         <p role="alert" className="text-xs text-destructive">
           {reviewErrorMessage(Cause.squash(mutation.result.cause))}
         </p>
       )}
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={mutation.result.waiting}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!valid || mutation.result.waiting}
-        >
-          {mutation.result.waiting ? 'Posting…' : 'Comment'}
-        </Button>
-      </div>
+      {answer ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs leading-4 text-muted-foreground">
+            via MCP
+          </span>
+          {closable && (
+            <button
+              type="button"
+              className={`${smallButton} ml-auto hover:bg-accent`}
+              disabled={mutation.result.waiting}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            className={cn(
+              smallButton,
+              'bg-primary pr-2.5 pl-2 text-primary-foreground hover:bg-primary/80',
+              !closable && 'ml-auto',
+            )}
+            disabled={!valid || mutation.result.waiting}
+          >
+            <ArrowUpIcon className="size-3.25" />
+            {mutation.result.waiting ? 'Sending…' : 'Send answer'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={mutation.result.waiting}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!valid || mutation.result.waiting}
+          >
+            {mutation.result.waiting ? 'Posting…' : 'Comment'}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

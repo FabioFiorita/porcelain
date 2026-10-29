@@ -81,6 +81,7 @@ const workspaceMessages = {
 
 export function ConnectedWorkspace({
   review,
+  openReview,
   remote,
   unavailable,
   notice,
@@ -88,6 +89,7 @@ export function ConnectedWorkspace({
 }: {
   children?: ReactNode;
   review?: Review;
+  openReview?: { reviewId: string; environment: string | undefined };
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
   notice?: 'not-found' | 'missing-worktree' | undefined;
@@ -146,6 +148,7 @@ export function ConnectedWorkspace({
   const navigator = {
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
+    openReview,
     onOpenProject: (entry: RemoteConnection | null) =>
       entry
         ? openProjectDialog.openWithPayload({

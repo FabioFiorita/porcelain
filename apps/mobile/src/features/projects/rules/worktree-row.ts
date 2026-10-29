@@ -1,37 +1,33 @@
 import {
   reviewListCheckout,
-  reviewListRowContext,
+  reviewListRow,
   reviewListSignal,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
 
-export function worktreeRow(
-  entry: ReviewListEntry,
-  multipleProjects: boolean,
-  selected: boolean,
-) {
+export function worktreeRow(entry: ReviewListEntry, selected: boolean) {
   const signal = reviewListSignal(entry);
-  const icons = {
-    Projects: 'folder',
-    'Needs you': 'review',
-    'Waiting on agent': 'history',
-    'Ready to merge': 'check',
-    'No review': 'review',
+  const row = reviewListRow(entry);
+  const statuses = {
+    Projects: 'none',
+    'Needs you': 'needs-you',
+    'Waiting on agent': 'waiting',
+    'Ready to merge': 'ready',
+    'No review': 'none',
     Closed: 'closed',
   } as const;
   return {
-    context: reviewListRowContext(entry, multipleProjects),
-    icon:
+    ...row,
+    status:
       signal?.tone === 'destructive'
-        ? ('warning' as const)
-        : icons[entry.group],
-    tone: signal?.tone ?? 'muted',
+        ? ('failed' as const)
+        : statuses[entry.group],
     accessibilityLabel: [
       ...new Set([
-        entry.title,
+        row.title,
         entry.projectName,
         reviewListCheckout(entry).full,
-        entry.group,
+        entry.group === 'Projects' ? 'No review' : entry.group,
         entry.pullRequestNumber
           ? `Pull request #${entry.pullRequestNumber}`
           : undefined,

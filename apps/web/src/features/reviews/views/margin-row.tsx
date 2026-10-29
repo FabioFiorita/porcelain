@@ -8,8 +8,8 @@ export function MarginRow({
   margin?: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 gap-8 @5xl/review:grid-cols-4">
-      <div className="min-w-0 @5xl/review:col-span-3">{children}</div>
+    <div className="grid min-w-0 gap-8 @5xl/review:grid-cols-[minmax(0,1fr)_--spacing(51)] @5xl/review:gap-7">
+      <div className="min-w-0">{children}</div>
       {margin}
     </div>
   );

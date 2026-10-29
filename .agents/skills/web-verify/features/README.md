@@ -33,6 +33,8 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 ## Features
 
+- [app.board-comparison](app.board-comparison.md) — Compare mapped roles against approved HTML boards.
+
 - [access.device-trust](access.device-trust.md) (desktop) — Trust grants, revocation and trusted pairing links.
 - [access.disconnect](access.disconnect.md) — Session disconnect, draft refusal and return to pairing.
 - [access.environment-name](access.environment-name.md) (desktop) — Computer naming and persistence.

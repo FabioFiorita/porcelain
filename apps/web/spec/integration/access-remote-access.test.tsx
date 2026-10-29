@@ -63,6 +63,9 @@ test.for([1280, 414])(
       });
       await expect.element(tailnet).toBeDisabled();
       await settings
+        .getByRole('button', { name: 'Set up Tailscale', exact: true })
+        .click();
+      await settings
         .getByRole('textbox', { name: 'Tailscale name', exact: true })
         .fill('Porcelain.Tail0000.ts.net');
       await settings
@@ -96,6 +99,9 @@ test.for([1280, 414])(
         exact: true,
       });
       await expect.element(tunnel).toBeDisabled();
+      await settings
+        .getByRole('button', { name: 'Set up Cloudflare tunnel', exact: true })
+        .click();
       await settings
         .getByRole('textbox', { name: 'Public hostname', exact: true })
         .fill('https://Porcelain.Example.com/');

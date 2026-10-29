@@ -1,6 +1,90 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
+test('an issued pairing link keeps its route caption when the next link uses another way in', async ({
+  pairedPage,
+  server,
+  world,
+}) => {
+  await world.changeWaysIn({
+    lan: true,
+    tailnet: true,
+    tailnetHostname: 'porcelain.tail0000.ts.net',
+    cloudflare: true,
+    cloudflareHostname: 'porcelain.example.com',
+  });
+  await expect
+    .poll(async () => (await server.remoteAccess()).routes)
+    .toMatchObject({
+      lan: { status: { kind: 'on' } },
+      tailnet: { status: { kind: 'on' } },
+      cloudflare: { status: { kind: 'on' } },
+    });
+  await pairedPage.goto('/settings/computers/this-computer');
+  const pairing = pairedPage.getByRole('complementary', {
+    name: 'Pair a device',
+    exact: true,
+  });
+
+  const routes = ['Local network', 'Tailscale', 'Cloudflare tunnel'];
+  for (const [index, route] of routes.entries()) {
+    await pairedPage
+      .getByRole('combobox', { name: 'Opens through', exact: true })
+      .click();
+    await pairedPage
+      .getByRole('option', { name: new RegExp(`^${route} ·`) })
+      .click();
+    const label = `Phone over ${route}`;
+    await pairedPage
+      .getByRole('textbox', { name: 'Device name', exact: true })
+      .fill(label);
+    await pairedPage
+      .getByRole('button', { name: 'Create pairing link', exact: true })
+      .click();
+    const caption = pairing.getByText(
+      new RegExp(`^Works once, until .+, through ${route}\\.$`),
+    );
+    await expect(caption).toBeVisible();
+    const link = await pairing
+      .getByLabel('Pairing link', { exact: true })
+      .innerText();
+    await pairedPage
+      .getByRole('combobox', { name: 'Opens through', exact: true })
+      .click();
+    await pairedPage
+      .getByRole('option', {
+        name: new RegExp(`^${routes[(index + 1) % routes.length]} ·`),
+      })
+      .click();
+    await expect(
+      caption,
+      'The issued link keeps its original way in',
+    ).toBeVisible();
+    await expect(
+      pairing.getByLabel('Pairing link', { exact: true }),
+    ).toHaveText(link);
+    const enabled = pairedPage.getByRole('switch', {
+      name: route,
+      exact: true,
+    });
+    await enabled.click();
+    await expect(pairing.getByText(/^Works once, until /)).not.toHaveText(
+      /, through /,
+    );
+    await expect(
+      pairing.getByLabel('Pairing link', { exact: true }),
+    ).toHaveText(link);
+    await enabled.click();
+    await expect(caption).toBeVisible();
+    await pairedPage
+      .getByRole('button', {
+        name: `Cancel the link for ${label}`,
+        exact: true,
+      })
+      .click();
+  }
+});
+
 test('Settings → Computers → This computer creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
   pairedPage,
   server,

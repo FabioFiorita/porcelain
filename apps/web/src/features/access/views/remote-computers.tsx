@@ -1,12 +1,19 @@
-import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { KeyRoundIcon, MonitorIcon, ChevronRightIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { Cause, Option } from 'effect';
+import {
+  ChevronRightIcon,
+  CircleIcon,
+  GlobeIcon,
+  KeyRoundIcon,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   connectionErrorMessage,
   remoteStatusText,
   type Environment,
   type Remote,
+  type RemoteStatus,
 } from '@porcelain/client/access/rules';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -14,17 +21,16 @@ import { Button } from '@/components/ui/button';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemFooter,
-} from '@/components/ui/item';
+import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
+import { cn } from '@/shared/lib/utils';
+import { SettingsHeading } from '@/shared/views/settings-heading';
+import { type Connection } from '@/shared/workspace/connection';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
-import { useSavedEnvironments } from '../store';
+import { usePairedAccess, useRemoteAccess } from '../queries/share';
+import { computerSummary } from '../rules/settings';
+import { useConnectedContext, useSavedEnvironments } from '../store';
 import {
   useSettingsUpdates,
   useSettingsUpdatesEntry,
@@ -49,23 +55,32 @@ function RemoteRow({
       target.kind === 'service' && target.id === remote.environmentId,
   );
   return (
-    <Item size="sm" role="listitem" aria-label={name}>
-      <ItemContent>
-        <ComputerLink
-          name={name}
-          label={`Open ${name}`}
-          onOpen={() => onOpen(remote.environmentId)}
-          description={`${remoteStatusText(status)} · ${remote.address} · ${remote.environmentId.slice(0, 8)}`}
-        />
-      </ItemContent>
-      {showUpdates && update && (
-        <ItemFooter>
-          <div className="w-full">
-            <SettingsUpdateRow row={update} />
-          </div>
-        </ItemFooter>
-      )}
-    </Item>
+    <ComputerRow
+      name={name}
+      label={name}
+      openLabel={`Open ${name}`}
+      onOpen={() => onOpen(remote.environmentId)}
+      status={status.kind}
+      description={
+        <>
+          {remoteStatusText(status)} ·{' '}
+          <span className="font-mono">{remote.address}</span> ·{' '}
+          <span className="font-mono">{remote.environmentId.slice(0, 8)}</span>
+        </>
+      }
+      update={
+        showUpdates &&
+        (update ? (
+          <SettingsUpdateRow row={update} />
+        ) : (
+          status.kind === 'offline' && (
+            <p className="text-xs leading-4 text-muted-foreground">
+              Version unavailable while offline
+            </p>
+          )
+        ))
+      }
+    />
   );
 }
 
@@ -76,24 +91,30 @@ function AddRemote() {
   return (
     <Item>
       <ItemContent>
-        <ItemDescription>
-          On the other computer, run porcelain pair and paste the link it
-          prints. This device keeps its own credential for that computer.
-        </ItemDescription>
+        <p className="text-ui leading-5 text-foreground-2">
+          On the other computer, run{' '}
+          <code className="rounded-sm bg-muted px-1.5 py-px font-mono text-xs leading-4.5 font-medium text-foreground inset-ring inset-ring-border">
+            porcelain pair
+          </code>{' '}
+          and paste the link it prints. This device keeps its own credential for
+          that computer.
+        </p>
         <form
-          className="flex flex-col gap-2 sm:flex-row"
+          className="mt-2.5 flex flex-col gap-2 sm:flex-row"
           onSubmit={(event) => submitForm(event, () => add.submit(link))}
         >
-          <Input
-            aria-label="Pairing link"
-            placeholder="http://192.168.1.20:4738/pair#c=…"
-            value={link}
-            disabled={add.result.waiting || status !== 'ready'}
-            onChange={(event) => {
-              add.reset();
-              setLink(event.target.value);
-            }}
-          />
+          <div className="min-w-0 flex-1 font-mono">
+            <Input
+              aria-label="Pairing link"
+              placeholder="http://192.168.1.20:4738/pair#c=…"
+              value={link}
+              disabled={add.result.waiting || status !== 'ready'}
+              onChange={(event) => {
+                add.reset();
+                setLink(event.target.value);
+              }}
+            />
+          </div>
           <Button
             type="submit"
             className="shrink-0"
@@ -116,6 +137,18 @@ function AddRemote() {
   );
 }
 
+function ThisComputerSummary({ connection }: { connection: Connection }) {
+  const remote = Option.getOrUndefined(
+    AsyncResult.value(useRemoteAccess(connection)),
+  );
+  const paired = Option.getOrUndefined(
+    AsyncResult.value(usePairedAccess(connection)),
+  );
+  return remote && paired
+    ? `Online · ${computerSummary(remote, paired.devices.length)}`
+    : 'Online · Connected computer';
+}
+
 export function RemoteComputers({
   environment,
   onOpen,
@@ -125,26 +158,24 @@ export function RemoteComputers({
   showUpdates: boolean;
   onOpen: (environmentId: string) => void;
 }) {
+  const { connection } = useConnectedContext();
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
   useSettingsUpdatesEntry();
   const { targets, count, batch, run } = useSettingsUpdates();
   return (
     <>
-      <div className="space-y-3">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          <span className="text-muted-foreground">Settings.</span> Computers
-        </h1>
-        <p className="text-base">
-          Every computer this app is paired with. In the Mac app and on iPhone
-          and iPad, their worktrees share one sidebar, and Update updates them
-          all.
-        </p>
-        <p className="text-xs text-muted-foreground">
+      <SettingsHeading
+        section="Settings"
+        title="Computers"
+        lead="Every computer this app is paired with. In the Mac app and on iPhone and iPad, their worktrees share one sidebar, and Update updates them all."
+      >
+        <p className="mt-3.5 flex max-w-160 items-start gap-2 text-ui leading-5 text-muted-foreground">
+          <GlobeIcon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
           In a browser, a tab opens one computer: its sidebar shows that
           computer’s worktrees, and each other computer opens in its own tab.
         </p>
-      </div>
+      </SettingsHeading>
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />
@@ -163,9 +194,18 @@ export function RemoteComputers({
           </AlertDescription>
         </Alert>
       )}
-      <FieldSet>
-        <FieldLegend variant="label">Computers</FieldLegend>
-        <div className="flex justify-end">
+      <section
+        aria-labelledby="computers-heading"
+        className="@container flex min-w-0 flex-col gap-2"
+      >
+        <div className="mb-1.5 flex min-h-7 items-center justify-between gap-2">
+          <h2
+            id="computers-heading"
+            className="flex items-center gap-1 text-xs leading-4 font-medium text-muted-foreground"
+          >
+            Computers
+            <span className="tabular-nums">{remotes.length + 1}</span>
+          </h2>
           <Button
             size="sm"
             disabled={batch.running || count === 0}
@@ -175,29 +215,16 @@ export function RemoteComputers({
           </Button>
         </div>
         <ItemGroup aria-label="Computers">
-          <Item
-            size="sm"
-            role="listitem"
-            aria-label={`This computer: ${environment.name}`}
-          >
-            <ItemContent>
-              <ComputerLink
-                name={environment.name}
-                label={`Open This computer: ${environment.name}`}
-                onOpen={() => onOpen('this-computer')}
-                icon={<MonitorIcon className="size-4 shrink-0" />}
-                badge={<Badge variant="secondary">This computer</Badge>}
-                description="Online · Connected computer"
-              />
-            </ItemContent>
-            {showUpdates && (
-              <ItemFooter>
-                <div className="w-full">
-                  <ComputerUpdate />
-                </div>
-              </ItemFooter>
-            )}
-          </Item>
+          <ComputerRow
+            name={environment.name}
+            label={`This computer: ${environment.name}`}
+            openLabel={`Open This computer: ${environment.name}`}
+            onOpen={() => onOpen('this-computer')}
+            status="online"
+            badge={<Badge variant="secondary">This computer</Badge>}
+            description={<ThisComputerSummary connection={connection} />}
+            update={showUpdates && <ComputerUpdate />}
+          />
           {[...remotes]
             .sort(
               (a, b) =>
@@ -213,59 +240,116 @@ export function RemoteComputers({
               />
             ))}
         </ItemGroup>
-        <p className="text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
           Services update from npm and restart. The Mac app updates itself.
         </p>
-      </FieldSet>
+      </section>
       <FieldSet>
         <FieldLegend variant="label">Add computer</FieldLegend>
         <ItemGroup>
           <AddRemote />
         </ItemGroup>
       </FieldSet>
+      <p className="-mt-3.5 text-ui leading-5 text-muted-foreground">
+        To pair a phone, tablet or browser with this computer, open{' '}
+        <Link
+          to="/settings/$section/$environmentId"
+          params={{ section: 'computers', environmentId: 'this-computer' }}
+          hash="devices"
+          className="rounded-sm font-medium text-foreground underline underline-offset-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          {environment.name} › Devices
+        </Link>
+        .
+      </p>
     </>
   );
 }
 
-function ComputerLink({
+const hollow = (
+  <CircleIcon
+    aria-hidden
+    strokeWidth={3.5}
+    className="size-2.5 text-border-strong"
+  />
+);
+
+function dot(color: string) {
+  return <span aria-hidden className={cn('size-2 rounded-full', color)} />;
+}
+
+const statusDots: Record<RemoteStatus['kind'], ReactNode> = {
+  online: dot('bg-add-fg'),
+  checking: hollow,
+  reconnecting: hollow,
+  offline: hollow,
+  'needs-pairing': dot('bg-destructive'),
+  'other-server': dot('bg-destructive'),
+  incompatible: dot('bg-warn'),
+};
+
+function ComputerRow({
   name,
   label,
-  description,
-  icon,
+  openLabel,
+  status,
   badge,
+  description,
+  update,
   onOpen,
 }: {
   name: string;
   label: string;
-  description: string;
-  icon?: ReactNode;
+  openLabel: string;
+  status: RemoteStatus['kind'];
   badge?: ReactNode;
+  description: ReactNode;
+  update: ReactNode;
   onOpen: () => void;
 }) {
   return (
-    <TruncatedText
-      text={name}
-      className="font-medium"
-      renderTrigger={(text) => (
-        <Button
-          variant="ghost"
-          className="h-auto w-full min-w-0 justify-between whitespace-normal text-left"
-          aria-label={label}
-          onClick={onOpen}
-        >
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-2">
-              {icon}
-              {text}
-              {badge}
-            </span>
-            <span className="block break-all text-xs font-normal text-muted-foreground">
-              {description}
-            </span>
-          </span>
-          <ChevronRightIcon className="shrink-0" />
-        </Button>
+    <Item
+      role="listitem"
+      aria-label={label}
+      className="relative grid grid-cols-[--spacing(4)_minmax(0,1fr)_--spacing(7)] @2xl:grid-cols-[--spacing(4)_minmax(0,1fr)_auto_--spacing(7)]"
+    >
+      <span
+        aria-hidden
+        className="flex h-5 w-4 items-center justify-center self-start"
+      >
+        {statusDots[status]}
+      </span>
+      <div className="min-w-0 self-start">
+        <div className="flex min-w-0 items-center gap-2">
+          <TruncatedText
+            text={name}
+            className="text-sm leading-5 font-medium"
+            renderTrigger={(text) => (
+              <button
+                type="button"
+                aria-label={openLabel}
+                onClick={onOpen}
+                className="flex min-w-0 rounded-sm text-left outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/30"
+              >
+                {text}
+              </button>
+            )}
+          />
+          {badge}
+        </div>
+        <p className="mt-0.5 text-xs leading-4.5 text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      {update && (
+        <div className="relative col-span-2 col-start-2 row-start-2 min-w-0 @2xl:col-span-1 @2xl:col-start-3 @2xl:row-start-1 @2xl:max-w-80">
+          {update}
+        </div>
       )}
-    />
+      <ChevronRightIcon
+        aria-hidden
+        className="col-start-3 row-start-1 size-4 justify-self-center text-muted-foreground @2xl:col-start-4"
+      />
+    </Item>
   );
 }

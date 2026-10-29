@@ -55,23 +55,31 @@ export const settingsSections: readonly [
 
 export const defaultSettingsSection = settingsSections[0].id;
 
-function contentClass(wide = false) {
+type ContentLayout = 'reading' | 'list' | 'wide';
+
+const contentLayouts: Record<ContentLayout, string> = {
+  reading: 'max-w-186 gap-8',
+  list: 'max-w-186 gap-7',
+  wide: 'max-w-240 gap-5.5 md:pt-7.5',
+};
+
+function contentClass(layout: ContentLayout) {
   return cn(
-    'settings-content wrap-anywhere mx-auto flex w-full flex-col gap-7 px-4 py-6 md:px-6 md:py-9 lg:pl-7 lg:pr-14',
-    wide ? 'max-w-5xl' : 'max-w-3xl',
+    'settings-content wrap-anywhere mx-auto flex w-full flex-col px-4 py-6 md:px-6 md:py-9 lg:pr-10 lg:pl-6',
+    contentLayouts[layout],
   );
 }
 
 function SectionFrame({
   children,
-  wide = false,
+  layout,
 }: {
   children: ReactNode;
-  wide?: boolean;
+  layout: ContentLayout;
 }) {
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div className={contentClass(wide)}>{children}</div>
+      <div className={contentClass(layout)}>{children}</div>
     </ScrollArea>
   );
 }
@@ -159,9 +167,9 @@ export function SettingsPage({
       ref={attachPage}
       tabIndex={-1}
       aria-label="Settings"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper bg-card shadow-paper outline-none"
     >
-      <header className="flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
+      <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
         <Tooltip>
           <TooltipTrigger
             render={<SidebarTrigger aria-label="Toggle Sidebar" />}
@@ -217,14 +225,14 @@ export function SettingsPage({
           aria-label="Settings sections"
           className="flex shrink-0 flex-col md:w-52"
         >
-          <div className="flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
+          <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
             {settingsSections.map((item) => {
               const Icon = item.icon;
               const selected = current.id === item.id;
               return (
                 <Button
                   key={item.id}
-                  variant={selected ? 'secondary' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}
@@ -249,7 +257,7 @@ export function SettingsPage({
               );
             })}
           </div>
-          <p className="mt-auto hidden px-5 pb-4 text-xs text-muted-foreground md:block">
+          <p className="mt-auto hidden px-5 pb-4 text-xs tabular-nums text-muted-foreground md:block">
             Porcelain {import.meta.env.PORCELAIN_VERSION}
           </p>
         </nav>
@@ -260,14 +268,14 @@ export function SettingsPage({
                 ref={attachList}
                 className={
                   environmentId === undefined
-                    ? 'min-h-0 flex-1 overflow-y-auto'
+                    ? 'min-h-0 flex-1 overflow-y-auto outline-none'
                     : 'hidden'
                 }
                 role="region"
                 aria-label="Computers list"
                 tabIndex={-1}
               >
-                <div className={contentClass()}>
+                <div className={contentClass('list')}>
                   <RemoteComputers
                     showUpdates={environmentId === undefined}
                     environment={environment}
@@ -276,7 +284,7 @@ export function SettingsPage({
                 </div>
               </div>
               {environmentId !== undefined && (
-                <SectionFrame wide>
+                <SectionFrame layout="wide">
                   {environmentId === 'this-computer' ? (
                     <ComputerSettings environment={environment} />
                   ) : (
@@ -290,7 +298,7 @@ export function SettingsPage({
               )}
             </>
           ) : (
-            <SectionFrame>
+            <SectionFrame layout="reading">
               {current.id === 'git' ? (
                 <ReviewsGitSettings />
               ) : (
