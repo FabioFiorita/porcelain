@@ -43,7 +43,7 @@ None before step 1. Step 6 creates the branch on disk mid-drive.
 4. Click button `Comment on the whole change`
    Expect: textbox "Comment" with the label text "Whole change" above it; button "Comment" is disabled.
 5. Fill textbox `Comment` with 'Split this into two commits' then click button `Comment`
-   Expect: textbox "Comment" is gone and button "Comment on the whole change" is back; an article "Comment thread" with the text "You", button "Whole change" (title "Show the change"), the text "Split this into two commits" and "Waiting for the agent"; button "open 1"; the tab now reads "Comments 1".
+   Expect: textbox "Comment" is gone and button "Comment on the whole change" is back; an article "Comment thread" with the text "You", button "Whole change" (title "Show the change"), the text "Split this into two commits" and "Waiting for the agent"; button "open 1"; the tab now reads "Comments (1)".
 6. On disk:
    ```sh
    git -C "$REPO" switch -c feature

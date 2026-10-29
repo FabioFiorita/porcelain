@@ -69,6 +69,7 @@ for (const width of [1440, 414]) {
         .toBe('LOCAL_ONLY=archive-fixture\n');
       await row.getByRole('link').click();
       await pairedPage
+        .getByRole('region', { name: 'The walkthrough', exact: true })
         .getByRole('button', { name: 'Not explained', exact: true })
         .click();
       await pairedPage

@@ -130,7 +130,7 @@ function DockStep({
         render={
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-lg"
             aria-label={label}
             disabled={!onClick}
             onClick={onClick}

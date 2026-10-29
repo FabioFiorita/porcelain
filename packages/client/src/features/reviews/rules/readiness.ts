@@ -165,12 +165,3 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
     checksItem(input.review?.proof),
   ];
 }
-
-export function readinessSummary(
-  items: readonly Pick<ReadinessItem, 'tone'>[],
-): string {
-  const open = items.filter((item) => item.tone !== 'ok').length;
-  return open === 0
-    ? 'Nothing left to check'
-    : `${counted(open, 'thing', 'things')} to check`;
-}
