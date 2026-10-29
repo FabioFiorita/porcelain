@@ -177,6 +177,28 @@ test('a retained commit only names the checkout branch while its history contain
     .toBeVisible();
 });
 
+test('the checkout branch appears in the eyebrow while a same-named tag remains in commit details', async ({
+  repo,
+  render,
+}) => {
+  await repo.tag(repo.initialBranch);
+  const workspace = await render.workspace();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace.getByRole('button', { name: /^Initial commit/ }).click();
+  await expect
+    .element(workspace.getByText(`on ${repo.initialBranch}`, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('root commit', { exact: true }))
+    .toBeVisible();
+  const names = workspace
+    .getByRole('region', { name: 'Review content', exact: true })
+    .getByText(repo.initialBranch, { exact: true });
+  await expect.element(names.nth(1)).toBeVisible();
+  await expect.element(names.nth(2)).not.toBeInTheDocument();
+});
+
 test('a binary-only commit retains its subject and file summary without a code preview', async ({
   workspace,
   repo,

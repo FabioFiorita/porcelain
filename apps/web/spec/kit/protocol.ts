@@ -42,6 +42,7 @@ export type RepoStep =
   | { kind: 'read'; path: string }
   | { kind: 'commit'; message: string }
   | { kind: 'branch'; name: string }
+  | { kind: 'tag'; name: string }
   | { kind: 'switch'; name: string }
   | { kind: 'merge'; name: string }
   | { kind: 'worktree'; name: string }

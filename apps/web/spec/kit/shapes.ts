@@ -65,6 +65,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     read: (path: string) => step({ kind: 'read', path }),
     commit: (message: string) => step({ kind: 'commit', message }),
     branch: (name: string) => step({ kind: 'branch', name }),
+    tag: (name: string) => step({ kind: 'tag', name }),
     switch: (name: string) => step({ kind: 'switch', name }),
     merge: (name: string) => step({ kind: 'merge', name }),
     worktree: (name: string) => step({ kind: 'worktree', name }),
