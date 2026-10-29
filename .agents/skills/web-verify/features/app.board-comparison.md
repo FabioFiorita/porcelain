@@ -453,7 +453,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-label=\"Readiness\"] h3"
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Readiness\"] [data-slot=\"collapsible-trigger\"] > span:first-child"
+          "selector": "aside[aria-label=\"Review sidebar\"] section[aria-label=\"Readiness\"] h3"
         },
         "properties": [
           "fontSize",
@@ -498,7 +498,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "ol[aria-label=\"Decisions\"] > li > a[aria-current=\"step\"] > span:nth-child(2)"
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"] > span:nth-child(2)"
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"] > span:nth-child(2) > :first-child"
         }
       }
     ],
