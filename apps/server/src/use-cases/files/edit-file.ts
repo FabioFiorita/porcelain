@@ -8,7 +8,6 @@ import {
   EditFileService,
 } from '@porcelain/files/services';
 import { Cause, Effect, Context, Layer } from 'effect';
-import { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { Logger } from '../../ports/logger.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
@@ -34,14 +33,12 @@ export class EditFileUseCase extends Context.Service<
       const invalidateReviewedMarksCapability =
         yield* InvalidateReviewedMarksUseCasePort;
       const eventsCapability = yield* EventPublisher;
-      const editAnnouncementsCapability = yield* EditAnnouncementWriter;
       const loggerCapability = yield* Logger;
       const operationAnnounce = Effect.fn('EditFileUseCase.announce')(
         function* (
           worktreeId: string,
           paths: string[],
         ): Effect.fn.Return<void> {
-          yield* editAnnouncementsCapability.announce({ worktreeId, paths });
           const invalidated = invalidateReviewedMarksCapability.execute({
             worktreeId,
             paths,

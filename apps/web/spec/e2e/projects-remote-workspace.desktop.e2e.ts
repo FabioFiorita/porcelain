@@ -121,7 +121,8 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
     .getByRole('tab', { name: 'Review', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Briefing', exact: true })
+    .getByRole('region', { name: 'Readiness', exact: true })
+    .getByRole('button', { name: 'No checks attached', exact: true })
     .click();
   await pairedPage
     .getByRole('tab', { name: 'Agent summary', exact: true })

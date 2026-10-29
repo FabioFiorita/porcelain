@@ -22,6 +22,7 @@ import {
   filesReviewed,
   orderedChecks,
   proofOnLayer,
+  stepMarker,
   type DecisionLink,
   type DecisionState,
   type ReviewChangeItem,
@@ -404,14 +405,6 @@ function RouteRow({
   );
 }
 
-function stepMarker(step: ReviewStep) {
-  if (step.location.state === 'changed') return 'code moved';
-  if (step.location.state === 'broken') return 'broken pointer';
-  if (step.kind === 'context') return 'existing code';
-  if (step.location.state === 'committed') return 'committed';
-  return undefined;
-}
-
 function StepMarker({ step }: { step: ReviewStep }): ReactNode {
   const marker = stepMarker(step);
   if (!marker) return null;
@@ -419,12 +412,10 @@ function StepMarker({ step }: { step: ReviewStep }): ReactNode {
     <span
       className={cn(
         'ml-2 text-xs font-normal text-muted-foreground',
-        (step.location.state === 'changed' ||
-          step.location.state === 'broken') &&
-          'font-medium text-warn',
+        marker.tone === 'warn' && 'font-medium text-warn',
       )}
     >
-      {marker}
+      {marker.text}
     </span>
   );
 }
