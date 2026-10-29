@@ -85,7 +85,8 @@ function BranchStatus({
     return (
       <Box className="flex-row items-center" gap={3}>
         <Box
-          className="size-8 items-center justify-center rounded-lg border border-border bg-muted"
+          className="size-8 items-center justify-center"
+          surface="panel"
           accessible={false}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
