@@ -4,11 +4,10 @@ import { Effect, Exit, Cause } from 'effect';
 import {
   editFile,
   completeFileDraft,
-  retainFileDraft,
   type FileDraftHandle,
 } from '@porcelain/client/files';
 import type { FilesScope } from '@porcelain/client/files/rules';
-import { useFileDraftState, clearEditorFile } from '../store';
+import { readFileDraft, useFileDraftState, clearEditorFile } from '../store';
 import { copyText } from '@/shared/workspace/copy';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 
@@ -65,20 +64,19 @@ export function useFileDraft(
   connection: RuntimeConnection,
   scope: FilesScope,
   path: string,
-  text: string,
-  fingerprint: string,
 ) {
-  const { value: draft } = useConfirmedRead(
-    retainFileDraft({
+  const {
+    value: { file, draft },
+  } = useConfirmedRead(
+    readFileDraft({
       connection,
       scope,
       path,
-      text,
-      fingerprint,
     }),
   );
   const state = useFileDraftState(draft);
   return {
+    file,
     draft,
     state,
     reset: (text: string, fingerprint: string) => {
