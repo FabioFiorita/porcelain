@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
+import { chip } from './review-controls';
 
 type PullState = { state: 'open' | 'closed' | 'merged'; draft: boolean };
 
@@ -139,17 +140,15 @@ export function PullRequestChip({
             disabled={disabled}
             onClick={onClick}
             className={cn(
-              'ml-auto inline-flex h-5.5 shrink-0 items-center gap-1.5 rounded-full border border-border-strong pr-2.25 pl-1.75 text-xs leading-5 font-medium whitespace-nowrap text-foreground tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50',
+              chip,
+              'ml-auto border-border-strong text-foreground tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50',
               variant === 'found' && 'border-dashed',
               variant === 'empty' && 'border-transparent text-muted-foreground',
             )}
           />
         }
       >
-        <ChipIcon
-          aria-hidden="true"
-          className="size-3 shrink-0 text-muted-foreground"
-        />
+        <ChipIcon aria-hidden="true" className="text-muted-foreground" />
         {children}
       </TooltipTrigger>
       <TooltipContent>{description}</TooltipContent>
