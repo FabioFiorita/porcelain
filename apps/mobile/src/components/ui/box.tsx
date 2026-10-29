@@ -1,6 +1,13 @@
 import { View, type ViewProps } from 'react-native';
 
-const gaps = { 1: 'gap-1', 2: 'gap-2', 3: 'gap-3', 4: 'gap-4', 6: 'gap-6' };
+const gaps = {
+  0.5: 'gap-0.5',
+  1: 'gap-1',
+  2: 'gap-2',
+  3: 'gap-3',
+  4: 'gap-4',
+  6: 'gap-6',
+};
 const paddings = { 2: 'p-2', 4: 'p-4', 6: 'p-6' };
 const horizontal = { 2: 'px-2', 4: 'px-4', 6: 'px-6' };
 const vertical = { 1: 'py-1', 2: 'py-2', 3: 'py-3', 4: 'py-4', 8: 'py-8' };
