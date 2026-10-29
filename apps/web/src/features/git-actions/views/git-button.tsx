@@ -217,7 +217,7 @@ export function GitButton({
                   className="size-3.5"
                 />
               )}
-              <span aria-hidden="true" className="hidden @min-xl/pane:inline">
+              <span aria-hidden="true" className="hidden @min-lg/pane:inline">
                 {running ? `${networkLabel(running.name)}…` : primary.label}
                 {!running &&
                   count !== null &&
