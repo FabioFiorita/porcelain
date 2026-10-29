@@ -579,7 +579,7 @@ test('in the branch Review tab the completion card counts the open comments the 
     exact: true,
   });
   await review
-    .getByRole('button', { name: 'Continue at decision 1', exact: true })
+    .getByRole('button', { name: 'Continue at decision 3', exact: true })
     .click();
   await review.getByRole('button', { name: /, jump to a stop$/ }).click();
   await workspace
