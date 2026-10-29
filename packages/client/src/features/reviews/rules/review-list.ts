@@ -230,21 +230,6 @@ export function reviewListCheckout(entry: ReviewListEntry) {
   return { ...checkoutFolder(entry.path), full: entry.path };
 }
 
-export function reviewListRowContext(
-  entry: ReviewListEntry,
-  multipleProjects: boolean,
-) {
-  const noReview = entry.group === 'No review';
-  return {
-    project:
-      noReview || (multipleProjects && entry.group !== 'Projects')
-        ? entry.projectName
-        : undefined,
-    branch: noReview ? undefined : entry.branch,
-    location: noReview ? reviewListCheckout(entry).parent : undefined,
-  };
-}
-
 type ReviewListCheckoutKey = Pick<
   ReviewListEntry,
   'environmentId' | 'worktreeId'
@@ -291,6 +276,60 @@ export function reviewListRow(entry: ReviewListEntry) {
     title: checkout.name,
     project: entry.projectName,
     location: checkout.parent,
+  };
+}
+
+export type ReviewListSelection =
+  | { kind: 'worktree'; environmentId: string; worktreeId: string }
+  | { kind: 'review'; environmentId: string; reviewId: string };
+
+export function reviewListIsSelected(
+  entry: ReviewListEntry,
+  selection: ReviewListSelection | undefined,
+) {
+  if (!selection || entry.environmentId !== selection.environmentId)
+    return false;
+  return selection.kind === 'review'
+    ? entry.reviewId === selection.reviewId
+    : !entry.closed && entry.worktreeId === selection.worktreeId;
+}
+
+export function reviewListSections(
+  entries: readonly ReviewListEntry[],
+  query: string,
+  filter: ReviewListFilter,
+  selection: ReviewListSelection | undefined,
+) {
+  const active = reviewListView(
+    reviewListWithoutClosedCheckouts(
+      entries,
+      selection?.kind === 'worktree' ? selection : undefined,
+    ),
+    query,
+    filter,
+    false,
+  );
+  const closed = reviewListView(entries, query, filter, true).rows;
+  const noReview = active.rows
+    .filter(
+      (entry) => entry.group === 'No review' || entry.group === 'Projects',
+    )
+    .sort(compareNoReviewRows);
+  return {
+    filters: active.filters,
+    rows: [...active.rows, ...closed],
+    groups: [
+      ...reviewListGroups.filter((group) => group !== 'Projects'),
+      'Closed' as const,
+    ].map((group) => ({
+      group,
+      rows:
+        group === 'Closed'
+          ? closed
+          : group === 'No review'
+            ? noReview
+            : active.rows.filter((entry) => entry.group === group),
+    })),
   };
 }
 
@@ -365,9 +404,6 @@ export function reviewListView(
   const rows = filterReviewList(entries, query, filter, closed);
   return {
     rows,
-    multipleProjects:
-      new Set(rows.map((entry) => `${entry.environmentId}/${entry.projectId}`))
-        .size > 1,
     filters: [
       {
         key: 'projects' as const,

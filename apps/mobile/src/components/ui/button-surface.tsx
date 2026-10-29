@@ -34,6 +34,8 @@ const sizes = {
   sm: 'min-h-8 px-2.5 py-1',
   icon: 'min-h-9 w-9',
   iconSm: 'min-h-8 w-8',
+  navigatorGroup: 'min-h-9 min-w-9 gap-2 rounded-md px-2 py-0',
+  navigatorPhoneGroup: 'min-h-9 min-w-9 gap-1.5 rounded-md px-1.5 py-0',
 };
 export type ButtonSurfaceProps = Omit<
   PressableProps,
@@ -88,7 +90,7 @@ export function ButtonSurface({
           className={[
             'flex-row items-center gap-2 rounded-md border',
             align === 'start' ? 'justify-start' : 'justify-center',
-            size === 'default' || size === 'sm' ? 'self-stretch' : '',
+            size === 'icon' || size === 'iconSm' ? '' : 'self-stretch',
             variants[variant],
             sizes[size],
             pressed ? 'opacity-80' : '',

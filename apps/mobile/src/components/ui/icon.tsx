@@ -1,5 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { useWindowDimensions } from 'react-native';
 import { withUniwind, useResolveClassNames } from 'uniwind';
+import { iconSize } from './icon-size';
 const StyledSymbol = withUniwind(SymbolView);
 const symbols = {
   add: { ios: 'plus', android: 'add' },
@@ -48,6 +50,7 @@ const tones = {
   secondaryForeground: 'accent-secondary-foreground',
   primary: 'accent-primary',
   brand: 'accent-brand',
+  background: 'accent-background',
 };
 export type IconName = keyof typeof symbols;
 export function Icon({
@@ -57,22 +60,27 @@ export function Icon({
 }: {
   name: IconName;
   tone?: keyof typeof tones;
-  size?: 'small' | 'control' | 'default' | 'large';
+  size?: 'tiny' | 'caption' | 'small' | 'control' | 'default' | 'large';
 }) {
+  const { fontScale } = useWindowDimensions();
   const dimensions = useResolveClassNames(
-    size === 'small'
-      ? 'size-3.5'
-      : size === 'control'
-        ? 'size-4'
-        : size === 'large'
-          ? 'size-6'
-          : 'size-4.5',
+    size === 'tiny'
+      ? 'size-2.25'
+      : size === 'caption'
+        ? 'size-3.25'
+        : size === 'small'
+          ? 'size-3.5'
+          : size === 'control'
+            ? 'size-4'
+            : size === 'large'
+              ? 'size-6'
+              : 'size-4.5',
   );
   const dimension = Number(dimensions.width);
   return (
     <StyledSymbol
       name={symbols[name]}
-      size={dimension}
+      size={iconSize(dimension, fontScale)}
       style={dimensions}
       tintColorClassName={tones[tone]}
       accessible={false}

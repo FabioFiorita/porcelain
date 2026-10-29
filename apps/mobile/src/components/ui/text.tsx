@@ -15,6 +15,12 @@ const variants = {
   subheading: 'text-sm leading-5',
   code: 'text-ui leading-5',
   link: 'text-ui leading-5 underline',
+  navigatorTitle: 'text-sm leading-5',
+  navigatorPhoneTitle: 'text-base leading-5.25 tracking-[-0.01em]',
+  navigatorCaption: 'text-ui leading-4.5',
+  navigatorProgress: 'text-ui leading-5 tabular-nums',
+  navigatorPhoneProgress: 'text-sm leading-5.25 tabular-nums',
+  navigatorCount: 'text-ui leading-4.5 tabular-nums',
 };
 
 const tones = {
