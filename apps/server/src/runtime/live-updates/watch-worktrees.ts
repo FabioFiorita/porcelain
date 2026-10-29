@@ -11,7 +11,6 @@ import {
   Scope,
   SynchronizedRef,
 } from 'effect';
-import type { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
 import {
   AnnounceWorktreeChangeUseCasePort,
   type WorktreeChange,
@@ -35,7 +34,6 @@ type WatchWorktreesOptions = {
   maxWatchedWorktrees: number;
   eventBuffer: number;
   burst: Duration.Duration;
-  announcedEdit: Duration.Duration;
 };
 
 type Demand = {
@@ -50,7 +48,6 @@ type WorktreeEntry = {
   watch: FileWatch;
   demands: Map<Demand, ReadonlySet<string>>;
   pendingPaths: Set<string>;
-  announcedPaths: Map<string, number>;
   timer: Fiber.Fiber<void> | undefined;
 };
 
@@ -65,8 +62,7 @@ type WatchEvent =
   | { kind: 'files'; entry: WorktreeEntry; paths: readonly string[] }
   | { kind: 'repository'; entry: ProjectEntry }
   | { kind: 'flush-files'; entry: WorktreeEntry }
-  | { kind: 'flush-repository'; entry: ProjectEntry }
-  | { kind: 'expire'; entry: WorktreeEntry; paths: readonly string[] };
+  | { kind: 'flush-repository'; entry: ProjectEntry };
 
 type Registry = {
   stopped: boolean;
@@ -81,8 +77,7 @@ function changesIgnoreRules(path: string): boolean {
 
 export class WatchWorktrees extends Context.Service<
   WatchWorktrees,
-  WatchOpener &
-    EditAnnouncementWriter & { readonly close: () => Effect.Effect<void> }
+  WatchOpener & { readonly close: () => Effect.Effect<void> }
 >()('@porcelain/server/WatchWorktrees') {
   static readonly layer = (options: WatchWorktreesOptions) =>
     Layer.effect(
@@ -248,15 +243,6 @@ export class WatchWorktrees extends Context.Service<
                       entry: event.entry,
                     });
                   return;
-                case 'expire':
-                  for (const path of event.paths) {
-                    const remaining =
-                      (event.entry.announcedPaths.get(path) ?? 1) - 1;
-                    if (remaining > 0)
-                      event.entry.announcedPaths.set(path, remaining);
-                    else event.entry.announcedPaths.delete(path);
-                  }
-                  return;
                 case 'flush-files': {
                   if (
                     state.worktrees.get(event.entry.worktree.worktreeId) !==
@@ -266,15 +252,11 @@ export class WatchWorktrees extends Context.Service<
                   event.entry.timer = undefined;
                   const pending = [...event.entry.pendingPaths];
                   event.entry.pendingPaths.clear();
-                  const changed = pending.filter(
-                    (path) => !event.entry.announcedPaths.has(path),
-                  );
-                  if (pending.length === 0 || changed.length > 0)
-                    yield* announceChange({
-                      worktreeId: event.entry.worktree.worktreeId,
-                      change: 'files',
-                      paths: changed,
-                    });
+                  yield* announceChange({
+                    worktreeId: event.entry.worktree.worktreeId,
+                    change: 'files',
+                    paths: pending,
+                  });
                   if (pending.some(changesIgnoreRules))
                     yield* refreshIgnoreRules(state, [event.entry]);
                   return;
@@ -489,7 +471,6 @@ export class WatchWorktrees extends Context.Service<
                   watch: opened.value,
                   demands: new Map([[demand, wish.paths]]),
                   pendingPaths: new Set(),
-                  announcedPaths: new Map(),
                   timer: undefined,
                 };
                 demand.worktrees.set(worktreeId, wish.paths);
@@ -529,24 +510,6 @@ export class WatchWorktrees extends Context.Service<
                 opened.kind === 'opened' ? opened.demand.close() : Effect.void,
             );
           }),
-          announce: Effect.fn('WatchWorktrees.announce')((input) =>
-            update((state) =>
-              Effect.gen(function* () {
-                const entry = state.worktrees.get(input.worktreeId);
-                if (!entry || state.stopped) return;
-                for (const path of input.paths)
-                  entry.announcedPaths.set(
-                    path,
-                    (entry.announcedPaths.get(path) ?? 0) + 1,
-                  );
-                yield* later(options.announcedEdit, {
-                  kind: 'expire',
-                  entry,
-                  paths: input.paths,
-                });
-              }),
-            ),
-          ),
           close: () => close,
         };
       }),

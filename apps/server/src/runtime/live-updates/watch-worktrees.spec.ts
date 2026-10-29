@@ -57,7 +57,6 @@ const subject = Effect.fn(function* (
       ...limits,
       eventBuffer: limits.eventBuffer ?? 256,
       burst: Duration.millis(1),
-      announcedEdit: Duration.millis(50),
     }).pipe(
       Layer.provide(
         Layer.mergeAll(
@@ -310,60 +309,6 @@ describe('WatchWorktrees', () => {
           worktreeId: 'one',
           change: 'files',
           paths: ['src/a.ts', 'src/b.ts'],
-        });
-      }),
-  );
-
-  it.effect(
-    'skips a changed path that an edit already announced, and still announces the others',
-    () =>
-      Effect.gen(function* () {
-        const { watches, follow, watcher, events } = yield* subject();
-        yield* follow([], [wish('one')]);
-        yield* watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
-        watcher.changeFiles('one', ['src/a.ts', 'src/b.ts']);
-        yield* TestClock.adjust(1);
-        expect(events.announced('one')).toEqual({
-          worktreeId: 'one',
-          change: 'files',
-          paths: ['src/b.ts'],
-        });
-      }),
-  );
-
-  it.effect(
-    'reacts to nothing when every changed path was already announced by an edit, while the same change elsewhere is announced',
-    () =>
-      Effect.gen(function* () {
-        const { watches, follow, watcher, events } = yield* subject();
-        yield* follow([], [wish('one'), wish('two')]);
-        yield* watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
-        watcher.changeFiles('one', ['src/a.ts']);
-        watcher.changeFiles('two', ['src/a.ts']);
-        yield* TestClock.adjust(1);
-        expect(events.announced('one')).toBeUndefined();
-        expect(events.announced('two')).toEqual({
-          worktreeId: 'two',
-          change: 'files',
-          paths: ['src/a.ts'],
-        });
-      }),
-  );
-
-  it.effect(
-    'reacts to a change of an announced path once the announcement has expired',
-    () =>
-      Effect.gen(function* () {
-        const { watches, follow, watcher, events } = yield* subject();
-        yield* follow([], [wish('one')]);
-        yield* watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
-        yield* TestClock.adjust(50);
-        watcher.changeFiles('one', ['src/a.ts']);
-        yield* TestClock.adjust(1);
-        expect(events.announced('one')).toEqual({
-          worktreeId: 'one',
-          change: 'files',
-          paths: ['src/a.ts'],
         });
       }),
   );
