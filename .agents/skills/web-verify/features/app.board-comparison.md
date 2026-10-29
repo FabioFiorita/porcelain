@@ -872,7 +872,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "article h1"
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] h1 > span"
+          "selector": "[aria-label=\"Review content\"] h1"
         },
         "properties": [
           "fontSize",
@@ -995,8 +995,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "commit row",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] > li",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] > li:has(a[aria-current=\"true\"])"
         },
         "app": {
           "selector": "[aria-label=\"Commits\"] > li",
@@ -1007,8 +1006,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "commit subject",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] li a > span:first-child",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] a[aria-current=\"true\"] span[style*=\"font:600\"]"
         },
         "app": {
           "selector": "[aria-label=\"Commits\"] [data-slot=\"tooltip-trigger\"]",
@@ -1047,7 +1045,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Commit graph\"] > li",
           "index": 0
         },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
+        "properties": ["padding", "radius", "gap", "icon"]
+      },
+      {
+        "role": "graph row height",
+        "board": {
+          "selector": "ol[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "app": {
+          "selector": "[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "properties": ["height"],
+        "minWidth": 768
       },
       {
         "role": "HEAD ref",

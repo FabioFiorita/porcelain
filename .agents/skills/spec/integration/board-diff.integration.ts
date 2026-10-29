@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, expect } from 'vitest';
 import { test as it } from '@porcelain/server/kit/server-test';
 import { chromium, type Browser } from 'playwright';
-import type {
-  BoardRole,
-  BoardMap,
+import {
+  boards,
+  type BoardRole,
+  type BoardMap,
 } from '../../web-verify/scripts/board-maps.ts';
 import {
   compareRoles,
@@ -377,5 +378,73 @@ it('reveals a phone panel and its tab without toggling an already visible target
     expect(await page.locator('#panel').isVisible()).toBe(true);
   } finally {
     await page.close();
+  }
+});
+
+it('the commit title map measures the heading itself', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.setContent(
+      '<section aria-label="Review content"><h1>Commit subject</h1></section>',
+    );
+    const roles = boards.commit.roles.filter(
+      (role) => role.role === 'commit title',
+    );
+    const samples = await measureRoles(page, roles, 'app');
+    expect(samples[0]?.problem).toBeUndefined();
+    expect(samples[0]?.styles.fontWeight).toBe('700');
+  } finally {
+    await page.close();
+  }
+});
+
+it('the History map compares the selected commit after the uncommitted row', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(
+      '<ol aria-label="Commits"><li style="height:32px"><a><span>Uncommitted changes</span></a></li><li style="height:44px"><a aria-current="true"><span style="font:600 13px/18px sans-serif">Selected commit</span></a></li></ol>',
+    );
+    await app.setContent(
+      '<ol aria-label="Commits"><li style="height:44px"><button><span data-slot="tooltip-trigger" style="font:600 13px/18px sans-serif">Selected commit</span></button></li></ol>',
+    );
+    const roles = boards.history.roles.filter(
+      (role) => role.role !== 'history heading',
+    );
+    const rows = compareRoles(
+      await measureRoles(board, roles, 'board'),
+      await measureRoles(app, roles, 'app'),
+    );
+    expect(rows.every((row) => row.match)).toBe(true);
+  } finally {
+    await board.close();
+    await app.close();
+  }
+});
+
+it('the graph map compares row height only in the column layout', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(
+      '<ol aria-label="Commit graph"><li style="height:30px">Commit</li></ol>',
+    );
+    await app.setContent(
+      '<ol aria-label="Commit graph"><li style="height:44px">Commit</li></ol>',
+    );
+    const roles = boards.graph.roles.filter((role) => role.role !== 'HEAD ref');
+    const narrow = compareRoles(
+      await measureRoles(board, roles, 'board', 414),
+      await measureRoles(app, roles, 'app', 414),
+    );
+    const wide = compareRoles(
+      await measureRoles(board, roles, 'board', 1440),
+      await measureRoles(app, roles, 'app', 1440),
+    );
+    expect(narrow.every((row) => row.match)).toBe(true);
+    expect(wide.find((row) => row.property === 'height')?.match).toBe(false);
+  } finally {
+    await board.close();
+    await app.close();
   }
 });

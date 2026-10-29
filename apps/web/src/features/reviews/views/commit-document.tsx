@@ -342,7 +342,7 @@ function CommitHeader({
           {commit.files.map((file) => (
             <li
               key={pathKey(file)}
-              className="flex h-8 min-w-0 items-center gap-2.5 px-1 text-caption leading-4"
+              className="flex h-8 min-w-0 items-center gap-2.5 rounded-sm pr-1.5 pl-1 text-caption leading-4"
             >
               <span
                 aria-label={file.status}

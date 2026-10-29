@@ -119,7 +119,11 @@ export function CommitRow({
             </button>
             {refs.length > 0 && (
               <div className="min-w-0 max-w-2/5 flex-1 self-start pt-1">
-                <CommitRefs refs={refs} current={current} onOpenCommit={select} />
+                <CommitRefs
+                  refs={refs}
+                  current={current}
+                  onOpenCommit={select}
+                />
               </div>
             )}
           </>
