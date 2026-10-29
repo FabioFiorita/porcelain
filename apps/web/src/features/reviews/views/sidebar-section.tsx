@@ -9,11 +9,13 @@ export function SidebarDocumentRow({
   label,
   active,
   onOpen,
+  className = ROW,
   children,
 }: {
   label: string;
   active: boolean;
   onOpen: () => void;
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -26,7 +28,7 @@ export function SidebarDocumentRow({
         <div className="flex min-w-0 items-center">
           <button
             type="button"
-            className={ROW}
+            className={className}
             aria-pressed={active}
             onClick={onOpen}
           >
