@@ -431,13 +431,7 @@ function OpenPullRequest({
 
 function GitPullRequestGlyph() {
   const Icon = pullStateIcon({ state: 'open', draft: false });
-  return (
-    <Icon
-      aria-hidden="true"
-      strokeWidth={1.75}
-      className="size-3.5 text-muted-foreground"
-    />
-  );
+  return <Icon aria-hidden="true" className="text-muted-foreground" />;
 }
 
 const wideButton = 'mt-2.5 w-full';
