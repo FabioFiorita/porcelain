@@ -170,10 +170,9 @@ export function stopDone(
   decisions: ReadonlyMap<string, DecisionState>,
 ): boolean {
   if (stop.kind === 'briefing') return false;
-  const files = filesReviewed(stop.paths, items).done;
-  return stop.kind === 'decision'
-    ? files && decisions.get(stop.layer.id)?.reviewed === true
-    : files;
+  if (stop.kind === 'decision')
+    return decisions.get(stop.layer.id)?.reviewed === true;
+  return filesReviewed(stop.paths, items).done;
 }
 
 export function decisionStates(

@@ -297,10 +297,10 @@ describe('stop completion', () => {
     paths.map((path) => ({ path, reviewStatus: 'reviewed' as const }));
   const marked = new Map([['invite', { reviewed: true, stale: false }]]);
 
-  it('finishes a decision only when it is marked and every file it shows is reviewed', () => {
+  it('finishes a decision when its current mark is saved, as the review list counts it', () => {
     if (!briefing || !invite || !unexplained) throw new Error('Stops missing');
     expect(stopDone(invite, reviewed('a.ts', 'b.ts'), marked)).toBe(true);
-    expect(stopDone(invite, reviewed('a.ts'), marked)).toBe(false);
+    expect(stopDone(invite, reviewed('a.ts'), marked)).toBe(true);
     expect(stopDone(invite, reviewed('a.ts', 'b.ts'), new Map())).toBe(false);
   });
 
