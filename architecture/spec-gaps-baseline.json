@@ -82,7 +82,6 @@
   "packages/client/src/features/reviews/rules/proof.ts#publishedLabel",
   "packages/client/src/features/reviews/rules/review.ts#basename",
   "packages/client/src/features/reviews/rules/review.ts#isFingerprintable",
-  "packages/client/src/features/reviews/rules/review.ts#notExplainedLabel",
   "packages/client/src/features/reviews/rules/review.ts#orderReviewChanges",
   "packages/client/src/features/reviews/rules/reviewed.ts#WORKTREE_RANGE",
   "packages/client/src/features/reviews/rules/reviewed.ts#branchReviewRange",
