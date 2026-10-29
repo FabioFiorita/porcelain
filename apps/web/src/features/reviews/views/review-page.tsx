@@ -734,6 +734,7 @@ function ReviewRevisionPage({
               current={view === 'summary' ? undefined : stop.key}
               done={done}
               onGo={go}
+              page={scroller.element}
             />
             <div className="flex min-w-0 flex-1 flex-col">
               {AsyncResult.isFailure(markResult) && (

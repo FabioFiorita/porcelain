@@ -24,11 +24,13 @@ export function WalkthroughSpine({
   current,
   done,
   onGo,
+  page,
 }: {
   stops: readonly WalkthroughStop[];
   current: WalkthroughKey | undefined;
   done: (stop: WalkthroughStop) => boolean;
   onGo: (key: WalkthroughKey) => void;
+  page: HTMLElement | null;
 }) {
   const lastDone = stops.findLastIndex(done);
   const reached =
@@ -41,6 +43,7 @@ export function WalkthroughSpine({
   const [revealed, setRevealed] = useState<{
     key: WalkthroughKey;
     scrollTop: number;
+    pageTop: number;
   }>();
   const reveal = (key: WalkthroughKey) => (node: HTMLElement | null) => {
     if (!node || key !== current) return;
@@ -54,7 +57,9 @@ export function WalkthroughSpine({
     const shown = stop.top >= top && stop.bottom <= bottom;
     if (
       revealed?.key === key &&
-      (shown || revealed.scrollTop !== viewport.scrollTop)
+      (shown ||
+        revealed.scrollTop !== viewport.scrollTop ||
+        revealed.pageTop !== (page?.scrollTop ?? 0))
     )
       return;
     if (!shown)
@@ -62,8 +67,13 @@ export function WalkthroughSpine({
         top: stop.top - top - (bottom - top - stop.height) / 2,
       });
     node.scrollIntoView({ block: 'nearest' });
-    if (revealed?.key !== key || revealed.scrollTop !== viewport.scrollTop)
-      setRevealed({ key, scrollTop: viewport.scrollTop });
+    const pageTop = page?.scrollTop ?? 0;
+    if (
+      revealed?.key !== key ||
+      revealed.scrollTop !== viewport.scrollTop ||
+      revealed.pageTop !== pageTop
+    )
+      setRevealed({ key, scrollTop: viewport.scrollTop, pageTop });
   };
   return (
     <div className="sticky top-0 hidden h-fit max-h-[100cqh] w-14 shrink-0 grid-rows-[minmax(0,1fr)] border-r @2xl/review:grid @5xl/review:w-18">
