@@ -190,20 +190,10 @@ export function decisionStates(
   );
 }
 
-export function decisionCodeMoved(layer: Pick<ReviewLayer, 'steps'>): boolean {
-  return layer.steps.some((step) => {
-    const location = step.location;
-    switch (location.state) {
-      case 'changed':
-        return true;
-      case 'current':
-      case 'committed':
-      case 'broken':
-        return false;
-      default:
-        return location satisfies never;
-    }
-  });
+export function decisionCodeMoved(
+  layer: Pick<ReviewLayer, 'codeMoved'>,
+): boolean {
+  return layer.codeMoved === true;
 }
 
 export type StepMarker = { text: string; tone: 'warn' | 'muted' };

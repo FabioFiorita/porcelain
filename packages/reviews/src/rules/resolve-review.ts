@@ -123,6 +123,32 @@ function resolveLayer(
   };
 }
 
+export function layerCodeMoved(
+  layer: Pick<ReviewLayer, 'steps'>,
+  worktree: { texts: ReviewTexts; missing: ReadonlySet<string> },
+): boolean {
+  return layer.steps.some((step) => {
+    const path = step.pointer.path;
+    if (!worktree.texts.has(path) && !worktree.missing.has(path)) return false;
+    const location = resolveStep(
+      step,
+      worktree.texts,
+      undefined,
+      worktree.missing,
+    ).location;
+    switch (location.state) {
+      case 'changed':
+      case 'broken':
+        return true;
+      case 'current':
+      case 'committed':
+        return false;
+      default:
+        return location satisfies never;
+    }
+  });
+}
+
 export function publishedLayerFingerprint(
   steps: readonly ReviewStep[],
 ): string {

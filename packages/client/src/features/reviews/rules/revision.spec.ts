@@ -196,60 +196,44 @@ it.for([
   },
 );
 
-const anchored = { startLine: 3, endLine: 4 };
-const locations = {
-  current: { state: 'current' as const, ...anchored },
-  committed: { state: 'committed' as const, ...anchored },
-  changed: { state: 'changed' as const },
-  broken: { state: 'broken' as const },
-};
-
-function decisionAt(
-  id: string,
-  steps: readonly (keyof typeof locations)[],
-  path = 'owner.ts',
-) {
+function decisionAt(id: string, codeMoved?: boolean) {
   return {
     id,
     title: 'Own the behavior',
     summary: 'One owner',
     lanes: ['Owner'],
     fingerprint: `${id}-layer`,
-    steps: steps.map((state, index) => ({
-      id: `${id}-${index}`,
-      lane: 0,
-      title: 'Point at the owner',
-      text: 'The owner changed here',
-      kind: index === 0 ? ('changed' as const) : ('context' as const),
-      pointer: {
-        path,
-        startLine: 3,
-        endLine: 4,
-        textFingerprint: 'text',
+    ...(codeMoved === undefined ? {} : { codeMoved }),
+    steps: [
+      {
+        id: `${id}-step`,
+        lane: 0,
+        title: 'Point at the owner',
+        text: 'The owner changed here',
+        kind: 'changed' as const,
+        pointer: {
+          path: `${id}.ts`,
+          startLine: 3,
+          endLine: 4,
+          textFingerprint: 'text',
+        },
+        location: { state: 'current' as const, startLine: 3, endLine: 4 },
       },
-      location: locations[state],
-    })),
+    ],
   };
 }
 
 it.for([
-  { name: 'fresh lines', steps: ['current'] as const, stale: false },
-  { name: 'committed lines', steps: ['committed'] as const, stale: false },
-  { name: 'moved lines', steps: ['changed'] as const, stale: true },
-  { name: 'deleted lines', steps: ['broken'] as const, stale: true },
+  { name: 'the server found its code moved', codeMoved: true, stale: true },
   {
-    name: 'one moved step among fresh ones',
-    steps: ['current', 'committed', 'changed'] as const,
-    stale: true,
+    name: 'the server found its code in place',
+    codeMoved: false,
+    stale: false,
   },
-  {
-    name: 'a whole deleted file',
-    steps: ['broken', 'broken'] as const,
-    stale: true,
-  },
-])('reports code moved for $name', ({ steps, stale }) => {
+  { name: 'the revision was not compared', codeMoved: undefined, stale: false },
+])('reports code moved when $name', ({ codeMoved, stale }) => {
   const states = revisionDecisionStates(
-    { content: { layers: [decisionAt('decision', steps)] } },
+    { content: { layers: [decisionAt('decision', codeMoved)] } },
     undefined,
   );
   expect(states.get('decision')).toEqual({ reviewed: false, stale });
@@ -262,19 +246,16 @@ it('reads code moved from each revision on its own and keeps it apart from the r
       { layerId: 'decision', fingerprint: 'decision-layer', reviewedAt: 'r1' },
     ],
   };
-  const first = { content: { layers: [decisionAt('decision', ['current'])] } };
-  const second = {
+  const older = { content: { layers: [decisionAt('decision')] } };
+  const latest = {
     content: {
-      layers: [
-        decisionAt('decision', ['changed']),
-        decisionAt('other', ['current'], 'other.ts'),
-      ],
+      layers: [decisionAt('decision', true), decisionAt('other', false)],
     },
   };
-  expect([...revisionDecisionStates(first, marks)]).toEqual([
+  expect([...revisionDecisionStates(older, marks)]).toEqual([
     ['decision', { reviewed: true, stale: false }],
   ]);
-  expect([...revisionDecisionStates(second, marks)]).toEqual([
+  expect([...revisionDecisionStates(latest, marks)]).toEqual([
     ['decision', { reviewed: true, stale: true }],
     ['other', { reviewed: false, stale: false }],
   ]);

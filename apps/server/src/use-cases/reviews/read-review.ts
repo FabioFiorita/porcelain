@@ -5,7 +5,13 @@ import {
   BuildReviewLinksService,
 } from '@porcelain/reviews/services';
 import type { ReviewNotFoundError } from '@porcelain/reviews/errors';
-import { reviewRecordView, revisionMetadata } from '@porcelain/reviews/rules';
+import {
+  reviewPaths,
+  reviewRecordView,
+  revisionMetadata,
+} from '@porcelain/reviews/rules';
+import type { Review } from '@porcelain/reviews/models';
+import { ReadTextFilesService } from '@porcelain/files/services';
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type {
@@ -43,6 +49,25 @@ export class ReadReviewUseCase extends Context.Service<
       const access = yield* WorktreeAccess;
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
+      const files = yield* ReadTextFilesService;
+      const worktreeTexts = (
+        worktreeId: string,
+        revision: Review,
+        latestRevision: number,
+      ) =>
+        revision.revision !== latestRevision
+          ? Effect.succeed(undefined)
+          : access
+              .reviews(worktreeId, 'read', (worktree) =>
+                worktree.branch?.replace(/^refs\/heads\//u, '') ===
+                revision.branch
+                  ? files.execute({
+                      worktreeId,
+                      paths: reviewPaths(revision.layers, []),
+                    })
+                  : Effect.succeed(undefined),
+              )
+              .pipe(Effect.catch(() => Effect.succeed(undefined)));
       return {
         execute: Effect.fn('ReadReviewUseCase.execute')(function* (input) {
           const result =
@@ -70,6 +95,11 @@ export class ReadReviewUseCase extends Context.Service<
             environmentId,
             review: revision,
             headOid: revision.headOid,
+            worktree: yield* worktreeTexts(
+              input.worktreeId ?? revision.worktreeId,
+              revision,
+              record.latestRevision,
+            ),
           });
           return {
             review: reviewRecordView(record),

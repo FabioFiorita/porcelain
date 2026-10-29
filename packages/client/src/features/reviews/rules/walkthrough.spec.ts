@@ -263,8 +263,8 @@ describe('progress', () => {
     const states = decisionStates(
       [
         layer('invite', [step('a.ts')]),
-        layer('revoke', [step('b.ts', { state: 'changed' })]),
-        layer('reconnect', [step('c.ts', { state: 'changed' })]),
+        { ...layer('revoke', [step('b.ts')]), codeMoved: true },
+        { ...layer('reconnect', [step('c.ts')]), codeMoved: true },
         layer('export', [step('d.ts')]),
       ],
       {
@@ -570,14 +570,20 @@ describe('step markers', () => {
     expect(stepMarker({ ...base, kind, location })).toEqual(marker);
   });
 
-  it('says a decision moved when any of its steps moved', () => {
+  it.for([
+    { name: 'the server found it moved', codeMoved: true, moved: true },
+    { name: 'the server found it in place', codeMoved: false, moved: false },
+    {
+      name: 'the server did not compare it',
+      codeMoved: undefined,
+      moved: false,
+    },
+  ])('says a decision moved only when $name', ({ codeMoved, moved }) => {
     expect(
-      decisionCodeMoved(
-        layer('a', [step('a.ts'), step('b.ts', { state: 'changed' })]),
-      ),
-    ).toBe(true);
-    expect(decisionCodeMoved(layer('b', [step('a.ts'), step('b.ts')]))).toBe(
-      false,
-    );
+      decisionCodeMoved({
+        ...layer('a', [step('a.ts', { state: 'changed' })]),
+        ...(codeMoved === undefined ? {} : { codeMoved }),
+      }),
+    ).toBe(moved);
   });
 });
