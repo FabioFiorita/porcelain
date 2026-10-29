@@ -15,7 +15,7 @@ import {
   filesReviewed,
   type reviewListStatus,
   stopTitle,
-  threadState,
+  threadCounts,
   verdictSections,
   type CommentThread,
   type DurableReviewRead,
@@ -272,9 +272,7 @@ function CompletionCard({
   );
   const unexplained = stops.find((stop) => stop.kind === 'unexplained');
   const specs = stops.find((stop) => stop.kind === 'specs');
-  const openComments = threads.filter(
-    (thread) => threadState(thread) !== 'resolved',
-  ).length;
+  const openComments = threadCounts(threads).open;
   const notProven = verdictSections(revision).notProven.length;
   return (
     <section

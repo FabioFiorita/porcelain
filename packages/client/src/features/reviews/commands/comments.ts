@@ -23,6 +23,7 @@ import {
 import {
   mergeCommentThreads,
   commentsSeenThrough,
+  threadCounts,
   type CommentThread,
   type ConfirmedThreads,
 } from '../rules/comments.ts';
@@ -287,14 +288,11 @@ export const observeCommentVisibility = Atom.family(
             (top, thread) => Math.max(top, thread.revision),
             0,
           );
-          const open = threads.filter((thread) => !thread.resolved).length;
+          const { open, resolved } = threadCounts(threads);
           const through =
             filter === 'all'
               ? highest
-              : commentsSeenThrough(
-                  { highest, open, resolved: threads.length - open },
-                  filters,
-                );
+              : commentsSeenThrough({ highest, open, resolved }, filters);
           get.registry.set(history, {
             snapshot,
             filters,
