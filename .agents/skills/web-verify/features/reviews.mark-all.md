@@ -20,11 +20,11 @@ api:
 
 # reviews.mark-all
 
-The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 file reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
+The Changes document's File review actions popover button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 file reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
 ## How to get to it (user POV)
 
-- The Changes (handoff) document, shown when no review is published: toolbar button "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
+- The Changes (handoff) document, shown when no review is published: progress count button "File review actions: r of n files reviewed", opening a popover with "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
 
 ## Driving it with browser
 
@@ -37,10 +37,10 @@ printf 'Notes to review\n' > "$REPO/NOTES.md"
 ```
 
 1. Navigate to `/`
-   Expect: heading "Changes", text "2 files", button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
+   Expect: heading "2 uncommitted changes" and progress "0 of 2 files reviewed". Open File review actions to see button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
 2. Click button `Mark all 2 files reviewed`
    Expect: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md"). `$C server reviewed-files` lists NOTES.md and README.md with their fingerprints.
-   Proof before continuing: reload now: Unmark all and both fingerprints persist. `$C server reviewed-files` after each mark holds both fingerprints; after step 5 it holds none and the reload must show Mark all 2 files reviewed. Bulk PUT/DELETE answer 200.
+   Proof before continuing: reload now, then reopen File review actions: Unmark all and both fingerprints persist. `$C server reviewed-files` after each mark holds both fingerprints; after step 5 it holds none and the reload must show Mark all 2 files reviewed. Bulk PUT/DELETE answer 200.
 
 3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then wait for button `Mark all 1 file reviewed`
    Expect: button "Mark all 1 file reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".

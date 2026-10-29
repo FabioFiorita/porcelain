@@ -27,6 +27,9 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
 
   await repo.write(notes, 'Notes to review\n');
+  await workspace
+    .getByRole('button', { name: /^File review actions:/ })
+    .click();
   const markTwo = workspace.getByRole('button', {
     name: 'Mark all 2 files reviewed',
     exact: true,

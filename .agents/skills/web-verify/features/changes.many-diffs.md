@@ -40,7 +40,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 2. Click button `Review`
    Expect: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
 3. Click button `All changes`
-   Expect: the sheet closes; heading "Changes" (All changes is the document titled "Changes"); the URL contains `entry=handoff`; text "note-000.md changed" (the first file's new line); no text "The changes in this document could not be read."; "Loading changes…" gone once the reads finish.
+   Expect: the sheet closes; heading "205 uncommitted changes" (All changes is the document titled "Changes"); the URL contains `entry=handoff`; the complete file table. Click its "note-000.md −1 +1" row to scroll to that diff and read "note-000.md changed" (the first file's new line); no text "The changes in this document could not be read."; "Loading changes…" gone once the reads finish.
 4. Inspect HTTP traffic
    Expect: at least two `POST /api/worktrees/<worktreeId>/changes/diffs` with status 200 after the click and none with an error status (`[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again, not failures).
 
