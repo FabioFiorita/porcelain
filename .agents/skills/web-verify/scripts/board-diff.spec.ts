@@ -98,13 +98,19 @@ it('accepts defaults, deduplicates widths and finds a board by its HTML name', (
   }
 });
 
-const mapsMarkdown = (include: string, own = 'Timeline control') =>
+const pinned = new Set(['button', 'tabs']);
+const mapsMarkdown = (
+  include: string,
+  own = 'Timeline control',
+  stock = 'button',
+) =>
   [
     '```json board-role-sets',
     JSON.stringify({
       'pane bar Git': [
         {
           role: 'Git button',
+          stock,
           board: { selector: '[aria-label="Git"] > button' },
           app: { selector: '[aria-label="Git controls"] > button' },
         },
@@ -131,7 +137,7 @@ const mapsMarkdown = (include: string, own = 'Timeline control') =>
 
 it('measures a shared role set on every board that includes it, before its own roles', () => {
   expect(
-    parseBoardMaps(mapsMarkdown('pane bar Git'))['file-tab']?.roles.map(
+    parseBoardMaps(mapsMarkdown('pane bar Git'), pinned)['file-tab']?.roles.map(
       (role) => [role.role, role.app.selector],
     ),
   ).toStrictEqual([
@@ -141,15 +147,43 @@ it('measures a shared role set on every board that includes it, before its own r
 });
 
 it('refuses a board that includes an unknown role set', () => {
-  expect(() => parseBoardMaps(mapsMarkdown('pane bar'))).toThrow(
+  expect(() => parseBoardMaps(mapsMarkdown('pane bar'), pinned)).toThrow(
     'Board file-tab includes unknown role set pane bar. Choose pane bar Git.',
   );
 });
 
 it('refuses a board whose shared and own roles share a name', () => {
   expect(() =>
-    parseBoardMaps(mapsMarkdown('pane bar Git', 'Git button')),
+    parseBoardMaps(mapsMarkdown('pane bar Git', 'Git button'), pinned),
   ).toThrow(
     'Board file-tab measures role Git button twice; rows pair by role name.',
+  );
+});
+
+it('refuses a stock primitive that is not a pinned shadcn file', () => {
+  expect(() =>
+    parseBoardMaps(
+      mapsMarkdown('pane bar Git', 'Timeline control', 'review-controls'),
+      pinned,
+    ),
+  ).toThrow(
+    'Role Git button on board file-tab names review-controls as its stock primitive, but only pinned shadcn primitives can be: button, tabs.',
+  );
+});
+
+it('marks an accepted stock difference and explains it in the pasteable table', () => {
+  expect(
+    styleTable([
+      {
+        role: 'Git button',
+        property: 'height',
+        board: '26.000px',
+        app: '24.000px',
+        match: false,
+        accepted: 'stock (accepted): `h-6` from the pinned button.tsx',
+      },
+    ]),
+  ).toContain(
+    '| Git button | height | 26.000px | 24.000px | stock | stock (accepted): `h-6` from the pinned button.tsx |',
   );
 });

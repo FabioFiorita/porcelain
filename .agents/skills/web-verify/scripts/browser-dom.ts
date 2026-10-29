@@ -33,6 +33,10 @@ export type BrowserElement = {
   };
   readonly matches: (selector: string) => boolean;
   readonly querySelectorAll: (selector: string) => Iterable<BrowserElement>;
+  readonly parentElement: BrowserElement | null;
+  readonly getAttribute: (name: 'class') => string | null;
+  readonly setAttribute: (name: 'class', value: string) => void;
+  readonly removeAttribute: (name: 'class') => void;
 };
 
 export type BrowserHtmlElement = BrowserElement & {
@@ -50,26 +54,33 @@ export type BrowserDocument = {
   };
   readonly fonts: { readonly ready: Promise<unknown> };
   readonly querySelectorAll: (selector: string) => Iterable<BrowserElement>;
-  readonly createElement: (tag: 'canvas') => {
-    width: number;
-    height: number;
-    readonly getContext: (
-      kind: '2d',
-      options: { willReadFrequently: boolean },
-    ) => {
-      fillStyle: string;
-      readonly fillRect: (
-        x: number,
-        y: number,
-        width: number,
-        height: number,
-      ) => void;
-      readonly getImageData: (
-        x: number,
-        y: number,
-        width: number,
-        height: number,
-      ) => { readonly data: Uint8ClampedArray };
-    } | null;
+  readonly head: {
+    readonly append: (node: { textContent: string }) => void;
   };
+  readonly createElement: ((tag: 'style') => {
+    textContent: string;
+    readonly remove: () => void;
+  }) &
+    ((tag: 'canvas') => {
+      width: number;
+      height: number;
+      readonly getContext: (
+        kind: '2d',
+        options: { willReadFrequently: boolean },
+      ) => {
+        fillStyle: string;
+        readonly fillRect: (
+          x: number,
+          y: number,
+          width: number,
+          height: number,
+        ) => void;
+        readonly getImageData: (
+          x: number,
+          y: number,
+          width: number,
+          height: number,
+        ) => { readonly data: Uint8ClampedArray };
+      } | null;
+    });
 };

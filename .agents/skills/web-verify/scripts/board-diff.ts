@@ -230,9 +230,11 @@ export async function boardDiff(
   } finally {
     await browser?.close();
   }
-  const mismatches = captures.flatMap((item) =>
-    item.rows.filter((row) => !row.match),
+  const rows = captures.flatMap((item) => item.rows);
+  const mismatches = rows.filter(
+    (row) => !row.match && row.accepted === undefined,
   ).length;
+  const accepted = rows.filter((row) => row.accepted !== undefined).length;
   const failures =
     problems.length +
     captures.reduce((sum, item) => sum + item.problems.length, 0) +
@@ -242,7 +244,7 @@ export async function boardDiff(
     '',
     `Route: \`${options.route}\``,
     '',
-    'Tolerance: 0.5 px per length; 1 per RGB/alpha channel. Weight and icon presence must match exactly.',
+    'Tolerance: 0.5 px per length; 1 per RGB/alpha channel. Weight and icon presence must match exactly. A difference produced only by classes from the pinned shadcn primitive a role names is stock (accepted) and does not fail the run.',
     '',
     ...problems.map((problem) => `- ${problem}`),
     ...captures.flatMap((item) => [
@@ -253,7 +255,7 @@ export async function boardDiff(
       styleTable(item.rows),
       '',
     ]),
-    `Result: ${failures === 0 ? 'PASS' : 'FAIL'} · ${mismatches} mismatched properties · ${failures - mismatches} capture problems.`,
+    `Result: ${failures === 0 ? 'PASS' : 'FAIL'} · ${mismatches} mismatched properties · ${accepted} stock properties accepted · ${failures - mismatches} capture problems.`,
     '',
   ].join('\n');
   const safe = (text: string) => {
@@ -277,6 +279,7 @@ export async function boardDiff(
           captures,
           problems,
           mismatches,
+          accepted,
           pass: failures === 0,
           index,
         },

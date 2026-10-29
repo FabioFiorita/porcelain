@@ -25,6 +25,7 @@ const role = Schema.Struct({
   minWidth: Schema.optional(
     Schema.Int.check(Schema.isGreaterThanOrEqualTo(320)),
   ),
+  stock: Schema.optional(Schema.NonEmptyString),
   board: target,
   app: target,
 });
@@ -58,7 +59,10 @@ function block(markdown: string, name: string): unknown {
   return JSON.parse(json);
 }
 
-export function parseBoardMaps(markdown: string): Record<string, BoardMap> {
+export function parseBoardMaps(
+  markdown: string,
+  primitives: ReadonlySet<string>,
+): Record<string, BoardMap> {
   const sets = Schema.decodeUnknownSync(
     Schema.Record(Schema.String, Schema.NonEmptyArray(role)),
   )(block(markdown, 'board-role-sets'));
@@ -86,9 +90,40 @@ export function parseBoardMaps(markdown: string): Record<string, BoardMap> {
         throw new Error(
           `Board ${name} measures role ${repeated.role} twice; rows pair by role name.`,
         );
+      const unpinned = roles.find(
+        (role) => role.stock !== undefined && !primitives.has(role.stock),
+      );
+      if (unpinned !== undefined)
+        throw new Error(
+          `Role ${unpinned.role} on board ${name} names ${unpinned.stock} as its stock primitive, but only pinned shadcn primitives can be: ${[...primitives].join(', ')}.`,
+        );
       return [name, { ...map, roles }];
     }),
   );
+}
+
+const ui = new URL('../../../../apps/web/src/components/ui/', import.meta.url);
+const pinned = new Set(
+  Object.keys(
+    Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.String))(
+      JSON.parse(
+        readFileSync(
+          new URL('../../../../architecture/shadcn-pins.json', import.meta.url),
+          'utf8',
+        ),
+      ),
+    ),
+  )
+    .filter((file) => file.endsWith('.tsx'))
+    .map((file) => file.slice(0, -'.tsx'.length)),
+);
+
+export function stockClasses(primitive: string): readonly string[] {
+  return [
+    ...new Set(
+      readFileSync(new URL(`${primitive}.tsx`, ui), 'utf8').split(/[\s"'`]+/),
+    ),
+  ];
 }
 
 export const boards = parseBoardMaps(
@@ -96,4 +131,5 @@ export const boards = parseBoardMaps(
     new URL('../features/app.board-comparison.md', import.meta.url),
     'utf8',
   ),
+  pinned,
 );
