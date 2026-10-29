@@ -8,6 +8,17 @@ export const refChips = {
     return document.querySelector('[data-slot="tooltip-content"][data-open]')
       ?.textContent;
   },
+  sharesLine(chip: Locator, text: Locator) {
+    const chipBounds = chip.element().getBoundingClientRect();
+    const textBounds = text.element().getBoundingClientRect();
+    const middle = chipBounds.top + chipBounds.height / 2;
+    return middle >= textBounds.top && middle <= textBounds.bottom;
+  },
+  sharesStart(first: Locator, second: Locator) {
+    const firstLeft = first.element().getBoundingClientRect().left;
+    const secondLeft = second.element().getBoundingClientRect().left;
+    return Math.abs(firstLeft - secondLeft) < 1;
+  },
   presentation(text: Locator, row: Locator, more: Locator) {
     const label = text.element();
     const rowBounds = row.element().getBoundingClientRect();

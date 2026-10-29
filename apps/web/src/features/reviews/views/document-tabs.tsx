@@ -1,3 +1,9 @@
+import { readCommit } from '@porcelain/client/history';
+import { useAtomValue } from '@effect/atom-react';
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
+import type { HistoryScope } from '@porcelain/client/history/rules';
+import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -154,6 +160,7 @@ export function DocumentTabs({
   leading,
   trailing,
   firstTabCount,
+  commitContext,
   ...actions
 }: TabActions & {
   tabs: readonly string[];
@@ -165,6 +172,7 @@ export function DocumentTabs({
   leading?: ReactNode;
   trailing?: ReactNode;
   firstTabCount: TabCount | undefined;
+  commitContext?: { connection: Connection; scope: HistoryScope };
 }) {
   return (
     <div
@@ -236,24 +244,33 @@ export function DocumentTabs({
                     isPinned &&
                     !pinned.includes(tabs[index + 1] ?? '') &&
                     index < tabs.length - 1;
+                  const document = parseEntry(key);
+                  const tabProps = {
+                    tabKey: key,
+                    count: undefined,
+                    active: key === active,
+                    pinned: isPinned,
+                    hasUnpinned: tabs.some(
+                      (item) => item !== 'handoff' && !pinned.includes(item),
+                    ),
+                    reviewTitle,
+                    side,
+                    ...actions,
+                  };
                   return (
                     <span
                       key={key}
                       className="flex min-w-0 shrink-0 items-center"
                     >
-                      <DocumentTab
-                        tabKey={key}
-                        count={undefined}
-                        active={key === active}
-                        pinned={isPinned}
-                        hasUnpinned={tabs.some(
-                          (item) =>
-                            item !== 'handoff' && !pinned.includes(item),
-                        )}
-                        reviewTitle={reviewTitle}
-                        side={side}
-                        {...actions}
-                      />
+                      {commitContext && document?.kind === 'commit' ? (
+                        <CommitTab
+                          {...tabProps}
+                          commitContext={commitContext}
+                          oid={document.oid}
+                        />
+                      ) : (
+                        <DocumentTab {...tabProps} />
+                      )}
                       {endOfPinned && (
                         <span
                           aria-hidden="true"
@@ -281,6 +298,7 @@ export function DocumentTabs({
 function DocumentTab({
   tabKey,
   count,
+  commitSubject,
   active,
   pinned,
   hasUnpinned,
@@ -296,6 +314,7 @@ function DocumentTab({
 }: TabActions & {
   tabKey: string;
   count: TabCount | undefined;
+  commitSubject?: string | undefined;
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
@@ -309,6 +328,8 @@ function DocumentTab({
     accessibleName = title,
   } = describeTab(tabKey, reviewTitle, count);
   const countId = useId();
+  const tabTitle = commitSubject ? `${title} ${commitSubject}` : title;
+  const tabHint = commitSubject ? `${hint} · ${commitSubject}` : hint;
   const [openingSide, setOpeningSide] = useState(false);
   const openToSideLabel = openToSideText(side);
   const activateTab = (event: KeyboardEvent<HTMLElement>) => {
@@ -330,7 +351,7 @@ function DocumentTab({
             'min-w-0 flex-1',
             tabKey.startsWith('file:') && 'italic',
           )}
-          text={pinned ? `${hint} · pinned` : hint}
+          text={pinned ? `${tabHint} · pinned` : tabHint}
           disclose="always"
           renderTrigger={(label) => (
             <ContextMenuTrigger
@@ -342,7 +363,7 @@ function DocumentTab({
                   role="tab"
                   tabIndex={0}
                   aria-selected={active}
-                  aria-label={accessibleName}
+                  aria-label={commitSubject ? tabTitle : accessibleName}
                   aria-describedby={count ? countId : undefined}
                   data-entry={tabKey}
                   className={cn(
@@ -425,7 +446,7 @@ function DocumentTab({
             </ContextMenuTrigger>
           )}
         >
-          {title}
+          {tabTitle}
         </TruncatedText>
         <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
           <ContextMenuItem
@@ -482,4 +503,16 @@ function DocumentTab({
       )}
     </span>
   );
+}
+
+function CommitTab(
+  props: Parameters<typeof DocumentTab>[0] & {
+    commitContext: { connection: Connection; scope: HistoryScope };
+    oid: string;
+  },
+) {
+  const { commitContext, oid, ...tab } = props;
+  const result = useAtomValue(readCommit({ ...commitContext, oid, parent: 1 }));
+  const commit = Option.getOrUndefined(AsyncResult.value(result));
+  return <DocumentTab {...tab} commitSubject={commit?.commit.subject} />;
 }

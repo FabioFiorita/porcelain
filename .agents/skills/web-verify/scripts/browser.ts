@@ -51,6 +51,16 @@ export async function settledText(page: Page): Promise<string | undefined> {
 }
 
 export async function unavailablePage(page: Page): Promise<string | undefined> {
+  for (const title of ['Page not found', 'Computer unavailable'])
+    if (
+      await page
+        .locator('[data-slot="state-notice"]')
+        .getByRole('heading', { name: title, exact: true })
+        .or(page.locator(`[data-unavailable-page="${title}"]`))
+        .first()
+        .isVisible()
+    )
+      return title;
   const headings = await page
     .locator(
       'h1:visible, h2:visible, [role="heading"]:visible, [data-slot="breadcrumb-page"]:visible',
@@ -60,8 +70,6 @@ export async function unavailablePage(page: Page): Promise<string | undefined> {
     .map((text) => text.trim())
     .find((text) =>
       [
-        'Page not found',
-        'Computer unavailable',
         'Worktree not found',
         'Revision not found',
         'Could not display the workspace',

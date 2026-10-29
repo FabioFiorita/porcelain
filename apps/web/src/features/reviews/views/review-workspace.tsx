@@ -581,6 +581,7 @@ function PaneView({
       )}
     >
       <DocumentTabs
+        commitContext={{ connection: context.connection, scope }}
         firstTabCount={firstTabCount}
         leading={
           index === 0 ? (

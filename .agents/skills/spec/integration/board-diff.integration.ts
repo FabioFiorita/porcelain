@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, expect } from 'vitest';
 import { test as it } from '@porcelain/server/kit/server-test';
 import { chromium, type Browser } from 'playwright';
-import type {
-  BoardRole,
-  BoardMap,
+import {
+  boards,
+  type BoardRole,
+  type BoardMap,
 } from '../../web-verify/scripts/board-maps.ts';
 import {
   compareRoles,
@@ -11,6 +12,12 @@ import {
 } from '../../web-verify/scripts/board-styles.ts';
 import { unavailablePage } from '../../web-verify/scripts/browser.ts';
 import { revealBoardRoles } from '../../web-verify/scripts/board-diff.ts';
+
+function mappedRoles(name: string) {
+  const map = boards[name];
+  if (map === undefined) throw new Error(`The ${name} board map must exist`);
+  return map.roles;
+}
 
 let browser: Browser;
 beforeAll(async () => {
@@ -102,18 +109,20 @@ it.each([
 ])('rejects an HTTP-200 %s screen', async (title) => {
   const page = await browser.newPage();
   try {
-    await page.setContent(`<h2>${title}</h2>`);
+    await page.setContent(
+      `<section data-slot="state-notice"><h2>${title}</h2></section>`,
+    );
     expect(await unavailablePage(page)).toBe(title);
   } finally {
     await page.close();
   }
 });
 
-it('ignores unavailable words in review prose and hidden headings', async () => {
+it('ignores unavailable words in ordinary headings, prose, computer names and hidden notices', async () => {
   const page = await browser.newPage();
   try {
     await page.setContent(
-      '<h2 hidden>Page not found</h2><p>Computer unavailable</p><h1>A real review</h1>',
+      '<section data-slot="state-notice" hidden><h2>Page not found</h2></section><p>Computer unavailable</p><h1>Page not found</h1><nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav>',
     );
     expect(await unavailablePage(page)).toBeUndefined();
   } finally {
@@ -133,11 +142,11 @@ it('selects the visible responsive role when the desktop copy is hidden', async 
   }
 });
 
-it('rejects an unavailable computer shown in the Settings breadcrumb', async () => {
+it('rejects a removed computer notice beside the Settings breadcrumb', async () => {
   const page = await browser.newPage();
   try {
     await page.setContent(
-      '<nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav><h1>Computers</h1>',
+      '<nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav><h1>Computers</h1><div data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>',
     );
     expect(await unavailablePage(page)).toBe('Computer unavailable');
   } finally {
@@ -375,5 +384,85 @@ it('reveals a phone panel and its tab without toggling an already visible target
     expect(await page.locator('#panel').isVisible()).toBe(true);
   } finally {
     await page.close();
+  }
+});
+
+it('the commit title map measures the heading itself', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.setContent(
+      '<section aria-label="Review content"><h1>Commit subject</h1></section>',
+    );
+    const roles = mappedRoles('commit').filter(
+      (role) => role.role === 'commit title',
+    );
+    const samples = await measureRoles(page, roles, 'app');
+    expect(samples[0]?.problem).toBeUndefined();
+    expect(samples[0]?.styles.fontWeight).toBe('700');
+  } finally {
+    await page.close();
+  }
+});
+
+it('the History map compares the selected commit after the uncommitted row', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(
+      '<ol aria-label="Commits"><li style="height:32px"><a><span>Uncommitted changes</span></a></li><li style="height:44px"><a aria-current="true"><span style="font:600 13px/18px sans-serif">Selected commit</span></a></li></ol>',
+    );
+    await app.setContent(
+      '<ol aria-label="Commits"><li style="height:36px"><button aria-pressed="false"><span data-slot="tooltip-trigger" style="font:500 13px/18px sans-serif">Newer commit</span></button></li><li style="height:44px"><button aria-pressed="true"><span data-slot="tooltip-trigger" style="font:600 13px/18px sans-serif">Selected commit</span></button></li></ol>',
+    );
+    const roles = mappedRoles('history').filter(
+      (role) => role.role !== 'history heading',
+    );
+    const rows = compareRoles(
+      await measureRoles(board, roles, 'board'),
+      await measureRoles(app, roles, 'app'),
+    );
+    expect(rows.find((row) => row.property === 'height')).toMatchObject({
+      board: '44.000px',
+      app: '44.000px',
+      match: true,
+    });
+    expect(rows.find((row) => row.property === 'fontWeight')).toMatchObject({
+      board: '600',
+      app: '600',
+      match: true,
+    });
+    expect(rows.every((row) => row.match)).toBe(true);
+  } finally {
+    await board.close();
+    await app.close();
+  }
+});
+
+it('the graph map compares row height only in the column layout', async () => {
+  const board = await browser.newPage();
+  const app = await browser.newPage();
+  try {
+    await board.setContent(
+      '<ol aria-label="Commit graph"><li style="height:30px">Commit</li></ol>',
+    );
+    await app.setContent(
+      '<ol aria-label="Commit graph"><li style="height:44px">Commit</li></ol>',
+    );
+    const roles = mappedRoles('graph').filter(
+      (role) => role.role !== 'HEAD ref',
+    );
+    const narrow = compareRoles(
+      await measureRoles(board, roles, 'board', 414),
+      await measureRoles(app, roles, 'app', 414),
+    );
+    const wide = compareRoles(
+      await measureRoles(board, roles, 'board', 1440),
+      await measureRoles(app, roles, 'app', 1440),
+    );
+    expect(narrow.every((row) => row.match)).toBe(true);
+    expect(wide.find((row) => row.property === 'height')?.match).toBe(false);
+  } finally {
+    await board.close();
+    await app.close();
   }
 });

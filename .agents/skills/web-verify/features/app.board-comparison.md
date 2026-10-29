@@ -51,7 +51,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | settings-computers            | Narrative-settings-computers     | `/settings/computers`                                |
 | settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                  |
 | commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                  |
-| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                     |
+| history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`  |
 | graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                         |
 | pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                        |
 | pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented     |
@@ -877,7 +877,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "article h1"
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] h1 > span"
+          "selector": "[aria-label=\"Review content\"] h1"
         },
         "properties": [
           "fontSize",
@@ -1000,23 +1000,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "commit row",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] > li",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] > li:has(a[aria-current=\"true\"])"
         },
         "app": {
-          "selector": "[aria-label=\"Commits\"] > li",
-          "index": 0
+          "selector": "[aria-label=\"Commits\"] > li:has([aria-pressed=\"true\"])"
         },
         "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "commit subject",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] li a > span:first-child",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] a[aria-current=\"true\"] span[style*=\"font:600\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Commits\"] [data-slot=\"tooltip-trigger\"]",
+          "selector": "[aria-label=\"Commits\"] [aria-pressed=\"true\"] [data-slot=\"tooltip-trigger\"]",
           "index": 0
         },
         "properties": [
@@ -1052,7 +1049,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Commit graph\"] > li",
           "index": 0
         },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
+        "properties": ["padding", "radius", "gap", "icon"]
+      },
+      {
+        "role": "graph row height",
+        "board": {
+          "selector": "ol[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "app": {
+          "selector": "[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "properties": ["height"],
+        "minWidth": 768
       },
       {
         "role": "HEAD ref",
