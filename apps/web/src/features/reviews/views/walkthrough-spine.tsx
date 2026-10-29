@@ -41,6 +41,7 @@ export function WalkthroughSpine({
   const [revealed, setRevealed] = useState<WalkthroughKey>();
   const reveal = (key: WalkthroughKey) => (node: HTMLElement | null) => {
     if (!node || key !== current || revealed === key) return;
+    if (node.getClientRects().length === 0) return;
     setRevealed(key);
     const viewport = node.closest('[data-slot=scroll-area-viewport]');
     if (!viewport) return;

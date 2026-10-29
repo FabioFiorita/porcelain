@@ -207,9 +207,11 @@ export function notExplainedLabel(
     ...(binary > 0 ? [count(binary, 'binary file')] : []),
     ...(removed > 0 ? [count(removed, 'removed file')] : []),
   ];
-  return parts.length === 0
-    ? null
-    : new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(parts);
+  const last = parts.at(-1);
+  if (last === undefined) return null;
+  return parts.length === 1
+    ? last
+    : `${parts.slice(0, -1).join(', ')} and ${last}`;
 }
 
 export function summaryLayerNumber(message: unknown): number | null {
