@@ -1,3 +1,4 @@
+export { SettingsCategories } from './views/settings-categories';
 export { SettingsScreen } from './views/settings-screen';
 export { EnvironmentsSettings } from './views/environments-settings';
 export { useReadEnvironments } from './commands/pairing';
