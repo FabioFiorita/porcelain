@@ -6,6 +6,7 @@ const now = Date.parse('2026-10-28T12:00:00Z');
 test.each([
   ['2026-10-28T12:00:00Z', '0 seconds ago'],
   ['not-a-date', 'Unknown time'],
+  ['2026-10-28T11:59:00Z', '1 minute ago'],
   ['2026-10-28T11:59:45Z', '15 seconds ago'],
   ['2026-10-28T11:58:00Z', '2 minutes ago'],
   ['2026-10-28T10:00:00Z', '2 hours ago'],

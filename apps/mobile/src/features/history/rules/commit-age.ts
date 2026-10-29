@@ -12,7 +12,6 @@ const units = [
   ['minute', minute],
   ['second', second],
 ] as const;
-const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
 
 export function commitAge(timestamp: string, now = Date.now()) {
   const elapsed = new Date(timestamp).getTime() - now;
@@ -20,10 +19,7 @@ export function commitAge(timestamp: string, now = Date.now()) {
   const [unit, length] =
     units.find(([, duration]) => Math.abs(elapsed) >= duration) ??
     (['second', second] as const);
-  return formatter.format(
-    elapsed <= 0
-      ? -Math.round(Math.abs(elapsed) / length)
-      : Math.round(elapsed / length),
-    unit,
-  );
+  const amount = Math.round(Math.abs(elapsed) / length);
+  const age = `${amount} ${unit}${amount === 1 ? '' : 's'}`;
+  return elapsed > 0 ? `in ${age}` : `${age} ago`;
 }
