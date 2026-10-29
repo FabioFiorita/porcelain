@@ -139,6 +139,20 @@ export function threadState(
     : 'awaiting-agent';
 }
 
+export function threadCounts(threads: readonly CommentThread[]) {
+  const states = threads.map(threadState);
+  const count = (state: ReturnType<typeof threadState>) =>
+    states.filter((entry) => entry === state).length;
+  const awaitingAgent = count('awaiting-agent');
+  const awaitingYou = count('agent-replied');
+  return {
+    awaitingAgent,
+    awaitingYou,
+    open: awaitingAgent + awaitingYou,
+    resolved: count('resolved'),
+  };
+}
+
 export function threadStateLabel(thread: CommentThread): string {
   switch (threadState(thread)) {
     case 'resolved':
