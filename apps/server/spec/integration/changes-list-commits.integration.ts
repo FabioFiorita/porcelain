@@ -58,7 +58,10 @@ test('the first page of history snapshots the head and returns the newest commit
         subjectTruncated: false,
         body: null,
         bodyTruncated: false,
-        refs: [session.fixture.branch],
+        refs: [
+          { kind: 'head', name: 'HEAD' },
+          { kind: 'local-branch', name: session.fixture.branch },
+        ],
       },
     ],
     nextAfter: [state.second],

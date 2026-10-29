@@ -4,6 +4,7 @@ export {
   type CommitFile,
   type CommitFiles,
   type CommitSummary,
+  type CommitRef,
 } from './commit.ts';
 export {
   commitPaths,
@@ -12,6 +13,7 @@ export {
   shortOid,
   refLabel,
   shownRefs,
+  isCurrentBranch,
   historyHeading,
   historyBoundary,
   branchTracking,

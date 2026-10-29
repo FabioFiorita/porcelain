@@ -116,7 +116,7 @@ export function PrimitivePreview({ name }: { name: string }) {
               author: 'Developer',
               time: '2 minutes ago',
               shortHash: 'a050966',
-              refs: ['main'],
+              refs: [{ kind: 'local-branch', name: 'main' }],
             },
             {
               id: 'two',

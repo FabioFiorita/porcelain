@@ -35,6 +35,15 @@ const commitHeadSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal('unborn'), ref: Schema.String }),
 ]);
 
+export const commitRefSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literals(['local-branch', 'remote-branch', 'tag']),
+    name: Schema.String,
+  }),
+  Schema.Struct({ kind: Schema.Literal('head'), name: Schema.Literal('HEAD') }),
+]);
+export type CommitRef = typeof commitRefSchema.Type;
+
 export const commitSummarySchema = Schema.Struct({
   oid: oidSchema,
   parentOids: Schema.Array(oidSchema),
@@ -43,7 +52,7 @@ export const commitSummarySchema = Schema.Struct({
   subjectTruncated: Schema.Boolean,
   body: nullableAsUndefined(Schema.String),
   bodyTruncated: Schema.Boolean,
-  refs: Schema.Array(Schema.String),
+  refs: Schema.Array(commitRefSchema),
 });
 
 export const listCommitsResponseSchema = Schema.Struct({

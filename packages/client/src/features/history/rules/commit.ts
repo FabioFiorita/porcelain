@@ -6,6 +6,7 @@ import type {
 export type CommitFiles = ReadCommitFilesResponse;
 export type CommitFile = CommitFiles['files'][number];
 export type CommitSummary = CommitFiles['commit'];
+export type CommitRef = CommitSummary['refs'][number];
 type FileTimelineEntry = ListFileCommitsResponse['commits'][number];
 
 const changeLabels: Record<FileTimelineEntry['status'], string> = {

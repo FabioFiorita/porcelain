@@ -1,4 +1,4 @@
-import type { CommitFile, CommitSummary } from './commit.ts';
+import type { CommitFile, CommitRef, CommitSummary } from './commit.ts';
 import type {
   ListCommitsResponse,
   ReadChangesResponse,
@@ -23,9 +23,11 @@ export function shortOid(oid: string) {
 export function refLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
 }
-const INTERNAL_REF = /^refs\/porcelain\//u;
-export function shownRefs(refs: readonly string[]): string[] {
-  return refs.filter((ref) => !INTERNAL_REF.test(ref));
+export function shownRefs(refs: readonly CommitRef[]): CommitRef[] {
+  return refs.filter((ref) => ref.kind !== 'head');
+}
+export function isCurrentBranch(ref: CommitRef, headRef: string | undefined) {
+  return ref.kind === 'local-branch' && `refs/heads/${ref.name}` === headRef;
 }
 export function commitEntry(commit: CommitSummary) {
   return {
