@@ -76,3 +76,27 @@ export function codeTarget(
   shownFiles.set(entry.id, file);
   return { type: 'file', file };
 }
+
+export type LineCounts = { additions: number; deletions: number };
+
+export function lineCounts(
+  entries: readonly CodeEntry[],
+): ReadonlyMap<string, LineCounts> {
+  const counts = new Map<string, LineCounts>();
+  for (const entry of entries) {
+    const sum = counts.get(entry.path) ?? { additions: 0, deletions: 0 };
+    if (entry.kind === 'file')
+      sum.additions += entry.contents
+        .split('\n')
+        .filter(
+          (line, index, lines) => index < lines.length - 1 || line,
+        ).length;
+    else
+      for (const hunk of entry.fileDiff.hunks) {
+        sum.additions += hunk.additionLines;
+        sum.deletions += hunk.deletionLines;
+      }
+    counts.set(entry.path, sum);
+  }
+  return counts;
+}

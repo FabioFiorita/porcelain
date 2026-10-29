@@ -52,3 +52,28 @@ test('the timeline of a renamed file lists its commits across the rename and ope
     .element(workspace.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
+
+test('a long timeline change line is clipped inside its row and discloses its full text', async ({
+  workspace,
+  repo,
+}) => {
+  const long = `${'an-extremely-long-file-name-'.repeat(4)}notes.md`;
+  const notes = 'notes.md';
+  await repo.write(long, 'Notes\n');
+  await repo.commit('Add the long notes');
+  await repo.write(notes, await repo.read(long));
+  await repo.remove(long);
+  await repo.commit('Shorten the notes name');
+
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace.getByRole('treeitem', { name: notes, exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Timeline', exact: true })
+    .click();
+  const change = workspace
+    .getByRole('list', { name: `Timeline of ${notes}`, exact: true })
+    .getByText(`Renamed from ${long}`, { exact: true });
+  await expect.element(change).toBeVisible();
+  await expect.element(change).toHaveAttribute('data-clipped', '');
+});

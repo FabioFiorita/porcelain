@@ -76,7 +76,7 @@ export function SidebarGroup({
               <Icon className="size-3.5 shrink-0" />
               <TruncatedText
                 className="min-w-0 flex-1"
-                text={`${name} · ${count} files`}
+                text={`${name} · ${count} ${count === 1 ? 'file' : 'files'}`}
               />
             </button>
             {menu}

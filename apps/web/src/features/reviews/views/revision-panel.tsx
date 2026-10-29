@@ -7,15 +7,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileTypeIcon } from '@/features/files/index';
 import {
   basename,
+  type CommentThread,
   type ReviewMarks,
   type ReviewRevision,
   type ReviewScope,
   revisionReviewItems,
   type ReviewStep,
+  threadCounts,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { useComments } from '../queries/comments';
 import { ReviewStatusIcon } from './change-row';
 import {
   ChangeComment,
@@ -30,6 +31,7 @@ export function RevisionPanel({
   revision,
   scope,
   context,
+  threads,
   marks,
   file,
   onFile,
@@ -44,6 +46,7 @@ export function RevisionPanel({
   revision: ReviewRevision;
   scope: ReviewScope;
   context: ConnectionContext;
+  threads: readonly CommentThread[];
   marks: ReviewMarks | undefined;
   file: string | undefined;
   onFile: (path: string) => void;
@@ -55,7 +58,6 @@ export function RevisionPanel({
   onProof: () => void;
   onOpenPullRequest: (number: number) => void;
 }) {
-  const { threads } = useComments(scope, context);
   const { view, setView } = useReviewPanelView(revision.reviewId);
   const [expanded, setExpanded] = useState(false);
   const [composing, setComposing] = useState(false);
@@ -95,7 +97,7 @@ export function RevisionPanel({
         view={view}
         onView={setView}
         filesLabel="Explore"
-        openComments={threads.filter((thread) => !thread.resolved).length}
+        openComments={threadCounts(threads).open}
       />
       {view === 'layers' && (
         <ScrollArea className="h-0 min-h-0 flex-1">

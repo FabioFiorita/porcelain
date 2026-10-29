@@ -64,3 +64,5 @@ Repeat at 1440 and 414 in light and dark. A failed request keeps the draft and r
 
 - Use full Comment on README.md (unstaged · modified); Comment alone is the submit control. C is ignored in text fields and only the active pane listens.
 - Repeated threads make Reply/Resolve ambiguous; delete through Comment actions → Delete or reset.
+
+In the Changes document, the file comment button uses its comparison label ("unstaged · modified") at wide widths and a Comment icon in a narrow pane. Its full accessible name is unchanged.

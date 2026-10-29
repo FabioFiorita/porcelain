@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   checkoutFolder,
+  decisionMarked,
   reviewArchivable,
   reviewClosed,
   emptyReviewListFilter,
@@ -78,6 +79,37 @@ it('pins Projects above the four review statuses', () => {
     'Ready to merge',
     'No review',
   ]);
+});
+it.each([
+  ['a current mark', allMarks, true],
+  ['no marks yet', undefined, false],
+  [
+    'a mark from an older explanation',
+    { files: [], decisions: [{ ...mark, fingerprint: 'old' }] },
+    false,
+  ],
+  [
+    'a mark on another decision',
+    { files: [], decisions: [{ ...mark, layerId: 'consumer' }] },
+    false,
+  ],
+  [
+    'a current mark whose files changed since',
+    {
+      files: [
+        {
+          path: 'owner.ts',
+          fingerprint: 'old',
+          reviewedAt: mark.reviewedAt,
+          stale: true,
+        },
+      ],
+      decisions: [mark],
+    },
+    true,
+  ],
+])('reads a decision as reviewed from %s: %s', (_, marks, expected) => {
+  expect(decisionMarked(marks, layer)).toBe(expected);
 });
 it('counts current decision marks once, ignoring file marks, stale and unrelated decisions', () => {
   const result = reviewListStatus({

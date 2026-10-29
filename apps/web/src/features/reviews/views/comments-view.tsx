@@ -16,10 +16,11 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { cn } from '@/shared/lib/utils';
-import type {
-  CommentAnchor,
-  CommentThread,
-  ReviewScope,
+import {
+  threadCounts,
+  type CommentAnchor,
+  type CommentThread,
+  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { useVisibleComments } from '../commands/comments';
@@ -158,9 +159,7 @@ export function CommentsView({
     .sort((left, right) =>
       lastActivity(left).localeCompare(lastActivity(right)),
     );
-  const openCount = threads.filter((thread) => !thread.resolved).length;
-  const resolvedCount = threads.length - openCount;
-  const counts = { open: openCount, resolved: resolvedCount };
+  const counts = threadCounts(threads);
   const empty =
     filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
 
@@ -184,7 +183,7 @@ export function CommentsView({
             {value} <span className="tabular-nums">{counts[value]}</span>
           </button>
         ))}
-        {filter === 'resolved' && resolvedCount > 0 && (
+        {filter === 'resolved' && counts.resolved > 0 && (
           <DeleteResolved scope={scope} context={context} threads={threads} />
         )}
       </div>

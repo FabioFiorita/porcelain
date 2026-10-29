@@ -38,7 +38,7 @@ export function AgentNote({
       <span
         aria-hidden="true"
         className={cn(
-          'mt-px grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-graph-1/12 px-1 text-2xs font-semibold text-graph-1 tabular-nums',
+          'mt-px grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand-soft px-1 text-2xs font-semibold text-brand tabular-nums',
           gap && 'bg-graph-4/15 text-graph-4',
         )}
       >

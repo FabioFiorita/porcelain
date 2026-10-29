@@ -17,7 +17,11 @@ test.for([1280, 414])(
       if (width === 414) {
         await page.getByRole('button', { name: 'Review', exact: true }).click();
         await page.getByRole('tab', { name: 'Files', exact: true }).click();
-      }
+      } else
+        await page
+          .getByRole('navigation', { name: 'Side panel', exact: true })
+          .getByRole('button', { name: 'Files', exact: true })
+          .click();
       await page
         .getByRole('treeitem', { name: path, exact: true })
         .click({ button: 'right' });

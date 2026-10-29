@@ -165,7 +165,7 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
     .toBeChecked();
 });
 
-test('decision readiness includes unfinished decisions and requires their file marks', async ({
+test('decision readiness counts a decision by its mark, whatever its file marks', async ({
   workspace,
   repo,
   agent,
@@ -238,7 +238,7 @@ test('decision readiness includes unfinished decisions and requires their file m
   await expect
     .element(
       readiness.getByRole('button', {
-        name: '0 of 1 decisions reviewed',
+        name: '1 of 1 decisions reviewed',
         exact: true,
       }),
     )

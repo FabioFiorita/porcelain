@@ -13,6 +13,7 @@ export {
   resolvedCleanup,
   retainIntent,
   threadStarter,
+  threadCounts,
   threadState,
   threadStateLabel,
   threadWriteTarget,

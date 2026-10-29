@@ -20,7 +20,7 @@ Open graph opens the commit graph of the checked-out branch as a document tab ("
 
 ## How to get to it (user POV)
 
-- Review → History → button "Open graph" (at the bottom of the History panel; shown once the branch has commits).
+- Review → History → button "Open graph" (after the commit list in the History panel; shown once the branch has commits).
 - The tab "Graph" in the "Open documents" tablist once opened; URL `entry=graph` on the workspace route.
 
 ## Driving it with browser
@@ -55,7 +55,7 @@ The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic 
 4. Navigate to `<path and query of the URL from step 3>`
    Expect: after the reload, tab "Graph" is still selected and list "Commit graph" shows again.
 5. Click button `/^Merge commit ?Merge branch 'topic'/`
-   Expect: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id is); title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
+   Expect: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id and subject is); title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
 
 ### Ref identity and colliding names
 
@@ -74,3 +74,7 @@ Automated coverage: `history-graph.e2e.ts`.
 
 - Reload the complete URL, including entry; bare `/` need not restore Graph. Match whole-row names by anchored regex; merge starts with Merge commit.
 - Setup leaves topic, merge and files; reset before maps expecting the initial fixture.
+
+## Graph presentation
+
+The checked-out HEAD row has a muted background and a semibold 13px title. Other rows use 13px titles, with 12px hashes, authors and ages. The branch heading is mono. Stacked rows keep the subject and metadata on two lines: stock ref badges and an overflow disclosure for hidden refs follow the subject on its line, and the metadata line keeps the full row width. History retains upstream labels and pins Open graph under the list: right after a short list, at the panel's bottom for a long one.

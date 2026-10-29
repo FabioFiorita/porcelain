@@ -109,11 +109,11 @@ it.for([
     expected: 0,
   },
   {
-    name: 'decision without file',
+    name: 'a decision mark and no file mark',
     file: false,
     decision: true,
     fingerprint: 'blob',
-    expected: 0,
+    expected: 1,
   },
   {
     name: 'file without decision',
@@ -130,11 +130,11 @@ it.for([
     expected: 1,
   },
   {
-    name: 'a changed file',
+    name: 'a marked decision whose file changed since it was reviewed',
     file: true,
     decision: true,
     fingerprint: 'old',
-    expected: 0,
+    expected: 1,
   },
 ])(
   'counts completed decisions with $name',

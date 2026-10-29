@@ -19,6 +19,7 @@ import {
   changeAnchor,
   type CommentThread,
   type FileCommentAnchor,
+  threadCounts,
 } from '@porcelain/client/reviews/rules';
 import {
   SPECS,
@@ -94,7 +95,7 @@ export function ReviewIndex({
   const selection = useReviewRevisionSelection(review?.reviewId ?? '');
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
-  const openComments = threads.filter((thread) => !thread.resolved).length;
+  const openComments = threadCounts(threads).open;
 
   const branch = changeScope === 'branch';
   const selectReadiness = (

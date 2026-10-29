@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures.ts';
 
 async function waitChanges(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Changes', exact: true }),
+    page.getByRole('heading', { name: '1 uncommitted change', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('code').filter({ hasText: 'A change to review.' }),
