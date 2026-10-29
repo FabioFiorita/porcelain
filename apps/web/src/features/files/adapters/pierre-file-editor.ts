@@ -55,10 +55,13 @@ export function usePierreFileEditor(
     const unsubscribePreferences = registry.subscribe(preferenceValues, update);
     const unsubscribeTheme = registry.subscribe(resolvedAppearance, update);
     const unsubscribeDraft = draft.state.subscribe((state) => {
-      if (state.text !== state.savedText || state.text === editor.getText())
+      if (
+        state.text !== state.savedText ||
+        state.text === session.file.contents
+      )
         return;
       session.file = { name: path, contents: state.text };
-      session.initialText = state.text;
+      if (state.text !== editor.getText()) session.initialText = state.text;
       file.render({ file: session.file, containerWrapper: content });
     });
     return () => {

@@ -63,13 +63,14 @@ test.for(['clean', 'unsaved'] as const)(
   },
 );
 
-test('an open editor with no unsaved edits follows a rewrite on disk and reopens on it', async ({
+test('an open clean editor follows restored disk text and reopens on it', async ({
   workspace,
   repo,
   server,
 }) => {
   await page.viewport(1440, 900);
   const path = repo.readme.path;
+  await repo.write(path, 'Rewritten outside');
   await workspace
     .getByRole('treeitem', { name: path, exact: true })
     .click({ button: 'right' });
