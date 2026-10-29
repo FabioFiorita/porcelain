@@ -174,7 +174,7 @@ test('publishing a review keeps keyboard focus on the permanent first tab', asyn
       .getByRole('tab', { name: 'Review', exact: true });
     await expect
       .element(review)
-      .toHaveAccessibleDescription('0 of 9 decisions reviewed');
+      .toHaveAccessibleDescription('2 of 9 decisions reviewed');
     await expect.element(review).toHaveFocus();
     await expect.poll(() => continuity.read().remounted).toBe(false);
   } finally {
