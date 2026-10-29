@@ -4,6 +4,7 @@ import { BottomSheet, RNHostView } from '@expo/ui';
 import { Box } from './box';
 import { Text } from './text';
 import { Button } from './button';
+import { alertDialogPresentation } from './alert-dialog-presentation';
 
 export function AlertDialog({
   open,
@@ -27,6 +28,7 @@ export function AlertDialog({
   if (!open) return null;
   return (
     <BottomSheet
+      {...alertDialogPresentation}
       isPresented={open}
       onDismiss={onCancel}
       contentPadding={0}

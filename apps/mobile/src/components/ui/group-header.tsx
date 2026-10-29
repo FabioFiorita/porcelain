@@ -18,7 +18,7 @@ export function GroupHeader({
       variant="ghost"
       size="sm"
       expanded={expanded}
-      className="justify-start"
+      align="start"
       accessibilityLabel={`${label}${count === undefined ? '' : ` · ${count}`}`}
       onPress={onPress}
     >

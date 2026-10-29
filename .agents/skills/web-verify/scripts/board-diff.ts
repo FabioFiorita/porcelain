@@ -37,7 +37,6 @@ async function boardPage(
   browser: Browser,
   map: BoardMap,
   directory: string,
-  width: number,
   theme: Theme,
 ): Promise<Page> {
   const stem = map.html.replace(/\.html$/, '');
@@ -47,7 +46,7 @@ async function boardPage(
   const file =
     theme === 'dark' && nativeDark !== undefined ? nativeDark : map.html;
   const page = await browser.newPage({
-    viewport: { width, height: 900 },
+    viewport: { width: 1440, height: 900 },
     colorScheme: theme,
   });
   try {
@@ -147,21 +146,17 @@ async function capture(
         .includes('dark') ?? false;
     if (dark !== (theme === 'dark'))
       found.problems.push(`${theme} theme did not apply`);
-    if (width < 768 && options.board.phoneOpen !== undefined) {
-      await page.locator(options.board.phoneOpen).first().click();
-      await settledText(page);
-    }
+    await revealBoardRoles(page, options.board);
     const board = await boardPage(
       browser,
       options.board,
       options.directory,
-      width,
       theme,
     );
     try {
       found.rows = compareRoles(
-        await measureRoles(board, options.board.roles, 'board'),
-        await measureRoles(page, options.board.roles, 'app'),
+        await measureRoles(board, options.board.roles, 'board', width),
+        await measureRoles(page, options.board.roles, 'app', width),
       );
       await board.screenshot({
         path: join(folder, `board-${theme}-${width}.png`),
@@ -180,6 +175,18 @@ async function capture(
     await context.close();
   }
   return found;
+}
+
+export async function revealBoardRoles(
+  page: Page,
+  map: Pick<BoardMap, 'reveal'>,
+): Promise<void> {
+  for (const action of map.reveal ?? []) {
+    const target = page.locator(action.target).first();
+    if (await target.isVisible()) continue;
+    await page.locator(action.trigger).first().click();
+    await target.waitFor({ state: 'visible' });
+  }
 }
 
 export async function boardDiff(

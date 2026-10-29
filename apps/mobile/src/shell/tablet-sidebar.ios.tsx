@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { withUniwind } from 'uniwind';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, useGlobalSearchParams } from 'expo-router';
 import { Box } from '../components/ui/box';
 import { Item } from '../components/ui/item';
 import { Icon } from '../components/ui/icon';
@@ -22,8 +23,13 @@ import { destinationForPath } from './destinations';
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export function TabletSidebar() {
+  const { fontScale } = useWindowDimensions();
   const pathname = usePathname();
   const router = useRouter();
+  const params = useGlobalSearchParams<{
+    reviewId?: string;
+    environment?: string;
+  }>();
   const inSettings = destinationForPath(pathname).group === '(settings)';
   const updateIndicator = useUpdatesIndicator();
   const [updates, setUpdates] = useState(false);
@@ -39,15 +45,28 @@ export function TabletSidebar() {
         </Box>
       </Box>
       <WorktreeNavigator
+        openReview={
+          pathname.startsWith('/reviews/') &&
+          params.reviewId &&
+          params.environment
+            ? { reviewId: params.reviewId, environmentId: params.environment }
+            : undefined
+        }
         onSelect={() => {
           if (pathname !== '/files') router.replace('/files');
         }}
       />
       <Separator />
-      <Box className="flex-row items-center" gap={2} paddingX={4} paddingY={3}>
-        <Box className="min-w-0 flex-1">
+      <Box
+        className={fontScale > 1 ? 'items-stretch' : 'flex-row items-center'}
+        gap={2}
+        paddingX={4}
+        paddingY={3}
+      >
+        <Box className={fontScale > 1 ? 'min-w-0' : 'min-w-0 flex-1'}>
           <Item
             title="Settings"
+            titleNumberOfLines={1}
             leading={<Icon name="settings" />}
             selected={inSettings}
             accessibilityLabel="Settings"

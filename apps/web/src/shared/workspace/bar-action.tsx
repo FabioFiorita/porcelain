@@ -41,13 +41,12 @@ export function BarAction({
             render={
               <Button
                 variant={variant}
-                size={mode === 'compact' ? 'icon-sm' : 'xs'}
+                size={mode === 'compact' ? 'icon' : 'default'}
                 className={cn(
                   !iconOnly && mode === 'compact' && '@min-lg/pane:hidden',
                   mode === 'key' &&
                     'hidden @min-lg/pane:inline-flex @min-3xl/pane:hidden',
                   mode === 'full' && 'hidden @min-3xl/pane:inline-flex',
-                  shortcut && 'h-7',
                 )}
                 aria-label={label}
                 aria-keyshortcuts={shortcut}
