@@ -9,6 +9,10 @@ selectors:
   - 'Copy hash'
   - 'Open in graph'
   - 'Git actions'
+  - 'Worktree navigator and document panes'
+  - 'Document panes and side panel'
+  - 'Left and right document panes'
+  - 'Top and bottom document panes'
 tests:
   - apps/web/spec/integration/reviews-pane-bar.test.tsx
   - apps/web/spec/integration/reviews-nontext-actions.test.tsx
@@ -33,7 +37,7 @@ Each pane has one 48px bar. Review, or Changes without a publication, stays firs
 1. At 1440 and 414, in light and dark, open a worktree without a review. Changes is the first chip, with no Close Changes button. Attempt Alt+W and the tab menu's Close: the tab remains.
 2. Publish a review. Review replaces Changes and shows a tabular reviewed/total decision count that stays complete on one line, including 0/20 at 414. With an agent summary, Walkthrough and Agent summary appear in Document controls; without one the switch is absent. Progress appears only in a wide pane.
 3. Open a file, commit and graph. File controls include Reviewed, Comment and Timeline; a commit offers Copy hash and Open in graph; the graph has no document controls. Narrow controls use icons and tooltips. When those controls arrive or the pane narrows, the selected document chip stays inside the visible tab strip; manually scrolling still reaches the other tabs. Full file editing, parent selection and Copy message remain reachable. A non-text change keeps working Reviewed and Comment controls, including R and C, and Timeline in the pane bar; Open file and Discard remain reachable in its content. Changes with several files keep their per-file inline controls.
-4. Split the active file with Alt+Backslash. Each pane has Document controls; Git actions appears once, in the rightmost pane. The first pane alone has Toggle Sidebar. Phone-width panes stack to retain usable controls.
+4. Inspect the accessibility tree at 1440: the navigator separator is named "Worktree navigator and document panes" and the docked panel separator is named "Document panes and side panel". Hidden navigator/panel layouts expose no corresponding separator. Tab to each separator and resize with the arrow keys. Split the active file with Alt+Backslash. Its separator is named "Left and right document panes" on desktop and "Top and bottom document panes" in the stacked phone layout; arrow-key resizing follows that orientation. Each pane has Document controls; Git actions appears once, in the rightmost pane. The first pane alone has Toggle Sidebar. Phone-width panes stack to retain usable controls.
 5. Step with Alt+ArrowLeft/Alt+ArrowRight; close the last side file with Alt+W. The split collapses, the primary Review/Changes tab remains, and Git is still present once. Reload and confirm the layout remains usable.
 6. Open Git actions. Labels occupy one line, descriptions appear in tooltips, and disabled reasons remain visible. Commit/Push/Pull follows existing Git state; test a disabled menu entry and busy/recovery feedback too.
 

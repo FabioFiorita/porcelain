@@ -53,7 +53,10 @@ export function ProjectWorkspace({
             >
               <ProjectNavigator {...navigator} />
             </ResizablePanel>
-            <ResizableHandle className="w-2 bg-transparent after:w-2" />
+            <ResizableHandle
+              aria-label="Worktree navigator and document panes"
+              className="w-2 bg-transparent after:w-2"
+            />
           </>
         )}
         <ResizablePanel id="document" minSize={isMobile ? 0 : 420}>
