@@ -221,8 +221,15 @@ it.each([
   [failed, 'failed'],
   [running, 'running'],
   [{ ...failed, conclusion: 'STALE' }, 'failed'],
+  [{ ...passed, conclusion: 'EXPECTED' }, 'running'],
 ] as const)('reports the individual check %j as %s', (check, expected) => {
   expect(pullCheckTone(check)).toBe(expected);
+});
+
+it('counts a required status that has not reported as running', () => {
+  expect(
+    pullRequestChecks([{ ...passed, conclusion: 'EXPECTED' }], false),
+  ).toMatchObject({ tone: 'running' });
 });
 
 it.each([

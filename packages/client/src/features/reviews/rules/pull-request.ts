@@ -54,7 +54,8 @@ const failedConclusions = new Set([
 ]);
 
 function checkOutcome(check: PullCheck): Exclude<PullChecksTone, 'none'> {
-  if (check.status !== 'COMPLETED') return 'running';
+  if (check.status !== 'COMPLETED' || check.conclusion === 'EXPECTED')
+    return 'running';
   return failedConclusions.has(check.conclusion ?? '') ? 'failed' : 'passed';
 }
 
