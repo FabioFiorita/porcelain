@@ -176,3 +176,47 @@ test('a retained commit only names the checkout branch while its history contain
     )
     .toBeVisible();
 });
+
+test('a binary-only commit retains its subject and file summary without a code preview', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await repo.commit('Commit the initial README change');
+  await repo.write('only-binary.bin', 'PNG\u0000binary');
+  await repo.commit('Explain a binary-only change');
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.subject)
+    .toBe('Explain a binary-only change');
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: /^Explain a binary-only change/ })
+    .click();
+  await expect
+    .element(
+      workspace.getByRole('heading', {
+        name: 'Explain a binary-only change',
+        exact: true,
+        level: 1,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('1 file changed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      workspace
+        .getByRole('list', { name: 'Changed files', exact: true })
+        .getByText('only-binary.bin', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      workspace
+        .getByRole('list', { name: 'Changes without code preview', exact: true })
+        .getByText('added · Binary change', { exact: true }),
+    )
+    .toBeVisible();
+});

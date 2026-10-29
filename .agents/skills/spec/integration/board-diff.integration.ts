@@ -102,18 +102,20 @@ it.each([
 ])('rejects an HTTP-200 %s screen', async (title) => {
   const page = await browser.newPage();
   try {
-    await page.setContent(`<h2>${title}</h2>`);
+    await page.setContent(
+      `<section data-slot="state-notice"><h2>${title}</h2></section>`,
+    );
     expect(await unavailablePage(page)).toBe(title);
   } finally {
     await page.close();
   }
 });
 
-it('ignores unavailable words in review prose and hidden headings', async () => {
+it('ignores unavailable words in ordinary headings, prose, computer names and hidden notices', async () => {
   const page = await browser.newPage();
   try {
     await page.setContent(
-      '<h2 hidden>Page not found</h2><p>Computer unavailable</p><h1>A real review</h1>',
+      '<section data-slot="state-notice" hidden><h2>Page not found</h2></section><p>Computer unavailable</p><h1>Page not found</h1><nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav>',
     );
     expect(await unavailablePage(page)).toBeUndefined();
   } finally {
@@ -133,11 +135,11 @@ it('selects the visible responsive role when the desktop copy is hidden', async 
   }
 });
 
-it('rejects an unavailable computer shown in the Settings breadcrumb', async () => {
+it('rejects a removed computer notice beside the Settings breadcrumb', async () => {
   const page = await browser.newPage();
   try {
     await page.setContent(
-      '<nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav><h1>Computers</h1>',
+      '<nav><span data-slot="breadcrumb-page">Computer unavailable</span></nav><h1>Computers</h1><div data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>',
     );
     expect(await unavailablePage(page)).toBe('Computer unavailable');
   } finally {
