@@ -73,6 +73,10 @@ test('an open clean editor follows restored disk text and reopens on it', async 
   server,
 }) => {
   await page.viewport(1440, 900);
+  await workspace
+    .getByRole('navigation', { name: 'Side panel', exact: true })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click();
   const path = repo.readme.path;
   await repo.write(path, 'Rewritten outside');
   await workspace
@@ -118,6 +122,10 @@ test('reopening an editor starts from a rewrite that landed while its draft was 
   server,
 }) => {
   await page.viewport(1440, 900);
+  await workspace
+    .getByRole('navigation', { name: 'Side panel', exact: true })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click();
   const path = repo.readme.path;
   await repo.write(path, 'Saved text');
   await workspace
