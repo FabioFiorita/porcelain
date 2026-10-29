@@ -15,6 +15,7 @@ import {
 import {
   commitReviewFixture,
   gitPath,
+  read,
   sampleReview,
   worktreePath,
 } from '../kit/requests.ts';
@@ -97,6 +98,38 @@ test('a file changed immediately after confirmation is announced by its watcher'
   const connection = await watching(session);
 
   await session.writeFile(session.fixture.readme.path, 'After confirmation\n');
+
+  expect(await connection.next(isWorktree('files'))).toStrictEqual(
+    worktreeNotice(session, 'files'),
+  );
+});
+
+test('a file rewritten outside right after a save is announced by its watcher', async ({
+  session,
+}) => {
+  const path = session.fixture.readme.path;
+  const opened = await read(session, {
+    method: 'GET',
+    path: worktreePath(session, '/text'),
+    query: { path },
+  });
+  const connection = await watching(session);
+  const saved = await session.send({
+    method: 'POST',
+    path: worktreePath(session, '/files'),
+    body: {
+      kind: 'write',
+      path,
+      text: 'Saved in Porcelain\n',
+      expectedFingerprint: text(opened.contentFingerprint),
+    },
+  });
+  expect(saved.status).toBe(200);
+  expect(await connection.next(isWorktree('files'))).toStrictEqual(
+    worktreeNotice(session, 'files'),
+  );
+
+  await session.writeFile(path, 'Rewritten outside\n');
 
   expect(await connection.next(isWorktree('files'))).toStrictEqual(
     worktreeNotice(session, 'files'),

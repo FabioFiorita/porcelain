@@ -320,7 +320,6 @@ function serverResources(
           shared,
           checkWorktree,
           invalidateReviewedMarks: reviews.invalidateReviewedMarks,
-          editAnnouncements: worktreeWatches,
         });
         const plannerContext = yield* Layer.build(
           Layer.mergeAll(
