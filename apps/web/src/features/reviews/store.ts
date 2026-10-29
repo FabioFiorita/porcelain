@@ -184,7 +184,7 @@ export function usePullRequestLinkFocus(reviewId: string) {
   const set = useAtomSet(atom);
   return {
     request: () => set(true),
-    attach: (element: HTMLInputElement | null) => {
+    attach: (element: HTMLInputElement | HTMLButtonElement | null) => {
       if (!element || !requested || element.disabled) return;
       element.focus();
       set(false);

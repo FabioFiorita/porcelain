@@ -139,7 +139,7 @@ export function PullRequestBlock({
         branch={data.review.branch}
         pending={mutation.waiting}
         outcome={outcome}
-        inputRef={(element) => {
+        controlRef={(element) => {
           returnFocusTo(element, 'unlinked', focusTarget, () =>
             setFocusReturn(undefined),
           );
@@ -615,8 +615,10 @@ function FoundPull({
   context,
   pending,
   onLink,
+  linkRef,
 }: {
   pull: FoundPullRequest;
+  linkRef: ((element: HTMLButtonElement | null) => void) | undefined;
   heldBy: string | undefined;
   context: ConnectionContext;
   pending: boolean;
@@ -648,6 +650,7 @@ function FoundPull({
             GitHub has it for this branch. Link it so the review follows it.
           </p>
           <Button
+            ref={linkRef}
             className="mt-2.5 w-full"
             disabled={pending}
             onClick={() => onLink(pull.url)}
@@ -700,7 +703,7 @@ function PullRequestDiscovery({
   branch,
   pending,
   outcome,
-  inputRef,
+  controlRef,
   onLink,
 }: {
   context: ConnectionContext;
@@ -709,7 +712,7 @@ function PullRequestDiscovery({
   branch: string;
   pending: boolean;
   outcome: ReactNode;
-  inputRef: (element: HTMLInputElement | null) => void;
+  controlRef: (element: HTMLInputElement | HTMLButtonElement | null) => void;
   onLink: (url: string) => void;
 }) {
   const accountResult = useAtomValue(
@@ -731,6 +734,12 @@ function PullRequestDiscovery({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
+  const attachControl = (
+    element: HTMLInputElement | HTMLButtonElement | null,
+  ) => {
+    if (!pending && !result.waiting && !AsyncResult.isInitial(result))
+      controlRef(element);
+  };
   const value = AsyncResult.isFailure(result)
     ? undefined
     : Option.getOrUndefined(AsyncResult.value(result));
@@ -738,7 +747,7 @@ function PullRequestDiscovery({
     value?.kind === 'available'
       ? foundPullRequests(value.pullRequests, branch, reviewId)
       : [];
-  const linkable = found.some((entry) => entry.heldBy === undefined);
+  const linkable = found.find((entry) => entry.heldBy === undefined);
   const first = found[0]?.pull;
   if (pullRequestBlockHidden(undefined, value)) return null;
   const trailing = () => {
@@ -788,6 +797,9 @@ function PullRequestDiscovery({
             key={pull.number}
             pull={pull}
             heldBy={heldBy}
+            linkRef={
+              linkable?.pull.number === pull.number ? attachControl : undefined
+            }
             context={context}
             pending={pending}
             onLink={submit}
@@ -828,7 +840,7 @@ function PullRequestDiscovery({
           }}
         >
           <Input
-            ref={inputRef}
+            ref={attachControl}
             aria-label="Pull request link"
             type="url"
             required
