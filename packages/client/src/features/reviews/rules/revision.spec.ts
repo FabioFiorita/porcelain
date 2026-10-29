@@ -195,3 +195,87 @@ it.for([
     ).toEqual({ reviewed: expected, total: 1 });
   },
 );
+
+const anchored = { startLine: 3, endLine: 4 };
+const locations = {
+  current: { state: 'current' as const, ...anchored },
+  committed: { state: 'committed' as const, ...anchored },
+  changed: { state: 'changed' as const },
+  broken: { state: 'broken' as const },
+};
+
+function decisionAt(
+  id: string,
+  steps: readonly (keyof typeof locations)[],
+  path = 'owner.ts',
+) {
+  return {
+    id,
+    title: 'Own the behavior',
+    summary: 'One owner',
+    lanes: ['Owner'],
+    fingerprint: `${id}-layer`,
+    steps: steps.map((state, index) => ({
+      id: `${id}-${index}`,
+      lane: 0,
+      title: 'Point at the owner',
+      text: 'The owner changed here',
+      kind: index === 0 ? ('changed' as const) : ('context' as const),
+      pointer: {
+        path,
+        startLine: 3,
+        endLine: 4,
+        textFingerprint: 'text',
+      },
+      location: locations[state],
+    })),
+  };
+}
+
+it.for([
+  { name: 'fresh lines', steps: ['current'] as const, stale: false },
+  { name: 'committed lines', steps: ['committed'] as const, stale: false },
+  { name: 'moved lines', steps: ['changed'] as const, stale: true },
+  { name: 'deleted lines', steps: ['broken'] as const, stale: true },
+  {
+    name: 'one moved step among fresh ones',
+    steps: ['current', 'committed', 'changed'] as const,
+    stale: true,
+  },
+  {
+    name: 'a whole deleted file',
+    steps: ['broken', 'broken'] as const,
+    stale: true,
+  },
+])('reports code moved for $name', ({ steps, stale }) => {
+  const states = revisionDecisionStates(
+    { content: { layers: [decisionAt('decision', steps)] } },
+    undefined,
+  );
+  expect(states.get('decision')).toEqual({ reviewed: false, stale });
+});
+
+it('reads code moved from each revision on its own and keeps it apart from the review mark', () => {
+  const marks = {
+    files: [],
+    decisions: [
+      { layerId: 'decision', fingerprint: 'decision-layer', reviewedAt: 'r1' },
+    ],
+  };
+  const first = { content: { layers: [decisionAt('decision', ['current'])] } };
+  const second = {
+    content: {
+      layers: [
+        decisionAt('decision', ['changed']),
+        decisionAt('other', ['current'], 'other.ts'),
+      ],
+    },
+  };
+  expect([...revisionDecisionStates(first, marks)]).toEqual([
+    ['decision', { reviewed: true, stale: false }],
+  ]);
+  expect([...revisionDecisionStates(second, marks)]).toEqual([
+    ['decision', { reviewed: true, stale: true }],
+    ['other', { reviewed: false, stale: false }],
+  ]);
+});

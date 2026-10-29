@@ -181,7 +181,7 @@ export function RevisionNavigation({
                   ? {
                       kind: 'decision',
                       reviewed,
-                      stale: false,
+                      stale: decisions.get(stop.layer.id)?.stale === true,
                       settled: marks !== undefined,
                       pending: completed.waiting || unmarked.waiting,
                       files,

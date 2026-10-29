@@ -16,6 +16,15 @@ export function revisionReviewItems(
   });
 }
 
+type RevisionLayer = ReviewRevision['content']['layers'][number];
+
+function codeMoved(layer: Pick<RevisionLayer, 'steps'>) {
+  return layer.steps.some(
+    ({ location }) =>
+      location.state === 'changed' || location.state === 'broken',
+  );
+}
+
 export function revisionDecisionStates(
   revision: { content: Pick<ReviewRevision['content'], 'layers'> },
   marks: ReviewMarks | undefined,
@@ -24,7 +33,7 @@ export function revisionDecisionStates(
     revision.content.layers.map((layer) => [
       layer.id,
       {
-        stale: false,
+        stale: codeMoved(layer),
         reviewed:
           marks?.decisions.some(
             (mark) =>
