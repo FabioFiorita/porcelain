@@ -118,8 +118,8 @@ export function DocumentTabs<T extends DocumentTab>({
             pointerEvents="none"
             className={
               pinned.selected
-                ? `absolute inset-x-0 inset-y-2 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
-                : 'absolute inset-x-0 inset-y-2 rounded-md border border-transparent'
+                ? `absolute inset-x-0 inset-y-1 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+                : 'absolute inset-x-0 inset-y-1 rounded-md border border-transparent'
             }
           />
           <Pressable
@@ -130,7 +130,7 @@ export function DocumentTabs<T extends DocumentTab>({
                 : pinned.title
             }
             accessibilityState={{ selected: pinned.selected }}
-            className="min-h-11 flex-row items-center gap-1 px-2 active:opacity-80"
+            className="min-h-11 flex-row items-center gap-2 px-2.5 active:opacity-80"
             onPress={pinned.onPress}
           >
             <Icon
@@ -175,15 +175,15 @@ export function DocumentTabs<T extends DocumentTab>({
             pointerEvents="none"
             className={
               tab.key === active
-                ? `absolute inset-x-0 inset-y-2 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
-                : 'absolute inset-x-0 inset-y-2 rounded-md border border-transparent'
+                ? `absolute inset-x-0 inset-y-1 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+                : 'absolute inset-x-0 inset-y-1 rounded-md border border-transparent'
             }
           />
           <Pressable
             accessibilityRole="tab"
             accessibilityLabel={tab.label ?? tab.title}
             accessibilityState={{ selected: tab.key === active }}
-            className="min-h-11 min-w-11 max-w-45 justify-center px-2 active:opacity-80"
+            className="min-h-11 min-w-11 max-w-45 justify-center px-2.5 active:opacity-80"
             onPress={() => {
               onChange((state) => activateDocument(state, tab.key));
               onSelect();

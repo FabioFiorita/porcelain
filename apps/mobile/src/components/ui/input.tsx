@@ -24,7 +24,7 @@ export function Input({
       placeholderTextColorClassName="accent-muted-foreground"
       selectionColorClassName="accent-primary"
       className={[
-        'font-sans w-full min-w-0 rounded-md border bg-input/20 px-2 text-xs dark:bg-input/30 text-foreground focus:border-ring',
+        'font-sans w-full min-w-0 rounded-md border bg-input/20 px-3 text-sm dark:bg-input/30 text-foreground focus:border-ring',
         multiline ? 'min-h-24 py-2 leading-5' : 'min-h-11 py-0',
         invalid ? 'border-destructive' : 'border-input',
         disabled ? 'opacity-50' : '',

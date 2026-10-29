@@ -6,9 +6,9 @@ import {
 const variants = {
   body: 'text-base leading-6',
   ui: 'text-ui leading-5',
-  control: 'text-xs leading-4.5',
-  controlLink: 'text-xs leading-4.5 underline',
-  badge: 'text-badge leading-3.5',
+  control: 'text-sm leading-5',
+  controlLink: 'text-sm leading-5 underline',
+  badge: 'text-xs leading-4.5',
   caption: 'text-caption leading-5',
   small: 'text-2xs leading-4',
   heading: 'text-xl leading-7',

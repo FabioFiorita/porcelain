@@ -25,7 +25,7 @@ export function IconButton({
         <Icon
           name={icon}
           tone={buttonTones[variant]}
-          size={size === 'sm' ? 'small' : 'control'}
+          size={size === 'sm' ? 'control' : 'default'}
         />
       )}
     </ButtonSurface>

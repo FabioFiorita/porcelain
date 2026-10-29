@@ -30,10 +30,10 @@ const indicatorTones = {
   link: 'accent-primary',
 };
 const sizes = {
-  default: 'min-h-7 px-2 py-1',
-  sm: 'min-h-6 px-2 py-0.5',
-  icon: 'min-h-7 w-7',
-  iconSm: 'min-h-6 w-6',
+  default: 'min-h-9 px-3 py-1.5',
+  sm: 'min-h-8 px-2.5 py-1',
+  icon: 'min-h-9 w-9',
+  iconSm: 'min-h-8 w-8',
 };
 export type ButtonSurfaceProps = Omit<
   PressableProps,
@@ -84,7 +84,7 @@ export function ButtonSurface({
       {({ pressed }) => (
         <View
           className={[
-            'flex-row items-center justify-center gap-1 rounded-md border',
+            'flex-row items-center justify-center gap-2 rounded-md border',
             size === 'default' || size === 'sm' ? 'self-stretch' : '',
             variants[variant],
             sizes[size],
