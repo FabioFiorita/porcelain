@@ -134,6 +134,7 @@ test('every ref is reachable at a narrow width in the History list and graph', a
     'experiment/ccc-one-more-long-name-for-the-same-commit',
   ];
   for (const branch of branches) await repo.branch(branch);
+  await repo.switch(branches[2]!);
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
@@ -147,15 +148,22 @@ test('every ref is reachable at a narrow width in the History list and graph', a
           })
         : workspace.getByRole('list', { name: 'Commit graph', exact: true });
     await expect
-      .element(scope.getByText(repo.initialBranch, { exact: true }).last())
+      .element(scope.getByText(branches[2]!, { exact: true }).last())
       .toBeVisible();
-    const first = scope.getByText(branches[2]!, { exact: true });
+    const first = scope
+      .getByRole('button', { name: branches[2]!, exact: true })
+      .getByText(branches[2]!, { exact: true });
     await expect.element(first).toBeVisible();
     const row = scope.getByRole('button', { name: /^Initial commit/ });
-    const more = scope.getByRole('button', { name: /^Show \d+ more refs$/ });
+    const more = scope.getByRole('button', {
+      name: 'Show 3 more refs',
+      exact: true,
+    });
     await expect.element(more).toBeVisible();
     await expect
-      .poll(() => refChips.presentation(first, row, more))
+      .poll(() =>
+        refChips.presentation(first, scope.getByRole('listitem').first(), more),
+      )
       .toEqual({
         textOverflow: 'ellipsis',
         truncated: true,
@@ -163,7 +171,7 @@ test('every ref is reachable at a narrow width in the History list and graph', a
         countInsideRow: true,
       });
     refChips.focus(row);
-    await userEvent.keyboard('{Tab}{Tab}');
+    await userEvent.keyboard('{Tab}');
     await expect
       .element(scope.getByRole('button', { name: branches[2]!, exact: true }))
       .toHaveFocus();
@@ -175,7 +183,7 @@ test('every ref is reachable at a narrow width in the History list and graph', a
       name: 'More refs',
       exact: true,
     });
-    for (const branch of [branches[0]!, branches[1]!]) {
+    for (const branch of [branches[0]!, branches[1]!, repo.initialBranch]) {
       await expect
         .element(remaining.getByText(branch, { exact: true }))
         .toBeVisible();
@@ -191,7 +199,7 @@ test('every ref is reachable at a narrow width in the History list and graph', a
   }
   const ref = workspace
     .getByRole('list', { name: 'Commit graph', exact: true })
-    .getByRole('button', { name: repo.initialBranch, exact: true });
+    .getByRole('button', { name: branches[2]!, exact: true });
   refChips.focus(ref);
   await expect.element(ref).toHaveFocus();
   await userEvent.keyboard('{Enter}');
@@ -204,7 +212,7 @@ test('every ref is reachable at a narrow width in the History list and graph', a
 
 test.for(['refs/heads/topic', 'refs/tags/release'])(
   'History keeps the literal branch decoration %s',
-  async (branch, { repo, render }) => {
+  async (branch, { repo, render, refChips }) => {
     await repo.branch(branch);
     const workspace = await render.workspace();
     await workspace
@@ -215,8 +223,22 @@ test.for(['refs/heads/topic', 'refs/tags/release'])(
       name: 'Review sidebar',
       exact: true,
     });
+    const more = history.getByRole('button', {
+      name: 'Show 1 more ref',
+      exact: true,
+    });
+    await expect.element(more).toBeVisible();
+    refChips.focus(more);
+    await userEvent.keyboard('{Enter}');
+    const refs = workspace.getByRole('dialog', {
+      name: 'More refs',
+      exact: true,
+    });
     await expect
-      .element(history.getByRole('button', { name: branch, exact: true }))
+      .element(refs.getByText(branch, { exact: true }))
       .toHaveTextContent(branch);
+    await userEvent.keyboard('{Escape}');
+    await expect.element(refs).not.toBeInTheDocument();
+    await expect.element(more).toHaveFocus();
   },
 );
