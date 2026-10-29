@@ -363,7 +363,7 @@ function DocumentTab({
               <Icon className="size-3.5 shrink-0" />
               {label}
               {tabKey === 'handoff' && reviewCount && (
-                <span className="shrink-0 text-2xs leading-4 whitespace-nowrap">
+                <span className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground">
                   {reviewCount}
                 </span>
               )}
