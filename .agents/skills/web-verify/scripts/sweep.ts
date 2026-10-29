@@ -1,15 +1,8 @@
-import {
-  chromium,
-  type Browser,
-  type BrowserContext,
-  type Page,
-} from 'playwright';
+import { chromium, type Browser, type BrowserContext } from 'playwright';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
-import { pairingLink } from '@porcelain/contracts/access';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { Schema } from 'effect';
 import {
@@ -22,8 +15,8 @@ import {
   seedStressSample,
 } from '@porcelain/server/kit/stress-sample';
 import { Refusal, Usage } from '../../verify-core/cli.ts';
-import { issuedLink } from '../../verify-core/fixtures.ts';
 import { captureOnceMore, firstLine } from './attempts.ts';
+import { pair, settledText, unavailablePage } from './browser.ts';
 import { registry, type WebInstance } from './instance.ts';
 
 const sweepWidths = [1440, 1080, 414] as const;
@@ -32,10 +25,6 @@ const firstStates = ['as-is', 'as-left'] as const;
 const heights = { 1440: 900, 1080: 810, 414: 896 } as const;
 const networkIdleMs = 20_000;
 const tallestCapture = 12_000;
-const settledMs = 15_000;
-const stableReads = 3;
-const readEveryMs = 200;
-const pairedMs = 30_000;
 const features = new URL('../features/', import.meta.url);
 const withheld = 'A secret survived redaction, so this record was withheld.\n';
 
@@ -183,22 +172,6 @@ async function latestReview(session: Session): Promise<Review> {
   };
 }
 
-async function pair(page: Page, instance: WebInstance, recorder: Recorder) {
-  const grant = await issuedLink(
-    instance.detail.manifest,
-    'Sweep browser',
-    false,
-    recorder,
-  );
-  recorder.secret(grant.code);
-  await page.goto(
-    `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`,
-  );
-  await page.waitForURL((url) => url.pathname !== '/pair' && url.hash === '', {
-    timeout: pairedMs,
-  });
-}
-
 const layoutScript = `(() => {
   const root = document.documentElement;
   const width = root.clientWidth;
@@ -255,26 +228,11 @@ const layoutSchema = Schema.Struct({
   clipped: Schema.Array(Schema.String),
   sideways: Schema.Array(Schema.String),
 });
-const textScript = 'document.fonts.ready.then(() => document.body.innerText)';
 const hiddenHeightScript = `Math.max(0, ...[...document.body.querySelectorAll('*')]
   .filter((element) => { const style = getComputedStyle(element); return (style.overflowY === 'auto' || style.overflowY === 'scroll') && element.clientHeight > 0; })
   .map((element) => element.scrollHeight - element.clientHeight))`;
 const imagesLoadedScript =
   '[...document.images].every((image) => image.complete)';
-
-async function settledText(page: Page): Promise<string | undefined> {
-  const deadline = Date.now() + settledMs;
-  let last: unknown;
-  let unchanged = 0;
-  while (Date.now() < deadline) {
-    const now: unknown = await page.evaluate(textScript);
-    unchanged = now === last ? unchanged + 1 : 0;
-    last = now;
-    if (unchanged >= stableReads && typeof now === 'string') return now;
-    await sleep(readEveryMs);
-  }
-  return undefined;
-}
 
 type Signed = Awaited<ReturnType<BrowserContext['storageState']>>;
 
@@ -311,16 +269,8 @@ async function shoot(
     const text = await settledText(page);
     if (text === undefined) record('the content kept changing for 15 s');
     else if (text.trim() === '') record('the page rendered no text');
-    for (const title of ['Page not found', 'Computer unavailable'])
-      if (
-        await page
-          .locator('[data-slot="state-notice"]')
-          .getByRole('heading', { name: title, exact: true })
-          .or(page.locator(`[data-unavailable-page="${title}"]`))
-          .first()
-          .isVisible()
-      )
-        record(`the page rendered ${title}`);
+    const unavailable = await unavailablePage(page);
+    if (unavailable !== undefined) record(`unavailable page: ${unavailable}`);
     const landed = new URL(page.url());
     if (`${landed.pathname}${landed.search}` !== `${url.pathname}${url.search}`)
       record(`landed on ${landed.pathname}${landed.search} instead`);

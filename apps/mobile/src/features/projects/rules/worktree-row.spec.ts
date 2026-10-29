@@ -21,26 +21,26 @@ const entry: ReviewListEntry = {
   disabled: false,
 };
 
-it.each([false, true])(
-  'does not repeat an unreviewed branch with multiple projects %s',
-  (multipleProjects) => {
-    const row = worktreeRow(
-      {
-        ...entry,
-        title: 'fix/flaky-history',
-        branch: 'fix/flaky-history',
-        group: 'No review',
-        reviewId: undefined,
-      },
-      multipleProjects,
-      false,
-    );
-    expect(row.context).toEqual({ project: 'Porcelain', branch: undefined });
-    expect(row.accessibilityLabel).toBe(
-      'fix/flaky-history, Porcelain, No review',
-    );
-  },
-);
+it('shows an unreviewed branch once beside its project', () => {
+  const row = worktreeRow(
+    {
+      ...entry,
+      title: 'fix/flaky-history',
+      branch: 'fix/flaky-history',
+      group: 'No review',
+      reviewId: undefined,
+    },
+    false,
+  );
+  expect(row).toEqual({
+    kind: 'worktree',
+    title: 'fix/flaky-history',
+    project: 'Porcelain',
+    location: undefined,
+    status: 'none',
+    accessibilityLabel: 'fix/flaky-history, Porcelain, No review',
+  });
+});
 
 it('retains full long names, all reasons and selected/unavailable state without a computer name', () => {
   const title = 'A long review title '.repeat(12).trim();
@@ -56,14 +56,10 @@ it('retains full long names, all reasons and selected/unavailable state without 
       ],
     },
     true,
-    true,
   );
-  expect(row.context).toEqual({
-    project: 'Porcelain',
-    branch: 'feat/pinned-files',
-  });
-  expect(row.icon).toBe('warning');
-  expect(row.tone).toBe('destructive');
+  expect(row.kind).toBe('review');
+  expect(row.project).toBe('Porcelain');
+  expect(row.status).toBe('failed');
   expect(row.accessibilityLabel).toBe(
     `${title}, Porcelain, feat/pinned-files, Needs you, 1/4 decisions reviewed, Proof failed, 2 not explained, Agent says hold, current, unavailable`,
   );
@@ -79,12 +75,12 @@ it('keeps detached and zero-decision rows readable without absent metadata', () 
       total: 0,
     },
     false,
-    false,
   );
   expect(row.accessibilityLabel).toBe(
     '/tmp/detached-worktree, Porcelain, Needs you, 0/0 decisions reviewed',
   );
-  expect(row.context).toEqual({ project: undefined, branch: '' });
+  expect(row.project).toBe('Porcelain');
+  expect(row.kind === 'review' && row.branch).toBe('');
 });
 
 it.each(['qa-531', 'qa-532'])(
@@ -101,15 +97,25 @@ it.each(['qa-531', 'qa-532'])(
         reviewId: undefined,
       },
       false,
-      false,
     );
-    expect(row.context).toEqual({
-      project: 'Porcelain',
-      branch: undefined,
-      location: '/home/dev/code/porcelain-worktrees',
-    });
+    expect(row.kind).toBe('worktree');
+    expect(row.kind === 'worktree' && row.location).toBe(
+      '/home/dev/code/porcelain-worktrees',
+    );
+    expect(row.title).toBe(name);
     expect(row.accessibilityLabel).toBe(
       `${name}, Porcelain, /home/dev/code/porcelain-worktrees/${name}, No review`,
     );
   },
 );
+
+it.each([
+  ['Projects', 'none'],
+  ['Needs you', 'needs-you'],
+  ['Waiting on agent', 'waiting'],
+  ['Ready to merge', 'ready'],
+  ['No review', 'none'],
+  ['Closed', 'closed'],
+] as const)('draws one status for %s', (group, status) => {
+  expect(worktreeRow({ ...entry, group }, false).status).toBe(status);
+});

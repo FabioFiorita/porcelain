@@ -48,7 +48,10 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
     }),
   ).toBeVisible();
   await expect(
-    settings.getByText('Paired devices', { exact: true }),
+    settings.getByRole('list', {
+      name: 'Paired devices and links',
+      exact: true,
+    }),
   ).toBeVisible();
   await app.follow('/settings/computers/a-saved-computer');
   await expect(

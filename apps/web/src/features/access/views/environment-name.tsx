@@ -16,11 +16,16 @@ import { type Connection } from '@/shared/workspace/connection';
 export function EnvironmentName({
   connection,
   environment,
+  onCancel,
 }: {
   connection: Connection;
   environment: Environment;
+  onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [focus] = useState(
+    () => (element: HTMLInputElement | null) => element?.focus(),
+  );
   const [renaming, rename] = useRenameEnvironment(connection);
   const value = draft ?? (environment.custom ? environment.name : '');
   const name = value.trim();
@@ -29,7 +34,7 @@ export function EnvironmentName({
     : name === '';
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex max-w-160 flex-col gap-2"
       onSubmit={(event) =>
         submitForm(event, async () => rename(name === '' ? null : name))
       }
@@ -38,8 +43,12 @@ export function EnvironmentName({
         <Label htmlFor="environment-name">Name of this computer</Label>
         <div className="flex gap-2">
           <Input
+            ref={focus}
             id="environment-name"
             className="min-w-0 flex-1"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') onCancel();
+            }}
             placeholder={environment.custom ? 'Host name' : environment.name}
             maxLength={ENVIRONMENT_NAME_MAX_LENGTH}
             value={value}
@@ -51,6 +60,9 @@ export function EnvironmentName({
             disabled={unchanged || renaming.waiting}
           >
             {renaming.waiting ? 'Saving…' : 'Save'}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
           </Button>
         </div>
         <FieldDescription>

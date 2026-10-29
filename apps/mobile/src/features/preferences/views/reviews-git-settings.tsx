@@ -4,6 +4,8 @@ import {
   archiveSettings,
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
+  reviewGitSettingsKeptMessage,
+  shownReviewGitSettings,
 } from '@porcelain/client/preferences/rules';
 import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -15,7 +17,10 @@ import { Loading } from '../../../components/ui/loading';
 import { Switch } from '../../../components/ui/switch';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
-import { useReviewGitSettings } from '../queries/review-git-settings';
+import {
+  useReviewGitSettings,
+  useReviewGitSettingsTrust,
+} from '../queries/review-git-settings';
 import { useReviewGitSettingsCommands } from '../commands/review-git-settings';
 import { PreferencesPage } from './preferences-page';
 import { PreferenceChoice } from './preference-choice';
@@ -23,17 +28,20 @@ import { CommitModelSetting } from './commit-model-setting';
 
 function ComputerReviewGitSettings({
   connection,
+  computer,
   candidate,
   candidateReady,
 }: {
   connection: RuntimeConnection;
+  computer: string;
   candidate: ReviewGitSettings;
   candidateReady: boolean;
 }) {
   const view = useReviewGitSettings(connection);
-  const { save, saving, failure, readAgain } =
+  const untrusted = useReviewGitSettingsTrust(connection);
+  const { save, saving, failure, kept, readAgain, checkTrustAgain } =
     useReviewGitSettingsCommands(connection);
-  const settings = view.kind === 'configured' ? view.settings : candidate;
+  const settings = shownReviewGitSettings(view, candidate);
   const disabled = confirmedReviewGitSettings(view) === undefined || saving;
   const block = reviewGitSettingsBlock(view);
   const change = (next: Partial<ReviewGitSettings>) =>
@@ -44,7 +52,9 @@ function ComputerReviewGitSettings({
         <Loading label="Reading Reviews & Git settings…" />
       ) : null}
       {view.kind === 'unsupported' ? (
-        <ErrorState message="Update Porcelain on this computer to use its Reviews & Git settings." />
+        <ErrorState
+          message={`Update Porcelain on ${computer} to use its Reviews & Git settings.`}
+        />
       ) : null}
       {block && (view.kind === 'unreadable' || view.kind === 'configured') ? (
         <ErrorState
@@ -55,17 +65,32 @@ function ComputerReviewGitSettings({
       {view.kind === 'unconfigured' ? (
         <Box gap={3}>
           <Text variant="ui">
-            Every device connected to this computer uses the same Reviews & Git
+            Every device connected to {computer} uses the same Reviews & Git
             settings. These are the ones this app used before; check the archive
-            deletions below, then use them for this computer.
+            deletions below, then use them for {computer}.
           </Text>
+          {untrusted ? (
+            <Text variant="ui" tone="muted">
+              {untrusted}
+            </Text>
+          ) : null}
+          {untrusted ? (
+            <Button
+              label="Check again"
+              variant="outline"
+              onPress={checkTrustAgain}
+            />
+          ) : null}
           <Button
-            label="Use these settings for this computer"
+            label={`Use these settings for ${computer}`}
             pending={saving}
-            disabled={!candidateReady}
-            onPress={() => save({ kind: 'initialize', settings })}
+            disabled={!candidateReady || untrusted !== undefined}
+            onPress={() => save({ kind: 'initialize', settings: candidate })}
           />
         </Box>
+      ) : null}
+      {kept ? (
+        <Text variant="ui">{reviewGitSettingsKeptMessage(computer)}</Text>
       ) : null}
       {failure ? <ErrorState message={failure} /> : null}
       <Box gap={3}>
@@ -78,7 +103,7 @@ function ComputerReviewGitSettings({
             trailing={
               <Switch
                 label={label}
-                checked={settings[key]}
+                checked={settings?.[key] ?? false}
                 disabled={disabled}
                 onCheckedChange={(value) => change({ [key]: value })}
               />
@@ -95,7 +120,7 @@ function ComputerReviewGitSettings({
           trailing={
             <Switch
               label="Spec files"
-              checked={settings.collapseSpecs}
+              checked={settings?.collapseSpecs ?? false}
               disabled={disabled}
               onCheckedChange={(collapseSpecs) => change({ collapseSpecs })}
             />
@@ -106,8 +131,8 @@ function ComputerReviewGitSettings({
         <Text variant="subheading">Git</Text>
         <PreferenceChoice
           label="Pull strategy"
-          description="Used when pulling changes on this computer."
-          value={settings.pullStrategy}
+          description={`Used when pulling changes on ${computer}.`}
+          value={settings?.pullStrategy}
           options={[
             { value: 'merge', label: 'Merge', id: 'pull-merge' },
             { value: 'rebase', label: 'Rebase', id: 'pull-rebase' },
@@ -158,6 +183,7 @@ export function ReviewsGitSettings() {
             <ComputerReviewGitSettings
               key={computer.remote.environmentId}
               connection={computer.connection}
+              computer={computer.remote.name}
               candidate={preferences.reviewGitSettingsImportCandidate}
               candidateReady={!disabled}
             />

@@ -55,7 +55,7 @@ export function CommitRow({
     (left, right) => Number(current(right)) - Number(current(left)),
   );
   const headBadge = head ? (
-    <Badge variant="brand" className="relative h-4 shrink-0">
+    <Badge variant="brand" className="relative shrink-0">
       HEAD
     </Badge>
   ) : null;

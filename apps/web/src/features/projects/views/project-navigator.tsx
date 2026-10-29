@@ -12,9 +12,9 @@ import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
   ChevronDownIcon,
-  FilterIcon,
   FolderCogIcon,
   KeyboardIcon,
+  ListFilterIcon,
   SearchIcon,
   SettingsIcon,
   XIcon,
@@ -26,7 +26,9 @@ import {
   reviewListGroups,
   reviewListMeta,
   reviewListCheckout,
-  reviewListRowContext,
+  reviewListRow,
+  reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
   reviewListView,
   type ReviewListEntry,
 } from '@porcelain/client/reviews/rules';
@@ -90,6 +92,7 @@ import { OpenProjectMenu } from './open-project-menu';
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
+  openReview: { reviewId: string; environment: string | undefined } | undefined;
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
@@ -99,6 +102,7 @@ type Props = {
 export function ProjectNavigator({
   remotes,
   selected,
+  openReview,
   onSelect,
   onOpenProject,
   onOpenSettings,
@@ -142,11 +146,15 @@ export function ProjectNavigator({
         .map((entry) => [`${entry.environmentId}/${entry.worktreeId}`, entry]),
     ).values(),
   ];
-  const currentCheckout = checkouts.find(
-    (entry) =>
-      selected?.worktreeId === entry.worktreeId &&
-      (selected?.remote ?? connection.environmentId) === entry.environmentId,
-  );
+  const selectedCheckout = selected && {
+    environmentId: selected.remote ?? connection.environmentId,
+    worktreeId: selected.worktreeId,
+  };
+  const isSelectedCheckout = (entry: ReviewListEntry) =>
+    entry.worktreeId !== undefined &&
+    entry.worktreeId === selectedCheckout?.worktreeId &&
+    entry.environmentId === selectedCheckout.environmentId;
+  const currentCheckout = checkouts.find(isSelectedCheckout);
   const firstCheckoutKey = checkouts.find((entry) => !entry.disabled)?.key;
   const lastCheckoutKey = checkouts.findLast((entry) => !entry.disabled)?.key;
   const setQuery = (query: string) =>
@@ -164,20 +172,25 @@ export function ProjectNavigator({
     : 'Open a project to see its worktrees.';
   if (projects.length === 0)
     emptyDescription = 'Open a Git repository to get started.';
-  const { rows, filters, multipleProjects } = reviewListView(
-    entries,
+  const { rows, filters } = reviewListView(
+    reviewListWithoutClosedCheckouts(
+      entries,
+      openReview === undefined ? selectedCheckout : undefined,
+    ),
     query,
     filter,
     false,
   );
-  const closedView = reviewListView(entries, query, filter, true);
-  const closedRows = closedView.rows;
+  const closedRows = reviewListView(entries, query, filter, true).rows;
+  const noReviewRows = rows
+    .filter((row) => row.group === 'No review' || row.group === 'Projects')
+    .toSorted(compareNoReviewRows);
   const closeSearch = () => {
     setQuery('');
     setSearching(false);
     searchButton.element?.focus();
   };
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar();
   const openWorktree = (entry: ReviewListEntry) => {
     if (!entry.worktreeId) return;
     onSelect({
@@ -191,7 +204,7 @@ export function ProjectNavigator({
     setOpenMobile(false);
   };
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-frame text-ui [--sidebar:var(--frame)] [--sidebar-foreground:var(--foreground)]">
+    <div className="review-navigator h-full min-h-0 overflow-hidden bg-frame text-ui [--sidebar:var(--frame)] [--sidebar-foreground:var(--foreground)]">
       <Sidebar
         role="navigation"
         collapsible="none"
@@ -199,11 +212,42 @@ export function ProjectNavigator({
         aria-label="Projects and worktrees"
       >
         <NavigatorHeader>
-          <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
+          <div className="ml-auto flex shrink-0 items-center">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    ref={(element) => searchButton.attach(element)}
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      searching
+                        ? 'Close search'
+                        : 'Search reviews and worktrees'
+                    }
+                    aria-expanded={searching}
+                    onClick={() =>
+                      searching ? closeSearch() : setSearching(true)
+                    }
+                  />
+                }
+              >
+                {searching ? (
+                  <XIcon className="text-muted-foreground" />
+                ) : (
+                  <SearchIcon className="text-muted-foreground" />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {searching ? 'Close search' : 'Search reviews and worktrees'}
+              </TooltipContent>
+            </Tooltip>
+            <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
+          </div>
         </NavigatorHeader>
-        <div className="flex items-center gap-1 px-2 py-1">
+        <div className="navigator-filters mt-0.5 mb-2.5 flex items-center gap-0.5 px-1">
           {searching && (
-            <InputGroup className="h-7 min-w-0 flex-1">
+            <InputGroup className="min-w-0 flex-1">
               <InputGroupInput
                 autoFocus
                 type="search"
@@ -223,70 +267,6 @@ export function ProjectNavigator({
               </InputGroupAddon>
             </InputGroup>
           )}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size={searching ? 'icon-sm' : 'xs'}
-                        className="h-7 shrink-0"
-                        aria-label="Manage projects"
-                      />
-                    }
-                  />
-                }
-              >
-                {searching ? (
-                  <FolderCogIcon className="text-muted-foreground" />
-                ) : (
-                  <span className="font-normal text-muted-foreground">
-                    Manage projects
-                  </span>
-                )}
-              </TooltipTrigger>
-              <TooltipContent>Manage projects</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent
-              align="start"
-              className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
-            >
-              {projects.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>No projects registered</EmptyTitle>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                projects.map((source) => (
-                  <div
-                    role="group"
-                    aria-label={
-                      source.connection.environmentId ===
-                      connection.environmentId
-                        ? 'This computer'
-                        : source.environmentName
-                    }
-                    key={`${source.connection.environmentId}/${source.project.id}`}
-                  >
-                    <ProjectActions
-                      key={`${source.connection.environmentId}/${source.project.id}`}
-                      environmentId={
-                        source.connection.environmentId ===
-                        connection.environmentId
-                          ? null
-                          : source.connection.environmentId
-                      }
-                      project={source.project}
-                      onRetry={() => retry(undefined)}
-                    />
-                  </div>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
           <DropdownMenu
             highlightItemOnHover={false}
             open={menuOpen}
@@ -301,12 +281,9 @@ export function ProjectNavigator({
                     render={
                       <Button
                         variant={filtered ? 'secondary' : 'ghost'}
-                        size={searching || filtered ? 'icon-sm' : 'xs'}
+                        size={searching ? 'icon-sm' : 'default'}
                         className={cn(
-                          'h-7',
-                          !searching &&
-                            !filtered &&
-                            'min-w-0 flex-1 justify-start',
+                          !searching && 'min-w-0 flex-1 justify-start',
                         )}
                         aria-label="Filter reviews"
                       />
@@ -314,19 +291,23 @@ export function ProjectNavigator({
                   />
                 }
               >
-                {searching || filtered ? (
-                  <FilterIcon className="text-muted-foreground" />
-                ) : (
+                <ListFilterIcon className="size-3.5 text-muted-foreground" />
+                {searching ? null : (
                   <>
-                    <span className="text-caption text-foreground">All</span>
-                    <ChevronDownIcon className="ml-auto" />
+                    <span className="font-normal text-muted-foreground">
+                      Projects
+                    </span>
+                    <span className="font-medium">
+                      {filtered ? 'Filtered' : 'All'}
+                    </span>
+                    <ChevronDownIcon className="ml-auto size-3 text-muted-foreground" />
                   </>
                 )}
               </TooltipTrigger>
               <TooltipContent role="tooltip">Filter reviews</TooltipContent>
             </Tooltip>
             <DropdownMenuContent
-              align="end"
+              align="start"
               className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
             >
               {filters.map((section) => (
@@ -466,34 +447,6 @@ export function ProjectNavigator({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  ref={(element) => searchButton.attach(element)}
-                  variant="ghost"
-                  size="icon-sm"
-                  className="ml-auto size-7"
-                  aria-label={
-                    searching ? 'Close search' : 'Search reviews and worktrees'
-                  }
-                  aria-expanded={searching}
-                  onClick={() =>
-                    searching ? closeSearch() : setSearching(true)
-                  }
-                />
-              }
-            >
-              {searching ? (
-                <XIcon className="text-muted-foreground" />
-              ) : (
-                <SearchIcon className="text-muted-foreground" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {searching ? 'Close search' : 'Search reviews and worktrees'}
-            </TooltipContent>
-          </Tooltip>
         </div>
         <SidebarContent>
           {loading && (
@@ -502,19 +455,14 @@ export function ProjectNavigator({
               Reading worktrees…
             </div>
           )}
-          <div className="flex flex-col -space-y-1">
+          <div className="flex flex-col gap-2 px-1">
             {[
               ...reviewListGroups.filter((group) => group !== 'Projects'),
               'Closed' as const,
             ].map((group) => {
-              const grouped =
-                group === 'Closed'
-                  ? closedRows
-                  : rows.filter(
-                      (row) =>
-                        row.group === group ||
-                        (group === 'No review' && row.group === 'Projects'),
-                    );
+              let grouped = rows.filter((row) => row.group === group);
+              if (group === 'No review') grouped = noReviewRows;
+              if (group === 'Closed') grouped = closedRows;
               if (grouped.length === 0 && group !== 'Closed') return null;
               return (
                 <SidebarGroup key={group}>
@@ -538,8 +486,11 @@ export function ProjectNavigator({
                       }
                       className="h-7 w-full cursor-pointer"
                     >
-                      {group} · {grouped.length}
-                      <ChevronDownIcon className="ml-auto group-data-closed/review-list:-rotate-90" />
+                      <ChevronDownIcon className="group-data-closed/review-list:-rotate-90" />
+                      {group}{' '}
+                      <span className="ml-auto tabular-nums">
+                        {grouped.length}
+                      </span>
                     </SidebarGroupLabel>
                     <CollapsibleContent>
                       {group === 'Closed' &&
@@ -554,22 +505,19 @@ export function ProjectNavigator({
                         )}
                       <SidebarMenu>
                         {grouped.map((entry) => {
-                          const context = reviewListRowContext(
-                            entry,
-                            group === 'Closed'
-                              ? closedView.multipleProjects
-                              : multipleProjects,
-                          );
+                          const row = reviewListRow(entry);
                           const checkout = reviewListCheckout(entry);
-                          const detachedLabel = context.location
-                            ? `${checkout.full} ${entry.projectName}`
-                            : undefined;
+                          const detachedLabel =
+                            row.kind === 'worktree' && row.location
+                              ? `${checkout.full} ${entry.projectName}`
+                              : undefined;
                           const active =
-                            !entry.closed &&
-                            entry.worktreeId !== undefined &&
-                            selected?.worktreeId === entry.worktreeId &&
-                            (selected?.remote ?? connection.environmentId) ===
-                              entry.environmentId;
+                            openReview === undefined
+                              ? !entry.closed && isSelectedCheckout(entry)
+                              : entry.reviewId === openReview.reviewId &&
+                                entry.environmentId ===
+                                  (openReview.environment ??
+                                    connection.environmentId);
                           return (
                             <SidebarMenuItem
                               key={entry.key}
@@ -589,14 +537,24 @@ export function ProjectNavigator({
                               >
                                 <div
                                   className={cn(
-                                    'flex min-w-0 flex-1 items-center rounded-xl',
+                                    'navigator-row flex min-w-0 flex-1 pl-1',
+                                    row.kind === 'review'
+                                      ? 'items-start'
+                                      : 'items-center',
                                     active && 'bg-sidebar-row shadow-row',
+                                    !active &&
+                                      (entry.reviewId || !entry.disabled) &&
+                                      'hover:bg-sidebar-accent',
                                   )}
                                 >
                                   <NavigatorStatus entry={entry} />
                                   <SidebarMenuButton
-                                    size="lg"
-                                    className="h-10 min-w-0 flex-1"
+                                    className={cn(
+                                      'h-auto min-w-0 flex-1',
+                                      row.kind === 'worktree' &&
+                                        !row.location &&
+                                        (isMobile ? 'min-h-10' : 'min-h-7.5'),
+                                    )}
                                     aria-label={
                                       entry.reviewId
                                         ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
@@ -628,58 +586,61 @@ export function ProjectNavigator({
                                       ) : undefined
                                     }
                                   >
-                                    <div className="min-w-0 flex-1 text-ui leading-4">
-                                      <div className="flex min-w-0 items-center gap-1">
-                                        <TruncatedText
-                                          className="min-w-0 flex-1"
-                                          text={entry.title}
-                                        />
-                                        {entry.reviewId ? (
+                                    {row.kind === 'review' ? (
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                          <TruncatedText
+                                            className="min-w-0 flex-1 text-ui leading-4.25 font-medium"
+                                            text={row.title}
+                                          />
                                           <span
                                             className={cn(
-                                              'shrink-0 text-xs',
+                                              'shrink-0 text-xs leading-4.25 tabular-nums',
                                               active
-                                                ? 'text-brand'
+                                                ? 'font-medium text-brand'
                                                 : 'text-muted-foreground',
                                             )}
                                             aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
                                           >
-                                            {entry.reviewed}/{entry.total}
+                                            {row.progress}
                                           </span>
-                                        ) : null}
-                                      </div>
-                                      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                                        <div className="flex min-w-0 flex-1 items-center gap-1">
-                                          {context.project ? (
-                                            <TruncatedText
-                                              className={
-                                                context.branch ||
-                                                context.location
-                                                  ? 'min-w-0 max-w-1/2 '
-                                                  : 'min-w-0 flex-1 '
-                                              }
-                                              text={context.project}
-                                            />
-                                          ) : null}
-                                          {context.branch ? (
-                                            <TruncatedText
-                                              className="min-w-0 flex-1"
-                                              text={context.branch}
-                                            />
-                                          ) : null}
-                                          {context.location ? (
-                                            <TruncatedText
-                                              cut="start"
-                                              disclose="always"
-                                              className="min-w-0 flex-1"
-                                              text={checkout.full}
-                                            >
-                                              {context.location}
-                                            </TruncatedText>
-                                          ) : null}
+                                        </div>
+                                        <div className="flex min-w-0 items-center gap-1 text-xs leading-4 text-muted-foreground">
+                                          <TruncatedText
+                                            className="min-w-0"
+                                            text={row.project}
+                                          />
+                                          <span aria-hidden>·</span>
+                                          <TruncatedText
+                                            className="min-w-0 max-w-3/4 shrink-0"
+                                            text={row.branch}
+                                          />
                                         </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex min-w-0 items-baseline gap-2">
+                                          <TruncatedText
+                                            className="min-w-0 max-w-3/4 shrink-0 text-ui leading-4.25 font-medium"
+                                            text={row.title}
+                                          />
+                                          <TruncatedText
+                                            className="ml-auto min-w-0 text-xs text-muted-foreground"
+                                            text={row.project}
+                                          />
+                                        </div>
+                                        {row.location ? (
+                                          <TruncatedText
+                                            cut="start"
+                                            disclose="always"
+                                            className="min-w-0 text-xs leading-4 text-muted-foreground"
+                                            text={checkout.full}
+                                          >
+                                            {row.location}
+                                          </TruncatedText>
+                                        ) : null}
+                                      </div>
+                                    )}
                                   </SidebarMenuButton>
                                 </div>
                                 {entry.archivable && entry.reviewId ? (
@@ -735,7 +696,7 @@ export function ProjectNavigator({
         <footer
           role="group"
           aria-label="Navigator controls"
-          className="flex shrink-0 items-center gap-1 border-t p-2"
+          className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
           <Tooltip>
             <TooltipTrigger
@@ -743,13 +704,13 @@ export function ProjectNavigator({
                 <Button
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
-                  size="sm"
+                  className="min-w-0 shrink"
                   onClick={onOpenSettings}
                 />
               }
             >
-              <SettingsIcon />
-              Settings
+              <SettingsIcon className="text-muted-foreground" />
+              <TruncatedText text="Settings" />
             </TooltipTrigger>
             <TooltipContent role="tooltip">
               Settings <Kbd>{formatForDisplay(SHORTCUTS.openSettings)}</Kbd>
@@ -757,18 +718,76 @@ export function ProjectNavigator({
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0"
+                          aria-label="Manage projects"
+                        />
+                      }
+                    />
+                  }
+                >
+                  <FolderCogIcon className="text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Manage projects</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
+              >
+                {projects.length === 0 ? (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>No projects registered</EmptyTitle>
+                    </EmptyHeader>
+                  </Empty>
+                ) : (
+                  projects.map((source) => (
+                    <div
+                      role="group"
+                      aria-label={
+                        source.connection.environmentId ===
+                        connection.environmentId
+                          ? 'This computer'
+                          : source.environmentName
+                      }
+                      key={`${source.connection.environmentId}/${source.project.id}`}
+                    >
+                      <ProjectActions
+                        key={`${source.connection.environmentId}/${source.project.id}`}
+                        environmentId={
+                          source.connection.environmentId ===
+                          connection.environmentId
+                            ? null
+                            : source.connection.environmentId
+                        }
+                        project={source.project}
+                        onRetry={() => retry(undefined)}
+                      />
+                    </div>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label="Keyboard shortcuts"
                     onClick={onOpenShortcuts}
                   />
                 }
               >
-                <KeyboardIcon />
+                <KeyboardIcon className="text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent role="tooltip">
                 Keyboard shortcuts{' '}

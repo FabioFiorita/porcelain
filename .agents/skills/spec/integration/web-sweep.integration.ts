@@ -143,10 +143,10 @@ test(
       '- `/sweep-overflow.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
     );
     expect(failed).toContain(
-      '`/sweep-not-found.html` as-left light 1440: the page rendered Page not found',
+      '`/sweep-not-found.html` as-left light 1440: unavailable page: Page not found',
     );
     expect(failed).toContain(
-      '`/sweep-unavailable.html` as-left light 1440: the page rendered Computer unavailable',
+      '`/sweep-unavailable.html` as-left light 1440: unavailable page: Computer unavailable',
     );
     expect(failed).not.toContain('`/sweep-fixture.html`');
     expect(failed).not.toContain('## Retries');

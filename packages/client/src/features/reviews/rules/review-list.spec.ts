@@ -14,7 +14,11 @@ import {
   pullRequestLink,
   reviewListMeta,
   reviewListSignal,
-  reviewListRowContext,
+  reviewListRow,
+  reviewListWithoutClosedCheckouts,
+  compareNoReviewRows,
+  reviewListSections,
+  reviewListIsSelected,
   reviewListCheckout,
   reviewListView,
   reviewListOptions,
@@ -403,13 +407,180 @@ it.each([
     };
     expect(checkoutFolder(path)).toEqual({ name, parent });
     expect(reviewListCheckout(detached)).toEqual({ name, parent, full: path });
-    expect(reviewListRowContext(detached, false)).toEqual({
+    expect(reviewListRow(detached)).toEqual({
+      kind: 'worktree',
+      title: name,
       project: 'Porcelain',
-      branch: undefined,
       location: parent,
     });
   },
 );
+
+it.each([
+  [
+    'a review names its project and branch under the title',
+    entry,
+    {
+      kind: 'review',
+      title: 'Shared reviews',
+      progress: '1/2',
+      project: 'Porcelain',
+      branch: 'feature',
+    },
+  ],
+  [
+    'a main checkout is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'Projects' as const,
+      title: 'Porcelain',
+      branch: 'main',
+    },
+    {
+      kind: 'worktree',
+      title: 'main',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a checkout without a review is titled by its branch beside the project',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      title: 'feature',
+    },
+    {
+      kind: 'worktree',
+      title: 'feature',
+      project: 'Porcelain',
+      location: undefined,
+    },
+  ],
+  [
+    'a detached checkout is titled by its folder with its parent path',
+    {
+      ...entry,
+      reviewId: undefined,
+      group: 'No review' as const,
+      branch: 'Detached HEAD',
+      detached: true,
+      path: '/code/worktrees/qa-531',
+    },
+    {
+      kind: 'worktree',
+      title: 'qa-531',
+      project: 'Porcelain',
+      location: '/code/worktrees',
+    },
+  ],
+])('%s', (_, row, expected) => {
+  expect(reviewListRow(row)).toEqual(expected);
+});
+
+const checkoutRow = {
+  ...entry,
+  key: 'checkout',
+  reviewId: undefined,
+  group: 'No review' as const,
+  title: 'feature',
+};
+const closedReview = {
+  ...entry,
+  key: 'closed',
+  group: 'Closed' as const,
+  closed: true,
+};
+it.each([
+  [
+    'drops a checkout whose only review is closed',
+    [checkoutRow, closedReview],
+    ['closed'],
+  ],
+  [
+    'keeps the main checkout beside its closed review',
+    [{ ...checkoutRow, group: 'Projects' as const }, closedReview],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review is on another computer',
+    [checkoutRow, { ...closedReview, environmentId: 'mac' }],
+    ['checkout', 'closed'],
+  ],
+  [
+    'keeps a checkout when the closed review lost its worktree',
+    [checkoutRow, { ...closedReview, worktreeId: undefined }],
+    ['checkout', 'closed'],
+  ],
+  ['keeps a checkout with no review at all', [checkoutRow], ['checkout']],
+])('%s', (_, rows, keys) => {
+  expect(
+    reviewListWithoutClosedCheckouts(rows, undefined).map((row) => row.key),
+  ).toEqual(keys);
+});
+
+it.each([
+  [
+    'keeps a closed-only checkout while it is the selected worktree',
+    { environmentId: 'beelink', worktreeId: 'worktree' },
+    ['checkout', 'closed'],
+  ],
+  [
+    'drops it when the selected worktree is the same id on another computer',
+    { environmentId: 'mac', worktreeId: 'worktree' },
+    ['closed'],
+  ],
+  [
+    'drops it when another worktree is selected',
+    { environmentId: 'beelink', worktreeId: 'other' },
+    ['closed'],
+  ],
+])('%s', (_, selected, keys) => {
+  expect(
+    reviewListWithoutClosedCheckouts([checkoutRow, closedReview], selected).map(
+      (row) => row.key,
+    ),
+  ).toEqual(keys);
+});
+
+const unreviewed = (
+  key: string,
+  branch: string,
+  projectName: string,
+  group: 'Projects' | 'No review' = 'No review',
+): ReviewListEntry => ({
+  ...entry,
+  key,
+  reviewId: undefined,
+  publishedAt: undefined,
+  group,
+  title: group === 'Projects' ? projectName : branch,
+  branch,
+  projectName,
+});
+it('lists main checkouts first, then rows by their shown title, with the project breaking ties', () => {
+  expect(
+    [
+      unreviewed('1', 'topic', 'zeta'),
+      unreviewed('2', 'fix/flaky-history', 'porcelain'),
+      unreviewed('3', 'trunk', 'alpha', 'Projects'),
+      unreviewed('4', 'topic', 'alpha'),
+      unreviewed('5', 'main', 'zeta', 'Projects'),
+      unreviewed('6', 'main', 'beta', 'Projects'),
+    ]
+      .sort(compareNoReviewRows)
+      .map((row) => `${row.branch} ${row.projectName}`),
+  ).toEqual([
+    'main beta',
+    'main zeta',
+    'trunk alpha',
+    'fix/flaky-history porcelain',
+    'topic alpha',
+    'topic zeta',
+  ]);
+});
 
 it('keeps the branch as the label of an attached checkout', () => {
   expect(reviewListCheckout(entry)).toEqual({
@@ -417,59 +588,6 @@ it('keeps the branch as the label of an attached checkout', () => {
     parent: undefined,
     full: 'feature',
   });
-});
-
-it('adds project context only for multiple visible projects and avoids repeating unreviewed branches', () => {
-  expect(reviewListRowContext(entry, false)).toEqual({
-    project: undefined,
-    branch: 'feature',
-  });
-  expect(reviewListRowContext(entry, true)).toEqual({
-    project: 'Porcelain',
-    branch: 'feature',
-  });
-  expect(reviewListRowContext({ ...entry, group: 'Projects' }, true)).toEqual({
-    project: undefined,
-    branch: 'feature',
-  });
-  expect(
-    reviewListRowContext(
-      { ...entry, group: 'No review', reviewId: undefined },
-      false,
-    ),
-  ).toEqual({ project: 'Porcelain', branch: undefined });
-  expect(
-    reviewListView([entry, other], '', emptyReviewListFilter, false)
-      .multipleProjects,
-  ).toBe(true);
-  expect(
-    reviewListView([entry, other], 'porcelain', emptyReviewListFilter, false)
-      .multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, other],
-      '',
-      { projects: ['beelink/porcelain'], environments: undefined },
-      false,
-    ).multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, { ...entry, key: 'duplicate' }],
-      '',
-      emptyReviewListFilter,
-      false,
-    ).multipleProjects,
-  ).toBe(false);
-  expect(
-    reviewListView(
-      [entry, { ...entry, environmentId: 'mac' }],
-      '',
-      emptyReviewListFilter,
-      false,
-    ).multipleProjects,
-  ).toBe(true);
 });
 
 it.each([
@@ -632,5 +750,132 @@ it.each([
   'hides the pull request block for link %j and project answer %j: %j',
   (linked, projectPullRequests, hidden) => {
     expect(pullRequestBlockHidden(linked, projectPullRequests)).toBe(hidden);
+  },
+);
+
+it('groups main checkouts with No review, sorts shown branches and keeps Closed last', () => {
+  const closed = {
+    ...entry,
+    key: 'closed',
+    group: 'Closed' as const,
+    closed: true,
+  };
+  const rows = [
+    { ...unreviewed('topic', 'topic', 'Porcelain'), worktreeId: 'topic' },
+    { ...entry, key: 'waiting', group: 'Waiting on agent' as const },
+    unreviewed('main', 'main', 'Porcelain', 'Projects'),
+    entry,
+    { ...entry, key: 'ready', group: 'Ready to merge' as const },
+    closed,
+  ];
+  expect(
+    reviewListSections(rows, '', emptyReviewListFilter, undefined).groups.map(
+      ({ group, rows }) => [group, rows.map((row) => row.key)],
+    ),
+  ).toEqual([
+    ['Needs you', [entry.key]],
+    ['Waiting on agent', ['waiting']],
+    ['Ready to merge', ['ready']],
+    ['No review', ['main', 'topic']],
+    ['Closed', ['closed']],
+  ]);
+});
+
+it.each([
+  [undefined, []],
+  [
+    {
+      kind: 'worktree',
+      environmentId: entry.environmentId,
+      worktreeId: 'worktree',
+    },
+    ['checkout'],
+  ],
+  [{ kind: 'worktree', environmentId: 'other', worktreeId: 'worktree' }, []],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'review' },
+    [],
+  ],
+] as const)(
+  'keeps a closed-only checkout only while that checkout is selected: %j',
+  (selection, expected) => {
+    const closed = { ...entry, closed: true, group: 'Closed' as const };
+    const checkout = {
+      ...entry,
+      key: 'checkout',
+      reviewId: undefined,
+      group: 'No review' as const,
+    };
+    const view = reviewListSections(
+      [checkout, closed],
+      '',
+      emptyReviewListFilter,
+      selection,
+    );
+    expect(
+      view.groups
+        .find((section) => section.group === 'No review')
+        ?.rows.map((row) => row.key),
+    ).toEqual(expected);
+    expect(view.groups.at(-1)?.rows.map((row) => row.key)).toEqual([entry.key]);
+  },
+);
+
+it.each([
+  [undefined, false],
+  [
+    {
+      kind: 'worktree',
+      environmentId: entry.environmentId,
+      worktreeId: 'worktree',
+    },
+    true,
+  ],
+  [{ kind: 'worktree', environmentId: 'other', worktreeId: 'worktree' }, false],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'review' },
+    true,
+  ],
+  [{ kind: 'review', environmentId: 'other', reviewId: 'review' }, false],
+  [
+    { kind: 'review', environmentId: entry.environmentId, reviewId: 'other' },
+    false,
+  ],
+] as const)(
+  'matches only the selected destination on its computer: %j',
+  (selection, expected) => {
+    expect(reviewListIsSelected(entry, selection)).toBe(expected);
+    expect(
+      reviewListIsSelected(
+        { ...entry, closed: true, group: 'Closed' },
+        selection,
+      ),
+    ).toBe(selection?.kind === 'review' && expected);
+  },
+);
+
+it.each([
+  ['absent', emptyReviewListFilter],
+  ['', { projects: [], environments: undefined }],
+  ['', { projects: undefined, environments: [] }],
+  ['', { projects: ['other/project'], environments: undefined }],
+] as const)(
+  'filters active and closed sections together: %s, %j',
+  (query, filter) => {
+    const view = reviewListSections(
+      [entry, { ...entry, closed: true, group: 'Closed' }],
+      query,
+      filter,
+      undefined,
+    );
+    expect(view.rows).toEqual([]);
+    expect(view.groups.map((section) => section.rows)).toEqual([
+      [],
+      [],
+      [],
+      [],
+      [],
+    ]);
+    expect(view.filters.map((section) => section.items.length)).toEqual([1, 1]);
   },
 );

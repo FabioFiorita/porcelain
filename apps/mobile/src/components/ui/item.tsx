@@ -8,8 +8,8 @@ const variants = {
   muted: 'border-transparent bg-muted/50',
 };
 const sizes = {
-  default: 'gap-3 px-4 py-3',
-  sm: 'gap-3 px-3 py-2.5',
+  default: 'gap-2.5 px-3 py-2.5',
+  sm: 'gap-2.5 px-3 py-2.5',
   xs: 'gap-2 px-2.5 py-2',
 };
 export type ItemProps = {
@@ -53,7 +53,7 @@ export function Item({
   testID,
 }: ItemProps) {
   const className = [
-    'min-h-11 flex-row items-center rounded-2xl border',
+    'min-h-11 flex-row items-center rounded-md border',
     variants[variant],
     sizes[size],
     selected ? 'bg-accent' : '',
