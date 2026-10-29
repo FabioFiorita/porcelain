@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parseBoardMaps } from './board-maps.ts';
 import { boardDiffOptions } from './board-options.ts';
 import { stylesMatch, styleTable } from './board-styles.ts';
 
@@ -95,4 +96,52 @@ it('accepts defaults, deduplicates widths and finds a board by its HTML name', (
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+const mapsMarkdown = (include: string) =>
+  [
+    '```json board-role-sets',
+    JSON.stringify({
+      'pane bar Git': [
+        {
+          role: 'Git button',
+          board: { selector: '[aria-label="Git"] > button' },
+          app: { selector: '[aria-label="Git controls"] > button' },
+        },
+      ],
+    }),
+    '```',
+    '',
+    '```json board-maps',
+    JSON.stringify({
+      'file-tab': {
+        html: 'Narrative-desktop-file-tab.html',
+        include: [include],
+        roles: [
+          {
+            role: 'Timeline control',
+            board: { selector: 'button[title*="timeline" i]' },
+            app: { selector: 'button[aria-label="Timeline"]' },
+          },
+        ],
+      },
+    }),
+    '```',
+  ].join('\n');
+
+it('measures a shared role set on every board that includes it, before its own roles', () => {
+  expect(
+    parseBoardMaps(mapsMarkdown('pane bar Git'))['file-tab']?.roles.map(
+      (role) => [role.role, role.app.selector],
+    ),
+  ).toStrictEqual([
+    ['Git button', '[aria-label="Git controls"] > button'],
+    ['Timeline control', 'button[aria-label="Timeline"]'],
+  ]);
+});
+
+it('refuses a board that includes an unknown role set', () => {
+  expect(() => parseBoardMaps(mapsMarkdown('pane bar'))).toThrow(
+    'Board file-tab includes unknown role set pane bar. Choose pane bar Git.',
+  );
 });

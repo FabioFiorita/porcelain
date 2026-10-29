@@ -23,7 +23,7 @@ Start a clean instance. Sidebar review-row comparisons need a non-main worktree 
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
-Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed.
+Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed. Controls every pane bar draws live once in the `board-role-sets` block; a map lists the sets its board draws in `include`, and their roles are measured before its own. `pane bar Git` covers the Git split button (its height, the primary's icon, its label and layout from 768px, and the Git actions chevron) on the briefing, decision, closing page, file, split, commit, History, graph and Changes maps; `review bar` covers the Walkthrough | Agent summary switch and the files and decisions progress beside it.
 
 ## Gotchas
 
@@ -33,6 +33,8 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 - Device rows compare padding, radius and icons; their height and wrapping gaps depend on device metadata and responsive reflow. Check wrapping visually in the sweep.
 - Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
+- The board draws the Git split's rounded outline on its group, while the app draws it on the joined buttons, so the split compares height and each half; check its corners visually. A label hidden in a narrow pane fails from 768px, because the board draws it.
+- The closing page needs the review sample with Settings → Reviews & Git → Spec files on (choose Use these settings for this computer first), so both Not explained and Specs appear; the map opens Not explained from the briefing's walkthrough list at every width.
 - Settings paths: `/settings/general`, `/settings/git`, `/settings/computers`, `/settings/computers/this-computer`.
 
 ## Board names
@@ -42,7 +44,8 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator  |
 | review-page                   | Narrative-desktop-briefing       | Review briefing                                      |
 | review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                    |
-| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel                     |
+| closing-page                  | Narrative-desktop-not-explained  | Review with `?entry=handoff`; opens Not explained    |
+| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel          |
 | file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context          |
 | file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane |
 | changes                       | Narrative-desktop-no-review      | Worktree without a published review                  |
@@ -62,6 +65,234 @@ The opening-file flow is verified through its navigation sequence; its explanato
 Names without `.html` are also accepted for the first mapped screen using that HTML. Use the short name when the same board covers more than one screen (sidebar/decision, commit/history).
 
 ## Role maps
+
+```json board-role-sets
+{
+  "pane bar Git": [
+    {
+      "role": "Git split",
+      "properties": ["height"],
+      "board": {
+        "selector": "[role=\"group\"][aria-label=\"Git\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Git controls\"]"
+      }
+    },
+    {
+      "role": "Git button",
+      "properties": ["icon"],
+      "board": {
+        "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
+      },
+      "app": {
+        "selector": "[aria-label=\"Git controls\"] > button:not([aria-label=\"Git actions\"])"
+      }
+    },
+    {
+      "role": "Git button label",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
+      },
+      "app": {
+        "selector": "[aria-label=\"Git controls\"] > button:not([aria-label=\"Git actions\"]) > span"
+      }
+    },
+    {
+      "role": "Git button layout",
+      "properties": ["padding", "gap"],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"group\"][aria-label=\"Git\"] > button:first-child"
+      },
+      "app": {
+        "selector": "[aria-label=\"Git controls\"] > button:not([aria-label=\"Git actions\"])"
+      }
+    },
+    {
+      "role": "Git actions chevron",
+      "properties": ["padding", "icon"],
+      "board": {
+        "selector": "[role=\"group\"][aria-label=\"Git\"] > button[aria-label=\"Git actions\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Git controls\"] > button[aria-label=\"Git actions\"]"
+      }
+    }
+  ],
+  "review bar": [
+    {
+      "role": "review view switch",
+      "properties": ["padding", "radius", "gap", "height"],
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"]"
+      }
+    },
+    {
+      "role": "Walkthrough control",
+      "properties": ["radius", "height"],
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"]"
+      }
+    },
+    {
+      "role": "Walkthrough label",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"] > span"
+      }
+    },
+    {
+      "role": "Walkthrough layout",
+      "properties": ["padding", "gap"],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"]"
+      }
+    },
+    {
+      "role": "Agent summary control",
+      "properties": ["radius", "height"],
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"]"
+      }
+    },
+    {
+      "role": "Agent summary label",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"] > span"
+      }
+    },
+    {
+      "role": "Agent summary layout",
+      "properties": ["padding", "gap"],
+      "minWidth": 768,
+      "board": {
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"]"
+      }
+    },
+    {
+      "role": "progress",
+      "properties": ["padding", "gap"],
+      "minWidth": 768,
+      "board": {
+        "selector": "header > div:has(> [role=\"progressbar\"])"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review progress\"]"
+      }
+    },
+    {
+      "role": "progress files",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "header > div:has(> [role=\"progressbar\"]) > span:first-child"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review progress\"]"
+      }
+    },
+    {
+      "role": "progress count",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "header > div:has(> [role=\"progressbar\"]) > span:not([role]) > span",
+        "index": 0
+      },
+      "app": {
+        "selector": "[aria-label=\"Review progress\"] > span:not([role]) > span",
+        "index": 0
+      }
+    },
+    {
+      "role": "progress meter",
+      "properties": ["radius", "height"],
+      "minWidth": 768,
+      "board": {
+        "selector": "header > div:has(> [role=\"progressbar\"]) > [role=\"progressbar\"]"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review progress\"] > [role=\"progressbar\"]"
+      }
+    },
+    {
+      "role": "progress decisions",
+      "properties": [
+        "fontSize",
+        "lineHeight",
+        "fontWeight",
+        "letterSpacing",
+        "colour"
+      ],
+      "minWidth": 768,
+      "board": {
+        "selector": "header > div:has(> [role=\"progressbar\"]) > span:last-child"
+      },
+      "app": {
+        "selector": "[aria-label=\"Review progress\"] > span:last-child"
+      }
+    }
+  ]
+}
+```
 
 ```json board-maps
 {
@@ -233,6 +464,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   "review-page": {
     "html": "Narrative-desktop-briefing.html",
     "dark": "Narrative-desktop-briefing-D.html",
+    "include": ["pane bar Git", "review bar"],
     "roles": [
       {
         "role": "review title",
@@ -283,15 +515,6 @@ Names without `.html` are also accepted for the first mapped screen using that H
         ]
       },
       {
-        "role": "walkthrough control",
-        "board": {
-          "selector": "[aria-label=\"Review view\"] [aria-selected=\"true\"]"
-        },
-        "app": {
-          "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"]"
-        }
-      },
-      {
         "role": "recommendation",
         "board": {
           "selector": "section[aria-label=\"Recommendation\"]"
@@ -331,6 +554,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   "review-decision": {
     "html": "Narrative-desktop.html",
     "dark": "Narrative-desktop-dark.html",
+    "include": ["pane bar Git", "review bar"],
     "roles": [
       {
         "role": "decision title",
@@ -416,6 +640,264 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Steps\"] button > span:last-child > span:first-child",
           "index": 0
+        }
+      }
+    ]
+  },
+  "closing-page": {
+    "html": "Narrative-desktop-not-explained.html",
+    "reveal": [
+      {
+        "target": "[aria-label=\"Review completion\"]",
+        "trigger": "[aria-label=\"Briefing\"] button[aria-label=\"Not explained\"]"
+      }
+    ],
+    "include": ["pane bar Git", "review bar"],
+    "roles": [
+      {
+        "role": "completion card",
+        "properties": ["padding", "radius", "gap", "icon"],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"]"
+        }
+      },
+      {
+        "role": "completion title",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section h2"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > header h3"
+        }
+      },
+      {
+        "role": "completion files",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section > div:first-child p"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > header p"
+        }
+      },
+      {
+        "role": "merge needs heading",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section > div:nth-child(2) > div:first-child"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > section[aria-label=\"Ready to merge needs\"] > h4"
+        }
+      },
+      {
+        "role": "merge need",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap",
+          "icon"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section > div:nth-child(2) li",
+          "index": 0
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > section[aria-label=\"Ready to merge needs\"] > p:not([role])",
+          "index": 0
+        }
+      },
+      {
+        "role": "still open heading",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section > div:nth-child(3) > div"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > section[aria-label=\"Still open\"] > h4"
+        }
+      },
+      {
+        "role": "still open row",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "padding"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section > div:nth-child(3) li",
+          "index": 0
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] > section[aria-label=\"Still open\"] > p",
+          "index": 0
+        }
+      },
+      {
+        "role": "Ask the agent",
+        "board": {
+          "selector": "aside[aria-label=\"Margin notes\"] > section button[title^=\"Comment on the whole change\"]"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Review completion\"] button[aria-expanded]"
+        }
+      },
+      {
+        "role": "Not explained eyebrow",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > div:first-child > span"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Not explained\"] > header > p:first-child"
+        }
+      },
+      {
+        "role": "Not explained title",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > h1"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Not explained\"] > header > h2"
+        }
+      },
+      {
+        "role": "Not explained lead",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > h1 + p"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Not explained\"] > header > p:last-child"
+        }
+      },
+      {
+        "role": "unexplained lines heading",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "section[aria-label=\"Unexplained lines in explained files\"] > div > span:first-child"
+        },
+        "app": {
+          "selector": "section[aria-labelledby=\"closing-partial\"] > h3 > span:first-child"
+        }
+      },
+      {
+        "role": "unexplained line",
+        "properties": ["padding", "gap", "icon"],
+        "board": {
+          "selector": "section[aria-label=\"Unexplained lines in explained files\"] li > a",
+          "index": 0
+        },
+        "app": {
+          "selector": "[aria-label=\"Unexplained lines in explained files\"] > li",
+          "index": 0
+        }
+      },
+      {
+        "role": "Specs eyebrow",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > div:has(+ h2) > span"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Specs\"] > header > p:first-child"
+        }
+      },
+      {
+        "role": "Specs title",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > h2"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Specs\"] > header > h2"
+        }
+      },
+      {
+        "role": "Specs lead",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main article > h2 + p"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Specs\"] > header > p:last-child"
         }
       }
     ]
@@ -519,6 +1001,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "changes": {
     "html": "Narrative-desktop-no-review.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "changes title",
@@ -869,6 +1352,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "commit": {
     "html": "Narrative-desktop-history.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "commit title",
@@ -978,6 +1462,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "history": {
     "html": "Narrative-desktop-history.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "history heading",
@@ -1040,6 +1525,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "graph": {
     "html": "Narrative-desktop-graph.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "graph row",
@@ -1485,6 +1971,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "file-tab": {
     "html": "Narrative-desktop-file-tab.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "pane bar",
@@ -1641,6 +2128,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Timeline control",
+        "properties": ["padding", "radius", "gap", "height", "icon"],
         "board": {
           "selector": "button[title*=\"timeline\" i]"
         },
@@ -1661,6 +2149,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "file-split": {
     "html": "Narrative-desktop-split.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "pane bar",
@@ -1817,6 +2306,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "role": "Timeline control",
+        "properties": ["padding", "radius", "gap", "height", "icon"],
         "board": {
           "selector": "button[title*=\"timeline\" i]"
         },

@@ -39,19 +39,56 @@ const board = Schema.Struct({
       }),
     ),
   ),
+  include: Schema.optional(Schema.NonEmptyArray(Schema.NonEmptyString)),
   roles: Schema.NonEmptyArray(role),
 });
 export type BoardRole = typeof role.Type;
-export type BoardMap = typeof board.Type;
-const markdown = readFileSync(
-  new URL('../features/app.board-comparison.md', import.meta.url),
-  'utf8',
-);
-const json = /```json board-maps\n([\s\S]*?)\n```/.exec(markdown)?.[1];
-if (json === undefined)
-  throw new Error(
-    'app.board-comparison.md must contain its board-maps JSON block.',
+export type BoardMap = Omit<typeof board.Type, 'include' | 'roles'> & {
+  roles: readonly BoardRole[];
+};
+
+function block(markdown: string, name: string): unknown {
+  const json = new RegExp('```json ' + name + '\\n([\\s\\S]*?)\\n```').exec(
+    markdown,
+  )?.[1];
+  if (json === undefined)
+    throw new Error(
+      `app.board-comparison.md must contain its ${name} JSON block.`,
+    );
+  return JSON.parse(json);
+}
+
+export function parseBoardMaps(markdown: string): Record<string, BoardMap> {
+  const sets = Schema.decodeUnknownSync(
+    Schema.Record(Schema.String, Schema.NonEmptyArray(role)),
+  )(block(markdown, 'board-role-sets'));
+  const maps = Schema.decodeUnknownSync(Schema.Record(Schema.String, board))(
+    block(markdown, 'board-maps'),
   );
-export const boards = Schema.decodeUnknownSync(
-  Schema.Record(Schema.String, board),
-)(JSON.parse(json));
+  return Object.fromEntries(
+    Object.entries(maps).map(([name, { include = [], ...map }]) => [
+      name,
+      {
+        ...map,
+        roles: [
+          ...include.flatMap((set) => {
+            const shared = Object.hasOwn(sets, set) ? sets[set] : undefined;
+            if (shared === undefined)
+              throw new Error(
+                `Board ${name} includes unknown role set ${set}. Choose ${Object.keys(sets).join(', ')}.`,
+              );
+            return shared;
+          }),
+          ...map.roles,
+        ],
+      },
+    ]),
+  );
+}
+
+export const boards = parseBoardMaps(
+  readFileSync(
+    new URL('../features/app.board-comparison.md', import.meta.url),
+    'utf8',
+  ),
+);
