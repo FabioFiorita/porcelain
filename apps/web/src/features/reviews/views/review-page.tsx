@@ -565,9 +565,10 @@ function ReviewRevisionPage({
       surface="changes"
       onSurface={showPanel}
     >
-      {() => (
+      {(actionsTarget) => (
         <ReviewBoundary connection={context.connection} scope={scope}>
           <RevisionPanel
+            actionsTarget={actionsTarget}
             revision={revision}
             scope={scope}
             context={context}

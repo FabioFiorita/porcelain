@@ -218,6 +218,7 @@ function ReviewWorkspaceContent({
     onScope: (next) =>
       onSearch({ scope: next === 'branch' ? next : undefined }),
   };
+  const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
   const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
       layout={layout}
@@ -225,7 +226,7 @@ function ReviewWorkspaceContent({
       context={context}
       worktreePath={worktree.path}
       surface={surface}
-      activeEntry={focusedPane === 1 ? search.side : search.entry}
+      activeEntry={activeEntry}
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}

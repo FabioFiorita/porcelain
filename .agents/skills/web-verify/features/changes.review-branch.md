@@ -77,7 +77,7 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 
 ### Observable proof
 
-Reload current URL: branch document, Reviewed and Why a second line? persist. Independently read branch marks/comments; uncommitted marks remain empty. Uncommitted has No changed files/No changes but counts the worktree comment (Comments 1).
+Reload current URL: branch document, Reviewed and Why a second line? persist. Independently read branch marks/comments; uncommitted marks remain empty. Uncommitted has No changed files/No changes but counts the worktree comment (Comments (1)).
 
 Automated coverage: `changes-review-branch.test.tsx`, `changes-branch-marks.test.tsx`.
 

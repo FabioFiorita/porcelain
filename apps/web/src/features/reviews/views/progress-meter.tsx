@@ -19,12 +19,12 @@ export function ProgressMeter({
       aria-valuemax={max}
       aria-valuenow={value}
       className={cn(
-        'h-1 w-16 shrink-0 overflow-hidden rounded-full bg-muted',
+        'h-1 w-16 shrink-0 overflow-hidden rounded-full bg-border',
         className,
       )}
     >
       <span
-        className="block h-full bg-primary"
+        className="block h-full rounded-full bg-brand"
         style={{ width: `${max === 0 ? 0 : (value / max) * 100}%` }}
       />
     </span>
