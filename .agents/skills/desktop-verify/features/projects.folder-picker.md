@@ -32,3 +32,4 @@ Automated coverage: `folder-picker.e2e.ts`.
 
 - A real sheet waits until a folder is chosen or Cancel is pressed. CDP cannot operate it; use Computer Use.
 - Substituted picker answers in the named regression prove bridge behavior separately from an observed real sheet.
+- After the first registration, wait for the destination's Changes tab before opening Filter reviews → Worktrees. The URL changes before that route renders, and navigation replaces the first-run sidebar and any menu opened on it. Wait for Changes after reload as well.
