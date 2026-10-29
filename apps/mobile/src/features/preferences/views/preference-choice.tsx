@@ -26,8 +26,9 @@ export function PreferenceChoice<T extends string | boolean>({
   const sideBySide = inline && width >= 560;
   const choices = (
     <Box
-      className={sideBySide ? 'shrink-0 flex-row' : 'flex-row flex-wrap pt-2'}
+      className={sideBySide ? 'shrink-0 flex-row' : 'flex-row flex-wrap'}
       gap={sideBySide ? 0.5 : 2}
+      {...(sideBySide ? {} : { paddingTop: 2 as const })}
     >
       {options.map((option) => (
         <Button
