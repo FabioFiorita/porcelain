@@ -300,6 +300,11 @@ function ReviewRevisionPage({
     data.revisions.find(
       (entry) => entry.revision === data.review?.latestRevision,
     )?.headOid ?? revision.headOid;
+  const branchTip = Option.getOrUndefined(
+    AsyncResult.value(
+      useBranchChanges(currentScope, context.connection, undefined).result,
+    ),
+  );
   const review = revision.content;
   const scope: ReviewScope = {
     projectId: revision.projectId,
@@ -657,12 +662,14 @@ function ReviewRevisionPage({
           </StateNotice>
         </div>
       )}
-      {currentScope && (
-        <BranchTipNotice
-          scope={currentScope}
-          context={context}
-          headOid={latestHead}
-        />
+      {branchTip && branchTip.head.oid !== latestHead && (
+        <div className="px-4 pt-3">
+          <StateNotice
+            role="status"
+            title="The branch tip differs from this review."
+            description="Publish a revision to include it."
+          />
+        </div>
       )}
       {reread.failed &&
         !(view === 'summary' && expiredLink === review.summary.expires) && (
@@ -1118,28 +1125,6 @@ function FilesMark({
       )}
     </>
   );
-}
-
-function BranchTipNotice({
-  scope,
-  context,
-  headOid,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  headOid: string;
-}) {
-  const read = useBranchChanges(scope, context.connection, undefined);
-  const data = Option.getOrUndefined(AsyncResult.value(read.result));
-  return data && data.head.oid !== headOid ? (
-    <div className="px-4 pt-3">
-      <StateNotice
-        role="status"
-        title="The branch tip differs from this review."
-        description="Publish a revision to include it."
-      />
-    </div>
-  ) : null;
 }
 
 function WalkthroughKeys({

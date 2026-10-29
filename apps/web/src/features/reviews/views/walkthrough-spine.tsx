@@ -38,21 +38,32 @@ export function WalkthroughSpine({
           stops.findIndex((stop) => stop.key === current),
           lastDone,
         );
-  const [revealed, setRevealed] = useState<WalkthroughKey>();
+  const [revealed, setRevealed] = useState<{
+    key: WalkthroughKey;
+    scrollTop: number;
+  }>();
   const reveal = (key: WalkthroughKey) => (node: HTMLElement | null) => {
-    if (!node || key !== current || revealed === key) return;
+    if (!node || key !== current) return;
     if (node.getClientRects().length === 0) return;
-    setRevealed(key);
     const viewport = node.closest('[data-slot=scroll-area-viewport]');
     if (!viewport) return;
     const stop = node.getBoundingClientRect();
     const view = viewport.getBoundingClientRect();
     const top = Math.max(view.top, 0);
     const bottom = Math.min(view.bottom, window.innerHeight);
-    if (stop.top < top || stop.bottom > bottom)
+    const shown = stop.top >= top && stop.bottom <= bottom;
+    if (
+      revealed?.key === key &&
+      (shown || revealed.scrollTop !== viewport.scrollTop)
+    )
+      return;
+    if (!shown)
       viewport.scrollBy({
         top: stop.top - top - (bottom - top - stop.height) / 2,
       });
+    node.scrollIntoView({ block: 'nearest' });
+    if (revealed?.key !== key || revealed.scrollTop !== viewport.scrollTop)
+      setRevealed({ key, scrollTop: viewport.scrollTop });
   };
   return (
     <div className="sticky top-0 hidden h-fit max-h-[100cqh] w-14 shrink-0 grid-rows-[minmax(0,1fr)] border-r @2xl/review:grid @5xl/review:w-18">
