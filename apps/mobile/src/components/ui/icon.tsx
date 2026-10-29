@@ -60,7 +60,7 @@ export function Icon({
 }: {
   name: IconName;
   tone?: keyof typeof tones;
-  size?: 'tiny' | 'caption' | 'small' | 'default' | 'large';
+  size?: 'tiny' | 'caption' | 'small' | 'control' | 'default' | 'large';
 }) {
   const { fontScale } = useWindowDimensions();
   const dimensions = useResolveClassNames(
@@ -70,9 +70,11 @@ export function Icon({
         ? 'size-3.25'
         : size === 'small'
           ? 'size-3.5'
-          : size === 'large'
-            ? 'size-6'
-            : 'size-4.5',
+          : size === 'control'
+            ? 'size-4'
+            : size === 'large'
+              ? 'size-6'
+              : 'size-4.5',
   );
   const dimension = Number(dimensions.width);
   return (
