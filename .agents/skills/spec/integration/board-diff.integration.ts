@@ -242,7 +242,9 @@ it('compares mapped text properties without treating different wrapping as a hei
         match: true,
       },
     ]);
-    await app.addStyleTag({ content: 'h2 { font-size:15px; }' });
+    await app.setContent(
+      '<h2 style="font:500 15px/17px sans-serif;width:90px">A much longer fixture title that wraps</h2>',
+    );
     expect(
       compareRoles(expected, await measureRoles(app, textRoles, 'app')).filter(
         (row) => !row.match,

@@ -19,7 +19,7 @@ Run `$C board-diff --board sidebar --route /<project>/<worktree> --instance <id>
 
 ## Driving it with the surface harness
 
-Start a clean instance. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Maps reveal the navigator, phone panel, selected tab and collapsed steps before measuring their roles.
+Start a clean instance. Sidebar review-row comparisons need a non-main worktree review; the main worktree intentionally shows a project row. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Use an active decision route for the Review panel so its steps are already expanded; selecting a decision through a phone sheet normally closes that sheet. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
@@ -30,6 +30,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 - This compares mapped styles. Unmapped elements, icon identity and icon artwork still need visual review. Text may differ.
 - Lengths tolerate 0.5 px, RGB/alpha channels one step; weight and icon presence are exact. Colours resolve to hex including alpha. Padding and radius report four sides/corners; radius values follow the CSS overlap reduction against the rendered box, so equivalent full-round declarations compare equally. Gap reports the axes that can separate children; a nowrap flex row has no used row gap, and a nowrap flex column has no used column gap.
 - A dedicated dark HTML sibling wins. Otherwise the layout receives the approved `Narrative-desktop-dark.html` custom properties. A missing dark palette fails.
+- Device rows compare padding, radius and icons; their height and wrapping gaps depend on device metadata and responsive reflow. Check wrapping visually in the sweep.
 - Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
 - Settings paths: `/settings/general`, `/settings/git`, `/settings/computers`, `/settings/computers/this-computer`.
@@ -41,7 +42,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator |
 | review-page                   | Narrative-desktop-briefing       | Review briefing                                     |
 | review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                   |
-| review-panel                  | Narrative-desktop-review-panel   | Worktree with `?surface=changes`                    |
+| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel         |
 | changes                       | Narrative-desktop-no-review      | Worktree without a published review                 |
 | settings-general              | Narrative-settings-general       | `/settings/general`                                 |
 | settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                     |
@@ -388,7 +389,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "reviewed action",
         "board": {
-          "selector": "[aria-label=\"File reviewed\"]"
+          "selector": "[aria-label=\"Decision\"] button:last-child"
         },
         "app": {
           "selector": "[aria-label=\"Walkthrough dock\"] button[aria-pressed]"
@@ -405,10 +406,12 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "colour"
         ],
         "board": {
-          "selector": "section[aria-label=\"Route and stops\"] a > span:nth-child(3)"
+          "selector": "section[aria-label=\"Route and stops\"] a > span:nth-child(3)",
+          "index": 0
         },
         "app": {
-          "selector": "[aria-label=\"Steps\"] button > span:last-child > span:first-child"
+          "selector": "[aria-label=\"Steps\"] button > span:last-child > span:first-child",
+          "index": 0
         }
       }
     ]
@@ -430,7 +433,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "fontWeight",
           "letterSpacing",
           "colour"
-        ]
+        ],
+        "minWidth": 1280
       },
       {
         "role": "comparison switch",
@@ -439,7 +443,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] [role=\"tablist\"] [role=\"tab\"]",
+          "selector": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Changes to review\"] [role=\"tab\"]",
           "index": 0
         }
       },
@@ -462,12 +466,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "decision row",
         "board": {
-          "selector": "ol[aria-label=\"Decisions\"] > li > a",
-          "index": 0
+          "selector": "ol[aria-label=\"Decisions\"] > li > a[aria-current=\"step\"]"
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded]:not([aria-haspopup])",
-          "index": 0
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"]:not([aria-haspopup])"
         },
         "properties": ["padding", "radius", "gap", "icon"]
       },
@@ -480,7 +482,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "aside[aria-label=\"Review sidebar\"] [role=\"checkbox\"]",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "decision title",
@@ -492,10 +495,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "colour"
         ],
         "board": {
-          "selector": "ol[aria-label=\"Decisions\"] > li > a > span:nth-child(2)"
+          "selector": "ol[aria-label=\"Decisions\"] > li > a[aria-current=\"step\"] > span:nth-child(2)"
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded] > span:nth-child(2)"
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"] > span:nth-child(2)"
         }
       }
     ],
@@ -506,11 +509,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
-      },
-      {
-        "target": "aside[aria-label=\"Review sidebar\"] [role=\"checkbox\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"false\"]"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -860,7 +859,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main[aria-label=\"Settings\"] [aria-label=\"Paired devices and links\"] > [data-slot=\"item\"]",
           "index": 0
         },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
+        "properties": ["padding", "radius", "icon"]
       }
     ]
   },
@@ -990,7 +989,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "fontWeight",
           "letterSpacing",
           "colour"
-        ]
+        ],
+        "minWidth": 1280
       },
       {
         "role": "commit row",
@@ -1030,7 +1030,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Commits\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"History\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"History\")"
       }
     ]
   },
@@ -1098,7 +1098,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1181,7 +1181,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1223,7 +1223,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1265,7 +1265,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1307,7 +1307,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1349,7 +1349,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1391,7 +1391,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1433,7 +1433,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -1475,7 +1475,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:text-is(\"Review\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   }
