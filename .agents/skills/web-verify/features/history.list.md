@@ -54,6 +54,13 @@ The last line prints `Merge branch 'topic'` and two parent ids.
    - each row's name goes on with the 7-character id, "Porcelain Development" and the age;
    - region "Branch" naming the branch above the list; list "Commits"; no list "Commit graph"; text "Start of history." after the last row; button "Open graph" at the bottom of the panel.
 
+### Ref identity and colliding names
+
+1. In the disposable repository, tag the current commit with the checked-out branch's name, then make another commit on that branch.
+2. Open History and Graph. Expect: the branch chip on the newest commit uses the current-branch colour; the same-named tag on the older commit stays neutral. A remote branch with the same display name also stays neutral.
+3. Add a local branch and tag with the same name on one commit. Expect: both chips remain reachable, including in the overflow popover at phone width; only a local branch matching the full checked-out branch ref is current.
+4. Check out a commit detached. Expect: Graph keeps its separate HEAD marker and no branch or tag receives current-branch colour. Internal Porcelain refs stay hidden.
+
 ### Observable proof
 
 Compare four subjects/order/short IDs/ref chips with `git -C "$REPO" log --format="%h %s %D" --decorate-refs="refs/*"`.

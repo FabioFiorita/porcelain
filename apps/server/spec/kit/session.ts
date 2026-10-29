@@ -83,6 +83,8 @@ export const gitSubcommands = [
   'stash',
   'status',
   'switch',
+  'tag',
+  'update-ref',
   'worktree',
 ] as const;
 

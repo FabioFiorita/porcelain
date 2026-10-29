@@ -74,7 +74,11 @@ export function CommitContent({
                 ) : null}
                 <Box className="flex-row flex-wrap" gap={1}>
                   {shownRefs(value.commit.refs).map((ref) => (
-                    <Badge key={ref} label={ref} variant="secondary" />
+                    <Badge
+                      key={`${ref.kind}:${ref.name}`}
+                      label={ref.name}
+                      variant="secondary"
+                    />
                   ))}
                 </Box>
                 <Text
