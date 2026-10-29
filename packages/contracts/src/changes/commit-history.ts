@@ -35,7 +35,7 @@ const commitHeadSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal('unborn'), ref: Schema.String }),
 ]);
 
-export const commitRefSchema = Schema.Union([
+const commitRefSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literals(['local-branch', 'remote-branch', 'tag']),
     name: Schema.String,
