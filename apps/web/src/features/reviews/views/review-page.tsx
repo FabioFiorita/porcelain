@@ -49,7 +49,6 @@ import {
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
-  reviewPullRequestNotice,
   stopName,
   stopTitle,
   summaryLinkExpiring,
@@ -510,16 +509,12 @@ function ReviewRevisionPage({
   );
   const pullQuery = readReviewPullRequest(titleInput);
   const pullResult = useAtomValue(pullQuery);
-  const retryPull = useAtomRefresh(pullQuery);
   const pullValue = AsyncResult.isFailure(pullResult)
     ? { kind: 'failed' as const }
     : (Option.getOrUndefined(AsyncResult.value(pullResult)) ?? {
         kind: 'loading' as const,
       });
   const pull = data.review?.pullRequest ? pullValue : undefined;
-  const pullNotice = data.review?.pullRequest
-    ? reviewPullRequestNotice(pull)
-    : undefined;
   const title = reviewListTitle(
     data.review ?? revision,
     latestReview?.revision ?? revision,
@@ -700,22 +695,6 @@ function ReviewRevisionPage({
       {toolbarTarget && createPortal(bar, toolbarTarget)}
       {active && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
-      )}
-      {pullNotice && (
-        <div className="px-4 py-2">
-          <StateNotice role="status" title={pullNotice}>
-            {pull?.kind !== 'loading' && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pullResult.waiting}
-                onClick={retryPull}
-              >
-                Read pull request again
-              </Button>
-            )}
-          </StateNotice>
-        </div>
       )}
       {currentScope && (
         <BranchTipNotice
