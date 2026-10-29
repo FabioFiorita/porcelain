@@ -29,3 +29,5 @@ export type SetWorkspaceSearch = (
 
 export const isSurface: (value: unknown) => value is Surface =
   Schema.is(surfaceSchema);
+export const isChangeScope: (value: unknown) => value is ChangeScope =
+  Schema.is(changeScopeSchema);

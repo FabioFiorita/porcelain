@@ -130,3 +130,20 @@ export function openToSideText(side: 'left' | 'right' | null) {
   if (side === 'left') return 'Open in the right pane';
   return 'Open in the left pane';
 }
+
+export type TabCount = { value: string; description: string };
+
+export function reviewTabCount(reviewed: number, total: number): TabCount {
+  return {
+    value: `${reviewed}/${total}`,
+    description: `${reviewed} of ${total} ${total === 1 ? 'decision' : 'decisions'} reviewed`,
+  };
+}
+
+export function changesTabCount(count: number): TabCount | undefined {
+  if (count === 0) return undefined;
+  return {
+    value: String(count),
+    description: `${count} uncommitted ${count === 1 ? 'file' : 'files'}`,
+  };
+}

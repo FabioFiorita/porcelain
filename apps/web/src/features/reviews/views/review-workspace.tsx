@@ -17,12 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Kbd } from '@/components/ui/kbd';
 import { Button } from '@/components/ui/button';
-import { useAtomValue } from '@effect/atom-react';
-import { readReview, readReviewMarks } from '@porcelain/client/reviews';
-import {
-  revisionDecisionProgress,
-  type ReviewResponse,
-} from '@porcelain/client/reviews/rules';
+import type { ReviewResponse } from '@porcelain/client/reviews/rules';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -50,6 +45,7 @@ import type {
   SetWorkspaceSearch,
   Surface,
   WorkspaceSearch,
+  ChangeScope,
 } from '@/shared/workspace/search';
 import { useDesktopReview } from '../adapters/desktop-review';
 import {
@@ -58,17 +54,18 @@ import {
   paneTabActions,
 } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
-import { useSpecsApart } from '@/features/preferences/index';
+import { useTabLayoutStore } from '../store';
 import {
   anchorBase,
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
 import { openToSideText } from '../rules/tab-strip';
+import { useFirstTabCount } from '../queries/first-tab-count';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { HandoffDocument } from './branch-review-page';
+import { ChangeScopeSwitch } from './change-scope-switch';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -104,9 +101,17 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [panelOpen, setPanelOpen] = useState(search.side === undefined);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
+  const [docked, setDocked] = useState(desktop);
+  if (docked !== desktop) {
+    setDocked(desktop);
+    if (desktop && mobileOpen) {
+      setPanelOpen(true);
+      setMobileOpen(false);
+    }
+  }
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const railToggle = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
@@ -208,6 +213,11 @@ function ReviewWorkspaceContent({
     browseTrigger.attach(trigger);
     showSurface(next);
   };
+  const changes: PaneContext['changes'] = {
+    scope: search.scope ?? 'uncommitted',
+    onScope: (next) =>
+      onSearch({ scope: next === 'branch' ? next : undefined }),
+  };
   const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
   const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
@@ -222,10 +232,8 @@ function ReviewWorkspaceContent({
       onOpen={open}
       sideLabel={sideLabel}
       changes={{
-        scope: search.scope ?? 'uncommitted',
+        ...changes,
         base: search.base,
-        onScope: (next) =>
-          onSearch({ scope: next === 'branch' ? next : undefined }),
         onBase: (next) => onSearch({ base: next }),
       }}
     />
@@ -297,6 +305,7 @@ function ReviewWorkspaceContent({
                 needsDefault={needsDefault}
                 layout={layout}
                 base={search.base}
+                changes={changes}
                 focused={focusedPane}
                 onOpen={open}
                 onBrowse={browse}
@@ -373,6 +382,7 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
+  changes: { scope: ChangeScope; onScope: (scope: ChangeScope) => void };
   onOpen: OpenDocument;
   onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
@@ -421,6 +431,7 @@ function DocumentPanes({
   scope,
   context,
   base,
+  changes,
   focused,
   onOpen,
   onBrowse,
@@ -469,6 +480,7 @@ function DocumentPanes({
     reviewTitle: publishedReviewTitle(published.review),
     review: published.review ?? undefined,
     base,
+    changes,
     onOpen,
     onBrowse,
     navigationTrigger,
@@ -518,6 +530,7 @@ function PaneView({
   reviewTitle,
   review,
   base,
+  changes,
   onOpen,
   onBrowse,
   navigationTrigger,
@@ -536,6 +549,7 @@ function PaneView({
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
+  const activeDocument = parseEntry(pane.active ?? undefined);
   const focusPane = (event: SyntheticEvent<HTMLElement>) => {
     const target = event.target;
     if (
@@ -548,6 +562,12 @@ function PaneView({
     else layout.focusPane(index, target);
   };
 
+  const firstTabCount = useFirstTabCount({
+    scope,
+    context,
+    review,
+    reviewTitle,
+  });
   return (
     <section
       ref={(element) => layout.bindPane(index, element)}
@@ -562,13 +582,7 @@ function PaneView({
     >
       <DocumentTabs
         commitContext={{ connection: context.connection, scope }}
-        reviewCount={
-          review?.reviewId ? (
-            <ReviewTabProgress review={review} context={context} />
-          ) : (
-            !reviewTitle && <ChangesTabCount scope={scope} context={context} />
-          )
-        }
+        firstTabCount={firstTabCount}
         leading={
           index === 0 ? (
             <Tooltip>
@@ -613,7 +627,14 @@ function PaneView({
               role="toolbar"
               aria-label="Document controls"
               className="flex items-center gap-1"
-            />
+            >
+              {activeDocument?.kind === 'handoff' && !review && (
+                <ChangeScopeSwitch
+                  value={changes.scope}
+                  onValueChange={changes.onScope}
+                />
+              )}
+            </div>
             {(!split || index === 1) && tabControls(index)}
           </>
         }
@@ -627,6 +648,10 @@ function PaneView({
           const ref = parseEntry(key);
           if (!ref) return null;
           const showing = key === pane.active;
+          const shownDocument =
+            ref.kind === 'handoff' && !review && changes.scope === 'branch'
+              ? ({ kind: 'branch' } as const)
+              : ref;
           return (
             <div
               key={key}
@@ -643,7 +668,7 @@ function PaneView({
                   handoff={HandoffDocument}
                   scope={scope}
                   context={context}
-                  document={ref}
+                  document={shownDocument}
                   sideLabel={openToSideText(paneSide(split, index))}
                   base={base}
                   onOpen={onOpen}
@@ -663,68 +688,5 @@ function PaneView({
           );
         })}
     </section>
-  );
-}
-
-function ChangesTabCount({
-  scope,
-  context,
-}: {
-  scope: PaneContext['scope'];
-  context: ConnectionContext;
-}) {
-  const count =
-    Option.getOrUndefined(
-      AsyncResult.value(useReviewOverview(scope, context.connection)),
-    )?.changes.length ?? 0;
-  if (count === 0) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className="text-2xs leading-4 text-muted-foreground tabular-nums"
-    >
-      {count}
-    </span>
-  );
-}
-
-function ReviewTabProgress({
-  review,
-  context,
-}: {
-  review: ReviewResponse;
-  context: ConnectionContext;
-}) {
-  const selection = useReviewRevisionSelection(review.reviewId ?? '');
-  const specsApart = useSpecsApart(context.connection);
-  const read = useAtomValue(
-    readReview({
-      connection: context.connection,
-      reviewId: review.reviewId ?? '',
-      ...(selection.revision === undefined
-        ? {}
-        : { revision: selection.revision }),
-    }),
-  );
-  const revision = Option.getOrUndefined(AsyncResult.value(read))?.revision;
-  const result = useAtomValue(
-    readReviewMarks({
-      connection: context.connection,
-      reviewId: review.reviewId ?? '',
-    }),
-  );
-  const marks = Option.getOrUndefined(AsyncResult.value(result));
-  const reviewed = revision
-    ? revisionDecisionProgress(revision, marks, {
-        specsApart,
-      }).reviewed
-    : 0;
-  return (
-    <span
-      aria-hidden="true"
-      className="text-2xs leading-4 text-muted-foreground tabular-nums"
-    >
-      {reviewed}/{revision?.content.layers.length ?? review.layers.length}
-    </span>
   );
 }

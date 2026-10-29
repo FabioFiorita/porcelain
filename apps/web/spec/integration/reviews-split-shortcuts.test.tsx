@@ -33,10 +33,12 @@ for (const [width, labelled] of [
       .click({ button: 'right' });
     await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
     await page.viewport(width, 896);
-    if (width === 1440)
+    if (width === 1440) {
+      await userEvent.keyboard('{Alt>}1{/Alt}');
       await workspace
         .getByRole('button', { name: 'Hide side panel', exact: true })
         .click();
+    }
     const right = workspace.getByRole('region', {
       name: 'Right pane',
       exact: true,

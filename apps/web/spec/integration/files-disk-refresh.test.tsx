@@ -5,6 +5,10 @@ test.for(['clean', 'unsaved'] as const)(
   'a disk update refreshes split file tabs with a %s draft without React errors',
   async (initial, { workspace, repo, server }) => {
     await page.viewport(1440, 900);
+    await workspace
+      .getByRole('navigation', { name: 'Side panel', exact: true })
+      .getByRole('button', { name: 'Files', exact: true })
+      .click();
     const path = repo.readme.path;
     await workspace
       .getByRole('treeitem', { name: path, exact: true })
