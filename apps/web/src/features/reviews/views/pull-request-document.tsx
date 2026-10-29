@@ -142,7 +142,7 @@ export function PullRequestDocument({
               {pull.description.trim() ? (
                 <MarkdownView
                   text={pull.description}
-                  className="pt-3.5 text-(length:--text-prose) leading-6 wrap-anywhere text-foreground-2 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-base [&_h3]:leading-6 [&_h3]:text-foreground [&_code]:text-ui [&_code]:leading-5 [&_p]:leading-6 [&_p]:mt-1 [&_p]:mb-0 [&_ul]:mt-2 [&_ul]:mb-0 [&_ol]:mt-2 [&_ol]:mb-0 [&_li]:my-0 [&_h1]:mb-0 [&_h2]:mb-0 [&_h3]:mb-0 [&_h1]:tracking-pr-subheading [&_h2]:tracking-pr-subheading [&_h3]:tracking-pr-subheading [&_code]:rounded-xs [&_code]:px-1.25 [&_code]:py-px [&_code]:ring-1 [&_code]:ring-border [&_code]:ring-inset"
+                  className="pt-3.5 text-(length:--text-prose) leading-6 wrap-anywhere text-foreground-2 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-base [&_h3]:leading-6 [&_h3]:text-foreground [&_code]:text-ui [&_code]:leading-5 [&_p]:leading-6 [&_p]:mt-1 [&_p]:mb-0 [&_ul]:mt-2 [&_ul]:mb-0 [&_ol]:mt-2 [&_ol]:mb-0 [&_li]:my-0 [&_h1]:mb-0 [&_h2]:mb-0 [&_h3]:mb-0 [&_h1]:tracking-pr-subheading [&_h2]:tracking-pr-subheading [&_h3]:tracking-pr-subheading [&_code]:rounded-sm [&_code]:px-1.25 [&_code]:py-px [&_code]:ring-1 [&_code]:ring-border [&_code]:ring-inset"
                 />
               ) : (
                 <p className="pt-3.5 text-ui text-muted-foreground">
@@ -557,7 +557,7 @@ function PullRequestChecks({ pull }: { pull: PullRequest }) {
                             target="_blank"
                             rel="noreferrer"
                             aria-label={`Details for ${check.name} on GitHub`}
-                            className="inline-flex h-5.5 shrink-0 items-center gap-0.75 rounded-xs pr-1 pl-1.5 text-xs leading-5.5 font-medium text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-5.5 shrink-0 items-center gap-0.75 rounded-sm pr-1 pl-1.5 text-xs leading-5.5 font-medium text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                           />
                         }
                       >
