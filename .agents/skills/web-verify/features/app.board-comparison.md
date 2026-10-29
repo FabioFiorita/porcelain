@@ -23,7 +23,7 @@ Start a clean instance. Sidebar review-row comparisons need a non-main worktree 
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
-Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed. Controls every pane bar draws live once in the `board-role-sets` block; a map lists the sets its board draws in `include`, and their roles are measured before its own. `pane bar Git` covers the Git split button (its height, the primary's icon, its label and layout from 768px, and the Git actions chevron) on the briefing, decision, closing page, file, split, commit, History, graph and Changes maps; `review bar` covers the Walkthrough | Agent summary switch and the files and decisions progress beside it.
+Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed. Controls every pane bar draws live once in the `board-role-sets` block; a map lists the sets its board draws in `include`, and their roles are measured before its own. `pane bar Git` covers the Git split button (its height, the primary's icon, its label and layout from 768px, and the Git actions chevron) on every map whose board draws a pane bar; `review view switch` covers the Walkthrough | Agent summary switch and `review progress` the files and decisions progress beside it. Role names stay unique within a map, because rows pair by name.
 
 ## Gotchas
 
@@ -34,6 +34,8 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 - Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
 - The board draws the Git split's rounded outline on its group, while the app draws it on the joined buttons, so the split compares height and each half; check its corners visually. A label hidden in a narrow pane fails from 768px, because the board draws it.
+- `minWidth` counts the viewport while the app folds bar labels and progress by pane width, so a pane narrower than the board's fails those roles as hidden: at 1440 with the sidebar and a docked panel the progress is hidden, and the board shows it. `progress count` fails with zero matches while the app does not wrap the counts in their own emphasised element, as the board does.
+- The review view switch appears only for a review with an agent summary; the review sample has one.
 - The closing page needs the review sample with Settings → Reviews & Git → Spec files on (choose Use these settings for this computer first), so both Not explained and Specs appear; the map opens Not explained from the briefing's walkthrough list at every width.
 - Settings paths: `/settings/general`, `/settings/git`, `/settings/computers`, `/settings/computers/this-computer`.
 
@@ -128,7 +130,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       }
     }
   ],
-  "review bar": [
+  "review view switch": [
     {
       "role": "review view switch",
       "properties": ["padding", "radius", "gap", "height"],
@@ -143,7 +145,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Walkthrough control",
       "properties": ["radius", "height"],
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"]"
@@ -151,16 +153,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
     },
     {
       "role": "Walkthrough label",
-      "properties": [
-        "fontSize",
-        "lineHeight",
-        "fontWeight",
-        "letterSpacing",
-        "colour"
-      ],
+      "properties": ["fontSize", "fontWeight", "letterSpacing", "colour"],
       "minWidth": 768,
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"] > span"
@@ -171,7 +167,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "properties": ["padding", "gap"],
       "minWidth": 768,
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"true\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:first-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Walkthrough\"]"
@@ -181,7 +177,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "role": "Agent summary control",
       "properties": ["radius", "height"],
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"]"
@@ -189,16 +185,10 @@ Names without `.html` are also accepted for the first mapped screen using that H
     },
     {
       "role": "Agent summary label",
-      "properties": [
-        "fontSize",
-        "lineHeight",
-        "fontWeight",
-        "letterSpacing",
-        "colour"
-      ],
+      "properties": ["fontSize", "fontWeight", "letterSpacing", "colour"],
       "minWidth": 768,
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"] > span"
@@ -209,12 +199,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
       "properties": ["padding", "gap"],
       "minWidth": 768,
       "board": {
-        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > [aria-selected=\"false\"]"
+        "selector": "[role=\"tablist\"][aria-label=\"Review view\"] > button:last-child"
       },
       "app": {
         "selector": "[aria-label=\"Review presentation\"] [aria-label=\"Agent summary\"]"
       }
-    },
+    }
+  ],
+  "review progress": [
     {
       "role": "progress",
       "properties": ["padding", "gap"],
@@ -464,7 +456,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   "review-page": {
     "html": "Narrative-desktop-briefing.html",
     "dark": "Narrative-desktop-briefing-D.html",
-    "include": ["pane bar Git", "review bar"],
+    "include": ["pane bar Git", "review view switch", "review progress"],
     "roles": [
       {
         "role": "review title",
@@ -554,7 +546,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   "review-decision": {
     "html": "Narrative-desktop.html",
     "dark": "Narrative-desktop-dark.html",
-    "include": ["pane bar Git", "review bar"],
+    "include": ["pane bar Git", "review view switch", "review progress"],
     "roles": [
       {
         "role": "decision title",
@@ -652,7 +644,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "trigger": "[aria-label=\"Briefing\"] button[aria-label=\"Not explained\"]"
       }
     ],
-    "include": ["pane bar Git", "review bar"],
+    "include": ["pane bar Git", "review view switch", "review progress"],
     "roles": [
       {
         "role": "completion card",
@@ -904,6 +896,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "review-panel": {
     "html": "Narrative-desktop-review-panel.html",
+    "include": ["pane bar Git", "review view switch", "review progress"],
     "roles": [
       {
         "role": "panel heading",
@@ -1553,6 +1546,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "pr-linked": {
     "html": "Narrative-desktop-pr-linked.html",
+    "include": ["pane bar Git", "review view switch", "review progress"],
     "roles": [
       {
         "role": "PR block",
@@ -1594,6 +1588,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "pr-viewer": {
     "html": "Narrative-desktop-pr-viewer.html",
+    "include": ["pane bar Git"],
     "roles": [
       {
         "role": "PR title",
@@ -2149,7 +2144,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
   },
   "file-split": {
     "html": "Narrative-desktop-split.html",
-    "include": ["pane bar Git"],
+    "include": ["pane bar Git", "review view switch"],
     "roles": [
       {
         "role": "pane bar",

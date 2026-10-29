@@ -98,7 +98,7 @@ it('accepts defaults, deduplicates widths and finds a board by its HTML name', (
   }
 });
 
-const mapsMarkdown = (include: string) =>
+const mapsMarkdown = (include: string, own = 'Timeline control') =>
   [
     '```json board-role-sets',
     JSON.stringify({
@@ -119,7 +119,7 @@ const mapsMarkdown = (include: string) =>
         include: [include],
         roles: [
           {
-            role: 'Timeline control',
+            role: own,
             board: { selector: 'button[title*="timeline" i]' },
             app: { selector: 'button[aria-label="Timeline"]' },
           },
@@ -143,5 +143,13 @@ it('measures a shared role set on every board that includes it, before its own r
 it('refuses a board that includes an unknown role set', () => {
   expect(() => parseBoardMaps(mapsMarkdown('pane bar'))).toThrow(
     'Board file-tab includes unknown role set pane bar. Choose pane bar Git.',
+  );
+});
+
+it('refuses a board whose shared and own roles share a name', () => {
+  expect(() =>
+    parseBoardMaps(mapsMarkdown('pane bar Git', 'Git button')),
+  ).toThrow(
+    'Board file-tab measures role Git button twice; rows pair by role name.',
   );
 });

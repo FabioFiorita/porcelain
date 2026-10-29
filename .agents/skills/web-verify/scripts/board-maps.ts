@@ -66,23 +66,28 @@ export function parseBoardMaps(markdown: string): Record<string, BoardMap> {
     block(markdown, 'board-maps'),
   );
   return Object.fromEntries(
-    Object.entries(maps).map(([name, { include = [], ...map }]) => [
-      name,
-      {
-        ...map,
-        roles: [
-          ...include.flatMap((set) => {
-            const shared = Object.hasOwn(sets, set) ? sets[set] : undefined;
-            if (shared === undefined)
-              throw new Error(
-                `Board ${name} includes unknown role set ${set}. Choose ${Object.keys(sets).join(', ')}.`,
-              );
-            return shared;
-          }),
-          ...map.roles,
-        ],
-      },
-    ]),
+    Object.entries(maps).map(([name, { include = [], ...map }]) => {
+      const roles = [
+        ...include.flatMap((set) => {
+          const shared = Object.hasOwn(sets, set) ? sets[set] : undefined;
+          if (shared === undefined)
+            throw new Error(
+              `Board ${name} includes unknown role set ${set}. Choose ${Object.keys(sets).join(', ')}.`,
+            );
+          return shared;
+        }),
+        ...map.roles,
+      ];
+      const repeated = roles.find(
+        (role, index) =>
+          roles.findIndex((other) => other.role === role.role) !== index,
+      );
+      if (repeated !== undefined)
+        throw new Error(
+          `Board ${name} measures role ${repeated.role} twice; rows pair by role name.`,
+        );
+      return [name, { ...map, roles }];
+    }),
   );
 }
 
