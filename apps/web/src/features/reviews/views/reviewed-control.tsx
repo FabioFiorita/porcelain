@@ -108,10 +108,6 @@ export function ReviewedControl({
               type="button"
               size={compact ? 'icon-xs' : 'xs'}
               variant={reviewed ? 'ghost' : 'outline'}
-              className={cn(
-                compact && 'size-5 ',
-                compact && reviewed && '    ',
-              )}
               aria-pressed={reviewed}
               disabled={pending}
               aria-label={label}

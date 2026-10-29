@@ -151,7 +151,7 @@ export function DocumentTabs({
   focused,
   leading,
   trailing,
-  countFirstTab,
+  firstTabCount,
   ...actions
 }: TabActions & {
   tabs: readonly string[];
@@ -162,9 +162,7 @@ export function DocumentTabs({
   focused: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
-  countFirstTab?: (
-    tab: (count: TabCount | undefined) => ReactNode,
-  ) => ReactNode;
+  firstTabCount: TabCount | undefined;
 }) {
   return (
     <div
@@ -219,7 +217,7 @@ export function DocumentTabs({
                 <span key={key} className="contents">
                   <DocumentTab
                     tabKey={key}
-                    countFirstTab={countFirstTab}
+                    count={key === 'handoff' ? firstTabCount : undefined}
                     active={key === active}
                     pinned={isPinned}
                     hasUnpinned={tabs.some(
@@ -255,22 +253,6 @@ export function DocumentTabs({
 }
 
 function DocumentTab({
-  countFirstTab,
-  ...props
-}: Omit<Parameters<typeof CountedTab>[0], 'count'> & {
-  countFirstTab?:
-    | ((tab: (count: TabCount | undefined) => ReactNode) => ReactNode)
-    | undefined;
-}) {
-  const tab = (count: TabCount | undefined) => (
-    <CountedTab {...props} count={count} />
-  );
-  return props.tabKey === 'handoff' && countFirstTab
-    ? countFirstTab(tab)
-    : tab(undefined);
-}
-
-function CountedTab({
   tabKey,
   count,
   active,
@@ -335,7 +317,7 @@ function CountedTab({
                   aria-describedby={count ? countId : undefined}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-chip px-2 text-xs font-medium transition-colors',
+                    'group flex h-7 max-w-[min(100cqw,calc(var(--spacing)*45))] shrink-0 cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent/50',

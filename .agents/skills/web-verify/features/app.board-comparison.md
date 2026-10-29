@@ -522,7 +522,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] h2"
+          "selector": "[aria-label=\"Review content\"] header h2"
         },
         "properties": [
           "fontSize",
@@ -539,7 +539,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] [role=\"tablist\"] [role=\"tab\"]",
+          "selector": "[aria-label=\"Document controls\"] [aria-label=\"Compare\"] [role=\"tab\"]",
           "index": 0
         }
       },
@@ -561,7 +561,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Review content\"] [role=\"checkbox\"]",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       }
     ]
   },

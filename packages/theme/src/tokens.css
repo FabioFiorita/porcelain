@@ -62,7 +62,6 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-paper: 0.75rem;
-  --radius-chip: 0.4375rem;
   --radius-checkbox: 0.25rem;
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);

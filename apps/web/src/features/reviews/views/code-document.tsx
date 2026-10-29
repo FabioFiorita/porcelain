@@ -544,7 +544,8 @@ function CodeSurface({
       )}
       {toolbar
         ? toolbar(collapseControl)
-        : !column && !collapseInHeader &&
+        : !column &&
+          !collapseInHeader &&
           collapseControl && (
             <div className="flex shrink-0 justify-end px-3">
               {collapseControl}
@@ -827,7 +828,8 @@ function CodeSurface({
                 </span>
               </Button>
             );
-            const comment = entry.comment && !paneFile && !column ? commentButton : null;
+            const comment =
+              entry.comment && !paneFile && !column ? commentButton : null;
             if (column)
               return (
                 <span className="flex items-center gap-1.5">
@@ -987,7 +989,7 @@ function CodeSurface({
                       className="hidden max-w-48 @code-wide/code:block"
                       text={entry.note ?? 'file'}
                     />
-                    <MessageSquarePlusIcon className="size-3.5 @code-wide/code:hidden" />
+                    <MessageSquarePlusIcon className="@code-wide/code:hidden" />
                   </TooltipTrigger>
                   <TooltipContent>{label}</TooltipContent>
                 </Tooltip>
@@ -1100,7 +1102,7 @@ function FileHeaderAction({
           />
         }
       >
-        <Icon className="size-3.5" strokeWidth={1.75} />
+        <Icon />
       </TooltipTrigger>
       <TooltipContent>
         {label}

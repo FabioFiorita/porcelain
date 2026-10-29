@@ -33,7 +33,7 @@ export function ChangeScopeSwitch({
             <TooltipTrigger
               render={<TabsTrigger value={scope} aria-label={label} />}
             >
-              <Icon className="size-3.5 @min-3xl/pane:hidden" />
+              <Icon className="@min-3xl/pane:hidden" />
               <span className="hidden whitespace-nowrap @min-3xl/pane:inline">
                 {label}
               </span>

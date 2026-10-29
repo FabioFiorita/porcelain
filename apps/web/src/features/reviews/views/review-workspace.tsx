@@ -17,12 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Kbd } from '@/components/ui/kbd';
 import { Button } from '@/components/ui/button';
-import { useAtomValue } from '@effect/atom-react';
-import { readReview, readReviewMarks } from '@porcelain/client/reviews';
-import {
-  revisionDecisionProgress,
-  type ReviewResponse,
-} from '@porcelain/client/reviews/rules';
+import type { ReviewResponse } from '@porcelain/client/reviews/rules';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -54,19 +49,14 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
-import { useSpecsApart } from '@/features/preferences/index';
+import { useTabLayoutStore } from '../store';
 import {
   anchorBase,
   type RevealComment,
 } from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import {
-  changesTabCount,
-  openToSideText,
-  reviewTabCount,
-  type TabCount,
-} from '../rules/tab-strip';
+import { openToSideText } from '../rules/tab-strip';
+import { useFirstTabCount } from '../queries/first-tab-count';
 import { DocumentTabs } from './document-tabs';
 import { type ChangeScopeControl, DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -554,6 +544,12 @@ function PaneView({
     else layout.focusPane(index, target);
   };
 
+  const firstTabCount = useFirstTabCount({
+    scope,
+    context,
+    review,
+    reviewTitle,
+  });
   return (
     <section
       ref={(element) => layout.bindPane(index, element)}
@@ -567,20 +563,7 @@ function PaneView({
       )}
     >
       <DocumentTabs
-        countFirstTab={(tab) => {
-          if (review?.reviewId)
-            return (
-              <ReviewTabProgress review={review} context={context}>
-                {tab}
-              </ReviewTabProgress>
-            );
-          if (reviewTitle) return tab(undefined);
-          return (
-            <ChangesTabCount scope={scope} context={context}>
-              {tab}
-            </ChangesTabCount>
-          );
-        }}
+        firstTabCount={firstTabCount}
         leading={
           index === 0 ? (
             <Tooltip>
@@ -664,62 +647,5 @@ function PaneView({
         </div>
       )}
     </section>
-  );
-}
-
-function ChangesTabCount({
-  scope,
-  context,
-  children,
-}: {
-  scope: PaneContext['scope'];
-  context: ConnectionContext;
-  children: (count: TabCount | undefined) => ReactNode;
-}) {
-  const count =
-    Option.getOrUndefined(
-      AsyncResult.value(useReviewOverview(scope, context.connection)),
-    )?.changes.length ?? 0;
-  return children(changesTabCount(count));
-}
-
-function ReviewTabProgress({
-  review,
-  context,
-  children,
-}: {
-  review: ReviewResponse;
-  context: ConnectionContext;
-  children: (count: TabCount) => ReactNode;
-}) {
-  const selection = useReviewRevisionSelection(review.reviewId ?? '');
-  const specsApart = useSpecsApart(context.connection);
-  const read = useAtomValue(
-    readReview({
-      connection: context.connection,
-      reviewId: review.reviewId ?? '',
-      ...(selection.revision === undefined
-        ? {}
-        : { revision: selection.revision }),
-    }),
-  );
-  const revision = Option.getOrUndefined(AsyncResult.value(read))?.revision;
-  const result = useAtomValue(
-    readReviewMarks({
-      connection: context.connection,
-      reviewId: review.reviewId ?? '',
-    }),
-  );
-  const marks = Option.getOrUndefined(AsyncResult.value(result));
-  const reviewed = revision
-    ? revisionDecisionProgress(revision, marks, {
-        specsApart,
-      }).reviewed
-    : 0;
-  return children(
-    reviewTabCount(
-      reviewed,
-      revision?.content.layers.length ?? review.layers.length,
-    ),
   );
 }

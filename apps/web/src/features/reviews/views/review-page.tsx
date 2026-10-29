@@ -581,9 +581,10 @@ function ReviewRevisionPage({
           pinned={[]}
           active="handoff"
           reviewTitle="Review"
-          countFirstTab={(tab) =>
-            tab(reviewTabCount(reviewedDecisions, review.layers.length))
-          }
+          firstTabCount={reviewTabCount(
+            reviewedDecisions,
+            review.layers.length,
+          )}
           side={null}
           focused={active}
           leading={navigation}

@@ -154,6 +154,34 @@ test('Changes explains how to get a review until the agent publishes one', async
   await expect.element(intro).not.toBeInTheDocument();
 });
 
+test('publishing a review keeps keyboard focus on the permanent first tab', async ({
+  workspace,
+  agent,
+  reviewLayout,
+}) => {
+  const firstTab = workspace
+    .getByRole('tablist', { name: 'Open documents', exact: true })
+    .getByRole('tab')
+    .first();
+  const changes = workspace.getByRole('tab', { name: 'Changes', exact: true });
+  await changes.click();
+  await expect.element(changes).toHaveFocus();
+  const continuity = reviewLayout.continuity(firstTab);
+  try {
+    await agent.publishArchitecture();
+    const review = workspace
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByRole('tab', { name: 'Review', exact: true });
+    await expect
+      .element(review)
+      .toHaveAccessibleDescription('0 of 9 decisions reviewed');
+    await expect.element(review).toHaveFocus();
+    await expect.poll(() => continuity.read().remounted).toBe(false);
+  } finally {
+    continuity.stop();
+  }
+});
+
 test('Changes lists its files above the diff, marks them reviewed and switches to the branch from the bar at desktop width', async ({
   workspace,
   repo,

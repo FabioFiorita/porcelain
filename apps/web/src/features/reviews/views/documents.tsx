@@ -242,10 +242,10 @@ function NoReviewIntro({
           <TruncatedText text={place} className="block min-w-0" />
         </div>
       )}
-      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-[-0.04em]">
+      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-title">
         No review yet
       </h2>
-      <p className="mt-4 max-w-180 text-lg leading-7 tracking-[-0.005em] text-foreground-2">
+      <p className="mt-4 max-w-180 text-lg leading-7 tracking-lead text-foreground-2">
         The agent has not published a review for this worktree. Ask it to
         publish one (it calls{' '}
         <code className="font-mono text-base leading-7 text-foreground">
