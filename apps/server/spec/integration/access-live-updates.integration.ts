@@ -125,9 +125,13 @@ test('a file rewritten outside right after a save is announced by its watcher', 
     },
   });
   expect(saved.status).toBe(200);
-  expect(await connection.next(isWorktree('files'))).toStrictEqual(
+  expect(await connection.next(isWorktree('files')), 'the edit').toStrictEqual(
     worktreeNotice(session, 'files'),
   );
+  expect(
+    await connection.next(isWorktree('files')),
+    "the save's watcher echo",
+  ).toStrictEqual(worktreeNotice(session, 'files'));
 
   await session.writeFile(path, 'Rewritten outside\n');
 

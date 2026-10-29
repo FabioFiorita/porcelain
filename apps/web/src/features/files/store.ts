@@ -21,7 +21,9 @@ export const readFileDraft = Atom.family(
   }) =>
     Atom.make((get) =>
       Effect.gen(function* () {
-        const file = yield* get.result(readTextFile(selection));
+        const file = yield* get.result(readTextFile(selection), {
+          suspendOnWaiting: true,
+        });
         const draft = yield* get.result(
           retainFileDraft({
             ...selection,
@@ -29,6 +31,8 @@ export const readFileDraft = Atom.family(
             fingerprint: 'kind' in file ? '' : (file.contentFingerprint ?? ''),
           }),
         );
+        if (!('kind' in file) && file.contentFingerprint)
+          yield* draft.refresh(file.text, file.contentFingerprint);
         return { file, draft };
       }),
     ),

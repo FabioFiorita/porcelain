@@ -116,7 +116,11 @@ function TextFileDocument({
   onOpen,
 }: FileDocumentProps) {
   const { connection } = context;
-  const { file, draft, state, reset } = useFileDraft(connection, scope, path);
+  const { file, draft, state, reset, edit } = useFileDraft(
+    connection,
+    scope,
+    path,
+  );
   const unreadable = 'kind' in file;
   if (unreadable && state.owner === null && state.text === state.savedText)
     return (
@@ -152,6 +156,7 @@ function TextFileDocument({
         draft={draft}
         draftState={state}
         reset={reset}
+        edit={edit}
         onOpen={onOpen}
       />
     </div>
@@ -171,6 +176,7 @@ function ReadableFileDocument({
   draft,
   draftState,
   reset,
+  edit,
   onOpen,
 }: FileDocumentProps & {
   text: string;
@@ -178,6 +184,7 @@ function ReadableFileDocument({
   draft: FileDraftHandle;
   draftState: FileDraftState;
   reset: (text: string, fingerprint: string) => void;
+  edit: (owner: string) => boolean;
 }) {
   const { preferences } = usePreferences();
   const { connection } = context;
@@ -283,7 +290,7 @@ function ReadableFileDocument({
                     : 'Edit'
                 }
                 onClick={() => {
-                  if (draft.claim(editorId)) setEditing(true);
+                  if (edit(editorId)) setEditing(true);
                 }}
               />
             }

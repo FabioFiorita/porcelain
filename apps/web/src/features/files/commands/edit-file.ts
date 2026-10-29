@@ -66,6 +66,7 @@ export function useFileDraft(
   path: string,
 ) {
   const {
+    result,
     value: { file, draft },
   } = useConfirmedRead(
     readFileDraft({
@@ -81,6 +82,11 @@ export function useFileDraft(
     state,
     reset: (text: string, fingerprint: string) => {
       Effect.runFork(draft.reset(text, fingerprint));
+    },
+    edit: (owner: string) => {
+      if (!result.waiting && !('kind' in file) && file.contentFingerprint)
+        Effect.runFork(draft.refresh(file.text, file.contentFingerprint));
+      return draft.claim(owner);
     },
   };
 }

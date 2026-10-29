@@ -99,11 +99,78 @@ describe('portable file draft', () => {
     ]);
   });
 
-  it('preserves owned and unsaved retained drafts when a fresh file seed arrives', async () => {
+  it('follows the disk while an editor holds a clean draft and saves against the new version', async () => {
+    const application = applicationRuntime();
+    const drafts = application.runSync(FileDrafts);
+    const writes: { text: string; expectedFingerprint: string }[] = [];
+    const input = {
+      environmentId: 'open-editor',
+      scope: { projectId: 'p', worktreeId: 'w' },
+      path: 'note.md',
+      writer: {
+        write: (value: { text: string; expectedFingerprint: string }) => {
+          writes.push({
+            text: value.text,
+            expectedFingerprint: value.expectedFingerprint,
+          });
+          return Effect.succeed('v3');
+        },
+      },
+    };
+    const draft = await application.runPromise(
+      drafts.retain({ ...input, text: 'old disk', fingerprint: 'v1' }),
+    );
+    draft.claim('editor');
+    draft.attachEditor('editor');
+    await application.runPromise(
+      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
+    );
+    expect(draft.state.value).toMatchObject({
+      text: 'new disk',
+      savedText: 'new disk',
+      fingerprint: 'v2',
+      owner: 'editor',
+    });
+    await application.runPromise(draft.finishEditing('editor', () => {}));
+    expect(draft.claim('editor')).toBe(true);
+    expect(draft.state.value.text).toBe('new disk');
+    await application.runPromise(draft.change('edit of new disk'));
+    expect(await application.runPromise(draft.save())).toBe(true);
+    expect(writes).toEqual([
+      { text: 'edit of new disk', expectedFingerprint: 'v2' },
+    ]);
+  });
+
+  it.each([
+    {
+      name: 'an owned unsaved draft',
+      owned: true,
+      edit: 'unsaved edit',
+      seed: { text: 'new disk', fingerprint: 'v2' },
+    },
+    {
+      name: 'a released unsaved draft',
+      owned: false,
+      edit: 'unsaved edit',
+      seed: { text: 'new disk', fingerprint: 'v2' },
+    },
+    {
+      name: 'an owned clean draft read without a version',
+      owned: true,
+      edit: undefined,
+      seed: { text: '', fingerprint: '' },
+    },
+    {
+      name: 'a released clean draft read without a version',
+      owned: false,
+      edit: undefined,
+      seed: { text: '', fingerprint: '' },
+    },
+  ])('keeps $name when a fresh file seed arrives', async (row) => {
     const application = applicationRuntime();
     const drafts = application.runSync(FileDrafts);
     const input = {
-      environmentId: 'reopen',
+      environmentId: 'kept',
       scope: { projectId: 'p', worktreeId: 'w' },
       path: 'note.md',
       writer: {
@@ -114,25 +181,14 @@ describe('portable file draft', () => {
       drafts.retain({ ...input, text: 'old disk', fingerprint: 'v1' }),
     );
     draft.claim('editor');
-    await application.runPromise(
-      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
-    );
+    if (row.edit) await application.runPromise(draft.change(row.edit));
+    if (!row.owned) draft.release('editor');
+    await application.runPromise(drafts.retain({ ...input, ...row.seed }));
     expect(draft.state.value).toMatchObject({
-      text: 'old disk',
+      text: row.edit ?? 'old disk',
       savedText: 'old disk',
       fingerprint: 'v1',
-      owner: 'editor',
-    });
-    await application.runPromise(draft.change('unsaved edit'));
-    draft.release('editor');
-    await application.runPromise(
-      drafts.retain({ ...input, text: 'new disk', fingerprint: 'v2' }),
-    );
-    expect(draft.state.value).toMatchObject({
-      text: 'unsaved edit',
-      savedText: 'old disk',
-      fingerprint: 'v1',
-      owner: null,
+      owner: row.owned ? 'editor' : null,
     });
   });
 
