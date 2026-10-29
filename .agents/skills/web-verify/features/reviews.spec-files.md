@@ -33,7 +33,7 @@ Open all specs opens a continuous document containing just those files, with ind
 
 1. With the setting off, open Review → Changes. Expect README.md, search.spec.ts and search.ts in their original order, with no Specs section.
 2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings → Reviews & Git. On a fresh instance choose Use these settings for this computer first ([its settings](preferences.reviews-git.md)), then switch Spec files on and Back.
-3. Open Review and expand Specs · 1 files. Open all specs shows "1 uncommitted spec change", its file diff and reviewed control. Open File review actions beside the count to mark all, or use the row checkbox. Mark it and verify `$C server reviewed-files` contains search.spec.ts only.
+3. Open Review and expand Specs · 1 file. Open all specs shows "1 uncommitted spec change", its file diff and reviewed control. Open File review actions beside the count to mark all, or use the row checkbox. Mark it and verify `$C server reviewed-files` contains search.spec.ts only.
 4. Open Review again. Specs remains a visible counted section but its contents start collapsed. Expand its summary to see Open all specs and search.spec.ts. Expand the file in its document to read code.
 5. Reload: the collapse setting remains, and other devices on this computer group specs too. Turn it off through Settings and remove the two setup files when finished.
 6. With the review sample (`$C start --review-sample`), open All changes and verify its count remains 55, while Specs is eight files the spine ends with a Specs stop and the Review panel's walkthrough ends with an "Open all specs" row. Marks in Specs do not mark ordinary source files or record any decision.

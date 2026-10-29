@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { commentThread as thread } from '../../../../spec/kit/comment-thread.ts';
 import { readinessItems } from './readiness.ts';
 
 type Input = Parameters<typeof readinessItems>[0];
 type Review = NonNullable<Input['review']>;
-type CommentThread = Input['threads'][number];
 
 const clean: Review = {
   notExplained: [],
@@ -13,24 +13,6 @@ const clean: Review = {
     current: true,
   },
 };
-
-function thread(
-  authors: ('reviewer' | 'agent')[],
-  resolved = false,
-): CommentThread {
-  return {
-    id: '00000000-0000-4000-8000-000000000001',
-    worktreeId: 'a'.repeat(32),
-    anchor: { kind: 'file', filePath: 'a.ts' },
-    resolved,
-    revision: 1,
-    messages: authors.map((author, index) => ({
-      id: `00000000-0000-4000-8000-00000000001${index}`,
-      body: 'Comment',
-      author,
-    })),
-  };
-}
 
 describe('readinessItems', () => {
   it('reports a fully reviewed, explained and proven change as ready', () => {

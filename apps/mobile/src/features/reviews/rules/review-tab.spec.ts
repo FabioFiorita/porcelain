@@ -45,14 +45,21 @@ it.each([
   },
 );
 
-it('counts the same completed decisions as the page, requiring both marks and reviewed files', () => {
+it('counts decisions by their saved marks, as the review list does, whatever their files', () => {
   expect(reviewTab(true, progress, { kind: 'worktree' })).toEqual({
     title: 'Review',
-    progress: '1/2',
+    progress: '2/2',
   });
   expect(
-    reviewTab(true, { ...progress, items: [] }, { kind: 'worktree' }),
-  ).toEqual({ title: 'Review', progress: '0/2' });
+    reviewTab(
+      true,
+      {
+        ...progress,
+        decisions: new Map([['first', { reviewed: true, stale: false }]]),
+      },
+      { kind: 'worktree' },
+    ),
+  ).toEqual({ title: 'Review', progress: '1/2' });
   expect(
     reviewTab(
       true,
@@ -60,19 +67,6 @@ it('counts the same completed decisions as the page, requiring both marks and re
       { kind: 'worktree' },
     ),
   ).toEqual({ title: 'Review', progress: '0/2' });
-  expect(
-    reviewTab(
-      true,
-      {
-        ...progress,
-        items: progress.items.map((item) => ({
-          ...item,
-          reviewStatus: 'reviewed',
-        })),
-      },
-      { kind: 'worktree' },
-    ),
-  ).toEqual({ title: 'Review', progress: '2/2' });
 });
 
 it('omits progress for a zero-decision review', () => {

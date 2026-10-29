@@ -192,7 +192,6 @@ export type Limits = {
     maxWatchedWorktrees: number;
     eventBuffer: number;
     burst: Duration.Duration;
-    announcedEdit: Duration.Duration;
     heartbeat: Duration.Duration;
     ping: Duration.Duration;
     messageBytes: number;
@@ -428,7 +427,6 @@ export const LIMITS: Limits = {
     maxWatchedWorktrees: 64,
     eventBuffer: 256,
     burst: Duration.millis(150),
-    announcedEdit: Duration.millis(300),
     heartbeat: Duration.seconds(25),
     ping: Duration.seconds(30),
     messageBytes: 64 * KIBIBYTE,

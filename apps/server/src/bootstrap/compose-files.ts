@@ -26,7 +26,6 @@ import { gitIgnoredEntriesReaderLayer } from '../adapters/files/git-ignored-entr
 import { gitWorktreePathsReaderLayer } from '../adapters/files/git-worktree-paths-reader.ts';
 import { filesRoutes } from '../http/routes/files/files-api.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import { EditAnnouncementWriter } from '../ports/edit-announcement-writer.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { EditFileUseCase } from '../use-cases/files/edit-file.ts';
@@ -42,7 +41,6 @@ type FilesDependencies = {
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
   invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
-  editAnnouncements: EditAnnouncementWriter;
 };
 
 export function composeFiles(
@@ -80,7 +78,6 @@ export function composeFiles(
       dependencies.invalidateReviewedMarks,
     ),
     Layer.succeed(EventPublisher, events),
-    Layer.succeed(EditAnnouncementWriter, dependencies.editAnnouncements),
     Layer.succeed(Logger, logger),
     gitWorktreePathsReaderLayer(worktreeAccess, limits.git),
   );

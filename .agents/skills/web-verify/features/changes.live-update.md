@@ -81,6 +81,8 @@ Repeat the open-file update with the file tab's context menu → Open to the sid
 
 With an unsaved edit in one pane, repeat the disk update. The other pane shows the disk text while the editor keeps its draft. Done reports the existing conflict; Reload shows the disk text. Follow [files.edit-conflict](files.edit-conflict.md) for the conflict controls and independent disk readback.
 
+Edit the open file, save it with Done, and rewrite it on disk as soon as Edit returns. The view shows the rewritten text, not the saved one: the save never hides a later outside change.
+
 Automated coverage: `changes-live-update.test.tsx`, `files-disk-refresh.test.tsx`.
 
 ## Gotchas

@@ -1,4 +1,5 @@
 import { stopDone, walkthroughStops } from './walkthrough.ts';
+import { decisionMarked } from './review-list.ts';
 import type { ReviewRevision } from './verdict.ts';
 import type { ReviewMarks, ReviewStatus } from './review.ts';
 export function revisionReviewItems(
@@ -25,12 +26,7 @@ export function revisionDecisionStates(
       layer.id,
       {
         stale: false,
-        reviewed:
-          marks?.decisions.some(
-            (mark) =>
-              mark.layerId === layer.id &&
-              mark.fingerprint === layer.fingerprint,
-          ) === true,
+        reviewed: decisionMarked(marks, layer),
       },
     ]),
   );
