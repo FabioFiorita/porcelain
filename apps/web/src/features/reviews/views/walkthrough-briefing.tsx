@@ -151,7 +151,8 @@ export function WalkthroughBriefing({
                 )}
                 {stale > 0 && (
                   <span className="px-3 text-ui leading-4 text-warn">
-                    {stale} decisions have code moved
+                    {stale} {stale === 1 ? 'decision has' : 'decisions have'}{' '}
+                    code moved
                   </span>
                 )}
                 {unexplained && (

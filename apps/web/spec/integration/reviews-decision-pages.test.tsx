@@ -562,3 +562,58 @@ test.for([414, 360])(
     }
   },
 );
+
+test('in the branch Review tab the completion card counts the open comments the Review panel beside it lists', async ({
+  agent,
+  render,
+  repo,
+}) => {
+  await agent.publishArchitecture();
+  await agent.comment(
+    repo.readme.path,
+    'Should the readme mention revocation?',
+  );
+  const workspace = await render.workspace();
+  const review = workspace.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await review
+    .getByRole('button', { name: 'Continue at decision 3', exact: true })
+    .click();
+  await review.getByRole('button', { name: /, jump to a stop$/ }).click();
+  await workspace
+    .getByRole('menuitem', { name: 'Not explained', exact: true })
+    .click();
+  await expect
+    .element(
+      review
+        .getByRole('region', { name: 'Review completion', exact: true })
+        .getByRole('region', { name: 'Still open', exact: true }),
+    )
+    .toMatchTextContent('Comments2 open');
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click();
+  const readiness = workspace
+    .getByRole('dialog')
+    .getByRole('region', { name: 'Readiness', exact: true });
+  await expect
+    .element(
+      readiness.getByRole('button', {
+        name: '1 comment waiting on the agent',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      readiness.getByRole('button', {
+        name: '1 comment waiting on you',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});

@@ -946,7 +946,7 @@ function CodeSurface({
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">
-                      Specs · {specCount} files
+                      Specs · {specCount} {specCount === 1 ? 'file' : 'files'}
                     </span>
                   )}
                 {(collapsible || entries.length > 1) && (
