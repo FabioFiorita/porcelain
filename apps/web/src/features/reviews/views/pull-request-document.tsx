@@ -660,7 +660,7 @@ function UnavailablePullRequest({
           {action.label}
         </Button>
       )}
-      {(action.kind === 'retry' || action.kind === 'copy') && (
+      {action.kind !== 'install' && (
         <Button variant="outline" disabled={retrying} onClick={onRetry}>
           Try again
         </Button>
