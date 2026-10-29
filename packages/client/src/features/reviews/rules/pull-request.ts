@@ -1,3 +1,4 @@
+import { counted } from './counted.ts';
 import type {
   ListPullRequestsResponse,
   ReadPullRequestResponse,
@@ -77,24 +78,25 @@ export function pullRequestChecks(
   }
   if (checks.length === 0)
     return { tone: 'none', label: 'No checks', short: 'No checks' };
+  const checksLabel = counted(checks.length, 'check');
   const failed = checks.filter((check) => checkOutcome(check) === 'failed');
   if (failed.length > 0)
     return {
       tone: 'failed',
-      label: `${failed.length} of ${total} checks failed`,
+      label: `${failed.length} of ${checksLabel} failed`,
       short: `${failed.length} failed`,
     };
   const running = checks.filter((check) => checkOutcome(check) === 'running');
   if (running.length > 0)
     return {
       tone: 'running',
-      label: `${running.length} of ${total} checks running`,
+      label: `${running.length} of ${checksLabel} running`,
       short: `${running.length} running`,
     };
   return {
     tone: 'passed',
-    label: `${total} ${checks.length === 1 && !truncated ? 'check' : 'checks'} passed`,
-    short: `${total} ${checks.length === 1 && !truncated ? 'check' : 'checks'}`,
+    label: `${checksLabel} passed`,
+    short: checksLabel,
   };
 }
 

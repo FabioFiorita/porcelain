@@ -172,7 +172,7 @@ it.each([
     pullRequestChecks([{ name: 'ci', status: 'COMPLETED', conclusion }], false),
   ).toEqual({
     tone: 'failed',
-    label: '1 of 1 checks failed',
+    label: '1 of 1 check failed',
     short: '1 failed',
   });
 });
@@ -182,7 +182,7 @@ it.each(['QUEUED', 'REQUESTED', 'WAITING', 'PENDING', 'IN_PROGRESS'])(
   (status) => {
     expect(pullRequestChecks([{ name: 'ci', status }], false)).toEqual({
       tone: 'running',
-      label: '1 of 1 checks running',
+      label: '1 of 1 check running',
       short: '1 running',
     });
   },
