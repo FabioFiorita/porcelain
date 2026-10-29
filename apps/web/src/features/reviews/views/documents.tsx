@@ -36,6 +36,7 @@ import { StateNotice } from '@/shared/views/state-notice';
 import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export type DocumentProps = {
   scope: ReviewScope;
@@ -310,7 +311,7 @@ export function PlainChangesDocument({
             target={interaction.toolbarTarget}
             barActions={null}
             title={changesTitle(specsOnly, interaction.entry)}
-            subtitle={`${changes.length} file${changes.length === 1 ? '' : 's'}`}
+            subtitle={counted(changes.length, 'file')}
           >
             {collapseControl}
             <MarkAllReviewed

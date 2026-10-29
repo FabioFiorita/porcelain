@@ -3,6 +3,7 @@ import { CheckIcon, CircleAlertIcon, CircleXIcon } from 'lucide-react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { readReview, readReviewMarks } from '@porcelain/client/reviews';
 import {
+  counted,
   revisionDecisionProgress,
   type ReviewMarks,
 } from '@porcelain/client/reviews/rules';
@@ -209,7 +210,7 @@ function PublishedReadiness({
         name="Decisions"
         label={
           progress
-            ? `${progress.reviewed} of ${progress.total} decisions reviewed`
+            ? `${progress.reviewed} of ${counted(progress.total, 'decision')} reviewed`
             : `Decisions ${unavailable}`
         }
         value={decisionValue}

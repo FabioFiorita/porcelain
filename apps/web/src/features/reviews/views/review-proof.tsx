@@ -1,4 +1,5 @@
 import {
+  counted,
   publishedLabel,
   verdictSections,
   type ReviewRevision,
@@ -39,9 +40,9 @@ export function ReviewProof({
           empty
             ? undefined
             : [
-                `${passed} ${passed === 1 ? 'check' : 'checks'} passed`,
+                `${counted(passed, 'check')} passed`,
                 failures > 0 && `${failures} failed`,
-                assets > 0 && `${assets} ${assets === 1 ? 'asset' : 'assets'}`,
+                assets > 0 && counted(assets, 'asset'),
               ]
                 .filter(Boolean)
                 .join(' · ')

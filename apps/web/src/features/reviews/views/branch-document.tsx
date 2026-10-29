@@ -22,6 +22,7 @@ import type { CodeEntry } from '../adapters/code-entries';
 import { useReviewedMarks } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import {
+  counted,
   basename,
   type BranchChangeItem,
   type DiffContent,
@@ -255,7 +256,7 @@ function BranchDiffs({
               target={interaction.toolbarTarget}
               barActions={null}
               title="Branch"
-              subtitle={`${items.length} ${items.length === 1 ? 'file' : 'files'} changed`}
+              subtitle={`${counted(items.length, 'file')} changed`}
             >
               {collapseControl}
               <MarkAllReviewed
@@ -330,9 +331,7 @@ function BranchHeader({
             {head} since {refLabel(branch.base)}
           </h2>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-            <span>
-              {branch.commits} {branch.commits === 1 ? 'commit' : 'commits'}
-            </span>
+            <span>{counted(branch.commits, 'commit')}</span>
             <span>
               from{' '}
               <span className="font-mono">{shortOid(branch.mergeBaseOid)}</span>{' '}

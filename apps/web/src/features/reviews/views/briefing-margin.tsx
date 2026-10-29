@@ -1,5 +1,6 @@
 import { refLabel } from '@porcelain/client/history/rules';
 import {
+  counted,
   verdictSections,
   type DurableReviewRead,
   type ReviewRevision,
@@ -161,9 +162,7 @@ export function BriefingRemoved({ revision }: { revision: ReviewRevision }) {
     return null;
   return (
     <section aria-label="Removed" className="flex min-w-0 flex-col text-xs">
-      <MarginHeading
-        count={`${sections.removed.fileCount} ${sections.removed.fileCount === 1 ? 'file' : 'files'}`}
-      >
+      <MarginHeading count={counted(sections.removed.fileCount, 'file')}>
         Removed
       </MarginHeading>
       <div className="flex flex-col divide-y border-y">

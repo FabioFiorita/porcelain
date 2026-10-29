@@ -36,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`
    Expect: tab "Review", region "Review walkthrough".
 2. Click button `Review`
-   Expect: in the dialog, region "Readiness" with buttons "2 checks passed", the Proof row, "0 of 1 decisions reviewed" and "1 comment waiting on you".
+   Expect: in the dialog, region "Readiness" with buttons "2 checks passed", the Proof row, "0 of 1 decision reviewed" and "1 comment waiting on you".
 3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button `Checks ran before the latest changes`
    Expect: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; the Proof row reads "Outdated".
 4. Click button `Checks ran before the latest changes`

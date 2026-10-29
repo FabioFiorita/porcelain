@@ -83,6 +83,7 @@ export {
   type ReadinessKey,
   type ReadinessTone,
 } from './readiness.ts';
+export { counted, plural } from './counted.ts';
 export { groupSpecPaths, isSpecPath } from './spec-paths.ts';
 export {
   briefingTitle,

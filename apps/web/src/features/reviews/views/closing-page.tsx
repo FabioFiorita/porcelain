@@ -11,6 +11,8 @@ import {
 import { useState, type ReactNode } from 'react';
 import { spansLabel } from '@porcelain/client/changes/rules';
 import {
+  counted,
+  plural,
   changeAnchor,
   filesReviewed,
   type reviewListStatus,
@@ -106,7 +108,7 @@ export function ClosingPage({
               title="Not explained"
               lead={
                 unexplained.paths.length > 0
-                  ? `${unexplained.paths.length} changed ${unexplained.paths.length === 1 ? 'file has' : 'files have'} no decision pointing at ${unexplained.paths.length === 1 ? 'it' : 'them'}. Read ${unexplained.paths.length === 1 ? 'it' : 'them'} before calling the review done, or ask the agent to explain.`
+                  ? `${unexplained.paths.length} changed ${plural(unexplained.paths.length, 'file has', 'files have')} no decision pointing at ${plural(unexplained.paths.length, 'it', 'them')}. Read ${plural(unexplained.paths.length, 'it', 'them')} before calling the review done, or ask the agent to explain.`
                   : 'Every changed file belongs to a decision, but some lines inside them have no explanation.'
               }
             />
@@ -117,9 +119,8 @@ export function ClosingPage({
                   className="flex justify-between gap-3.5 border-b pb-1.5 text-xs leading-4 text-muted-foreground"
                 >
                   <span className="font-medium tabular-nums">
-                    {unexplained.partial.length}{' '}
-                    {unexplained.partial.length === 1 ? 'place' : 'places'}{' '}
-                    inside explained files
+                    {counted(unexplained.partial.length, 'place')} inside
+                    explained files
                   </span>
                   <span className="hidden @2xl/review:inline">
                     no step covers these lines
@@ -169,9 +170,8 @@ export function ClosingPage({
                   className="flex justify-between pb-1 text-xs leading-4 text-muted-foreground"
                 >
                   <span className="font-medium">
-                    {unexplained.paths.length}{' '}
-                    {unexplained.paths.length === 1 ? 'file' : 'files'} no
-                    decision points at
+                    {counted(unexplained.paths.length, 'file')} no decision
+                    points at
                   </span>
                   <span className="tabular-nums">
                     {filesReviewed(unexplained.paths, items).reviewed} of{' '}
@@ -291,10 +291,10 @@ function CompletionCard({
           <h3 className="text-card-title font-semibold">
             {allDecisions
               ? 'Every decision is reviewed'
-              : `${status.reviewed} of ${status.total} decisions reviewed`}
+              : `${status.reviewed} of ${counted(status.total, 'decision')} reviewed`}
           </h3>
           <p className="text-muted-foreground tabular-nums">
-            {files.reviewed} of {files.total} files reviewed
+            {files.reviewed} of {counted(files.total, 'file')} reviewed
           </p>
         </div>
       </header>
@@ -336,10 +336,10 @@ function CompletionCard({
       >
         <h4 className="mb-1 font-medium text-muted-foreground">Still open</h4>
         <OpenRow label="Not explained">
-          {count(unexplained?.paths.length ?? 0, 'file')}
+          {counted(unexplained?.paths.length ?? 0, 'file')}
         </OpenRow>
         <OpenRow label="Specs">
-          {count(specs?.paths.length ?? 0, 'file')}
+          {counted(specs?.paths.length ?? 0, 'file')}
         </OpenRow>
         <OpenRow label="Comments">
           {openComments === 0 ? 'None open' : `${openComments} open`}
@@ -408,10 +408,6 @@ function groupLabel(group: CompletionGroup) {
   if (group === 'Waiting on agent') return 'Waiting on the agent';
   if (group === 'Closed') return 'Closed';
   return 'Still needs you';
-}
-
-function count(total: number, noun: string) {
-  return `${total} ${total === 1 ? noun : `${noun}s`}`;
 }
 
 function Need({ met, children }: { met: boolean; children: ReactNode }) {

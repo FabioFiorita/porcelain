@@ -20,7 +20,7 @@ api:
 
 # reviews.mark-all
 
-The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 files reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
+The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 file reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
 ## How to get to it (user POV)
 
@@ -42,9 +42,9 @@ printf 'Notes to review\n' > "$REPO/NOTES.md"
    Expect: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md"). `$C server reviewed-files` lists NOTES.md and README.md with their fingerprints.
    Proof before continuing: reload now: Unmark all and both fingerprints persist. `$C server reviewed-files` after each mark holds both fingerprints; after step 5 it holds none and the reload must show Mark all 2 files reviewed. Bulk PUT/DELETE answer 200.
 
-3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then wait for button `Mark all 1 files reviewed`
-   Expect: button "Mark all 1 files reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".
-4. Click button `Mark all 1 files reviewed`
+3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then wait for button `Mark all 1 file reviewed`
+   Expect: button "Mark all 1 file reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".
+4. Click button `Mark all 1 file reviewed`
    Expect: button "Unmark all" enabled; status "Marked 1 file. Skipped 1." (README.md was already reviewed); "Unmark NOTES.md as unreviewed".
 5. Click button `Unmark all`
    Expect: button "Mark all 2 files reviewed" enabled; "Mark README.md as reviewed" and "Mark NOTES.md as reviewed". `$C server reviewed-files` shows `"marks": []`.

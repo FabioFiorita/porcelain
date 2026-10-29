@@ -42,7 +42,7 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
 
   await repo.write(notes, 'Notes changed after the review\n');
   const markOne = workspace.getByRole('button', {
-    name: 'Mark all 1 files reviewed',
+    name: 'Mark all 1 file reviewed',
     exact: true,
   });
   await expect.element(markOne).toBeEnabled();

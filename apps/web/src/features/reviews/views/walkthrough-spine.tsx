@@ -47,14 +47,16 @@ export function WalkthroughSpine({
     if (!viewport) return;
     const stop = node.getBoundingClientRect();
     const view = viewport.getBoundingClientRect();
-    if (stop.top < view.top || stop.bottom > view.bottom)
+    const top = Math.max(view.top, 0);
+    const bottom = Math.min(view.bottom, window.innerHeight);
+    if (stop.top < top || stop.bottom > bottom)
       viewport.scrollBy({
-        top: stop.top - view.top - (view.height - stop.height) / 2,
+        top: stop.top - top - (bottom - top - stop.height) / 2,
       });
   };
   return (
-    <div className="sticky top-0 hidden h-fit w-14 shrink-0 border-r @2xl/review:block @5xl/review:w-18">
-      <ScrollArea className="[&>[data-slot=scroll-area-viewport]]:max-h-[100cqh]">
+    <div className="sticky top-0 hidden h-fit max-h-[100cqh] w-14 shrink-0 grid-rows-[minmax(0,1fr)] border-r @2xl/review:grid @5xl/review:w-18">
+      <ScrollArea className="min-h-0">
         <nav
           aria-label="Walkthrough progress"
           className="flex flex-col items-center gap-6 py-6"

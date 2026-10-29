@@ -566,7 +566,7 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   await status.press('Escape');
   await expect(pairedPage.getByRole('tooltip')).toHaveCount(0);
   await expect(status).toBeFocused();
-  const progress = row.getByLabel('0 of 1 decisions reviewed', {
+  const progress = row.getByLabel('0 of 1 decision reviewed', {
     exact: true,
   });
   await expect(progress).toHaveCSS('color', 'rgb(98, 98, 107)');
@@ -672,8 +672,8 @@ for (const { width, colorScheme } of [
         'background-color',
         colorScheme === 'dark' ? 'rgb(11, 11, 12)' : 'rgb(243, 243, 244)',
       );
-      const review = sidebar.getByRole('link', { name: /decisions reviewed/ });
-      const progress = review.getByLabel('0 of 1 decisions reviewed', {
+      const review = sidebar.getByRole('link', { name: /decisions? reviewed/ });
+      const progress = review.getByLabel('0 of 1 decision reviewed', {
         exact: true,
       });
       await expect(progress).toHaveCSS(

@@ -19,6 +19,7 @@ import { useElement } from '@/shared/hooks/use-element';
 import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
+  counted,
   neighbourStop,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
@@ -501,14 +502,14 @@ function ReviewRevisionPage({
         aria-label="Review progress"
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
       >
-        {reviewedFiles} of {items.length} files
+        {reviewedFiles} of {counted(items.length, 'file')}
         <ProgressMeter
           label="Files reviewed"
           value={reviewedFiles}
           max={items.length}
         />
         <span>
-          {reviewedDecisions} of {review.layers.length} decisions
+          {reviewedDecisions} of {counted(review.layers.length, 'decision')}
         </span>
       </span>
     </>
@@ -1108,7 +1109,7 @@ function FilesMark({
         <CheckIcon />
         {files.length === 0
           ? 'Every file reviewed'
-          : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
+          : `Mark ${counted(files.length, 'file')} reviewed`}
       </button>
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-2 text-xs text-destructive">
