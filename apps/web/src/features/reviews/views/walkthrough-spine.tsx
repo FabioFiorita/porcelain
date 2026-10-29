@@ -4,8 +4,10 @@ import {
   FileQuestionIcon,
   FlaskConicalIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
   TooltipContent,
@@ -36,51 +38,75 @@ export function WalkthroughSpine({
           stops.findIndex((stop) => stop.key === current),
           lastDone,
         );
+  const [revealed, setRevealed] = useState<WalkthroughKey>();
+  const reveal = (key: WalkthroughKey) => (node: HTMLElement | null) => {
+    if (!node || key !== current || revealed === key) return;
+    setRevealed(key);
+    const viewport = node.closest('[data-slot=scroll-area-viewport]');
+    if (!viewport) return;
+    const stop = node.getBoundingClientRect();
+    const view = viewport.getBoundingClientRect();
+    if (stop.top < view.top || stop.bottom > view.bottom)
+      viewport.scrollBy({
+        top: stop.top - view.top - (view.height - stop.height) / 2,
+      });
+  };
   return (
-    <nav
-      aria-label="Walkthrough progress"
-      className="sticky top-0 hidden h-fit w-14 shrink-0 flex-col items-center gap-6 border-r py-6 @2xl/review:flex @5xl/review:w-18"
-    >
-      {stops.map((stop, index) => (
-        <div key={stop.key} className="relative flex flex-col items-center">
-          {index < stops.length - 1 && (
-            <span
-              aria-hidden="true"
-              className={cn(
-                'absolute top-full left-1/2 h-7 -translate-x-1/2 -translate-y-0.5',
-                index < reached ? 'w-0.75 bg-brand' : 'w-px bg-border-strong',
-              )}
-            />
-          )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="relative"
-                  aria-label={spineLabel(stop)}
-                  aria-current={stop.key === current ? 'step' : undefined}
-                  onClick={() => onGo(stop.key)}
-                />
-              }
+    <div className="sticky top-0 hidden h-fit w-14 shrink-0 border-r @2xl/review:block @5xl/review:w-18">
+      <ScrollArea className="[&>[data-slot=scroll-area-viewport]]:max-h-[100cqh]">
+        <nav
+          aria-label="Walkthrough progress"
+          className="flex flex-col items-center gap-6 py-6"
+        >
+          {stops.map((stop, index) => (
+            <div
+              key={stop.key}
+              ref={reveal(stop.key)}
+              className="relative flex flex-col items-center"
             >
-              <span
-                className={cn(
-                  'grid size-6 place-items-center rounded-full border border-border-strong bg-card text-muted-foreground',
-                  stop.key === current &&
-                    'border-brand text-brand ring-4 ring-brand-soft',
-                  done(stop) && 'border-brand bg-brand text-brand-foreground',
-                )}
-              >
-                <SpineMark stop={stop} done={done(stop)} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="right">{spineLabel(stop)}</TooltipContent>
-          </Tooltip>
-        </div>
-      ))}
-    </nav>
+              {index < stops.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'absolute top-full left-1/2 h-7 -translate-x-1/2 -translate-y-0.5',
+                    index < reached
+                      ? 'w-0.75 bg-brand'
+                      : 'w-px bg-border-strong',
+                  )}
+                />
+              )}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="relative"
+                      aria-label={spineLabel(stop)}
+                      aria-current={stop.key === current ? 'step' : undefined}
+                      onClick={() => onGo(stop.key)}
+                    />
+                  }
+                >
+                  <span
+                    className={cn(
+                      'grid size-6 place-items-center rounded-full border border-border-strong bg-card text-muted-foreground',
+                      stop.key === current &&
+                        'border-brand text-brand ring-4 ring-brand-soft',
+                      done(stop) &&
+                        'border-brand bg-brand text-brand-foreground',
+                    )}
+                  >
+                    <SpineMark stop={stop} done={done(stop)} />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right">{spineLabel(stop)}</TooltipContent>
+              </Tooltip>
+            </div>
+          ))}
+        </nav>
+      </ScrollArea>
+    </div>
   );
 }
 function SpineMark({ stop, done }: { stop: WalkthroughStop; done: boolean }) {
