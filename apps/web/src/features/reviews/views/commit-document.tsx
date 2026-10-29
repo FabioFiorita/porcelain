@@ -203,7 +203,7 @@ export function CommitDocument({
                     )
                   }
                 >
-                  <TabsList className="h-7">
+                  <TabsList>
                     {commit.commit.parentOids.map((parentOid, index) => (
                       <TabsTrigger key={parentOid} value={String(index + 1)}>
                         {ordinal(index + 1)} parent ·{' '}

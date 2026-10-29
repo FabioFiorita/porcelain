@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/popover';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
 
-const chipClass = 'min-w-0 max-w-42';
+const chipClass = 'min-w-0 max-w-40';
 
 export function CommitRefs({
   refs,
