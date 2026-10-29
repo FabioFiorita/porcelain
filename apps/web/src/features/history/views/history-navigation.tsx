@@ -59,7 +59,7 @@ export function HistoryNavigation({
         <BranchTracking tracking={tracking} />
       </section>
       <HistoryRestarted history={history} />
-      <ScrollArea className="h-0 min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-initial">
         {uncommitted > 0 && (
           <div className="pt-2 pr-3 pl-1.5">
             <button
@@ -87,20 +87,20 @@ export function HistoryNavigation({
             sideLabel={sideLabel}
           />
         )}
-        {history.commits.length > 0 && (
-          <div className="shrink-0 border-t p-1.5">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={onOpenGraph}
-            >
-              <GitGraphIcon />
-              Open graph
-              <ChevronRightIcon className="ml-auto text-muted-foreground" />
-            </Button>
-          </div>
-        )}
       </ScrollArea>
+      {history.commits.length > 0 && (
+        <div className="shrink-0 border-t p-1.5">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={onOpenGraph}
+          >
+            <GitGraphIcon />
+            Open graph
+            <ChevronRightIcon className="ml-auto text-muted-foreground" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
