@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { commentThread as thread } from '../../../../spec/kit/comment-thread.ts';
 import {
   anchorBase,
   commentBodyValid,
@@ -278,21 +279,6 @@ describe('threadWriteTarget', () => {
 });
 
 describe('threadCounts', () => {
-  const thread = (
-    authors: ('reviewer' | 'agent')[],
-    resolved = false,
-  ): CommentThread => ({
-    id: '00000000-0000-4000-8000-000000000001',
-    worktreeId: 'a'.repeat(32),
-    anchor: { kind: 'file', filePath: 'a.ts' },
-    resolved,
-    revision: 1,
-    messages: authors.map((author, index) => ({
-      id: `00000000-0000-4000-8000-00000000001${index}`,
-      body: 'Comment',
-      author,
-    })),
-  });
   it.each([
     {
       name: 'no threads',
