@@ -8,6 +8,7 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
@@ -155,15 +156,12 @@ export function DecisionPage({
               </span>
             )}
             {decision?.stale && (
-              <span
+              <Badge
+                variant="warn"
                 title="Lines this decision points at changed after the agent explained them. Read the diff below, or ask the agent to publish a revision."
-                className={cn(
-                  chip,
-                  'border-warn-border bg-warn-soft text-warn',
-                )}
               >
                 <TriangleAlertIcon /> Code moved since it was explained
-              </span>
+              </Badge>
             )}
             {finished && (
               <span
