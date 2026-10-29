@@ -62,15 +62,29 @@ export const parseCommitRecords = Effect.fn('Git.parseCommitRecords')(
   },
 );
 
-function decorationRefs(decoration: string): string[] {
-  return decoration
-    .split(', ')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '' && entry !== 'HEAD')
-    .map((entry) => {
-      const name = /^HEAD -> (.+)$/u.exec(entry)?.[1] ?? entry;
-      return name.startsWith('tag: ') ? name.slice('tag: '.length) : name;
-    });
+function decorationRefs(decoration: string): CommitSummary['refs'] {
+  const refs: CommitSummary['refs'] = [];
+  for (const entry of decoration.split(', ')) {
+    const ref = entry.trim();
+    const target = ref.startsWith('HEAD -> ')
+      ? ref.slice('HEAD -> '.length)
+      : ref;
+    if (ref === 'HEAD' || ref.startsWith('HEAD -> '))
+      refs.push({ kind: 'head', name: 'HEAD' });
+    if (target.startsWith('refs/heads/'))
+      refs.push({
+        kind: 'local-branch',
+        name: target.slice('refs/heads/'.length),
+      });
+    else if (target.startsWith('refs/remotes/'))
+      refs.push({
+        kind: 'remote-branch',
+        name: target.slice('refs/remotes/'.length),
+      });
+    else if (target.startsWith('tag: refs/tags/'))
+      refs.push({ kind: 'tag', name: target.slice('tag: refs/tags/'.length) });
+  }
+  return refs;
 }
 
 function truncateUtf8(value: string, limit: number) {

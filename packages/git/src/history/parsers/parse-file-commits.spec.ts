@@ -60,7 +60,10 @@ describe('parseFileCommits', () => {
       subjectTruncated: false,
       body: null,
       bodyTruncated: false,
-      refs: ['main'],
+      refs: [
+        { kind: 'head', name: 'HEAD' },
+        { kind: 'local-branch', name: 'main' },
+      ],
     });
     expect(extended?.commit.body).toBe('Body line');
   });

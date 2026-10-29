@@ -5,6 +5,10 @@ type HeadSnapshot = {
     | { kind: 'detached' }
     | { kind: 'unborn'; ref: string };
 };
+type CommitRef =
+  | { kind: 'local-branch' | 'remote-branch' | 'tag'; name: string }
+  | { kind: 'head'; name: 'HEAD' };
+
 export type CommitSummary = {
   oid: string;
   parentOids: string[];
@@ -13,7 +17,7 @@ export type CommitSummary = {
   subjectTruncated: boolean;
   body: string | null;
   bodyTruncated: boolean;
-  refs: string[];
+  refs: CommitRef[];
 };
 export type CommitPageRequest = {
   limit?: number;
