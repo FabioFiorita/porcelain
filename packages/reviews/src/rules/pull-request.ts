@@ -1,3 +1,4 @@
+import { DateTime, Option } from 'effect';
 import type {
   GitHubPullRequest,
   GitHubPullSummary,
@@ -40,6 +41,13 @@ export function mapPullRequest(
           status: check.status,
           conclusion: check.conclusion ?? undefined,
           detailsUrl: check.detailsUrl ?? undefined,
+          durationMs:
+            check.status === 'COMPLETED'
+              ? checkDuration(
+                  check.startedAt ?? undefined,
+                  check.completedAt ?? undefined,
+                )
+              : undefined,
         }
       : {
           name: check.context,
@@ -116,4 +124,18 @@ export function mapPullRequest(
 
 export function recentPullRequestCutoff(now: number): string {
   return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function checkDuration(
+  startedAt: string | undefined,
+  completedAt: string | undefined,
+): number | undefined {
+  if (typeof startedAt !== 'string' || typeof completedAt !== 'string')
+    return undefined;
+  const started = Option.getOrUndefined(DateTime.make(startedAt));
+  const completed = Option.getOrUndefined(DateTime.make(completedAt));
+  if (started === undefined || completed === undefined) return undefined;
+  const durationMs =
+    DateTime.toEpochMillis(completed) - DateTime.toEpochMillis(started);
+  return durationMs >= 0 ? durationMs : undefined;
 }

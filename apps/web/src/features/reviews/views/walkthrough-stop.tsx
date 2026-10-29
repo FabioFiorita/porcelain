@@ -50,10 +50,12 @@ export function DecisionPage({
   finished,
   items,
   proofCurrent,
+  pullRequestChip,
   onStep,
   onGo,
 }: {
   proofCurrent: boolean;
+  pullRequestChip?: ReactNode;
   stop: DecisionStop;
   total: number;
   review: WalkthroughProps['review'];
@@ -172,6 +174,7 @@ export function DecisionPage({
                 <CheckIcon className="text-brand" /> Reviewed
               </span>
             )}
+            {pullRequestChip}
           </div>
           <h2 className="text-page-title font-semibold wrap-anywhere">
             <span aria-hidden="true" className="text-title-dim">

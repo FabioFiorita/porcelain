@@ -63,6 +63,7 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
               reviewId:
                 records.find(
                   (record) =>
+                    record.state === 'open' &&
                     record.pullRequest?.toLowerCase() === pr.url.toLowerCase(),
                 )?.reviewId ?? undefined,
             }));

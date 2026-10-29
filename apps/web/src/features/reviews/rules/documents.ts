@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { shortOid } from '@porcelain/client/history/rules';
 import type {
   CommentAnchor,
@@ -17,6 +18,7 @@ export type DocumentRef =
       path: string;
     }
   | { kind: 'commit'; oid: string }
+  | { kind: 'pull-request'; reviewId: string; number: number }
   | { kind: 'branch' }
   | { kind: 'branch-file'; path: string }
   | { kind: 'graph' }
@@ -45,6 +47,8 @@ export function entryKey(ref: DocumentRef): string {
       return `${ref.kind}:${ref.reviewId}:${ref.revision}:${ref.path}`;
     case 'commit':
       return `commit:${ref.oid}`;
+    case 'pull-request':
+      return `pull-request:${ref.reviewId}:${ref.number}`;
     case 'branch':
       return 'branch';
     case 'branch-file':
@@ -88,6 +92,17 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
       return { kind: 'branch-file', path: value };
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
+    case 'pull-request': {
+      const [reviewId, number, extra] = value.split(':');
+      return reviewId !== undefined &&
+        Schema.is(Schema.String.check(Schema.isUUID()))(reviewId) &&
+        number !== undefined &&
+        extra === undefined &&
+        /^[1-9][0-9]*$/.test(number) &&
+        Number.isSafeInteger(Number(number))
+        ? { kind, reviewId, number: Number(number) }
+        : null;
+    }
     default:
       return null;
   }
@@ -151,6 +166,8 @@ function documentTitle(ref: DocumentRef): string {
       return 'Commit graph';
     case 'commit':
       return shortOid(ref.oid);
+    case 'pull-request':
+      return `PR #${ref.number}`;
     case 'change':
     case 'file':
     case 'review-file':

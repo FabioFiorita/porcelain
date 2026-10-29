@@ -13,6 +13,7 @@ import {
   FileTextIcon,
   FlaskConicalIcon,
   GitBranchIcon,
+  GitPullRequestIcon,
   GitCommitHorizontalIcon,
   FileCodeIcon,
   HistoryIcon,
@@ -121,6 +122,12 @@ function describeTab(
         title: basename(ref.path),
         accessibleName: ref.path,
         hint: `${ref.path} · branch`,
+      };
+    case 'pull-request':
+      return {
+        Icon: GitPullRequestIcon,
+        title: `PR #${ref.number}`,
+        hint: `Pull request #${ref.number}`,
       };
     case 'graph':
       return {

@@ -42,6 +42,10 @@
 }
 
 @theme inline {
+  --text-prose: 0.9375rem;
+  --text-prose--line-height: 1.5rem;
+  --tracking-pr-title: -0.04em;
+  --tracking-pr-subheading: -0.01em;
   --text-briefing-title: 2.75rem;
   --text-briefing-title--line-height: 3rem;
   --text-briefing-title--letter-spacing: -0.045em;

@@ -49,6 +49,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsHeading } from '@/shared/views/settings-heading';
 import { usePreferences } from '../store';
+import { GitHubAccounts } from './github-accounts';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
 
@@ -314,6 +315,7 @@ function ReviewGitSettingsForm({
           />
         </ItemGroup>
       </FieldSet>
+      <GitHubAccounts connection={connection} />
       <FieldSet>
         <FieldLegend variant="label">When archiving a review</FieldLegend>
         <ItemGroup>
@@ -477,7 +479,7 @@ export function ReviewsGitSettings() {
       <SettingsHeading
         section="Settings"
         title="Reviews & Git"
-        lead="How reviews read, and what Git does when you pull and archive."
+        lead="How reviews read, which GitHub account opens pull requests, and what Git does when you pull and archive."
       />
       {computers.length > 1 && (
         <ComputerPicker

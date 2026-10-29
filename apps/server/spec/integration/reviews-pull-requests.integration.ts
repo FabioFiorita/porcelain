@@ -342,6 +342,16 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       review: { state: 'closed', latestRevision: 1 },
     });
     expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
+    state.state = 'OPEN';
+    await save();
+    const reopened = await request(`${project}/pull-requests`);
+    expect(reopened).toMatchObject({
+      kind: 'available',
+      pullRequests: [{ number: 423 }],
+    });
+    expect(reopened).not.toMatchObject({ pullRequests: [{ reviewId }] });
+    state.state = 'MERGED';
+    await save();
     const preview = await request(`${review}/archive`, 'POST', {
       options: archiveOptions,
     });

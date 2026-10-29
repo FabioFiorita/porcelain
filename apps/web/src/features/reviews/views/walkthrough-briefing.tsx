@@ -50,6 +50,7 @@ export function WalkthroughBriefing({
   title,
   margin,
   proofCurrent,
+  pullRequestChip,
   scope,
   context,
 }: WalkthroughProps & {
@@ -58,6 +59,7 @@ export function WalkthroughBriefing({
   title: string;
   margin: ReactNode;
   proofCurrent: boolean;
+  pullRequestChip?: ReactNode;
   stops: readonly WalkthroughStop[];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
@@ -101,6 +103,7 @@ export function WalkthroughBriefing({
                 </span>
                 <span aria-hidden="true">·</span>
                 <span>{relativeTime(revision.publishedAt)}</span>
+                {pullRequestChip}
               </p>
               <h2 className="text-briefing-title font-semibold wrap-anywhere">
                 <TruncatedText
