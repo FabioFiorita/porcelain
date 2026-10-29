@@ -70,4 +70,4 @@ Automated coverage: `history-graph.e2e.ts`.
 
 ## Graph presentation
 
-The checked-out HEAD row has a muted background and a semibold 13px title. Other rows use 13px titles, with 12px hashes, authors and ages. The branch heading is mono. History retains upstream labels and places Open graph immediately after the scrolling list.
+The checked-out HEAD row has a muted background and a semibold 13px title. Other rows use 13px titles, with 12px hashes, authors and ages. The branch heading is mono. Stacked rows keep the subject and metadata on two lines, with stock ref badges beside them and an overflow disclosure for hidden refs. History retains upstream labels and places Open graph immediately after the scrolling list.

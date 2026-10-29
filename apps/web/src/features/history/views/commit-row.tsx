@@ -91,7 +91,7 @@ export function CommitRow({
             className={cn(
               'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent',
               layout === 'stacked'
-                ? 'flex-col justify-center gap-0.5'
+                ? 'items-center gap-1'
                 : 'items-center gap-3',
               height === undefined && 'py-1.5',
               selected && 'bg-muted ring-1 ring-border ring-inset',
@@ -106,7 +106,7 @@ export function CommitRow({
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className="flex w-full min-w-0 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
+              className="flex min-w-0 flex-1 flex-col gap-0.5 text-left before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span className="flex gap-1.5 text-xs text-muted-foreground">
@@ -118,7 +118,9 @@ export function CommitRow({
               {children}
             </button>
             {refs.length > 0 && (
-              <CommitRefs refs={refs} current={current} onOpenCommit={select} />
+              <div className="min-w-0 max-w-2/5 flex-1 self-start pt-1">
+                <CommitRefs refs={refs} current={current} onOpenCommit={select} />
+              </div>
             )}
           </>
         ) : (
