@@ -412,7 +412,7 @@ it('the History map compares the selected commit after the uncommitted row', asy
       '<ol aria-label="Commits"><li style="height:32px"><a><span>Uncommitted changes</span></a></li><li style="height:44px"><a aria-current="true"><span style="font:600 13px/18px sans-serif">Selected commit</span></a></li></ol>',
     );
     await app.setContent(
-      '<ol aria-label="Commits"><li style="height:44px"><button><span data-slot="tooltip-trigger" style="font:600 13px/18px sans-serif">Selected commit</span></button></li></ol>',
+      '<ol aria-label="Commits"><li style="height:36px"><button aria-pressed="false"><span data-slot="tooltip-trigger" style="font:500 13px/18px sans-serif">Newer commit</span></button></li><li style="height:44px"><button aria-pressed="true"><span data-slot="tooltip-trigger" style="font:600 13px/18px sans-serif">Selected commit</span></button></li></ol>',
     );
     const roles = mappedRoles('history').filter(
       (role) => role.role !== 'history heading',
