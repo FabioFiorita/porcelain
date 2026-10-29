@@ -215,6 +215,13 @@ test('a binary-only commit retains its subject and file summary without a code p
   await expect
     .element(
       workspace
+        .getByRole('list', { name: 'Changed files', exact: true })
+        .getByText('Binary', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      workspace
         .getByRole('list', { name: 'Changes without code preview', exact: true })
         .getByText('added · Binary change', { exact: true }),
     )
