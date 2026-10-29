@@ -43,7 +43,6 @@ export function GraphRows({
       : undefined;
   return (
     <div className="relative py-2 pr-3 pl-1.5">
-      <HistoryGraph rows={rows} width={width} rowHeight={rowHeight} />
       <ol aria-label={label} className="flex flex-col">
         {rows.map(({ commit }) => (
           <li key={commit.oid}>
@@ -64,6 +63,7 @@ export function GraphRows({
           </li>
         ))}
       </ol>
+      <HistoryGraph rows={rows} width={width} rowHeight={rowHeight} />
       <div style={{ paddingLeft: width }}>
         <HistoryEnd history={history} />
       </div>
