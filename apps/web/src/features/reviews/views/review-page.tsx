@@ -630,7 +630,7 @@ function ReviewRevisionPage({
       ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
       className={cn(
-        '@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
+        '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
         !standalone && 'rounded-paper border',
       )}
       style={{ containerName: 'pane review' }}

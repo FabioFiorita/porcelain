@@ -322,7 +322,7 @@ function CompletionCard({
           className={cn(
             'mt-0.75 flex items-center gap-1.5',
             group === 'Ready to merge'
-              ? 'font-medium text-graph-1'
+              ? 'font-medium text-brand'
               : 'text-muted-foreground',
           )}
         >
@@ -422,7 +422,7 @@ function Need({ met, children }: { met: boolean; children: ReactNode }) {
       {met ? (
         <CheckIcon
           aria-label="Met"
-          className="mt-0.5 size-3.5 shrink-0 text-graph-2"
+          className="mt-0.5 size-3.5 shrink-0 text-add-fg"
           strokeWidth={2.25}
         />
       ) : (

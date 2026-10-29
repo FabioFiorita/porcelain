@@ -43,6 +43,21 @@ export type ReviewListEntry = {
   disabled: boolean;
 };
 
+export function decisionMarked(
+  marks: ReviewMarks | undefined,
+  layer: Pick<
+    ReviewRevision['content']['layers'][number],
+    'id' | 'fingerprint'
+  >,
+) {
+  return (
+    marks?.decisions.some(
+      (mark) =>
+        mark.layerId === layer.id && mark.fingerprint === layer.fingerprint,
+    ) === true
+  );
+}
+
 export function reviewListStatus({
   revision,
   marks,
@@ -56,10 +71,7 @@ export function reviewListStatus({
 }) {
   const layers = revision?.content.layers ?? [];
   const reviewed = layers.filter((layer) =>
-    marks?.decisions.some(
-      (mark) =>
-        mark.layerId === layer.id && mark.fingerprint === layer.fingerprint,
-    ),
+    decisionMarked(marks, layer),
   ).length;
   const total = layers.length;
   const complete = marks !== undefined && total > 0 && reviewed === total;
