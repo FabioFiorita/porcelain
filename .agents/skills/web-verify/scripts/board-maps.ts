@@ -5,15 +5,40 @@ const target = Schema.Struct({
   selector: Schema.NonEmptyString,
   index: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
 });
+export const styleProperties = [
+  'fontSize',
+  'lineHeight',
+  'fontWeight',
+  'letterSpacing',
+  'colour',
+  'padding',
+  'radius',
+  'gap',
+  'height',
+  'icon',
+] as const;
 const role = Schema.Struct({
   role: Schema.NonEmptyString,
+  properties: Schema.optional(
+    Schema.NonEmptyArray(Schema.Literals(styleProperties)),
+  ),
+  minWidth: Schema.optional(
+    Schema.Int.check(Schema.isGreaterThanOrEqualTo(320)),
+  ),
   board: target,
   app: target,
 });
 const board = Schema.Struct({
   html: Schema.NonEmptyString,
   dark: Schema.optional(Schema.NonEmptyString),
-  phoneOpen: Schema.optional(Schema.NonEmptyString),
+  reveal: Schema.optional(
+    Schema.NonEmptyArray(
+      Schema.Struct({
+        target: Schema.NonEmptyString,
+        trigger: Schema.NonEmptyString,
+      }),
+    ),
+  ),
   roles: Schema.NonEmptyArray(role),
 });
 export type BoardRole = typeof role.Type;

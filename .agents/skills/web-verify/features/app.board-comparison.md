@@ -19,18 +19,19 @@ Run `$C board-diff --board sidebar --route /<project>/<worktree> --instance <id>
 
 ## Driving it with the surface harness
 
-Start a clean instance. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. The sidebar's phone capture opens the navigator.
+Start a clean instance. Sidebar review-row comparisons need a non-main worktree review; the main worktree intentionally shows a project row. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Use an active decision route for the Review panel so its steps are already expanded; selecting a decision through a phone sheet normally closes that sheet. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
-Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every listed role is required at every requested width; hidden roles fail.
+Each role below names explicit board and app CSS selectors. `index` deliberately samples a repeated role; without it exactly one element must match. Select by semantic role, accessible name or structure, never fixture text. Extend maps when adding screens, including icons and controls. Every applicable role is required; hidden roles still fail. `minWidth` declares desktop-only content such as labels replaced by icons on a phone. `properties` names what a role actually renders: text roles compare typography, not a height determined by fixture wording; icon-only controls do not compare invisible inherited font styles. Omitted `properties` compares every property. `reveal` actions name a visible target and its trigger, so an already open panel is never toggled closed.
 
 ## Gotchas
 
 - This compares mapped styles. Unmapped elements, icon identity and icon artwork still need visual review. Text may differ.
-- Lengths tolerate 0.5 px, RGB/alpha channels one step; weight and icon presence are exact. Colours resolve to hex including alpha. Padding and radius report four sides/corners; gap reports row and column.
+- Lengths tolerate 0.5 px, RGB/alpha channels one step; weight and icon presence are exact. Colours resolve to hex including alpha. Padding and radius report four sides/corners; radius values follow the CSS overlap reduction against the rendered box, so equivalent full-round declarations compare equally. Gap reports the axes that can separate children; a nowrap flex row has no used row gap, and a nowrap flex column has no used column gap.
 - A dedicated dark HTML sibling wins. Otherwise the layout receives the approved `Narrative-desktop-dark.html` custom properties. A missing dark palette fails.
-- A desktop board remains a desktop layout at 414. Differences from responsive app layouts are reported. Add a phone map when its layout is approved.
+- Device rows compare padding, radius and icons; their height and wrapping gaps depend on device metadata and responsive reflow. Check wrapping visually in the sweep.
+- Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
 - Settings paths: `/settings/general`, `/settings/git`, `/settings/computers`, `/settings/computers/this-computer`.
 
@@ -41,7 +42,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator |
 | review-page                   | Narrative-desktop-briefing       | Review briefing                                     |
 | review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                   |
-| review-panel                  | Narrative-desktop-review-panel   | Worktree with `?surface=changes`                    |
+| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel         |
 | changes                       | Narrative-desktop-no-review      | Worktree without a published review                 |
 | settings-general              | Narrative-settings-general       | `/settings/general`                                 |
 | settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                     |
@@ -63,7 +64,6 @@ Names without `.html` are also accepted for the first mapped screen using that H
   "sidebar": {
     "html": "Narrative-desktop.html",
     "dark": "Narrative-desktop-dark.html",
-    "phoneOpen": "[aria-label=\"Toggle Sidebar\"]:visible",
     "roles": [
       {
         "role": "brand title",
@@ -72,7 +72,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": ".desktop-sidebar-header > div:first-of-type [data-truncated]"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "brand icon",
@@ -81,7 +88,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": ".desktop-sidebar-header > svg"
-        }
+        },
+        "properties": ["colour", "height", "icon"]
       },
       {
         "role": "project filter",
@@ -90,7 +98,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Filter reviews\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "group heading",
@@ -101,7 +110,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[data-slot=\"sidebar-group-label\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "review title",
@@ -110,9 +126,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"] .text-ui",
+          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] .text-ui",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "review subtitle",
@@ -121,9 +144,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"] .leading-4",
+          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] div.leading-4",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "review progress",
@@ -132,9 +162,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"] [aria-label$=\"decisions reviewed\"]",
+          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] [aria-label$=\"decisions reviewed\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "settings button",
@@ -152,7 +189,40 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": ".navigator-footer [aria-label=\"Keyboard shortcuts\"]"
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
+      },
+      {
+        "role": "project filter label",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "aside[aria-label=\"Worktrees\"] > button[aria-haspopup=\"menu\"] > span:first-of-type"
+        },
+        "app": {
+          "selector": "[aria-label=\"Filter reviews\"] > span:first-of-type"
         }
+      },
+      {
+        "role": "shortcuts icon",
+        "properties": ["colour", "height", "icon"],
+        "board": {
+          "selector": "aside[aria-label=\"Worktrees\"] [aria-label=\"Keyboard shortcuts\"] svg"
+        },
+        "app": {
+          "selector": "[aria-label=\"Keyboard shortcuts\"] svg"
+        }
+      }
+    ],
+    "reveal": [
+      {
+        "target": ".review-navigator [data-slot=\"sidebar-menu-button\"]:visible",
+        "trigger": "[aria-label=\"Toggle Sidebar\"]:visible"
       }
     ]
   },
@@ -167,7 +237,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Briefing\"] h2"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "section heading",
@@ -176,16 +253,30 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "#briefing-system"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "eyebrow",
         "board": {
-          "selector": "main article > div:first-child"
+          "selector": "main article > div:first-child > span:first-child"
         },
         "app": {
           "selector": "[aria-label=\"Briefing\"] header > p:first-child"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "walkthrough control",
@@ -203,7 +294,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Briefing\"] section[aria-label=\"Recommendation\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "continue button",
@@ -212,6 +304,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Briefing\"] header button:has(svg.lucide-arrow-right)"
+        }
+      },
+      {
+        "role": "recommendation text",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "section[aria-label=\"Recommendation\"] > div:first-child > span:last-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Briefing\"] section[aria-label=\"Recommendation\"] h3 > span:last-child"
         }
       }
     ]
@@ -227,7 +335,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Review walkthrough\"] header h2"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "route",
@@ -236,7 +351,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Route through the system\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "route step",
@@ -247,7 +363,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Steps\"] button",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "previous decision",
@@ -255,8 +372,9 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Previous decision\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Previous decision\"]"
-        }
+          "selector": "[aria-label=\"Previous stop\"]"
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "next decision",
@@ -264,16 +382,36 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Next decision\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Next decision\"]"
-        }
+          "selector": "[aria-label=\"Next stop\"]"
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
-        "role": "reviewed checkbox",
+        "role": "reviewed action",
         "board": {
-          "selector": "[aria-label=\"File reviewed\"]"
+          "selector": "[aria-label=\"Decision\"] button:last-child"
         },
         "app": {
-          "selector": "[aria-label=\"Mark file reviewed\"]"
+          "selector": "[aria-label=\"Walkthrough dock\"] button[aria-pressed]"
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
+      },
+      {
+        "role": "route step title",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "section[aria-label=\"Route and stops\"] a > span:nth-child(3)",
+          "index": 0
+        },
+        "app": {
+          "selector": "[aria-label=\"Steps\"] button > span:last-child > span:first-child",
+          "index": 0
         }
       }
     ]
@@ -288,7 +426,15 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "aside[aria-label=\"Review sidebar\"] h2"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "minWidth": 1280
       },
       {
         "role": "comparison switch",
@@ -297,7 +443,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] [role=\"tablist\"] [role=\"tab\"]",
+          "selector": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Changes to review\"] [role=\"tab\"]",
           "index": 0
         }
       },
@@ -308,18 +454,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Readiness\"] [data-slot=\"collapsible-trigger\"] > span:first-child"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "decision row",
         "board": {
-          "selector": "ol[aria-label=\"Decisions\"] > li > a",
-          "index": 0
+          "selector": "ol[aria-label=\"Decisions\"] > li > a[aria-current=\"step\"]"
         },
         "app": {
-          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded]:not([aria-haspopup])",
-          "index": 0
-        }
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"]:not([aria-haspopup])"
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "step checkbox",
@@ -330,7 +482,34 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "aside[aria-label=\"Review sidebar\"] [role=\"checkbox\"]",
           "index": 0
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
+      },
+      {
+        "role": "decision title",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "ol[aria-label=\"Decisions\"] > li > a[aria-current=\"step\"] > span:nth-child(2)"
+        },
+        "app": {
+          "selector": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"] button[aria-expanded=\"true\"] > span:nth-child(2)"
         }
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "aside[aria-label=\"Review sidebar\"] nav[aria-label=\"Walkthrough\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -344,7 +523,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Review content\"] h2"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "comparison switch",
@@ -389,7 +575,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "main[aria-label=\"Settings\"] .settings-content h1"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "breadcrumb",
@@ -397,8 +590,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"]"
-        }
+          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap"
+        ]
       },
       {
         "role": "selected section",
@@ -418,7 +619,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "theme segment",
@@ -439,7 +647,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "main[aria-label=\"Settings\"] [data-slot=\"item-title\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       }
     ]
   },
@@ -453,7 +668,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "main[aria-label=\"Settings\"] .settings-content h1"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "breadcrumb",
@@ -461,8 +683,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"]"
-        }
+          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap"
+        ]
       },
       {
         "role": "selected section",
@@ -482,7 +712,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       }
     ]
   },
@@ -496,7 +733,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "main[aria-label=\"Settings\"] .settings-content h1"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "breadcrumb",
@@ -504,8 +748,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"]"
-        }
+          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap"
+        ]
       },
       {
         "role": "selected section",
@@ -525,7 +777,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       }
     ]
   },
@@ -540,7 +799,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "main[aria-label=\"Settings\"] .settings-content h1"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "breadcrumb",
@@ -548,8 +814,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"]"
-        }
+          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap"
+        ]
       },
       {
         "role": "selected section",
@@ -567,7 +841,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "#ways-in > [data-slot=\"field-legend\"]"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "device row",
@@ -577,7 +858,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "main[aria-label=\"Settings\"] [aria-label=\"Paired devices and links\"] > [data-slot=\"item\"]",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "icon"]
       }
     ]
   },
@@ -591,7 +873,14 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Review content\"] h1 > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
       },
       {
         "role": "copy hash",
@@ -600,7 +889,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Copy hash\"]"
-        }
+        },
+        "properties": ["radius", "height", "icon"]
       },
       {
         "role": "open in graph",
@@ -609,7 +899,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "[aria-label=\"Open in graph\"]"
-        }
+        },
+        "properties": ["radius", "height", "icon"]
       },
       {
         "role": "changed file",
@@ -620,7 +911,64 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Review content\"] [aria-label=\"Changed files\"] > li",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
+      },
+      {
+        "role": "copy hash label",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main button[title=\"Copy the full commit hash\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Copy hash\"] > span"
+        },
+        "minWidth": 768
+      },
+      {
+        "role": "copy hash layout",
+        "properties": ["padding", "gap"],
+        "board": {
+          "selector": "main button[title=\"Copy the full commit hash\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Copy hash\"]"
+        },
+        "minWidth": 768
+      },
+      {
+        "role": "open in graph label",
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "board": {
+          "selector": "main button[title=\"Open the history graph at this commit\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Open in graph\"] > span"
+        },
+        "minWidth": 768
+      },
+      {
+        "role": "open in graph layout",
+        "properties": ["padding", "gap"],
+        "board": {
+          "selector": "main button[title=\"Open the history graph at this commit\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Open in graph\"]"
+        },
+        "minWidth": 768
       }
     ]
   },
@@ -634,7 +982,15 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "aside[aria-label=\"Review sidebar\"] h2"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ],
+        "minWidth": 1280
       },
       {
         "role": "commit row",
@@ -645,7 +1001,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Commits\"] > li",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "commit subject",
@@ -656,7 +1013,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Commits\"] [data-slot=\"tooltip-trigger\"]",
           "index": 0
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Commits\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"History\")"
       }
     ]
   },
@@ -672,7 +1046,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Commit graph\"] > li",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "HEAD ref",
@@ -680,9 +1055,9 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "ol[aria-label=\"Commit graph\"] [title^=\"HEAD:\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Commit graph\"] li:first-child [data-slot=\"badge\"]",
-          "index": 0
-        }
+          "selector": "[aria-label=\"Commit graph\"] li [data-slot=\"badge\"][data-variant=\"brand\"]"
+        },
+        "minWidth": 768
       }
     ]
   },
@@ -696,7 +1071,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -705,7 +1081,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -761,7 +1154,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -770,7 +1164,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -785,7 +1196,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -794,7 +1206,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -809,7 +1238,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -818,7 +1248,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -833,7 +1280,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -842,7 +1290,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -857,7 +1322,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -866,7 +1332,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -881,7 +1364,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -890,7 +1374,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -905,7 +1406,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -914,7 +1416,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   },
@@ -929,7 +1448,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"]"
-        }
+        },
+        "properties": ["padding", "radius", "gap", "icon"]
       },
       {
         "role": "PR block heading",
@@ -938,7 +1458,24 @@ Names without `.html` are also accepted for the first mapped screen using that H
         },
         "app": {
           "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
-        }
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      }
+    ],
+    "reveal": [
+      {
+        "target": "aside[aria-label=\"Review sidebar\"]:visible",
+        "trigger": "button[aria-label=\"Review\"]:visible"
+      },
+      {
+        "target": "section[aria-label=\"Pull request\"]:visible",
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
       }
     ]
   }

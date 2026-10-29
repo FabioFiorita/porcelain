@@ -74,6 +74,8 @@ test('the Open project button opens the chosen Git repository through the native
 
   await app.answerPicker({ canceled: false, filePaths: [desktop.repository] });
   await page.waitForURL((url) => url.pathname !== '/');
+  const changes = page.getByRole('tab', { name: 'Changes', exact: true });
+  await expect(changes).toBeVisible();
   const worktrees = page.getByRole('button', {
     name: 'Filter reviews',
     exact: true,
@@ -89,6 +91,7 @@ test('the Open project button opens the chosen Git repository through the native
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.reload();
+  await expect(changes).toBeVisible();
   await worktrees.click();
   await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
   await expect(project).toBeVisible();

@@ -2,14 +2,15 @@ import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  View,
   type PressableProps,
 } from 'react-native';
 const variants = {
   default: 'border-transparent bg-primary',
   secondary: 'border-transparent bg-secondary',
-  outline: 'border-border bg-background active:bg-muted',
-  ghost: 'border-transparent active:bg-muted',
-  destructive: 'border-transparent bg-destructive/10 active:bg-destructive/20',
+  outline: 'border-border dark:bg-input/30',
+  ghost: 'border-transparent',
+  destructive: 'border-transparent bg-destructive/10 dark:bg-destructive/20',
   link: 'border-transparent',
 };
 export const buttonTones = {
@@ -29,10 +30,10 @@ const indicatorTones = {
   link: 'accent-primary',
 };
 const sizes = {
-  default: 'min-h-11 min-w-11 px-4 py-2',
-  sm: 'min-h-9 min-w-9 px-3 py-1.5',
-  icon: 'h-11 w-11',
-  iconSm: 'h-9 w-9',
+  default: 'min-h-9 px-3 py-1.5',
+  sm: 'min-h-8 px-2.5 py-1',
+  icon: 'min-h-9 w-9',
+  iconSm: 'min-h-8 w-8',
   navigatorGroup: 'min-h-9 min-w-9 gap-2 rounded-md px-2 py-0',
   navigatorPhoneGroup: 'min-h-9 min-w-9 gap-1.5 rounded-md px-1.5 py-0',
 };
@@ -54,6 +55,7 @@ export type ButtonSurfaceProps = Omit<
   disabled?: boolean;
   pending?: boolean;
   expanded?: boolean;
+  align?: 'center' | 'start';
 };
 export function ButtonSurface({
   children,
@@ -62,6 +64,7 @@ export function ButtonSurface({
   disabled = false,
   pending = false,
   expanded,
+  align = 'center',
   className,
   hitSlop = 4,
   ...props
@@ -76,22 +79,35 @@ export function ButtonSurface({
       disabled={unavailable}
       hitSlop={hitSlop}
       className={[
-        'flex-row items-center justify-center gap-2 rounded-2xl border active:opacity-80 disabled:opacity-50 focus:border-ring',
-        variants[variant],
-        sizes[size],
+        'min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent focus:border-ring disabled:opacity-50',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      {pending ? (
-        <ActivityIndicator
-          accessible={false}
-          size="small"
-          colorClassName={indicatorTones[variant]}
-        />
-      ) : null}
-      {children}
+      {({ pressed }) => (
+        <View
+          className={[
+            'flex-row items-center gap-2 rounded-md border',
+            align === 'start' ? 'justify-start' : 'justify-center',
+            size === 'icon' || size === 'iconSm' ? '' : 'self-stretch',
+            variants[variant],
+            sizes[size],
+            pressed ? 'opacity-80' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {pending ? (
+            <ActivityIndicator
+              accessible={false}
+              size="small"
+              colorClassName={indicatorTones[variant]}
+            />
+          ) : null}
+          {children}
+        </View>
+      )}
     </Pressable>
   );
 }

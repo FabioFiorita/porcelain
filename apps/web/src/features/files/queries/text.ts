@@ -1,5 +1,4 @@
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
-import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readTextFile } from '@porcelain/client/files';
@@ -24,13 +23,6 @@ const retryText = Atom.family((selection: TextSelection) =>
   }),
 );
 
-export function useTextFile(
-  connection: Connection,
-  scope: FilesScope,
-  path: string,
-) {
-  return useConfirmedRead(readTextFile({ connection, scope, path })).value;
-}
 export function useTextContents(
   connection: Connection,
   scope: FilesScope,

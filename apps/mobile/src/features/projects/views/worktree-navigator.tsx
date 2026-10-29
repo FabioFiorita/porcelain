@@ -267,7 +267,7 @@ export function WorktreeNavigator({
                 variant="ghost"
                 size={nativeHeader ? 'navigatorPhoneGroup' : 'navigatorGroup'}
                 expanded={expanded}
-                className="justify-start"
+                align="start"
                 accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
                 onPress={() =>
                   setPreferences({

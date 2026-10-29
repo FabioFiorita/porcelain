@@ -14,7 +14,10 @@ export type BrowserComputedStyle = Readonly<
     | 'borderBottomRightRadius'
     | 'borderBottomLeftRadius'
     | 'rowGap'
-    | 'columnGap',
+    | 'columnGap'
+    | 'display'
+    | 'flexDirection'
+    | 'flexWrap',
     string
   >
 >;

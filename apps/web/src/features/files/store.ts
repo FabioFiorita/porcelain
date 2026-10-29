@@ -5,7 +5,34 @@ import type { ReactNode } from 'react';
 import type { ContextMenuItem, GitStatusEntry } from '@pierre/trees';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
-import type { FileDraftHandle } from '@porcelain/client/files';
+import {
+  readTextFile,
+  retainFileDraft,
+  type FileDraftHandle,
+} from '@porcelain/client/files';
+import type { RuntimeConnection } from '@porcelain/client/transport';
+import type { FilesScope } from '@porcelain/client/files/rules';
+
+export const readFileDraft = Atom.family(
+  (selection: {
+    connection: RuntimeConnection;
+    scope: FilesScope;
+    path: string;
+  }) =>
+    Atom.make((get) =>
+      Effect.gen(function* () {
+        const file = yield* get.result(readTextFile(selection));
+        const draft = yield* get.result(
+          retainFileDraft({
+            ...selection,
+            text: 'kind' in file ? '' : file.text,
+            fingerprint: 'kind' in file ? '' : (file.contentFingerprint ?? ''),
+          }),
+        );
+        return { file, draft };
+      }),
+    ),
+);
 
 const quickOpenQuery = AtomRef.make('');
 export function useQuickOpenQuery() {
