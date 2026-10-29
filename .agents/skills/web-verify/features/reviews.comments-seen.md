@@ -35,7 +35,7 @@ The agent comments on README.md: `$C agent comment README.md "I added a line to 
 2. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" with the main worktree row (button "main <repository path> repository Agent replied Main worktree") holding img "Agent replied". Then Press `Escape`.
 3. Click button `Review`, then click tab `Changes`, then click tab `/^Comments/`
-   Expect: dialog "Worktree review" with tab "Comments 1" selected; region "Comments" listing "I added a line to the readme" with "From the agent".
+   Expect: dialog "Worktree review" with tab "Comments (1)" selected; region "Comments" listing "I added a line to the readme" with "From the agent".
 4. Inspect HTTP traffic
    Expect: `POST /api/worktrees/<id>/comments/seen` answered 200.
 5. Press `Escape`, then click button `Toggle Sidebar`
@@ -43,7 +43,7 @@ The agent comments on README.md: `$C agent comment README.md "I added a line to 
 6. `$C agent comment README.md "I also checked the other files"`, then wait for '/I also checked the other files/'
    Expect: the new comment inline under README.md; `$C server project` shows `"status": "replied"` again, and click button `Toggle Sidebar` shows img "Agent replied" back (seen only inline does not clear it). Then Press `Escape`.
 7. Click button `Review`, then click tab `/^Comments/`
-   Expect: tab "Comments 2" selected listing "I also checked the other files"; a newer `POST .../comments/seen` answered 200 in network log; `$C server project` shows no `status` again.
+   Expect: tab "Comments (2)" selected listing "I also checked the other files"; a newer `POST .../comments/seen` answered 200 in network log; `$C server project` shows no `status` again.
 
 ### Observable proof
 

@@ -170,10 +170,9 @@ export function stopDone(
   decisions: ReadonlyMap<string, DecisionState>,
 ): boolean {
   if (stop.kind === 'briefing') return false;
-  const files = filesReviewed(stop.paths, items).done;
-  return stop.kind === 'decision'
-    ? files && decisions.get(stop.layer.id)?.reviewed === true
-    : files;
+  if (stop.kind === 'decision')
+    return decisions.get(stop.layer.id)?.reviewed === true;
+  return filesReviewed(stop.paths, items).done;
 }
 
 export function decisionStates(
@@ -181,23 +180,45 @@ export function decisionStates(
   marks: ListReviewedLayersResponse | undefined,
 ): Map<string, DecisionState> {
   return new Map(
-    layers.map((layer) => {
-      const stale = layer.steps.some((step) => {
-        const location = step.location;
-        switch (location.state) {
-          case 'changed':
-            return true;
-          case 'current':
-          case 'committed':
-          case 'broken':
-            return false;
-          default:
-            return location satisfies never;
-        }
-      });
-      return [layer.id, { stale, reviewed: layerReviewed(marks, layer) }];
-    }),
+    layers.map((layer) => [
+      layer.id,
+      {
+        stale: decisionCodeMoved(layer),
+        reviewed: layerReviewed(marks, layer),
+      },
+    ]),
   );
+}
+
+export function decisionCodeMoved(layer: Pick<ReviewLayer, 'steps'>): boolean {
+  return layer.steps.some((step) => {
+    const location = step.location;
+    switch (location.state) {
+      case 'changed':
+        return true;
+      case 'current':
+      case 'committed':
+      case 'broken':
+        return false;
+      default:
+        return location satisfies never;
+    }
+  });
+}
+
+export type StepMarker = { text: string; tone: 'warn' | 'muted' };
+
+export function stepMarker(
+  step: Pick<ReviewStep, 'kind' | 'location'>,
+): StepMarker | undefined {
+  if (step.location.state === 'changed')
+    return { text: 'code moved', tone: 'warn' };
+  if (step.location.state === 'broken')
+    return { text: 'broken pointer', tone: 'warn' };
+  if (step.kind === 'context') return { text: 'existing code', tone: 'muted' };
+  if (step.location.state === 'committed')
+    return { text: 'committed', tone: 'muted' };
+  return undefined;
 }
 
 export function decisionRoute(layer: ReviewLayer): string[] {

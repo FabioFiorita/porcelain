@@ -104,13 +104,13 @@ export function SidePanel({
     <aside
       aria-label="Review sidebar"
       data-testid="review-sidebar"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-paper border bg-card"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-paper bg-background shadow-paper"
     >
       {layout === 'docked' ? (
         <>
-          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-3.5">
+          <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2.5 pl-4">
             <TruncatedText
-              className="text-ui font-semibold"
+              className="text-ui leading-5 font-semibold"
               render={<h2 />}
               text={names[surface]}
             />
@@ -231,6 +231,7 @@ function SidebarSurface({
           base={changes.base}
           onChangeScope={changes.onScope}
           onBase={changes.onBase}
+          actionsTarget={actionsTarget}
         />
       )}
       {surface === 'files' && (

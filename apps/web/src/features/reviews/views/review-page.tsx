@@ -538,7 +538,7 @@ function ReviewRevisionPage({
     pull?.kind === 'available' ? pull.pullRequest.title : undefined,
   );
   const record = data.review;
-  const { threads } = useComments(scope, context);
+  const { threads } = useComments(liveScope ?? scope, context);
   const showPanel = () => {
     if (desktop) setPanelOpen(true);
     else setSheetOpen(true);
@@ -565,12 +565,14 @@ function ReviewRevisionPage({
       surface="changes"
       onSurface={showPanel}
     >
-      {() => (
+      {(actionsTarget) => (
         <ReviewBoundary connection={context.connection} scope={scope}>
           <RevisionPanel
+            actionsTarget={actionsTarget}
             revision={revision}
             scope={scope}
             context={context}
+            threads={threads}
             marks={marks}
             activeStop={stop.key}
             onStep={(step) =>
@@ -629,7 +631,7 @@ function ReviewRevisionPage({
       ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
       className={cn(
-        '@container/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
+        '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
         !standalone && 'rounded-paper border',
       )}
       style={{ containerName: 'pane review' }}

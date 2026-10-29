@@ -4,7 +4,6 @@ selectors:
   - "Review"
   - "Changes"
   - "Readiness"
-  - " to check"
   - "No marks went stale"
   - "No review published"
   - "No open comments"
@@ -35,11 +34,11 @@ api:
 
 # reviews.readiness
 
-The readiness panel at the top of the review sidebar counts reviewed files, marks that went stale, changes the review does not explain, comments waiting on the agent and failing checks; its header sums the open items ("<n> things to check") and each line opens what it counts (the checks line opens proof in the briefing).
+The readiness panel at the top of the review sidebar lists one row per line under the heading "Readiness", and each line opens what it counts (the checks line opens proof in the briefing). Before the agent publishes a review it counts checks, reviewed files, marks that went stale, the missing review and comments; once a review is published it keeps to Checks, Proof, Decisions and Comments, and the lines the review leaves out are counted on the walkthrough's "Not explained" row.
 
 ## How to get to it (user POV)
 
-- Review (sheet at phone width; sidebar at 1280px and wider) → tab "Changes" ("Review" once the agent publishes a review) → region "Readiness" (expanded by default; header button "Readiness <summary>" collapses it).
+- Review (sheet at phone width; sidebar at 1280px and wider) → tab "Changes" ("Review" once the agent publishes a review) → region "Readiness".
 - `Alt+Shift+R` toggles the review sheet; `Escape` closes it.
 
 ## Driving it with browser
@@ -51,8 +50,8 @@ Preconditions: [surface baseline](README.md).
 - None up front. The disk writes come in steps 7 and 8.
 - Step 9 publishes the agent's proof with `$C agent publish-proof`.
 
-1. Navigate to `/`, then click button `Review`, then click tab `Changes`, then button `Files and explanation`
-   Expect: in the dialog, region "Readiness" with buttons "0 of 1 file reviewed", "No marks went stale", "No review published", "No open comments", "No checks attached"; header button "Readiness 3 things to check".
+1. Navigate to `/`, then click button `Review`, then click tab `Changes`
+   Expect: in the dialog, region "Readiness" with buttons "No checks attached", "0 of 1 file reviewed", "No marks went stale", "No review published" and "No open comments".
 2. Press `Escape`
    Expect: the dialog is gone.
 3. Click button `Comment on README.md (unstaged · modified)`
@@ -61,14 +60,14 @@ Preconditions: [surface baseline](README.md).
    Expect: a comment thread "Why?" with text "Waiting for the agent".
 5. Click button `Mark README.md as reviewed`
    Expect: button "Unmark README.md as unreviewed" enabled.
-6. Click button `Review`, then button `Files and explanation`
+6. Click button `Review`
    Expect: lines "1 of 1 file reviewed" and "1 comment waiting on the agent".
 7. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then wait for button `1 mark changed since reviewed`
-   Expect: lines "1 mark changed since reviewed" and "0 of 1 file reviewed"; header button "Readiness 5 things to check".
+   Expect: lines "1 mark changed since reviewed" and "0 of 1 file reviewed".
 8. On disk: `printf 'A note the review leaves out.\n' > "$REPO/notes.md"`, then wait for button `0 of 2 files reviewed`
    Expect: line "0 of 2 files reviewed".
 9. `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`, then wait for button `1 of 2 checks failing`
-   Expect: lines "No changed files", "No marks went stale", "2 lines in 2 files not explained", "1 comment waiting on the agent" and "1 of 2 checks failing"; header button "Readiness 4 things to check". Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
+   Expect: lines "1 of 2 checks failing", "Proof is incomplete", "0 of 1 decisions reviewed" and "1 comment waiting on the agent", and no file or explanation lines; the walkthrough lists button "Not explained" under the decisions. Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
 10. Click button `1 of 2 checks failing`
     Expect: the sheet closes; the Review tab stays selected; the briefing's region "Proven at <head>" shows the alert "1 check failed The agent reported this work as not passing yet.".
 
@@ -80,7 +79,7 @@ Automated coverage: `reviews-readiness.test.tsx`.
 
 ## Gotchas
 
-- Readiness keeps aligned Checks, Proof, Decisions and Comments rows. Open “Files and explanation” for file marks, stale marks and explanation details. These actions keep their full accessible names.
+- A published review keeps aligned Checks, Proof, Decisions and Comments rows; file progress lives in the bar and the walkthrough's "All changes" and "Not explained" rows. Each line keeps its full accessible name.
 
 - Close the phone sheet before document comment/mark controls. Comment is submit, distinct from Comment on README.md (unstaged · modified).
 - Wait for live writes/publication. Cleanup notes.md, restore README and clear marks; comments remain unless deleted or instance reset.

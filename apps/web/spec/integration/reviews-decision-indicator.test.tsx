@@ -2,7 +2,7 @@ import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for(['keyboard', 'toolbar'] as const)(
-  'the decision completion indicator follows retained file toggles through %s',
+  'a reviewed decision stays reviewed while its file mark is toggled through %s',
   async (entry, { agent, render, server, repo }) => {
     await agent.publishReview('Readme decision');
     const published = (await server.publishedReview()).review;
@@ -45,20 +45,20 @@ test.for(['keyboard', 'toolbar'] as const)(
       .toMatchObject({ files: [], decisions: [{ layerId }] });
     await expect
       .element(stop.getByText('Reviewed', { exact: true }))
-      .not.toBeInTheDocument();
+      .toBeVisible();
     await expect
       .element(
         workspace
           .getByRole('tablist', { name: 'Open documents', exact: true })
           .getByRole('tab', { name: 'Review', exact: true }),
       )
-      .toHaveTextContent('Review0/1');
+      .toHaveTextContent('Review1/1');
     await stop
-      .getByRole('button', { name: 'Mark decision reviewed', exact: true })
+      .getByRole('button', {
+        name: `Mark ${repo.readme.path} as reviewed`,
+        exact: true,
+      })
       .click();
-    await expect
-      .element(stop.getByText('Reviewed', { exact: true }))
-      .toBeVisible();
     await expect
       .poll(() => server.branchReviewMarks())
       .toMatchObject({

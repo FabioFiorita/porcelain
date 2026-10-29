@@ -186,8 +186,11 @@ export function notExplainedLabel(
 ): string | null {
   const count = (total: number, noun: string) =>
     `${total} ${noun}${total === 1 ? '' : 's'}`;
-  const text = entries.filter((entry) => entry.binary !== true);
-  const binary = entries.length - text.length;
+  const text = entries.filter(
+    (entry) => entry.binary !== true && entry.deleted !== true,
+  );
+  const binary = entries.filter((entry) => entry.binary === true).length;
+  const removed = entries.filter((entry) => entry.deleted === true).length;
   const lineCount = text.reduce(
     (total, entry) =>
       total +
@@ -202,8 +205,13 @@ export function notExplainedLabel(
       ? [`${count(lineCount, 'line')} in ${count(text.length, 'file')}`]
       : []),
     ...(binary > 0 ? [count(binary, 'binary file')] : []),
+    ...(removed > 0 ? [count(removed, 'removed file')] : []),
   ];
-  return parts.length === 0 ? null : parts.join(' and ');
+  const last = parts.at(-1);
+  if (last === undefined) return null;
+  return parts.length === 1
+    ? last
+    : `${parts.slice(0, -1).join(', ')} and ${last}`;
 }
 
 export function summaryLayerNumber(message: unknown): number | null {
