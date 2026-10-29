@@ -52,7 +52,11 @@ import type {
   WorkspaceSearch,
 } from '@/shared/workspace/search';
 import { useDesktopReview } from '../adapters/desktop-review';
-import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
+import {
+  type PaneIndex,
+  useTabLayout,
+  paneTabActions,
+} from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
 import { useTabLayoutStore, useReviewRevisionSelection } from '../store';
 import { useSpecsApart } from '@/features/preferences/index';
@@ -64,6 +68,7 @@ import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
 import { openToSideText } from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
+import { HandoffDocument } from './branch-review-page';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -99,7 +104,7 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(search.side === undefined);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
@@ -530,7 +535,6 @@ function PaneView({
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
-  const document = parseEntry(pane.active ?? undefined);
   const focusPane = (event: SyntheticEvent<HTMLElement>) => {
     const target = event.target;
     if (
@@ -551,7 +555,7 @@ function PaneView({
       onPointerDownCapture={focusPane}
       onFocusCapture={focusPane}
       className={cn(
-        '@container/pane flex h-full min-h-0 min-w-0 flex-col',
+        '@container/pane relative flex h-full min-h-0 min-w-0 flex-col',
         split && index === 1 && 'border-l',
       )}
     >
@@ -598,13 +602,7 @@ function PaneView({
         reviewTitle={reviewTitle}
         side={paneSide(split, index)}
         focused={focused}
-        onActivate={(key) => layout.activate(index, key)}
-        onClose={(key) => layout.close(index, key)}
-        onCloseOthers={(key) => layout.closeOthers(index, key)}
-        onCloseUnpinned={() => layout.closeUnpinned(index)}
-        onTogglePin={(key) => layout.togglePin(index, key)}
-        onOpenToSide={(key) => layout.openToSide(index, key)}
-        onClosePane={split ? () => layout.closePane(index) : undefined}
+        {...paneTabActions(layout, index)}
         trailing={
           <>
             <div
@@ -618,32 +616,50 @@ function PaneView({
           </>
         }
       />
-      {document === null || document === undefined ? null : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ReviewBoundary
-            connection={context.connection}
-            scope={scope}
-            key={pane.active}
-          >
-            <DocumentView
-              scope={scope}
-              context={context}
-              document={document}
-              sideLabel={openToSideText(paneSide(split, index))}
-              base={base}
-              onOpen={onOpen}
-              onBrowse={onBrowse}
-              active={focused}
-              toolbarTarget={toolbarTarget}
-              reveal={
-                reveal?.pane === index && reveal.key === pane.active
-                  ? reveal
-                  : undefined
-              }
-            />
-          </ReviewBoundary>
-        </div>
-      )}
+      {pane.tabs
+        .filter(
+          (key) =>
+            key === pane.active || (key === 'handoff' && review !== undefined),
+        )
+        .map((key) => {
+          const ref = parseEntry(key);
+          if (!ref) return null;
+          const showing = key === pane.active;
+          return (
+            <div
+              key={key}
+              aria-hidden={!showing}
+              inert={!showing}
+              className={cn(
+                'flex min-h-0 flex-1 flex-col overflow-hidden',
+                !showing &&
+                  'pointer-events-none invisible absolute opacity-0 inset-x-0 top-12 bottom-0',
+              )}
+            >
+              <ReviewBoundary connection={context.connection} scope={scope}>
+                <DocumentView
+                  handoff={HandoffDocument}
+                  scope={scope}
+                  context={context}
+                  document={ref}
+                  sideLabel={openToSideText(paneSide(split, index))}
+                  base={base}
+                  onOpen={onOpen}
+                  onBrowse={onBrowse}
+                  active={showing && focused}
+                  toolbarTarget={showing ? toolbarTarget : null}
+                  reveal={
+                    showing &&
+                    reveal?.pane === index &&
+                    reveal.key === pane.active
+                      ? reveal
+                      : undefined
+                  }
+                />
+              </ReviewBoundary>
+            </div>
+          );
+        })}
     </section>
   );
 }

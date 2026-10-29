@@ -376,3 +376,18 @@ const persistTabLayout = Atom.family(
       get.set(atom, { panes, saved: true });
     }),
 );
+
+export function paneTabActions(
+  layout: ReturnType<typeof useTabLayout>,
+  index: PaneIndex,
+) {
+  return {
+    onActivate: (key: string) => layout.activate(index, key),
+    onClose: (key: string) => layout.close(index, key),
+    onCloseOthers: (key: string) => layout.closeOthers(index, key),
+    onCloseUnpinned: () => layout.closeUnpinned(index),
+    onTogglePin: (key: string) => layout.togglePin(index, key),
+    onOpenToSide: (key: string) => layout.openToSide(index, key),
+    onClosePane: layout.split ? () => layout.closePane(index) : undefined,
+  };
+}

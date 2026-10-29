@@ -38,3 +38,8 @@ diffs-container {
 .pierre-file-icon {
   color: var(--muted-foreground);
 }
+
+.file-code diffs-container {
+  --diffs-font-size: var(--text-caption);
+  --diffs-line-height: calc(var(--spacing) * 5.5);
+}

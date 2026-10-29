@@ -53,14 +53,14 @@ test.for([1440, 414])(
           exact: true,
         })
         .click();
-      const content = app.page.getByRole('region', {
-        name: 'Review walkthrough',
+      const content = app.page.getByRole('article', {
+        name: 'Step Read the retained revision',
         exact: true,
       });
       await expect
         .element(
           content.getByRole('button', {
-            name: 'Back to decision',
+            name: 'Back to the walkthrough',
             exact: true,
           }),
         )
@@ -131,11 +131,18 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
     .click();
   await expect
     .element(
-      workspace.getByRole('button', { name: 'Back to decision', exact: true }),
+      workspace.getByRole('button', {
+        name: 'Back to the walkthrough',
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('article', { name: 'Step New line', exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -143,7 +150,7 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
     )
     .not.toBeInTheDocument();
   await workspace
-    .getByRole('button', { name: 'Back to decision', exact: true })
+    .getByRole('button', { name: 'Back to the walkthrough', exact: true })
     .click();
   await workspace
     .getByRole('button', { name: 'Mark decision reviewed', exact: true })
