@@ -1,4 +1,4 @@
-import { type CommentThread, threadState } from './comments.ts';
+import { type CommentThread, threadCounts } from './comments.ts';
 import { type ReviewProof, proofStatus } from './proof.ts';
 import {
   notExplainedLabel,
@@ -126,12 +126,7 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
   const stale = input.files.filter(
     (file) => file.reviewStatus === 'stale',
   ).length;
-  const waitingOnAgent = input.threads.filter(
-    (thread) => threadState(thread) === 'awaiting-agent',
-  ).length;
-  const waitingOnYou = input.threads.filter(
-    (thread) => threadState(thread) === 'agent-replied',
-  ).length;
+  const comments = threadCounts(input.threads);
   const unexplained = input.explains ? unexplainedItem(input.review) : null;
   return [
     total === 0
@@ -161,16 +156,7 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
           tone: 'attention',
         },
     ...(unexplained === null ? [] : [unexplained]),
-    ...commentItems(waitingOnAgent, waitingOnYou),
+    ...commentItems(comments.awaitingAgent, comments.awaitingYou),
     checksItem(input.review?.proof),
   ];
-}
-
-export function readinessSummary(
-  items: readonly Pick<ReadinessItem, 'tone'>[],
-): string {
-  const open = items.filter((item) => item.tone !== 'ok').length;
-  return open === 0
-    ? 'Nothing left to check'
-    : `${counted(open, 'thing', 'things')} to check`;
 }

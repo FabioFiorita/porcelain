@@ -1,8 +1,12 @@
 import { MessageSquarePlusIcon } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { createPortal } from 'react-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -12,15 +16,17 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { cn } from '@/shared/lib/utils';
-import type {
-  CommentAnchor,
-  CommentThread,
-  ReviewScope,
+import {
+  threadCounts,
+  type CommentAnchor,
+  type CommentThread,
+  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { useVisibleComments } from '../commands/comments';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
+import { SegmentedTabs } from './segmented-tabs';
 import { ThreadCard } from './thread-card';
 
 export function ReviewViews({
@@ -35,29 +41,62 @@ export function ReviewViews({
   openComments: number;
 }) {
   return (
-    <div className="shrink-0 px-2 pt-2">
-      <Tabs
-        value={view}
-        onValueChange={(value: unknown) => {
-          if (value === 'layers' || value === 'comments') onView(value);
-        }}
-        aria-label="Review views"
+    <SegmentedTabs
+      label="Review views"
+      className="px-2.5 pt-3.5"
+      value={view}
+      onValue={onView}
+      options={[
+        { value: 'layers', label: filesLabel },
+        {
+          value: 'comments',
+          label:
+            openComments > 0 ? (
+              <span>
+                Comments <span className="tabular-nums">({openComments})</span>
+              </span>
+            ) : (
+              'Comments'
+            ),
+        },
+      ]}
+    />
+  );
+}
+
+export function WholeChangeComment({
+  target,
+  branch,
+  onCompose,
+}: {
+  target: HTMLElement | null;
+  branch: boolean;
+  onCompose: () => void;
+}) {
+  if (!target) return null;
+  const label = branch
+    ? 'Comment on the whole branch'
+    : 'Comment on the whole change';
+  return createPortal(
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={label}
+            onClick={onCompose}
+          />
+        }
       >
-        <TabsList className="h-8 w-full">
-          <TabsTrigger value="layers" className="flex-1">
-            {filesLabel}
-          </TabsTrigger>
-          <TabsTrigger value="comments" className="flex-1">
-            Comments
-            {openComments > 0 && (
-              <Badge variant="secondary" className="h-4 min-w-4">
-                {openComments}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-    </div>
+        <MessageSquarePlusIcon
+          strokeWidth={1.75}
+          className="text-muted-foreground"
+        />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip">{label}</TooltipContent>
+    </Tooltip>,
+    target,
   );
 }
 
@@ -65,12 +104,15 @@ export function ChangeComment({
   scope,
   context,
   anchor,
+  open,
+  setOpen,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const branch = anchor?.comparison?.kind === 'branch';
   if (open && anchor)
     return (
@@ -117,9 +159,7 @@ export function CommentsView({
     .sort((left, right) =>
       lastActivity(left).localeCompare(lastActivity(right)),
     );
-  const openCount = threads.filter((thread) => !thread.resolved).length;
-  const resolvedCount = threads.length - openCount;
-  const counts = { open: openCount, resolved: resolvedCount };
+  const counts = threadCounts(threads);
   const empty =
     filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
 
@@ -143,7 +183,7 @@ export function CommentsView({
             {value} <span className="tabular-nums">{counts[value]}</span>
           </button>
         ))}
-        {filter === 'resolved' && resolvedCount > 0 && (
+        {filter === 'resolved' && counts.resolved > 0 && (
           <DeleteResolved scope={scope} context={context} threads={threads} />
         )}
       </div>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { commentThread as thread } from '../../../../spec/kit/comment-thread.ts';
 import {
   anchorBase,
   commentBodyValid,
@@ -10,6 +11,7 @@ import {
   matchesCommentTarget,
   mergeCommentThreads,
   retainIntent,
+  threadCounts,
   threadWriteTarget,
   type CommentThread,
 } from './comments.ts';
@@ -273,5 +275,43 @@ describe('threadWriteTarget', () => {
     },
   ])('writes to a thread owned by $owner', ({ thread, expected }) => {
     expect(threadWriteTarget(thread)).toStrictEqual(expected);
+  });
+});
+
+describe('threadCounts', () => {
+  it.each([
+    {
+      name: 'no threads',
+      threads: [],
+      expected: { awaitingAgent: 0, awaitingYou: 0, open: 0, resolved: 0 },
+    },
+    {
+      name: 'only resolved threads',
+      threads: [
+        thread(['reviewer'], true),
+        thread(['reviewer', 'agent'], true),
+      ],
+      expected: { awaitingAgent: 0, awaitingYou: 0, open: 0, resolved: 2 },
+    },
+    {
+      name: 'reviewer comments the agent has not answered',
+      threads: [
+        thread(['reviewer']),
+        thread(['reviewer', 'agent', 'reviewer']),
+      ],
+      expected: { awaitingAgent: 2, awaitingYou: 0, open: 2, resolved: 0 },
+    },
+    {
+      name: 'a mix of every state',
+      threads: [
+        thread(['reviewer']),
+        thread(['agent']),
+        thread(['reviewer', 'agent']),
+        thread(['reviewer'], true),
+      ],
+      expected: { awaitingAgent: 1, awaitingYou: 2, open: 3, resolved: 1 },
+    },
+  ])('counts $name by who the thread waits on', ({ threads, expected }) => {
+    expect(threadCounts(threads)).toStrictEqual(expected);
   });
 });

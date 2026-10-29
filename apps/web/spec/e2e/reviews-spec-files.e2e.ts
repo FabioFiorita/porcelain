@@ -24,7 +24,7 @@ test('Spec files creates a separate collapsed section only while the setting is 
     await expect(rows.nth(index)).toHaveAccessibleName(name);
 
   await expect(
-    pairedPage.getByText('Specs · 1 files', { exact: true }),
+    pairedPage.getByText('Specs · 1 file', { exact: true }),
   ).not.toBeVisible();
   await page.keyboard.press('Escape');
   await pairedPage
@@ -67,7 +67,7 @@ test('Spec files creates a separate collapsed section only while the setting is 
   ).not.toBeVisible();
   await pairedPage
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
-    .getByText('Specs · 1 files', { exact: true })
+    .getByText('Specs · 1 file', { exact: true })
     .click();
   await expect(
     pairedPage.getByRole('button', { name: 'Open all specs', exact: true }),

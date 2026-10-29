@@ -1,10 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  CircleAlertIcon,
-  CircleXIcon,
-} from 'lucide-react';
+import { CheckIcon, CircleAlertIcon, CircleXIcon } from 'lucide-react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { readReview, readReviewMarks } from '@porcelain/client/reviews';
 import {
@@ -14,11 +9,6 @@ import {
 import { Suspense, type ReactNode } from 'react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { useSpecsApart } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
@@ -29,7 +19,6 @@ import {
   type ReadinessItem,
   type ReadinessKey,
   readinessItems,
-  readinessSummary,
   type ReadinessTone,
 } from '@porcelain/client/reviews/rules';
 import {
@@ -153,18 +142,8 @@ function ReadinessContent({
   return (
     <ReadinessCard
       items={items}
+      published={Boolean(review?.reviewId)}
       onSelect={onSelect}
-      summary={
-        review?.reviewId ? (
-          <PublishedSummary
-            items={items}
-            review={review}
-            reviewId={review.reviewId}
-            context={context}
-            marks={marks}
-          />
-        ) : undefined
-      }
     >
       {review?.reviewId && (
         <PublishedReadiness
@@ -208,8 +187,9 @@ function PublishedReadiness({
     proof.checks.length > 0 &&
     proof.checks.every((check) => check.result === 'pass');
   const incomplete = proof.current ? 'Incomplete' : 'Outdated';
+  const provenAt = review.headOid?.slice(0, 7);
   const proofValue = proven
-    ? `Proven at ${review.headOid?.slice(0, 7) ?? 'published head'}`
+    ? `Proven at ${provenAt ?? 'published head'}`
     : incomplete;
   const incompleteLabel = proof.current
     ? 'Proof is incomplete'
@@ -220,7 +200,8 @@ function PublishedReadiness({
       <ReadinessRow
         name="Proof"
         label={proofLabel}
-        value={proofValue}
+        value={proven && provenAt ? 'Proven at' : proofValue}
+        code={proven ? provenAt : undefined}
         tone={proven ? 'ok' : 'attention'}
         onSelect={() => onSelect('checks')}
       />
@@ -232,15 +213,14 @@ function PublishedReadiness({
             : `Decisions ${unavailable}`
         }
         value={decisionValue}
-        tone={
-          progress && progress.reviewed === progress.total ? 'ok' : 'attention'
-        }
+        tone={progress || !failed ? 'progress' : 'attention'}
         meter={
           progress && (
             <ProgressMeter
               label="Decisions reviewed"
               value={progress.reviewed}
               max={progress.total}
+              className="w-14"
             />
           )
         }
@@ -302,21 +282,6 @@ function usePublishedProgress({
   };
 }
 
-function PublishedSummary({
-  items,
-  ...input
-}: PublishedProgressInput & { items: readonly ReadinessItem[] }) {
-  const { progress } = usePublishedProgress(input);
-  const tone: ReadinessTone =
-    progress && progress.reviewed === progress.total ? 'ok' : 'attention';
-  return (
-    <TruncatedText
-      className="ml-auto min-w-0 text-2xs"
-      text={readinessSummary([...items, { tone }])}
-    />
-  );
-}
-
 const names: Record<ReadinessKey, string> = {
   files: 'Files',
   stale: 'Code moved',
@@ -328,78 +293,35 @@ const names: Record<ReadinessKey, string> = {
 
 function ReadinessCard({
   items,
+  published,
   onSelect,
   children,
-  summary,
 }: {
   items: readonly ReadinessItem[];
+  published: boolean;
   onSelect: (key: ReadinessKey) => void;
   children?: ReactNode;
-  summary?: ReactNode;
 }) {
-  const primary = items.filter(
-    (item) =>
-      item.key === 'checks' ||
-      item.key === 'comments' ||
-      item.key === 'replies',
+  const checks = items.filter((item) => item.key === 'checks');
+  const comments = items.filter(
+    (item) => item.key === 'comments' || item.key === 'replies',
   );
-  const details = items.filter((item) => !primary.includes(item));
+  const files = published
+    ? []
+    : items.filter(
+        (item) => !checks.includes(item) && !comments.includes(item),
+      );
   return (
-    <section aria-label="Readiness" className="mx-3 mt-3 shrink-0 text-ui">
-      <Collapsible defaultOpen className="group/readiness">
-        <CollapsibleTrigger
-          render={
-            <button
-              type="button"
-              className="flex h-6 w-full min-w-0 items-center gap-1.5 text-left text-caption text-muted-foreground hover:text-foreground"
-            />
-          }
-        >
-          <span className="font-medium">Readiness</span>
-          {summary ?? (
-            <TruncatedText
-              className="ml-auto min-w-0 text-2xs"
-              text={readinessSummary(items)}
-            />
-          )}
-          <ChevronDownIcon
-            aria-hidden
-            className="size-3 shrink-0 transition-transform group-data-closed/readiness:-rotate-90"
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="border-b">
-            <ReadinessRows
-              items={primary.filter((item) => item.key === 'checks')}
-              onSelect={onSelect}
-            />
-            {children}
-            <ReadinessRows
-              items={primary.filter((item) => item.key !== 'checks')}
-              onSelect={onSelect}
-            />
-          </div>
-          <Collapsible className="group/details">
-            <CollapsibleTrigger
-              render={
-                <button
-                  type="button"
-                  className="flex h-6 w-full items-center justify-between text-left text-caption text-muted-foreground hover:text-foreground"
-                />
-              }
-            >
-              Files and explanation
-              <ChevronDownIcon
-                aria-hidden
-                className="size-3 transition-transform group-data-closed/details:-rotate-90"
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ReadinessRows items={details} onSelect={onSelect} />
-            </CollapsibleContent>
-          </Collapsible>
-        </CollapsibleContent>
-      </Collapsible>
+    <section aria-label="Readiness" className="mx-3.5 mt-3.5 shrink-0 text-ui">
+      <h3 className="h-6 text-xs leading-6 font-medium text-muted-foreground">
+        Readiness
+      </h3>
+      <div className="border-b">
+        <ReadinessRows items={checks} onSelect={onSelect} />
+        {children}
+        <ReadinessRows items={files} onSelect={onSelect} />
+        <ReadinessRows items={comments} onSelect={onSelect} />
+      </div>
     </section>
   );
 }
@@ -417,16 +339,24 @@ function ReadinessRows({
       name={names[item.key]}
       label={item.label}
       value={item.value}
-      tone={item.tone}
+      tone={
+        (item.key === 'comments' || item.key === 'replies') &&
+        item.tone === 'attention'
+          ? 'open'
+          : item.tone
+      }
       onSelect={() => onSelect(item.key)}
     />
   ));
 }
 
+type RowTone = ReadinessTone | 'progress' | 'open';
+
 function ReadinessRow({
   name,
   label,
   value,
+  code,
   tone,
   meter,
   onSelect,
@@ -434,45 +364,69 @@ function ReadinessRow({
   name: string;
   label: string;
   value: string;
-  tone: ReadinessTone;
+  code?: string | undefined;
+  tone: RowTone;
   meter?: ReactNode;
   onSelect: () => void;
 }) {
   return (
     <TruncatedText
       text={label}
-      renderTrigger={(_, clip) => (
+      renderTrigger={(formatted, clip) => (
         <button
           type="button"
           aria-label={label}
           onClick={onSelect}
-          className="flex h-7 w-full min-w-0 items-center gap-2 border-t text-left hover:bg-accent"
+          className="flex h-7.25 w-full min-w-0 items-center gap-2 border-t text-left leading-4.5 hover:bg-accent"
         >
           <span className="shrink-0 text-muted-foreground">{name}</span>
           <span
             className={cn(
-              'ml-auto flex min-w-0 items-center gap-1.5 font-medium tabular-nums',
+              'ml-auto flex min-w-0 items-center font-medium tabular-nums',
+              meter ? 'gap-2' : 'gap-1.5',
               tone === 'failing' && 'text-destructive',
+              tone === 'open' && 'text-brand',
             )}
           >
             {meter}
             <ToneIcon tone={tone} />
-            {clip(value)}
+            {code ? formatted : clip(value)}
           </span>
         </button>
       )}
-    />
+    >
+      {code ? (
+        <>
+          {value} <span className="font-mono text-xs leading-4.5">{code}</span>
+        </>
+      ) : undefined}
+    </TruncatedText>
   );
 }
 
-function ToneIcon({ tone }: { tone: ReadinessTone }) {
+function ToneIcon({ tone }: { tone: RowTone }) {
+  if (tone === 'progress' || tone === 'open') return null;
   if (tone === 'ok')
-    return <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />;
+    return (
+      <CheckIcon
+        strokeWidth={1.75}
+        aria-hidden
+        className="size-3.5 shrink-0 text-add-fg"
+      />
+    );
   if (tone === 'failing')
     return (
-      <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-destructive" />
+      <CircleXIcon
+        strokeWidth={1.75}
+        aria-hidden
+        className="size-3.5 shrink-0 text-destructive"
+      />
     );
   return (
-    <CircleAlertIcon aria-hidden className="size-3.5 shrink-0 text-warn" />
+    <CircleAlertIcon
+      strokeWidth={1.75}
+      aria-hidden
+      className="size-3.5 shrink-0 text-warn"
+    />
   );
 }

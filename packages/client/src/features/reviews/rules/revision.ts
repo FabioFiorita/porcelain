@@ -1,4 +1,5 @@
 import { stopDone, walkthroughStops } from './walkthrough.ts';
+import { decisionMarked } from './review-list.ts';
 import type { ReviewRevision } from './verdict.ts';
 import type { ReviewMarks, ReviewStatus } from './review.ts';
 export function revisionReviewItems(
@@ -16,15 +17,6 @@ export function revisionReviewItems(
   });
 }
 
-type RevisionLayer = ReviewRevision['content']['layers'][number];
-
-function codeMoved(layer: Pick<RevisionLayer, 'steps'>) {
-  return layer.steps.some(
-    ({ location }) =>
-      location.state === 'changed' || location.state === 'broken',
-  );
-}
-
 export function revisionDecisionStates(
   revision: { content: Pick<ReviewRevision['content'], 'layers'> },
   marks: ReviewMarks | undefined,
@@ -33,13 +25,8 @@ export function revisionDecisionStates(
     revision.content.layers.map((layer) => [
       layer.id,
       {
-        stale: codeMoved(layer),
-        reviewed:
-          marks?.decisions.some(
-            (mark) =>
-              mark.layerId === layer.id &&
-              mark.fingerprint === layer.fingerprint,
-          ) === true,
+        stale: false,
+        reviewed: decisionMarked(marks, layer),
       },
     ]),
   );

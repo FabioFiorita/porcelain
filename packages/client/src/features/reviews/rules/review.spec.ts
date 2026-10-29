@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   mergeBranchChanges,
   mergeReviewChanges,
+  notExplainedLabel,
   reviewErrorMessage,
   reviewSummaryUrl,
   summaryLayerLinks,
@@ -21,6 +22,34 @@ describe('summaryLinkExpiring', () => {
     ['unreadable', 'not a date', true],
   ])('a link expiring %s needs a fresh one: %s', (_, expires, expected) => {
     expect(summaryLinkExpiring({ expires }, now)).toBe(expected);
+  });
+});
+
+describe('notExplainedLabel', () => {
+  const lines = { path: 'a.ts', ranges: [{ startLine: 2, endLine: 3 }] };
+  const removed = { path: 'gone.ts', ranges: [], deleted: true };
+  const binary = { path: 'logo.png', ranges: [], binary: true };
+  it.each([
+    ['nothing', [], null],
+    [
+      'one line',
+      [{ path: 'a.ts', ranges: [{ startLine: 4, endLine: 4 }] }],
+      '1 line in 1 file',
+    ],
+    ['lines', [lines], '2 lines in 1 file'],
+    ['a removed file', [removed], '1 removed file'],
+    [
+      'lines and a removed file',
+      [lines, removed],
+      '2 lines in 1 file and 1 removed file',
+    ],
+    [
+      'every kind',
+      [lines, binary, removed, { ...removed, path: 'old.ts' }],
+      '2 lines in 1 file, 1 binary file and 2 removed files',
+    ],
+  ])('names %s', (_, entries, expected) => {
+    expect(notExplainedLabel(entries)).toBe(expected);
   });
 });
 

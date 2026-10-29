@@ -3,6 +3,7 @@ import type { ReviewLayer, ReviewResponse } from './review.ts';
 import {
   briefingTitle,
   currentStop,
+  decisionCodeMoved,
   decisionLinks,
   decisionQuestions,
   decisionRoute,
@@ -10,6 +11,7 @@ import {
   filesReviewed,
   neighbourStop,
   reviewStepLines,
+  stepMarker,
   stopDone,
   systemChanges,
   walkthroughStops,
@@ -297,10 +299,10 @@ describe('stop completion', () => {
     paths.map((path) => ({ path, reviewStatus: 'reviewed' as const }));
   const marked = new Map([['invite', { reviewed: true, stale: false }]]);
 
-  it('finishes a decision only when it is marked and every file it shows is reviewed', () => {
+  it('finishes a decision when its current mark is saved, as the review list counts it', () => {
     if (!briefing || !invite || !unexplained) throw new Error('Stops missing');
     expect(stopDone(invite, reviewed('a.ts', 'b.ts'), marked)).toBe(true);
-    expect(stopDone(invite, reviewed('a.ts'), marked)).toBe(false);
+    expect(stopDone(invite, reviewed('a.ts'), marked)).toBe(true);
     expect(stopDone(invite, reviewed('a.ts', 'b.ts'), new Map())).toBe(false);
   });
 
@@ -543,6 +545,39 @@ describe('reviewStepLines', () => {
     ).toEqual(base.pointer);
     expect(reviewStepLines({ ...base, location: { state: 'broken' } })).toEqual(
       base.pointer,
+    );
+  });
+});
+
+describe('step markers', () => {
+  const base = step('code.ts');
+  it.for([
+    [{ state: 'changed' }, 'changed', { text: 'code moved', tone: 'warn' }],
+    [{ state: 'broken' }, 'changed', { text: 'broken pointer', tone: 'warn' }],
+    [{ state: 'changed' }, 'context', { text: 'code moved', tone: 'warn' }],
+    [
+      { state: 'current', startLine: 1, endLine: 2 },
+      'context',
+      { text: 'existing code', tone: 'muted' },
+    ],
+    [
+      { state: 'committed', startLine: 1, endLine: 2 },
+      'changed',
+      { text: 'committed', tone: 'muted' },
+    ],
+    [{ state: 'current', startLine: 1, endLine: 2 }, 'changed', undefined],
+  ] as const)('marks a %o %s step as %o', ([location, kind, marker]) => {
+    expect(stepMarker({ ...base, kind, location })).toEqual(marker);
+  });
+
+  it('says a decision moved when any of its steps moved', () => {
+    expect(
+      decisionCodeMoved(
+        layer('a', [step('a.ts'), step('b.ts', { state: 'changed' })]),
+      ),
+    ).toBe(true);
+    expect(decisionCodeMoved(layer('b', [step('a.ts'), step('b.ts')]))).toBe(
+      false,
     );
   });
 });
