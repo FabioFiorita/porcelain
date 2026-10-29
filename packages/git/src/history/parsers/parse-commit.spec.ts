@@ -30,7 +30,10 @@ describe('parseCommitRecords', () => {
         subjectTruncated: false,
         body: null,
         bodyTruncated: false,
-        refs: ['main'],
+        refs: [
+          { kind: 'head', name: 'HEAD' },
+          { kind: 'local-branch', name: 'main' },
+        ],
       },
       {
         oid: '2ae5d06b609a87714093c240d9bf094dce123436',
@@ -40,7 +43,10 @@ describe('parseCommitRecords', () => {
         subjectTruncated: false,
         body: 'Body line',
         bodyTruncated: false,
-        refs: ['origin/main', 'origin/HEAD'],
+        refs: [
+          { kind: 'remote-branch', name: 'origin/main' },
+          { kind: 'remote-branch', name: 'origin/HEAD' },
+        ],
       },
       {
         oid: '33a10b8b50f5f24c5623c50dea66a8901245b102',
@@ -60,7 +66,7 @@ describe('parseCommitRecords', () => {
         subjectTruncated: false,
         body: null,
         bodyTruncated: false,
-        refs: ['v1.0'],
+        refs: [{ kind: 'tag', name: 'v1.0' }],
       },
       {
         oid: '22228ea430e1b0aa37ac3bb19bfd3999547323e1',
@@ -96,13 +102,36 @@ describe('parseCommitRecord', () => {
       '',
       'T',
       '2026-09-23T19:00:17-03:00',
-      'HEAD -> main',
+      'HEAD -> refs/heads/main',
       'subject',
       '',
     ].map((value, index) => overrides[index] ?? value);
 
-  it('drops HEAD from the refs and keeps the branch it points at', () => {
-    expect(parseCommitRecord(fields({}), gitLimits).refs).toEqual(['main']);
+  it('keeps HEAD distinct from the branch it points at', () => {
+    expect(parseCommitRecord(fields({}), gitLimits).refs).toEqual([
+      { kind: 'head', name: 'HEAD' },
+      { kind: 'local-branch', name: 'main' },
+    ]);
+  });
+
+  it.each([
+    ['HEAD', [{ kind: 'head', name: 'HEAD' }]],
+    [
+      'refs/heads/refs/tags/release',
+      [{ kind: 'local-branch', name: 'refs/tags/release' }],
+    ],
+    [
+      'tag: refs/tags/refs/heads/main',
+      [{ kind: 'tag', name: 'refs/heads/main' }],
+    ],
+    ['refs/remotes/refs/main', [{ kind: 'remote-branch', name: 'refs/main' }]],
+    ['refs/heads/topic,comma', [{ kind: 'local-branch', name: 'topic,comma' }]],
+    ['refs/porcelain/reviews/internal/1, refs/stash', []],
+    ['', []],
+  ])('preserves the identity of decoration %s', (decoration, refs) => {
+    expect(
+      parseCommitRecord(fields({ 4: decoration }), gitLimits).refs,
+    ).toEqual(refs);
   });
 
   it('truncates a long subject on a character boundary', () => {

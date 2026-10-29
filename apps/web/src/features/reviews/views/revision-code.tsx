@@ -26,10 +26,11 @@ import {
 } from '@/components/ui/tooltip';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import { CodeDocument } from './code-document';
 import { fileEntry } from '../adapters/code-entries';
+import { CodeDocument } from './code-document';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { AgentNote } from './agent-note';
+import { retainedDiffPaths } from '../rules/review-file';
 import { retainedCommentTarget } from '../rules/retained-comments';
 
 export function RevisionCode({
@@ -147,13 +148,7 @@ function RevisionDiffs({
       connection: context.connection,
       reviewId: revision.reviewId,
       revision: revision.revision,
-      paths: files.map((file) => [
-        ...new Set(
-          [file.oldPath, file.newPath, file.path].filter(
-            (path) => path !== undefined,
-          ),
-        ),
-      ]),
+      paths: files.map(retainedDiffPaths),
     }),
   );
   const diffs = Option.getOrUndefined(AsyncResult.value(result));
@@ -356,7 +351,7 @@ function RevisionDiffs({
   );
 }
 
-export function RevisionFile({
+function RevisionFile({
   revision,
   scope,
   context,

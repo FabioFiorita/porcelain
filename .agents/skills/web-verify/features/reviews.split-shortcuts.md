@@ -1,15 +1,16 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Open to the side"
-  - "Open documents"
-  - "Open documents, "
-  - " pane"
-  - "Close tab"
-  - "Open the tab to the side"
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Open to the side'
+  - 'Open documents'
+  - 'Open documents, '
+  - ' pane'
+  - 'Close tab'
+  - 'Open the tab to the side'
+  - 'Git controls'
 tests:
   - apps/web/spec/integration/reviews-split-shortcuts.test.tsx
 api:
@@ -26,6 +27,7 @@ With the document area split into two panes, the tab shortcuts act on the focuse
 - Split: right-click a tab → menuitem "Open to the side" (its name also carries the shortcut text), or `Alt+\` on the focused pane's active tab. Once split, the menu item reads "Open in the right pane" / "Open in the left pane".
 - Tab shortcuts (shortcuts dialog `Mod+/`, group "Tabs"): `Alt+ArrowRight` next tab, `Alt+ArrowLeft` previous tab, `Alt+W` close tab, `Alt+\` open the tab to the side. They are ignored while focus is in a text field.
 - The split works at phone width too: there is no breakpoint guard, the two panes share the 414px width.
+- The right pane keeps the Git action label at the existing `lg` pane breakpoint (512px). Check a 1440px split with the navigator visible: Commit remains labelled beside its chevron. At 1080px and 414px, narrower panes fold the label into its icon while keeping the action's accessible name, tooltip and Git actions menu. Check light and dark in web and the desktop renderer.
 
 ## Driving it with browser
 

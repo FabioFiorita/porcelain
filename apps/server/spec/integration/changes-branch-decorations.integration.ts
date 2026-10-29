@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { threeCommits } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { list, record, text } from '../kit/session.ts';
+import { list, record } from '../kit/session.ts';
 
 test('history preserves literal branch names for short, full and disabled decoration settings', async ({
   session,
@@ -39,9 +39,12 @@ test('history preserves literal branch names for short, full and disabled decora
       const commit = kind === 'file' ? record(entry.commit) : entry;
       expect(commit.oid, `${kind} with ${decoration}`).toBe(state.rename);
       expect(
-        list(commit.refs).map(text).toSorted(),
+        list(commit.refs).filter((ref) => record(ref).kind !== 'head'),
         `${kind} with ${decoration}`,
-      ).toStrictEqual([session.fixture.branch, 'refs/heads/topic'].toSorted());
+      ).toStrictEqual([
+        { kind: 'local-branch', name: session.fixture.branch },
+        { kind: 'local-branch', name: 'refs/heads/topic' },
+      ]);
     }
   }
 });

@@ -7,8 +7,6 @@ import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 import { useInventory } from '@/features/projects/index';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
@@ -28,10 +26,8 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
-import { ChangeScopeSwitch } from './change-scope-switch';
 import { ChangeTable } from './change-table';
-import { createPortal } from 'react-dom';
-import type { ChangeScope } from '@/shared/workspace/search';
+import { ReviewFileDocument } from './review-file-document';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
@@ -39,16 +35,11 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
-import { BranchReviewPage } from './branch-review-page';
+import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-export type ChangeScopeControl = {
-  scope: ChangeScope;
-  onScope: (scope: ChangeScope) => void;
-};
-
-type DocumentProps = {
+export type DocumentProps = {
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -67,13 +58,11 @@ export function DocumentView({
   active = false,
   reveal,
   base,
-  changes,
   toolbarTarget,
+  handoff: Handoff,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  document: DocumentRef;
-  changes: ChangeScopeControl;
   toolbarTarget?: HTMLElement | null | undefined;
   onOpen: OpenDocument;
   sideLabel: string;
@@ -81,7 +70,10 @@ export function DocumentView({
   active?: boolean;
   reveal?: RevealComment | undefined;
   base?: string | undefined;
-}) {
+} & (
+  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; handoff?: never }
+  | { document: DocumentRef; handoff: ComponentType<DocumentProps> }
+)) {
   const props = {
     scope,
     context,
@@ -98,13 +90,16 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
-      return <HandoffDocument {...props} base={base} changes={changes} />;
+      return Handoff ? <Handoff {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
+    case 'review-file':
+    case 'review-change':
+      return <ReviewFileDocument {...props} document={document} />;
     case 'file':
       return <FileDocument {...props} path={document.path} />;
     case 'commit':
@@ -182,46 +177,6 @@ function TimelineDocument({
   );
 }
 
-function HandoffDocument({
-  base,
-  changes,
-  ...props
-}: DocumentProps & { base: string | undefined; changes: ChangeScopeControl }) {
-  const published = usePublishedReview(props.scope, props.context);
-  if (published.review?.reviewId)
-    return (
-      <BranchReviewPage
-        {...props}
-        toolbarTarget={props.interaction.toolbarTarget}
-        active={props.interaction.active}
-      />
-    );
-  const target = props.interaction.toolbarTarget;
-  return (
-    <>
-      {target &&
-        createPortal(
-          <ChangeScopeSwitch
-            value={changes.scope}
-            onValueChange={changes.onScope}
-          />,
-          target,
-        )}
-      {changes.scope === 'branch' ? (
-        <BranchDocument {...props} base={base} />
-      ) : (
-        <PlainChangesDocument
-          {...props}
-          intro={
-            Option.isSome(AsyncResult.value(published.result)) &&
-            !published.review
-          }
-        />
-      )}
-    </>
-  );
-}
-
 function NoReviewIntro({
   scope,
   context,
@@ -264,7 +219,7 @@ function changesLabel(specsOnly: boolean, count: number) {
     : `${count} uncommitted ${changes}`;
 }
 
-function PlainChangesDocument({
+export function PlainChangesDocument({
   scope,
   context,
   interaction,
@@ -414,6 +369,7 @@ function ChangeDocument({
             headerActions={
               <BarAction
                 label="Timeline"
+                iconOnly
                 icon={HistoryIcon}
                 onClick={() => onOpen({ kind: 'timeline', path })}
               />

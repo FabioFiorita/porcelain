@@ -206,3 +206,19 @@ export function contentVersion(value: string) {
   }
   return hash >>> 1;
 }
+
+export const PIERRE_FILE_CSS = `
+[data-gutter] {
+  min-width: calc(var(--spacing) * 12);
+}
+[data-column-number] {
+  min-width: calc(var(--spacing) * 12);
+  padding-inline: 0 calc(var(--spacing) * 3);
+}
+[data-code] [data-line] {
+  padding-inline-start: calc(var(--spacing) * 3);
+}
+[data-code] {
+  padding-top: var(--spacing) !important;
+}
+`;

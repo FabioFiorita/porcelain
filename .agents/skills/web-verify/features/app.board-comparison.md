@@ -37,23 +37,27 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 
 ## Board names
 
-| Name                          | Approved HTML                    | App setup                                           |
-| ----------------------------- | -------------------------------- | --------------------------------------------------- |
-| sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator |
-| review-page                   | Narrative-desktop-briefing       | Review briefing                                     |
-| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                   |
-| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel         |
-| changes                       | Narrative-desktop-no-review      | Worktree without a published review                 |
-| settings-general              | Narrative-settings-general       | `/settings/general`                                 |
-| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                     |
-| settings-computers            | Narrative-settings-computers     | `/settings/computers`                               |
-| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                 |
-| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                 |
-| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                    |
-| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                        |
-| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                       |
-| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented    |
-| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel           |
+| Name                          | Approved HTML                    | App setup                                            |
+| ----------------------------- | -------------------------------- | ---------------------------------------------------- |
+| sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator  |
+| review-page                   | Narrative-desktop-briefing       | Review briefing                                      |
+| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                    |
+| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel                     |
+| file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context          |
+| file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane |
+| changes                       | Narrative-desktop-no-review      | Worktree without a published review                  |
+| settings-general              | Narrative-settings-general       | `/settings/general`                                  |
+| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                      |
+| settings-computers            | Narrative-settings-computers     | `/settings/computers`                                |
+| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                  |
+| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                  |
+| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                     |
+| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                         |
+| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                        |
+| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented     |
+| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel            |
+
+The opening-file flow is verified through its navigation sequence; its explanatory miniatures are not pixel targets. File maps compare the desktop boards at `--width 1440`; responsive widths are driven through the file-tab journey. Seed one line comment with an agent reply for the comment-marker role. Use `?entry=review-file:<reviewId>:<revision>:<path>&surface=files` for `file-tab`, and `?entry=handoff&side=review-file:<reviewId>:<revision>:<path>` for `file-split`.
 
 Names without `.html` are also accepted for the first mapped screen using that HTML. Use the short name when the same board covers more than one screen (sidebar/decision, commit/history).
 
@@ -1477,6 +1481,358 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
         "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"Review\")"
+      }
+    ]
+  },
+  "file-tab": {
+    "html": "Narrative-desktop-file-tab.html",
+    "roles": [
+      {
+        "role": "pane bar",
+        "board": {
+          "selector": ":is(header, div):has(> [role=\"tablist\"][aria-label=\"Open documents\"])"
+        },
+        "app": {
+          "selector": "[data-pane-bar]"
+        }
+      },
+      {
+        "role": "Review tab",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents\"] > [role=\"tab\"]:first-child"
+        },
+        "app": {
+          "selector": "[data-entry=\"handoff\"]"
+        }
+      },
+      {
+        "role": "review progress",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents\"] > [role=\"tab\"]:first-child > span:last-child"
+        },
+        "app": {
+          "selector": "[data-entry=\"handoff\"] > span:last-child"
+        }
+      },
+      {
+        "role": "file tab",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents\"] [role=\"tab\"][aria-selected=\"true\"]"
+        },
+        "app": {
+          "selector": "[role=\"tab\"][data-entry^=\"review-file:\"][aria-selected=\"true\"]"
+        }
+      },
+      {
+        "role": "close file tab",
+        "board": {
+          "selector": "button[aria-label^=\"Close \"]"
+        },
+        "app": {
+          "selector": "[role=\"tab\"][data-entry^=\"review-file:\"] button[aria-label^=\"Close \"]"
+        }
+      },
+      {
+        "role": "review context banner",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg)"
+        },
+        "app": {
+          "selector": "[data-review-file-banner]"
+        }
+      },
+      {
+        "role": "review context caption",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg) > span"
+        },
+        "app": {
+          "selector": "[data-review-file-banner] > [data-truncated]"
+        }
+      },
+      {
+        "role": "back to walkthrough",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg) > a"
+        },
+        "app": {
+          "selector": "[data-review-file-banner] > button"
+        }
+      },
+      {
+        "role": "file header",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"])"
+        },
+        "app": {
+          "selector": "[data-file-heading]"
+        }
+      },
+      {
+        "role": "breadcrumb",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"]"
+        },
+        "app": {
+          "selector": "[data-file-heading] h1"
+        }
+      },
+      {
+        "role": "filename",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"] > span:last-child"
+        },
+        "app": {
+          "selector": "[data-file-heading] h1 > span:last-child"
+        }
+      },
+      {
+        "role": "file status",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"] + span"
+        },
+        "app": {
+          "selector": "[data-file-heading] > span"
+        }
+      },
+      {
+        "role": "deletions",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"]) > span:last-child > span:first-child"
+        },
+        "app": {
+          "selector": "[data-file-heading] [aria-label$=\" additions\"] > span:first-child"
+        }
+      },
+      {
+        "role": "additions",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"]) > span:last-child > span:last-child"
+        },
+        "app": {
+          "selector": "[data-file-heading] [aria-label$=\" additions\"] > span:last-child"
+        }
+      },
+      {
+        "role": "comment marker",
+        "board": {
+          "selector": "button[aria-label^=\"Comment thread on line\"]"
+        },
+        "app": {
+          "selector": "[data-file-thread-marker]"
+        }
+      },
+      {
+        "role": "Reviewed control",
+        "board": {
+          "selector": "button[role=\"checkbox\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Document controls\"] button[aria-label=\"Reviewed\"]"
+        }
+      },
+      {
+        "role": "Comment control",
+        "board": {
+          "selector": "button[title^=\"Comment\" i]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Document controls\"] button[aria-label=\"Comment\"]"
+        }
+      },
+      {
+        "role": "Timeline control",
+        "board": {
+          "selector": "button[title*=\"timeline\" i]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Document controls\"] button[aria-label=\"Timeline\"]"
+        }
+      },
+      {
+        "role": "review shortcut",
+        "board": {
+          "selector": "button[role=\"checkbox\"] > kbd"
+        },
+        "app": {
+          "selector": "[aria-label=\"Document controls\"] button[aria-label=\"Reviewed\"] kbd"
+        }
+      }
+    ]
+  },
+  "file-split": {
+    "html": "Narrative-desktop-split.html",
+    "roles": [
+      {
+        "role": "pane bar",
+        "board": {
+          "selector": ":is(header, div):has(> [role=\"tablist\"][aria-label=\"Open documents, right pane\"])"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-pane-bar]"
+        }
+      },
+      {
+        "role": "Review tab",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents, left pane\"] > [role=\"tab\"]:first-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Left pane\"] [data-entry=\"handoff\"]"
+        }
+      },
+      {
+        "role": "review progress",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents, left pane\"] > [role=\"tab\"]:first-child > span:last-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Left pane\"] [data-entry=\"handoff\"] > span:last-child"
+        }
+      },
+      {
+        "role": "file tab",
+        "board": {
+          "selector": "[role=\"tablist\"][aria-label=\"Open documents, right pane\"] [role=\"tab\"][aria-selected=\"true\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [role=\"tab\"][data-entry^=\"review-file:\"][aria-selected=\"true\"]"
+        }
+      },
+      {
+        "role": "close file tab",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[aria-label^=\"Close \"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [role=\"tab\"][data-entry^=\"review-file:\"] button[aria-label^=\"Close \"]"
+        }
+      },
+      {
+        "role": "review context banner",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg)"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-review-file-banner]"
+        }
+      },
+      {
+        "role": "review context caption",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg) > span"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-review-file-banner] > [data-truncated]"
+        }
+      },
+      {
+        "role": "back to walkthrough",
+        "board": {
+          "selector": "div:has(> a.nv-h.nv-f):has(> svg) > a"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-review-file-banner] > button"
+        }
+      },
+      {
+        "role": "file header",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"])"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading]"
+        }
+      },
+      {
+        "role": "breadcrumb",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading] h1"
+        }
+      },
+      {
+        "role": "filename",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"] > span:last-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading] h1 > span:last-child"
+        }
+      },
+      {
+        "role": "file status",
+        "board": {
+          "selector": "nav[aria-label=\"Path\"] + span"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading] > span"
+        }
+      },
+      {
+        "role": "deletions",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"]) > span:last-child > span:first-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading] [aria-label$=\" additions\"] > span:first-child"
+        }
+      },
+      {
+        "role": "additions",
+        "board": {
+          "selector": "div:has(> nav[aria-label=\"Path\"]) > span:last-child > span:last-child"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-heading] [aria-label$=\" additions\"] > span:last-child"
+        }
+      },
+      {
+        "role": "comment marker",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[aria-label^=\"Comment thread on line\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [data-file-thread-marker]"
+        }
+      },
+      {
+        "role": "Reviewed control",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[role=\"checkbox\"]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [aria-label=\"Document controls\"] button[aria-label=\"Reviewed\"]"
+        }
+      },
+      {
+        "role": "Comment control",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[title^=\"Comment\" i]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [aria-label=\"Document controls\"] button[aria-label=\"Comment\"]"
+        }
+      },
+      {
+        "role": "Timeline control",
+        "board": {
+          "selector": "button[title*=\"timeline\" i]"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [aria-label=\"Document controls\"] button[aria-label=\"Timeline\"]"
+        }
+      },
+      {
+        "role": "review shortcut",
+        "board": {
+          "selector": "section[aria-label^=\"Right pane:\"] button[role=\"checkbox\"] > kbd"
+        },
+        "app": {
+          "selector": "[aria-label=\"Right pane\"] [aria-label=\"Document controls\"] button[aria-label=\"Reviewed\"] kbd"
+        }
       }
     ]
   }

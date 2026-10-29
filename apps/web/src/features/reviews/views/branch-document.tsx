@@ -230,6 +230,7 @@ function BranchDiffs({
           single && first ? (
             <BarAction
               label="Timeline"
+              iconOnly
               icon={HistoryIcon}
               onClick={() => onOpen({ kind: 'timeline', path: first.path })}
             />
