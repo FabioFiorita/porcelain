@@ -259,7 +259,9 @@ test('a decision step marks its file reviewed and the header starts a whole-chan
     name: /^1 Mark the step from the panel/,
   });
   await expect.element(decision).toBeVisible();
-  expect(panel.getByText('No changes', { exact: true }).query()).toBeNull();
+  await expect
+    .element(panel.getByText('No changes', { exact: true }))
+    .not.toBeInTheDocument();
   await decision.click();
   await open();
   const reviewed = panel
