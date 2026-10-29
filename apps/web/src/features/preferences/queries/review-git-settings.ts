@@ -1,6 +1,7 @@
 import { useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { readInventory } from '@porcelain/client/projects';
-import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import {
   readReviewGitSettingsView,
   reviewGitSettingsTrust,
@@ -21,5 +22,9 @@ export function useReviewGitSettingsTrust(connection: Connection) {
 }
 
 export function useGitHubAccountProjects(connection: Connection) {
-  return useConfirmedRead(readInventory(connection)).value.projects;
+  const result = useAtomValue(readInventory(connection));
+  return {
+    projects: Option.getOrUndefined(AsyncResult.value(result))?.projects,
+    failed: AsyncResult.isFailure(result),
+  };
 }

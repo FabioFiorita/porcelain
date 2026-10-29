@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/tooltip';
 
 export function GitHubAccounts({ connection }: { connection: Connection }) {
-  const projects = useGitHubAccountProjects(connection);
+  const { projects, failed } = useGitHubAccountProjects(connection);
   return (
     <FieldSet>
       <FieldLegend variant="label">
@@ -49,14 +49,26 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
         Saved with the project, for every device.
       </FieldDescription>
       <ItemGroup>
-        {projects.map((project) => (
+        {projects?.map((project) => (
           <ProjectAccount
             key={project.id}
             connection={connection}
             project={project}
           />
         ))}
-        {projects.length === 0 && (
+        {projects === undefined && !failed && (
+          <Skeleton
+            role="status"
+            aria-label="Reading projects"
+            className="h-13 w-full"
+          />
+        )}
+        {projects === undefined && failed && (
+          <p className="py-3 text-ui text-muted-foreground">
+            Could not read this computer’s projects.
+          </p>
+        )}
+        {projects?.length === 0 && (
           <p className="py-3 text-ui text-muted-foreground">
             Add a project to choose its GitHub account.
           </p>
@@ -108,25 +120,31 @@ function ProjectAccount({
           className="h-8 w-42"
         />
       )}
-      {account && choice && (
+      {account && account.accounts.length > 0 && (
         <ItemActions>
-          <Badge variant="secondary">
-            {choice.source === 'overridden' ? 'Chosen' : 'Detected'}
-          </Badge>
+          {choice && (
+            <Badge variant="secondary">
+              {choice.source === 'overridden' ? 'Chosen' : 'Detected'}
+            </Badge>
+          )}
           <Select
-            value={choice.account}
+            value={choice?.account ?? account.override ?? null}
             disabled={disabled}
             items={account.accounts.map((value) => ({ value, label: value }))}
             onValueChange={(value) => {
-              if (typeof value === 'string' && value !== choice.account)
+              if (typeof value === 'string' && value !== choice?.account)
                 save({ account: value });
             }}
           >
             <SelectTrigger aria-label={`GitHub account for ${project.name}`}>
               <SelectValue>
-                {(value: string) => (
-                  <TruncatedText text={value} className="block max-w-30" />
-                )}
+                {(value: string | null) =>
+                  value === null ? (
+                    'Choose an account'
+                  ) : (
+                    <TruncatedText text={value} className="block max-w-30" />
+                  )
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -190,8 +208,7 @@ function ProjectAccount({
               {unavailable.action.label}
             </Button>
           )}
-          {(unavailable.action.kind === 'retry' ||
-            unavailable.action.kind === 'copy') && (
+          {unavailable.action.kind !== 'install' && (
             <Button
               size="xs"
               variant="ghost"
@@ -203,7 +220,7 @@ function ProjectAccount({
           )}
         </div>
       )}
-      {account && !choice && !unavailable && (
+      {account && account.accounts.length === 0 && !unavailable && (
         <div className="flex flex-wrap items-center gap-2 text-ui text-muted-foreground">
           No GitHub account is available.
           <Button

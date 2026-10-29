@@ -507,7 +507,7 @@ function PullUnavailable({
           {action.label}
         </Button>
       )}
-      {(action.kind === 'retry' || action.kind === 'copy') && (
+      {action.kind !== 'install' && (
         <Button
           variant={action.kind === 'retry' ? 'outline' : 'ghost'}
           className={cn(wideButton, 'mt-2')}
@@ -832,7 +832,7 @@ function PullRequestDiscovery({
             aria-label="Pull request link"
             type="url"
             required
-            placeholder="github.com/…/pull/482"
+            placeholder="https://github.com/…/pull/482"
             value={url}
             onChange={(event) => {
               setUrl(event.target.value);
