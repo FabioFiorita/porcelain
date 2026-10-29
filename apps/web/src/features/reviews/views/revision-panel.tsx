@@ -37,7 +37,6 @@ export function RevisionPanel({
   onStop,
   onProof,
   activeStop,
-  activeStep,
   onStep,
   actionsTarget,
 }: {
@@ -50,7 +49,6 @@ export function RevisionPanel({
   onChange: (path: string) => void;
   onStop: (key: WalkthroughKey) => void;
   activeStop: string;
-  activeStep: string | undefined;
   onStep: (step: ReviewStep) => void;
   actionsTarget: HTMLElement | null;
   onProof: () => void;
@@ -101,7 +99,6 @@ export function RevisionPanel({
               marks={marks}
               context={context}
               activeStop={activeStop}
-              activeStep={activeStep}
               onStop={onStop}
               onStep={onStep}
             />

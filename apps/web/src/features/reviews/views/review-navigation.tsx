@@ -140,7 +140,6 @@ export function RevisionNavigation({
   marks,
   context,
   activeStop,
-  activeStep,
   onStop,
   onStep,
   allChanges,
@@ -149,7 +148,6 @@ export function RevisionNavigation({
   marks: ReviewMarks | undefined;
   context: ConnectionContext;
   activeStop: string | undefined;
-  activeStep?: string | undefined;
   onStop: (key: WalkthroughKey) => void;
   onStep: (step: ReviewStep) => void;
   allChanges?: { active: boolean; onOpen: () => void };
@@ -293,7 +291,6 @@ export function RevisionNavigation({
                       (file) => file.path === step.pointer.path,
                     );
                     const marker = stepMarker(step);
-                    const current = activeStep === step.id;
                     return (
                       <li
                         key={step.id}
@@ -314,16 +311,10 @@ export function RevisionNavigation({
                           renderTrigger={(_, clip) => (
                             <button
                               type="button"
-                              aria-current={current ? 'step' : undefined}
                               className={cn(STOP_ROW, 'flex-1')}
                               onClick={() => onStep(step)}
                             >
-                              <span
-                                className={cn(
-                                  'w-2.5 shrink-0 text-right text-xs leading-4.5 font-medium text-muted-foreground tabular-nums',
-                                  current && 'font-semibold text-brand',
-                                )}
-                              >
+                              <span className="w-2.5 shrink-0 text-right text-xs leading-4.5 font-medium text-muted-foreground tabular-nums">
                                 {index + 1}
                               </span>
                               {clip(step.title, 'min-w-0')}
