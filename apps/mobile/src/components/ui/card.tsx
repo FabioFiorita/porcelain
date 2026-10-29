@@ -17,7 +17,7 @@ export function Card({
   return (
     <Box
       {...props}
-      className={['rounded-2xl border', variants[variant], className]
+      className={['rounded-paper border', variants[variant], className]
         .filter(Boolean)
         .join(' ')}
     />

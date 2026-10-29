@@ -55,6 +55,13 @@ export async function liveRouter(context: BrowserContext) {
     holdPublishedReviewRead: () => network.hold(isPublishedReviewRead),
     failChangesRead: () => network.fail(isChangesRead, 503),
     failPublishedReviewRead: () => network.fail(isPublishedReviewRead, 503),
+    failDurableReviewRead: (reviewId: string) =>
+      network.fail(
+        (request) =>
+          request.method() === 'GET' &&
+          pathOf(request) === `/api/reviews/${reviewId}`,
+        503,
+      ),
     releaseHeld: network.live.release,
   };
 }

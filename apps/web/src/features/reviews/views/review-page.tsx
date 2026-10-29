@@ -52,6 +52,7 @@ import {
   reviewPullRequestNotice,
   stopName,
   stopTitle,
+  summaryLinkExpiring,
   walkthroughStops,
   revisionReviewItems,
   type ReviewRevision,
@@ -92,6 +93,7 @@ import { ReviewBoundary } from './review-boundary';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
+import { outlinePill, primaryPill } from './review-controls';
 import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
@@ -157,7 +159,6 @@ export function ReviewPage({
       revision={data.revision}
       context={context}
       decision={decision}
-      latest={revision === undefined}
       onRevision={onRevision}
       onStop={onStop}
       onBack={onBack}
@@ -166,6 +167,11 @@ export function ReviewPage({
       initialStep={initialStep}
       proofCurrent={proofCurrent}
       active={active}
+      reread={{
+        run: retry,
+        failed: AsyncResult.isFailure(result),
+        waiting: result.waiting,
+      }}
     />
   );
 }
@@ -220,7 +226,7 @@ function reviewReadState(
 ) {
   if (AsyncResult.isInitial(result))
     return <ReviewLoading navigation={navigation} />;
-  if (AsyncResult.isFailure(result))
+  if (AsyncResult.isFailure(result) && Option.isNone(AsyncResult.value(result)))
     return (
       <ReviewFailure navigation={navigation} retry={retry} onBack={onBack} />
     );
@@ -258,7 +264,6 @@ function ReviewRevisionPage({
   revision,
   context,
   decision,
-  latest,
   onRevision,
   onStop,
   onBack,
@@ -267,10 +272,11 @@ function ReviewRevisionPage({
   initialStep,
   proofCurrent = true,
   active = true,
+  reread,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
   data: DurableReviewRead;
   revision: ReviewRevision;
-  latest: boolean;
+  reread: { run: () => void; failed: boolean; waiting: boolean };
 }) {
   const inventory = useInventory(context.connection);
   const project = inventory.projects.find(
@@ -296,9 +302,15 @@ function ReviewRevisionPage({
   };
   const {
     result: summary,
+    page: summaryPage,
     url: summaryUrl,
     available: showSummary,
   } = useReviewSummary(scope, context, review.summary);
+  const [expiredLink, setExpiredLink] = useState<string>();
+  const renewSummaryLink = () => {
+    setExpiredLink(review.summary.expires);
+    reread.run();
+  };
   const seenQuery = observeReviewSeen({
     connection: context.connection,
     reviewId: revision.reviewId,
@@ -408,6 +420,11 @@ function ReviewRevisionPage({
       value={view}
       onValueChange={(value: unknown) => {
         if (value === 'walkthrough' || value === 'summary') {
+          if (
+            value === 'summary' &&
+            summaryLinkExpiring(review.summary, Date.now())
+          )
+            renewSummaryLink();
           setView(value);
           setFile(undefined);
         }
@@ -647,6 +664,27 @@ function ReviewRevisionPage({
           headOid={latestHead}
         />
       )}
+      {reread.failed &&
+        !(view === 'summary' && expiredLink === review.summary.expires) && (
+          <div className="px-4 py-2">
+            <Alert variant="destructive">
+              <AlertDescription>
+                This review could not be refreshed. Showing the last loaded
+                revision.
+              </AlertDescription>
+              <AlertAction>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reread.waiting}
+                  onClick={reread.run}
+                >
+                  Try again
+                </Button>
+              </AlertAction>
+            </Alert>
+          </div>
+        )}
       {AsyncResult.isFailure(seen) && (
         <div className="px-4 py-2">
           <Alert variant="destructive">
@@ -699,19 +737,32 @@ function ReviewRevisionPage({
                   </Button>
                 </p>
               )}
-              {view === 'summary' && (
-                <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-8 @2xl/review:px-6">
-                  <SummaryFrame
-                    revision={revision}
-                    page={Option.getOrUndefined(AsyncResult.value(summary))}
-                    url={summaryUrl}
-                    dark={dark}
-                    stops={stops}
-                    done={done}
-                    onGo={go}
+              {view === 'summary' &&
+                expiredLink === review.summary.expires &&
+                reread.failed && (
+                  <StateFailure
+                    description="A fresh link to the agent's page could not be read. Check the connection and try again."
+                    onRetry={reread.run}
                   />
-                </div>
-              )}
+                )}
+              {view === 'summary' &&
+                !(expiredLink === review.summary.expires && reread.failed) && (
+                  <div className="mx-auto w-full max-w-264 px-4 pt-6 pb-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
+                    <SummaryFrame
+                      revision={revision}
+                      page={summaryPage}
+                      url={
+                        expiredLink === review.summary.expires
+                          ? undefined
+                          : summaryUrl
+                      }
+                      dark={dark}
+                      stops={stops}
+                      done={done}
+                      onGo={go}
+                    />
+                  </div>
+                )}
               {view === 'walkthrough' && file && (
                 <>
                   <Button
@@ -746,13 +797,15 @@ function ReviewRevisionPage({
                 <WalkthroughBriefing
                   {...props}
                   revision={revision}
+                  latestRevision={
+                    data.review?.latestRevision ?? revision.revision
+                  }
                   title={title}
                   proofCurrent={proofCurrent && revision.headOid === latestHead}
                   margin={
                     <BriefingMargin
                       data={data}
                       revision={revision}
-                      latest={latest}
                       context={context}
                       onRevision={onRevision}
                       onDeleted={onDeleted ?? onBack}
@@ -776,7 +829,7 @@ function ReviewRevisionPage({
                   }
                   className="flex min-w-0 flex-col"
                 >
-                  <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 @2xl/review:px-6">
+                  <div className="mx-auto flex w-full max-w-264 flex-col gap-8 px-4 pt-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
                     {stop.kind === 'decision' ? (
                       <>
                         <DecisionPage
@@ -857,6 +910,13 @@ function ReviewRevisionPage({
                             context={context}
                             active={active && section.key === stop.key}
                             marks={marks ?? { files: [], decisions: [] }}
+                            card
+                            gaps={false}
+                            commentLabel={
+                              section.kind === 'unexplained'
+                                ? 'Ask why'
+                                : undefined
+                            }
                           />
                         )}
                       />
@@ -973,7 +1033,7 @@ function PanelKeys({
 
 function MarginRowDock({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-5xl px-2 pb-4 @md/review:px-4 @2xl/review:px-6">
+    <div className="pointer-events-none sticky bottom-0 z-20 mx-auto w-full max-w-264 px-2 pb-4 @md/review:px-4 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
       <MarginRow>{children}</MarginRow>
     </div>
   );
@@ -1011,9 +1071,9 @@ function DecisionMark({
   const [removed, unmark] = useAtom(commands.unmark);
   return (
     <>
-      <Button
-        size="sm"
-        variant={reviewed ? 'outline' : 'default'}
+      <button
+        type="button"
+        className={`${reviewed ? outlinePill : primaryPill} ${dockButtonClass}`}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
         onClick={() =>
@@ -1027,9 +1087,9 @@ function DecisionMark({
               })
         }
       >
-        <CheckIcon data-icon="inline-start" />
+        <CheckIcon />
         {reviewed ? 'Decision reviewed' : 'Mark decision reviewed'}
-      </Button>
+      </button>
       {(AsyncResult.isFailure(result) || AsyncResult.isFailure(removed)) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Not saved. Try again.
@@ -1038,6 +1098,9 @@ function DecisionMark({
     </>
   );
 }
+
+const dockButtonClass =
+  'h-8 gap-1.75 pr-3.5 pl-3 text-ui leading-4 [&_svg]:size-3.5';
 
 function FilesMark({
   revision,
@@ -1057,18 +1120,19 @@ function FilesMark({
   const [result, mark] = useAtom(commands.markFiles);
   return (
     <>
-      <Button
-        size="sm"
+      <button
+        type="button"
+        className={`${primaryPill} ${dockButtonClass}`}
         disabled={!settled || files.length === 0 || result.waiting}
         onClick={() =>
           mark({ revision: revision.revision, files: blobFiles(files) })
         }
       >
-        <CheckIcon data-icon="inline-start" />
+        <CheckIcon />
         {files.length === 0
           ? 'Every file reviewed'
           : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
-      </Button>
+      </button>
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Some files were not marked. Try again.
@@ -1093,7 +1157,8 @@ function BranchTipNotice({
     <div className="px-4 pt-3">
       <StateNotice
         role="status"
-        title="The branch tip differs from this review. Publish a revision to include it."
+        title="The branch tip differs from this review."
+        description="Publish a revision to include it."
       />
     </div>
   ) : null;

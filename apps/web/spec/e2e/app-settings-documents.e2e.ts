@@ -62,7 +62,10 @@ for (const section of ['devices', 'integrations']) {
       settings.getByText('Pair a device', { exact: true }),
     ).toBeVisible();
     await expect(
-      settings.getByText('Porcelain MCP server', { exact: true }),
+      settings.getByRole('button', {
+        name: 'Copy MCP configuration',
+        exact: true,
+      }),
     ).toBeVisible();
     await settings.getByRole('tab', { name: 'Codex', exact: true }).click();
     await expect(settings.getByRole('status')).toHaveText(

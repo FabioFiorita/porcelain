@@ -372,15 +372,15 @@ test('No review keeps main and other checkouts reachable through search, filters
   const main = project.worktrees.find((row) => row.main);
   const topic = project.worktrees.find((row) => !row.main);
   if (!main || !topic) throw new Error('Missing main or topic checkout');
-  const meta = `${project.name} ${main.branch}`;
+  const meta = `${main.branch} ${project.name}`;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await expect(
-    pairedPage.getByText('Projects · 1', { exact: true }),
+    pairedPage.getByRole('button', { name: 'Projects 1', exact: true }),
   ).not.toBeAttached();
   await expect(
-    pairedPage.getByText('No review · 2', { exact: true }),
+    pairedPage.getByRole('button', { name: 'No review 2', exact: true }),
   ).toBeVisible();
   const mainRow = pairedPage.getByRole('button', { name: meta, exact: true });
   const topicRow = pairedPage.getByRole('button', { name: /^status-topic/ });
@@ -457,19 +457,19 @@ test('sidebar groups remember independent choices across search, Settings and re
     sidebar.getByRole('button', { name: 'Worktrees', exact: true }),
   ).not.toBeAttached();
   const needsYou = sidebar.getByRole('button', {
-    name: 'Needs you · 1',
+    name: 'Needs you 1',
     exact: true,
   });
   const noReview = sidebar.getByRole('button', {
-    name: 'No review · 2',
+    name: 'No review 2',
     exact: true,
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic/ });
   await expect(
     sidebar.getByRole('button', {
-      name: /^(Needs you ·|No review ·|Closed reviews$)/,
+      name: /^(Needs you \d|No review \d|Closed reviews$)/,
     }),
-  ).toHaveText(['Needs you · 1', 'No review · 2', 'Closed · 0']);
+  ).toHaveText(['Needs you 1', 'No review 2', 'Closed 0']);
   await expect(needsYou).toHaveAttribute('aria-expanded', 'true');
   await expect(sidebar).toHaveCSS('background-color', 'rgb(243, 243, 244)');
   await expect(noReview).toHaveAttribute('aria-expanded', 'true');
@@ -528,9 +528,12 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   const row = sidebar.getByRole('link', {
     name: /Read one committed review after checkout cleanup/,
   });
-  await expect(row).toHaveCSS('height', '40px');
+  await expect(row).toHaveCSS('height', '41px');
   await expect(row.getByText('0/1', { exact: true })).toBeVisible();
   await expect(row.getByText('durable-review', { exact: true })).toBeVisible();
+  await expect(
+    row.getByText((await server.project()).name, { exact: true }),
+  ).toBeVisible();
   await expect(
     row.getByText((await server.inventory()).environment.name, { exact: true }),
   ).not.toBeAttached();
@@ -563,6 +566,10 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   await status.press('Escape');
   await expect(pairedPage.getByRole('tooltip')).toHaveCount(0);
   await expect(status).toBeFocused();
+  const progress = row.getByLabel('0 of 1 decisions reviewed', {
+    exact: true,
+  });
+  await expect(progress).toHaveCSS('color', 'rgb(98, 98, 107)');
   await row.click();
   await expect(
     pairedPage.getByRole('heading', {
@@ -570,6 +577,7 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
       exact: true,
     }),
   ).toBeVisible();
+  await expect(progress).toHaveCSS('color', 'rgb(43, 95, 217)');
   await expect(
     pairedPage.getByRole('heading', {
       name: 'Recommendation: Hold',
@@ -635,7 +643,7 @@ for (const { width, colorScheme } of [
       const topic = page.getByRole('button', {
         name: /^no-review-with-a-very-long-branch/,
       });
-      await expect(topic).toHaveCSS('height', '40px');
+      await expect(topic).toHaveCSS('height', width === 414 ? '40px' : '30px');
       await expect(
         topic.getByText(
           'no-review-with-a-very-long-branch-name-that-must-not-wrap',

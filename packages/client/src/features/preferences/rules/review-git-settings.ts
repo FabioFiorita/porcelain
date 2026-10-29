@@ -15,8 +15,7 @@ export type ReviewGitSettingsView =
       unreadable: string | undefined;
     };
 
-const UNREADABLE =
-  'Reviews & Git settings could not be read from this computer.';
+const UNREADABLE = 'Reviews & Git settings could not be read.';
 
 function failureMessage(error: unknown): string {
   return error instanceof Error &&
@@ -64,6 +63,49 @@ export function confirmedReviewGitSettings(
   return view.kind === 'configured' && view.unreadable === undefined
     ? view.settings
     : undefined;
+}
+
+export function shownReviewGitSettings(
+  view: ReviewGitSettingsView,
+  importCandidate: ReviewGitSettings,
+): ReviewGitSettings | undefined {
+  switch (view.kind) {
+    case 'configured':
+      return view.settings;
+    case 'unconfigured':
+      return importCandidate;
+    case 'reading':
+    case 'unsupported':
+    case 'unreadable':
+      return undefined;
+  }
+}
+
+export function reviewGitSettingsImportKept(
+  sent: ReviewGitSettings,
+  answer: ReviewGitSettings,
+): boolean {
+  return (
+    sent.pullStrategy !== answer.pullStrategy ||
+    sent.collapseSpecs !== answer.collapseSpecs ||
+    sent.archiveDeleteWorktree !== answer.archiveDeleteWorktree ||
+    sent.archiveDeleteLocalBranch !== answer.archiveDeleteLocalBranch ||
+    sent.archiveDeleteRemoteBranch !== answer.archiveDeleteRemoteBranch
+  );
+}
+
+export function reviewGitSettingsKeptMessage(computer: string): string {
+  return `${computer} already had settings; yours weren’t used.`;
+}
+
+export function reviewGitSettingsTrustBlock(
+  canChange: boolean | undefined,
+): string | undefined {
+  if (canChange === undefined)
+    return 'Device trust could not be confirmed. Check again before changing Reviews & Git settings.';
+  return canChange
+    ? undefined
+    : 'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.';
 }
 
 export function specsApart(view: ReviewGitSettingsView): boolean {

@@ -42,7 +42,7 @@ export function WaysInGate({
 
 export function WaysIn({ connection }: { connection: Connection }) {
   return (
-    <FieldSet id="ways-in">
+    <FieldSet id="ways-in" className="relative">
       <FieldLegend variant="label">Ways in</FieldLegend>
       <WaysInGate connection={connection}>
         {(remote) => <RemoteRoutes connection={connection} remote={remote} />}

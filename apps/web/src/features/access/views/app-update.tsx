@@ -11,7 +11,11 @@ import { useSettingsUpdates } from '../queries/settings-updates';
 import { appUpdateCheckVisible, appUpdateProgress } from '../rules/app-update';
 import { SettingsUpdateRow } from './settings-update-row';
 
-export function AppUpdateSettings() {
+export function AppUpdateSettings({
+  prominent = false,
+}: {
+  prominent?: boolean;
+}) {
   const { result, check } = useAppUpdate();
   const state = useAppUpdateState();
   const capabilities = Option.getOrUndefined(
@@ -21,7 +25,7 @@ export function AppUpdateSettings() {
   const row = rows.find(({ target }) => target.kind === 'mac-app');
   return (
     <div className="flex flex-col gap-3">
-      {row && <SettingsUpdateRow row={row} />}
+      {row && <SettingsUpdateRow row={row} prominent={prominent} />}
       {!row && result.waiting && <Spinner />}
       {capabilities && appUpdateCheckVisible(capabilities) && (
         <Button

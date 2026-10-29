@@ -7,6 +7,7 @@ import {
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ProofList } from './proof-list';
 import { StateNotice } from '@/shared/views/state-notice';
+import { SectionHeading } from './section-heading';
 
 export function ReviewProof({
   revision,
@@ -29,9 +30,28 @@ export function ReviewProof({
   const failures = sections.proven.checks.filter(
     (check) => check.result === 'fail',
   ).length;
+  const passed = sections.proven.checks.length - failures;
+  const assets = sections.proven.assets.length;
   return (
     <section aria-label={title} className="flex min-w-0 flex-col gap-3">
-      <h3 className="border-b pb-2 text-sm font-semibold">{title}</h3>
+      <SectionHeading
+        aside={
+          empty
+            ? undefined
+            : [
+                `${passed} ${passed === 1 ? 'check' : 'checks'} passed`,
+                failures > 0 && `${failures} failed`,
+                assets > 0 && `${assets} ${assets === 1 ? 'asset' : 'assets'}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+        }
+      >
+        Proven at{' '}
+        <span className="font-mono text-sm leading-5.5 font-medium tracking-normal">
+          {sections.proven.shortHead}
+        </span>
+      </SectionHeading>
       <p className="text-xs text-muted-foreground">
         Published {publishedLabel(revision.publishedAt)} · at{' '}
         {sections.proven.shortHead}

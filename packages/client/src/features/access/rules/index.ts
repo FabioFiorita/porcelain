@@ -23,6 +23,7 @@ export {
   pairingAddresses,
   protectedRouteNote,
   remoteRouteDescriptions,
+  remoteRouteNames,
   remoteRouteTitles,
   routeFailure,
   routeStatusLabel,

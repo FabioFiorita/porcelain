@@ -57,4 +57,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
 - [reviews.linked-review](reviews.linked-review.md) — Published verdicts, decisions and retained excerpts.
+- [reviews.retained-review](reviews.retained-review.md) — Closed reviews that return to Files or History Worktrees.
 - [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.

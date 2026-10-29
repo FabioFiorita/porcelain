@@ -127,7 +127,13 @@ export function PullRequestBlock({ reviewId, context }: Props) {
           {available && (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
+                <Badge
+                  variant={
+                    available.state === 'open' && available.draft
+                      ? 'draft'
+                      : available.state
+                  }
+                >
                   {pullRequestStateLabel(available)}
                 </Badge>
                 <span className="text-xs text-muted-foreground">

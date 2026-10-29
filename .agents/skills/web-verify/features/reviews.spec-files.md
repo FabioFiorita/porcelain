@@ -6,7 +6,7 @@ selectors:
   - 'Toggle Sidebar'
   - 'Settings'
   - 'Spec files'
-  - 'Use these settings for this computer'
+  - 'Use these settings for'
   - 'Close Settings'
 tests:
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts

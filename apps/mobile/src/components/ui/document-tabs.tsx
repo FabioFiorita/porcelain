@@ -112,12 +112,16 @@ export function DocumentTabs<T extends DocumentTab>({
       {pinned ? (
         <View
           onLayout={({ nativeEvent: { layout } }) => setPinnedBounds(layout)}
-          className={
-            pinned.selected
-              ? `flex-row items-center rounded-lg border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
-              : 'flex-row items-center rounded-lg border border-transparent'
-          }
+          className="min-h-11 flex-row items-center"
         >
+          <View
+            pointerEvents="none"
+            className={
+              pinned.selected
+                ? `absolute inset-x-0 inset-y-1 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+                : 'absolute inset-x-0 inset-y-1 rounded-md border border-transparent'
+            }
+          />
           <Pressable
             accessibilityRole="tab"
             accessibilityLabel={
@@ -126,15 +130,16 @@ export function DocumentTabs<T extends DocumentTab>({
                 : pinned.title
             }
             accessibilityState={{ selected: pinned.selected }}
-            className="min-h-11 flex-row items-center gap-2 px-3 active:opacity-80"
+            className="min-h-11 flex-row items-center gap-2 px-2.5 active:opacity-80"
             onPress={pinned.onPress}
           >
             <Icon
               name={pinned.icon}
+              size="control"
               tone={pinned.selected ? 'default' : 'muted'}
             />
             <Text
-              variant="ui"
+              variant="control"
               weight="medium"
               tone={pinned.selected ? 'default' : 'muted'}
               numberOfLines={1}
@@ -164,24 +169,28 @@ export function DocumentTabs<T extends DocumentTab>({
                 ),
             )
           }
-          className={
-            tab.key === active
-              ? `flex-row items-center rounded-lg border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
-              : 'flex-row items-center rounded-lg border border-transparent'
-          }
+          className="min-h-11 flex-row items-center"
         >
+          <View
+            pointerEvents="none"
+            className={
+              tab.key === active
+                ? `absolute inset-x-0 inset-y-1 rounded-md border bg-muted ${focused ? 'border-border' : 'border-transparent'}`
+                : 'absolute inset-x-0 inset-y-1 rounded-md border border-transparent'
+            }
+          />
           <Pressable
             accessibilityRole="tab"
             accessibilityLabel={tab.label ?? tab.title}
             accessibilityState={{ selected: tab.key === active }}
-            className="min-h-11 max-w-45 justify-center px-3 active:opacity-80"
+            className="min-h-11 min-w-11 max-w-45 justify-center px-2.5 active:opacity-80"
             onPress={() => {
               onChange((state) => activateDocument(state, tab.key));
               onSelect();
             }}
           >
             <Text
-              variant="ui"
+              variant="control"
               weight="medium"
               tone={tab.key === active ? 'default' : 'muted'}
               numberOfLines={1}

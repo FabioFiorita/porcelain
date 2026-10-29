@@ -39,7 +39,7 @@ async function openSmokeProject(page: Page, repository: string) {
   await appRequest(page, 'POST', '/api/projects', { path: repository });
   await page.reload();
   const project = page.getByRole('button', {
-    name: 'desktop-smoke main',
+    name: 'main desktop-smoke',
     exact: true,
   });
   await expect(project).toBeVisible();
@@ -380,7 +380,7 @@ test('closing the last window keeps the same server, the Dock reopens the window
   const reopenedPage = await reopened;
   await expect(
     reopenedPage.getByRole('button', {
-      name: 'desktop-smoke main',
+      name: 'main desktop-smoke',
       exact: true,
     }),
   ).toBeVisible();
@@ -540,7 +540,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
   const restarted = await desktop.launch();
   const restored = await restarted.window();
   await expect(
-    restored.getByRole('button', { name: 'desktop-smoke main', exact: true }),
+    restored.getByRole('button', { name: 'main desktop-smoke', exact: true }),
   ).toBeVisible();
   await expect
     .poll(() =>

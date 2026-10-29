@@ -124,7 +124,7 @@ function PublishedNavigation({
 }
 
 const STOP_ROW =
-  'flex h-7 w-full min-w-0 items-center gap-2 rounded-row pr-1.5 pl-1 text-left text-ui leading-4.5 transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring';
+  'flex h-7 w-full min-w-0 items-center gap-2 rounded-md pr-1.5 pl-1 text-left text-ui leading-4.5 transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring';
 
 export function RevisionNavigation({
   revision,
@@ -418,7 +418,7 @@ function DecisionMark({
       className={cn(
         'flex size-4.5 shrink-0 items-center justify-center rounded-full text-3xs leading-none tabular-nums',
         active
-          ? 'control-border border-brand bg-background font-semibold text-brand'
+          ? 'border border-brand bg-background font-semibold text-brand'
           : 'border border-border-strong font-medium text-muted-foreground',
       )}
     >
@@ -460,7 +460,7 @@ function FileCheck({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        'flex size-3.5 shrink-0 items-center justify-center rounded-check control-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50',
+        'flex size-3.5 shrink-0 items-center justify-center rounded-check border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50',
         checked
           ? 'border-brand bg-brand text-brand-foreground'
           : 'border-border-strong bg-background',
@@ -490,7 +490,7 @@ function ClosingRow({
       active={active}
       onOpen={onOpen}
       className={cn(
-        'flex h-7 w-full min-w-0 flex-1 items-center gap-2 rounded-row px-1.5 text-left text-ui leading-4.5 font-medium transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring',
+        'flex h-7 w-full min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left text-ui leading-4.5 font-medium transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring',
         active && 'bg-muted inset-ring inset-ring-border',
       )}
     >
