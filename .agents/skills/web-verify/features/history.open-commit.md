@@ -20,7 +20,7 @@ Opening a commit from History shows its document: the message, author, full id a
 
 ## How to get to it (user POV)
 
-- Review → History → click a commit row (at phone width the sheet closes and the commit opens as a document tab named by its 7-character id).
+- Review → History → click a commit row (at phone width the sheet closes and the commit opens as a document tab named by its 7-character id and subject).
 - A row of the Commit graph document (see history.graph).
 - URL `entry=commit:<full id>` on the workspace route.
 
@@ -41,7 +41,7 @@ git -C "$REPO" commit -am "Explain the change to review"
 2. Click tab `History`
    Expect: a row starting "Explain the change to review" above the "Initial commit" row.
 3. Click button `/^Explain the change to review/`
-   Expect: the sheet closes; heading "Explain the change to review"; text "1 file changed" above the compact file summary; "Porcelain Development", the full 40-character id and "against <7-character id>" under the heading; README.md's diff with the added line "A change to review."; title "<7-character id> — repository"; buttons "Copy hash" and "Copy message".
+   Expect: the sheet closes; heading "Explain the change to review"; text "1 file changed" above the compact file summary; "Porcelain Development", the full 40-character id in the hash tooltip and "parent <7-character id>" under the heading; README.md's diff with the added line "A change to review."; title "<7-character id> — repository"; buttons "Copy hash" and "Copy message".
 
 ### 2. A binary file is listed without a code preview and says it is a binary change
 
@@ -73,3 +73,7 @@ Automated coverage: `history-open-commit.test.tsx`.
 
 - Row names include all metadata; use anchored regex. Reopen the phone Review sheet to select another commit.
 - Both fixture commits remain; reset before maps expecting one commit/unstaged README.
+
+## Commit presentation
+
+The document starts with a Commit/hash/branch eyebrow, its subject and an author avatar with age and parent. Text file summaries include added and removed line counts from the loaded patches; the total appears only when all files have known counts. Binary files say Binary, and unread or omitted patches leave line counts incomplete rather than implying zero. The bounded Read more control continues to load large commits. Diffs use rounded cards. Copy hash and Open in graph use compact pane controls.

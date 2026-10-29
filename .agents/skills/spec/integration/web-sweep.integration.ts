@@ -15,7 +15,9 @@ import {
 const SWEEP_CASE_MS = 10 * 60_000;
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
 const pages = {
-  'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<p>Fits every width.</p>`,
+  'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<h1>Page not found</h1><p>Fits every width.</p><pre>Computer unavailable</pre><span data-slot="breadcrumb-page" aria-current="page">Computer unavailable</span>`,
+  'sweep-not-found.html': `<!doctype html><title>Not found</title>${themed}<section data-slot="state-notice"><h2>Page not found</h2></section>`,
+  'sweep-unavailable.html': `<!doctype html><title>Unavailable</title>${themed}<div role="alert" data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>`,
   'sweep-error.html': `<!doctype html><title>Sweep error</title>${themed}<script>throw new Error('sweep fixture page error');</script>`,
   'sweep-crash-text.html': `<!doctype html><title>Sweep crash text</title>${themed}<p>Fits every width.</p><script>if (innerWidth === 414) console.error('Target crashed: the review socket has been closed');</script>`,
   'sweep-overflow.html': `<!doctype html><title>Sweep overflow</title><style>body{margin:0}</style>${themed}<div aria-label="Too wide" style="width:2000px">Wide</div>`,
@@ -102,6 +104,8 @@ test(
       '/sweep-error.html',
       '/sweep-crash-text.html',
       '/sweep-overflow.html',
+      '/sweep-not-found.html',
+      '/sweep-unavailable.html',
     );
     const failingIndex = /read (\S+)\n$/.exec(failing.stderr)?.[1] ?? '';
     const failed = await readFile(failingIndex, 'utf8');
@@ -117,7 +121,7 @@ test(
 
     expect(failing.code).toBe(1);
     expect(failing.stderr).toMatch(
-      /^The sweep found \d+ problems in 54 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
+      /^The sweep found \d+ problems in 90 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
     );
     expect(failedRecord.states).toStrictEqual([
       'as-left',
@@ -137,6 +141,12 @@ test(
     );
     expect(failed).toContain(
       '- `/sweep-overflow.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
+    );
+    expect(failed).toContain(
+      '`/sweep-not-found.html` as-left light 1440: unavailable page: Page not found',
+    );
+    expect(failed).toContain(
+      '`/sweep-unavailable.html` as-left light 1440: unavailable page: Computer unavailable',
     );
     expect(failed).not.toContain('`/sweep-fixture.html`');
     expect(failed).not.toContain('## Retries');
@@ -169,6 +179,8 @@ test(
       '/sweep-error.html',
       '/sweep-crash-text.html',
       '/sweep-overflow.html',
+      '/sweep-not-found.html',
+      '/sweep-unavailable.html',
     ]);
     expect(list(printed(await web('server', 'comment-threads')))).toHaveLength(
       31,

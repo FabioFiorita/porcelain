@@ -66,6 +66,7 @@
   --radius-check: calc(var(--radius) * 0.4);
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
+  --container-commit: 51rem;
   --tracking-title: -0.04em;
   --tracking-lead: -0.005em;
   --font-heading: var(--font-sans);

@@ -113,6 +113,7 @@ type Props = {
   range?: ReviewRange;
   threadMargin?: boolean;
   decision?: boolean;
+  framed?: boolean;
   commentLabel?: string;
   collapseInHeader?: boolean;
 };
@@ -162,6 +163,7 @@ function CodeSurface({
   collapsible = false,
   threadMargin = false,
   decision = false,
+  framed = false,
   commentLabel,
   collapseInHeader = false,
   onToggleReviewed,
@@ -345,7 +347,10 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: decision || compactThreads ? PIERRE_DECISION_THEME : PIERRE_THEME,
+    theme:
+      decision || compactThreads || framed
+        ? PIERRE_DECISION_THEME
+        : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -373,7 +378,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || framed ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -462,8 +467,9 @@ function CodeSurface({
     <div
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
-        (decision || compactThreads) && 'decision-code',
+        (decision || compactThreads || framed) && 'decision-code',
         compactThreads && 'file-code',
+        framed && 'commit-code',
       )}
     >
       {interaction.toolbarTarget &&
@@ -916,7 +922,7 @@ function CodeSurface({
               </div>
             );
           }}
-          disableWorkerPool={decision || compactThreads}
+          disableWorkerPool={decision || compactThreads || framed}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }
