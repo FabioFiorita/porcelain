@@ -26,7 +26,6 @@ import {
   useDirectory,
   useDiskChangeNotice,
   useFileDraft,
-  useTextFile,
 } from '@/features/files/index';
 import { isImagePath } from '@porcelain/client/files/rules';
 import type { FileDraftState } from '@porcelain/client/files';
@@ -109,15 +108,8 @@ function TextFileDocument({
   onOpen,
 }: FileDocumentProps) {
   const { connection } = context;
-  const file = useTextFile(connection, scope, path);
+  const { file, draft, state, reset } = useFileDraft(connection, scope, path);
   const unreadable = 'kind' in file;
-  const { draft, state, reset } = useFileDraft(
-    connection,
-    scope,
-    path,
-    unreadable ? '' : file.text,
-    unreadable ? '' : (file.contentFingerprint ?? ''),
-  );
   if (unreadable && state.owner === null && state.text === state.savedText)
     return (
       <NotShownFile
