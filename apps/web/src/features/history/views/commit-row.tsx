@@ -122,7 +122,9 @@ export function CommitRow({
                 <span className="shrink-0">{age}</span>
               </span>
               <span aria-hidden="true" className="mt-0.5 block h-4" />
-              {children}
+              {children !== undefined && (
+                <span className="flex min-w-0">{children}</span>
+              )}
             </button>
             {refs.length > 0 && (
               <div className="flex h-4.5 min-w-0 flex-1 flex-col justify-center">
