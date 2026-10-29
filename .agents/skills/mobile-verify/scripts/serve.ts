@@ -37,7 +37,7 @@ import { freeHostPorts, hostProblems, hubUrl, hubToken } from './host.ts';
 import { registry, optionsSchema, mobileConnectionSchema } from './instance.ts';
 import { driver, pairClient, prepareHost, setupCommand } from './setup.ts';
 const startLimitMs = 25 * 60 * 1000;
-const pairingLabel = 'Verification simulator';
+const pairingLabel = 'Development mobile';
 const manifestSchema = Schema.Struct({
   credentialFile: Schema.String,
   dataDirectory: Schema.String,
@@ -159,7 +159,7 @@ export function serve(folder: string): Promise<void> {
         '--foreground',
       ]);
     } else {
-      pairClient(agent, metro.url, environment.link, setupSession);
+      pairClient(agent, metro.url, setupSession);
     }
     const devices = await environment.devices();
     if (

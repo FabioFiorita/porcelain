@@ -69,7 +69,7 @@ Review shows the selected worktree’s changes, reviewed status, published decis
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document) to reach lower review sections and return to the top. On iPad run `orientation landscape-left` first, then `orientation portrait`, refreshing bounds and refs each time.
 
 1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; panel switches and Comments → Done retain central tabs/selection.
 2. Choose Branch and a base from Uncommitted. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes.
