@@ -29,6 +29,7 @@ export {
   type ReadCommitFilesResponse,
 } from './commit-changes.ts';
 export {
+  type CommitRef,
   listCommitsResponseSchema,
   listFileCommitsResponseSchema,
   type ListCommitsQuery,

@@ -36,7 +36,11 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useSpecsApart } from '@/features/preferences/index';
-import { useWalkthroughPlace, useReviewRevisionSelection } from '../store';
+import {
+  useWalkthroughPlace,
+  useReviewRevisionSelection,
+  useReviewFileOrigins,
+} from '../store';
 import { type OpenDocument, ALL_CHANGES } from '../rules/documents';
 import { SidebarDocumentRow } from './sidebar-section';
 import { SidebarActionMenu } from './sidebar-action-menu';
@@ -83,6 +87,7 @@ function PublishedNavigation({
   const marks = Option.getOrUndefined(AsyncResult.value(markResult));
   const place = useWalkthroughPlace(`${reviewId}:${revision}`);
   const selection = useReviewRevisionSelection(reviewId);
+  const origins = useReviewFileOrigins(reviewId, revision);
   if (!data?.revision)
     return (
       <SidebarDocumentRow
@@ -111,8 +116,13 @@ function PublishedNavigation({
           layer.steps.some((entry) => entry.id === step.id),
         );
         if (owner) place.setPlace(`decision:${owner.id}`);
-        selection.choose(snapshot.revision, step.id);
-        onOpen({ kind: 'handoff' });
+        origins.choose(step.pointer.path, step.id);
+        onOpen({
+          kind: 'review-file',
+          reviewId: snapshot.reviewId,
+          revision: snapshot.revision,
+          path: step.pointer.path,
+        });
       }}
       allChanges={{
         active: activeEntry === 'all-changes',

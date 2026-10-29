@@ -164,18 +164,21 @@ test('a deleted-line thread stays at file level when its step opens the retained
     .click();
   await expect
     .element(
-      app.page.getByRole('button', { name: 'Back to decision', exact: true }),
+      app.page.getByRole('button', {
+        name: 'Back to the walkthrough',
+        exact: true,
+      }),
     )
     .toBeVisible();
+  const file = app.page.getByRole('article', {
+    name: `Step ${step.title}`,
+    exact: true,
+  });
   await expect
-    .element(
-      app.page.getByText('Discuss the removed policy line', { exact: true }),
-    )
+    .element(file.getByText('Discuss the removed policy line', { exact: true }))
     .toBeVisible();
   await expect
-    .element(
-      app.page.getByText('Code changed since this comment', { exact: true }),
-    )
+    .element(file.getByText('Code changed since this comment', { exact: true }))
     .toBeVisible();
 });
 

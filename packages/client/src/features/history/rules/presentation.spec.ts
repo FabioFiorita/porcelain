@@ -9,6 +9,7 @@ import {
   refLabel,
   shortOid,
   shownRefs,
+  isCurrentBranch,
 } from './presentation.ts';
 const file = {
   status: 'modified' as const,
@@ -87,7 +88,11 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
       bodyTruncated: false,
       parentOids: [],
       author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
-      refs: ['origin/topic', 'v1', 'refs/porcelain/reviews/internal/1'],
+      refs: [
+        { kind: 'remote-branch', name: 'origin/topic' },
+        { kind: 'tag', name: 'v1' },
+        { kind: 'head', name: 'HEAD' },
+      ],
     }),
   ).toEqual({
     id: '0123456789',
@@ -95,7 +100,10 @@ it('labels a commit with its subject, author, hash, refs and local time', () => 
     author: 'Developer',
     time: new Date('2026-01-01T00:00:00Z').toLocaleString(),
     shortHash: '0123456',
-    refs: ['origin/topic', 'v1'],
+    refs: [
+      { kind: 'remote-branch', name: 'origin/topic' },
+      { kind: 'tag', name: 'v1' },
+    ],
   });
 });
 
@@ -174,21 +182,35 @@ it('retains complete long branch and upstream names', () => {
   });
 });
 
-it('keeps branch, remote and tag refs and drops Porcelain internal refs', () => {
+it('keeps typed branch, remote and tag refs and hides the separate HEAD marker', () => {
   expect(
     shownRefs([
-      'refs/heads/main',
-      'refs/porcelain/reviews/f3cb63e8-a489-4b2d-81e8-720b83bbabc0/1',
-      'refs/remotes/origin/main',
-      'refs/tags/v1.0.0',
-      'HEAD',
+      { kind: 'local-branch', name: 'main' },
+      { kind: 'remote-branch', name: 'origin/main' },
+      { kind: 'tag', name: 'v1.0.0' },
+      { kind: 'head', name: 'HEAD' },
     ]),
   ).toEqual([
-    'refs/heads/main',
-    'refs/remotes/origin/main',
-    'refs/tags/v1.0.0',
-    'HEAD',
+    { kind: 'local-branch', name: 'main' },
+    { kind: 'remote-branch', name: 'origin/main' },
+    { kind: 'tag', name: 'v1.0.0' },
   ]);
+  expect(shownRefs([])).toEqual([]);
+});
+
+it.each([
+  ['local-branch', 'main', 'refs/heads/main', true],
+  ['local-branch', 'other', 'refs/heads/main', false],
+  ['remote-branch', 'main', 'refs/heads/main', false],
+  ['tag', 'main', 'refs/heads/main', false],
+  ['head', 'HEAD', 'refs/heads/HEAD', false],
+  ['local-branch', 'main', undefined, false],
+  ['local-branch', 'refs/heads/main', 'refs/heads/main', false],
+  ['local-branch', 'refs/heads/main', 'refs/heads/refs/heads/main', true],
+] as const)('highlights %s %s against %s: %s', (kind, name, head, current) => {
+  const ref =
+    kind === 'head' ? { kind, name: 'HEAD' as const } : { kind, name };
+  expect(isCurrentBranch(ref, head)).toBe(current);
 });
 
 it.each(['topic/nested', 'refs/heads/topic', 'refs/tags/release'])(
@@ -210,9 +232,9 @@ it.each(['refs/heads/topic', 'refs/tags/release', 'origin/refs/heads/topic'])(
         bodyTruncated: false,
         parentOids: [],
         author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
-        refs: [ref],
+        refs: [{ kind: 'local-branch', name: ref }],
       }).refs,
-    ).toEqual([ref]);
+    ).toEqual([{ kind: 'local-branch', name: ref }]);
   },
 );
 
