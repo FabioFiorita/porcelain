@@ -13,6 +13,12 @@ import {
 import { unavailablePage } from '../../web-verify/scripts/browser.ts';
 import { revealBoardRoles } from '../../web-verify/scripts/board-diff.ts';
 
+function mappedRoles(name: string) {
+  const map = boards[name];
+  if (map === undefined) throw new Error(`The ${name} board map must exist`);
+  return map.roles;
+}
+
 let browser: Browser;
 beforeAll(async () => {
   browser = await chromium.launch();
@@ -387,7 +393,7 @@ it('the commit title map measures the heading itself', async () => {
     await page.setContent(
       '<section aria-label="Review content"><h1>Commit subject</h1></section>',
     );
-    const roles = boards.commit.roles.filter(
+    const roles = mappedRoles('commit').filter(
       (role) => role.role === 'commit title',
     );
     const samples = await measureRoles(page, roles, 'app');
@@ -408,7 +414,7 @@ it('the History map compares the selected commit after the uncommitted row', asy
     await app.setContent(
       '<ol aria-label="Commits"><li style="height:44px"><button><span data-slot="tooltip-trigger" style="font:600 13px/18px sans-serif">Selected commit</span></button></li></ol>',
     );
-    const roles = boards.history.roles.filter(
+    const roles = mappedRoles('history').filter(
       (role) => role.role !== 'history heading',
     );
     const rows = compareRoles(
@@ -432,7 +438,9 @@ it('the graph map compares row height only in the column layout', async () => {
     await app.setContent(
       '<ol aria-label="Commit graph"><li style="height:44px">Commit</li></ol>',
     );
-    const roles = boards.graph.roles.filter((role) => role.role !== 'HEAD ref');
+    const roles = mappedRoles('graph').filter(
+      (role) => role.role !== 'HEAD ref',
+    );
     const narrow = compareRoles(
       await measureRoles(board, roles, 'board', 414),
       await measureRoles(app, roles, 'app', 414),
