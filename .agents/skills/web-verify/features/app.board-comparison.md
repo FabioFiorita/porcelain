@@ -720,6 +720,45 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "letterSpacing",
           "colour"
         ]
+      },
+      {
+        "role": "GitHub account heading",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] h2"
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "index": 2
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      },
+      {
+        "role": "GitHub account source",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] span:has(+ button[aria-haspopup=\"listbox\"])",
+          "index": 0
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"item-actions\"] [data-slot=\"badge\"]",
+          "index": 0
+        }
+      },
+      {
+        "role": "GitHub account picker",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] button[aria-haspopup=\"listbox\"]",
+          "index": 0
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"select-trigger\"]",
+          "index": 0
+        }
       }
     ]
   },
