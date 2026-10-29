@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test.for(['clean', 'unsaved'] as const)(
@@ -62,3 +62,47 @@ test.for(['clean', 'unsaved'] as const)(
     }
   },
 );
+
+test('an open editor with no unsaved edits follows a rewrite on disk and reopens on it', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await page.viewport(1440, 900);
+  const path = repo.readme.path;
+  await workspace
+    .getByRole('treeitem', { name: path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
+  await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor = workspace.getByRole('textbox', { name: path, exact: true });
+  await replaceEditorContent(editor, 'Saved in Porcelain');
+  await userEvent.keyboard('{ControlOrMeta>}s{/ControlOrMeta}');
+  await expect
+    .element(workspace.getByText('Saved', { exact: true }))
+    .toBeVisible();
+  await expect
+    .poll(async () => (await server.text(path)).text)
+    .toBe('Saved in Porcelain');
+
+  await repo.write(path, 'Rewritten outside');
+  await expect.element(editor).toHaveTextContent('Rewritten outside');
+  await expect
+    .element(workspace.getByText('Saves as you pause', { exact: true }))
+    .toBeVisible();
+
+  await workspace.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect
+    .element(workspace.getByText('Rewritten outside', { exact: true }))
+    .toBeVisible();
+  await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect.element(editor).toHaveTextContent('Rewritten outside');
+  await replaceEditorContent(editor, 'Edited after the rewrite');
+  await workspace.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect
+    .poll(async () => (await server.text(path)).text)
+    .toBe('Edited after the rewrite');
+  await expect.element(workspace.getByRole('alert')).not.toBeInTheDocument();
+});
