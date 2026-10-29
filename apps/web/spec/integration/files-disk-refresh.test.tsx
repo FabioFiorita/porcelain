@@ -125,7 +125,10 @@ test('reopening an editor starts from a rewrite that landed while its draft was 
     .getByRole('tab', { name: path, exact: true })
     .click({ button: 'right' });
   await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
-  const left = workspace.getByRole('region', { name: 'Left pane', exact: true });
+  const left = workspace.getByRole('region', {
+    name: 'Left pane',
+    exact: true,
+  });
   const right = workspace.getByRole('region', {
     name: 'Right pane',
     exact: true,
