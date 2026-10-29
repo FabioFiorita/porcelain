@@ -255,7 +255,7 @@ export function WorktreeNavigator({
                 variant="ghost"
                 size="sm"
                 expanded={expanded}
-                className="justify-start"
+                align="start"
                 accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
                 onPress={() =>
                   setPreferences({

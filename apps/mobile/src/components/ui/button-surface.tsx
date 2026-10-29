@@ -53,6 +53,7 @@ export type ButtonSurfaceProps = Omit<
   disabled?: boolean;
   pending?: boolean;
   expanded?: boolean;
+  align?: 'center' | 'start';
 };
 export function ButtonSurface({
   children,
@@ -61,6 +62,7 @@ export function ButtonSurface({
   disabled = false,
   pending = false,
   expanded,
+  align = 'center',
   className,
   hitSlop = 4,
   ...props
@@ -84,7 +86,8 @@ export function ButtonSurface({
       {({ pressed }) => (
         <View
           className={[
-            'flex-row items-center justify-center gap-2 rounded-md border',
+            'flex-row items-center gap-2 rounded-md border',
+            align === 'start' ? 'justify-start' : 'justify-center',
             size === 'default' || size === 'sm' ? 'self-stretch' : '',
             variants[variant],
             sizes[size],
