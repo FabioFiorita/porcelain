@@ -3,6 +3,7 @@ import {
   foundPullRequests,
   githubUnavailable,
   pullRequestChecks,
+  pullRequestHeadLabel,
   pullCheckDuration,
   pullCheckTone,
   pullRequestMergeable,
@@ -20,6 +21,16 @@ const running = { name: 'e2e', status: 'IN_PROGRESS' };
 const pending = { name: 'ci/legacy', status: 'PENDING' };
 const failed = { name: 'units', status: 'COMPLETED', conclusion: 'FAILURE' };
 const errored = { name: 'ci/legacy', status: 'COMPLETED', conclusion: 'ERROR' };
+
+it.each([
+  [false, 'Different head from the review'],
+  [true, 'Same head as the review'],
+] as const)(
+  'labels head equality %s without claiming GitHub is newer',
+  (matchesReviewHead, expected) => {
+    expect(pullRequestHeadLabel({ matchesReviewHead })).toBe(expected);
+  },
+);
 
 it.each([
   [[], false, { tone: 'none', label: 'No checks', short: 'No checks' }],

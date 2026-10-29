@@ -153,6 +153,7 @@ export {
   pullCheckTone,
   pullCheckDuration,
   pullRequestChecks,
+  pullRequestHeadLabel,
   pullRequestMergeable,
   pullRequestNumber,
   pullRequestRepository,

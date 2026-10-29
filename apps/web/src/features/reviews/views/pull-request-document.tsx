@@ -24,6 +24,7 @@ import {
   pullCheckDuration,
   pullCheckTone,
   pullRequestChecks,
+  pullRequestHeadLabel,
   pullRequestMergeable,
   pullRequestRepository,
   pullReviewState,
@@ -297,7 +298,7 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
                 strokeWidth={2.25}
                 className="size-3.5 text-add-fg"
               />
-              Same head as the review
+              {pullRequestHeadLabel(pull)}
             </TooltipTrigger>
             <TooltipContent>
               The pull request’s head, {shortOid(pull.headSha)}, is the commit
@@ -307,7 +308,7 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         ) : (
           <span className="inline-flex items-center gap-1.5 text-warn @min-4xl/pr:ml-auto">
             <TriangleAlertIcon aria-hidden="true" className="size-3.5" />
-            Different head from the review
+            {pullRequestHeadLabel(pull)}
           </span>
         )}
       </div>
