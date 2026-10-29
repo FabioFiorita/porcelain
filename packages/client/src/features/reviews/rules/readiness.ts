@@ -1,3 +1,4 @@
+import { counted } from './counted.ts';
 import { type CommentThread, threadCounts } from './comments.ts';
 import { type ReviewProof, proofStatus } from './proof.ts';
 import {
@@ -28,10 +29,6 @@ type ReadinessInput = {
   threads: readonly CommentThread[];
 };
 
-function counted(total: number, one: string, many: string) {
-  return `${total} ${total === 1 ? one : many}`;
-}
-
 function checksItem(proof: ReviewProof | undefined): ReadinessItem {
   const status = proofStatus(proof);
   const total = status.failing + status.passing;
@@ -39,7 +36,7 @@ function checksItem(proof: ReviewProof | undefined): ReadinessItem {
     return {
       key: 'checks',
       value: `${status.failing} of ${total} failing`,
-      label: `${status.failing} of ${counted(total, 'check', 'checks')} failing`,
+      label: `${status.failing} of ${counted(total, 'check')} failing`,
       tone: 'failing',
     };
   if (total === 0)
@@ -58,7 +55,7 @@ function checksItem(proof: ReviewProof | undefined): ReadinessItem {
     };
   return {
     key: 'checks',
-    label: `${counted(total, 'check', 'checks')} passed`,
+    label: `${counted(total, 'check')} passed`,
     value: `${total} passed`,
     tone: 'ok',
   };
@@ -104,14 +101,14 @@ function commentItems(onAgent: number, onYou: number): ReadinessItem[] {
   if (onAgent > 0)
     items.push({
       key: 'comments',
-      label: `${counted(onAgent, 'comment', 'comments')} waiting on the agent`,
+      label: `${counted(onAgent, 'comment')} waiting on the agent`,
       value: `${onAgent} awaiting agent`,
       tone: 'attention',
     });
   if (onYou > 0)
     items.push({
       key: 'replies',
-      label: `${counted(onYou, 'comment', 'comments')} waiting on you`,
+      label: `${counted(onYou, 'comment')} waiting on you`,
       value: `${onYou} awaiting you`,
       tone: 'attention',
     });
@@ -138,7 +135,7 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
         }
       : {
           key: 'files',
-          label: `${reviewed} of ${counted(total, 'file', 'files')} reviewed`,
+          label: `${reviewed} of ${counted(total, 'file')} reviewed`,
           value: `${reviewed} of ${total} reviewed`,
           tone: reviewed === total ? 'ok' : 'attention',
         },
@@ -151,7 +148,7 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
         }
       : {
           key: 'stale',
-          label: `${counted(stale, 'mark', 'marks')} changed since reviewed`,
+          label: `${counted(stale, 'mark')} changed since reviewed`,
           value: `${stale} changed`,
           tone: 'attention',
         },

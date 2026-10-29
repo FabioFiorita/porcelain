@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
+import { plural } from '@porcelain/client/reviews/rules';
 
 const chipClass = 'min-w-0 max-w-40';
 
@@ -75,7 +76,7 @@ export function CommitRefs({
                 render={<button type="button" />}
                 variant="secondary"
                 className={`${chipClass} pointer-events-auto hover:bg-accent`}
-                aria-label={`Show ${hidden.length} more ${hidden.length === 1 ? 'ref' : 'refs'}`}
+                aria-label={`Show ${hidden.length} more ${plural(hidden.length, 'ref')}`}
               />
             }
           >

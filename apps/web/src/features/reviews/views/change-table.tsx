@@ -6,9 +6,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { type ReactNode, useState } from 'react';
-import type {
-  ReviewChangeItem,
-  ReviewScope,
+import {
+  counted,
+  type ReviewChangeItem,
+  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import type { CodeHeaderControls } from './code-document';
@@ -37,6 +38,7 @@ export function ChangeTable({
   const reviewed = items.filter(
     (item) => item.reviewStatus === 'reviewed',
   ).length;
+  const progress = `${reviewed} of ${counted(items.length, 'file')} reviewed`;
   return (
     <section aria-label={label} className="pb-3.25">
       <div className="flex min-h-6 flex-wrap items-center gap-x-3.5 gap-y-1 border-b pb-1.5 text-xs text-muted-foreground tabular-nums">
@@ -51,12 +53,11 @@ export function ChangeTable({
                 size="xs"
                 variant="ghost"
                 className="ml-auto"
-                aria-label={`File review actions: ${reviewed} of ${items.length} ${items.length === 1 ? 'file' : 'files'} reviewed`}
+                aria-label={`File review actions: ${progress}`}
               />
             }
           >
-            {reviewed} of {items.length} {items.length === 1 ? 'file' : 'files'}{' '}
-            reviewed
+            {progress}
           </PopoverTrigger>
           <PopoverContent aria-label="File review actions" align="end">
             {controls.collapse}

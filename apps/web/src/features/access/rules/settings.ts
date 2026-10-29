@@ -3,6 +3,7 @@ import {
   remoteRouteTitles,
   type RemoteAccess,
 } from '@porcelain/client/access/rules';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export function agentMcpCommand(command: string, agent: 'claude' | 'codex') {
   return command.replace(/^claude mcp add /, `${agent} mcp add `);
@@ -54,7 +55,7 @@ export function computerSummary(remote: RemoteAccess, devices: number) {
     .map((name) => remoteRouteTitles[name]);
   return [
     ways.length === 0 ? 'No way in on' : waysInList.format(ways),
-    devices === 1 ? '1 device' : `${devices} devices`,
+    counted(devices, 'device'),
   ].join(' · ');
 }
 

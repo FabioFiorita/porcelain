@@ -1,4 +1,5 @@
 import { ReviewPullRequestRefusedError } from '@porcelain/contracts/reviews';
+import { counted } from './counted.ts';
 import type {
   ReadBranchChangesResponse,
   ReadChangeDiffsResponse,
@@ -184,8 +185,6 @@ export function summaryLinkExpiring(
 export function notExplainedLabel(
   entries: readonly NotExplained[],
 ): string | null {
-  const count = (total: number, noun: string) =>
-    `${total} ${noun}${total === 1 ? '' : 's'}`;
   const text = entries.filter(
     (entry) => entry.binary !== true && entry.deleted !== true,
   );
@@ -202,10 +201,10 @@ export function notExplainedLabel(
   );
   const parts = [
     ...(text.length > 0
-      ? [`${count(lineCount, 'line')} in ${count(text.length, 'file')}`]
+      ? [`${counted(lineCount, 'line')} in ${counted(text.length, 'file')}`]
       : []),
-    ...(binary > 0 ? [count(binary, 'binary file')] : []),
-    ...(removed > 0 ? [count(removed, 'removed file')] : []),
+    ...(binary > 0 ? [counted(binary, 'binary file')] : []),
+    ...(removed > 0 ? [counted(removed, 'removed file')] : []),
   ];
   const last = parts.at(-1);
   if (last === undefined) return null;

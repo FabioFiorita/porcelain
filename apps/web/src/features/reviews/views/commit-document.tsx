@@ -35,6 +35,7 @@ import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 const pathKey = (file: CommitFile) => commitPaths(file).join('\0');
 
@@ -314,10 +315,7 @@ function CommitHeader({
       )}
       <section aria-label="Files changed" className="mt-7">
         <p className="border-b pb-1.5 text-xs font-medium tabular-nums">
-          <span>
-            {commit.files.length} file{commit.files.length === 1 ? '' : 's'}{' '}
-            changed
-          </span>
+          <span>{counted(commit.files.length, 'file')} changed</span>
           {total && (
             <>
               <span className="mx-2 font-normal text-muted-foreground">·</span>

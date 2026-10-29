@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { useDeleteResolvedComments } from '../commands/comments';
 import {
+  counted,
+  plural,
   type CommentThread,
   type ConfirmedThreads,
   resolvedCleanup,
@@ -25,7 +27,7 @@ import {
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 function threadCount(count: number) {
-  return count === 1 ? '1 resolved thread' : `${count} resolved threads`;
+  return counted(count, 'resolved thread');
 }
 
 export function DeleteResolved({
@@ -73,7 +75,7 @@ export function DeleteResolved({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {AsyncResult.isSuccess(remove.result)
-                ? `Kept ${skipped === 1 ? '1 thread' : `${skipped} threads`} that changed`
+                ? `Kept ${counted(skipped, 'thread')} that changed`
                 : `Delete ${threadCount(confirming?.length ?? 0)}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -81,7 +83,7 @@ export function DeleteResolved({
                 ? 'The agent answered or someone reopened them after you confirmed, so they stay for you to read first.'
                 : `This deletes the resolved threads you started, with the agent's replies in them, for you and for the agent.${
                     kept > 0
-                      ? ` ${threadCount(kept)} the agent started ${kept === 1 ? 'stays' : 'stay'}, since you cannot delete what the agent wrote on its own.`
+                      ? ` ${threadCount(kept)} the agent started ${plural(kept, 'stays', 'stay')}, since you cannot delete what the agent wrote on its own.`
                       : ''
                   }`}
             </AlertDialogDescription>

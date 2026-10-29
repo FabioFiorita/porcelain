@@ -39,6 +39,7 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export type DocumentProps = {
   scope: ReviewScope;
@@ -228,10 +229,10 @@ function NoReviewIntro({
 }
 
 function changesLabel(specsOnly: boolean, count: number) {
-  const changes = count === 1 ? 'change' : 'changes';
-  return specsOnly
-    ? `${count} uncommitted spec ${changes}`
-    : `${count} uncommitted ${changes}`;
+  return counted(
+    count,
+    specsOnly ? 'uncommitted spec change' : 'uncommitted change',
+  );
 }
 
 export function PlainChangesDocument({

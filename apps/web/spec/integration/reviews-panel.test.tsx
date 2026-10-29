@@ -202,7 +202,7 @@ test('decision readiness counts a decision by its mark, whatever its file marks'
   await expect
     .element(
       readiness.getByRole('button', {
-        name: '1 of 1 decisions reviewed',
+        name: '1 of 1 decision reviewed',
         exact: true,
       }),
     )
@@ -216,7 +216,7 @@ test('decision readiness counts a decision by its mark, whatever its file marks'
   await expect
     .element(
       readiness.getByRole('button', {
-        name: '0 of 1 decisions reviewed',
+        name: '0 of 1 decision reviewed',
         exact: true,
       }),
     )
@@ -238,7 +238,7 @@ test('decision readiness counts a decision by its mark, whatever its file marks'
   await expect
     .element(
       readiness.getByRole('button', {
-        name: '1 of 1 decisions reviewed',
+        name: '1 of 1 decision reviewed',
         exact: true,
       }),
     )

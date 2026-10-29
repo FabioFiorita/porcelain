@@ -22,6 +22,7 @@ import {
 import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import { refreshInventories } from '@porcelain/client/projects';
 import {
+  counted,
   emptyReviewListFilter,
   reviewListGroups,
   reviewListMeta,
@@ -557,7 +558,7 @@ export function ProjectNavigator({
                                     )}
                                     aria-label={
                                       entry.reviewId
-                                        ? `${entry.title}, ${entry.reviewed} of ${entry.total} decisions reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
+                                        ? `${entry.title}, ${entry.reviewed} of ${counted(entry.total, 'decision')} reviewed, ${reviewListMeta(entry, Date.now())}, ${entry.badges.map((badge) => badge.label).join(', ')}`
                                         : detachedLabel
                                     }
                                     disabled={!entry.reviewId && entry.disabled}
@@ -600,7 +601,7 @@ export function ProjectNavigator({
                                                 ? 'font-medium text-brand'
                                                 : 'text-muted-foreground',
                                             )}
-                                            aria-label={`${entry.reviewed} of ${entry.total} decisions reviewed`}
+                                            aria-label={`${entry.reviewed} of ${counted(entry.total, 'decision')} reviewed`}
                                           >
                                             {row.progress}
                                           </span>

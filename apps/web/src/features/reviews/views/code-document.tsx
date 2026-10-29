@@ -64,7 +64,11 @@ import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
-import { groupSpecPaths, isSpecPath } from '@porcelain/client/reviews/rules';
+import {
+  counted,
+  groupSpecPaths,
+  isSpecPath,
+} from '@porcelain/client/reviews/rules';
 import {
   anchorLabel,
   type FileCommentAnchor,
@@ -716,8 +720,7 @@ function CodeSurface({
                       </span>
                     )}
                   </span>
-                  {note.threads.length}{' '}
-                  {note.threads.length === 1 ? 'comment' : 'comments'}
+                  {counted(note.threads.length, 'comment')}
                   {note.threads.some(({ thread }) =>
                     thread.messages.some(
                       (message) => message.author === 'agent',
@@ -1024,7 +1027,7 @@ function CodeSurface({
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">
-                      Specs · {specCount} {specCount === 1 ? 'file' : 'files'}
+                      Specs · {counted(specCount, 'file')}
                     </span>
                   )}
                 {column ? (

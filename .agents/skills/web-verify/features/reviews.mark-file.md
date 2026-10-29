@@ -35,7 +35,7 @@ Preconditions: [surface baseline](README.md).
 2. Click button `Mark README.md as reviewed`
    Expect: button "Unmark README.md as unreviewed" [pressed]; opening File review actions now shows "Unmark all". `$C server reviewed-files` lists README.md in `marks`.
 3. Click button `Unmark README.md as unreviewed`
-   Expect: button "Mark README.md as reviewed" enabled; File review actions contains "Mark all 1 files reviewed". `$C server reviewed-files` shows `"marks": []`.
+   Expect: button "Mark README.md as reviewed" enabled; File review actions contains "Mark all 1 file reviewed". `$C server reviewed-files` shows `"marks": []`.
 4. Press `r`
    Expect: button "Unmark README.md as unreviewed" (the shortcut marked the focused, first entry).
 5. Press `r`

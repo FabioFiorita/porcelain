@@ -6,6 +6,7 @@ import type {
   ReviewStatus,
   ReviewStep,
 } from './review.ts';
+import { counted } from './counted.ts';
 import { layerReviewed } from './reviewed.ts';
 import { isSpecPath } from './spec-paths.ts';
 
@@ -42,7 +43,7 @@ export function decisionKey(layerId: string): `decision:${string}` {
 }
 
 export function briefingTitle(decisionCount: number): string {
-  return `${decisionCount} ${decisionCount === 1 ? 'decision shapes' : 'decisions shape'} this change`;
+  return `${counted(decisionCount, 'decision shapes', 'decisions shape')} this change`;
 }
 
 export function walkthroughStops(

@@ -25,6 +25,7 @@ import { useReviewOverview } from '@/features/changes/index';
 import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export function HistoryNavigation({
   scope,
@@ -70,7 +71,7 @@ export function HistoryNavigation({
               <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <TruncatedText className="flex-1" text="Uncommitted changes" />
               <span className="text-2xs text-muted-foreground tabular-nums">
-                {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
+                {counted(uncommitted, 'file')}
               </span>
             </button>
           </div>

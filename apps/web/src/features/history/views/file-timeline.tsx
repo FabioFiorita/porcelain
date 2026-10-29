@@ -10,6 +10,7 @@ import { timelineChange } from '@porcelain/client/history/rules';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import { CommitRow } from './commit-row';
 import { type Connection } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export function FileTimeline({
   scope,
@@ -62,7 +63,7 @@ export function FileTimeline({
       <li className="flex flex-col gap-1 px-2 py-3 text-2xs text-muted-foreground">
         <span>
           {timeline.more
-            ? `Showing the latest ${timeline.commits.length} commits.`
+            ? `Showing the latest ${counted(timeline.commits.length, 'commit')}.`
             : 'Start of this file’s history.'}
         </span>
         <span>A merge appears only when its own result changed the file.</span>

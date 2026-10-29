@@ -84,7 +84,7 @@ test('Spec files creates a separate collapsed section only while the setting is 
     .getByRole('button', { name: /^File review actions:/ })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Mark all 1 files reviewed', exact: true })
+    .getByRole('button', { name: 'Mark all 1 file reviewed', exact: true })
     .click();
   await expect
     .poll(async () =>

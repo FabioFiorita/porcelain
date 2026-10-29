@@ -18,16 +18,22 @@ const inactiveBases = Atom.make(
   AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchBases>>>(),
 );
 
+const inactiveChanges = Atom.make(
+  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchChanges>>>(),
+);
+
 export function useBranchChanges(
-  scope: ChangesScope,
+  scope: ChangesScope | undefined,
   connection: Connection,
   base: string | undefined,
 ) {
-  const state = readBranchChanges({
-    connection,
-    scope,
-    ...(base === undefined ? {} : { base }),
-  });
+  const state = scope
+    ? readBranchChanges({
+        connection,
+        scope,
+        ...(base === undefined ? {} : { base }),
+      })
+    : inactiveChanges;
   return { result: useAtomValue(state), refresh: useAtomRefresh(state) };
 }
 export function useBranchBases(

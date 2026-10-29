@@ -2,6 +2,7 @@ import type {
   ListReviewedLayersResponse,
   ListReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
+import { counted, plural } from './counted.ts';
 import {
   isFingerprintable,
   type ReviewChangeItem,
@@ -111,7 +112,7 @@ export function bulkReportText(report: BulkReviewReport) {
   const reviewed = report.skipped.length - skipped;
   return [
     report.marked.length > 0
-      ? `Marked ${report.marked.length} ${report.marked.length === 1 ? 'file' : 'files'}.`
+      ? `Marked ${counted(report.marked.length, 'file')}.`
       : 'No files marked.',
     skipped > 0 ? `Skipped ${skipped}.` : '',
     reviewed > 0 ? `${reviewed} already reviewed.` : '',
@@ -122,7 +123,7 @@ export function bulkReportText(report: BulkReviewReport) {
 }
 
 export function unavailableReviewText(paths: readonly string[]) {
-  return `${paths.join(', ')} cannot be marked reviewed because ${paths.length === 1 ? 'its fingerprint is' : 'their fingerprints are'} unavailable (too large or unreadable).`;
+  return `${paths.join(', ')} cannot be marked reviewed because ${plural(paths.length, 'its fingerprint is', 'their fingerprints are')} unavailable (too large or unreadable).`;
 }
 
 function unavailableCompletionText(paths: readonly string[]) {
@@ -208,7 +209,7 @@ export function markAllPlan(entries: readonly ReviewableItem[]) {
     label:
       fingerprintable.length === 0
         ? 'No files can be marked reviewed'
-        : (settled ?? `Mark all ${eligible.length} files reviewed`),
+        : (settled ?? `Mark all ${counted(eligible.length, 'file')} reviewed`),
     text:
       fingerprintable.length === 0
         ? 'No reviewable files'

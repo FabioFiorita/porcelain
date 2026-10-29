@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
 import {
+  counted,
   anchorPath,
   type CommentThread,
 } from '@porcelain/client/reviews/rules';
@@ -135,7 +136,7 @@ function BranchFileList({
     branch.head.branch === null || branch.head.branch === undefined
       ? 'this commit'
       : refLabel(branch.head.branch);
-  const commits = `${branch.commits} ${branch.commits === 1 ? 'commit' : 'commits'}`;
+  const commits = counted(branch.commits, 'commit');
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2 pr-3">
