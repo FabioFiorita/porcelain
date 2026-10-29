@@ -106,3 +106,55 @@ test('an open editor with no unsaved edits follows a rewrite on disk and reopens
     .toBe('Edited after the rewrite');
   await expect.element(workspace.getByRole('alert')).not.toBeInTheDocument();
 });
+
+test('reopening an editor starts from a rewrite that landed while its draft was unsaved', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await page.viewport(1440, 900);
+  const path = repo.readme.path;
+  await repo.write(path, 'Saved text');
+  await workspace
+    .getByRole('treeitem', { name: path, exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
+  await workspace
+    .getByRole('tab', { name: path, exact: true })
+    .click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const left = workspace.getByRole('region', { name: 'Left pane', exact: true });
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  await expect
+    .element(left.getByText('Saved text', { exact: true }))
+    .toBeVisible();
+  await left.getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor = left.getByRole('textbox', { name: path, exact: true });
+  await editor.click();
+  await userEvent.keyboard('{End}!');
+  await expect.element(editor).toHaveTextContent('Saved text!');
+  await repo.write(path, 'Rewritten outside');
+  await expect
+    .element(right.getByText('Rewritten outside', { exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard('{Backspace}');
+  await expect.element(editor).not.toHaveTextContent('Saved text!');
+  await left.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect
+    .element(left.getByText('Rewritten outside', { exact: true }))
+    .toBeVisible();
+
+  await left.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect.element(editor).toHaveTextContent('Rewritten outside');
+  await replaceEditorContent(editor, 'Edited after the rewrite');
+  await left.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect
+    .poll(async () => (await server.text(path)).text)
+    .toBe('Edited after the rewrite');
+  await expect.element(left.getByRole('alert')).not.toBeInTheDocument();
+});

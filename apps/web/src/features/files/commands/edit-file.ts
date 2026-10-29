@@ -82,6 +82,11 @@ export function useFileDraft(
     reset: (text: string, fingerprint: string) => {
       Effect.runFork(draft.reset(text, fingerprint));
     },
+    edit: (owner: string) => {
+      if (!('kind' in file) && file.contentFingerprint)
+        Effect.runFork(draft.refresh(file.text, file.contentFingerprint));
+      return draft.claim(owner);
+    },
   };
 }
 
