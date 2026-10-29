@@ -109,16 +109,7 @@ export function CommitDocument({
   const more = commit.files.length - reached.length;
   const subject = commit.commit.subject || `Commit ${shortOid(oid)}`;
   const counts = new Map(
-    entries.map((entry) => [
-      entry.path,
-      entry.fileDiff.hunks.reduce(
-        (sum, hunk) => ({
-          added: sum.added + hunk.additionLines,
-          removed: sum.removed + hunk.deletionLines,
-        }),
-        { added: 0, removed: 0 },
-      ),
-    ]),
+    entries.map((entry) => [entry.path, entry.lineCounts]),
   );
   for (const file of reached)
     if (patchOf(file)?.kind === 'metadata-only')

@@ -38,6 +38,7 @@ export type RepoStep =
   | { kind: 'write'; path: string; text: string }
   | { kind: 'remove'; path: string }
   | { kind: 'rename'; from: string; to: string }
+  | { kind: 'symlink'; target: string; path: string }
   | { kind: 'read'; path: string }
   | { kind: 'commit'; message: string }
   | { kind: 'branch'; name: string }

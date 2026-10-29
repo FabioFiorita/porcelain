@@ -164,6 +164,10 @@ export class World {
       return '';
     }
     if (step.kind === 'read') return repository.readFile(step.path);
+    if (step.kind === 'symlink') {
+      await repository.symlink(step.target, step.path);
+      return '';
+    }
     if (step.kind === 'rename')
       return repository.git('mv', '--', step.from, step.to);
     if (step.kind === 'commit') {

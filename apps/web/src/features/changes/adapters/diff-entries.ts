@@ -44,24 +44,38 @@ export function diffEntry(
   };
 }
 
+type CommitDiffEntry = DiffEntry & {
+  lineCounts: { readonly added: number; readonly removed: number };
+};
+
 export function commitEntry(
   oid: string,
   file: CommitFile,
   content: DiffContent | undefined,
-): DiffEntry | null {
+): CommitDiffEntry | null {
   const path = commitDiffPath(file, content);
   if (!path || content?.kind !== 'text') return null;
   const patchVersion = contentVersion(content.patch);
-  const fileDiff = parsePatchFiles(
+  const files = parsePatchFiles(
     content.patch,
     `${oid}:${path}:${patchVersion}`,
-  )[0]?.files[0];
+  ).flatMap((group) => group.files);
+  const fileDiff = files[0];
   if (!fileDiff) return null;
   return {
     id: `commit:${oid}:${path}`,
     kind: 'diff',
     path,
     fileDiff,
+    lineCounts: files
+      .flatMap((entry) => entry.hunks)
+      .reduce(
+        (sum, hunk) => ({
+          added: sum.added + hunk.additionLines,
+          removed: sum.removed + hunk.deletionLines,
+        }),
+        { added: 0, removed: 0 },
+      ),
     version: patchVersion,
     note: file.status,
   };

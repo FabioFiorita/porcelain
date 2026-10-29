@@ -230,3 +230,32 @@ test('a binary-only commit retains its subject and file summary without a code p
     )
     .toBeVisible();
 });
+
+test('a type change counts every text section of its patch', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await repo.write('mode-change.txt', 'before\n');
+  await repo.commit('Prepare a regular file');
+  await repo.remove('mode-change.txt');
+  await repo.symlink('README.md', 'mode-change.txt');
+  await repo.commit('Preserve both sides of a type change');
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.subject)
+    .toBe('Preserve both sides of a type change');
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: /^Preserve both sides of a type change/ })
+    .click();
+  const summary = workspace.getByRole('list', {
+    name: 'Changed files',
+    exact: true,
+  });
+  await expect
+    .element(summary.getByText('T', { exact: true }))
+    .toHaveAttribute('aria-label', 'type-changed');
+  await expect.element(summary.getByText('+1', { exact: true })).toBeVisible();
+  await expect.element(summary.getByText('−1', { exact: true })).toBeVisible();
+});

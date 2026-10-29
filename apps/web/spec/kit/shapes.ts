@@ -60,6 +60,8 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
     remove: (path: string) => step({ kind: 'remove', path }),
     rename: (from: string, to: string) => step({ kind: 'rename', from, to }),
+    symlink: (target: string, path: string) =>
+      step({ kind: 'symlink', target, path }),
     read: (path: string) => step({ kind: 'read', path }),
     commit: (message: string) => step({ kind: 'commit', message }),
     branch: (name: string) => step({ kind: 'branch', name }),
