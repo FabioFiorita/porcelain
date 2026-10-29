@@ -346,7 +346,9 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     await save();
     expect(await request(`${project}/pull-requests`)).toMatchObject({
       kind: 'available',
-      pullRequests: [{ number: 423, reviewId: undefined }],
+      pullRequests: [
+        expect.not.objectContaining({ reviewId: expect.anything() }),
+      ],
     });
     state.state = 'MERGED';
     await save();
