@@ -11,6 +11,10 @@ type HistorySnapshot = {
   head: CommitHead;
 };
 
+type CommitRef =
+  | { kind: 'local-branch' | 'remote-branch' | 'tag'; name: string }
+  | { kind: 'head'; name: 'HEAD' };
+
 export type CommitSummary = {
   oid: string;
   parentOids: string[];
@@ -19,7 +23,7 @@ export type CommitSummary = {
   subjectTruncated: boolean;
   body: string | undefined;
   bodyTruncated: boolean;
-  refs: string[];
+  refs: CommitRef[];
 };
 
 export type CommitPage = {

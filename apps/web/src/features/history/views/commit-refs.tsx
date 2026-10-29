@@ -1,3 +1,4 @@
+import type { CommitRef } from '@porcelain/client/history/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import type { MouseEvent } from 'react';
@@ -16,11 +17,11 @@ export function CommitRefs({
   current = () => false,
   onOpenCommit,
 }: {
-  refs: readonly string[];
-  current?: (ref: string) => boolean;
+  refs: readonly CommitRef[];
+  current?: (ref: CommitRef) => boolean;
   onOpenCommit: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
-  const { row, visibleCount } = useRefChipLayout(refs);
+  const { row, visibleCount } = useRefChipLayout(refs.length);
   const hidden = refs.slice(visibleCount);
   return (
     <div
@@ -33,9 +34,13 @@ export function CommitRefs({
       >
         <div data-ref-measurement className="flex w-max gap-1">
           {refs.map((ref) => (
-            <Badge key={ref} variant="secondary" className={chipClass}>
+            <Badge
+              key={`${ref.kind}:${ref.name}`}
+              variant="secondary"
+              className={chipClass}
+            >
               <span
-                data-label={ref}
+                data-label={ref.name}
                 className="before:content-[attr(data-label)]"
               />
             </Badge>
@@ -47,8 +52,8 @@ export function CommitRefs({
       </div>
       {refs.slice(0, visibleCount).map((ref) => (
         <TruncatedText
-          key={ref}
-          text={ref}
+          key={`${ref.kind}:${ref.name}`}
+          text={ref.name}
           renderTrigger={(label) => (
             <Badge
               render={<button type="button" onClick={onOpenCommit} />}
@@ -59,7 +64,7 @@ export function CommitRefs({
             </Badge>
           )}
         >
-          {ref}
+          {ref.name}
         </TruncatedText>
       ))}
       {hidden.length > 0 && (
@@ -80,8 +85,8 @@ export function CommitRefs({
             <PopoverTitle>More refs</PopoverTitle>
             <ul className="max-h-64 overflow-y-auto text-xs">
               {hidden.map((ref) => (
-                <li key={ref} className="py-1 break-all">
-                  {ref}
+                <li key={`${ref.kind}:${ref.name}`} className="py-1 break-all">
+                  {ref.name}
                 </li>
               ))}
             </ul>

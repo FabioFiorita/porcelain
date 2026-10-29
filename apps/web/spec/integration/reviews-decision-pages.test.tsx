@@ -472,7 +472,7 @@ test('resizing the tab strip preserves the review reading position', async ({
       name: 'Review walkthrough',
       exact: true,
     });
-    const tab = review.getByRole('tab', { name: 'Review', exact: true });
+    const tab = app.page.getByRole('tab', { name: 'Review', exact: true });
     await expect
       .element(
         review.getByRole('button', {

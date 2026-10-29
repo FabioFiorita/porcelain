@@ -474,10 +474,9 @@ test('the review page keeps whole-change and inline comments in its Review panel
       .click();
     await expect
       .element(
-        review.getByRole('button', {
-          name: 'Mark retired.ts as reviewed',
-          exact: true,
-        }),
+        app.page
+          .getByRole('toolbar', { name: 'Document controls', exact: true })
+          .getByRole('button', { name: 'Reviewed', exact: true }),
       )
       .toBeVisible();
     await panel.getByRole('tab', { name: /^Comments/ }).click();

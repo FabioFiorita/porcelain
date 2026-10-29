@@ -1,4 +1,3 @@
-import { TruncatedText } from '@/shared/views/truncated-text';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
@@ -13,20 +12,29 @@ import { type ReactNode, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useChanges } from '@/features/changes/index';
+import {
+  useChanges,
+  useChangeDiffs,
+  diffEntry,
+} from '@/features/changes/index';
+import { diffSelection, selectionKey } from '@porcelain/client/changes/rules';
+import { FileHeading } from './file-heading';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/features/preferences/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   FileEditor,
-  FileTypeIcon,
   HtmlPreview,
   ImagePreview,
   MarkdownView,
   useDirectory,
   useDiskChangeNotice,
   useFileDraft,
-  useTextFile,
 } from '@/features/files/index';
 import { isImagePath } from '@porcelain/client/files/rules';
 import type { FileDraftState } from '@porcelain/client/files';
@@ -34,7 +42,6 @@ import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
-import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';
 import { StateNotice } from '@/shared/views/state-notice';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -109,15 +116,8 @@ function TextFileDocument({
   onOpen,
 }: FileDocumentProps) {
   const { connection } = context;
-  const file = useTextFile(connection, scope, path);
+  const { file, draft, state, reset } = useFileDraft(connection, scope, path);
   const unreadable = 'kind' in file;
-  const { draft, state, reset } = useFileDraft(
-    connection,
-    scope,
-    path,
-    unreadable ? '' : file.text,
-    unreadable ? '' : (file.contentFingerprint ?? ''),
-  );
   if (unreadable && state.owner === null && state.text === state.savedText)
     return (
       <NotShownFile
@@ -184,6 +184,31 @@ function ReadableFileDocument({
   const changes = useChanges(scope, connection);
   const kind = fileKind(path);
   const reviewItem = useReviewChangeItems(scope, context, changes, [path])[0];
+  const comparisons = reviewItem?.comparisons ?? [];
+  const comparison =
+    comparisons.find((change) => change.scope === 'unstaged') ?? comparisons[0];
+  const selection = comparison ? diffSelection(comparison) : undefined;
+  const diffs = useChangeDiffs(
+    scope,
+    connection,
+    reviewItem?.statusToken ?? '',
+    reviewItem ? [{ path, fingerprint: reviewItem.fingerprint }] : [],
+    selection ? [selection] : [],
+  );
+  const content = selection
+    ? diffs.diffs.get(selectionKey(selection))
+    : undefined;
+  const diff =
+    comparison &&
+    comparison.scope !== 'untracked' &&
+    comparison.scope !== 'unmerged' &&
+    content
+      ? diffEntry(comparison, content)?.fileDiff
+      : undefined;
+  const note =
+    comparison && 'kind' in comparison
+      ? `${comparison.scope} · ${comparison.kind}`
+      : comparison?.scope;
   const toggle = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),
   );
@@ -243,34 +268,51 @@ function ReadableFileDocument({
   const commands = (
     <>
       {contentFingerprint && (
-        <Button
-          variant="ghost"
-          size="xs"
-          disabled={draftState.owner !== null && draftState.owner !== editorId}
-          title={
-            draftState.owner && draftState.owner !== editorId
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={
+                  draftState.owner !== null && draftState.owner !== editorId
+                }
+                aria-label={
+                  draftState.text !== draftState.savedText
+                    ? 'Resume edit'
+                    : 'Edit'
+                }
+                onClick={() => {
+                  if (draft.claim(editorId)) setEditing(true);
+                }}
+              />
+            }
+          >
+            <PencilIcon />
+          </TooltipTrigger>
+          <TooltipContent role="tooltip">
+            {draftState.owner !== null && draftState.owner !== editorId
               ? 'Editing in another pane'
-              : undefined
-          }
-          onClick={() => {
-            if (draft.claim(editorId)) setEditing(true);
-          }}
-        >
-          <PencilIcon />
-          <span className="max-narrow:sr-only">
-            {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
-          </span>
-        </Button>
+              : 'Edit'}
+          </TooltipContent>
+        </Tooltip>
       )}
       {changed && (
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => onOpen({ kind: 'change', path })}
-        >
-          <FileDiffIcon />
-          <span className="max-narrow:sr-only">Open diff</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Open diff"
+                onClick={() => onOpen({ kind: 'change', path })}
+              />
+            }
+          >
+            <FileDiffIcon />
+          </TooltipTrigger>
+          <TooltipContent role="tooltip">Open diff</TooltipContent>
+        </Tooltip>
       )}
       {interaction.toolbarTarget === undefined && (
         <TimelineButton path={path} onOpen={onOpen} />
@@ -370,16 +412,17 @@ function ReadableFileDocument({
               onClose={() => setFinding(undefined)}
             />
           )}
+          <FileHeading path={path} note={note} diff={diff}>
+            {leading}
+            {commands}
+          </FileHeading>
           <CodeDocument
+            disableFileHeader
+            compactThreads
+            fileDiff={diff}
             scope={scope}
             context={context}
             interaction={interaction}
-            headerLeading={
-              <>
-                {leading}
-                {commands}
-              </>
-            }
             headerActions={
               interaction.toolbarTarget !== undefined ? (
                 <TimelineButton path={path} onOpen={onOpen} />
@@ -456,28 +499,11 @@ function FileToolbar({
   children?: ReactNode;
   copy?: boolean;
 }) {
-  const separator = path.lastIndexOf('/') + 1;
-  const directory = path.slice(0, separator);
-  const name = path.slice(separator);
   return (
-    <DocumentToolbar
-      titleLabel={path}
-      title={
-        <span className="flex min-w-0 items-center gap-1.5">
-          <FileTypeIcon path={path} className="size-4 shrink-0" />
-          {directory && (
-            <TruncatedText
-              className="font-normal text-muted-foreground"
-              text={directory}
-            />
-          )}
-          <span className="shrink-0">{name}</span>
-        </span>
-      }
-    >
+    <FileHeading path={path}>
       {children}
       {copy && <CopyPath path={path} />}
-    </DocumentToolbar>
+    </FileHeading>
   );
 }
 
@@ -491,6 +517,7 @@ function TimelineButton({
   return (
     <BarAction
       label="Timeline"
+      iconOnly
       icon={HistoryIcon}
       onClick={() => onOpen({ kind: 'timeline', path })}
     />
@@ -499,16 +526,21 @@ function TimelineButton({
 
 function CopyPath({ path }: { path: string }) {
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      aria-label="Copy path"
-      title="Copy path"
-      onClick={() => copyText(path, 'path')}
-    >
-      <CopyIcon />
-      <span className="max-narrow:sr-only">Copy path</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Copy path"
+            onClick={() => copyText(path, 'path')}
+          />
+        }
+      >
+        <CopyIcon />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip">Copy path</TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -14,7 +14,8 @@ import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import {
   commitMessage,
-  refLabel,
+  isCurrentBranch,
+  type CommitRef,
   shortOid,
   shownRefs,
   type CommitSummary,
@@ -49,8 +50,7 @@ export function CommitRow({
   const [openingSide, setOpeningSide] = useState(false);
   const select = (event: MouseEvent<HTMLButtonElement>) =>
     onSelect(openToSide !== undefined && event.altKey);
-  const current = (ref: string) =>
-    headRef !== undefined && (ref === headRef || ref === refLabel(headRef));
+  const current = (ref: CommitRef) => isCurrentBranch(ref, headRef);
   const refs = shownRefs(commit.refs).toSorted(
     (left, right) => Number(current(right)) - Number(current(left)),
   );

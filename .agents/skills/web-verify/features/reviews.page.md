@@ -19,6 +19,7 @@ selectors:
   - 'Comment on the whole branch'
   - 'Try again'
 tests:
+  - apps/web/spec/integration/reviews-file-tabs.test.tsx
   - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-summary.test.tsx
   - apps/web/spec/integration/reviews-briefing.test.tsx
@@ -86,3 +87,11 @@ Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
 The top of the Review panel finds open pull requests for the review's branch from the project's existing list. Use Find pull requests again to refresh, Link to this review to select a found request, or paste a GitHub pull request URL and select Link pull request. A different repository or head branch, or a pull request number GitHub does not have, is refused without changing the review. A review that is not linked in a repository without a GitHub remote shows no block; it appears once the repository has a GitHub `origin` and the review is opened again. After Link or Unlink by keyboard, focus moves to Unlink pull request or the URL input. A new malformed-link message replaces an earlier failure alert. Pending writes disable repeat submissions; refusal explains why and keeps the input editable.
 
 A linked block shows Open with the add colours, Draft with muted colours, Merged with brand colours, and Closed with delete colours. Draft applies only to an open pull request; a merged or closed draft keeps its terminal state. Check all four badges in light and dark. The block shows GitHub checks separately from the agent's proof, and both head SHAs when they differ. Open pull request goes to GitHub. Read pull request again retries a failed read; a missing or unauthorised GitHub account is fixed on the computer with `gh auth login`, then Read pull request again. Unlink pull request works even when GitHub is unreachable or a GitHub account lookup is still running, preserves the review and revisions, and follows the branch again. Closed reviews remain closed. Phone's native review shows the link and Unlink; linking uses web or desktop.
+
+## File tabs retain the walkthrough
+
+A path on a decision's route opens a retained file tab beside Review. The banner reads `Part of the review · Decision n, stop m · <stop title>` and offers `Back to the walkthrough`. The Review chip remains visible, including when file controls arrive or several documents are open. Opening the same retained path again selects its existing tab. Review, the banner, previous-tab and close-tab shortcuts return to the same decision and scroll. The retained file follows the selected revision, including after the publishing worktree disappears. Open-to-side uses the existing pane layout; each pane has its own document controls and Git appears once.
+
+File headers use a mono breadcrumb with a medium-weight filename, change status and deletion/addition counts when a textual comparison is available. Header actions stay on one row and use named, tooltip-labelled icons in narrow panes. Added lines have a change bar. File comment markers expand their threads; an agent reply is named on the marker. Ordinary Files tabs retain editing and preview behavior without a review-origin banner.
+
+Automated coverage: `reviews-file-tabs.test.tsx`, plus `reviews-pane-bar.test.tsx` for the shared tab shell.

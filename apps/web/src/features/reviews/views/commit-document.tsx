@@ -302,9 +302,13 @@ function CommitHeader({
       </div>
       <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
         {shownRefs(commit.commit.refs)
-          .filter((ref) => ref !== branch)
+          .filter((ref) => ref.kind !== 'branch' || ref.name !== branch)
           .map((ref) => (
-            <TruncatedText key={ref} text={ref} className="font-mono" />
+            <TruncatedText
+              key={`${ref.kind}:${ref.name}`}
+              text={ref.name}
+              className="font-mono"
+            />
           ))}
       </div>
       {commit.commit.body !== null && commit.commit.body !== undefined && (

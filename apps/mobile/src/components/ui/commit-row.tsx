@@ -1,3 +1,4 @@
+import type { CommitRef } from '@porcelain/client/history/rules';
 import { View } from 'react-native';
 import { Item } from './item';
 import { Badge } from './badge';
@@ -10,7 +11,7 @@ export type HistoryEntry = {
   author: string;
   time: string;
   shortHash: string;
-  refs?: readonly string[];
+  refs?: readonly CommitRef[];
   graph?: { merge: boolean; continues: boolean };
 };
 export function CommitRow({
@@ -48,7 +49,7 @@ export function CommitRow({
           selected={selected}
           onPress={onPress}
           size="sm"
-          accessibilityLabel={`${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.refs?.length ? ` · ${entry.refs.join(', ')}` : ''}`}
+          accessibilityLabel={`${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.refs?.length ? ` · ${entry.refs.map((ref) => ref.name).join(', ')}` : ''}`}
           trailing={<Icon name="chevron" size="small" tone="muted" />}
         >
           <Text variant="caption" tone="muted" numberOfLines={1}>
@@ -61,8 +62,8 @@ export function CommitRow({
             <View className="flex-row flex-wrap gap-1">
               {entry.refs.map((ref) => (
                 <Badge
-                  key={ref}
-                  label={ref}
+                  key={`${ref.kind}:${ref.name}`}
+                  label={ref.name}
                   labelNumberOfLines={1}
                   className="max-w-full"
                   variant="secondary"

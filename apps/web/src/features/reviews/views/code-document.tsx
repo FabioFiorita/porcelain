@@ -5,6 +5,7 @@ import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
 import type {
+  FileDiffMetadata,
   CodeViewItem,
   CodeViewLineSelection,
   DiffLineAnnotation,
@@ -24,6 +25,8 @@ import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   MessageSquareIcon,
+  UserIcon,
+  BotIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
@@ -35,6 +38,7 @@ import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
+  PIERRE_FILE_CSS,
   PIERRE_DECISION_CSS,
   PIERRE_DECISION_THEME,
   PIERRE_HEADER_CSS,
@@ -48,6 +52,7 @@ import {
   useSpecsApart,
   useTheme,
 } from '@/features/preferences/index';
+import { fileChangeBars } from '../adapters/file-changes';
 import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
@@ -100,6 +105,8 @@ type Props = {
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   foundLine?: { line: number; nonce: number };
+  compactThreads?: boolean;
+  fileDiff?: FileDiffMetadata | undefined;
   disableFileHeader?: boolean;
   fullHeight?: boolean;
   collapsible?: boolean;
@@ -150,6 +157,8 @@ function CodeSurface({
   commentRequest,
   foundLine,
   disableFileHeader = false,
+  fileDiff,
+  compactThreads = false,
   fullHeight = false,
   collapsible = false,
   threadMargin = false,
@@ -163,6 +172,9 @@ function CodeSurface({
   onToggleReviewed: (entry: CodeEntry) => void;
 }) {
   const { dark } = useTheme();
+  const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
@@ -335,7 +347,10 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: decision || framed ? PIERRE_DECISION_THEME : PIERRE_THEME,
+    theme:
+      decision || compactThreads || framed
+        ? PIERRE_DECISION_THEME
+        : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -363,7 +378,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${decision || framed ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || framed ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -413,7 +428,7 @@ function CodeSurface({
   const collapseControl = entries.length > 1 ? collapseButton : null;
   const paneFile =
     interaction.toolbarTarget !== undefined &&
-    /^(file|change|branch):/.test(interaction.entry);
+    /^(file|review-file|review-change|change|branch):/.test(interaction.entry);
   const focusedEntry = entries[focused] ?? entries[0];
   const paneActions =
     paneFile &&
@@ -452,7 +467,8 @@ function CodeSurface({
     <div
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
-        (decision || framed) && 'decision-code',
+        (decision || compactThreads || framed) && 'decision-code',
+        compactThreads && 'file-code',
         framed && 'commit-code',
       )}
     >
@@ -629,6 +645,53 @@ function CodeSurface({
                   {...(note.tone ? { tone: note.tone } : {})}
                 />
               );
+            if (
+              note.kind === 'thread' &&
+              note.threads.every(({ stale }) => !stale) &&
+              compactThreads &&
+              item.type === 'file' &&
+              !expandedThreads.has(`${item.id}:${note.lineNumber}`)
+            )
+              return (
+                <button
+                  type="button"
+                  data-file-thread-marker=""
+                  aria-expanded={false}
+                  className="ml-3 flex h-8 w-[calc(100%-var(--spacing)*5.5)] items-center gap-2 bg-brand-soft pr-3 pl-2.5 text-left font-sans text-xs font-medium text-brand hover:underline"
+                  onClick={() =>
+                    setExpandedThreads(
+                      (current) =>
+                        new Set([...current, `${item.id}:${note.lineNumber}`]),
+                    )
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex shrink-0 items-center"
+                  >
+                    <span className="grid size-4.5 place-items-center rounded-full bg-foreground text-background">
+                      <UserIcon className="size-3" />
+                    </span>
+                    {note.threads.some(({ thread }) =>
+                      thread.messages.some(
+                        (message) => message.author === 'agent',
+                      ),
+                    ) && (
+                      <span className="-ml-1 grid size-4.5 place-items-center rounded-[--spacing(1)] border bg-card text-foreground">
+                        <BotIcon className="size-2.5" />
+                      </span>
+                    )}
+                  </span>
+                  {note.threads.length}{' '}
+                  {note.threads.length === 1 ? 'comment' : 'comments'}
+                  {note.threads.some(({ thread }) =>
+                    thread.messages.some(
+                      (message) => message.author === 'agent',
+                    ),
+                  ) && ' · Agent replied'}
+                  <ChevronRightIcon className="size-3" />
+                </button>
+              );
             return note.kind === 'composer' ? (
               composer && composer.anchor === note.anchor && (
                 <InlineComposer
@@ -659,6 +722,28 @@ function CodeSurface({
                     '@5xl/review:absolute @5xl/review:left-full @5xl/review:z-10 @5xl/review:my-0 @5xl/review:mr-0 @5xl/review:ml-7 @5xl/review:w-51',
                 )}
               >
+                {compactThreads &&
+                  item.type === 'file' &&
+                  expandedThreads.has(`${item.id}:${note.lineNumber}`) && (
+                    <button
+                      type="button"
+                      aria-expanded={true}
+                      className="self-start text-xs font-medium text-brand hover:underline"
+                      onClick={() =>
+                        setExpandedThreads(
+                          (current) =>
+                            new Set(
+                              [...current].filter(
+                                (key) =>
+                                  key !== `${item.id}:${note.lineNumber}`,
+                              ),
+                            ),
+                        )
+                      }
+                    >
+                      Collapse comments on line {note.lineNumber}
+                    </button>
+                  )}
                 {note.threads.map(({ thread, stale }) => (
                   <div key={thread.id} className="group/margin-thread">
                     {stale && !thread.review && (
@@ -837,7 +922,7 @@ function CodeSurface({
               </div>
             );
           }}
-          disableWorkerPool={decision || framed}
+          disableWorkerPool={decision || compactThreads || framed}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }

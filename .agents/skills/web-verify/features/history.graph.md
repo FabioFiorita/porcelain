@@ -57,6 +57,13 @@ The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic 
 5. Click button `/^Merge commit ?Merge branch 'topic'/`
    Expect: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id and subject is); title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
 
+### Ref identity and colliding names
+
+1. In the disposable repository, tag the current commit with the checked-out branch's name, then make another commit on that branch.
+2. Open History and Graph. Expect: the branch chip on the newest commit uses the current-branch colour; the same-named tag on the older commit stays neutral. A remote branch with the same display name also stays neutral.
+3. Add a local branch and tag with the same name on one commit. Expect: both chips remain reachable, including in the overflow popover at phone width; only a local branch matching the full checked-out branch ref is current.
+4. Check out a commit detached. Expect: Graph keeps its separate HEAD marker and no branch or tag receives current-branch colour. Internal Porcelain refs stay hidden.
+
 ### Observable proof
 
 Reload full URL: Graph remains selected; opening merge records files GET/200.
