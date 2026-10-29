@@ -1,5 +1,3 @@
-'use client';
-
 import * as React from 'react';
 import {
   MessageScroller as MessageScrollerPrimitive,
@@ -57,7 +55,7 @@ function MessageScrollerContent({
   return (
     <MessageScrollerPrimitive.Content
       data-slot="message-scroller-content"
-      className={cn('flex h-max min-h-full flex-col gap-8', className)}
+      className={cn('flex h-max min-h-full flex-col gap-6', className)}
       {...props}
     />
   );

@@ -35,7 +35,7 @@ export function BarAction({
             render={
               <Button
                 variant={variant}
-                size={mode === 'compact' ? 'icon-sm' : 'sm'}
+                size={mode === 'compact' ? 'icon' : 'default'}
                 className={
                   mode === 'compact'
                     ? '@min-3xl/pane:hidden'

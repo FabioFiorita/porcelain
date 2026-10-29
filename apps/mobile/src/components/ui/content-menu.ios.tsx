@@ -22,9 +22,9 @@ export function ContentMenu({
               accessible
               accessibilityRole="button"
               accessibilityLabel={label}
-              className="min-h-11 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2"
+              className="min-h-11 flex-row items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2"
             >
-              <Text accessible={false} variant="ui" weight="medium">
+              <Text accessible={false} variant="control" weight="medium">
                 {label}
               </Text>
               <Icon name="down" size="small" tone="muted" />

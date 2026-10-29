@@ -304,7 +304,10 @@ function ReviewWorkspaceContent({
           </ResizablePanel>
           {panelOpen && desktop && (
             <>
-              <ResizableHandle className="w-2 bg-transparent after:w-2" />
+              <ResizableHandle
+                aria-label="Document panes and side panel"
+                className="w-2 bg-transparent after:w-2"
+              />
               <ResizablePanel
                 id="review-sidebar"
                 defaultSize={320}
@@ -478,7 +481,14 @@ function DocumentPanes({
       <ResizablePanel id="pane-left" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(0)} />
       </ResizablePanel>
-      <ResizableHandle withHandle />
+      <ResizableHandle
+        aria-label={
+          navigatorIsMobile
+            ? 'Top and bottom document panes'
+            : 'Left and right document panes'
+        }
+        withHandle
+      />
       <ResizablePanel id="pane-right" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(1)} />
       </ResizablePanel>
