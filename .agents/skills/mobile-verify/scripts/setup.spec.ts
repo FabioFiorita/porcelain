@@ -69,19 +69,19 @@ if (args[0] === 'close' && ${failClose}) {
       (await readFile(calls, 'utf8'))
         .trim()
         .split('\n')
-        .map(
+        .map((line) =>
           Schema.decodeUnknownSync(
             Schema.fromJsonString(Schema.Array(Schema.String)),
-          ),
+          )(line),
         ),
     commands: async () =>
       (await readFile(calls, 'utf8'))
         .trim()
         .split('\n')
-        .map(
+        .map((line) =>
           Schema.decodeUnknownSync(
             Schema.fromJsonString(Schema.Array(Schema.String)),
-          ),
+          )(line),
         )
         .map((args) => args[0]),
   };
