@@ -11,6 +11,7 @@ import {
 } from '../models/resolve-published-review.ts';
 import { SignatureSource } from '../ports/signature-source.ts';
 import { summaryMessage } from '../rules/review-digests.ts';
+import { layerCodeMoved } from '../rules/resolve-review.ts';
 
 export class ResolvePublishedReviewService extends Context.Service<
   ResolvePublishedReviewService,
@@ -36,8 +37,12 @@ export class ResolvePublishedReviewService extends Context.Service<
           );
           return yield* Effect.sync<ResolvePublishedReviewResult>(() => {
             const { review } = input;
+            const { worktree } = input;
             const layers = review.layers.map((layer) => ({
               ...layer,
+              ...(worktree === undefined
+                ? {}
+                : { codeMoved: layerCodeMoved(layer, worktree) }),
               steps: layer.steps.map(({ published, ...step }) => ({
                 ...step,
                 published: [...published],

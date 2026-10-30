@@ -85,6 +85,15 @@ export function GitButton({
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
+  const [compact, setCompact] = useState(false);
+  const [measureLabel] = useState(() => (element: HTMLSpanElement | null) => {
+    if (!element) return;
+    const measure = () => setCompact(element.getClientRects().length === 0);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const settled =
@@ -184,7 +193,7 @@ export function GitButton({
                   render={
                     <Button
                       variant="outline"
-                      size="sm"
+                      size={compact ? 'icon' : 'default'}
                       aria-label={
                         running
                           ? `${networkLabel(running.name)} in progress: show progress`
@@ -217,7 +226,11 @@ export function GitButton({
                   className="size-3.5"
                 />
               )}
-              <span aria-hidden="true" className="hidden @min-lg/pane:inline">
+              <span
+                ref={measureLabel}
+                aria-hidden="true"
+                className="hidden @min-lg/pane:inline"
+              >
                 {running ? `${networkLabel(running.name)}…` : primary.label}
                 {!running &&
                   count !== null &&
@@ -284,7 +297,7 @@ export function GitButton({
                   render={
                     <Button
                       variant="outline"
-                      size="icon-sm"
+                      size="icon"
                       aria-label="Git actions"
                       disabled={running !== null && running !== undefined}
                     />

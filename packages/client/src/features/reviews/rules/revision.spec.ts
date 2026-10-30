@@ -195,3 +195,68 @@ it.for([
     ).toEqual({ reviewed: expected, total: 1 });
   },
 );
+
+function decisionAt(id: string, codeMoved?: boolean) {
+  return {
+    id,
+    title: 'Own the behavior',
+    summary: 'One owner',
+    lanes: ['Owner'],
+    fingerprint: `${id}-layer`,
+    ...(codeMoved === undefined ? {} : { codeMoved }),
+    steps: [
+      {
+        id: `${id}-step`,
+        lane: 0,
+        title: 'Point at the owner',
+        text: 'The owner changed here',
+        kind: 'changed' as const,
+        pointer: {
+          path: `${id}.ts`,
+          startLine: 3,
+          endLine: 4,
+          textFingerprint: 'text',
+        },
+        location: { state: 'current' as const, startLine: 3, endLine: 4 },
+      },
+    ],
+  };
+}
+
+it.for([
+  { name: 'the server found its code moved', codeMoved: true, stale: true },
+  {
+    name: 'the server found its code in place',
+    codeMoved: false,
+    stale: false,
+  },
+  { name: 'the revision was not compared', codeMoved: undefined, stale: false },
+])('reports code moved when $name', ({ codeMoved, stale }) => {
+  const states = revisionDecisionStates(
+    { content: { layers: [decisionAt('decision', codeMoved)] } },
+    undefined,
+  );
+  expect(states.get('decision')).toEqual({ reviewed: false, stale });
+});
+
+it('reads code moved from each revision on its own and keeps it apart from the review mark', () => {
+  const marks = {
+    files: [],
+    decisions: [
+      { layerId: 'decision', fingerprint: 'decision-layer', reviewedAt: 'r1' },
+    ],
+  };
+  const older = { content: { layers: [decisionAt('decision')] } };
+  const latest = {
+    content: {
+      layers: [decisionAt('decision', true), decisionAt('other', false)],
+    },
+  };
+  expect([...revisionDecisionStates(older, marks)]).toEqual([
+    ['decision', { reviewed: true, stale: false }],
+  ]);
+  expect([...revisionDecisionStates(latest, marks)]).toEqual([
+    ['decision', { reviewed: true, stale: true }],
+    ['other', { reviewed: false, stale: false }],
+  ]);
+});

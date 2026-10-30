@@ -115,12 +115,12 @@ test('worktree steps open the reviewed snapshot after the live file changes', as
     await panel.getByRole('tab', { name: 'Review', exact: true }).click();
   };
   await open();
-  await panel
-    .getByRole('button', {
-      name: '1 Retain the published code 0/1',
-      exact: true,
-    })
-    .click();
+  const moved = panel.getByRole('button', {
+    name: '1 Retain the published code code moved 0/1',
+    exact: true,
+  });
+  await expect.element(moved).toBeVisible();
+  await moved.click();
   await open();
   await panel
     .getByRole('list', { name: 'Stops of decision 1', exact: true })
