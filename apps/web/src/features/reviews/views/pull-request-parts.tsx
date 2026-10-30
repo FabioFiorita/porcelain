@@ -18,13 +18,13 @@ import {
   type PullRequestState,
 } from '@porcelain/client/reviews/rules';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
-import { chip } from './review-controls';
 
 type PullState = { state: 'open' | 'closed' | 'merged'; draft: boolean };
 
@@ -134,21 +134,18 @@ export function PullRequestChip({
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant={variant === 'empty' ? 'ghost' : 'outline'}
             aria-label={description}
             disabled={disabled}
             onClick={onClick}
-            className={cn(
-              chip,
-              'ml-auto border-border-strong text-foreground tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50',
-              variant === 'found' && 'border-dashed',
-              variant === 'empty' && 'border-transparent text-muted-foreground',
-            )}
+            className="ml-auto"
           />
         }
       >
-        <ChipIcon aria-hidden="true" className="text-muted-foreground" />
+        <ChipIcon aria-hidden="true" />
         {children}
       </TooltipTrigger>
       <TooltipContent>{description}</TooltipContent>

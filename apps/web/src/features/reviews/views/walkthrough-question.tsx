@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { CircleHelpIcon, MessageSquareIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -6,7 +7,6 @@ import {
   type SystemPart,
 } from '@porcelain/client/reviews/rules';
 import { InlineComposer } from './inline-composer';
-import { smallButton } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type QuestionProps = {
@@ -77,16 +77,17 @@ export function AnswerableQuestion({
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {action}
-        <button
+        <Button
           ref={setAnswerButton}
           type="button"
-          className={`${smallButton} hover:bg-accent [&_svg]:size-3.5`}
+          variant="ghost"
+          size="sm"
           aria-expanded={answering}
           onClick={() => setAnswering(true)}
         >
           <MessageSquareIcon />
           Answer the agent
-        </button>
+        </Button>
       </div>
       {answering && (
         <div className="mt-3 rounded-lg border bg-card p-3">

@@ -229,7 +229,7 @@ test('decision readiness counts a decision by its mark, whatever its file marks'
     .click();
   await userEvent.keyboard('{Escape}');
   await workspace
-    .getByRole('button', {
+    .getByRole('checkbox', {
       name: `Unmark ${repo.readme.path} as unreviewed`,
       exact: true,
     })

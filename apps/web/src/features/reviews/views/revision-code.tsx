@@ -17,8 +17,8 @@ import type {
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
-import { CheckIcon } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
   TooltipContent,
@@ -197,14 +197,8 @@ function RevisionDiffs({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <button
-                      type="button"
-                      className={cn(
-                        'grid size-4 shrink-0 place-items-center rounded-sm border border-border-strong bg-background outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50',
-                        reviewed &&
-                          'border-brand bg-brand text-brand-foreground',
-                      )}
-                      aria-pressed={reviewed}
+                    <Checkbox
+                      checked={reviewed}
                       aria-label={reviewedControlLabel(
                         file.path,
                         reviewed ? 'reviewed' : 'unreviewed',
@@ -214,7 +208,7 @@ function RevisionDiffs({
                         markResult.waiting ||
                         unmarkResult.waiting
                       }
-                      onClick={() =>
+                      onCheckedChange={() =>
                         fingerprint &&
                         (reviewed
                           ? unmark({
@@ -231,9 +225,7 @@ function RevisionDiffs({
                       }
                     />
                   }
-                >
-                  {reviewed && <CheckIcon className="size-3" />}
-                </TooltipTrigger>
+                />
                 <TooltipContent>
                   {reviewedControlLabel(
                     file.path,
@@ -242,12 +234,13 @@ function RevisionDiffs({
                 </TooltipContent>
               </Tooltip>
               {stop >= 0 && (
-                <span
+                <Badge
+                  variant="brand-soft"
                   title={`Stop ${stop + 1}`}
-                  className="ml-1 grid size-4.5 shrink-0 place-items-center rounded-full bg-brand-soft font-sans text-2xs leading-none font-semibold text-brand tabular-nums"
+                  className="ml-1"
                 >
                   {stop + 1}
-                </span>
+                </Badge>
               )}
             </>
           ),

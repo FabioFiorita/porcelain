@@ -35,7 +35,7 @@ test.for(['keyboard', 'toolbar'] as const)(
     if (entry === 'keyboard') await userEvent.keyboard('r');
     else
       await stop
-        .getByRole('button', {
+        .getByRole('checkbox', {
           name: `Unmark ${repo.readme.path} as unreviewed`,
           exact: true,
         })
@@ -54,7 +54,7 @@ test.for(['keyboard', 'toolbar'] as const)(
       )
       .toHaveTextContent('Review1/1');
     await stop
-      .getByRole('button', {
+      .getByRole('checkbox', {
         name: `Mark ${repo.readme.path} as reviewed`,
         exact: true,
       })

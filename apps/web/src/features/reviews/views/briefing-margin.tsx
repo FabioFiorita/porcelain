@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { refLabel } from '@porcelain/client/history/rules';
 import {
   counted,
@@ -11,7 +12,6 @@ import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ReviewActions } from './review-actions';
-import { marginAction } from './review-controls';
 
 export function BriefingMargin({
   data,
@@ -113,9 +113,9 @@ export function BriefingMargin({
         </div>
         <div className="mt-2.5 flex flex-col items-start">
           {onBack && (
-            <button type="button" className={marginAction} onClick={onBack}>
+            <Button type="button" variant="ghost" size="sm" onClick={onBack}>
               Back to workspace
-            </button>
+            </Button>
           )}
           <ReviewActions
             reviewId={revision.reviewId}

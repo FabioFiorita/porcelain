@@ -43,16 +43,16 @@ test('a retained removal can be reviewed and unmarked, and counts toward every f
   await expect
     .element(completion.getByText('1 of 2 files reviewed', { exact: true }))
     .toBeVisible();
-  const removed = review.getByRole('button', {
+  const removed = review.getByRole('checkbox', {
     name: 'Mark retired.ts as reviewed',
     exact: true,
   });
   await removed.click();
-  const unmark = review.getByRole('button', {
+  const unmark = review.getByRole('checkbox', {
     name: 'Unmark retired.ts as unreviewed',
     exact: true,
   });
-  await expect.element(unmark).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(unmark).toBeChecked();
   await expect
     .element(
       dock.getByRole('button', { name: 'Every file reviewed', exact: true }),
@@ -68,14 +68,14 @@ test('a retained removal can be reviewed and unmarked, and counts toward every f
       decisions: [{ layerId: fixture.layerId }],
     });
   await unmark.click();
-  await expect.element(removed).toHaveAttribute('aria-pressed', 'false');
+  await expect.element(removed).not.toBeChecked();
   await expect
     .element(completion.getByText('1 of 2 files reviewed', { exact: true }))
     .toBeVisible();
   await dock
     .getByRole('button', { name: 'Mark 1 file reviewed', exact: true })
     .click();
-  await expect.element(unmark).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(unmark).toBeChecked();
   await app.navigate(`/reviews/${fixture.reviewId}/1`);
   await review
     .getByRole('button', { name: 'Not explained', exact: true })
@@ -84,7 +84,7 @@ test('a retained removal can be reviewed and unmarked, and counts toward every f
     .element(completion.getByText('1 of 2 files reviewed', { exact: true }))
     .toBeVisible();
   await app.navigate(`/reviews/${fixture.reviewId}/2`);
-  await expect.element(unmark).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(unmark).toBeChecked();
   await expect
     .element(completion.getByText('2 of 2 files reviewed', { exact: true }))
     .toBeVisible();

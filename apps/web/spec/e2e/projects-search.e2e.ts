@@ -528,7 +528,9 @@ test('review rows stay two lines with trailing progress and keyboard accessible 
   const row = sidebar.getByRole('link', {
     name: /Read one committed review after checkout cleanup/,
   });
-  await expect(row).toHaveCSS('height', '41px');
+  await expect(row).toHaveCSS('height', '49px');
+  await expect(row).toHaveCSS('padding-top', '8px');
+  await expect(row).toHaveCSS('padding-bottom', '8px');
   await expect(row.getByText('0/1', { exact: true })).toBeVisible();
   await expect(row.getByText('durable-review', { exact: true })).toBeVisible();
   await expect(
@@ -601,7 +603,7 @@ for (const { width, colorScheme } of [
   { width: 414, colorScheme: 'light' as const },
   { width: 414, colorScheme: 'dark' as const },
 ]) {
-  test(`sidebar chrome and touch reasons stay compact at ${width}px in ${colorScheme}`, async ({
+  test(`sidebar chrome and touch reasons use stock controls at ${width}px in ${colorScheme}`, async ({
     pairedPage,
     repo,
     app,
@@ -643,7 +645,9 @@ for (const { width, colorScheme } of [
       const topic = page.getByRole('button', {
         name: /^no-review-with-a-very-long-branch/,
       });
-      await expect(topic).toHaveCSS('height', width === 414 ? '40px' : '30px');
+      await expect(topic).toHaveCSS('height', width === 414 ? '40px' : '33px');
+      await expect(topic).toHaveCSS('padding-top', '8px');
+      await expect(topic).toHaveCSS('padding-bottom', '8px');
       await expect(
         topic.getByText(
           'no-review-with-a-very-long-branch-name-that-must-not-wrap',

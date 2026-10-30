@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/shared/lib/utils';
-import { smallButton } from './review-controls';
 import { useCreateComment } from '../commands/comments';
 import {
   type CommentAnchor,
@@ -152,12 +151,7 @@ export function InlineComposer({
               .join(' · ')}
       </label>
       {answer ? (
-        <textarea
-          {...field}
-          rows={4}
-          placeholder="Your answer…"
-          className="block h-23 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.75 text-ui leading-4.75 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-brand-soft disabled:opacity-50"
-        />
+        <Textarea {...field} rows={4} placeholder="Your answer…" />
       ) : (
         <Textarea
           {...field}
@@ -176,27 +170,26 @@ export function InlineComposer({
             via MCP
           </span>
           {closable && (
-            <button
+            <Button
               type="button"
-              className={`${smallButton} ml-auto hover:bg-accent`}
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
               disabled={mutation.result.waiting}
               onClick={onClose}
             >
               Cancel
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="submit"
-            className={cn(
-              smallButton,
-              'bg-primary pr-2.5 pl-2 text-primary-foreground hover:bg-primary/80',
-              !closable && 'ml-auto',
-            )}
+            size="sm"
+            className={cn(!closable && 'ml-auto')}
             disabled={!valid || mutation.result.waiting}
           >
-            <ArrowUpIcon className="size-3.25" />
+            <ArrowUpIcon />
             {mutation.result.waiting ? 'Sending…' : 'Send answer'}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex justify-end gap-2">

@@ -1,3 +1,5 @@
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -31,12 +33,6 @@ import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
 import { SectionHeading } from './section-heading';
-import {
-  changeTags,
-  primaryPill,
-  quietButton,
-  smallButton,
-} from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function WalkthroughBriefing({
@@ -119,12 +115,10 @@ export function WalkthroughBriefing({
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
-                  <button
+                  <Button
                     type="button"
-                    className={cn(
-                      primaryPill,
-                      'min-h-9 max-w-full min-w-0 gap-2 pr-3.5 pl-4 text-left text-sm leading-4 whitespace-normal',
-                    )}
+                    size="lg"
+                    className="min-w-0 max-w-full whitespace-normal"
                     onClick={() => onGo(next.key)}
                   >
                     <span className="min-w-0 wrap-anywhere">
@@ -132,8 +126,8 @@ export function WalkthroughBriefing({
                         ? `Continue at decision ${next.number}`
                         : `Continue at ${stopTitle(next)}`}
                     </span>
-                    <ArrowRightIcon className="size-3.5" />
-                  </button>
+                    <ArrowRightIcon />
+                  </Button>
                 ) : (
                   <p className="flex items-center gap-1.5 text-sm font-medium text-graph-2">
                     <CheckIcon className="size-4" />
@@ -141,17 +135,15 @@ export function WalkthroughBriefing({
                   </p>
                 )}
                 {asked && (
-                  <button
+                  <Button
                     type="button"
-                    className={cn(
-                      quietButton,
-                      'h-9 gap-1.75 rounded-full px-3 text-ui leading-4',
-                    )}
+                    variant="ghost"
+                    size="lg"
                     onClick={() => onGo(asked.key)}
                   >
-                    <TriangleAlertIcon className="size-3.5 text-warn" />
+                    <TriangleAlertIcon />
                     Decision {asked.number} needs you
-                  </button>
+                  </Button>
                 )}
                 {stale > 0 && (
                   <span className="px-3 text-ui leading-4 text-warn">
@@ -442,9 +434,9 @@ function StopMark({
 }
 
 const partTags = {
-  New: changeTags.new,
-  Changed: changeTags.changed,
-  Removed: changeTags.removed,
+  New: 'default',
+  Changed: 'outline',
+  Removed: 'destructive',
 } as const;
 
 function PartGroup({
@@ -469,7 +461,7 @@ function PartGroup({
           className="flex min-h-8.5 min-w-0 flex-col items-stretch gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
         >
           <span className="shrink-0 @2xl/review:w-21">
-            {index === 0 && <span className={partTags[title]}>{title}</span>}
+            {index === 0 && <Badge variant={partTags[title]}>{title}</Badge>}
           </span>
           <TruncatedText
             className="min-w-0 flex-1 leading-4.5"
@@ -514,17 +506,15 @@ function DecisionLink({
     part.decision === undefined ? undefined : review.layers[part.decision - 1];
   if (!layer || part.decision === undefined) return null;
   return (
-    <button
+    <Button
       type="button"
-      className={cn(
-        inline
-          ? `${quietButton} h-6.5 gap-1.25 self-start pr-1.5 pl-2 text-xs leading-4 text-muted-foreground hover:text-foreground @2xl/review:self-center`
-          : `${smallButton} border border-border bg-background pr-2.5 pl-3 hover:bg-muted`,
-      )}
+      variant={inline ? 'ghost' : 'outline'}
+      size="sm"
+      className={cn(inline && 'self-start @2xl/review:self-center')}
       onClick={() => onGo(decisionKey(layer.id))}
     >
       {label ?? `Decision ${part.decision}`}
-      <ArrowRightIcon className="size-3" />
-    </button>
+      <ArrowRightIcon />
+    </Button>
   );
 }

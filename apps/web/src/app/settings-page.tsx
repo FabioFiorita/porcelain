@@ -232,7 +232,7 @@ export function SettingsPage({
               return (
                 <Button
                   key={item.id}
-                  variant="ghost"
+                  variant={selected ? 'secondary' : 'ghost'}
                   size="sm"
                   className="shrink-0 justify-start md:w-full"
                   aria-current={selected ? 'page' : undefined}

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -13,7 +14,6 @@ import {
   type ReviewRevision,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { quietButton } from './review-controls';
 import { BarAction } from '@/shared/workspace/bar-action';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import {
@@ -244,14 +244,15 @@ function RetainedFile({
             </>
           )}
         </TruncatedText>
-        <button
+        <Button
           type="button"
-          className={`${quietButton} h-6 gap-1.5 rounded-[--spacing(1.5)] px-2 text-xs leading-4 text-brand hover:underline`}
+          variant="ghost"
+          size="sm"
           onClick={() => onOpen({ kind: 'handoff' })}
         >
-          <ArrowLeftIcon className="size-3" />
+          <ArrowLeftIcon />
           Back to the walkthrough
-        </button>
+        </Button>
       </div>
       <FileHeading path={path} note={changed?.status} diff={diff} />
       {(AsyncResult.isFailure(markResult) ||

@@ -78,7 +78,7 @@ export function CommitRefs({
               <Badge
                 render={<button type="button" />}
                 variant="secondary"
-                className={`${chipClass} pointer-events-auto hover:bg-accent`}
+                className={`${chipClass} pointer-events-auto`}
                 aria-label={`Show ${hidden.length} more ${plural(hidden.length, 'ref')}`}
               />
             }
