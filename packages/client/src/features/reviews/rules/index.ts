@@ -92,7 +92,6 @@ export {
   decisionQuestions,
   type DecisionLink,
   decisionRoute,
-  decisionCodeMoved,
   decisionStates,
   reviewStepLines,
   filesReviewed,

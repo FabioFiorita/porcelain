@@ -1,4 +1,8 @@
-import { stopDone, walkthroughStops } from './walkthrough.ts';
+import {
+  decisionCodeMoved,
+  stopDone,
+  walkthroughStops,
+} from './walkthrough.ts';
 import { decisionMarked } from './review-list.ts';
 import type { ReviewRevision } from './verdict.ts';
 import type { ReviewMarks, ReviewStatus } from './review.ts';
@@ -25,7 +29,7 @@ export function revisionDecisionStates(
     revision.content.layers.map((layer) => [
       layer.id,
       {
-        stale: false,
+        stale: decisionCodeMoved(layer),
         reviewed: decisionMarked(marks, layer),
       },
     ]),

@@ -19,7 +19,6 @@ import {
 } from '@porcelain/client/reviews';
 import {
   counted,
-  decisionCodeMoved,
   filesReviewed,
   revisionDecisionStates,
   revisionReviewItems,
@@ -194,7 +193,7 @@ export function RevisionNavigation({
           const active = activeStop === stop.key;
           const progress = filesReviewed(stop.paths, items);
           const files = items.filter((file) => stop.paths.includes(file.path));
-          const moved = decisionCodeMoved(stop.layer);
+          const moved = decisions.get(stop.layer.id)?.stale === true;
           return (
             <div key={stop.key} className="min-w-0">
               <SidebarActionMenu
@@ -203,7 +202,7 @@ export function RevisionNavigation({
                 actions={reviewSidebarActions({
                   kind: 'decision',
                   reviewed,
-                  stale: false,
+                  stale: moved,
                   settled: marks !== undefined,
                   pending,
                   files,

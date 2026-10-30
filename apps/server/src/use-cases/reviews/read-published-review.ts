@@ -1,4 +1,5 @@
-import { reviewDirtyPaths } from '@porcelain/reviews/rules';
+import { reviewDirtyPaths, reviewPaths } from '@porcelain/reviews/rules';
+import { ReadTextFilesService } from '@porcelain/files/services';
 import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { type GitIoFailure } from '@porcelain/git/errors';
@@ -37,6 +38,7 @@ export class ReadPublishedReviewUseCase extends Context.Service<
       const readEnvironmentCapability = yield* ReadEnvironmentService;
       const resolvePublishedReviewCapability =
         yield* ResolvePublishedReviewService;
+      const files = yield* ReadTextFilesService;
 
       return {
         execute: Effect.fn('ReadPublishedReviewUseCase.execute')(function* (
@@ -62,6 +64,13 @@ export class ReadPublishedReviewUseCase extends Context.Service<
                 review: published.review,
                 headOid: observed.headOid,
                 dirtyPaths: reviewDirtyPaths(observed.changes),
+                worktree:
+                  observed.branch?.name === published.review.branch
+                    ? yield* files.execute({
+                        worktreeId,
+                        paths: reviewPaths(published.review.layers, []),
+                      })
+                    : undefined,
               });
               return { review: resolved };
             }),

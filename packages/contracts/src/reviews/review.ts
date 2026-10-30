@@ -115,6 +115,7 @@ const resolvedReviewLayerSchema = Schema.Struct({
       .check(Schema.isMinLength(1))
       .check(Schema.isMaxLength(REVIEW_STEPS)),
     fingerprint: fingerprintSchema,
+    codeMoved: Schema.optional(Schema.Boolean),
   },
 });
 
