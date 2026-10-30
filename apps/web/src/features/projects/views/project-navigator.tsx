@@ -424,7 +424,7 @@ export function ProjectNavigator({
                           >
                             <Item
                               data-navigator-card=""
-                              variant={active ? 'muted' : 'outline'}
+                              variant={active ? 'outline' : 'default'}
                               size="xs"
                             >
                               <ItemContent className="min-w-0">
