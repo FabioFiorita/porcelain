@@ -5,6 +5,7 @@ import { Atom } from 'effect/reactivity';
 import { commentWriteBinding } from '@porcelain/client/reviews';
 import {
   commentCommands,
+  deleteResolvedThreads,
   reviewCommands,
   observeCommentVisibility,
 } from '@porcelain/client/reviews';
@@ -105,13 +106,10 @@ export function useDeleteResolvedComments(
   context: ConnectionContext,
 ) {
   const [result, send] = useAtom(
-    scope.review
-      ? reviewCommands({
-          reviewId: scope.review.reviewId,
-          connection: context.connection,
-        }).deleteResolved
-      : commentCommands({ scope, connection: context.connection })
-          .removeResolved,
+    deleteResolvedThreads({
+      scope,
+      connection: context.connection,
+    }),
   );
   return { result, send, reset: () => send(Atom.Reset) };
 }
