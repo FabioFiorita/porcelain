@@ -61,7 +61,10 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.commentOnFile, label: 'Comment on file' },
       { keys: SHORTCUTS.findInFile, label: 'Find in file' },
       { keys: SHORTCUTS.saveFile, label: 'Save file edits' },
-      { keys: SHORTCUTS.duplicateFile, label: 'Duplicate the open file' },
+      {
+        keys: SHORTCUTS.duplicateFile,
+        label: 'Duplicate the open file (Files panel open)',
+      },
     ],
   },
   {
