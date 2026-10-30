@@ -67,6 +67,6 @@ Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Chan
 - The bulk count leaves out current files already reviewed. Unmark first if the fixture has marks from an earlier run.
 - Files committed in a retained review are not all current worktree changes. Use the retained walkthrough to read the complete published revision.
 
-Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Use the visible Comment button (the Comment icon in a narrow pane) to comment on that file; the comparison or decision label is plain text and an untracked file reads "untracked" once. its accessible name remains "Comment on <path> (<note>)".
+Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Use the visible Comment button (the Comment icon in a narrow pane) to comment on that file; the comparison or decision label is plain text and an untracked file reads "untracked" once. The accessible name is "Comment on <path> (<note>)" for diffs and "Comment on <path> (file)" for untracked text.
 
 For binary-row navigation, add and commit a binary fixture, modify it, then choose its path in the table. Expect its focused Non-text content entry, full reading-column width, reviewed and Comment controls. Repeat with text and binary files together, and at 1440/1080/414 in light and dark.

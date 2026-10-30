@@ -258,7 +258,7 @@ export function PlainChangesDocument({
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (!specsOnly && changes.length === 0)
     return (
-      <div className="mx-auto w-full max-w-reading">
+      <div className="mx-auto w-full max-w-xl">
         <StateNotice
           title="No changes to review"
           description={
