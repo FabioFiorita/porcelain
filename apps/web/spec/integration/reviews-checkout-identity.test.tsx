@@ -13,6 +13,8 @@ test.for(['latest', 'revision', 'removed'] as const)(
       'refs/heads/topic',
     );
     if (state === 'removed') await repo.removeReviewWorktree();
+    const main = (await server.project()).worktrees.find((entry) => entry.main);
+    if (!main) throw new Error('The fixture main checkout is missing.');
     await page.viewport(1440, 900);
     try {
       const app = await render.route(
@@ -41,7 +43,10 @@ test.for(['latest', 'revision', 'removed'] as const)(
         .toHaveTextContent('refs/heads/topic');
       await expect
         .poll(() => server.gitStatusReadWorktrees())
-        .toEqual([{ path: fixture.worktree, branch: 'refs/heads/topic' }]);
+        .toEqual([
+          { path: main.path, branch: 'topic' },
+          { path: fixture.worktree, branch: 'refs/heads/topic' },
+        ]);
     } finally {
       await page.viewport(414, 896);
     }

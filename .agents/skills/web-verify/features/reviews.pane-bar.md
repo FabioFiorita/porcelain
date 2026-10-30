@@ -19,9 +19,11 @@ tests:
   - apps/web/spec/integration/reviews-nontext-actions.test.tsx
   - apps/web/spec/integration/reviews-split-shortcuts.test.tsx
   - apps/web/spec/integration/reviews-all-changes.test.tsx
+  - apps/web/spec/integration/reviews-checkout-identity.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/review
   - GET /api/worktrees/:worktreeId/changes
+  - GET /api/worktrees/:worktreeId/git/status
 ---
 
 # reviews.pane-bar
@@ -42,6 +44,7 @@ Each pane has one 48px bar. Review, or Changes without a publication, stays firs
 4. Inspect the accessibility tree at 1440: the navigator separator is named "Worktree navigator and document panes" and the docked panel separator is named "Document panes and side panel". Hidden navigator/panel layouts expose no corresponding separator. Tab to each separator and resize with the arrow keys. Split the active file with Alt+Backslash. Its separator is named "Left and right document panes" on desktop and "Top and bottom document panes" in the stacked phone layout; arrow-key resizing follows that orientation. Each pane has Document controls; Git actions appears once, in the rightmost pane. The first pane alone has Toggle Sidebar. Phone-width panes stack to retain usable controls.
 5. Step with Alt+ArrowLeft/Alt+ArrowRight; close the last side file with Alt+W. The split collapses, the primary Review/Changes tab remains, and Git is still present once. Reload and confirm the layout remains usable.
 6. Open Git actions. Labels occupy one line, descriptions appear in tooltips, and disabled reasons remain visible. Commit/Push/Pull follows existing Git state; test a disabled menu entry and busy/recovery feedback too.
+7. Open a direct latest review and a saved revision published from a different checkout. Git actions must show the published checkout's branch, not the main checkout's branch. Expanded project cards may independently read status for both checkouts; check their exact paths and branches rather than attributing all status reads to the Git menu. Remove the published checkout and reopen its review: saved review content remains readable and Git actions is absent.
 
 ## Gotchas
 
