@@ -22,7 +22,6 @@ export {
   type CommentMessageAuthor,
   type CommentTarget,
   type CommentThread,
-  type ConfirmedThreads,
   type FileCommentAnchor,
   type RevealComment,
 } from './comments.ts';

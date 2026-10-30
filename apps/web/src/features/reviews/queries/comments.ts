@@ -7,12 +7,17 @@ import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
-export function useComments(scope: ReviewScope, context: ConnectionContext) {
+export function useComments(
+  scope: ReviewScope,
+  context: ConnectionContext,
+  worktree?: Pick<ReviewScope, 'projectId' | 'worktreeId'>,
+) {
   const { result, value: threads } = useConfirmedRead(
     scope.review
       ? readReviewComments({
           reviewId: scope.review.reviewId,
           connection: context.connection,
+          ...(worktree ? { worktree } : {}),
         })
       : readCommentThreads({ scope, connection: context.connection }),
   );
