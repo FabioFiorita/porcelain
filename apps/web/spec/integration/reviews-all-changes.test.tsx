@@ -352,3 +352,28 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
     held.release();
   }
 });
+
+test('Changes file rows reach non-text content without line counts', async ({
+  repo,
+  render,
+}) => {
+  await repo.write('data.bin', 'binary\u0000content\n');
+  await repo.commit('Add binary fixture');
+  await repo.write('data.bin', 'binary\u0000changed\n');
+  const workspace = await render.workspace();
+  const row = workspace
+    .getByRole('region', { name: '1 uncommitted change', exact: true })
+    .getByRole('button', { name: 'data.bin', exact: true });
+  await row.click();
+  const content = workspace.getByRole('listitem', {
+    name: 'data.bin: Binary change',
+    exact: true,
+  });
+  await expect.element(content).toHaveFocus();
+  await expect.element(content).toBeVisible();
+  await expect
+    .element(
+      content.getByRole('button', { name: 'Comment on data.bin', exact: true }),
+    )
+    .toBeVisible();
+});

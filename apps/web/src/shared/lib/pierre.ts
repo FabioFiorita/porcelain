@@ -61,8 +61,9 @@ export const PIERRE_CHANGES_HEADER_CSS = `
   --diffs-min-number-column-width: calc(var(--spacing) * 4.5);
   --diffs-gap-style: calc(var(--spacing) * .5) solid transparent;
 }
-[data-diffs-header] [data-deletions-count] {
-  order: -1;
+[data-diffs-header] [data-deletions-count],
+[data-diffs-header] [data-additions-count] {
+  display: none;
 }
 [data-code] {
   padding-block: 0;

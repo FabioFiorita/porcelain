@@ -13,6 +13,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import type { CodeHeaderControls } from './code-document';
+import { ChangeCounts } from './change-counts';
 import { ReviewedCheckbox } from './reviewed-control';
 
 export function ChangeTable({
@@ -85,7 +86,7 @@ export function ChangeTable({
               />
               <RowTarget
                 current={controls.current === item.path}
-                onOpen={counts ? () => controls.open(item.path) : undefined}
+                onOpen={() => controls.open(item.path)}
               >
                 <TruncatedText
                   className="min-w-0 font-mono text-caption leading-4"
@@ -97,9 +98,8 @@ export function ChangeTable({
                   {item.path.slice(slash)}
                 </TruncatedText>
                 {counts && (
-                  <span className="ml-auto shrink-0 font-mono text-xs leading-4 font-medium tabular-nums">
-                    <span className="text-del-fg">−{counts.deletions}</span>{' '}
-                    <span className="text-add-fg">+{counts.additions}</span>
+                  <span className="ml-auto">
+                    <ChangeCounts counts={counts} />
                   </span>
                 )}
               </RowTarget>
@@ -117,12 +117,11 @@ function RowTarget({
   children,
 }: {
   current: boolean;
-  onOpen: (() => void) | undefined;
+  onOpen: () => void;
   children: ReactNode;
 }) {
   const className =
     'flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground';
-  if (!onOpen) return <div className={className}>{children}</div>;
   return (
     <button
       type="button"

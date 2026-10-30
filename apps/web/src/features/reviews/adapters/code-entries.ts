@@ -85,18 +85,28 @@ export function lineCounts(
   const counts = new Map<string, LineCounts>();
   for (const entry of entries) {
     const sum = counts.get(entry.path) ?? { additions: 0, deletions: 0 };
-    if (entry.kind === 'file')
-      sum.additions += entry.contents
-        .split('\n')
-        .filter(
-          (line, index, lines) => index < lines.length - 1 || line,
-        ).length;
-    else
-      for (const hunk of entry.fileDiff.hunks) {
-        sum.additions += hunk.additionLines;
-        sum.deletions += hunk.deletionLines;
-      }
+    const count = entryLineCounts(entry);
+    sum.additions += count.additions;
+    sum.deletions += count.deletions;
     counts.set(entry.path, sum);
   }
   return counts;
+}
+
+export function entryLineCounts(entry: CodeEntry): LineCounts {
+  if (entry.kind === 'file')
+    return {
+      additions: entry.contents
+        .split('\n')
+        .filter((line, index, lines) => index < lines.length - 1 || line)
+        .length,
+      deletions: 0,
+    };
+  return entry.fileDiff.hunks.reduce(
+    (counts, hunk) => ({
+      additions: counts.additions + hunk.additionLines,
+      deletions: counts.deletions + hunk.deletionLines,
+    }),
+    { additions: 0, deletions: 0 },
+  );
 }
