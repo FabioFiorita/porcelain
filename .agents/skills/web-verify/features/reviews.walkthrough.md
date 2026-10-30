@@ -18,6 +18,7 @@ selectors:
   - 'Review completion'
   - 'Links in this page'
 tests:
+  - apps/web/spec/integration/reviews-code-moved.test.tsx
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
   - apps/web/spec/integration/reviews-briefing.test.tsx
   - apps/web/spec/integration/reviews-walkthrough-shortcuts.test.tsx
@@ -58,6 +59,8 @@ Not explained and Specs form one closing page. Its "Review completion" card coun
 The Agent summary view shows a credit line with the revision, a Sandboxed chip and the sandboxed frame; its margin explains the sandbox and lists "Links in this page" (each `#layer-N` link, a missing decision disabled). Opening it after the signed link has expired fetches a fresh link first (the frame shows a loading state meanwhile), so the page never goes blank; if the fresh read fails, the view shows Could not display with Try again. Branch moved and proof stale share one notice shape; code moved shows as a chip beside "Decision n of N". A missing revision offers "Open rN, the latest".
 
 Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-page.test.tsx`, `reviews-unavailable-completion.test.tsx`, `reviews-decision-pages.test.tsx`.
+
+Publish a review, then edit a line its decision explains in the live worktree. The latest review shows the soft amber "Code moved since it was explained" Badge on that decision and "1 decision has code moved" in the briefing (plural for several). The sidebar decision row also says "code moved". Restoring the explained text clears the warning. Retained code, locations and fingerprints stay at publication; older revisions and a latest review whose worktree changed branches omit the comparison. Deleting the explained file counts as moved. Merely shifting unchanged explained lines does not.
 
 ## Gotchas
 

@@ -5,6 +5,7 @@ import {
   reviewDirtyPaths,
   reviewPublicationProblem,
   reviewPullRequestNumber,
+  reviewPullRequestsMatch,
 } from './review-publication.ts';
 const clean = {
   dirtyPaths: [],
@@ -81,10 +82,10 @@ it('rejects a foreign PR or unconfigured origin with an actionable message', () 
     'The pullRequest repository differs from origin. Use a PR from this repository (configure origin first), or omit pullRequest.',
   );
 });
-it('canonicalizes the PR URL and identifies the project PR number', () => {
+it('canonicalizes the PR URL without losing display case and identifies its number', () => {
   expect(
     normalizedReviewPullRequest('https://github.com/Owner/Repo/pull/42/'),
-  ).toBe('https://github.com/owner/repo/pull/42');
+  ).toBe('https://github.com/Owner/Repo/pull/42');
   expect(normalizedReviewPullRequest(undefined)).toBeUndefined();
   expect(reviewPullRequestNumber('https://github.com/Owner/Repo/pull/42')).toBe(
     42,
@@ -107,4 +108,28 @@ it('includes both paths of a rename in the dirty path set', () => {
       },
     ]),
   ).toEqual(['old', 'new']);
+});
+
+it('matches differently cased PR links without confusing numbers or repositories', () => {
+  expect(
+    reviewPullRequestsMatch(
+      'https://github.com/Owner/Repo/pull/42/',
+      'https://github.com/owner/repo/pull/42',
+    ),
+  ).toBe(true);
+  expect(
+    reviewPullRequestsMatch(
+      'https://github.com/Owner/Repo/pull/42',
+      'https://github.com/owner/repo/pull/43',
+    ),
+  ).toBe(false);
+  expect(
+    reviewPullRequestsMatch(
+      'https://github.com/Owner/Repo/pull/42',
+      'https://github.com/other/repo/pull/42',
+    ),
+  ).toBe(false);
+  expect(
+    reviewPullRequestsMatch(undefined, 'https://github.com/owner/repo/pull/42'),
+  ).toBe(false);
 });

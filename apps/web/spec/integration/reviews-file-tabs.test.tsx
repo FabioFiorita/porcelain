@@ -122,6 +122,12 @@ for (const [width, entry] of [
         exact: true,
       });
       await expect.element(right).toBeVisible();
+      const comment = right.getByRole('button', {
+        name: 'Comment',
+        exact: true,
+      });
+      await expect.element(comment).toBeVisible();
+      await expect.element(comment).toBeEnabled();
       await userEvent.keyboard('c');
       await expect
         .element(right.getByRole('textbox', { name: 'Comment', exact: true }))

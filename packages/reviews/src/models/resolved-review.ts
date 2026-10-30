@@ -20,6 +20,7 @@ export type ResolvedStep = Omit<StepDraft, 'pointer'> & {
 
 export type ResolvedLayer = Omit<ReviewLayer, 'steps'> & {
   steps: readonly ResolvedStep[];
+  codeMoved?: boolean | undefined;
 };
 
 export type UnexplainedChange = {

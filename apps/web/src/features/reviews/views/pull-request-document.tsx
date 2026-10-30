@@ -235,14 +235,10 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
           </>
         )}
       </div>
-      <TruncatedText
-        text={`#${pull.number} ${pull.title}`}
-        render={<h1 />}
-        className="mt-3 block text-4xl leading-10 font-semibold tracking-pr-title"
-      >
+      <h1 className="mt-3 text-4xl leading-10 font-semibold tracking-pr-title wrap-anywhere">
         <span className="text-title-dim tabular-nums">#{pull.number}</span>{' '}
         {pull.title}
-      </TruncatedText>
+      </h1>
       <div className="mt-3.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-2 text-ui leading-5 text-muted-foreground">
         <PullStatePill pull={pull} />
         {pull.author && (
@@ -342,7 +338,7 @@ function PullRequestConversation({
         <h2>Conversation</h2>
         <span className="font-normal tabular-nums">{pull.timeline.length}</span>
         <a
-          href={`${pull.url}#issuecomment-new`}
+          href={`${pull.url}#issue-comment-box`}
           target="_blank"
           rel="noreferrer"
           className="ml-auto inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 font-normal outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"

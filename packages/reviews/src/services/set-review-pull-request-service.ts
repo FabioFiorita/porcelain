@@ -3,7 +3,10 @@ import type { GitHubPullRequest } from '../models/pull-request.ts';
 import { ReviewNotFoundError } from '../errors/review-not-found-error.ts';
 import { ReviewPullRequestRefusedError } from '../errors/review-pull-request-refused-error.ts';
 import { ReviewStore } from '../ports/review-store.ts';
-import { normalizedReviewPullRequest } from '../rules/review-publication.ts';
+import {
+  normalizedReviewPullRequest,
+  reviewPullRequestsMatch,
+} from '../rules/review-publication.ts';
 
 export class SetReviewPullRequestService extends Context.Service<
   SetReviewPullRequestService,
@@ -41,8 +44,7 @@ export class SetReviewPullRequestService extends Context.Service<
                   other.reviewId !== record.reviewId &&
                   other.state === 'open' &&
                   (pullRequest
-                    ? normalizedReviewPullRequest(other.pullRequest) ===
-                      pullRequest
+                    ? reviewPullRequestsMatch(other.pullRequest, pullRequest)
                     : record.state === 'open' &&
                       other.branch === record.branch &&
                       other.pullRequest === undefined),

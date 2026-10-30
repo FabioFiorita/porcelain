@@ -17,7 +17,6 @@ import {
   counted,
   plural,
   type CommentThread,
-  type ConfirmedThreads,
   resolvedCleanup,
 } from '@porcelain/client/reviews/rules';
 import {
@@ -39,7 +38,9 @@ export function DeleteResolved({
   context: ConnectionContext;
   threads: readonly CommentThread[];
 }) {
-  const [confirming, setConfirming] = useState<ConfirmedThreads | null>(null);
+  const [confirming, setConfirming] = useState<readonly CommentThread[] | null>(
+    null,
+  );
   const remove = useDeleteResolvedComments(scope, context);
   const { confirmed, kept } = resolvedCleanup(threads);
   const skipped =
@@ -56,7 +57,8 @@ export function DeleteResolved({
         disabled={confirmed.length === 0}
         onClick={() => {
           remove.reset();
-          setConfirming(confirmed);
+          const ids = new Set(confirmed.map((thread) => thread.threadId));
+          setConfirming(threads.filter((thread) => ids.has(thread.id)));
         }}
       >
         <Trash2Icon data-icon="inline-start" />

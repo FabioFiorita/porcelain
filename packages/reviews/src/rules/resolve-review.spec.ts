@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ResolvedStep } from '../models/resolved-review.ts';
 import type { ReviewLayer, ReviewStep } from '../models/review.ts';
-import { resolveReview, unexplainedChanges } from './resolve-review.ts';
+import {
+  layerCodeMoved,
+  resolveReview,
+  unexplainedChanges,
+} from './resolve-review.ts';
 
 const step: ReviewStep = {
   id: 's3',
@@ -366,5 +370,75 @@ describe('coverage boundaries', () => {
         resolution.layers,
       ),
     ).toEqual([{ path: 'src/x.ts', ranges: [{ startLine: 2, endLine: 2 }] }]);
+  });
+});
+
+describe('code moved since a decision was explained', () => {
+  const whole: ReviewStep = {
+    ...step,
+    id: 'whole',
+    pointer: { path: 'src/x.ts', startLine: 1, endLine: 2 },
+    published: ['const one = 1;', 'return one;'],
+  };
+  it.for([
+    {
+      name: 'its lines are unchanged',
+      steps: [step],
+      text: 'return 1;\n',
+      missing: [],
+      moved: false,
+    },
+    {
+      name: 'its lines shifted down',
+      steps: [step],
+      text: 'const a = 0;\nreturn 1;\n',
+      missing: [],
+      moved: false,
+    },
+    {
+      name: 'its lines were edited',
+      steps: [step],
+      text: 'return 2;\n',
+      missing: [],
+      moved: true,
+    },
+    {
+      name: 'its file was deleted',
+      steps: [step],
+      text: undefined,
+      missing: ['src/x.ts'],
+      moved: true,
+    },
+    {
+      name: 'its file could not be read',
+      steps: [step],
+      text: undefined,
+      missing: [],
+      moved: false,
+    },
+    {
+      name: 'one line of a whole-file anchor changed',
+      steps: [whole],
+      text: 'const one = 1;\nreturn 2;\n',
+      missing: [],
+      moved: true,
+    },
+    {
+      name: 'a whole-file anchor is unchanged',
+      steps: [whole],
+      text: 'const one = 1;\nreturn one;\n',
+      missing: [],
+      moved: false,
+    },
+  ])('reports $moved when $name', ({ steps, text, missing, moved }) => {
+    expect(
+      layerCodeMoved(
+        { steps },
+        {
+          texts: new Map(text === undefined ? [] : [['src/x.ts', text]]),
+          missing: new Set(missing),
+        },
+      ),
+    ).toBe(moved);
   });
 });

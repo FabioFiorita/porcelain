@@ -56,6 +56,12 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
             project={project}
           />
         ))}
+        {projects !== undefined && projects.length > 0 && (
+          <p className="hidden py-3 text-ui text-muted-foreground only:block">
+            No project has a GitHub remote. Add a GitHub origin to a project to
+            choose its account.
+          </p>
+        )}
         {projects === undefined && !failed && (
           <Skeleton
             role="status"

@@ -22,7 +22,6 @@ export {
   type CommentMessageAuthor,
   type CommentTarget,
   type CommentThread,
-  type ConfirmedThreads,
   type FileCommentAnchor,
   type RevealComment,
 } from './comments.ts';
@@ -93,7 +92,6 @@ export {
   decisionQuestions,
   type DecisionLink,
   decisionRoute,
-  decisionCodeMoved,
   decisionStates,
   reviewStepLines,
   filesReviewed,

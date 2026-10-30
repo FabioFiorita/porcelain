@@ -1,6 +1,10 @@
 import { Effect, Option } from 'effect';
 import { Atom, AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
-import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
+} from '../../../shared/api/connection.ts';
+import { readCommentThreads } from './comments.ts';
 import { requestApi, type PorcelainApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
@@ -168,7 +172,7 @@ export const readReviewMarks = Atom.family((input: ReviewInput) =>
     api.reviews.listReviewMarks({ params: { reviewId: input.reviewId } }),
   ).pipe(reactive(input, true)),
 );
-export const readReviewComments = Atom.family((input: ReviewInput) =>
+const retainedReviewComments = Atom.family((input: ReviewInput) =>
   query(
     input.connection,
     (api) =>
@@ -178,6 +182,35 @@ export const readReviewComments = Atom.family((input: ReviewInput) =>
     (threads) =>
       threads.every((thread) => thread.review?.reviewId === input.reviewId),
   ).pipe(reactive(input, true)),
+);
+export const readReviewComments = Atom.family(
+  (input: ReviewInput & { worktree?: WorktreeScope }) => {
+    const retained = retainedReviewComments({
+      connection: input.connection,
+      reviewId: input.reviewId,
+    });
+    if (!input.worktree) return retained;
+    const worktree = readCommentThreads({
+      connection: input.connection,
+      scope: input.worktree,
+    });
+    return Atom.readable((get) => {
+      const retainedResult = get(retained);
+      const worktreeResult = get(worktree);
+      return AsyncResult.flatMap(retainedResult, (retainedThreads) =>
+        AsyncResult.map(
+          worktreeResult,
+          (worktreeThreads) =>
+            [
+              ...retainedThreads,
+              ...worktreeThreads.filter(
+                (thread) => thread.review === undefined,
+              ),
+            ] as const,
+        ),
+      );
+    }).pipe(Atom.setIdleTTL(0));
+  },
 );
 export const readReviewRevisionFile = Atom.family(
   (input: RevisionInput & { path: string }) =>

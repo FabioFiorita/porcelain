@@ -54,7 +54,6 @@ async function serve(folder: string) {
   await registry.serve(folder, async (life) => {
     const opened = await startDesktop({
       id: life.id,
-      folder,
       evidenceDirectory: life.evidence().folder,
       sourceFingerprint: registry.fingerprint(),
       own: life.own,

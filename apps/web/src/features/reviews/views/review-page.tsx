@@ -548,7 +548,7 @@ function ReviewRevisionPage({
     pull?.kind === 'available' ? pull.pullRequest.title : undefined,
   );
   const record = data.review;
-  const { threads } = useComments(liveScope ?? scope, context);
+  const { threads } = useComments(liveScope ?? scope, context, currentScope);
   const showPanel = () => {
     if (desktop) setPanelOpen(true);
     else setSheetOpen(true);
