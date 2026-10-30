@@ -87,7 +87,6 @@ export function PairDevice({
           <Label htmlFor="pairing-label">Device name</Label>
           <Input
             id="pairing-label"
-            className="h-7.5"
             placeholder="My phone"
             maxLength={PAIRING_LABEL_MAX_LENGTH}
             value={label}
@@ -110,7 +109,7 @@ export function PairDevice({
               <SelectTrigger
                 id="pairing-address"
                 aria-describedby="pairing-address-url"
-                className="h-7.5 w-full"
+                className="w-full"
               >
                 <SelectValue>{remoteRouteTitles[target.route]}</SelectValue>
               </SelectTrigger>

@@ -16,7 +16,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { marginAction } from './review-controls';
 
 export function ReviewActions({
   reviewId,
@@ -44,24 +43,20 @@ export function ReviewActions({
     >
       <div className="flex flex-col items-start">
         {state === 'open' && (
-          <button
+          <Button
             type="button"
-            className={marginAction}
+            variant="ghost"
+            size="sm"
             disabled={pending}
             onClick={() => close()}
           >
-            <ArchiveIcon className="text-muted-foreground" />
+            <ArchiveIcon />
             Close review
-          </button>
+          </Button>
         )}
         <AlertDialogTrigger
           disabled={pending}
-          render={
-            <button
-              type="button"
-              className={`${marginAction} text-destructive`}
-            />
-          }
+          render={<Button type="button" variant="destructive" size="sm" />}
         >
           <Trash2Icon />
           Delete review…

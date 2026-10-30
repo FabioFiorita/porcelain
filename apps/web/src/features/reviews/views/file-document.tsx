@@ -262,7 +262,7 @@ function ReadableFileDocument({
             if (value === 'rendered' || value === 'source') setMode(value);
           }}
         >
-          <TabsList className="h-7">
+          <TabsList>
             <TabsTrigger value="rendered">
               {kind === 'markdown' ? 'Reader' : 'Preview'}
             </TabsTrigger>

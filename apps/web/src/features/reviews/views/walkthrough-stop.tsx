@@ -36,7 +36,6 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { MarginQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { changeTags, chip } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
@@ -149,14 +148,9 @@ export function DecisionPage({
               Decision {stop.number} of {total}
             </span>
             {questions.length > 0 && (
-              <span
-                className={cn(
-                  chip,
-                  'border-transparent bg-brand-soft leading-5.5 text-brand',
-                )}
-              >
+              <Badge variant="brand-soft">
                 <CircleHelpIcon /> Needs your decision
-              </span>
+              </Badge>
             )}
             {decision?.stale && (
               <Badge
@@ -167,11 +161,9 @@ export function DecisionPage({
               </Badge>
             )}
             {finished && (
-              <span
-                className={cn(chip, 'border-border-strong text-foreground')}
-              >
-                <CheckIcon className="text-brand" /> Reviewed
-              </span>
+              <Badge variant="outline">
+                <CheckIcon /> Reviewed
+              </Badge>
             )}
             {pullRequestChip}
           </div>
@@ -221,6 +213,12 @@ function changeLabel(change: NonNullable<DecisionLink['change']>) {
   return 'Removed';
 }
 
+const changeVariants = {
+  new: 'default',
+  changed: 'outline',
+  removed: 'destructive',
+} as const;
+
 function Contracts({ links }: { links: readonly DecisionLink[] }) {
   return (
     <section aria-label="Contracts" className="flex min-w-0 flex-col gap-2">
@@ -245,9 +243,9 @@ function Contracts({ links }: { links: readonly DecisionLink[] }) {
               )}
             </span>
             {link.change && (
-              <span className={changeTags[link.change]}>
+              <Badge variant={changeVariants[link.change]}>
                 {changeLabel(link.change)}
-              </span>
+              </Badge>
             )}
           </li>
         ))}

@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
@@ -452,22 +453,12 @@ function FileCheck({
   onToggle: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
+    <Checkbox
+      checked={checked}
       aria-label={`${path} reviewed`}
       disabled={disabled}
-      onClick={onToggle}
-      className={cn(
-        'flex size-3.5 shrink-0 items-center justify-center rounded-check border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50',
-        checked
-          ? 'border-brand bg-brand text-brand-foreground'
-          : 'border-border-strong bg-background',
-      )}
-    >
-      {checked && <CheckIcon aria-hidden className="size-2.5" />}
-    </button>
+      onCheckedChange={onToggle}
+    />
   );
 }
 

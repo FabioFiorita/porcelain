@@ -337,9 +337,7 @@ function BranchHeader({
               <span className="font-mono">{shortOid(branch.mergeBaseOid)}</span>{' '}
               to <span className="font-mono">{shortOid(branch.head.oid)}</span>
             </span>
-            <Badge variant="secondary" className="h-4">
-              {refLabel(branch.base)}
-            </Badge>
+            <Badge variant="secondary">{refLabel(branch.base)}</Badge>
           </div>
         </>
       )}

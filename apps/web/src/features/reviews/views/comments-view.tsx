@@ -170,18 +170,16 @@ export function CommentsView({
       {composer}
       <div className="flex shrink-0 gap-1 px-2 pt-2">
         {(['open', 'resolved'] as const).map((value) => (
-          <button
+          <Button
             type="button"
             key={value}
             aria-pressed={filter === value}
             onClick={() => setFilter(value)}
-            className={cn(
-              'rounded-md px-2 py-1 text-2xs capitalize text-muted-foreground transition-colors hover:bg-accent',
-              filter === value && 'bg-accent text-foreground',
-            )}
+            variant={filter === value ? 'secondary' : 'ghost'}
+            size="sm"
           >
             {value} <span className="tabular-nums">{counts[value]}</span>
-          </button>
+          </Button>
         ))}
         {filter === 'resolved' && counts.resolved > 0 && (
           <DeleteResolved scope={scope} context={context} threads={threads} />

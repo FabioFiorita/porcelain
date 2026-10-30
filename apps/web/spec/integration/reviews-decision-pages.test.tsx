@@ -45,7 +45,7 @@ test('decision diffs follow the route from the entry point through its owners an
   await expect
     .poll(() =>
       reviewLayout.reviewControlLabels(
-        decision.getByRole('button', { name: /^Mark .+ as reviewed$/u }),
+        decision.getByRole('checkbox', { name: /^Mark .+ as reviewed$/u }),
       ),
     )
     .toEqual([
@@ -155,20 +155,20 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
   });
   await expect
     .element(
-      closing.getByRole('button', {
+      closing.getByRole('checkbox', {
         name: 'Unmark docs/architecture.md as unreviewed',
         exact: true,
       }),
     )
-    .toHaveAttribute('aria-pressed', 'true');
+    .toBeChecked();
   await expect
     .element(
-      closing.getByRole('button', {
+      closing.getByRole('checkbox', {
         name: 'Unmark packages/workspace/src/legacy-write.ts as unreviewed',
         exact: true,
       }),
     )
-    .toHaveAttribute('aria-pressed', 'true');
+    .toBeChecked();
   await expect
     .poll(() => server.reviewMarks(published.reviewId ?? ''))
     .toMatchObject({

@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/features/preferences/index';
 import { PIERRE_THEME } from '@/shared/lib/pierre';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -467,7 +467,7 @@ function PullRequestTimelineItem({
                     <a href={item.url} target="_blank" rel="noreferrer" />
                   }
                   aria-label={`Open this ${item.kind === 'review' ? 'review' : 'comment'} on GitHub`}
-                  className="ml-auto size-5.5"
+                  className="ml-auto"
                 />
               }
             >
@@ -488,10 +488,7 @@ function PullRequestTimelineItem({
                   if (path !== undefined) onFile(path);
                 }}
               >
-                <FileCodeIcon
-                  aria-hidden="true"
-                  className="size-3.5 text-muted-foreground"
-                />
+                <FileCodeIcon aria-hidden="true" />
                 <TruncatedText text={file} />
               </Button>
             ) : (
@@ -614,7 +611,10 @@ function PullRequestChecks({ pull }: { pull: PullRequest }) {
                             target="_blank"
                             rel="noreferrer"
                             aria-label={`Details for ${check.name} on GitHub`}
-                            className="inline-flex h-5.5 shrink-0 items-center gap-0.75 rounded-sm pr-1 pl-1.5 text-xs leading-5.5 font-medium text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                            className={buttonVariants({
+                              variant: 'ghost',
+                              size: 'sm',
+                            })}
                           />
                         }
                       >

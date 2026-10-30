@@ -72,7 +72,7 @@ const relative = (iso?: string) =>
 function AuthorAvatar({ author }: { author: CommentMessageAuthor }) {
   const agent = author === 'agent';
   return (
-    <MessageAvatar className={cn('size-6 min-w-6', agent ? ' ' : ' ')}>
+    <MessageAvatar>
       {agent ? (
         <SparklesIcon className="size-3.5" />
       ) : (
@@ -350,7 +350,6 @@ export function ThreadCard({
       type="button"
       size="sm"
       variant="ghost"
-      className="h-6"
       disabled={resolve.result.waiting}
       onClick={() =>
         resolve.send({ threadId: thread.id, resolved: !thread.resolved })
@@ -471,13 +470,15 @@ export function ThreadCard({
                 {menu}
               </div>
               {!expanded && thread.messages.length > 1 && (
-                <button
+                <Button
                   type="button"
                   onClick={() => setExpanded(true)}
-                  className="mb-2 text-2xs text-muted-foreground hover:text-foreground hover:underline"
+                  variant="ghost"
+                  size="sm"
+                  className="mb-2"
                 >
                   Show {thread.messages.length - 1} earlier
-                </button>
+                </Button>
               )}
               <MessageGroup>
                 {(expanded ? thread.messages : thread.messages.slice(-1)).map(
@@ -498,7 +499,7 @@ export function ThreadCard({
                     variant={
                       state === 'agent-replied' ? 'secondary' : 'outline'
                     }
-                    className="mr-auto h-4"
+                    className="mr-auto"
                   >
                     {threadStateLabel(thread)}
                   </Badge>
@@ -506,7 +507,6 @@ export function ThreadCard({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-6"
                     onClick={() => setReplying(true)}
                   >
                     Reply
@@ -550,7 +550,6 @@ export function ThreadCard({
               {menu}
               <Badge
                 variant={state === 'agent-replied' ? 'secondary' : 'outline'}
-                className="h-4"
               >
                 {threadStateLabel(thread)}
               </Badge>
@@ -560,7 +559,6 @@ export function ThreadCard({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-6"
                     onClick={() => setReplying(true)}
                   >
                     Reply

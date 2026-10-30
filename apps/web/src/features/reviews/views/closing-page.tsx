@@ -1,3 +1,4 @@
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   ArchiveIcon,
   CheckIcon,
@@ -31,7 +32,6 @@ import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { InlineComposer } from './inline-composer';
 import { MarginRow } from './margin-row';
-import { outlineButton, primaryButton } from './review-controls';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type ClosingStop = Extract<
@@ -147,14 +147,15 @@ export function ClosingPage({
                           ? spansLabel(gap.ranges)
                           : 'whole file'}
                       </span>
-                      <button
+                      <Button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-sm text-xs leading-4 font-medium text-brand outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/30"
+                        variant="link"
+                        size="sm"
                         onClick={() => onGo(gap.stop)}
                       >
                         Read in {placeName(stops, gap.stop)}
-                        <ChevronRightIcon className="size-3" />
-                      </button>
+                        <ChevronRightIcon />
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -347,16 +348,16 @@ function CompletionCard({
         <OpenRow label="Not proven">{notProven}</OpenRow>
       </section>
       <div className="flex flex-col gap-1.5 border-t pt-3">
-        <button
+        <Button
           ref={setAskButton}
           type="button"
-          className={primaryButton}
+          variant="default"
           aria-expanded={asking}
           onClick={() => setAsking(true)}
         >
           <MessageSquareIcon />
           Ask the agent
-        </button>
+        </Button>
         {asking && (
           <InlineComposer
             scope={scope}
@@ -373,10 +374,10 @@ function CompletionCard({
         )}
         {pullRequest?.state === 'open' && (
           <a
-            className={outlineButton}
             href={pullRequest.url}
             target="_blank"
             rel="noopener noreferrer"
+            className={buttonVariants({ variant: 'outline' })}
           >
             Merge on GitHub
             <span className="text-muted-foreground tabular-nums">

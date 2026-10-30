@@ -1,4 +1,5 @@
 import { BotIcon, CheckIcon, ShieldCheckIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
 import { StateSkeleton } from '@/shared/views/state-notice';
@@ -126,13 +127,13 @@ export function SummaryFrame({
               {relativeTime(revision.publishedAt)}
             </span>
           </span>
-          <span
+          <Badge
+            variant="outline"
             title="The agent's page runs in an opaque sandbox: it cannot reach Porcelain, your session, your files or the code. It receives only your theme."
-            className="inline-flex h-6 shrink-0 items-center gap-1.25 rounded-full border border-border-strong pr-2.25 pl-1.75 text-xs leading-5.5 font-medium"
           >
-            <ShieldCheckIcon className="size-3.25 text-muted-foreground" />{' '}
+            <ShieldCheckIcon />
             Sandboxed
-          </span>
+          </Badge>
         </div>
         {url === undefined ? (
           <div className="min-h-96 rounded-xl border bg-background">

@@ -100,7 +100,6 @@ import { ReviewPullRequestChip } from './review-pull-request-chip';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
-import { outlinePill, primaryPill } from './review-controls';
 import { useDesktopReview } from '../adapters/desktop-review';
 
 type ReviewPageProps = {
@@ -479,7 +478,6 @@ function ReviewRevisionPage({
       <TabsList
         aria-label="Review presentation"
         aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
-        className="h-7"
       >
         <Tooltip>
           <TooltipTrigger
@@ -1065,9 +1063,9 @@ function DecisionMark({
   const [removed, unmark] = useAtom(commands.unmark);
   return (
     <>
-      <button
+      <Button
         type="button"
-        className={`${reviewed ? outlinePill : primaryPill} ${dockButtonClass}`}
+        variant={reviewed ? 'outline' : 'default'}
         aria-pressed={reviewed}
         disabled={!settled || result.waiting || removed.waiting}
         onClick={() =>
@@ -1083,7 +1081,7 @@ function DecisionMark({
       >
         <CheckIcon />
         {reviewed ? 'Decision reviewed' : 'Mark decision reviewed'}
-      </button>
+      </Button>
       {(AsyncResult.isFailure(result) || AsyncResult.isFailure(removed)) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Not saved. Try again.
@@ -1092,9 +1090,6 @@ function DecisionMark({
     </>
   );
 }
-
-const dockButtonClass =
-  'h-8 gap-1.75 pr-3.5 pl-3 text-ui leading-4 [&_svg]:size-3.5';
 
 function FilesMark({
   revision,
@@ -1114,9 +1109,9 @@ function FilesMark({
   const [result, mark] = useAtom(commands.markFiles);
   return (
     <>
-      <button
+      <Button
         type="button"
-        className={`${primaryPill} ${dockButtonClass}`}
+        variant="default"
         disabled={!settled || files.length === 0 || result.waiting}
         onClick={() =>
           mark({ revision: revision.revision, files: blobFiles(files) })
@@ -1126,7 +1121,7 @@ function FilesMark({
         {files.length === 0
           ? 'Every file reviewed'
           : `Mark ${counted(files.length, 'file')} reviewed`}
-      </button>
+      </Button>
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-2 text-xs text-destructive">
           Some files were not marked. Try again.

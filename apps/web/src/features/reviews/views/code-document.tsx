@@ -90,7 +90,6 @@ import { StateNotice } from '@/shared/views/state-notice';
 import { InlineComposer, type InlineCommentDraft } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
-import { headerButton, quietButton } from './review-controls';
 import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -431,15 +430,16 @@ function CodeSurface({
   );
   const collapseLabel = allCollapsed ? 'Expand all' : 'Collapse all';
   const collapseButton = collapseInHeader ? (
-    <button
+    <Button
       type="button"
-      className={headerButton}
+      variant="ghost"
+      size="sm"
       aria-label={collapseLabel}
       onClick={() => setAllCollapsed(!allCollapsed)}
     >
       {collapseIcon}
       <span className="max-narrow:sr-only">{collapseLabel}</span>
-    </button>
+    </Button>
   ) : (
     <Button
       size="sm"
@@ -693,11 +693,12 @@ function CodeSurface({
               !expandedThreads.has(`${item.id}:${note.lineNumber}`)
             )
               return (
-                <button
+                <Button
                   type="button"
                   data-file-thread-marker=""
                   aria-expanded={false}
-                  className="ml-3 flex h-8 w-[calc(100%-var(--spacing)*5.5)] items-center gap-2 bg-brand-soft pr-3 pl-2.5 text-left font-sans text-xs font-medium text-brand hover:underline"
+                  variant="ghost"
+                  className="ml-3 w-[calc(100%-var(--spacing)*5.5)] justify-start"
                   onClick={() =>
                     setExpandedThreads(
                       (current) =>
@@ -710,7 +711,7 @@ function CodeSurface({
                     className="inline-flex shrink-0 items-center"
                   >
                     <span className="grid size-4.5 place-items-center rounded-full bg-foreground text-background">
-                      <UserIcon className="size-3" />
+                      <UserIcon />
                     </span>
                     {note.threads.some(({ thread }) =>
                       thread.messages.some(
@@ -718,7 +719,7 @@ function CodeSurface({
                       ),
                     ) && (
                       <span className="-ml-1 grid size-4.5 place-items-center rounded-[--spacing(1)] border bg-card text-foreground">
-                        <BotIcon className="size-2.5" />
+                        <BotIcon />
                       </span>
                     )}
                   </span>
@@ -728,8 +729,8 @@ function CodeSurface({
                       (message) => message.author === 'agent',
                     ),
                   ) && ' · Agent replied'}
-                  <ChevronRightIcon className="size-3" />
-                </button>
+                  <ChevronRightIcon />
+                </Button>
               );
             return note.kind === 'composer' ? (
               composer && composer.anchor === note.anchor && (
@@ -764,10 +765,12 @@ function CodeSurface({
                 {compactThreads &&
                   item.type === 'file' &&
                   expandedThreads.has(`${item.id}:${note.lineNumber}`) && (
-                    <button
+                    <Button
                       type="button"
                       aria-expanded={true}
-                      className="self-start text-xs font-medium text-brand hover:underline"
+                      variant="link"
+                      size="sm"
+                      className="self-start"
                       onClick={() =>
                         setExpandedThreads(
                           (current) =>
@@ -781,7 +784,7 @@ function CodeSurface({
                       }
                     >
                       Collapse comments on line {note.lineNumber}
-                    </button>
+                    </Button>
                   )}
                 {note.threads.map(({ thread, stale }) => (
                   <div key={thread.id} className="group/margin-thread">
@@ -897,9 +900,10 @@ function CodeSurface({
               ? `${commentLabel} about ${entry.path}`
               : `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`;
             const commentButton = decision ? (
-              <button
+              <Button
                 type="button"
-                className={headerButton}
+                variant="ghost"
+                size="sm"
                 aria-label={commentName}
                 onClick={() => openFileComment(entry)}
               >
@@ -907,7 +911,7 @@ function CodeSurface({
                 <span className="max-narrow:sr-only">
                   {commentLabel ?? 'Comment'}
                 </span>
-              </button>
+              </Button>
             ) : (
               <Button
                 variant="ghost"
@@ -1034,29 +1038,13 @@ function CodeSurface({
                       Specs · {counted(specCount, 'file')}
                     </span>
                   )}
-                {column ? (
+                {(column || collapsible || entries.length > 1) && (
                   <FileHeaderAction
                     label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
                     icon={isCollapsed ? ChevronRightIcon : ChevronDownIcon}
                     expanded={!isCollapsed}
                     onClick={() => toggle(item.id)}
                   />
-                ) : (
-                  (collapsible || entries.length > 1) && (
-                    <button
-                      type="button"
-                      aria-expanded={!isCollapsed}
-                      aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
-                      onClick={() => toggle(item.id)}
-                      className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                      {isCollapsed ? (
-                        <ChevronRightIcon className="size-3.5" />
-                      ) : (
-                        <ChevronDownIcon className="size-3.5" />
-                      )}
-                    </button>
-                  )
                 )}
                 {control}
               </span>
@@ -1098,12 +1086,13 @@ function HeaderStep({
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
             aria-label={label}
             disabled={disabled}
             onClick={onClick}
-            className={`${quietButton} size-6 text-muted-foreground [&_svg]:size-3.5`}
+            variant="ghost"
+            size="icon-sm"
           />
         }
       >

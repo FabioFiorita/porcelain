@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { readCommit } from '@porcelain/client/history';
 import { useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -411,14 +412,15 @@ function DocumentTab({
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
-                      <button
+                      <Button
                         type="button"
                         aria-label={`Unpin ${title}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onTogglePin(tabKey);
                         }}
-                        className="grid size-4 place-items-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                        variant="ghost"
+                        size="icon-xs"
                       />
                     }
                   >
@@ -431,14 +433,16 @@ function DocumentTab({
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
-                      <button
+                      <Button
                         type="button"
                         aria-label={`Close ${title}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onClose(tabKey);
                         }}
-                        className="mr-0.5 grid size-5 place-items-center rounded-[--spacing(1.25)] text-ui leading-[normal] font-normal text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="mr-0.5"
                       />
                     }
                   >

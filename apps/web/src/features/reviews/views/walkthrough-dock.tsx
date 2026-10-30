@@ -25,7 +25,6 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import { quietButton } from './review-controls';
 
 export function WalkthroughDock({
   label,
@@ -67,9 +66,10 @@ export function WalkthroughDock({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button
+              <Button
                 type="button"
-                className={`${quietButton} h-7 min-w-0 shrink-0 gap-1 px-2.5 text-ui leading-4 aria-expanded:bg-muted @md/review:shrink [&_svg]:size-3.5`}
+                variant="ghost"
+                className="min-w-0 shrink-0 @md/review:shrink"
                 aria-label={`${label}, jump to a stop`}
               />
             }
