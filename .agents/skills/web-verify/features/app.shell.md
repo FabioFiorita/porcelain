@@ -32,6 +32,7 @@ Start in a fresh unpaired context without minting a pairing link. Do not apply t
    Expect: also redirected to `/pair` with the same heading: every paired route is guarded.
 3. Inspect HTTP traffic
    Expect: `GET /api/inventory` answered 401 for each load.
+4. Compare the header mark beside Porcelain with `/icon-512.png` at 1440 and 414 in light and dark themes. It is a monochrome rounded square with one vertical route, a left jog then a right jog, and three round nodes. Retain screenshots beside the app icon; the mark follows the foreground colour.
 
 Automated coverage: `app-routing.e2e.ts`.
 
