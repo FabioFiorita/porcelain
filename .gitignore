@@ -18,6 +18,7 @@ apps/marketing/.astro/
 test-results/
 .mobile-device-host.json
 
+.playwright-cli/
 .playwright-mcp/
 
 .claude/settings.local.json
