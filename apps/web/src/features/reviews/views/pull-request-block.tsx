@@ -289,7 +289,9 @@ function LinkedPullRequest({
   )?.repository;
   const linkedRepository = pullRequestRepository(url);
   const displayRepository =
-    repository?.toLowerCase() === linkedRepository?.toLowerCase()
+    repository !== undefined &&
+    linkedRepository !== undefined &&
+    repository.toLowerCase() === linkedRepository.toLowerCase()
       ? repository
       : linkedRepository;
   if (pull?.kind === 'available')
