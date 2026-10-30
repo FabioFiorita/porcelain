@@ -61,6 +61,7 @@ export function mapPullRequest(
       id: comment.id,
       kind: 'comment',
       author: comment.author?.login ?? undefined,
+      authorAvatarUrl: comment.author?.avatarUrl ?? undefined,
       time: comment.createdAt,
       body: comment.body,
       url: comment.url,
@@ -71,12 +72,17 @@ export function mapPullRequest(
     }),
   );
   for (const review of raw.reviews.nodes) {
-    if (typeof review.submittedAt === 'string')
+    const time =
+      review.submittedAt ??
+      review.createdAt ??
+      review.comments.nodes[0]?.createdAt;
+    if (time !== undefined)
       timeline.push({
         id: review.id,
         kind: 'review',
         author: review.author?.login ?? undefined,
-        time: review.submittedAt,
+        authorAvatarUrl: review.author?.avatarUrl ?? undefined,
+        time,
         body: review.body,
         url: review.url,
         reviewState: review.state,
@@ -88,7 +94,10 @@ export function mapPullRequest(
       timeline.push({
         id: comment.id,
         kind: 'review-comment',
+        reviewId: review.id,
+        diffHunk: comment.diffHunk,
         author: comment.author?.login ?? undefined,
+        authorAvatarUrl: comment.author?.avatarUrl ?? undefined,
         time: comment.createdAt,
         body: comment.body,
         url: comment.url,
@@ -104,6 +113,8 @@ export function mapPullRequest(
   return {
     ...mapPullRequestSummary(raw),
     description: raw.body,
+    createdAt: raw.createdAt,
+    authorAvatarUrl: raw.author?.avatarUrl ?? undefined,
     baseBranch: raw.baseRefName,
     headSha: raw.headRefOid,
     matchesReviewHead: raw.headRefOid === reviewHead,

@@ -3,6 +3,8 @@ import {
   foundPullRequests,
   githubUnavailable,
   pullRequestChecks,
+  pullRequestConversation,
+  type PullRequestRead,
   pullRequestHeadLabel,
   pullCheckDuration,
   pullCheckTone,
@@ -256,3 +258,42 @@ it.each([
     expect(pullRequestStateLabel({ state, draft })).toBe(label);
   },
 );
+
+it('nests inline comments under their review while retaining orphan and older-server comments', () => {
+  type TimelineItem = Extract<
+    PullRequestRead,
+    { kind: 'available' }
+  >['pullRequest']['timeline'][number];
+  const item = (
+    id: string,
+    kind: TimelineItem['kind'],
+    reviewId?: string,
+  ): TimelineItem => ({
+    id,
+    kind,
+    reviewId,
+    author: undefined,
+    time: '2026-10-19T12:00:00Z',
+    body: id,
+    url: 'https://github.com/comment',
+  });
+  const entries = [
+    item('inline', 'review-comment', 'review'),
+    item('orphan', 'review-comment', 'missing'),
+    item('legacy', 'review-comment'),
+    item('issue', 'comment'),
+    item('review', 'review'),
+  ];
+  expect(
+    pullRequestConversation(entries).map(({ item, comments }) => ({
+      id: item.id,
+      comments: comments.map((comment) => comment.id),
+    })),
+  ).toEqual([
+    { id: 'orphan', comments: [] },
+    { id: 'legacy', comments: [] },
+    { id: 'issue', comments: [] },
+    { id: 'review', comments: ['inline'] },
+  ]);
+  expect(pullRequestConversation([])).toEqual([]);
+});

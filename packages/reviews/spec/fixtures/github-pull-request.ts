@@ -8,7 +8,11 @@ export function githubPullRequest(
     url: 'https://github.com/FabioFiorita/porcelain/pull/423',
     state: 'OPEN',
     isDraft: false,
-    author: { login: 'FabioFiorita' },
+    author: {
+      login: 'FabioFiorita',
+      avatarUrl: 'https://avatars.githubusercontent.com/u/1',
+    },
+    createdAt: '2026-10-18T10:00:00Z',
     headRefName: 'feat/review-per-branch',
     updatedAt: '2026-10-19T12:00:00Z',
     commits: {
@@ -64,7 +68,10 @@ export function githubPullRequest(
       nodes: [
         {
           id: 'review',
-          author: { login: 'reviewer' },
+          author: {
+            login: 'reviewer',
+            avatarUrl: 'https://avatars.githubusercontent.com/u/2',
+          },
           submittedAt: '2026-10-19T12:00:00Z',
           body: 'Review',
           url: 'https://github.com/review',
@@ -73,11 +80,15 @@ export function githubPullRequest(
             nodes: [
               {
                 id: 'inline',
-                author: { login: 'reviewer' },
+                author: {
+                  login: 'reviewer',
+                  avatarUrl: 'https://avatars.githubusercontent.com/u/2',
+                },
                 createdAt: '2026-10-19T10:00:00Z',
                 body: 'Inline comment',
                 url: 'https://github.com/inline',
                 path: 'src/index.ts',
+                diffHunk: '@@ -3,2 +3,2 @@\n context\n-old\n+new',
                 line: null,
                 originalLine: 4,
               },
@@ -89,5 +100,22 @@ export function githubPullRequest(
       pageInfo: { hasNextPage: false },
     },
     ...overrides,
+  };
+}
+
+export function pendingGitHubPullRequest(): GitHubPullRequest {
+  const raw = githubPullRequest();
+  return {
+    ...raw,
+    reviews: {
+      ...raw.reviews,
+      nodes: raw.reviews.nodes.map((review) => ({
+        ...review,
+        submittedAt: null,
+        createdAt: '2026-10-19T09:00:00Z',
+        state: 'PENDING',
+        body: '',
+      })),
+    },
   };
 }

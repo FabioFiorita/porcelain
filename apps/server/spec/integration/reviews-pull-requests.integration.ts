@@ -59,9 +59,12 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
   else { console.error('HTTP 404 ' + process.env.GH_TOKEN); process.exitCode = 1; }
 } else {
  const pageInfo = { hasNextPage: false };
+ const detailQuery = args.find(arg => arg.includes('PullRequestRead')) ?? '';
+ const avatarUrl = detailQuery.includes('avatarUrl') ? 'https://avatars.githubusercontent.com/u/1' : undefined;
+ const diffHunk = detailQuery.includes('diffHunk') ? '@@ -1 +1 @@\\n-old\\n+new' : undefined;
  const pr = { number: 423, title: 'Fixture PR', url: 'https://github.com/FabioFiorita/porcelain/pull/423', state: fixture.state, isDraft: false,
- author: { login: 'author' }, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
- comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [], pageInfo } };
+ author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
+ comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [{ id: 'review', author: { login: 'reviewer', avatarUrl }, submittedAt: '2026-10-19T12:00:00Z', body: 'A review', url: 'https://github.com/review', state: 'COMMENTED', comments: { nodes: [{ id: 'inline', author: { login: 'reviewer', avatarUrl }, createdAt: '2026-10-19T10:00:00Z', body: 'Inline comment', url: 'https://github.com/inline', path: 'README.md', line: 1, originalLine: 1, diffHunk }], pageInfo } }], pageInfo } };
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
 }
 `,
@@ -229,7 +232,21 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
         title: 'Fixture PR',
         description: '# Description',
         matchesReviewHead: false,
-        timeline: [{ body: 'A comment' }],
+        createdAt: '2026-10-18T10:00:00Z',
+        authorAvatarUrl: 'https://avatars.githubusercontent.com/u/1',
+        timeline: [
+          {
+            body: 'Inline comment',
+            reviewId: 'review',
+            diffHunk: '@@ -1 +1 @@\n-old\n+new',
+            authorAvatarUrl: 'https://avatars.githubusercontent.com/u/1',
+          },
+          { body: 'A comment' },
+          {
+            body: 'A review',
+            authorAvatarUrl: 'https://avatars.githubusercontent.com/u/1',
+          },
+        ],
       },
     });
     expect(

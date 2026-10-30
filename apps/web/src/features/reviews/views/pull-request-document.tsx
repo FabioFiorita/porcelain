@@ -3,6 +3,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
+import { File } from '@pierre/diffs/react';
 import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
@@ -24,6 +26,7 @@ import {
   pullCheckDuration,
   pullCheckTone,
   pullRequestChecks,
+  pullRequestConversation,
   pullRequestHeadLabel,
   pullRequestMergeable,
   pullRequestRepository,
@@ -31,6 +34,9 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTheme } from '@/features/preferences/index';
+import { PIERRE_THEME } from '@/shared/lib/pierre';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -139,12 +145,15 @@ export function PullRequestDocument({
             <section aria-label="Description">
               <div className={sectionHeading}>
                 <h2>Description</h2>
-                {pull.author && (
-                  <TruncatedText
-                    text={`by ${pull.author}`}
-                    className="ml-auto font-normal"
-                  />
-                )}
+                <div className="ml-auto flex min-w-0 items-center gap-1.5 font-normal">
+                  {pull.author && <TruncatedText text={`by ${pull.author}`} />}
+                  {pull.author && pull.createdAt && <Dot />}
+                  {pull.createdAt && (
+                    <time dateTime={pull.createdAt}>
+                      {timeAgo(pull.createdAt)}
+                    </time>
+                  )}
+                </div>
               </div>
               {pull.description.trim() ? (
                 <MarkdownView
@@ -243,12 +252,10 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         <PullStatePill pull={pull} />
         {pull.author && (
           <>
-            <span
-              aria-hidden="true"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-2xs leading-none font-semibold text-background"
-            >
-              {pull.author.slice(0, 1).toUpperCase()}
-            </span>
+            <GitHubAuthorAvatar
+              author={pull.author}
+              url={pull.authorAvatarUrl}
+            />
             <TruncatedText
               text={pull.author}
               className="font-medium text-foreground"
@@ -356,12 +363,23 @@ function PullRequestConversation({
           aria-label="Timeline"
           className="relative mt-3.5 flex min-w-0 flex-col gap-4 before:absolute before:top-4 before:bottom-2.5 before:left-2.5 before:w-px before:bg-border"
         >
-          {pull.timeline.map((item) => (
-            <PullRequestTimelineItem
-              key={item.id}
-              item={item}
-              onFile={onFile}
-            />
+          {pullRequestConversation(pull.timeline).map(({ item, comments }) => (
+            <PullRequestTimelineItem key={item.id} item={item} onFile={onFile}>
+              {comments.length > 0 && (
+                <ol
+                  aria-label={`Comments on review by ${item.author ?? 'Unknown author'}`}
+                  className="mt-3 flex min-w-0 flex-col gap-3 border-l pl-3"
+                >
+                  {comments.map((comment) => (
+                    <PullRequestTimelineItem
+                      key={comment.id}
+                      item={comment}
+                      onFile={onFile}
+                    />
+                  ))}
+                </ol>
+              )}
+            </PullRequestTimelineItem>
           ))}
         </ol>
       ) : (
@@ -385,13 +403,31 @@ function PullRequestConversation({
   );
 }
 
+function GitHubAuthorAvatar({
+  author,
+  url,
+}: {
+  author: string;
+  url: string | undefined;
+}) {
+  return (
+    <Avatar size="sm" aria-hidden="true">
+      {url && <AvatarImage src={url} alt="" />}
+      <AvatarFallback>{author.slice(0, 1).toUpperCase()}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 function PullRequestTimelineItem({
   item,
   onFile,
+  children,
 }: {
   item: TimelineItem;
   onFile: Props['onFile'];
+  children?: ReactNode;
 }) {
+  const { dark } = useTheme();
   const review = pullReviewState(item.reviewState);
   const author = item.author ?? 'Unknown author';
   const line = item.line ?? item.originalLine;
@@ -402,12 +438,9 @@ function PullRequestTimelineItem({
       : `${item.path}${line === undefined ? '' : `:${line}`}`;
   return (
     <li className="relative flex min-w-0 items-start gap-2.5">
-      <span
-        aria-hidden="true"
-        className="z-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-2xs leading-none font-semibold text-background ring-3 ring-background"
-      >
-        {author.slice(0, 1).toUpperCase()}
-      </span>
+      <div className="z-1 shrink-0 bg-background">
+        <GitHubAuthorAvatar author={author} url={item.authorAvatarUrl} />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex min-h-5 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-muted-foreground">
           <TruncatedText
@@ -475,6 +508,28 @@ function PullRequestTimelineItem({
             </span>
           </div>
         )}
+        {item.diffHunk && (
+          <div
+            role="region"
+            aria-label={`Code excerpt for ${path ?? 'review comment'}`}
+            className="max-h-64 min-w-0 overflow-auto border-x"
+          >
+            <File
+              file={{
+                name: path ?? 'review.diff',
+                contents: item.diffHunk,
+                lang: 'diff',
+              }}
+              options={{
+                theme: PIERRE_THEME,
+                themeType: dark ? 'dark' : 'light',
+                disableFileHeader: true,
+                disableLineNumbers: true,
+                overflow: 'wrap',
+              }}
+            />
+          </div>
+        )}
         {item.body.trim() && (
           <MarkdownView
             text={item.body}
@@ -485,6 +540,7 @@ function PullRequestTimelineItem({
             )}
           />
         )}
+        {children}
       </div>
     </li>
   );

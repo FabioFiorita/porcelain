@@ -1,5 +1,8 @@
 import { expect, it } from 'vitest';
-import { githubPullRequest } from '../../spec/fixtures/github-pull-request.ts';
+import {
+  githubPullRequest,
+  pendingGitHubPullRequest,
+} from '../../spec/fixtures/github-pull-request.ts';
 import {
   mapPullRequest,
   mapPullRequestSummary,
@@ -13,6 +16,8 @@ it('maps headers, checks and a chronological timeline including deleted authors 
     state: 'open',
     draft: false,
     author: 'FabioFiorita',
+    authorAvatarUrl: 'https://avatars.githubusercontent.com/u/1',
+    createdAt: '2026-10-18T10:00:00Z',
     headBranch: 'feat/review-per-branch',
     baseBranch: 'main',
     description: '# Description',
@@ -22,6 +27,17 @@ it('maps headers, checks and a chronological timeline including deleted authors 
     updatedAt: '2026-10-19T12:00:00Z',
     truncated: false,
   });
+  expect(mapped.timeline.find((item) => item.id === 'inline')).toMatchObject({
+    reviewId: 'review',
+    diffHunk: '@@ -3,2 +3,2 @@\n context\n-old\n+new',
+    authorAvatarUrl: 'https://avatars.githubusercontent.com/u/2',
+  });
+  expect(mapped.timeline.find((item) => item.id === 'review')).toMatchObject({
+    authorAvatarUrl: 'https://avatars.githubusercontent.com/u/2',
+  });
+  expect(
+    mapped.timeline.find((item) => item.id === 'comment')?.authorAvatarUrl,
+  ).toBeUndefined();
   expect(mapped.checks).toEqual([
     {
       name: 'CI',
@@ -178,4 +194,17 @@ it('leaves running checks without a completed duration', () => {
   expect(
     mapPullRequest(changed, raw.headRefOid).checks[0]?.durationMs,
   ).toBeUndefined();
+});
+
+it('retains a pending review as the parent of its inline comments', () => {
+  const raw = pendingGitHubPullRequest();
+  const mapped = mapPullRequest(raw, raw.headRefOid);
+  expect(mapped.timeline.find((item) => item.id === 'review')).toMatchObject({
+    kind: 'review',
+    time: '2026-10-19T09:00:00Z',
+    reviewState: 'PENDING',
+  });
+  expect(mapped.timeline.find((item) => item.id === 'inline')?.reviewId).toBe(
+    'review',
+  );
 });

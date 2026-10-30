@@ -240,3 +240,29 @@ export function pullCheckDuration(
     ? `${seconds}s`
     : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
+
+export function pullRequestConversation(
+  timeline: LinkedPullRequest['timeline'],
+) {
+  const reviews = new Set(
+    timeline.filter((item) => item.kind === 'review').map((item) => item.id),
+  );
+  return timeline
+    .filter(
+      (item) =>
+        item.kind !== 'review-comment' ||
+        item.reviewId === undefined ||
+        !reviews.has(item.reviewId),
+    )
+    .map((item) => ({
+      item,
+      comments:
+        item.kind === 'review'
+          ? timeline.filter(
+              (comment) =>
+                comment.kind === 'review-comment' &&
+                comment.reviewId === item.id,
+            )
+          : [],
+    }));
+}
