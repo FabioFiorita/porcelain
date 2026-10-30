@@ -18,7 +18,7 @@ it.each([
     await Effect.runPromise(
       store.save(
         reviewSave(review, {
-          pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
+          pullRequest: 'https://github.com/fabiofiorita/porcelain/pull/423',
         }),
       ),
     );

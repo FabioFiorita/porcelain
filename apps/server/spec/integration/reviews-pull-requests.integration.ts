@@ -204,7 +204,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     ).toEqual({ type: 'inventory' });
     await linkingViewer.close();
     expect(await request(review)).toMatchObject({
-      review: { pullRequest: pullRequest.toLowerCase(), latestRevision: 1 },
+      review: { pullRequest, latestRevision: 1 },
       revision: { revision: 1 },
     });
     state.mode = 'offline';
@@ -238,7 +238,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       message: 'GitHub has no pull request #999 in FabioFiorita/porcelain.',
     });
     expect(await request(review)).toMatchObject({
-      review: { pullRequest: pullRequest.toLowerCase() },
+      review: { pullRequest },
     });
     state.holdAccounts = true;
     await save();
