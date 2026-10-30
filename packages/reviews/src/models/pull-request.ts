@@ -32,7 +32,12 @@ export const githubAccountResultSchema = Schema.Struct({
   unavailable: Schema.optional(githubUnavailableSchema),
 });
 export type GitHubAccountResult = typeof githubAccountResultSchema.Type;
-const authorSchema = Schema.NullOr(Schema.Struct({ login: Schema.String }));
+const authorSchema = Schema.NullOr(
+  Schema.Struct({
+    login: Schema.String,
+    avatarUrl: Schema.optional(Schema.String),
+  }),
+);
 const pageInfoSchema = Schema.Struct({ hasNextPage: Schema.Boolean });
 const checkSchema = Schema.Union([
   Schema.Struct({
@@ -88,6 +93,7 @@ const commentSchema = Schema.Struct({
 export const githubPullRequestSchema = Schema.Struct({
   ...githubPullSummarySchema.fields,
   body: Schema.String,
+  createdAt: Schema.optional(Schema.String),
   baseRefName: Schema.String,
   headRefOid: Schema.String,
   mergeable: Schema.String,
@@ -107,6 +113,7 @@ export const githubPullRequestSchema = Schema.Struct({
         id: Schema.String,
         author: authorSchema,
         submittedAt: Schema.NullOr(Schema.String),
+        createdAt: Schema.optional(Schema.String),
         body: Schema.String,
         url: Schema.String,
         state: Schema.String,
@@ -115,6 +122,7 @@ export const githubPullRequestSchema = Schema.Struct({
             Schema.Struct({
               ...commentSchema.fields,
               path: Schema.String,
+              diffHunk: Schema.optional(Schema.String),
               line: Schema.NullOr(Schema.Int),
               originalLine: Schema.NullOr(Schema.Int),
             }),
@@ -155,6 +163,9 @@ const pullTimelineItemSchema = Schema.Struct({
   body: Schema.String,
   url: Schema.String,
   reviewState: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
+  reviewId: Schema.optional(Schema.String),
+  diffHunk: Schema.optional(Schema.String),
   path: Schema.optional(Schema.String),
   line: Schema.optional(Schema.Int),
   originalLine: Schema.optional(Schema.Int),
@@ -162,6 +173,8 @@ const pullTimelineItemSchema = Schema.Struct({
 export const pullRequestSchema = Schema.Struct({
   ...pullRequestSummarySchema.fields,
   description: Schema.String,
+  createdAt: Schema.optional(Schema.String),
+  authorAvatarUrl: Schema.optional(Schema.String),
   baseBranch: Schema.String,
   headSha: Schema.String,
   matchesReviewHead: Schema.Boolean,

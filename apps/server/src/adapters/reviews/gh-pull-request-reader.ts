@@ -16,17 +16,17 @@ import {
 import type { Limits } from '../../config/limits.ts';
 
 const PAGE = 'pageInfo { hasNextPage }';
-const summaryFields = `number title url state isDraft author { login } headRefName updatedAt
+const summaryFields = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName updatedAt
   commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
     nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
-    ${summaryFields} body baseRefName headRefOid mergeable
+    ${summaryFields} body createdAt baseRefName headRefOid mergeable
     labels(first: 50) { nodes { name color } ${PAGE} }
-    comments(first: 50) { nodes { id author { login } createdAt body url } ${PAGE} }
-    reviews(first: 50) { nodes { id author { login } submittedAt body url state
-      comments(first: 50) { nodes { id author { login } createdAt body url path line originalLine } ${PAGE} }
+    comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url } ${PAGE} }
+    reviews(first: 50) { nodes { id author { login avatarUrl(size: 48) } submittedAt createdAt body url state
+      comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url path line originalLine diffHunk } ${PAGE} }
     } ${PAGE} }
   } }
 }`;

@@ -7,7 +7,7 @@ import web from './vite.config.ts';
 export default defineConfig({
   ...web,
   root: import.meta.dirname,
-  optimizeDeps: { include: ['@base-ui/react/select'] },
+  optimizeDeps: { include: ['@base-ui/react/select', '@base-ui/react/avatar'] },
   server: { ...web.server, proxy: serverProxy },
   test: {
     name: 'integration',
