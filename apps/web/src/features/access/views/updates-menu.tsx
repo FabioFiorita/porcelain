@@ -65,7 +65,7 @@ export function UpdatesMenu({
         if (next) refresh();
       }}
     >
-      <span className="[--primary:var(--brand-soft)] [--primary-foreground:var(--brand)]">
+      <span className="inline-flex [--primary:var(--brand-soft)] [--primary-foreground:var(--brand)]">
         <PopoverTrigger
           className={cn(!visible && 'invisible')}
           render={<Badge render={<button type="button" />} />}
