@@ -11,6 +11,7 @@ import type { Workspace } from '../../projects';
 
 export function useCommentCommands(
   workspace: Pick<Workspace, 'connection' | 'scope'>,
+  retainedOwner?: string,
 ) {
   const owner = useId();
   return commentCommands(
@@ -18,7 +19,7 @@ export function useCommentCommands(
       connection: workspace.connection,
       scope: workspace.scope,
     },
-    owner,
+    retainedOwner ?? owner,
   );
 }
 

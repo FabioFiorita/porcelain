@@ -118,70 +118,40 @@ for (const width of [1440, 414]) {
 }
 
 for (const width of [1440, 414]) {
-  for (const colorScheme of ['light', 'dark'] as const) {
-    test(`long worktree menu labels disclose on owner keyboard focus at ${width}px in ${colorScheme}`, async ({
-      pairedPage: page,
-      repo,
-      app,
-      server,
-    }) => {
-      const branch =
-        'a-long-worktree-branch-whose-full-value-must-be-readable-from-the-keyboard';
-      await repo.worktree(branch);
-      await app.reload();
-      await page.setViewportSize({ width, height: 896 });
-      await page.emulateMedia({ colorScheme });
-      const project = await server.project();
-      const target = project.worktrees.find((row) => row.branch === branch);
-      if (width === 414)
-        await page
-          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-          .click();
+  test(`long worktree card labels disclose on keyboard focus at ${width}px`, async ({
+    pairedPage: page,
+    repo,
+    app,
+    server,
+  }) => {
+    const branch =
+      'a-long-worktree-branch-whose-full-value-must-be-readable-from-the-keyboard';
+    await repo.worktree(branch);
+    await app.reload();
+    await page.setViewportSize({ width, height: 896 });
+    if (width === 414)
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
         .click();
-      await page
-        .getByRole('menuitem', { name: 'Worktrees', exact: true })
-        .click();
-      const search = page.getByRole('searchbox', {
-        name: 'Search worktrees',
-        exact: true,
-      });
-      await search.fill(branch);
-      await search.press('ArrowDown');
-      const result = page.getByRole('menuitemradio', {
-        name: new RegExp(branch),
-      });
-      await expect(result).toBeFocused();
-      const tooltip = page.getByRole('tooltip', { name: new RegExp(branch) });
-      await expect(tooltip).toBeVisible();
-      await expect(tooltip).toContainText(
-        (await server.inventory()).environment.name,
-      );
-      await page.keyboard.press('Escape');
-      await expect(result).not.toBeVisible();
-      await expect(
-        page.getByRole('menuitem', { name: 'Worktrees', exact: true }),
-      ).toBeFocused();
-      await page.keyboard.press('Escape');
-      const filter = page.getByRole('button', {
-        name: 'Filter reviews',
-        exact: true,
-      });
-      await expect(filter).toBeFocused();
-      await expect(page.getByRole('menu')).toHaveCount(0);
-      await filter.click();
-      await page
-        .getByRole('menuitem', { name: 'Worktrees', exact: true })
-        .click();
-      await search.fill(branch);
-      await search.press('ArrowDown');
-      await expect(result).toBeFocused();
-      await page.keyboard.press('Enter');
-      await expect
-        .poll(() => app.address().path)
-        .toBe(`/${project.id}/${target?.id ?? ''}`);
-      await expect(page.getByRole('menu')).toHaveCount(0);
-    });
-  }
+    const row = page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: new RegExp(branch) });
+    await row.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(row).toBeFocused();
+    const tooltip = page.getByRole('tooltip', { name: new RegExp(branch) });
+    await expect(tooltip).toBeVisible();
+    await row.press('Escape');
+    await expect(tooltip).not.toBeVisible();
+    await expect(row).toBeFocused();
+    await row.press('Enter');
+    const project = await server.project();
+    const target = project.worktrees.find(
+      (worktree) => worktree.branch === branch,
+    );
+    await expect
+      .poll(() => app.address().path)
+      .toBe(`/${project.id}/${target?.id ?? ''}`);
+  });
 }

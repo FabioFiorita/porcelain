@@ -1,28 +1,20 @@
-import type { RuntimeConnection } from '@porcelain/client/transport';
-import type { Project } from '@porcelain/client/projects/rules';
-import {
-  UpdatesButton,
-  UpdatesSheet,
-  useEnvironments,
-  useEnvironmentStorageStatus,
-  useUpdatesIndicator,
-} from '../../access';
-import { ArchiveReview } from './archive-review';
-import { useState } from 'react';
-import { ScrollView } from 'react-native';
+import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
+import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
-import { readReviewList, refreshReviewList } from '@porcelain/client/reviews';
 import {
-  emptyReviewListFilter,
-  reviewListSections,
-  reviewListIsSelected,
-  type ReviewListSelection,
-  type ReviewListEntry,
-} from '@porcelain/client/reviews/rules';
+  readWorktreeNavigator,
+  refreshWorktreeNavigator,
+} from '@porcelain/client/projects';
+import {
+  emptyNavigatorFilter,
+  navigatorEntrySelected,
+  navigatorEntryLabel,
+  type NavigatorEntry,
+  type NavigatorFilterSection,
+} from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { headerIcon } from '../../../shared/icons/header-icon';
-import { usePreferences } from '../../preferences/index';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
@@ -30,18 +22,17 @@ import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Input } from '../../../components/ui/input';
-import { IconButton } from '../../../components/ui/icon-button';
-import { NavigatorItem } from '../../../components/ui/navigator-item';
-import { ReviewStatus } from '../../../components/ui/review-status';
 import { Item } from '../../../components/ui/item';
+import { Badge } from '../../../components/ui/badge';
+import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
-import { HeaderTitle } from '../../../components/ui/header-title';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
 import { retainedReviewRoute } from '../rules/retained-review-route';
-import { useWorktreeNavigator } from '../store';
+import { requestDocumentLeave, useWorktreeNavigator } from '../store';
+import { useOpenPullRequest } from './open-pull-request';
 
 export function WorktreeNavigator({
   onSelect,
@@ -55,17 +46,15 @@ export function WorktreeNavigator({
   const { picker, initializing, reading } = useWorkspacePickerModel(onSelect);
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { entries, loading, messages, projects } = useAtomValue(
-    readReviewList(connections),
+  const { loading, messages, projects, filters } = useAtomValue(
+    readWorktreeNavigator(connections),
   );
-  const retry = useAtomSet(refreshReviewList(connections));
-  const { query, setQuery, filter, setFilter } = useWorktreeNavigator();
-  const [updates, setUpdates] = useState(false);
-  const updateIndicator = useUpdatesIndicator();
-  const [showFilters, setShowFilters] = useState(false);
+  const retry = useAtomSet(refreshWorktreeNavigator(connections));
+  const { query, setQuery, filter, setFilter, setExpanded } =
+    useWorktreeNavigator();
   const router = useRouter();
   const [group] = useSegments();
-  const { preferences, setPreferences } = usePreferences();
+  const openPullRequest = useOpenPullRequest();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -75,7 +64,9 @@ export function WorktreeNavigator({
   const selectedWorktree = selectedProject?.worktrees.find(
     (row) => row.selected,
   );
-  const selectedCheckout: ReviewListSelection | undefined =
+  const selectedCheckout:
+    | Parameters<typeof navigatorEntrySelected>[1]
+    | undefined =
     selectedProject && selectedWorktree
       ? {
           kind: 'worktree',
@@ -83,31 +74,27 @@ export function WorktreeNavigator({
           worktreeId: selectedWorktree.worktree.id,
         }
       : undefined;
-  const selection: ReviewListSelection | undefined = openReview
-    ? { kind: 'review', ...openReview }
-    : selectedCheckout;
-  const { rows, filters, groups } = reviewListSections(
-    entries,
-    query,
-    filter,
-    selection,
-  );
-  const open = (entry: ReviewListEntry) => {
-    if (entry.worktreeId && !entry.closed) {
+  const selection: Parameters<typeof navigatorEntrySelected>[1] | undefined =
+    openReview ? { kind: 'review', ...openReview } : selectedCheckout;
+  const open = (entry: NavigatorEntry) => {
+    if (entry.kind === 'worktree' && entry.available && entry.worktreeId) {
       picker.onWorktree(entry.environmentId, entry.projectId, entry.worktreeId);
-    } else if (entry.reviewId) {
+    } else if (entry.review.state === 'available') {
       const remote = remotes.find(
         (candidate) => candidate.remote.environmentId === entry.environmentId,
       );
       if (!remote) return;
-      router.push({
-        pathname: retainedReviewRoute(nativeHeader ? group : undefined),
-        params: {
-          reviewId: entry.reviewId,
-          environment: entry.environmentId,
-          host: new URL(remote.remote.address).host,
-        },
-      });
+      requestDocumentLeave(() =>
+        router.push({
+          pathname: retainedReviewRoute(nativeHeader ? group : undefined),
+          params: {
+            reviewId:
+              entry.review.state === 'available' ? entry.review.reviewId : '',
+            environment: entry.environmentId,
+            host: new URL(remote.remote.address).host,
+          },
+        }),
+      );
     }
   };
   if (storage.status === 'ready' && paired.length === 0)
@@ -131,57 +118,47 @@ export function WorktreeNavigator({
   return (
     <Box className="flex-1" testID="worktree-navigator">
       {nativeHeader ? (
-        <Stack.Title asChild>
-          <Box className="flex-row items-center" gap={3}>
-            <HeaderTitle>Worktrees</HeaderTitle>
-            {updateIndicator.visible ? (
-              <UpdatesButton
-                running={updateIndicator.running}
-                onPress={() => setUpdates(true)}
-              />
-            ) : null}
-          </Box>
-        </Stack.Title>
-      ) : null}
-      {nativeHeader ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu
             icon={headerIcon('workspace')}
             accessibilityLabel="Filter worktrees"
             title="Filter worktrees"
           >
-            {filters.map((section) => (
-              <Stack.Toolbar.Menu key={section.key} inline>
-                <Stack.Toolbar.MenuAction disabled>
-                  {section.key === 'environments' ? 'Computers' : section.label}
-                </Stack.Toolbar.MenuAction>
-                {section.items.map((option) => (
-                  <Stack.Toolbar.MenuAction
-                    key={option.id}
-                    isOn={option.checked}
-                    onPress={() =>
-                      setFilter({ ...filter, [section.key]: option.next })
-                    }
-                  >
-                    {option.label}
+            {filters
+              .filter((section) => section.key === 'reviews')
+              .map((section) => (
+                <Stack.Toolbar.Menu key={section.key} inline>
+                  <Stack.Toolbar.MenuAction disabled>
+                    {section.key === 'environments'
+                      ? 'Computers'
+                      : section.label}
                   </Stack.Toolbar.MenuAction>
-                ))}
-              </Stack.Toolbar.Menu>
-            ))}
+                  {section.items.map((option) => (
+                    <Stack.Toolbar.MenuAction
+                      key={option.id}
+                      isOn={option.checked}
+                      onPress={() =>
+                        setFilter({ ...filter, [section.key]: option.next })
+                      }
+                    >
+                      {option.label}
+                    </Stack.Toolbar.MenuAction>
+                  ))}
+                </Stack.Toolbar.Menu>
+              ))}
             <Stack.Toolbar.MenuAction
-              onPress={() => setFilter(emptyReviewListFilter)}
+              isOn={filter.older}
+              onPress={() => setFilter({ ...filter, older: !filter.older })}
+            >
+              Show older reviews
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              onPress={() => setFilter(emptyNavigatorFilter)}
             >
               Clear filters
             </Stack.Toolbar.MenuAction>
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
-      ) : null}
-      {nativeHeader ? (
-        <UpdatesSheet
-          presented={updates}
-          onClose={() => setUpdates(false)}
-          onManageComputers={openComputers}
-        />
       ) : null}
       <Box paddingX={4} paddingY={3} gap={2}>
         <Box className="flex-row items-center" gap={1}>
@@ -199,15 +176,32 @@ export function WorktreeNavigator({
             />
           </Box>
           {!nativeHeader ? (
-            <>
-              <IconButton
-                icon="filter"
-                accessibilityLabel="Filter worktrees"
-                onPress={() => setShowFilters(!showFilters)}
-              />
-            </>
+            <NavigatorFilter
+              sections={filters.filter((section) => section.key === 'reviews')}
+              filter={filter}
+              onChange={setFilter}
+            />
           ) : null}
         </Box>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator
+          contentContainerClassName="items-center gap-2"
+          keyboardShouldPersistTaps="handled"
+        >
+          {filters
+            .filter((section) => section.key !== 'reviews')
+            .map((section) => (
+              <NavigatorScopePicker
+                key={section.key}
+                section={section}
+                label={scopeLabel(section)}
+                onChange={(next) =>
+                  setFilter({ ...filter, [section.key]: next })
+                }
+              />
+            ))}
+        </ScrollView>
         {query ? (
           <Button
             label="Clear search"
@@ -221,160 +215,132 @@ export function WorktreeNavigator({
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        accessibilityLabel="Worktrees by review status"
+        accessibilityLabel="Worktrees by project"
         contentContainerClassName={
           nativeHeader ? 'gap-2.5 px-4 pb-6' : 'gap-2 px-2 pb-6'
         }
       >
-        {showFilters ? (
-          <Box gap={2}>
-            {filters.map((section) => (
-              <Box key={section.key} gap={2}>
-                <Text variant="subheading">
-                  {section.key === 'environments' ? 'Computers' : section.label}
-                </Text>
-                {section.items.map((option) => (
-                  <Item
-                    key={option.id}
-                    title={option.label}
-                    trailing={
-                      option.checked ? <Icon name="check" /> : undefined
-                    }
-                    onPress={() =>
-                      setFilter({ ...filter, [section.key]: option.next })
-                    }
-                  />
-                ))}
-              </Box>
-            ))}
-            <Button
-              label="Clear filters"
-              variant="ghost"
-              onPress={() => setFilter(emptyReviewListFilter)}
-            />
-          </Box>
-        ) : null}
         {initializing || loading ? (
           <Loading label="Reading worktrees…" />
         ) : null}
-        {groups.map(({ group, rows: grouped }) => {
-          if (grouped.length === 0 && group !== 'Closed') return null;
-          const expanded =
-            preferences.reviewListGroupOpen[group] ?? group !== 'Closed';
-          return (
-            <Box key={group}>
-              <ButtonSurface
-                variant="ghost"
-                size={nativeHeader ? 'navigatorPhoneGroup' : 'navigatorGroup'}
-                expanded={expanded}
-                align="start"
-                accessibilityLabel={`${group} · ${grouped.length}, ${expanded ? 'expanded' : 'collapsed'}`}
-                onPress={() =>
-                  setPreferences({
-                    reviewListGroupOpen: {
-                      ...preferences.reviewListGroupOpen,
-                      [group]: !expanded,
-                    },
-                  })
-                }
-              >
-                <Icon
-                  name={expanded ? 'down' : 'chevron'}
-                  size={nativeHeader ? 'caption' : 'small'}
-                  tone="muted"
-                />
-                <Text
-                  variant="navigatorCaption"
-                  tone="muted"
-                  weight="medium"
-                  className="flex-1"
+        {projects.map((project) => (
+          <Box key={project.key} gap={1}>
+            <Box className="flex-row items-center" gap={1}>
+              <Box className="min-w-0 flex-1">
+                <ButtonSurface
+                  variant="ghost"
+                  size={nativeHeader ? 'navigatorPhoneGroup' : 'navigatorGroup'}
+                  expanded={project.expanded}
+                  align="start"
+                  accessibilityLabel={`${project.project.name}, ${project.environmentName}, ${project.expanded ? 'expanded' : 'collapsed'}`}
+                  onPress={() => setExpanded(project.key, !project.expanded)}
                 >
-                  {group}
-                </Text>
-                <Text variant="navigatorCount" tone="muted" weight="medium">
-                  {grouped.length}
-                </Text>
-              </ButtonSurface>
-              {expanded &&
-              group === 'Closed' &&
-              grouped.length === 0 &&
-              !loading ? (
-                <Box paddingX={2} paddingY={3}>
-                  <Text variant="ui" tone="muted">
-                    No closed reviews
+                  <Icon
+                    name={project.expanded ? 'down' : 'chevron'}
+                    size="small"
+                    tone="muted"
+                  />
+                  <Text
+                    variant="navigatorCaption"
+                    weight="medium"
+                    numberOfLines={1}
+                    className="min-w-0 flex-1"
+                  >
+                    {project.project.name}
                   </Text>
-                </Box>
-              ) : null}
-              {expanded ? (
-                <Box gap={0.5}>
-                  {grouped.map((entry) => {
-                    const selected = reviewListIsSelected(entry, selection);
-                    const row = worktreeRow(entry, selected);
-                    const worktreeId = entry.worktreeId;
-                    return (
-                      <Box key={entry.key} gap={1}>
-                        <NavigatorItem
-                          title={row.title}
-                          subtitle={
-                            row.kind === 'review'
-                              ? `${row.project} · ${row.branch}`
-                              : row.location
-                          }
-                          detail={
-                            row.kind === 'review' ? row.progress : row.project
-                          }
-                          progress={row.kind === 'review'}
-                          leading={
-                            <ReviewStatus
-                              status={row.status}
-                              phone={nativeHeader}
-                            />
-                          }
-                          phone={nativeHeader}
-                          selected={selected}
-                          disabled={
-                            picker.disabled || (!entry.closed && entry.disabled)
-                          }
-                          accessibilityLabel={row.accessibilityLabel}
-                          action={
-                            entry.closed && worktreeId ? (
-                              <IconButton
-                                icon="openFolder"
-                                accessibilityLabel={`Open worktree: ${entry.branch}`}
-                                disabled={picker.disabled || entry.disabled}
-                                onPress={() =>
-                                  picker.onWorktree(
-                                    entry.environmentId,
-                                    entry.projectId,
-                                    worktreeId,
-                                  )
-                                }
-                              />
-                            ) : undefined
-                          }
-                          onPress={() => open(entry)}
-                        />
-                        {entry.archivable ? (
-                          <Box
-                            className="min-w-0 items-start"
-                            gap={1}
-                            paddingX={2}
-                          >
-                            <ArchiveAction entry={entry} projects={projects} />
-                          </Box>
-                        ) : null}
-                      </Box>
-                    );
-                  })}
-                </Box>
-              ) : null}
+                </ButtonSurface>
+              </Box>
+              <Box className="min-w-0 max-w-1/2 shrink">
+                <Badge
+                  label={project.environmentName}
+                  labelNumberOfLines={1}
+                  variant="outline"
+                  accessibilityLabel={`Computer: ${project.environmentName}`}
+                  onPress={() =>
+                    Alert.alert('Computer', project.environmentName)
+                  }
+                />
+              </Box>
             </Box>
-          );
-        })}
+            {project.expanded
+              ? project.entries.map((entry) => {
+                  const selected = navigatorEntrySelected(entry, selection);
+                  const row = worktreeRow(entry);
+                  const review =
+                    entry.review.state === 'available'
+                      ? entry.review
+                      : undefined;
+                  const number = review?.pullRequestNumber;
+                  return (
+                    <Box key={entry.key} gap={1}>
+                      <Item
+                        title={row.title}
+                        titleNumberOfLines={1}
+                        description={row.subtitle}
+                        descriptionNumberOfLines={1}
+                        variant="outline"
+                        size="xs"
+                        leading={
+                          <Icon
+                            name={entry.kind === 'review' ? 'review' : 'folder'}
+                            tone="muted"
+                          />
+                        }
+                        trailing={
+                          entry.review.state === 'loading' ||
+                          (entry.kind === 'worktree' &&
+                            entry.changes.state === 'loading') ? (
+                            <ActivityIndicator
+                              accessible={false}
+                              size="small"
+                              colorClassName="accent-muted-foreground"
+                            />
+                          ) : undefined
+                        }
+                        action={
+                          review && number !== undefined ? (
+                            <Button
+                              label={`PR #${number}`}
+                              size="sm"
+                              variant="link"
+                              disabled={picker.disabled}
+                              accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}`}
+                              onPress={() =>
+                                openPullRequest({
+                                  kind: 'pull-request',
+                                  environmentId: entry.environmentId,
+                                  reviewId: review.reviewId,
+                                  number,
+                                  projectId: entry.projectId,
+                                })
+                              }
+                            />
+                          ) : undefined
+                        }
+                        selected={selected}
+                        disabled={
+                          picker.disabled ||
+                          (entry.kind === 'worktree' &&
+                            !entry.available &&
+                            !review)
+                        }
+                        accessibilityLabel={`${navigatorEntryLabel(entry)}${selected ? ', current' : ''}`}
+                        onPress={() => open(entry)}
+                      >
+                        <Text variant="caption" tone="muted">
+                          {row.detail}
+                        </Text>
+                      </Item>
+                    </Box>
+                  );
+                })
+              : null}
+          </Box>
+        ))}
         {!initializing &&
         !loading &&
         messages.length === 0 &&
-        rows.length === 0 ? (
+        projects.length === 0 ? (
           <Empty
             title="No matching worktrees"
             description="Try another search or clear the filters."
@@ -408,27 +374,23 @@ export function WorktreeNavigator({
   );
 }
 
-function ArchiveAction({
-  entry,
-  projects,
-}: {
-  entry: ReviewListEntry;
-  projects: readonly { connection: RuntimeConnection; project: Project }[];
-}) {
-  const source = projects.find(
-    (row) =>
-      row.connection.environmentId === entry.environmentId &&
-      row.project.id === entry.projectId,
-  );
-  const main = source?.project.worktrees.find(
-    (row) => row.main && row.available,
-  );
-  return entry.archivable && entry.reviewId && source && main ? (
-    <ArchiveReview
-      connection={source.connection}
-      reviewId={entry.reviewId}
-      projectId={entry.projectId}
-      mainWorktreeId={main.id}
-    />
-  ) : null;
+function scopeLabel(section: NavigatorFilterSection) {
+  const labels =
+    section.key === 'environments'
+      ? {
+          none: 'No environments',
+          all: 'All environments',
+          one: 'environment',
+          many: 'environments',
+        }
+      : {
+          none: 'No projects',
+          all: 'All projects',
+          one: 'project',
+          many: 'projects',
+        };
+  const checked = section.items.filter((option) => option.checked).length;
+  if (checked === 0) return labels.none;
+  if (checked === section.items.length) return labels.all;
+  return `${checked} ${checked === 1 ? labels.one : labels.many}`;
 }

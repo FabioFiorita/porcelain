@@ -38,7 +38,7 @@ Cancelling keeps it. An address of one of its worktrees, open at the time or ope
 ### Case 1: Cancel keeps the project
 
 1. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" with Filter reviews.
+   Expect: dialog "Sidebar" with Filter worktrees.
 2. Open Manage projects → menuitem `repository`
    Expect: project action submenu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
 3. Click menuitem `Remove from Porcelain`

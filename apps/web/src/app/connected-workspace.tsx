@@ -2,6 +2,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
+  type NavigatorEntry,
   firstWaitingWorktree,
   selectedWorktreeInProject,
   worktreeLabel,
@@ -39,7 +40,11 @@ import {
   type WorktreeTarget,
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
-import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
+import {
+  ReviewWorkspace,
+  entryKey,
+  workspaceTitle,
+} from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import {
   useOpenProjectOnThisComputer,
@@ -149,6 +154,31 @@ export function ConnectedWorkspace({
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     openReview,
+    onOpenPullRequest: (entry: NavigatorEntry) => {
+      if (entry.review.state !== 'available' || !entry.review.pullRequestNumber)
+        return;
+      const key = entryKey({
+        kind: 'pull-request',
+        reviewId: entry.review.reviewId,
+        number: entry.review.pullRequestNumber,
+        environmentId: entry.environmentId,
+      });
+      setOpenMobile(false);
+      if (shown) onSearch({ entry: key });
+      else
+        void navigate({
+          to: '/reviews/$reviewId',
+          params: { reviewId: entry.review.reviewId },
+          search: {
+            environment:
+              entry.environmentId === local.connection.environmentId
+                ? undefined
+                : entry.environmentId,
+            decision: undefined,
+            entry: key,
+          },
+        });
+    },
     onOpenProject: (entry: RemoteConnection | null) =>
       entry
         ? openProjectDialog.openWithPayload({

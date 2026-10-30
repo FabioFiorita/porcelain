@@ -112,7 +112,8 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 
 1. Give the fixture repository a GitHub `origin`, put a fake `gh` in the server manifest's `bin` that answers from a state file, and link the published review to a PR for its branch with `PUT /api/reviews/:reviewId/pull-request`. The briefing (and the `/reviews/[reviewId]` screen) shows Pull request with `#n title`, Open/Draft/Merged/Closed with the checks summary, and either Same head as the review, both full SHAs when GitHub is newer, or This review is closed and remains readable.
 2. Change the fake PR and select Read pull request again: the new state replaces the old one. Make `gh` fail (offline, rate limit, HTTP 404, invalid JSON, no accounts, missing `gh`, non-GitHub origin): the linked URL stays with the matching reason and Read pull request again recovers.
-3. Unlink pull request, including while GitHub is offline and on a closed review: the button shows busy and disables while pending, the block disappears, and the server review keeps its id, revision, branch and open/closed state without a pull request. Linking is not offered on the phone; it says to link from the web or desktop app.
+3. Open pull request opens the scoped native [PR document](reviews.pull-request.md), keeping the selected checkout/computer and the way back. Open on GitHub is the explicit external action inside that document.
+4. Unlink pull request, including while GitHub is offline and on a closed review: the button shows busy and disables while pending, the block disappears, and the server review keeps its id, revision, branch and open/closed state without a pull request. Linking is not offered on the phone; it says to link from the web or desktop app.
 
 Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `publication.spec.ts`, `decisions.spec.ts`, `walkthrough.spec.ts`.
 

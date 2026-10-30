@@ -37,16 +37,10 @@ test('browsing to a Git repository opens it as a project in the navigator and th
     .click();
 
   await expect(dialog).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Worktrees', exact: true })
-    .click();
+
   await expect(
-    pairedPage.getByRole('menuitemradio', {
-      name: /\bbrowsed\b/,
-      checked: true,
+    pairedPage.getByRole('button', {
+      name: /, browsed,.*Current$/,
     }),
   ).toBeVisible();
   await expect.poll(registered).toContain(browsed);

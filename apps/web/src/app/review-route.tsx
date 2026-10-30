@@ -22,11 +22,13 @@ export function ReviewRoute({
   revision,
   decision,
   environment,
+  entry,
 }: {
   reviewId: string;
   revision?: string;
   decision?: string;
   environment?: string;
+  entry?: string;
 }) {
   const remotes = useRemoteConnections();
   const remote = remotes.find(
@@ -111,6 +113,7 @@ export function ReviewRoute({
           </Tooltip>
         }
         reviewId={reviewId}
+        initialEntry={entry}
         revision={number}
         decision={decision}
         context={context}

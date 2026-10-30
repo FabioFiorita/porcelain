@@ -12,16 +12,20 @@ import {
   worktreePath,
 } from '@porcelain/server/kit/requests';
 import {
-  readReviewList,
   readProjectReviews,
   readReviewMarks,
   readReview,
+  readReviewPullRequest,
   reviewCommands,
 } from '@porcelain/client/reviews';
-import { refreshInventory } from '@porcelain/client/projects';
+import {
+  readWorktreeNavigator,
+  refreshWorktreeNavigator,
+  worktreeNavigatorState,
+} from '@porcelain/client/projects';
 import { connection } from '../kit/connection.ts';
 
-test('a main checkout stays in Projects when reviewed and its retained closed review remains readable', async ({
+test('a main checkout keeps its review progress and retained closed review stays readable when older reviews are shown', async ({
   server,
   session,
 }) => {
@@ -42,21 +46,12 @@ test('a main checkout stays in Projects when reviewed and its retained closed re
     execute,
     read: nativeRead,
   } = await connection(server, session);
-  const list = readReviewList([connected]);
+  const connections = [connected];
+  const list = readWorktreeNavigator(connections);
+  const entries = () =>
+    registry.get(list).projects.flatMap((project) => project.entries);
   const stop = registry.mount(list);
   try {
-    await expect.poll(() => registry.get(list).loading).toBe(false);
-    const row = registry
-      .get(list)
-      .entries.find((entry) => entry.group === 'Projects');
-    expect(row).toMatchObject({
-      group: 'Projects',
-      reviewed: 0,
-      total: 0,
-      closed: false,
-      worktreeId: session.worktreeId,
-    });
-    expect(row?.reviewId).toBeUndefined();
     const records = await nativeRead(
       readProjectReviews({
         connection: connected,
@@ -65,11 +60,26 @@ test('a main checkout stays in Projects when reviewed and its retained closed re
     );
     const reviewId = records[0]?.reviewId;
     if (!reviewId) throw new Error('Missing published review');
+    await expect
+      .poll(
+        () =>
+          entries().find((entry) => entry.worktreeId === session.worktreeId)
+            ?.review,
+      )
+      .toMatchObject({
+        state: 'available',
+        reviewId,
+        closed: false,
+        progress: { reviewed: 0, total: 1 },
+      });
     expect(
-      registry
-        .get(list)
-        .entries.filter((entry) => entry.worktreeId === session.worktreeId),
+      entries().filter((entry) => entry.worktreeId === session.worktreeId),
     ).toHaveLength(1);
+    expect(entries()[0]).toMatchObject({
+      kind: 'worktree',
+      main: true,
+      available: true,
+    });
     const review = await nativeRead(
       readReview({ connection: connected, reviewId }),
     );
@@ -79,54 +89,65 @@ test('a main checkout stays in Projects when reviewed and its retained closed re
     expect(result.decisions).toEqual([]);
     const layer = review.revision?.content.layers[0];
     if (!layer) throw new Error('Publication omitted layers');
-    const commands = reviewCommands({
-      connection: connected,
-      reviewId,
-    });
+    const commands = reviewCommands({ connection: connected, reviewId });
     await execute(commands.mark, {
       kind: 'decision',
       revision: 1,
       layerId: layer.id,
       fingerprint: layer.fingerprint,
     });
-    await execute(refreshInventory(connected), undefined);
+    await execute(refreshWorktreeNavigator(connections), undefined);
     await expect
       .poll(
         () =>
-          registry
-            .get(list)
-            .entries.find((entry) => entry.worktreeId === session.worktreeId)
-            ?.group,
+          entries().find((entry) => entry.worktreeId === session.worktreeId)
+            ?.review,
       )
-      .toBe('Projects');
-    expect(
-      registry
-        .get(list)
-        .entries.filter(
-          (entry) => !entry.closed && entry.worktreeId === session.worktreeId,
-        ),
-    ).toHaveLength(1);
+      .toMatchObject({
+        state: 'available',
+        reviewId,
+        progress: { reviewed: 1, total: 1 },
+      });
     await execute(commands.close, undefined);
-    await execute(refreshInventory(connected), undefined);
+    await execute(refreshWorktreeNavigator(connections), undefined);
     await expect
       .poll(
         () =>
-          registry
-            .get(list)
-            .entries.find((entry) => entry.reviewId === reviewId)?.closed,
+          entries().find((entry) => entry.worktreeId === session.worktreeId)
+            ?.review,
       )
-      .toBe(true);
-    expect(
-      registry.get(list).entries.find((entry) => entry.group === 'Projects'),
-    ).toMatchObject({ worktreeId: session.worktreeId, disabled: false });
-    expect(review).toHaveProperty('review');
+      .toEqual({ state: 'none' });
+    expect(entries().some((entry) => entry.kind === 'review')).toBe(false);
+    const state = registry.get(worktreeNavigatorState);
+    registry.set(worktreeNavigatorState, {
+      ...state,
+      filter: { ...state.filter, older: true },
+    });
+    await expect
+      .poll(() => entries().find((entry) => entry.kind === 'review')?.review)
+      .toMatchObject({
+        state: 'available',
+        reviewId,
+        closed: true,
+        archived: false,
+      });
+    expect(entries().find((entry) => entry.kind === 'worktree')).toMatchObject({
+      worktreeId: session.worktreeId,
+      available: true,
+    });
+    const retained = await nativeRead(
+      readReview({ connection: connected, reviewId }),
+    );
+    expect(retained.revision?.content.layers[0]?.id).toBe(
+      '75dc6a36-a001-4d00-b511-c45430b99403',
+    );
   } finally {
     stop();
   }
 });
 
 for (const main of [true, false])
-  test(`linked merged reviews stay only in Closed, including main=${main}, and retain archived navigation`, async ({
+  test(`linked merged reviews stay hidden by default, including main=${main}, and retain archived navigation`, async ({
     server,
     session,
   }) => {
@@ -190,33 +211,46 @@ for (const main of [true, false])
     const reviewId = text(
       record(toolValue(await read(session, publish))).reviewId,
     );
-    const { connected, registry, execute } = await connection(server, session);
-    const list = readReviewList([connected]);
+    const {
+      connected,
+      registry,
+      execute,
+      read: nativeRead,
+    } = await connection(server, session);
+    const connections = [connected];
+    const list = readWorktreeNavigator(connections);
+    const entries = () =>
+      registry.get(list).projects.flatMap((project) => project.entries);
     const stop = registry.mount(list);
     try {
+      expect(
+        await nativeRead(
+          readReviewPullRequest({ connection: connected, reviewId }),
+        ),
+      ).toMatchObject({ kind: 'available', pullRequest: { state: 'merged' } });
+      await execute(refreshWorktreeNavigator(connections), undefined);
       await expect
-        .poll(
-          () =>
-            registry.get(list).entries.find((row) => row.reviewId === reviewId)
-              ?.closed,
-        )
-        .toBe(true);
-      expect(
-        registry.get(list).entries.find((row) => row.reviewId === reviewId),
-      ).toMatchObject({
-        group: 'Closed',
-        closed: true,
-        archivable: true,
-        archived: false,
-      });
-      expect(
-        registry
-          .get(list)
-          .entries.filter((row) => !row.closed)
-          .every(
-            (row) => row.group === 'Projects' || row.group === 'No review',
+        .poll(() =>
+          entries().some(
+            (row) =>
+              row.review.state === 'available' &&
+              row.review.reviewId === reviewId,
           ),
-      ).toBe(true);
+        )
+        .toBe(false);
+      const state = registry.get(worktreeNavigatorState);
+      registry.set(worktreeNavigatorState, {
+        ...state,
+        filter: { ...state.filter, older: true },
+      });
+      await expect
+        .poll(() => entries().find((row) => row.kind === 'review')?.review)
+        .toMatchObject({
+          state: 'available',
+          reviewId,
+          closed: true,
+          archived: false,
+        });
       const commands = reviewCommands({ connection: connected, reviewId });
       const options = {
         deleteWorktree: main,
@@ -243,36 +277,22 @@ for (const main of [true, false])
         options,
         confirmation: { plan: preview.plan, discardChanges: false },
       });
-      await execute(refreshInventory(connected), undefined);
+      await execute(refreshWorktreeNavigator(connections), undefined);
       await expect
-        .poll(
-          () =>
-            registry.get(list).entries.find((row) => row.reviewId === reviewId)
-              ?.archived,
-        )
-        .toBe(true);
-      expect(
-        registry.get(list).entries.find((row) => row.reviewId === reviewId),
-      ).toMatchObject({
-        group: 'Closed',
-        closed: true,
-        archivable: false,
-        archived: true,
-      });
+        .poll(() => entries().find((row) => row.kind === 'review')?.review)
+        .toMatchObject({
+          state: 'available',
+          reviewId,
+          closed: true,
+          archived: true,
+        });
+      const retained = await nativeRead(
+        readReview({ connection: connected, reviewId }),
+      );
+      expect(retained.revision?.content.layers[0]?.id).toBe(
+        '75dc6a36-a001-4d00-b511-c45430b99403',
+      );
       if (!main) {
-        await expect
-          .poll(() =>
-            registry
-              .get(list)
-              .entries.some(
-                (row) =>
-                  row.group === 'No review' &&
-                  row.title === branch &&
-                  row.path === checkout &&
-                  row.detached,
-              ),
-          )
-          .toBe(true);
         expect(
           execFileSync(
             'git',
@@ -280,6 +300,17 @@ for (const main of [true, false])
             { encoding: 'utf8' },
           ).trim(),
         ).toBe('HEAD');
+        await expect
+          .poll(() =>
+            entries()
+              .filter((row) => row.kind === 'worktree')
+              .map((row) => ({
+                path: row.path,
+                detached: row.detached,
+                review: row.review.state,
+              })),
+          )
+          .toContainEqual({ path: checkout, detached: true, review: 'none' });
       }
     } finally {
       stop();

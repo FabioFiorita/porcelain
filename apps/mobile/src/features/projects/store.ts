@@ -50,6 +50,11 @@ export function useWorktreeNavigator() {
   const [state, setState] = useAtom(worktreeNavigatorState);
   return {
     ...state,
+    setExpanded: (key: string, expanded: boolean) =>
+      setState((current) => ({
+        ...current,
+        expanded: { ...current.expanded, [key]: expanded },
+      })),
     setQuery: (query: string) => setState((current) => ({ ...current, query })),
     setFilter: (filter: typeof state.filter) =>
       setState((current) => ({ ...current, filter })),

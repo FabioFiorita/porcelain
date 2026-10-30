@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures.ts';
+import { archiveFixture } from '../kit/archive-fixture.ts';
 import { desktopSummaryHost } from '../kit/desktop-summaries.ts';
 
 test('the desktop app opens another computer’s worktree and HTML review, marks a change reviewed there and shows what changes on it live', async ({
@@ -44,18 +45,13 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Worktrees', exact: true })
-    .click();
+
   await expect(
-    pairedPage.getByRole('menuitemradio', { name: new RegExp(local.name) }),
+    pairedPage.getByRole('button', { name: new RegExp(`, ${local.name},`) }),
   ).toBeVisible();
   await pairedPage
-    .getByRole('menuitemradio', {
-      name: new RegExp(`${otherProject.name}.*${other.environment.name}`),
+    .getByRole('button', {
+      name: new RegExp(`, ${otherProject.name}, ${other.environment.name},`),
     })
     .click();
   await expect
@@ -137,4 +133,120 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
       exact: true,
     }),
   ).toBeVisible();
+});
+
+test('PR actions on two computers keep the same PR number scoped to its review without switching the selected checkout', async ({
+  pairedPage: page,
+  app,
+  server,
+  remote,
+}) => {
+  const localProject = await server.project();
+  const remoteProject = await remote.server.project();
+  const localMain = localProject.worktrees.find((row) => row.main)?.path;
+  const remoteMain = remoteProject.worktrees.find((row) => row.main)?.path;
+  if (!localMain || !remoteMain)
+    throw new Error('Missing fixture main checkout');
+  const localFixture = await archiveFixture(localMain);
+  const remoteFixture = await archiveFixture(remoteMain, { codeComment: true });
+  localFixture.pullRequestUnavailable(true);
+  try {
+    await page.setViewportSize({ width: 1440, height: 896 });
+    await app.reload();
+    const original = app.address().path;
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('main', { name: 'Settings', exact: true });
+    await settings
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
+    await settings
+      .getByRole('textbox', { name: 'Pairing link', exact: true })
+      .fill(await app.remoteLink());
+    await settings.getByRole('button', { name: 'Add', exact: true }).click();
+    const remoteName = (await remote.server.inventory()).environment.name;
+    const localName = (await server.inventory()).environment.name;
+    await expect(
+      settings.getByRole('listitem', { name: remoteName, exact: true }),
+    ).toBeVisible();
+    await settings
+      .getByRole('button', { name: 'Close Settings', exact: true })
+      .click();
+    const sidebar = page.getByRole('navigation', {
+      name: 'Projects and worktrees',
+      exact: true,
+    });
+    await sidebar
+      .getByRole('button', {
+        name: `Open PR #423 · ${localProject.name} · ${localName}`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Pull request unavailable',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await sidebar
+      .getByRole('button', {
+        name: `Open PR #423 · ${remoteProject.name} · ${remoteName}`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole('article', { name: 'Pull request #423', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('tab', { name: 'PR #423', exact: true }),
+    ).toHaveCount(2);
+    await expect.poll(() => app.address().path).toBe(original);
+    await expect(
+      sidebar.getByRole('button', { name: /Main worktree.*Current$/ }),
+    ).toHaveCount(1);
+    await page
+      .getByRole('tab', { name: 'PR #423', exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Pull request unavailable',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect.poll(() => app.address().path).toBe(original);
+    await page
+      .getByRole('tab', { name: 'PR #423', exact: true })
+      .last()
+      .click();
+    await page
+      .getByRole('button', { name: 'Open archive.txt:1', exact: true })
+      .click();
+    await expect
+      .poll(() => app.address().path)
+      .toBe(`/reviews/${remoteFixture.reviewId}`);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('environment'))
+      .toBe((await remote.server.inventory()).environmentId);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('entry'))
+      .toBe('file:archive.txt');
+    await expect(
+      page.getByText('A completed change.', { exact: true }),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(
+      page.getByRole('article', { name: 'Pull request #423', exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Back to the review', exact: true })
+      .click();
+    await expect
+      .poll(() => app.address().path)
+      .toBe(`/reviews/${remoteFixture.reviewId}`);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('environment'))
+      .toBe((await remote.server.inventory()).environmentId);
+  } finally {
+    localFixture.pullRequestUnavailable(false);
+  }
 });

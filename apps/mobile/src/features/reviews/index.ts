@@ -26,3 +26,6 @@ export {
 } from './rules/document-comment';
 
 export { LinkedReviewScreen } from './views/linked-review-screen';
+
+export { PullRequestDocumentContent } from './views/pull-request-document';
+export { PullRequestScreen } from './views/pull-request-screen';

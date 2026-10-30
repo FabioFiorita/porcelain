@@ -23,7 +23,7 @@ for (const width of [1440, 414]) {
         page.getByRole('button', { name: 'Open project', exact: true }),
       ).toBeVisible();
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .getByRole('button', { name: 'Filter worktrees', exact: true })
         .click();
       await expect(
         page.getByRole('menuitem', { name: 'Projects', exact: true }),
@@ -89,7 +89,7 @@ for (const width of [1440, 414]) {
       await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(manage).toBeFocused();
       await page
-        .getByRole('button', { name: 'Filter reviews', exact: true })
+        .getByRole('button', { name: 'Filter worktrees', exact: true })
         .click();
       await expect(
         page.getByRole('menuitemcheckbox', {

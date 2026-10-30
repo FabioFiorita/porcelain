@@ -5,11 +5,13 @@ import { useWorkspacePickerModel } from './workspace-picker-model';
 export function WorkspacePicker() {
   const { picker } = useWorkspacePickerModel();
   const router = useRouter();
-  const [group] = useSegments();
+  const segments = useSegments();
+  const [group] = segments;
+  if (segments.at(-1) === 'workspaces') return null;
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
-        icon={headerIcon('workspace')}
+        icon={headerIcon('worktrees')}
         accessibilityLabel={`Worktrees: ${picker.label}`}
         onPress={() => {
           switch (group) {

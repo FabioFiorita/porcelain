@@ -182,6 +182,7 @@ function Navigator({
       selected={undefined}
       openReview={undefined}
       onSelect={() => {}}
+      onOpenPullRequest={() => {}}
       onOpenProject={() => {}}
       onOpenSettings={() => {}}
       onOpenShortcuts={() => {}}

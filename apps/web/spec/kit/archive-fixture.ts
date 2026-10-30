@@ -9,7 +9,10 @@ import {
 } from '@porcelain/server/kit/requests';
 import { record, text } from '@porcelain/server/kit/session';
 
-export async function archiveFixture(main: string) {
+export async function archiveFixture(
+  main: string,
+  options: { codeComment?: boolean } = {},
+) {
   const home = dirname(main);
   const tree = join(home, 'archive-fixture');
   const remote = join(home, 'archive-remote.git');
@@ -54,7 +57,37 @@ export async function archiveFixture(main: string) {
     mergeable: 'UNKNOWN',
     labels: { nodes: [], pageInfo: { hasNextPage: false } },
     comments: { nodes: [], pageInfo: { hasNextPage: false } },
-    reviews: { nodes: [], pageInfo: { hasNextPage: false } },
+    reviews: {
+      nodes: options.codeComment
+        ? [
+            {
+              id: 'fixture-review',
+              author: { login: 'fixture-reviewer' },
+              submittedAt: '2026-10-21T03:00:00Z',
+              body: 'Read the source file',
+              url: 'https://github.com/FabioFiorita/porcelain/pull/423#pullrequestreview-1',
+              state: 'COMMENTED',
+              comments: {
+                nodes: [
+                  {
+                    id: 'fixture-code-comment',
+                    author: { login: 'fixture-reviewer' },
+                    createdAt: '2026-10-21T03:00:00Z',
+                    body: 'Keep the file scoped to this computer',
+                    url: 'https://github.com/FabioFiorita/porcelain/pull/423#discussion_r1',
+                    path: 'archive.txt',
+                    line: 1,
+                    originalLine: 1,
+                    diffHunk: '@@ -0,0 +1 @@\n+A completed change.',
+                  },
+                ],
+                pageInfo: { hasNextPage: false },
+              },
+            },
+          ]
+        : [],
+      pageInfo: { hasNextPage: false },
+    },
   };
   const manifestPath = join(home, 'manifest.json');
   const manifest = record(JSON.parse(readFileSync(manifestPath, 'utf8')));

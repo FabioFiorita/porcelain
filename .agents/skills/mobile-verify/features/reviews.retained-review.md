@@ -18,16 +18,16 @@ Files and History retain their own published-review destination so a closed revi
 
 ## How to get to it (user POV)
 
-- Files or History → Worktrees → expand Closed → tap a review title.
+- Files or History → Worktrees → Filter worktrees → Show older reviews → tap a review title.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md), with a closed review and an available checkout.
 
-1. Open Worktrees from Files, set a query or project filter and expand Closed. Tap the review title. The Files tab remains selected; the retained briefing and decisions follow [published review](reviews.linked-review.md).
+1. Open Worktrees from Files, set a query or project filter and Filter worktrees → Show older reviews. Tap the review title. The Files tab remains selected; the retained briefing and decisions follow [published review](reviews.linked-review.md).
 2. Native Back returns to the Files Worktrees list with its query, filters and expansion. Repeat from History; its tab remains selected and Back returns to its list.
-3. Use the separate Open worktree action. It returns to the opening destination with that checkout selected. Reopen Worktrees: the selected checkout has its own No review row, while the closed review is unselected. Select another checkout: the temporary row disappears.
-4. Delete the closed review's checkout on the disposable server. Its retained briefing remains readable, with no enabled Open worktree action. Unknown review and offline reads keep native Back and Read again.
+3. Return to Worktrees and select the retained review’s available checkout card inside the same project. It returns to the opening destination with that checkout selected. Main and the other available checkouts remain independently reachable.
+4. Delete the closed review's checkout on the disposable server. Its retained briefing remains readable, while its unavailable checkout card stays disabled. Unknown review and offline reads keep native Back and Read again.
 
 ## Gotchas
 

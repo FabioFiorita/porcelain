@@ -2,7 +2,7 @@
 screen: /
 selectors:
   - 'Porcelain'
-  - 'Worktrees by review status'
+  - 'Worktrees by project'
   - 'Select a worktree'
   - 'Open documents'
   - 'Show panel'
@@ -25,7 +25,7 @@ api: []
 
 # app.tablet-shell
 
-iPad keeps worktree navigation, central document tabs and an independently controlled right panel, with adaptive narrow panes.
+iPad docks Worktrees in landscape, uses a full-width Worktrees stack in portrait, and keeps central document tabs with an independently controlled right panel.
 
 ## How to get to it (user POV)
 
@@ -36,7 +36,7 @@ iPad keeps worktree navigation, central document tabs and an independently contr
 Preconditions: [surface baseline](README.md).
 
 1. Launch on iPad. No saved workspace shows Select a worktree and sidebar guidance; no paired computer shows Pair a computer with Add computer in the main pane and No computers paired with Add computer in the sidebar, both opening Settings → Computers. The sidebar's Porcelain title row is centred on the main pane's 52-point bar, with no band of its own, and the main pane is a panel inset evenly on every side, paired or not. Pair, select a worktree and expect the pinned Review or Changes tab, Files panel and panel rail. The Review tab count agrees with the page: a decision counts only when its mark and every file it owns are reviewed. Missing/failed/loading progress reads show no count; Branch comparison also has no review count. Change file and decision marks independently and confirm live agreement. Follow [workspace](app.workspace.md) for document sessions.
-2. In landscape hide/show sidebar and panel independently. Tabs/document/mode stay selected. Portrait: the panel buttons move into the bar and open a native sheet; choosing a document closes the sheet. Landscape docks the panel beside the page. Rotate/resize across the compact breakpoint: no stale width or invisible touch blocker.
+2. In landscape hide/show sidebar and panel independently. Tabs/document/mode stay selected. Portrait hides the docked Worktrees sidebar. Tap Worktrees in the page bar: a full-width native stack opens with Back and an icon-only filter; the stack has neither Update nor a redundant Worktrees shortcut; selecting a checkout or returning preserves document state. The panel buttons move into the bar and open a native sheet; choosing a document closes the sheet. Landscape docks the panel beside the page. Rotate/resize across the compact breakpoint: no stale width or invisible touch blocker.
 3. Record sidebar opening, closing, reversing mid-animation and rapid toggles: one continuous clipped edge, no flash/overlap, latest requested state wins. Reopen: expansion/scroll stay. Hidden rows receive neither touches nor accessibility focus. Change Reduce Motion while running: transitions settle immediately. Repeat with larger Dynamic Type and distinct Show/Hide sidebar and panel labels.
 4. Open Settings with sidebar open: the workspace sidebar hides, and the page bar shows Settings / General plus Close Settings. Close returns to the retained workspace and restores sidebar visibility. Wide: 224-point category pane/full-height divider; narrow: categories above detail. Switch General, Computers, Development; previews and controls stay bounded, without overlapping system controls. At larger Dynamic Type, the sidebar footer stacks Settings and Update so the full Settings label stays on one line.
 5. Return to the worktree, switch away/back and cold-launch; inspect its session using [workspace](app.workspace.md).

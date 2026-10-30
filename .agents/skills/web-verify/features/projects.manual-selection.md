@@ -46,7 +46,7 @@ done
 1. Navigate to `/`
    Expect: title "Changes — repository".
 2. Click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with Manage projects and Filter reviews menus. Open Manage projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
+   Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with Manage projects and Filter worktrees menus. Open Manage projects: only "repository" is registered; no button "selected" or "unselected". Press Escape.
 
 ### Only the browsed repository is registered
 

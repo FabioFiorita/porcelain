@@ -1,4 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  useConnectedContext,
+  useRemoteConnections,
+} from '@/features/access/index';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -40,6 +45,7 @@ import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { counted } from '@porcelain/client/reviews/rules';
+import { pullRequestReviewDestination } from '../rules/review-route';
 
 export type DocumentProps = {
   scope: ReviewScope;
@@ -119,16 +125,66 @@ export function DocumentView({
       return <GraphDocument {...props} />;
     case 'pull-request':
       return (
-        <PullRequestDocument
-          reviewId={document.reviewId}
-          number={document.number}
+        <ScopedPullRequestDocument
+          document={document}
           context={context}
           toolbarTarget={toolbarTarget}
-          onBack={() => onOpen({ kind: 'handoff' })}
-          onFile={(path) => onOpen({ kind: 'file', path })}
+          onOpen={onOpen}
         />
       );
   }
+}
+
+function ScopedPullRequestDocument({
+  document,
+  context,
+  toolbarTarget,
+  onOpen,
+}: {
+  document: Extract<DocumentRef, { kind: 'pull-request' }>;
+  context: ConnectionContext;
+  toolbarTarget: HTMLElement | null | undefined;
+  onOpen: OpenDocument;
+}) {
+  const local = useConnectedContext();
+  const remotes = useRemoteConnections();
+  const navigate = useNavigate();
+  const connection =
+    document.environmentId === undefined
+      ? context.connection
+      : [local.connection, ...remotes.map((remote) => remote.connection)].find(
+          (connection) => connection.environmentId === document.environmentId,
+        );
+  if (!connection)
+    return (
+      <StateNotice
+        title="Computer not paired"
+        description="Pair this pull request's computer in Settings to read it."
+      />
+    );
+  const openSource = (
+    entry: { kind: 'handoff' } | { kind: 'file'; path: string },
+  ) => {
+    if (document.environmentId === undefined) onOpen(entry);
+    else
+      void navigate(
+        pullRequestReviewDestination(
+          document,
+          local.connection.environmentId,
+          entry,
+        ),
+      );
+  };
+  return (
+    <PullRequestDocument
+      reviewId={document.reviewId}
+      number={document.number}
+      context={{ connection }}
+      toolbarTarget={toolbarTarget}
+      onBack={() => openSource({ kind: 'handoff' })}
+      onFile={(path) => openSource({ kind: 'file', path })}
+    />
+  );
 }
 
 function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {

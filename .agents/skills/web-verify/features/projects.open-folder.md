@@ -47,7 +47,7 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 ### A plain folder cannot be opened
 
 1. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" with button "Open project" and Manage projects and Filter reviews menus. Open Manage projects: "repository" is registered. Press Escape.
+   Expect: dialog "Sidebar" with button "Open project" and Manage projects and Filter worktrees menus. Open Manage projects: "repository" is registered. Press Escape.
 2. Click button `Open project`
    Expect: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
 3. Click button `plain`

@@ -1,7 +1,7 @@
 import type { ReviewArchivePlan } from '@porcelain/contracts/reviews';
 export function archiveDescription(plan: ReviewArchivePlan) {
   return [
-    'The review and its saved revisions will remain under Closed.',
+    'The review and its saved revisions will remain available with Show older reviews.',
     plan.mainCheckout
       ? 'The project’s main checkout and its branches are protected. Nothing will be deleted.'
       : undefined,

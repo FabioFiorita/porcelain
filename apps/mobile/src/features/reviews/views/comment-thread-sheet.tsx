@@ -132,6 +132,9 @@ function ThreadSheet({
     workspace,
     { ...threadWriteTarget(thread), anchor: thread.anchor },
     () => undefined,
+    undefined,
+    '',
+    { document: JSON.stringify(['thread', thread.id]), keepTarget: true },
   );
   const published = useAtomValue(
     readPublishedReview({

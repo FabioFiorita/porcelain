@@ -2,11 +2,15 @@
 screen: /workspaces
 selectors:
   - 'Worktrees'
-  - 'Worktrees by review status'
+  - 'Worktrees by project'
   - 'Search reviews and worktrees'
   - 'Filter worktrees'
-  - 'Closed'
-  - 'Open worktree:'
+  - 'All environments'
+  - 'All projects'
+  - 'No environments'
+  - 'No projects'
+  - 'Show older reviews'
+  - 'PR #'
   - 'No matching worktrees'
   - 'No computers paired'
   - 'Add computer'
@@ -15,17 +19,17 @@ selectors:
   - 'Read projects again'
 tests:
   - packages/client/src/features/projects/store/worktree-navigator.spec.ts
-  - packages/client/src/features/reviews/rules/review-list.spec.ts
   - packages/client/src/features/projects/rules/workspace-choices.spec.ts
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - packages/client/src/features/projects/queries/inventory-state.spec.ts
   - packages/git/src/actions/commands/archive-review.spec.ts
   - packages/client/src/features/reviews/rules/archive-review.spec.ts
-  - packages/client/src/features/reviews/queries/review-list.spec.ts
   - apps/mobile/src/features/projects/rules/worktree-row.spec.ts
   - apps/mobile/src/features/projects/rules/retained-review-route.spec.ts
+  - apps/mobile/src/shared/rules/workspace-documents.spec.ts
 api:
   - POST /api/reviews/:reviewId/archive
+  - GET /api/reviews/:reviewId/pull-request
   - POST /api/inventory/refresh
   - GET /api/inventory
   - POST /api/live/tickets
@@ -35,44 +39,36 @@ api:
 
 # projects.workspace-picker
 
-Worktrees lists projects and reviews across paired computers, with search, status filters, retained closed reviews and guarded archive.
+Worktrees combines projects across paired computers. Each collapsible project owns its main checkout, compact worktree cards and optional older reviews; each project visibly identifies its computer.
 
 ## How to get to it (user POV)
 
-- Workspace header in Review, Files or History → Worktrees; iPad sidebar selects worktrees.
+- Review, Files or History → Worktrees icon opens a native stack page with Back.
+- iPad landscape docks Worktrees in the sidebar; portrait uses the Worktrees icon and a full-width stack page.
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). Seed two computers with colliding project/worktree/review ids, a main checkout, detached and unavailable worktrees, active reviews and retained closed/archived reviews. Keep server request evidence with the captures.
 
-Preconditions: seed active checkouts, reviews in every status and one closed review on the disposable server.
-
-1. From Review tap workspace header: Worktrees with native Back and Filter worktrees, no Choose workspace modal/Close. Repeat from Files/History. iPad uses its embedded navigator.
-2. Groups are Needs you, Waiting on agent, Ready to merge, No review, then Closed. Main checkouts join No review, first, followed by shown branch/project order. Verify counts against server marks/reviews. Unavailable checkouts are disabled. Closed is collapsed by default and has a right-aligned count, including zero; every group has a left chevron, label and separate count.
-3. Review rows have one non-interactive status mark: brand dot, dashed waiting ring, filled check, failure alert or archive for Closed. They show the full review title (truncated visually), trailing reviewed/total and `project · branch` underneath even for one project. No review shows branch and project on one line, with an open ring; detached checkouts show folder name and parent path. Selected rows have the selected surface and brand progress. Full titles, status groups, reasons and progress remain in the accessibilityLabel. Rows never name a computer; computer names remain searchable and available in filters. Check every group, long titles, many rows, VoiceOver/TalkBack, light/dark, iPad landscape/portrait and phone width.
-4. Collapse two groups independently, leave/reopen and force-stop/relaunch: expansion choices persist. Search title, branch, project, computer, PR and folder; filters apply to both active and closed rows. Search/filter selections survive leaving/reopening from Review, Files and History, but start unfiltered after force-stop. Clear search and filters independently; test no matches, no projects/computers selected and a long query. Opening a worktree preserves the draft leave guard.
-5. Filter worktrees has inline Projects/Computers checkboxes. Filters intersect; Clear filters restores all. Expand Closed: tapping a review opens that retained review, and native Back returns. Its separate Open worktree action selects the available checkout and returns to Files/the originating phone screen. A closed-only checkout otherwise appears only in Closed; while selected it gains its own raised No review row, which disappears after selecting another checkout. Opening the closed review raises only its Closed row on iPad. Repeat with colliding worktree/review ids on two computers and with a deleted or unavailable checkout (no enabled Open worktree). Retain screenshots of Closed collapsed/expanded, review detail, selected checkout and return path.
-6. With no computer paired, Worktrees (`worktree-navigator`; the iPad main pane has its own Add computer) shows only No computers paired, one line of guidance and Add computer: no Search, Filter worktrees, Closed or filter wording, even with retained search/filters before forgetting the last computer. Add computer opens Computers (Settings → Computers on iPad). When saved computers cannot be read, the storage error and Read again show instead.
-7. Retain expanded/collapsed/filter/Closed screenshots and Android recording; independently read records.
+1. Open Worktrees from Review, Files and History. Its header has the title, native Back and an icon-only decreasing-lines filter with accessible name Filter worktrees; it has no Update button or Worktrees shortcut. Check native Back returns to the opening destination. On iPad drive landscape first, then portrait: landscape docks the list; portrait hides the docked sidebar and opens the full-width Worktrees stack. Rotate with a checkout and document selected; returning preserves both.
+2. One combined list has project headers with chevrons and compact visible computer badges. Main comes first inside each project. Tap a badge to read its complete computer name; VoiceOver/TalkBack announces complete project/computer identity. Expand/collapse independently, leave/reopen and check session state. Relaunch resets navigator search, filters and project expansion rather than saving a preference.
+3. Each checkout card shows its branch (detached: folder and parent path), Main worktree/Detached HEAD when applicable, local-change state and review state with exact reviewed/total once available. Verify local file counts and marks independently. Pending review/change reads remain visibly pending; failed reads say unavailable; neither implies clean, No review or 0/0. Check long names, larger text, light/dark, phone and iPad. All complete identities and paths remain accessible.
+4. Below Search, the horizontally scrollable All environments and All projects pickers expose checked multi-select options; project names include their environment. Narrowed pickers summarize the selected count, empty selections read No environments or No projects, and each picker can reset to All. The icon-only Filter worktrees menu contains with/without review and Show older reviews without duplicating environment/project options. Within each group selections combine with OR; groups combine with AND. Select two computers and two projects with colliding names, then select one review-presence option. Clear filters restores defaults, including older reviews hidden, without clearing search. Search separately by branch, folder, project, computer and PR number; clear it separately. Test no matches and empty selections.
+5. Older reviews stay hidden until Show older reviews is enabled, then appear inside their project. Tap a retained review and use native Back to return to the same Worktrees query/filters. Its checkout remains independently selectable. An unavailable/deleted checkout stays disabled while its retained review remains readable. Selecting a checkout preserves the draft leave guard.
+6. A linked review has a separate PR # action. Follow [pull requests](reviews.pull-request.md) and prove it preserves the selected checkout and computer. Merely expanding/searching/filtering projects must not request full GitHub PR payloads; collapsed/filtered-out projects must not mount expensive review/marks/change reads. Retain request evidence alongside the first-paint and settled captures.
+7. With no paired computer, worktree-navigator shows No computers paired, guidance and Add computer; search/filter UI is absent even when session filters were retained before the last computer was forgotten. Add computer opens Settings → Computers. Saved-storage failures retain their error and retry. Retry unavailable inventories and details with Read projects again.
 
 ### Archive a completed review
 
 Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, the review's computer has confirmed settings (Use these settings for <computer name>); When archiving a review has worktree/local branch/remote branch switches. Until then Archive is disabled and says why.
 
-1. Row Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
+1. Open the row’s PR number, then Archive shows actual deletion targets. When deleting a worktree, it says the entire folder will be permanently deleted, including ignored files such as .env and local build output, even when ignored files are the only local contents. Cancel and independently verify .env remains. Keeping a worktree while deleting its branch explicitly detaches it without a folder-deletion warning; main checkout/branches stay protected. Settings configures deletion options; there is no separate archive shortcut, context-menu action or mobile completion-card Archive.
 2. Dirty files/unpushed commits require their warning/acknowledgement; Android switch starts off and Archive stays disabled until checked. Ignored files alone are not dirty. No upstream skips remote deletion; auto-deleted remote at the merged PR head says already deleted without an unpushed warning. Failed preview replaces checking text with a plain reason.
-3. Confirm for the selected worktree: selection leaves before deletion. Closed retains readable review and Archived in accessible label/detail. A kept closed-only worktree remains reachable through Closed → Open worktree, and appears in No review while selected. Capture before, confirmation, Closed and settings.
+3. Confirm for the selected worktree: selection leaves before deletion. Show older reviews retains the readable review and Archived in its accessible label/detail. A kept worktree stays in its project alongside main. Capture before, confirmation, the retained project row and settings.
 4. With long worktree and branch paths and Android font scale 2.0, scroll the confirmation body through the deletion targets, acknowledgement and any failure. Cancel and Archive review stay visible in a fixed footer; both labels fit without reducing font scaling. Repeat on iPad in landscape and portrait, with normal and larger Dynamic Type; the native page-sized sheet contains its footer. Reopen after a locked-worktree failure, acknowledge again, retry and independently read the deletion result.
 
-Automated coverage: `review-list.spec.ts`, `workspace-choices.spec.ts`, `workspace-selection.spec.ts`, `inventory-state.spec.ts`, `archive-review.spec.ts`, `review-list.spec.ts`.
 
 ## Gotchas
 
-- Merged/closed PR reviews and manually closed reviews without a PR appear only in Closed. Update offers are covered by [Updates](access.updates.md).
-- Selecting/archiving must retain document-leave protection. A retained review stays in the Files, Review or History stack that opened Worktrees, so native Back returns to that list with its search and filters. Tablet presentation requires its own proof.
-
-### Unavailable pull request state
-
-With a linked PR read pending, Worktrees shows Reading worktrees and keeps the review visible, including a main-checkout review. Fail that read or return a typed unavailable reason: the review stays in Needs you, its full accessibility label includes the reason, and the list displays the persistent reason with Read projects again. The review detail also explains the failure and offers Read pull request again. Restore a merged/closed PR and retry: Closed contains the recovered review with Archive, which opens the normal confirmation. Cancel keeps the checkout. Check both themes, long names, return navigation and the failure/retry path.
-
-Retry also reads main-checkout PRs that previously succeeded as open and left the status groups. If a later read fails, the review returns to Needs you with its reason; if it becomes merged or closed, Closed offers Archive.
+- Selecting or archiving retains document-leave protection. A retained review stays in the Files, Review or History stack that opened it. A PR document uses its own computer/review identity and does not select that computer or checkout.
+- Archive is available inside a successfully read closed/merged PR document; the navigator does not eagerly read PR payloads to decide eligibility. Existing server preview and confirmed per-computer settings own deletion protections.

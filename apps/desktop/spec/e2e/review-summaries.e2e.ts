@@ -374,19 +374,17 @@ test('a remote computer summary renders through the app from that computer, cann
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();
   await expect(settings).toBeHidden();
-  const worktrees = page.getByRole('button', {
-    name: 'Filter reviews',
+  const navigator = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
     exact: true,
   });
-  if (!(await worktrees.isVisible()))
+  if (!(await navigator.isVisible()))
     await page
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
-  await worktrees.click();
-  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
-  await page
-    .getByRole('menuitemradio', {
-      name: new RegExp(`${there.project.name}.*${remote.environment.name}`),
+  await navigator
+    .getByRole('button', {
+      name: new RegExp(`, ${there.project.name}, ${remote.environment.name},`),
     })
     .click();
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;

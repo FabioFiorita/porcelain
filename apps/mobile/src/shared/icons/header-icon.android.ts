@@ -1,3 +1,4 @@
+import folder from '@expo/material-symbols/folder.xml';
 import archive from '@expo/material-symbols/archive.xml';
 import close from '@expo/material-symbols/close.xml';
 import check from '@expo/material-symbols/check.xml';
@@ -16,6 +17,7 @@ const symbols = {
   sidebar: menu,
   inspector: menu,
   workspace: filterList,
+  worktrees: folder,
   refresh,
   done: check,
   close,

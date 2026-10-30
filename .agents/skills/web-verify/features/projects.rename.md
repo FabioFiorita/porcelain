@@ -31,7 +31,7 @@ Preconditions: [surface baseline](README.md).
 1. Navigate to `/`
    Expect: title "Changes — repository".
 2. Click button `Toggle Sidebar`
-   Expect: dialog "Sidebar" with Filter reviews.
+   Expect: dialog "Sidebar" with Filter worktrees.
 3. Open Manage projects → menuitem `repository`
    Expect: project action submenu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
 4. Click menuitem `Rename project`

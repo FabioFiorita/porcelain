@@ -13,7 +13,6 @@ const fields = Schema.Struct({
   diffStyle: Schema.Literals(['unified', 'split']),
   lineOverflow: Schema.Literals(['scroll', 'wrap']),
   documentsDefault: Schema.Literals(['rendered', 'source']),
-  reviewListGroupOpen: Schema.Record(Schema.String, Schema.Boolean),
   reviewGitSettingsImportCandidate: reviewGitSettingsSchema,
 });
 export type Preferences = typeof fields.Type;
@@ -33,7 +32,6 @@ export const defaultPreferences: Preferences = {
   diffStyle: 'unified',
   lineOverflow: 'scroll',
   documentsDefault: 'rendered',
-  reviewListGroupOpen: {},
   reviewGitSettingsImportCandidate: defaultReviewGitSettings,
 };
 function legacyReviewGitSettings(
@@ -122,11 +120,6 @@ export const preferencesSchema = Schema.Unknown.pipe(
             saved.markdownDefault === 'source' || saved.htmlDefault === 'source'
               ? 'source'
               : defaultPreferences.documentsDefault,
-          ),
-          reviewListGroupOpen: savedField(
-            fields.fields.reviewListGroupOpen,
-            saved.reviewListGroupOpen,
-            defaultPreferences.reviewListGroupOpen,
           ),
           reviewGitSettingsImportCandidate: Option.getOrElse(
             Schema.decodeUnknownOption(reviewGitSettingsSchema)(

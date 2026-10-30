@@ -19,7 +19,7 @@ Run `$C board-diff --board sidebar --route /<project>/<worktree> --instance <id>
 
 ## Driving it with the surface harness
 
-Start a clean instance. Sidebar review-row comparisons need a non-main worktree review; the main worktree intentionally shows a project row. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Use an active decision route for the Review panel so its steps are already expanded; selecting a decision through a phone sheet normally closes that sheet. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
+Start a clean instance. Sidebar comparisons use the approved compact project/worktree sketch; main worktrees are cards and appear first. Include a linked topic review to measure its PR action. The old Narrative-desktop status-group sidebar is superseded. Stock Mira controls take precedence over the temporary sketch's CSS dimensions; record the element comparison and accepted stock-control differences explicitly. Use `--review-sample` for review boards and `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Use an active decision route for the Review panel so its steps are already expanded; selecting a decision through a phone sheet normally closes that sheet. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
@@ -37,25 +37,25 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 
 ## Board names
 
-| Name                          | Approved HTML                    | App setup                                            |
-| ----------------------------- | -------------------------------- | ---------------------------------------------------- |
-| sidebar                       | Narrative-desktop                | Open the selected review; phone opens the navigator  |
-| review-page                   | Narrative-desktop-briefing       | Review briefing                                      |
-| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                    |
-| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel                     |
-| file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context          |
-| file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane |
-| changes                       | Narrative-desktop-no-review      | Worktree without a published review                  |
-| settings-general              | Narrative-settings-general       | `/settings/general`                                  |
-| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                      |
-| settings-computers            | Narrative-settings-computers     | `/settings/computers`                                |
-| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                  |
-| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                  |
-| history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`  |
-| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                         |
-| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                        |
-| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented     |
-| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel            |
+| Name                          | Approved HTML                    | App setup                                                        |
+| ----------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| sidebar                       | selected-direction               | Main first; include a linked topic PR; phone opens the navigator |
+| review-page                   | Narrative-desktop-briefing       | Review briefing                                                  |
+| review-decision               | Narrative-desktop                | Review with `?decision=<layerId>`                                |
+| review-panel                  | Narrative-desktop-review-panel   | Active decision route with the Review panel                      |
+| file-tab                      | Narrative-desktop-file-tab       | Retained file entry with its review context                      |
+| file-split                    | Narrative-desktop-split          | Review entry with the retained file in the side pane             |
+| changes                       | Narrative-desktop-no-review      | Worktree without a published review                              |
+| settings-general              | Narrative-settings-general       | `/settings/general`                                              |
+| settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                                  |
+| settings-computers            | Narrative-settings-computers     | `/settings/computers`                                            |
+| settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                              |
+| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                              |
+| history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`              |
+| graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                                     |
+| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                                    |
+| pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented                 |
+| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel                        |
 
 The opening-file flow is verified through its navigation sequence; its explanatory miniatures are not pixel targets. File maps compare the desktop boards at `--width 1440`; responsive widths are driven through the file-tab journey. Seed one line comment with an agent reply for the comment-marker role. Use `?entry=review-file:<reviewId>:<revision>:<path>&surface=files` for `file-tab`, and `?entry=handoff&side=review-file:<reviewId>:<revision>:<path>` for `file-split`.
 
@@ -66,53 +66,16 @@ Names without `.html` are also accepted for the first mapped screen using that H
 ```json board-maps
 {
   "sidebar": {
-    "html": "Narrative-desktop.html",
-    "dark": "Narrative-desktop-dark.html",
+    "html": "selected-direction.html",
     "roles": [
       {
-        "role": "brand title",
+        "role": "project heading",
         "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] > div:first-child > span"
-        },
-        "app": {
-          "selector": ".desktop-sidebar-header > div:first-of-type [data-truncated]"
-        },
-        "properties": [
-          "fontSize",
-          "lineHeight",
-          "fontWeight",
-          "letterSpacing",
-          "colour"
-        ]
-      },
-      {
-        "role": "brand icon",
-        "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] > div:first-child > svg"
-        },
-        "app": {
-          "selector": ".desktop-sidebar-header > svg"
-        },
-        "properties": ["colour", "height", "icon"]
-      },
-      {
-        "role": "project filter",
-        "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] > button[aria-haspopup=\"menu\"]"
-        },
-        "app": {
-          "selector": "[aria-label=\"Filter reviews\"]"
-        },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
-      },
-      {
-        "role": "group heading",
-        "board": {
-          "selector": "nav[aria-label=\"Worktrees by status\"] section > button",
+          "selector": ".project-name",
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-group-label\"]",
+          "selector": "[data-slot=\"sidebar-group-label\"] [data-truncated]",
           "index": 0
         },
         "properties": [
@@ -124,13 +87,13 @@ Names without `.html` are also accepted for the first mapped screen using that H
         ]
       },
       {
-        "role": "review title",
+        "role": "computer badge",
         "board": {
-          "selector": "nav[aria-label=\"Worktrees by status\"] a > span:nth-child(2)",
+          "selector": ".badge",
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] .text-ui",
+          "selector": "[aria-label^=\"Computer:\"] [data-slot=\"badge\"]",
           "index": 0
         },
         "properties": [
@@ -142,13 +105,31 @@ Names without `.html` are also accepted for the first mapped screen using that H
         ]
       },
       {
-        "role": "review subtitle",
+        "role": "worktree name",
         "board": {
-          "selector": "nav[aria-label=\"Worktrees by status\"] a > span:last-child",
+          "selector": ".open-wt",
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] div.leading-4",
+          "selector": "[data-slot=\"sidebar-menu-button\"] [data-truncated]",
+          "index": 0
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      },
+      {
+        "role": "local changes",
+        "board": {
+          "selector": ".wt .meta",
+          "index": 0
+        },
+        "app": {
+          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:last-child > span:first-child",
           "index": 0
         },
         "properties": [
@@ -162,11 +143,11 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "review progress",
         "board": {
-          "selector": "nav[aria-label=\"Worktrees by status\"] a > span:nth-child(3)",
+          "selector": ".wt .review-line",
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"][href*=\"/reviews/\"] [aria-label$=\"decisions reviewed\"]",
+          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:last-child > span:last-child",
           "index": 0
         },
         "properties": [
@@ -178,49 +159,22 @@ Names without `.html` are also accepted for the first mapped screen using that H
         ]
       },
       {
-        "role": "settings button",
+        "role": "pull request action",
         "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] > div:last-child > button:first-child"
+          "selector": ".pr",
+          "index": 0
         },
         "app": {
-          "selector": ".navigator-footer > [data-slot=\"tooltip-trigger\"]"
-        }
-      },
-      {
-        "role": "shortcuts button",
-        "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] [aria-label=\"Keyboard shortcuts\"]"
+          "selector": "[aria-label^=\"Open PR #\"]",
+          "index": 0
         },
-        "app": {
-          "selector": ".navigator-footer [aria-label=\"Keyboard shortcuts\"]"
-        },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
-      },
-      {
-        "role": "project filter label",
         "properties": [
           "fontSize",
           "lineHeight",
           "fontWeight",
           "letterSpacing",
           "colour"
-        ],
-        "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] > button[aria-haspopup=\"menu\"] > span:first-of-type"
-        },
-        "app": {
-          "selector": "[aria-label=\"Filter reviews\"] > span:first-of-type"
-        }
-      },
-      {
-        "role": "shortcuts icon",
-        "properties": ["colour", "height", "icon"],
-        "board": {
-          "selector": "aside[aria-label=\"Worktrees\"] [aria-label=\"Keyboard shortcuts\"] svg"
-        },
-        "app": {
-          "selector": "[aria-label=\"Keyboard shortcuts\"] svg"
-        }
+        ]
       }
     ],
     "reveal": [

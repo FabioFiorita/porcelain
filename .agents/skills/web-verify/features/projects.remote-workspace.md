@@ -10,7 +10,8 @@ selectors:
   - 'Close Settings'
   - 'Online'
   - 'This computer'
-  - 'Open a worktree'
+  - 'Main worktree'
+  - 'Computer:'
   - 'Mark '
   - 'Unmark '
   - 'Review'
@@ -40,13 +41,13 @@ api:
 
 # projects.remote-workspace
 
-The desktop app lists a remote computer as its own group in the sidebar, by name and status, apart from This computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with links that open its decisions in the walkthrough.
+The desktop app lists projects from local and remote computers together, each with a visible computer badge, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with links that open its decisions in the walkthrough.
 
 ## How to get to it (user POV)
 
-- Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → group "<computer name>" → a worktree row of its project.
+- Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → project with the remote computer badge → its worktree card.
 - Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
-- An offline remote shows its status badge and `Open Computers` instead of projects.
+- An unavailable remote retains honest unavailable navigation states and its existing Settings recovery.
 
 ## Driving it with browser
 
@@ -64,8 +65,8 @@ Required instance mode: `--desktop`.
 ### Open the remote worktree
 
 1. Click button `Close Settings`, then click button `Toggle Sidebar`
-   Expect: group "This computer" holding project "repository" only; group "Remote journey computer" with button "Remote journey computer Online" holding project "remote-sample" only (its worktree row's path is `$REMOTE_REPO`).
-2. Click button `/remote-sample.*Open a worktree/`
+   Expect: repository and remote-sample project headers, each with its own visible computer badge. The remote main card belongs to Remote journey computer and its full path is `$REMOTE_REPO`.
+2. Click the main worktree card whose accessible label includes remote-sample and Remote journey computer
    Expect: the sheet closes; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=handoff` (call its path and query `$REMOTE_PAGE`); title "Changes — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".
 
 ### A reviewed mark lands on the remote only
@@ -106,5 +107,5 @@ Automated coverage: `projects-remote-workspace.desktop.e2e.ts`.
 
 ## Gotchas
 
-- Requires --desktop; remotes persist in browser storage. Match `/remote-sample.*Open a worktree/` to distinguish main checkout rows.
+- Requires --desktop; remotes persist in browser storage. Use Main worktree plus project/computer identity to distinguish cards.
 - Use a fresh full review read for late summary frames. A repeated agent publish may refuse “The review changed; reload before retrying”; inspect before republishing.

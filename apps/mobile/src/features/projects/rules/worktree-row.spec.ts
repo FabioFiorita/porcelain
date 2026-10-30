@@ -1,121 +1,92 @@
 import { expect, it } from 'vitest';
-import type { ReviewListEntry } from '@porcelain/client/reviews/rules';
-import { worktreeRow } from './worktree-row.ts';
+import type { NavigatorEntry } from '@porcelain/client/projects/rules';
+import { worktreeRow } from './worktree-row';
 
-const entry: ReviewListEntry = {
-  key: 'computer/project/review',
+const entry: NavigatorEntry = {
+  key: 'computer/project/worktree',
+  kind: 'worktree',
   environmentId: 'computer',
   environmentName: 'Private workstation',
   projectId: 'project',
   projectName: 'Porcelain',
   worktreeId: 'worktree',
-  reviewId: 'review',
+  path: '/code/porcelain',
+  name: 'feat/pinned-files',
   branch: 'feat/pinned-files',
+  main: false,
   detached: false,
-  title: 'Pin files in large repositories',
-  group: 'Needs you',
-  closed: false,
-  reviewed: 1,
-  total: 4,
-  badges: [],
-  disabled: false,
+  available: true,
+  review: { state: 'none' },
+  changes: { state: 'available', count: 0 },
 };
 
-it('shows an unreviewed branch once beside its project', () => {
-  const row = worktreeRow(
-    {
-      ...entry,
-      title: 'fix/flaky-history',
-      branch: 'fix/flaky-history',
-      group: 'No review',
-      reviewId: undefined,
-    },
-    false,
-  );
-  expect(row).toEqual({
-    kind: 'worktree',
-    title: 'fix/flaky-history',
-    project: 'Porcelain',
-    location: undefined,
-    status: 'none',
-    accessibilityLabel: 'fix/flaky-history, Porcelain, No review',
+it('shows a branch once with clean checkout and no-review state', () => {
+  expect(worktreeRow(entry)).toEqual({
+    title: 'feat/pinned-files',
+    subtitle: 'Working tree clean',
+    detail: 'No review',
   });
 });
 
-it('retains full long names, all reasons and selected/unavailable state without a computer name', () => {
-  const title = 'A long review title '.repeat(12).trim();
-  const row = worktreeRow(
-    {
-      ...entry,
-      title,
-      disabled: true,
-      badges: [
-        { label: 'Proof failed', variant: 'destructive' },
-        { label: '2 not explained', variant: 'outline' },
-        { label: 'Agent says hold', variant: 'secondary' },
-      ],
+it('keeps full branch names and unknown progress distinct from zero decisions', () => {
+  const branch = 'a-long-branch-name-'.repeat(12);
+  const row = {
+    ...entry,
+    branch,
+    changes: { state: 'loading' as const },
+    review: {
+      state: 'available' as const,
+      reviewId: 'review',
+      closed: false,
+      archived: false,
+      pullRequestNumber: 42,
+      progress: undefined,
     },
-    true,
-  );
-  expect(row.kind).toBe('review');
-  expect(row.project).toBe('Porcelain');
-  expect(row.status).toBe('failed');
-  expect(row.accessibilityLabel).toBe(
-    `${title}, Porcelain, feat/pinned-files, Needs you, 1/4 decisions reviewed, Proof failed, 2 not explained, Agent says hold, current, unavailable`,
-  );
-});
-
-it('keeps detached and zero-decision rows readable without absent metadata', () => {
-  const row = worktreeRow(
-    {
-      ...entry,
-      title: '/tmp/detached-worktree',
-      branch: '',
-      reviewed: 0,
-      total: 0,
-    },
-    false,
-  );
-  expect(row.accessibilityLabel).toBe(
-    '/tmp/detached-worktree, Porcelain, Needs you, 0/0 decisions reviewed',
-  );
-  expect(row.project).toBe('Porcelain');
-  expect(row.kind === 'review' && row.branch).toBe('');
+  };
+  expect(worktreeRow(row)).toEqual({
+    title: branch,
+    subtitle: 'Reading changes…',
+    detail: 'Review · reading progress…',
+  });
+  expect(
+    worktreeRow({
+      ...row,
+      review: { ...row.review, progress: { reviewed: 0, total: 0 } },
+    }).detail,
+  ).toBe('Review · 0/0 decisions');
 });
 
 it.each(['qa-531', 'qa-532'])(
-  'shows the parent folder of detached checkout %s and announces its full path',
+  'shows detached checkout %s by folder with its parent path',
   (name) => {
-    const row = worktreeRow(
-      {
+    expect(
+      worktreeRow({
         ...entry,
-        title: name,
+        name,
         branch: 'Detached HEAD',
         detached: true,
-        path: `/home/dev/code/porcelain-worktrees/${name}`,
-        group: 'No review',
-        reviewId: undefined,
-      },
-      false,
-    );
-    expect(row.kind).toBe('worktree');
-    expect(row.kind === 'worktree' && row.location).toBe(
-      '/home/dev/code/porcelain-worktrees',
-    );
-    expect(row.title).toBe(name);
-    expect(row.accessibilityLabel).toBe(
-      `${name}, Porcelain, /home/dev/code/porcelain-worktrees/${name}, No review`,
-    );
+        path: `/code/porcelain-worktrees/${name}`,
+      }),
+    ).toEqual({
+      title: name,
+      subtitle:
+        'Detached HEAD · /code/porcelain-worktrees · Working tree clean',
+      detail: 'No review',
+    });
   },
 );
 
-it.each([
-  ['Projects', 'none'],
-  ['Needs you', 'needs-you'],
-  ['Waiting on agent', 'waiting'],
-  ['Ready to merge', 'ready'],
-  ['No review', 'none'],
-  ['Closed', 'closed'],
-] as const)('draws one status for %s', (group, status) => {
-  expect(worktreeRow({ ...entry, group }, false).status).toBe(status);
+it('labels the main checkout and preserves failures instead of implying clean or no review', () => {
+  expect(
+    worktreeRow({
+      ...entry,
+      main: true,
+      changes: { state: 'unavailable' },
+      review: { state: 'unavailable' },
+    }),
+  ).toEqual({
+    title: 'feat/pinned-files',
+    subtitle: 'Main worktree · Working tree unavailable',
+    detail: 'Review unavailable',
+  });
 });

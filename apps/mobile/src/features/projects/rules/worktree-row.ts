@@ -1,45 +1,23 @@
 import {
-  reviewListCheckout,
-  reviewListRow,
-  reviewListSignal,
-  type ReviewListEntry,
-} from '@porcelain/client/reviews/rules';
+  navigatorChangesLabel,
+  navigatorReviewLabel,
+  type NavigatorEntry,
+} from '@porcelain/client/projects/rules';
 
-export function worktreeRow(entry: ReviewListEntry, selected: boolean) {
-  const signal = reviewListSignal(entry);
-  const row = reviewListRow(entry);
-  const statuses = {
-    Projects: 'none',
-    'Needs you': 'needs-you',
-    'Waiting on agent': 'waiting',
-    'Ready to merge': 'ready',
-    'No review': 'none',
-    Closed: 'closed',
-  } as const;
+export function worktreeRow(entry: NavigatorEntry) {
   return {
-    ...row,
-    status:
-      signal?.tone === 'destructive'
-        ? ('failed' as const)
-        : statuses[entry.group],
-    accessibilityLabel: [
-      ...new Set([
-        row.title,
-        entry.projectName,
-        reviewListCheckout(entry).full,
-        entry.group === 'Projects' ? 'No review' : entry.group,
-        entry.pullRequestNumber
-          ? `Pull request #${entry.pullRequestNumber}`
-          : undefined,
-        entry.reviewId
-          ? `${entry.reviewed}/${entry.total} decisions reviewed`
-          : undefined,
-        ...entry.badges.map((badge) => badge.label),
-        selected ? 'current' : undefined,
-        entry.disabled ? 'unavailable' : undefined,
-      ]),
+    title: entry.detached ? entry.name : entry.branch || entry.name,
+    subtitle: [
+      entry.main ? 'Main worktree' : undefined,
+      entry.detached
+        ? `Detached HEAD · ${entry.path?.slice(0, entry.path.lastIndexOf('/')) ?? entry.name}`
+        : undefined,
+      entry.kind === 'worktree'
+        ? navigatorChangesLabel(entry.changes)
+        : undefined,
     ]
       .filter(Boolean)
-      .join(', '),
+      .join(' · '),
+    detail: navigatorReviewLabel(entry.review),
   };
 }

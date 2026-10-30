@@ -25,3 +25,14 @@ export {
   type WorkspaceSelection,
   type WorkspaceReadiness,
 } from './workspace-selection.ts';
+
+export {
+  emptyNavigatorFilter,
+  navigatorReviewLabel,
+  navigatorChangesLabel,
+  navigatorEntryLabel,
+  navigatorEntrySelected,
+  type NavigatorFilter,
+  type NavigatorFilterSection,
+  type NavigatorEntry,
+} from './worktree-navigator.ts';

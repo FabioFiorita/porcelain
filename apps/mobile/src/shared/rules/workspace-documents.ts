@@ -3,7 +3,17 @@ import * as Schema from 'effect/Schema';
 import { reviewComparisonSchema } from './review-comparison';
 
 const parentSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
+export const pullRequestDocumentSchema = Schema.Struct({
+  kind: Schema.Literal('pull-request'),
+  environmentId: Schema.String,
+  projectId: Schema.String,
+  reviewId: Schema.String,
+  number: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+});
+export type PullRequestDocument = typeof pullRequestDocumentSchema.Type;
+
 export const workspaceDocumentSchema = Schema.Union([
+  pullRequestDocumentSchema,
   Schema.Struct({ kind: Schema.Literal('file'), path: Schema.String }),
   Schema.Struct({
     kind: Schema.Literal('review-file'),
@@ -36,6 +46,19 @@ export type InspectorMode = 'files' | 'review' | 'history';
 
 export function documentTab(document: WorkspaceDocument): WorkspaceTab {
   switch (document.kind) {
+    case 'pull-request':
+      return {
+        ...document,
+        key: JSON.stringify([
+          'pull-request',
+          document.environmentId,
+          document.reviewId,
+          document.number,
+        ]),
+        title: `PR #${document.number}`,
+        label: `Pull request #${document.number} · ${document.environmentId}`,
+        closable: true,
+      };
     case 'file':
       return {
         ...document,
@@ -90,6 +113,7 @@ export function documentMode(document: WorkspaceDocument): InspectorMode {
     case 'file':
       return 'files';
     case 'review-file':
+    case 'pull-request':
       return 'review';
     case 'commit':
     case 'diff':

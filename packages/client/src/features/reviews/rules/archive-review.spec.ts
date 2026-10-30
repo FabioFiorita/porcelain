@@ -12,7 +12,7 @@ it('names the exact deletion targets and warns separately about files and commit
       fingerprint: 'snapshot',
     }),
   ).toBe(
-    'The review and its saved revisions will remain under Closed.\n\nDelete worktree: /code/feature\n\nThe entire worktree folder will be permanently deleted, including ignored files such as .env and local build output.\n\nDelete local branch: feature\n\nDelete remote branch: origin/feature\n\nWarning: this worktree has uncommitted changes. Deleting the worktree permanently discards them.\n\nWarning: this branch has commits not confirmed on its remote. Deleting branches may lose those commits.',
+    'The review and its saved revisions will remain available with Show older reviews.\n\nDelete worktree: /code/feature\n\nThe entire worktree folder will be permanently deleted, including ignored files such as .env and local build output.\n\nDelete local branch: feature\n\nDelete remote branch: origin/feature\n\nWarning: this worktree has uncommitted changes. Deleting the worktree permanently discards them.\n\nWarning: this branch has commits not confirmed on its remote. Deleting branches may lose those commits.',
   );
 });
 it.each([
@@ -68,7 +68,7 @@ it.each([
         fingerprint: 'snapshot',
       }),
     ).toBe(
-      `The review and its saved revisions will remain under Closed.\n\n${expected}`,
+      `The review and its saved revisions will remain available with Show older reviews.\n\n${expected}`,
     );
   },
 );
@@ -84,7 +84,7 @@ it('explains when the main checkout is protected', () => {
       fingerprint: 'snapshot',
     }),
   ).toBe(
-    'The review and its saved revisions will remain under Closed.\n\nThe project’s main checkout and its branches are protected. Nothing will be deleted.',
+    'The review and its saved revisions will remain available with Show older reviews.\n\nThe project’s main checkout and its branches are protected. Nothing will be deleted.',
   );
 });
 
