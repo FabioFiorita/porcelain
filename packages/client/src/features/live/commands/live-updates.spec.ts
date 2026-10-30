@@ -1,6 +1,16 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect, it } from '@effect/vitest';
-import { Cause, Effect, Exit, Queue, Scope, Stream, Redacted } from 'effect';
+import {
+  Cause,
+  Clock,
+  Context,
+  Effect,
+  Exit,
+  Queue,
+  Scope,
+  Stream,
+  Redacted,
+} from 'effect';
 import { createRouteTransport } from '../../access/store/route-transport.ts';
 import { remoteLiveUpdates } from './remote-live-updates.ts';
 import { RpcSerialization, RpcServer } from 'effect/rpc';
@@ -12,127 +22,135 @@ import { RequestError } from '@porcelain/client/transport';
 import type { LiveSubscription } from '../ports/live-update.ts';
 import { createLiveUpdates } from './live-updates.ts';
 
-const socketPort = Effect.gen(function* () {
-  const frames = yield* Queue.make<string, Socket.SocketError>();
-  const requests = yield* Queue.make<string, Socket.SocketError>();
-  const closed = yield* Queue.make<void>();
-  const followed = yield* Queue.make<LiveSubscription>();
-  const notices = yield* Queue.make<LiveNotice>();
-  const socket = Socket.make({
-    reader: Effect.acquireRelease(
-      Effect.succeed({
-        pull: Effect.map(Queue.take(frames), (frame) => [frame] as const),
+const socketPort = (sendReady = true) =>
+  Effect.gen(function* () {
+    let silent = false;
+    const frames = yield* Queue.make<string, Socket.SocketError>();
+    const requests = yield* Queue.make<string, Socket.SocketError>();
+    const closed = yield* Queue.make<void>();
+    const followed = yield* Queue.make<LiveSubscription>();
+    const notices = yield* Queue.make<LiveNotice>();
+    const socket = Socket.make({
+      reader: Effect.acquireRelease(
+        Effect.succeed({
+          pull: Effect.map(Queue.take(frames), (frame) => [frame] as const),
+          upgrade: () => Effect.void,
+        }),
+        () =>
+          Effect.gen(function* () {
+            yield* Queue.failCause(
+              requests,
+              Cause.fail(
+                new Socket.SocketError({
+                  reason: new Socket.SocketCloseError({ code: 1000 }),
+                }),
+              ),
+            );
+            yield* Queue.offer(closed, undefined);
+          }),
+      ),
+      writer: Effect.succeed({
+        write: (frame) =>
+          typeof frame === 'string'
+            ? Queue.offer(requests, frame).pipe(Effect.asVoid)
+            : Effect.void,
+        writeAll: (batch) =>
+          Effect.forEach(
+            batch,
+            (frame) =>
+              typeof frame === 'string'
+                ? Queue.offer(requests, frame)
+                : Effect.void,
+            { discard: true },
+          ),
+      }),
+    });
+    const serverSocket = Socket.make({
+      reader: Effect.succeed({
+        pull: Effect.map(Queue.take(requests), (frame) => [frame] as const),
         upgrade: () => Effect.void,
       }),
-      () =>
-        Effect.gen(function* () {
-          yield* Queue.failCause(
-            requests,
-            Cause.fail(
-              new Socket.SocketError({
-                reason: new Socket.SocketCloseError({ code: 1000 }),
-              }),
-            ),
-          );
-          yield* Queue.offer(closed, undefined);
-        }),
-    ),
-    writer: Effect.succeed({
-      write: (frame) =>
-        typeof frame === 'string'
-          ? Queue.offer(requests, frame).pipe(Effect.asVoid)
-          : Effect.void,
-      writeAll: (batch) =>
-        Effect.forEach(
-          batch,
-          (frame) =>
-            typeof frame === 'string'
-              ? Queue.offer(requests, frame)
-              : Effect.void,
-          { discard: true },
+      writer: Effect.succeed({
+        write: (frame) =>
+          !silent && typeof frame === 'string'
+            ? Queue.offer(frames, frame).pipe(Effect.asVoid)
+            : Effect.void,
+        writeAll: (batch) =>
+          Effect.forEach(
+            batch,
+            (frame) =>
+              !silent && typeof frame === 'string'
+                ? Queue.offer(frames, frame)
+                : Effect.void,
+            { discard: true },
+          ),
+      }),
+    });
+    const protocol = yield* RpcServer.makeProtocolSocketServer.pipe(
+      Effect.provideService(SocketServer.SocketServer, {
+        address: NetAddress.unixPathAddress('/live-rpc-test'),
+        run: (handle) =>
+          handle(serverSocket).pipe(Effect.orDie, Effect.andThen(Effect.never)),
+      }),
+      Effect.provideService(
+        RpcSerialization.RpcSerialization,
+        RpcSerialization.json,
+      ),
+    );
+    const handlers = yield* LiveUpdatesRpc.toHandlers({
+      notices: () =>
+        Stream.concat(
+          sendReady
+            ? Stream.succeed<LiveNotice>({ type: 'ready' })
+            : Stream.never,
+          Stream.fromQueue(notices),
         ),
-    }),
-  });
-  const serverSocket = Socket.make({
-    reader: Effect.succeed({
-      pull: Effect.map(Queue.take(requests), (frame) => [frame] as const),
-      upgrade: () => Effect.void,
-    }),
-    writer: Effect.succeed({
-      write: (frame) =>
-        typeof frame === 'string'
-          ? Queue.offer(frames, frame).pipe(Effect.asVoid)
-          : Effect.void,
-      writeAll: (batch) =>
-        Effect.forEach(
-          batch,
-          (frame) =>
-            typeof frame === 'string'
-              ? Queue.offer(frames, frame)
-              : Effect.void,
-          { discard: true },
+      follow: (value) =>
+        Queue.offer(followed, value).pipe(
+          Effect.andThen(Queue.offer(notices, { type: 'subscribed' })),
+          Effect.asVoid,
         ),
-    }),
-  });
-  const protocol = yield* RpcServer.makeProtocolSocketServer.pipe(
-    Effect.provideService(SocketServer.SocketServer, {
-      address: NetAddress.unixPathAddress('/live-rpc-test'),
-      run: (handle) =>
-        handle(serverSocket).pipe(Effect.orDie, Effect.andThen(Effect.never)),
-    }),
-    Effect.provideService(
-      RpcSerialization.RpcSerialization,
-      RpcSerialization.json,
-    ),
-  );
-  const handlers = yield* LiveUpdatesRpc.toHandlers({
-    notices: () =>
-      Stream.concat(
-        Stream.succeed<LiveNotice>({ type: 'ready' }),
-        Stream.fromQueue(notices),
-      ),
-    follow: (value) =>
-      Queue.offer(followed, value).pipe(
-        Effect.andThen(Queue.offer(notices, { type: 'subscribed' })),
-        Effect.asVoid,
-      ),
-  });
-  yield* RpcServer.make(LiveUpdatesRpc, { disableTracing: true }).pipe(
-    Effect.provideContext(handlers),
-    Effect.provideService(RpcServer.Protocol, protocol),
-    Effect.forkScoped,
-  );
-  yield* Effect.addFinalizer(() =>
-    Queue.failCause(
-      requests,
-      Cause.fail(
-        new Socket.SocketError({
-          reason: new Socket.SocketCloseError({ code: 1000 }),
-        }),
-      ),
-    ),
-  );
-  return {
-    socket,
-    followed,
-    closed,
-    disconnect: (code: number) =>
-      Queue.failCauseUnsafe(
-        frames,
+    });
+    yield* RpcServer.make(LiveUpdatesRpc, { disableTracing: true }).pipe(
+      Effect.provideContext(handlers),
+      Effect.provideService(RpcServer.Protocol, protocol),
+      Effect.forkScoped,
+    );
+    yield* Effect.addFinalizer(() =>
+      Queue.failCause(
+        requests,
         Cause.fail(
           new Socket.SocketError({
-            reason: new Socket.SocketCloseError({ code }),
+            reason: new Socket.SocketCloseError({ code: 1000 }),
           }),
         ),
       ),
-  };
-});
+    );
+    return {
+      socket,
+      followed,
+      closed,
+      silence: () => {
+        silent = true;
+      },
+      disconnect: (code: number) =>
+        Queue.failCauseUnsafe(
+          frames,
+          Cause.fail(
+            new Socket.SocketError({
+              reason: new Socket.SocketCloseError({ code }),
+            }),
+          ),
+        ),
+    };
+  });
 
 it.effect(
   'reconnects after the bounded delay, resends the typed subscription and closes sockets on cancellation',
   () =>
     Effect.gen(function* () {
-      const openings = yield* Queue.make<Effect.Success<typeof socketPort>>();
+      const openings =
+        yield* Queue.make<Effect.Success<ReturnType<typeof socketPort>>>();
       const notices = yield* Queue.make<LiveNotice>();
       let reconnects = 0;
       let revoked = 0;
@@ -189,7 +207,8 @@ it.effect(
     Effect.gen(function* () {
       const serverScope = yield* Scope.Scope;
       const revoked = yield* Queue.make<void>();
-      const openings = yield* Queue.make<Effect.Success<typeof socketPort>>();
+      const openings =
+        yield* Queue.make<Effect.Success<ReturnType<typeof socketPort>>>();
       let attempts = 0;
       const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
       yield* createLiveUpdates(
@@ -234,9 +253,10 @@ it.effect('a rejected live ticket stops before opening an RPC socket', () =>
 
 const recordedSocket = Effect.fn(function* (
   serverScope: Scope.Scope,
-  openings: Queue.Queue<Effect.Success<typeof socketPort>>,
+  openings: Queue.Queue<Effect.Success<ReturnType<typeof socketPort>>>,
+  sendReady: boolean = true,
 ) {
-  const opened = yield* socketPort.pipe(
+  const opened = yield* socketPort(sendReady).pipe(
     Effect.provideService(Scope.Scope, serverScope),
   );
   yield* Queue.offer(openings, opened);
@@ -273,6 +293,23 @@ function activityFixture() {
   };
 }
 
+function savedRouteResponse(path: string) {
+  return Response.json(
+    path === '/api/health'
+      ? { status: 'ok', environmentId: 'computer' }
+      : path === '/api/environment'
+        ? {
+            environmentId: 'computer',
+            name: 'Computer',
+            version: null,
+            protocol: ENVIRONMENT_PROTOCOL,
+          }
+        : path === '/api/live/tickets'
+          ? { ticket: 'ticket', expiresAt: '2026-10-18T00:00:00.000Z' }
+          : { kind: 'owner' },
+  );
+}
+
 function routedFixture() {
   const remote = {
     environmentId: 'computer',
@@ -297,20 +334,7 @@ function routedFixture() {
       url.pathname === '/api/session'
     )
       return new Response(null, { status: 401 });
-    return Response.json(
-      url.pathname === '/api/health'
-        ? { status: 'ok', environmentId: 'computer' }
-        : url.pathname === '/api/environment'
-          ? {
-              environmentId: 'computer',
-              name: 'Computer',
-              version: null,
-              protocol: ENVIRONMENT_PROTOCOL,
-            }
-          : url.pathname === '/api/live/tickets'
-            ? { ticket: 'ticket', expiresAt: '2026-10-18T00:00:00.000Z' }
-            : { kind: 'owner' },
-    );
+    return savedRouteResponse(url.pathname);
   });
   return {
     remote,
@@ -406,7 +430,7 @@ it.effect(
 );
 
 it.effect(
-  'a failed LAN socket advances to Tailscale even when LAN HTTP stays healthy, and foreground restores preference',
+  'a failed LAN socket advances to Tailscale and foreground preserves the healthy fallback',
   () =>
     Effect.gen(function* () {
       const { scope, openings, hosts, activity } = yield* routedSession();
@@ -420,15 +444,10 @@ it.effect(
       expect(hosts).toEqual(['192.168.1.2', 'development.example.ts.net']);
       activity.setActive(false);
       activity.setActive(true);
-      yield* Queue.take(second.closed);
       yield* TestClock.adjust(1);
-      const third = yield* Queue.take(openings);
-      yield* Queue.take(third.followed);
-      expect(hosts).toEqual([
-        '192.168.1.2',
-        'development.example.ts.net',
-        '192.168.1.2',
-      ]);
+      expect(yield* Queue.size(second.closed)).toBe(0);
+      expect(yield* Queue.size(openings)).toBe(0);
+      expect(hosts).toEqual(['192.168.1.2', 'development.example.ts.net']);
       yield* Scope.close(scope, Exit.void);
     }),
 );
@@ -485,12 +504,13 @@ it.effect(
 const reconnectionFixture = Effect.gen(function* () {
   const serverScope = yield* Scope.Scope;
   const scope = yield* Scope.fork(serverScope, 'sequential');
-  const openings = yield* Queue.make<Effect.Success<typeof socketPort>>();
+  const openings =
+    yield* Queue.make<Effect.Success<ReturnType<typeof socketPort>>>();
   return { serverScope, scope, openings };
 });
 
 it.effect(
-  'reopens the live session on foreground and releases its activity listener on close',
+  'probes a healthy live session on foreground without reopening it and releases its activity listener',
   () =>
     Effect.gen(function* () {
       const { serverScope, scope, openings } = yield* reconnectionFixture;
@@ -515,13 +535,13 @@ it.effect(
       yield* Queue.take(first.followed);
       activity.setActive(false);
       activity.setActive(true);
-      yield* Queue.take(first.closed);
-      yield* TestClock.adjust(500);
-      const second = yield* Queue.take(openings);
-      yield* Queue.take(second.followed);
-      expect(reconnects).toBe(1);
+      yield* TestClock.adjust(1);
+      expect(yield* Queue.size(first.closed)).toBe(0);
+      expect(yield* Queue.size(openings)).toBe(0);
+      expect(reconnects).toBe(0);
+      yield* Queue.take(first.followed);
       yield* Scope.close(scope, Exit.void);
-      yield* Queue.take(second.closed);
+      yield* Queue.take(first.closed);
       expect(activity.subscribed()).toBe(false);
     }),
 );
@@ -566,7 +586,7 @@ it.effect(
 );
 
 it.effect(
-  'foreground interrupts reconnect backoff without cancelling the replacement attempt',
+  'an active network hint interrupts reconnect backoff without cancelling the replacement attempt',
   () =>
     Effect.gen(function* () {
       const scope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
@@ -594,12 +614,202 @@ it.effect(
         .pipe(Effect.provideService(Scope.Scope, scope));
       yield* Queue.take(started);
       yield* TestClock.adjust(100);
-      activity.setActive(false);
       activity.setActive(true);
       yield* TestClock.adjust(1);
       expect(attempts).toBe(2);
       yield* TestClock.adjust(20000);
       expect(attempts).toBe(2);
+      yield* Scope.close(scope, Exit.void);
+    }),
+);
+
+const observedSession = Effect.fn(function* (initialReady: boolean = true) {
+  const fixture = yield* reconnectionFixture;
+  const activity = activityFixture();
+  const ready = yield* Queue.make<void>();
+  const refreshed = yield* Queue.make<void>();
+  const clock = yield* Clock.Clock;
+  let elapsed = 0n;
+  const monotonic = () => clock.monotonicTimeNanosUnsafe() + elapsed;
+  const activityClock: Clock.Clock = {
+    currentTimeMillisUnsafe: () => clock.currentTimeMillisUnsafe(),
+    currentTimeMillis: clock.currentTimeMillis,
+    currentTimeNanosUnsafe: () => clock.currentTimeNanosUnsafe(),
+    currentTimeNanos: clock.currentTimeNanos,
+    monotonicTimeNanosUnsafe: monotonic,
+    monotonicTimeNanos: Effect.sync(monotonic),
+    sleep: clock.sleep.bind(clock),
+  };
+  const context = Context.add(
+    yield* Effect.context(),
+    Clock.Clock,
+    activityClock,
+  );
+  let refreshes = 0;
+  let attempts = 0;
+  const port = createLiveUpdates(
+    Effect.suspend(() => {
+      attempts++;
+      return recordedSocket(
+        fixture.serverScope,
+        fixture.openings,
+        initialReady || attempts > 1,
+      );
+    }),
+    context,
+    { activity: activity.port },
+  );
+  yield* port
+    .connect({
+      onNotice(notice) {
+        if (notice.type === 'ready') Queue.offerUnsafe(ready, undefined);
+      },
+      onReconnect() {
+        refreshes++;
+        Queue.offerUnsafe(refreshed, undefined);
+      },
+      onUnauthorized() {},
+    })
+    .pipe(
+      Effect.provideService(Clock.Clock, activityClock),
+      Effect.provideService(Scope.Scope, fixture.scope),
+    );
+  return {
+    ...fixture,
+    activity,
+    ready,
+    refreshed,
+    port,
+    refreshes: () => refreshes,
+    attempts: () => attempts,
+    elapse: (ms: number) => {
+      elapsed += BigInt(ms) * 1_000_000n;
+    },
+  };
+});
+
+const connectedSession = Effect.gen(function* () {
+  const subject = yield* observedSession();
+  const first = yield* Queue.take(subject.openings);
+  yield* Queue.take(subject.ready);
+  yield* Queue.take(first.followed);
+  return { ...subject, first };
+});
+
+it.effect(
+  'refreshes after a long suspension while retaining a healthy session',
+  () =>
+    Effect.gen(function* () {
+      const subject = yield* connectedSession;
+      const first = subject.first;
+      subject.activity.setActive(false);
+      subject.elapse(30000);
+      subject.activity.setActive(true);
+      subject.activity.setActive(true);
+      yield* Queue.take(first.followed);
+      yield* Queue.take(subject.refreshed);
+      yield* Queue.take(subject.ready);
+      expect(subject.refreshes()).toBe(1);
+      expect(subject.port.state.value).toBe('connected');
+      expect(yield* Queue.size(first.closed)).toBe(0);
+      expect(yield* Queue.size(subject.openings)).toBe(0);
+      yield* Scope.close(subject.scope, Exit.void);
+      expect(subject.port.state.value).toBe('idle');
+    }),
+);
+
+it.effect(
+  'replaces a silently dead session after the foreground round trip fails',
+  () =>
+    Effect.gen(function* () {
+      const subject = yield* connectedSession;
+      const first = subject.first;
+      first.silence();
+      subject.activity.setActive(false);
+      subject.activity.setActive(true);
+      yield* Queue.take(first.followed);
+      yield* TestClock.adjust(10000);
+      yield* Queue.take(first.closed);
+      expect(subject.port.state.value).toBe('reconnecting');
+      yield* TestClock.adjust(500);
+      const second = yield* Queue.take(subject.openings);
+      yield* Queue.take(subject.ready);
+      expect(subject.port.state.value).toBe('connected');
+      expect(yield* Queue.size(second.closed)).toBe(0);
+      yield* Scope.close(subject.scope, Exit.void);
+    }),
+);
+
+it.effect('bounds an RPC session that never becomes ready', () =>
+  Effect.gen(function* () {
+    const subject = yield* observedSession(false);
+    const first = yield* Queue.take(subject.openings);
+    yield* TestClock.adjust(10000);
+    yield* Queue.take(first.closed);
+    yield* TestClock.adjust(500);
+    yield* Queue.take(subject.ready);
+    expect(subject.attempts()).toBe(2);
+    expect(subject.port.state.value).toBe('connected');
+    yield* Scope.close(subject.scope, Exit.void);
+  }),
+);
+
+it.effect(
+  'reaches a healthy fifth route after four bounded unreachable routes',
+  () =>
+    Effect.gen(function* () {
+      const { scope, serverScope, openings } = yield* reconnectionFixture;
+      const probed = yield* Queue.make<string>();
+      const routes = Array.from({ length: 5 }, (_, index) => ({
+        address: `http://route-${index}.example`,
+        credential: Redacted.make(`route-${index}`),
+      }));
+      const first = routes[0];
+      if (!first) return yield* Effect.die('No preferred route');
+      const remote = {
+        ...first,
+        environmentId: 'computer',
+        name: 'Computer',
+        alternateRoutes: routes.slice(1),
+      };
+      const routing = createRouteTransport(remote, (url, init) => {
+        if (url.pathname === '/api/health')
+          Queue.offerUnsafe(probed, url.hostname);
+        if (url.hostname !== 'route-4.example')
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              'abort',
+              () => reject(init.signal?.reason),
+              { once: true },
+            );
+          });
+        return Promise.resolve(savedRouteResponse(url.pathname));
+      });
+      const port = remoteLiveUpdates(
+        remote.address,
+        routing.transport,
+        () => recordedSocket(serverScope, openings),
+        routing,
+      );
+      yield* port
+        .connect({ onNotice() {}, onReconnect() {}, onUnauthorized() {} })
+        .pipe(Effect.provideService(Scope.Scope, scope));
+      const seen: string[] = [];
+      for (let index = 0; index < 4; index++) {
+        seen.push(yield* Queue.take(probed));
+        yield* TestClock.adjust(2500);
+      }
+      seen.push(yield* Queue.take(probed));
+      expect(seen).toEqual([
+        'route-0.example',
+        'route-1.example',
+        'route-2.example',
+        'route-3.example',
+        'route-4.example',
+      ]);
+      const opened = yield* Queue.take(openings);
+      yield* Queue.take(opened.followed);
+      expect(routing.active.value?.address).toBe('http://route-4.example');
       yield* Scope.close(scope, Exit.void);
     }),
 );

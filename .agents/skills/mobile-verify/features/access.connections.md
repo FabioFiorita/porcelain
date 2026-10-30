@@ -1,14 +1,14 @@
 ---
 screen: /computers
 selectors:
-  - "Manage connections"
-  - "Hide connections"
-  - "Add connection"
-  - "Add a connection"
-  - "Preferred"
-  - "Active"
-  - "Prefer"
-  - "Remove connection"
+  - 'Manage connections'
+  - 'Hide connections'
+  - 'Add connection'
+  - 'Add a connection'
+  - 'Preferred'
+  - 'Active'
+  - 'Prefer'
+  - 'Remove connection'
 tests:
   - packages/client/src/features/access/rules/remotes.spec.ts
   - packages/client/src/features/access/store.spec.ts
@@ -35,11 +35,12 @@ Preconditions: [surface baseline](README.md).
 
 1. Start with a paired disposable LAN connection and record its device ID. Manage connections → Add connection; paste a fresh Tailscale link from the same server and Pair. Expect one computer/two routes; independent server reads show the original device plus a distinct new device.
 2. Keep preferred HTTP healthy but reject/close its WebSocket. An independently changed open file must update through the alternate route without navigation/foreground. Separately fail a read with healthy probes: it retries once on an authorized fallback.
-3. Make LAN unavailable and open the same project/review through Tailscale. Computers shows Tailscale Active, LAN Preferred. Restore LAN: the healthy active route stays until reconnect/foreground, then preference is reconsidered without losing selection.
+3. Make LAN unavailable and open the same project/review through Tailscale. Computers shows Tailscale Active, LAN Preferred. Restore LAN: the healthy active route stays selected across ordinary foreground and long-resume checks. A genuine route failure or an explicit preference edit can replace it without losing selection.
 4. Prefer Tailscale; cold-launch and confirm routes/preference survive. Open a review/file. Remove the active route: the remaining route loads that computer. Last-route removal is disabled; Forget computer remains available with draft protection.
 5. Try another server's link: different-computer explanation, no saved-route change. Invalid, expired and unreachable links leave the form open with error and Cancel.
 6. Revoke active LAN while Tailscale is unreachable. Restore Tailscale without foreground/navigation, independently change the open file, and confirm recovery. Only confirmed rejection of every route ends recovery; an unreachable alternative stays retryable.
-7. Exercise a lost write acknowledgement with the named regression: no write replay on another route. Preference/removal must retain pending Git operations.
+7. With a healthy session, fail only the HTTP status probe and background/foreground. The socket and active route stay; an independent file edit still arrives. After a long suspension, a successful session round trip also refreshes active reads and recovers pending Git receipts. A silent socket that cannot answer is replaced; a connection that never sends ready is bounded.
+8. Exercise a lost write acknowledgement with the named regression: no write replay on another route. Preference/removal must retain pending Git operations.
 
 Automated coverage: `remotes.spec.ts`, `store.spec.ts`, `route-transport.spec.ts`, `live-updates.spec.ts`.
 

@@ -1,3 +1,4 @@
+import { liveSessionState } from '../store.ts';
 import { readClientAtom } from '../../../../spec/kit/client-fixture.ts';
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
@@ -81,6 +82,7 @@ async function setup(
   const stopped = Promise.withResolvers<void>();
   let live: Parameters<LiveUpdatePort['connect']>[0] | undefined;
   const liveUpdates: LiveUpdatePort = {
+    state: liveSessionState(),
     connect: Effect.fn(function* (options) {
       live = options;
       yield* Effect.addFinalizer(() => Effect.sync(() => stopped.resolve()));

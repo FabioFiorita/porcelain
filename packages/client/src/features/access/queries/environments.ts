@@ -1,3 +1,4 @@
+import type { EnvironmentConnection } from '../ports/connection-factory.ts';
 import { Effect, Layer, Option, Queue, Schedule, Stream } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
@@ -196,4 +197,43 @@ export function readRemoteStatus(
   remote: Remote,
 ) {
   return statusAtoms({ platform, remote });
+}
+
+const connectionStatusAtoms = Atom.family(
+  ({
+    platform,
+    remote,
+    connection,
+  }: {
+    platform: AccessPlatformValue;
+    remote: Remote;
+    connection: Pick<EnvironmentConnection, 'liveUpdates'> | undefined;
+  }) =>
+    Atom.readable((get): RemoteStatus => {
+      const state = connection?.liveUpdates.state;
+      if (state) get.addFinalizer(state.subscribe(() => get.refreshSelf()));
+      const status = remoteStatusResult(
+        remote,
+        get(readRemoteStatus(platform, remote)),
+      );
+      if (state?.value === 'connected')
+        return status.kind === 'online'
+          ? status
+          : { kind: 'online', name: remote.name };
+      if (state?.value === 'unauthorized') return { kind: 'needs-pairing' };
+      if (status.kind === 'other-server' || status.kind === 'incompatible')
+        return status;
+      if (state?.value === 'reconnecting') return { kind: 'reconnecting' };
+      if (state?.value === 'connecting')
+        return status.kind === 'offline' ? status : { kind: 'checking' };
+      return status;
+    }),
+);
+
+export function readRemoteConnectionStatus(
+  platform: AccessPlatformValue,
+  remote: Remote,
+  connection: Pick<EnvironmentConnection, 'liveUpdates'> | undefined,
+) {
+  return connectionStatusAtoms({ platform, remote, connection });
 }

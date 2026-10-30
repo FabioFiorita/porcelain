@@ -94,7 +94,7 @@ function localConnection({ inventory, principal }: BrowserSession): Connection {
   const connection = createConnection(inventory.environmentId, {
     address: window.location.href,
     transport: browserTransport(fetch),
-    liveUpdates: sameOriginLiveUpdates(),
+    liveUpdates: sameOriginLiveUpdates(statusActivity),
     operationsKey: `porcelain-git-requests:${JSON.stringify([inventory.environmentId, principal.kind, writer])}`,
   });
   connection.atoms.addGlobalLayer(

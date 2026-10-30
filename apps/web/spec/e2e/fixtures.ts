@@ -23,6 +23,7 @@ import {
   capturePreviewRequests,
   failInventory,
   failRemoteStatus,
+  waitForRemoteStatusFailure,
   failChangesRead,
   holdNextPost,
   holdNextReviewRead,
@@ -51,6 +52,7 @@ export function observeBrowserFailures(
 
 declare const navigation: { entries(): { url: string | null }[] };
 declare const location: { href: string };
+declare const document: { hasFocus(): boolean };
 declare const window: {
   dispatchEvent(event: Event): boolean;
   __INSTANCE?: {
@@ -229,6 +231,25 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
     failReviewRead: () => failChangesRead(page.context()),
+    foreground: () =>
+      page.evaluate(() => {
+        const original = Object.getOwnPropertyDescriptor(document, 'hasFocus');
+        let focused = false;
+        Object.defineProperty(document, 'hasFocus', {
+          configurable: true,
+          value: () => focused,
+        });
+        try {
+          window.dispatchEvent(new Event('blur'));
+          focused = true;
+          window.dispatchEvent(new Event('focus'));
+        } finally {
+          if (original) Object.defineProperty(document, 'hasFocus', original);
+          else Reflect.deleteProperty(document, 'hasFocus');
+        }
+      }),
+    remoteStatusFailure: (link: string) =>
+      waitForRemoteStatusFailure(page, new URL(link).origin),
     failRemoteStatus: (link: string) =>
       failRemoteStatus(page.context(), new URL(link).origin),
     async failSessionRestore() {

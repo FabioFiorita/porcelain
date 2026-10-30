@@ -1,3 +1,4 @@
+import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
 import { Redacted, Crypto, Effect, Layer, ManagedRuntime } from 'effect';
 import { expect, it } from 'vitest';
 import {
@@ -43,13 +44,7 @@ function fixture(
   const open = (environmentId: string, address: string) => {
     const identity = `${environmentId}:${opened.length}`;
     const connection = openLiveConnection(
-      {
-        environmentId,
-        address,
-        transport: () => Promise.resolve(Response.json({})),
-        timeoutMs: 1000,
-        liveUpdates: { connect: () => Effect.succeed({ subscribe: () => {} }) },
-      },
+      idleLiveConnectionInput(environmentId, address),
       Layer.merge(
         Layer.effect(
           Crypto.Crypto,

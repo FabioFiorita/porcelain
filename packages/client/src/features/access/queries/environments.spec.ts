@@ -1,3 +1,4 @@
+import { liveSessionState } from '../../live/store.ts';
 import { afterEach, describe, expect } from 'vitest';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
@@ -18,6 +19,7 @@ import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   readRemoteEnvironment,
   readRemoteStatus,
+  readRemoteConnectionStatus,
   revalidateRemoteStatus,
   remoteStatusResult,
 } from './environments.ts';
@@ -564,3 +566,30 @@ async function pendingLifecycle() {
     release: () => held.resolve(),
   };
 }
+
+it('uses the live session as connection truth when independent HTTP probes fail, and exposes recovery and revocation', async () => {
+  const subject = await lifecycleFixture({ outage: true });
+  const state = liveSessionState();
+  state.set('connected');
+  const atom = readRemoteConnectionStatus(subject.platform, remote, {
+    liveUpdates: {
+      state,
+      connect: () => Effect.die('Reading status must not own a live session'),
+    },
+  });
+  const stop = subject.registry.mount(atom);
+  await subject.flush();
+  expect(subject.status()).toEqual({ kind: 'offline' });
+  expect(subject.registry.get(atom)).toEqual({
+    kind: 'online',
+    name: 'Computer',
+  });
+  state.set('reconnecting');
+  expect(subject.registry.get(atom)).toEqual({ kind: 'reconnecting' });
+  state.set('unauthorized');
+  expect(subject.registry.get(atom)).toEqual({ kind: 'needs-pairing' });
+  state.set('idle');
+  expect(subject.registry.get(atom)).toEqual({ kind: 'offline' });
+  stop();
+  subject.stop();
+});

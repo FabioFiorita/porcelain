@@ -19,9 +19,8 @@ export { RemoteConnections } from './store/remote-connections.ts';
 export { remoteConnectionsLayer } from './commands/remote-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
 export {
-  readRemoteStatus,
+  readRemoteConnectionStatus,
   revalidateRemoteStatus,
-  remoteStatusResult,
 } from './queries/environments.ts';
 export {
   issuePairing,

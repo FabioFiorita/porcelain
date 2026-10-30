@@ -2,10 +2,9 @@ export { useWorkspaceRetry } from './adapters/workspace-retry';
 export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
 
-export { useRecheckRemote } from './commands/remotes';
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export { useRemoteStatus } from './queries/remotes';
-export { remoteLiveOpen, remoteStatusVariant } from './rules/remotes';
+export { remoteStatusVariant } from './rules/remotes';
 export {
   accessSession,
   applicationRuntime,

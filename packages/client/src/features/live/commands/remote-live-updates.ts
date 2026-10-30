@@ -1,3 +1,4 @@
+import { LIVE_CONNECT_TIMEOUT_MS } from '../../../config/limits.ts';
 import type { StatusActivity } from '../../access/ports/status-activity.ts';
 import type { createRouteTransport } from '../../access/store/route-transport.ts';
 import { Cause, Effect, Exit } from 'effect';
@@ -25,25 +26,26 @@ export function remoteLiveUpdates(
             routing.failed(route);
         }),
       );
-    const { ticket } = yield* Effect.gen(function* () {
-      const api = yield* BootstrapClient;
-      return yield* mapRequestErrors(api.session.issueLiveTicket());
-    }).pipe(
-      Effect.provide(
-        BootstrapClient.layer(
-          route && routing ? routing.transportFor(route) : transport,
+    return yield* Effect.gen(function* () {
+      const { ticket } = yield* Effect.gen(function* () {
+        const api = yield* BootstrapClient;
+        return yield* mapRequestErrors(api.session.issueLiveTicket());
+      }).pipe(
+        Effect.provide(
+          BootstrapClient.layer(
+            route && routing ? routing.transportFor(route) : transport,
+          ),
         ),
-      ),
-    );
-    const origin = new URL(route?.address ?? address);
-    const protocol = origin.protocol === 'https:' ? 'wss:' : 'ws:';
-    return yield* socket(
-      `${protocol}//${origin.host}${liveUpdatesUrl({ query: { ticket } })}`,
-    );
+      );
+      const origin = new URL(route?.address ?? address);
+      const protocol = origin.protocol === 'https:' ? 'wss:' : 'ws:';
+      return yield* socket(
+        `${protocol}//${origin.host}${liveUpdatesUrl({ query: { ticket } })}`,
+      );
+    }).pipe(Effect.timeout(LIVE_CONNECT_TIMEOUT_MS));
   });
   return createLiveUpdates(open, undefined, {
     ...(activity ? { activity } : {}),
-    ...(routing ? { onForeground: routing.reset } : {}),
     ...(routing
       ? {
           recoverUnauthorized: () =>

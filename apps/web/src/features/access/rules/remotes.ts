@@ -11,10 +11,6 @@ export function remoteStatusVariant(status: RemoteStatus) {
   return 'destructive';
 }
 
-export function remoteLiveOpen(status: RemoteStatus, desktop: boolean) {
-  return desktop && status.kind === 'online';
-}
-
 type SavedRemotes =
   | { kind: 'readable'; remotes: Remote[] | undefined }
   | { kind: 'unreadable'; message: string };

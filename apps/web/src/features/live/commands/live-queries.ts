@@ -4,11 +4,14 @@ import type { Connection } from '@/shared/workspace/connection';
 
 export function useLiveQueries(
   connection: Connection | null,
-  onUnauthorized: () => void,
+  onUnauthorized?: () => void,
 ) {
   useAtomValue(
     connection
-      ? liveQueries({ connection, onUnauthorized })
+      ? liveQueries({
+          connection,
+          ...(onUnauthorized ? { onUnauthorized } : {}),
+        })
       : inactiveLiveQueries,
   );
 }

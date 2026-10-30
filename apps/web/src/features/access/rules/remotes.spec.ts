@@ -1,6 +1,6 @@
 import { Redacted } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { remoteLiveOpen, savedRemotes } from './remotes.ts';
+import { savedRemotes } from './remotes.ts';
 
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';
 const remote = {
@@ -44,29 +44,5 @@ describe('savedRemotes', () => {
       kind: 'unreadable',
       message: 'The saved remote computers are not in a form this app reads.',
     });
-  });
-});
-
-describe('remoteLiveOpen', () => {
-  it('opens live updates for an online remote in the desktop app', () => {
-    expect(remoteLiveOpen({ kind: 'online', name: 'home-server' }, true)).toBe(
-      true,
-    );
-  });
-
-  it('keeps live updates closed in the web the server serves', () => {
-    expect(remoteLiveOpen({ kind: 'online', name: 'home-server' }, false)).toBe(
-      false,
-    );
-  });
-
-  it.each([
-    { kind: 'checking' as const },
-    { kind: 'offline' as const },
-    { kind: 'needs-pairing' as const },
-    { kind: 'other-server' as const },
-    { kind: 'incompatible' as const },
-  ])('keeps live updates closed for a remote that is %j', (status) => {
-    expect(remoteLiveOpen(status, true)).toBe(false);
   });
 });
