@@ -10,7 +10,7 @@ Read [desktop verification](../SKILL.md) for lifecycle and raw Electron access. 
 
 ## Driving conventions
 
-- Native menus, BrowserWindow and bridge journeys use the skill's in-process `startDesktop` lifecycle and raw Playwright Electron handle; CDP alone does not expose the main process. The caller owns `stop()` in `finally`. CLI stop/status applies only to registered CLI instances.
+- Native menus, BrowserWindow and bridge journeys use the skill's in-process `startDesktop` lifecycle and raw Playwright Electron handle; CDP alone does not expose the main process. The caller owns `stop()` in `finally`. It removes the lifecycle-owned temporary workspace, staged app, profile and private launch options while retaining the caller's separate evidence directory. CLI stop/status applies only to registered CLI instances.
 - Use Computer Use for the actual macOS menu bar/folder sheet. A substituted picker answer proves bridge behavior separately. Match roles, accessible names and menu IDs; confirm the resulting renderer state and independent side effects.
 - Linux proves bounded launch, renderer inspection and shutdown only. Keychain, native macOS menus/sheets, Dock and full-screen transitions need macOS with its logged-in/unlocked session. Report unavailable surfaces explicitly.
 - Keep inherited environment/launch options, credentials and pairing codes private. `credentialFiles.remoteEncrypted` may not exist until a remote is saved. Keep evidence after stopping only this run's captured processes.

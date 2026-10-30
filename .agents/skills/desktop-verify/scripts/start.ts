@@ -78,7 +78,6 @@ export function desktopProblems(): string[] {
 
 export async function startDesktop(input: {
   id: string;
-  folder: string;
   evidenceDirectory: string;
   sourceFingerprint?: string;
   codingToolDirectory?: string;
@@ -86,7 +85,7 @@ export async function startDesktop(input: {
   onStop?: (stop: () => Promise<void>) => void;
 }) {
   const workspace = await realpath(await mkdtemp('/tmp/porcelain-desktop-'));
-  const stagedPath = join(input.folder, 'app');
+  const stagedPath = join(workspace, 'app');
   const profilePath = join(workspace, 'profile');
   let electron: ElectronApplication | undefined;
   let child: ReturnType<NonNullable<typeof electron>['process']> | undefined;
@@ -163,7 +162,7 @@ export async function startDesktop(input: {
       { ...options.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config') },
       input.codingToolDirectory,
     );
-    const launchOptionsFile = join(input.folder, 'electron-launch.json');
+    const launchOptionsFile = join(workspace, 'electron-launch.json');
     await writeFile(
       launchOptionsFile,
       `${JSON.stringify(options, null, 2)}\n`,
@@ -294,11 +293,6 @@ export async function startDesktop(input: {
         ],
       },
     };
-    await writeFile(
-      join(input.folder, 'connection.json'),
-      `${JSON.stringify(card, null, 2)}\n`,
-      { mode: 0o600 },
-    );
     return { electron, card, stop };
   } catch (error) {
     await stop();
