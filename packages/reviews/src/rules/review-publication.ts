@@ -64,7 +64,17 @@ export function normalizedReviewPullRequest(
   const [owner = '', repository = '', , number = ''] = url.pathname
     .split('/')
     .slice(1);
-  return `https://github.com/${owner.toLowerCase()}/${repository.toLowerCase()}/pull/${number}`;
+  return `https://github.com/${owner}/${repository}/pull/${number}`;
+}
+
+export function reviewPullRequestsMatch(
+  left: string | undefined,
+  right: string | undefined,
+): boolean {
+  return (
+    normalizedReviewPullRequest(left)?.toLowerCase() ===
+    normalizedReviewPullRequest(right)?.toLowerCase()
+  );
 }
 
 export function reviewDirtyPaths(

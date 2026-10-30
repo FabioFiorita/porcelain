@@ -22,7 +22,7 @@ it.each([false, true])(
     await Effect.runPromise(
       store.save(
         reviewSave(review, {
-          pullRequest: 'https://github.com/owner/repo/pull/1',
+          pullRequest: 'https://github.com/Owner/Repo/pull/1',
         }),
       ),
     );

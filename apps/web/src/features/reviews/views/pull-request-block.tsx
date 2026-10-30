@@ -243,6 +243,8 @@ export function PullRequestBlock({
       {!AsyncResult.isFailure(record) && data?.review && linked && (
         <LinkedPullRequest
           url={linked}
+          projectId={data.review.projectId}
+          context={context}
           number={number}
           pull={pull}
           reviewHead={data.revision?.headOid}
@@ -260,6 +262,8 @@ type PullAnswer = PullRequestRead | { kind: 'failed' } | undefined;
 
 function LinkedPullRequest({
   url,
+  projectId,
+  context,
   number,
   pull,
   reviewHead,
@@ -268,6 +272,8 @@ function LinkedPullRequest({
   onOpen,
 }: {
   url: string;
+  projectId: string;
+  context: ConnectionContext;
   number: number | undefined;
   pull: PullAnswer;
   reviewHead: string | undefined;
@@ -275,6 +281,19 @@ function LinkedPullRequest({
   onRetry: () => void;
   onOpen: ((number: number) => void) | undefined;
 }) {
+  const accountResult = useAtomValue(
+    readProjectGitHubAccount({ connection: context.connection, projectId }),
+  );
+  const repository = Option.getOrUndefined(
+    AsyncResult.value(accountResult),
+  )?.repository;
+  const linkedRepository = pullRequestRepository(url);
+  const displayRepository =
+    repository !== undefined &&
+    linkedRepository !== undefined &&
+    repository.toLowerCase() === linkedRepository.toLowerCase()
+      ? repository
+      : linkedRepository;
   if (pull?.kind === 'available')
     return (
       <LinkedState pull={pull.pullRequest} reviewHead={reviewHead}>
@@ -287,7 +306,7 @@ function LinkedPullRequest({
         number={number}
         title={
           <TruncatedText
-            text={pullRequestRepository(url) ?? url}
+            text={displayRepository ?? url}
             className="font-mono text-xs leading-4.5 text-muted-foreground"
           />
         }
@@ -831,6 +850,7 @@ function PullRequestDiscovery({
       )}
       {(!linkable || (value?.kind === 'available' && value.truncated)) && (
         <form
+          noValidate
           className="mt-2 flex min-w-0 items-center gap-1.5"
           onSubmit={(event) => {
             event.preventDefault();
