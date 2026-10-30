@@ -253,7 +253,7 @@ describe('progress', () => {
     ).toEqual({ reviewed: 1, total: 1, done: true });
   });
 
-  it('counts a decision reviewed only while its mark matches the current code, and flags moved code either way', () => {
+  it('keeps matching saved decision marks reviewed independently of stale flags and moved code', () => {
     const mark = (layerId: string, stale: boolean) => ({
       layerId,
       fingerprint: `${layerId}-now`,
@@ -278,7 +278,7 @@ describe('progress', () => {
     );
     expect(Object.fromEntries(states)).toEqual({
       invite: { reviewed: true, stale: false },
-      revoke: { reviewed: false, stale: true },
+      revoke: { reviewed: true, stale: true },
       reconnect: { reviewed: true, stale: true },
       export: { reviewed: false, stale: false },
     });

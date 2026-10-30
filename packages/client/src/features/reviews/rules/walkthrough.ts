@@ -7,7 +7,7 @@ import type {
   ReviewStep,
 } from './review.ts';
 import { counted } from './counted.ts';
-import { layerReviewed } from './reviewed.ts';
+import { decisionMarked } from './review-list.ts';
 import { isSpecPath } from './spec-paths.ts';
 
 type Gap = ReviewResponse['notExplained'][number];
@@ -185,7 +185,7 @@ export function decisionStates(
       layer.id,
       {
         stale: decisionCodeMoved(layer),
-        reviewed: layerReviewed(marks, layer),
+        reviewed: decisionMarked(marks?.marks, layer),
       },
     ]),
   );

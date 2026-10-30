@@ -29,6 +29,8 @@ api:
 
 Mark decision reviewed records its retained files and then the decision; unmarking a decision keeps its file marks.
 
+Worktree progress, retained-review progress and the review list all count a decision by the same saved mark: its decision ID and fingerprint must match. A matching decision stays reviewed when live code moves or a worktree mark carries a stale flag; Code moved is a separate indicator. A different decision fingerprint is unreviewed.
+
 ## How to get to it (user POV)
 
 - Branch Review tab, project Reviews list or durable decision link → decision toolbar.
