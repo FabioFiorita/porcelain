@@ -513,7 +513,7 @@ function ReviewRevisionPage({
       {showSummary && presentation}
       <span
         aria-label="Review progress"
-        className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
+        className="hidden shrink-0 items-center gap-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums @min-2xl/pane:inline-flex"
       >
         {reviewedFiles} of {counted(items.length, 'file')}
         <ProgressMeter
