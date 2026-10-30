@@ -9,7 +9,7 @@ import {
   worktreePath,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { record } from '../kit/session.ts';
+import { list, record } from '../kit/session.ts';
 
 function withoutSummaryUrl(body: unknown) {
   const review = record(record(body).review);
@@ -39,7 +39,7 @@ test('reading the review before anything is published answers null', async ({
   );
 });
 
-test('reading the review after a publish answers it as the publish did with a freshly signed summary link', async ({
+test('reading a published review adds the live code comparison and a freshly signed summary link', async ({
   session,
 }) => {
   const publishedAnswer = await read(session, {
@@ -54,9 +54,14 @@ test('reading the review after a publish answers it as the publish did with a fr
   });
 
   expect(response.status).toBe(200);
-  expect(withoutSummaryUrl(response.body)).toStrictEqual(
-    withoutSummaryUrl(publishedAnswer),
-  );
+  const published = withoutSummaryUrl(publishedAnswer);
+  expect(withoutSummaryUrl(response.body)).toStrictEqual({
+    ...published,
+    layers: list(record(publishedAnswer.review).layers).map((layer) => ({
+      ...record(layer),
+      codeMoved: false,
+    })),
+  });
   expect(record(record(record(response.body).review).summary).url).toMatch(
     /^\/review-summaries\/[0-9a-f-]{36}\?expires=[^&]+&signature=[A-Za-z0-9_-]{43}$/,
   );
