@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
 import { expect } from 'vitest';
@@ -51,31 +51,26 @@ function alive(pid: number) {
 }
 
 test.runIf(CAN_LAUNCH)(
-  'the shared lifecycle publishes a private card and exposes raw Electron and renderer tools, then stops both owned processes',
+  'the shared lifecycle exposes raw Electron and renderer tools, then removes its owned runtime and keeps evidence',
   async ({ onTestFinished }) => {
-    const folder = await mkdtemp('/tmp/porcelain-desktop-lifecycle-');
-    const evidenceDirectory = join(folder, 'evidence');
-    await mkdir(evidenceDirectory);
-    onTestFinished(() => rm(folder, { recursive: true, force: true }));
+    const evidenceDirectory = await mkdtemp('/tmp/porcelain-desktop-evidence-');
+    onTestFinished(() =>
+      rm(evidenceDirectory, { recursive: true, force: true }),
+    );
     const opened = await startDesktop({
       id: '1234abcd',
-      folder,
       evidenceDirectory,
       sourceFingerprint: 'integration',
     });
     onTestFinished(() => opened.stop());
-    const card = Schema.decodeUnknownSync(desktopConnectionSchema)(
-      JSON.parse(await readFile(join(folder, 'connection.json'), 'utf8')),
-    );
+    const card = Schema.decodeUnknownSync(desktopConnectionSchema)(opened.card);
     expect(card.app.productName).toBe('Porcelain Dev');
-    expect(card.app.stagedPath).toBe(join(folder, 'app'));
+    const workspace = dirname(card.app.profilePath);
+    expect(card.app.stagedPath).toBe(join(workspace, 'app'));
     expect(card.rendererUrl).toBe('porcelain://app/');
     expect(card.build.sourceFingerprint).toBe('integration');
     expect(card.electron.lifecycleEntryPoint).toContain(
       '/desktop-verify/scripts/start.ts#startDesktop',
-    );
-    expect((await stat(join(folder, 'connection.json'))).mode & 0o777).toBe(
-      0o600,
     );
     expect((await stat(card.electron.launchOptionsFile)).mode & 0o777).toBe(
       0o600,
@@ -104,7 +99,8 @@ test.runIf(CAN_LAUNCH)(
       const page = pages.find((page) => page.url() === card.rendererUrl);
       expect(page).toBeDefined();
       await page
-        ?.getByRole('button', { name: 'Open project', exact: true })
+        ?.getByTestId('document')
+        .getByRole('button', { name: 'Open project', exact: true })
         .waitFor();
     } finally {
       await browser.close();
@@ -118,8 +114,13 @@ test.runIf(CAN_LAUNCH)(
     expect(alive(card.app.pid)).toBe(false);
     expect(alive(card.app.serverPid)).toBe(false);
     expect(existsSync(card.ownerSocketPath)).toBe(false);
+    expect(existsSync(workspace)).toBe(false);
     expect(existsSync(card.app.profilePath)).toBe(false);
+    expect(existsSync(card.app.stagedPath)).toBe(false);
+    expect(existsSync(card.electron.launchOptionsFile)).toBe(false);
     expect(existsSync(join(evidenceDirectory, 'server.log'))).toBe(true);
+    await opened.stop();
+    expect(existsSync(workspace)).toBe(false);
   },
   LAUNCH_WITHIN_MS,
 );
@@ -142,7 +143,10 @@ test.runIf(CAN_LAUNCH)(
       `renderer CDP ${card.rendererCdpEndpoint}`,
     );
     expect(started.stdout).toContain(`pair ${card.pairing.command}`);
-    expect(card.app.stagedPath).toBe(join(dirname(connectionPath), 'app'));
+    expect(card.app.stagedPath).toBe(
+      join(dirname(card.app.profilePath), 'app'),
+    );
+    expect((await stat(connectionPath)).mode & 0o777).toBe(0o600);
     const status = await cli('status', '--instance', id);
     expect(status.code, status.stderr).toBe(0);
     expect(JSON.parse(status.stdout)).toMatchObject({
