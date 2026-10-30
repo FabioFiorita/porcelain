@@ -31,12 +31,9 @@ Do not pair or navigate this renderer as an ordinary HTTP browser: it uses `porc
 A CDP renderer connection does not expose Electron's main process. For menus, BrowserWindow and bridge journeys, run an in-process script from this checkout and import `startDesktop` from `.agents/skills/desktop-verify/scripts/start.ts`. It returns `{ electron, card, stop }`: `electron` is the raw Playwright ElectronApplication, with no command wrapper.
 
 ```ts
-const folder = await mkdtemp('/tmp/porcelain-desktop-journey-');
-const evidenceDirectory = join(folder, 'evidence');
-await mkdir(evidenceDirectory);
+const evidenceDirectory = await mkdtemp('/tmp/porcelain-desktop-evidence-');
 const opened = await startDesktop({
   id: '1234abcd',
-  folder,
   evidenceDirectory,
 });
 try {
@@ -46,7 +43,7 @@ try {
 }
 ```
 
-The CLI supervisor calls this same entry point. The in-process caller owns `stop()`; its card's CLI stop/status commands belong to registered CLI instances only. Capture `electron.process()` before closing if the journey needs its exit code. Do not re-launch from the options file while the instance is running. A new lifecycle creates a fresh profile; regression fixtures prove restart persistence.
+The lifecycle owns its temporary workspace, including the staged app, profile and launch-options file; a confirmed stop removes them together. The caller chooses and retains the separate evidence directory. The CLI supervisor calls this same entry point. The in-process caller owns `stop()`; its card's CLI stop/status commands belong to registered CLI instances only. Capture `electron.process()` before closing if the journey needs its exit code. Do not re-launch from the options file while the instance is running. A new lifecycle creates a fresh profile; regression fixtures prove restart persistence.
 
 ## Native sheets and feature evidence
 

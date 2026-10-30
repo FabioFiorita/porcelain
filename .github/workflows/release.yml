@@ -1,13 +1,5 @@
 name: Release
 
-# Pushing a tag v<version> releases that commit: the notarized Mac app first, then the npm
-# package, then the GitHub release for the tag with the disk image, and the zip and
-# latest-mac.yml that the Mac app updates itself from. The tag must match the
-# root package.json version and point at a commit on main.
-# Running it by hand (`gh workflow run release.yml`) rehearses the signed and notarized Mac
-# build from main and publishes nothing. Re-running a failed release is safe: npm publish is
-# skipped when the version is already there, and the GitHub release is created last.
-
 on:
   push:
     tags: ['v*']
@@ -33,7 +25,6 @@ jobs:
       - name: Validate the release or rehearsal
         id: version
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           set -euo pipefail
@@ -54,10 +45,6 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -n "$TAG" ] && gh release view "v$version" > /dev/null 2>&1; then
-            echo "Release v$version already exists; bump the root package.json version first." >&2
-            exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -124,8 +111,40 @@ jobs:
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
 
-  npm:
+  release:
     needs: [version, mac]
+    if: ${{ needs.version.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: mac
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          assets=("Porcelain-$VERSION-arm64.dmg" "Porcelain-$VERSION-arm64-mac.zip" latest-mac.yml)
+          if draft=$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null); then
+            if [ "$draft" = true ]; then
+              gh release upload "v$VERSION" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+              gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft=false
+            else
+              echo "Release v$VERSION already exists; keeping its published assets."
+            fi
+          else
+            gh release create "v$VERSION" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --title "Porcelain $VERSION" \
+              --generate-notes
+          fi
+
+  npm:
+    needs: [version, release]
     if: ${{ needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -161,47 +180,34 @@ jobs:
         run: |
           set -euo pipefail
           if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
-            echo "@fabiofiorita/porcelain@$VERSION is already published; a re-run continues from the check."
+            echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
           else
             npm publish "${{ steps.package.outputs.tarball }}" --provenance --access public
           fi
+
+  npm-check:
+    needs: [version, npm]
+    if: ${{ needs.version.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
       - name: Install the published package from a clean folder
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          # A new version can take several minutes to reach every npm mirror.
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 120); do
             if output=$(npx --yes --prefer-online "@fabiofiorita/porcelain@$VERSION" --version); then
               echo "$output"
               test "$output" = "porcelain v$VERSION"
               exit 0
             fi
-            echo "npm has not served $VERSION yet (attempt $attempt of 40)"
+            echo "npm has not served $VERSION yet (attempt $attempt of 120)"
             sleep 15
           done
           echo "$output" >&2
           exit 1
-
-  release:
-    needs: [version, mac, npm]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: mac
-      - name: Create the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          gh release create "v$VERSION" "Porcelain-$VERSION-arm64.dmg" \
-            "Porcelain-$VERSION-arm64-mac.zip" latest-mac.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --title "Porcelain $VERSION" \
-            --generate-notes

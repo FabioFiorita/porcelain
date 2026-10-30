@@ -287,7 +287,7 @@ function ThreadMessage({
 
 export function ThreadCard({
   thread,
-  scope,
+  scope: parentScope,
   context,
   onReveal,
   location,
@@ -298,6 +298,11 @@ export function ThreadCard({
   onReveal?: () => void;
   location?: ReactNode;
 }) {
+  const scope: ReviewScope = {
+    projectId: parentScope.projectId,
+    worktreeId: thread.worktreeId,
+    ...(thread.review ? { review: thread.review } : {}),
+  };
   const [replying, setReplying] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [body, setBody] = useState('');

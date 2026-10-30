@@ -14,7 +14,7 @@ api:
 
 # files.duplicate
 
-Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then `<stem> copy 2<extension>` and so on), and opens the copy. It runs from the file's menu, or with Mod+D on the open file.
+Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then `<stem> copy 2<extension>` and so on), and opens the copy. It runs from the file's menu, or with Mod+D on the open file while the Files panel is open. The keyboard shortcuts dialog states this requirement.
 
 ## How to get to it (user POV)
 
@@ -52,6 +52,8 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
    Disk: `ls "$REPO"` lists `notes copy copy.md`.
 8. Inspect HTTP traffic
    Expect: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
+
+9. Press `ControlOrMeta+/` to open Keyboard shortcuts. Expect: the Ctrl+D row says "Duplicate the open file (Files panel open)". Close with Escape.
 
 ### Observable proof
 

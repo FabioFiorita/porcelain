@@ -1,3 +1,4 @@
+import { TagIcon } from 'lucide-react';
 import type { CommitRef } from '@porcelain/client/history/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ export function CommitRefs({
               variant="secondary"
               className={chipClass}
             >
+              {ref.kind === 'tag' && <TagIcon aria-hidden="true" />}
               <span
                 data-label={ref.name}
                 className="before:content-[attr(data-label)]"
@@ -61,6 +63,7 @@ export function CommitRefs({
               variant={current(ref) ? 'brand-soft' : 'outline'}
               className={`${chipClass} pointer-events-auto shrink`}
             >
+              {ref.kind === 'tag' && <TagIcon aria-hidden="true" />}
               {label}
             </Badge>
           )}
@@ -86,7 +89,13 @@ export function CommitRefs({
             <PopoverTitle>More refs</PopoverTitle>
             <ul className="max-h-64 overflow-y-auto text-xs">
               {hidden.map((ref) => (
-                <li key={`${ref.kind}:${ref.name}`} className="py-1 break-all">
+                <li
+                  key={`${ref.kind}:${ref.name}`}
+                  className="flex items-center gap-1 py-1 break-all"
+                >
+                  {ref.kind === 'tag' && (
+                    <TagIcon aria-hidden="true" className="size-3 shrink-0" />
+                  )}
                   {ref.name}
                 </li>
               ))}

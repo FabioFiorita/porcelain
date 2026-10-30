@@ -1,4 +1,4 @@
-import { normalizedReviewPullRequest } from '../rules/review-publication.ts';
+import { reviewPullRequestsMatch } from '../rules/review-publication.ts';
 import { Context, Effect, Layer } from 'effect';
 import type {
   ArchiveReviewRequest,
@@ -38,8 +38,10 @@ export class ArchiveReviewService extends Context.Service<
           if (
             !record.pullRequest ||
             !input.pullRequestClosed ||
-            normalizedReviewPullRequest(record.pullRequest) !==
-              normalizedReviewPullRequest(input.observedPullRequest)
+            !reviewPullRequestsMatch(
+              record.pullRequest,
+              input.observedPullRequest,
+            )
           )
             return yield* new ReviewArchiveRefusedError({
               message:

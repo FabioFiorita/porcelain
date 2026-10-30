@@ -25,7 +25,7 @@ it.each(['OPEN', 'CLOSED', 'MERGED'] as const)(
       );
     await execute(githubPullRequest({ state, headRefName: 'feature' }));
     expect(await Effect.runPromise(store.readRecord(review))).toMatchObject({
-      pullRequest: 'https://github.com/fabiofiorita/porcelain/pull/423',
+      pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
       state: 'open',
       latestRevision: 1,
     });

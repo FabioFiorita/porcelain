@@ -1,3 +1,5 @@
+import { reviewCommands } from './project-reviews.ts';
+import type { ReviewScope } from '../rules/review.ts';
 import { readCommentThreads } from '../queries/comments.ts';
 import type {
   CreateCommentThreadRequest,
@@ -304,4 +306,56 @@ export const observeCommentVisibility = Atom.family(
         { immediate: true },
       );
     }),
+);
+
+type CommentDeletionGroup = {
+  scope: ReviewScope;
+  threads: ConfirmedThreads[number][];
+};
+
+export const deleteResolvedThreads = Atom.family(
+  (input: { connection: RuntimeConnection; scope: ReviewScope }) =>
+    Atom.fn((threads: readonly CommentThread[], get) =>
+      Effect.gen(function* () {
+        const groups = new Map<string, CommentDeletionGroup>();
+        for (const thread of threads) {
+          const key = thread.review?.reviewId ?? thread.worktreeId;
+          const group: CommentDeletionGroup = groups.get(key) ?? {
+            scope: {
+              projectId: input.scope.projectId,
+              worktreeId: thread.worktreeId,
+              ...(thread.review ? { review: thread.review } : {}),
+            },
+            threads: [],
+          };
+          group.threads.push({
+            threadId: thread.id,
+            revision: thread.revision,
+          });
+          groups.set(key, group);
+        }
+        const deleted: string[] = [];
+        const skipped: string[] = [];
+        for (const group of groups.values()) {
+          const answer = group.scope.review
+            ? yield* get.setResult(
+                reviewCommands({
+                  connection: input.connection,
+                  reviewId: group.scope.review.reviewId,
+                }).deleteResolved,
+                group.threads,
+              )
+            : yield* get.setResult(
+                commentCommands({
+                  connection: input.connection,
+                  scope: group.scope,
+                }).removeResolved,
+                group.threads,
+              );
+          deleted.push(...answer.deleted);
+          skipped.push(...answer.skipped);
+        }
+        return { deleted, skipped };
+      }),
+    ),
 );
