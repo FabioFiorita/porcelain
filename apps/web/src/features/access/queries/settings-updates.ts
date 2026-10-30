@@ -7,10 +7,9 @@ import {
 import { Cause, Effect, Option } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import {
-  readRemoteStatus,
+  readRemoteConnectionStatus,
   readServiceUpdate,
   serviceUpdateSnapshot,
-  remoteStatusResult,
   runSettingsUpdates,
   settingsUpdateBatch,
   settingsUpdateCount,
@@ -130,9 +129,8 @@ const updateRows = Atom.make((get) => {
       get.addFinalizer(
         connection.activeRoute.subscribe(() => get.refreshSelf()),
       );
-    const status = remoteStatusResult(
-      remote,
-      get(readRemoteStatus(pairingPlatform, remote)),
+    const status = get(
+      readRemoteConnectionStatus(pairingPlatform, remote, connection),
     );
     if (status.kind !== 'online') continue;
     const result = get(readServiceUpdate(connection));

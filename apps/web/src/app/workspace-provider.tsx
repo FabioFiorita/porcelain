@@ -1,12 +1,9 @@
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { ReactNode } from 'react';
 import {
-  remoteLiveOpen,
   useLocalConnection,
   useRestoreEnvironments,
-  useRecheckRemote,
   useRemoteConnections,
-  useRemoteStatus,
   useSignOutWhenUnauthorized,
 } from '@/features/access/index';
 import { useUnsavedDraftsGuard } from '@/features/files/index';
@@ -14,11 +11,7 @@ import { useLiveQueries } from '@/features/live/index';
 import { desktopShell } from '@/shared/shell';
 
 function RemoteLive({ remote }: { remote: RemoteConnection }) {
-  const status = useRemoteStatus(remote.remote);
-  const recheck = useRecheckRemote();
-  const open = remoteLiveOpen(status, desktopShell);
-  const saved = remote.remote;
-  useLiveQueries(open ? remote.connection : null, () => recheck(saved));
+  useLiveQueries(remote.connection);
   return null;
 }
 

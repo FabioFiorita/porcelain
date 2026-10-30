@@ -21,8 +21,7 @@ import {
   Recorder,
 } from '@porcelain/server/kit/isolated-server';
 import {
-  readRemoteStatus,
-  remoteStatusResult,
+  readRemoteConnectionStatus,
   revalidateRemoteStatus,
   type AccessPlatformValue,
 } from '@porcelain/client/access';
@@ -88,9 +87,9 @@ test('real hosts recover automatically from outage and substitution without acce
   };
   const registry = AtomRegistry.make();
   onCleanup(() => registry.dispose());
-  const atom = readRemoteStatus(platform, remote);
+  const atom = readRemoteConnectionStatus(platform, remote, undefined);
   const stop = registry.mount(atom);
-  const status = () => remoteStatusResult(remote, registry.get(atom));
+  const status = () => registry.get(atom);
   await expect.poll(() => status().kind).toBe('online');
   available = false;
   revalidateRemoteStatus(platform, remote);

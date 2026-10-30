@@ -1,3 +1,4 @@
+import type { AtomRef } from 'effect/reactivity';
 import type { Effect, Scope } from 'effect';
 import type {
   LiveNotice,
@@ -6,7 +7,15 @@ import type {
 
 export type LiveSubscription = typeof liveSubscriptionSchema.Type;
 
+export type LiveSessionState =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'unauthorized';
+
 export type LiveUpdatePort = {
+  readonly state: AtomRef.ReadonlyRef<LiveSessionState>;
   connect(options: {
     onNotice: (notice: LiveNotice) => void;
     onReconnect: () => void;

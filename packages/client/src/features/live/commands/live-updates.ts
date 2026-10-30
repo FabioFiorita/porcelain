@@ -1,5 +1,7 @@
+import { liveSessionState } from '../store.ts';
 import {
   Cause,
+  Clock,
   Context,
   Deferred,
   Effect,
@@ -7,6 +9,7 @@ import {
   Ref,
   Exit,
   Schedule,
+  Semaphore,
   Stream,
   type Scope,
 } from 'effect';
@@ -18,6 +21,9 @@ import type { StatusActivity } from '../../access/ports/status-activity.ts';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
 import {
   LIVE_ACCESS_REVOKED_CLOSE_CODE,
+  LIVE_CONNECT_TIMEOUT_MS,
+  LIVE_PROBE_TIMEOUT_MS,
+  LIVE_RESUME_REFRESH_MS,
   LIVE_RECONNECT_BACKOFF,
   LIVE_RECONNECT_FIRST_MS,
   LIVE_RECONNECT_MAX_MS,
@@ -42,11 +48,12 @@ export function createLiveUpdates<E>(
   context: Context.Context<never> = Context.empty(),
   options?: {
     readonly activity?: StatusActivity;
-    readonly onForeground?: () => void;
     readonly recoverUnauthorized?: () => Effect.Effect<boolean>;
   },
 ): LiveUpdatePort {
+  const state = liveSessionState();
   return {
+    state,
     connect: Effect.fn('LiveUpdates.connect')(function* ({
       onNotice,
       onReconnect,
@@ -56,33 +63,42 @@ export function createLiveUpdates<E>(
         projects: [],
         worktrees: [],
       });
+      const clock = yield* Clock.Clock;
       const wakeups = yield* Queue.sliding<void>(1);
-      const foreground = Queue.take(wakeups).pipe(
-        Effect.tap(() => Effect.sync(() => options?.onForeground?.())),
-        Effect.as('foreground' as const),
-      );
+      let refreshOnForeground = false;
+      const foreground = Queue.take(wakeups);
       if (options?.activity) {
         const activity = options.activity;
         let wasActive = activity.isActive();
+        let inactiveAt = clock.monotonicTimeNanosUnsafe();
         yield* Effect.acquireRelease(
           Effect.sync(() =>
             activity.subscribe(() => {
               const active = activity.isActive();
-              if (active && !wasActive) Queue.offerUnsafe(wakeups, undefined);
+              const now = clock.monotonicTimeNanosUnsafe();
+              if (!active && wasActive) inactiveAt = now;
+              if (active) {
+                refreshOnForeground ||=
+                  !wasActive &&
+                  now - inactiveAt >=
+                    BigInt(LIVE_RESUME_REFRESH_MS) * 1_000_000n;
+                Queue.offerUnsafe(wakeups, undefined);
+              }
               wasActive = active;
             }),
           ),
           (unsubscribe) => Effect.sync(unsubscribe),
         );
       }
-      const updates = yield* Queue.sliding<LiveSubscription>(
-        LIVE_SUBSCRIPTION_BUFFER,
-      );
+      const updates = yield* Queue.sliding<void>(LIVE_SUBSCRIPTION_BUFFER);
       let readyCount = 0;
       let retryMs = LIVE_RECONNECT_FIRST_MS;
       const connection = Effect.scoped(
         Effect.gen(function* () {
+          state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
           const socket = yield* open;
+          const ready = yield* Deferred.make<void>();
+          const announced = yield* Deferred.make<void>();
           const disconnected = yield* Deferred.make<
             never,
             Socket.SocketError
@@ -103,36 +119,68 @@ export function createLiveUpdates<E>(
           const client = yield* RpcClient.make(LiveUpdatesRpc, {
             disableTracing: true,
           }).pipe(Effect.provideService(RpcClient.Protocol, protocol));
+          const gate = yield* Semaphore.make(1);
+          const follow = gate.withPermit(
+            Effect.flatMap(Ref.get(desired), (value) => client.follow(value)),
+          );
           const receive = client.notices(undefined).pipe(
             Stream.runForEach((notice) =>
               Effect.gen(function* () {
                 if (notice.type === 'ready') {
-                  if (readyCount > 0) onReconnect();
-                  readyCount += 1;
-                  retryMs = LIVE_RECONNECT_FIRST_MS;
-                  yield* client.follow(yield* Ref.get(desired));
+                  yield* Deferred.succeed(announced, undefined);
+                  return;
                 }
                 onNotice(notice);
               }),
             ),
           );
-          const send = Effect.forever(
-            Effect.flatMap(Queue.take(updates), (value) =>
-              client.follow(value),
+          const establish = Effect.gen(function* () {
+            yield* Deferred.await(announced);
+            yield* follow;
+            if (readyCount > 0) onReconnect();
+            readyCount += 1;
+            retryMs = LIVE_RECONNECT_FIRST_MS;
+            state.set('connected');
+            yield* Deferred.succeed(ready, undefined);
+            onNotice({ type: 'ready' });
+          }).pipe(
+            Effect.timeout(LIVE_CONNECT_TIMEOUT_MS),
+            Effect.andThen(Effect.never),
+          );
+          const send = Deferred.await(ready).pipe(
+            Effect.andThen(
+              Effect.forever(Queue.take(updates).pipe(Effect.andThen(follow))),
             ),
           );
-          yield* Effect.all([receive, send], { concurrency: 'unbounded' }).pipe(
-            Effect.raceFirst(Deferred.await(disconnected)),
+
+          const monitor = Effect.forever(
+            Effect.gen(function* () {
+              yield* foreground;
+              yield* Deferred.await(ready);
+              const refresh = refreshOnForeground;
+              refreshOnForeground = false;
+              yield* follow.pipe(Effect.timeout(LIVE_PROBE_TIMEOUT_MS));
+              if (refresh) {
+                onReconnect();
+                onNotice({ type: 'ready' });
+              }
+            }),
           );
+          yield* Effect.all([receive, send, monitor, establish], {
+            concurrency: 'unbounded',
+          }).pipe(Effect.raceFirst(Deferred.await(disconnected)));
         }),
       );
       const session = Effect.scoped(
         Effect.gen(function* () {
-          yield* Effect.addFinalizer(() => Queue.shutdown(updates));
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => state.set('idle')).pipe(
+              Effect.andThen(Queue.shutdown(updates)),
+              Effect.andThen(Queue.shutdown(wakeups)),
+            ),
+          );
           while (true) {
-            const result = yield* Effect.exit(
-              connection.pipe(Effect.raceFirst(foreground)),
-            );
+            const result = yield* Effect.exit(connection);
             if (
               Exit.isFailure(result) &&
               unauthorized(Cause.squash(result.cause))
@@ -142,12 +190,12 @@ export function createLiveUpdates<E>(
                   options?.recoverUnauthorized?.() ?? Effect.succeed(false)
                 ))
               ) {
+                state.set('unauthorized');
                 onUnauthorized();
-                return;
+                return yield* Effect.never;
               }
             }
-            if (Exit.isSuccess(result) && result.value === 'foreground')
-              continue;
+            state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
             yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
             retryMs = Math.min(
               retryMs * LIVE_RECONNECT_BACKOFF,
@@ -156,7 +204,8 @@ export function createLiveUpdates<E>(
           }
         }),
       );
-      yield* session.pipe(
+      yield* Effect.yieldNow.pipe(
+        Effect.andThen(session),
         Effect.provideContext(context),
         Effect.catchCause((cause) =>
           Cause.hasInterrupts(cause)
@@ -169,7 +218,7 @@ export function createLiveUpdates<E>(
         subscribe(value) {
           if (updates.state._tag === 'Done') return;
           Effect.runSync(Ref.set(desired, value));
-          Queue.offerUnsafe(updates, value);
+          Queue.offerUnsafe(updates, undefined);
         },
       };
     }),

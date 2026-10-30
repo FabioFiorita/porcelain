@@ -1,3 +1,4 @@
+import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect, it } from 'vitest';
 import {
@@ -130,15 +131,7 @@ it('closes the journal and interrupts receipt waits in the same lifetime as requ
   const events: string[] = [];
   let retained: string | null = null;
   const connection = openLiveConnection(
-    {
-      environmentId: 'environment',
-      address: 'https://machine.example',
-      transport: () => Promise.resolve(Response.json({})),
-      timeoutMs: 1000,
-      liveUpdates: {
-        connect: () => Effect.succeed({ subscribe: () => {} }),
-      },
-    },
+    idleLiveConnectionInput('environment', 'https://machine.example'),
     Layer.merge(
       Layer.effect(
         Crypto.Crypto,

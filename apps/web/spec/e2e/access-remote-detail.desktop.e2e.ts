@@ -427,3 +427,69 @@ for (const status of ['online', 'offline']) {
     });
   }
 }
+
+test('a healthy remote survives failed status probes and foreground, then reconnects after transport loss', async ({
+  pairedPage: page,
+  app,
+  remote,
+  live,
+}) => {
+  const inventory = await remote.server.inventory();
+  const link = await app.remoteLink();
+  const host = new URL(link).host;
+  const sessions: { closed: boolean; frames: number }[] = [];
+  page.on('websocket', (socket) => {
+    if (new URL(socket.url()).host !== host) return;
+    const session = { closed: false, frames: 0 };
+    sessions.push(session);
+    socket.on('close', () => {
+      session.closed = true;
+    });
+    socket.on('framereceived', () => {
+      session.frames++;
+    });
+  });
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const row = page.getByRole('listitem', {
+    name: inventory.environment.name,
+    exact: true,
+  });
+  await expect(row).toContainText('Online');
+  await expect
+    .poll(() => sessions.some((session) => session.frames > 0))
+    .toBe(true);
+  const original = sessions[0];
+  if (!original) throw new Error('No live remote session');
+  const restore = await app.failRemoteStatus(link);
+  try {
+    const rejected = app.remoteStatusFailure(link);
+    const frames = original.frames;
+    await app.foreground();
+    await rejected;
+    await expect.poll(() => original.frames).toBeGreaterThan(frames);
+    await expect(row).toContainText('Online');
+    await expect.poll(() => sessions.length).toBe(1);
+    await expect.poll(() => original.closed).toBe(false);
+    await app.foreground();
+    await expect(row).toContainText('Online');
+    await expect.poll(() => sessions.length).toBe(1);
+  } finally {
+    await restore();
+  }
+  live.drop();
+  live.restore();
+  await expect.poll(() => sessions.length).toBe(2);
+  await expect.poll(() => sessions[1]?.frames ?? 0).toBeGreaterThan(0);
+  await expect(row).toContainText('Online');
+  await expect.poll(() => original.closed).toBe(true);
+  await openComputer(page, inventory.environment.name);
+  await page
+    .getByRole('button', { name: 'Forget on this app', exact: true })
+    .click();
+  await expect(row).not.toBeAttached();
+  await expect.poll(() => sessions[1]?.closed).toBe(true);
+});

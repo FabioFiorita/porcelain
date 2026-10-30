@@ -1,3 +1,4 @@
+import type { StatusActivity } from '@porcelain/client/access';
 import { Effect } from 'effect';
 import { Socket } from 'effect/socket';
 import { liveUpdatesUrl } from '@porcelain/client/access/api';
@@ -13,10 +14,10 @@ export function webSocket(url: string) {
   );
 }
 
-export function sameOriginLiveUpdates() {
+export function sameOriginLiveUpdates(activity: StatusActivity) {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const address =
     desktopLiveAddress() ??
     `${protocol}//${location.host}${liveUpdatesUrl({ query: {} })}`;
-  return createLiveUpdates(webSocket(address));
+  return createLiveUpdates(webSocket(address), undefined, { activity });
 }

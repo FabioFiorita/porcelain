@@ -1,3 +1,4 @@
+import { createLiveUpdates } from '../../src/features/live/commands/live-updates.ts';
 import { afterEach } from 'vitest';
 import { Effect, Layer } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
@@ -86,4 +87,17 @@ export function readClientAtom<A, E>(
   return Effect.runPromise(
     AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
   );
+}
+
+export function idleLiveConnectionInput(
+  environmentId: string,
+  address: string,
+) {
+  return {
+    environmentId,
+    address,
+    transport: () => Promise.resolve(Response.json({})),
+    timeoutMs: 1000,
+    liveUpdates: createLiveUpdates(Effect.never),
+  };
 }

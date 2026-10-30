@@ -40,12 +40,6 @@ const readSavedEnvironments = environmentRuntime.fn((_: void) =>
     yield* commands.read();
   }),
 );
-const recheckRemote = Atom.fn((remote: Remote) =>
-  Effect.sync(() => {
-    revalidateRemoteStatus(pairingPlatform, remote);
-  }),
-);
-
 export function useAddRemote(onAdded: () => void) {
   const [identity] = useState(Symbol);
   const command = addRemote(identity);
@@ -70,10 +64,6 @@ export function useForgetRemote(remote: Remote, onForgotten: () => void) {
       if (Exit.isSuccess(exit)) onForgotten();
     },
   };
-}
-
-export function useRecheckRemote() {
-  return useAtomSet(recheckRemote);
 }
 
 export function useReadSavedEnvironments() {

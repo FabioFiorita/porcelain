@@ -1,4 +1,4 @@
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import {
   browserNetwork,
   type RoutedRequest,
@@ -132,4 +132,12 @@ export function reviewSeenRequests(context: BrowserContext) {
     fail: (reviewId: string) => network.fail(matches(reviewId), 503),
     holdNext: (reviewId: string) => network.holdNext(matches(reviewId)),
   };
+}
+
+export function waitForRemoteStatusFailure(page: Page, address: string) {
+  return page.waitForResponse(
+    (response) =>
+      response.url() === `${address}/api/environment` &&
+      response.status() === 503,
+  );
 }

@@ -1,3 +1,4 @@
+import { liveSessionState } from '../../src/features/live/store.ts';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { expect } from 'vitest';
@@ -148,6 +149,7 @@ test.for([
     const subject = { ...lifetime, registry: AtomRegistry.make() };
     let callbacks: Parameters<LiveUpdatePort['connect']>[0] | undefined;
     const liveUpdates: LiveUpdatePort = {
+      state: liveSessionState(),
       connect: (options) =>
         Effect.sync(() => {
           callbacks = options;
