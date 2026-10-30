@@ -422,111 +422,119 @@ export function ProjectNavigator({
                             onRetry={() => retry(undefined)}
                             beforeLeave={() => setOpenMobile(false)}
                           >
-                            <Item
-                              data-navigator-card=""
-                              variant={active ? 'outline' : 'default'}
-                              size="xs"
+                            <div
+                              className={
+                                active ? 'rounded-md bg-card' : undefined
+                              }
                             >
-                              <ItemContent className="min-w-0">
-                                <div className="flex min-w-0 items-start gap-1">
-                                  <SidebarMenuButton
-                                    size="lg"
-                                    aria-label={label}
-                                    aria-current={active ? 'page' : undefined}
-                                    disabled={!openRetained && !entry.available}
-                                    ref={attach}
-                                    onClick={() =>
-                                      openRetained
-                                        ? setOpenMobile(false)
-                                        : openWorktree(entry)
-                                    }
-                                    render={
-                                      openRetained && review ? (
-                                        <Link
-                                          to="/reviews/$reviewId"
-                                          params={{ reviewId: review.reviewId }}
-                                          search={{
-                                            environment:
-                                              entry.environmentId ===
-                                              connection.environmentId
-                                                ? undefined
-                                                : entry.environmentId,
-                                            decision: undefined,
-                                          }}
-                                        />
-                                      ) : undefined
-                                    }
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <TruncatedText
-                                        text={
-                                          entry.path
-                                            ? `${entry.name} · ${entry.path}`
-                                            : entry.name
-                                        }
-                                        disclose={
-                                          entry.detached ? 'always' : 'clipped'
-                                        }
-                                        className="block font-medium"
-                                      >
-                                        {entry.name}
-                                      </TruncatedText>
-                                      <span className="block text-xs text-muted-foreground">
-                                        {identity}
-                                        {active ? ' · Current' : ''}
-                                        {!entry.available && !retained
-                                          ? ' · Unavailable'
-                                          : ''}
-                                      </span>
-                                    </div>
-                                  </SidebarMenuButton>
-                                  {review?.pullRequestNumber && (
-                                    <Button
-                                      variant="secondary"
-                                      size="xs"
-                                      aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName}`}
-                                      onClick={() => {
-                                        onOpenPullRequest(entry);
-                                        setOpenMobile(false);
-                                      }}
+                              <Item data-navigator-card="" size="xs">
+                                <ItemContent className="min-w-0">
+                                  <div className="flex min-w-0 items-start gap-1">
+                                    <SidebarMenuButton
+                                      size="lg"
+                                      aria-label={label}
+                                      aria-current={active ? 'page' : undefined}
+                                      disabled={
+                                        !openRetained && !entry.available
+                                      }
+                                      ref={attach}
+                                      onClick={() =>
+                                        openRetained
+                                          ? setOpenMobile(false)
+                                          : openWorktree(entry)
+                                      }
+                                      render={
+                                        openRetained && review ? (
+                                          <Link
+                                            to="/reviews/$reviewId"
+                                            params={{
+                                              reviewId: review.reviewId,
+                                            }}
+                                            search={{
+                                              environment:
+                                                entry.environmentId ===
+                                                connection.environmentId
+                                                  ? undefined
+                                                  : entry.environmentId,
+                                              decision: undefined,
+                                            }}
+                                          />
+                                        ) : undefined
+                                      }
                                     >
-                                      PR #{review.pullRequestNumber}
-                                    </Button>
-                                  )}
-                                </div>
-                                <div className="flex flex-col gap-1 px-2 text-xs text-muted-foreground">
-                                  {!retained &&
-                                    (entry.changes.state === 'loading' ? (
+                                      <div className="min-w-0 flex-1">
+                                        <TruncatedText
+                                          text={
+                                            entry.path
+                                              ? `${entry.name} · ${entry.path}`
+                                              : entry.name
+                                          }
+                                          disclose={
+                                            entry.detached
+                                              ? 'always'
+                                              : 'clipped'
+                                          }
+                                          className="block font-medium"
+                                        >
+                                          {entry.name}
+                                        </TruncatedText>
+                                        <span className="block text-xs text-muted-foreground">
+                                          {identity}
+                                          {active ? ' · Current' : ''}
+                                          {!entry.available && !retained
+                                            ? ' · Unavailable'
+                                            : ''}
+                                        </span>
+                                      </div>
+                                    </SidebarMenuButton>
+                                    {review?.pullRequestNumber && (
+                                      <Button
+                                        variant="secondary"
+                                        size="xs"
+                                        aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName}`}
+                                        onClick={() => {
+                                          onOpenPullRequest(entry);
+                                          setOpenMobile(false);
+                                        }}
+                                      >
+                                        PR #{review.pullRequestNumber}
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-1 px-2 text-xs text-muted-foreground">
+                                    {!retained &&
+                                      (entry.changes.state === 'loading' ? (
+                                        <Skeleton
+                                          className="h-3 w-28"
+                                          role="status"
+                                          aria-label="Reading changes…"
+                                        />
+                                      ) : (
+                                        <span>
+                                          {navigatorChangesLabel(entry.changes)}
+                                        </span>
+                                      ))}
+                                    {entry.review.state === 'loading' ||
+                                    (review &&
+                                      !review.closed &&
+                                      !review.archived &&
+                                      !review.progress &&
+                                      !review.progressUnavailable &&
+                                      !review.retained) ? (
                                       <Skeleton
-                                        className="h-3 w-28"
+                                        className="h-3 w-32"
                                         role="status"
-                                        aria-label="Reading changes…"
+                                        aria-label="Reading review…"
                                       />
                                     ) : (
                                       <span>
-                                        {navigatorChangesLabel(entry.changes)}
+                                        {navigatorReviewLabel(entry.review)}
                                       </span>
-                                    ))}
-                                  {entry.review.state === 'loading' ||
-                                  (review &&
-                                    !review.closed &&
-                                    !review.archived &&
-                                    !review.progress &&
-                                    !review.progressUnavailable &&
-                                    !review.retained) ? (
-                                    <Skeleton
-                                      className="h-3 w-32"
-                                      role="status"
-                                      aria-label="Reading review…"
-                                    />
-                                  ) : (
-                                    <span>
-                                      {navigatorReviewLabel(entry.review)}
-                                    </span>
-                                  )}
-                                </div>
-                              </ItemContent>
-                            </Item>
+                                    )}
+                                  </div>
+                                </ItemContent>
+                              </Item>
+                            </div>
                           </NavigatorRowMenu>
                         </SidebarMenuItem>
                       );

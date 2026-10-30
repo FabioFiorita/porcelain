@@ -278,7 +278,6 @@ export function WorktreeNavigator({
                         titleNumberOfLines={1}
                         description={row.subtitle}
                         descriptionNumberOfLines={1}
-                        variant={selected ? 'outline' : 'default'}
                         size="xs"
                         leading={
                           <Icon
