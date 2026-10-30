@@ -1,7 +1,7 @@
 import { openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('the owner names this computer in Settings, tab titles and pairing while the navigator stays generic', async ({
+test('the owner names this computer in Settings, tab titles, pairing and project badges', async ({
   pairedPage,
   app,
   server,
@@ -16,7 +16,9 @@ test('the owner names this computer in Settings, tab titles and pairing while th
     exact: true,
   });
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
-  await expect(navigator.getByText(host, { exact: true })).not.toBeAttached();
+  await expect(
+    navigator.getByRole('button', { name: `Computer: ${host}`, exact: true }),
+  ).toBeVisible();
 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
@@ -62,7 +64,13 @@ test('the owner names this computer in Settings, tab titles and pairing while th
     .click();
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
-    navigator.getByText('Workstation', { exact: true }),
+    navigator.getByRole('button', {
+      name: 'Computer: Workstation',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    navigator.getByRole('button', { name: `Computer: ${host}`, exact: true }),
   ).not.toBeAttached();
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })

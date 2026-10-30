@@ -38,11 +38,18 @@ declare function addEventListener(
 async function openSmokeProject(page: Page, repository: string) {
   await appRequest(page, 'POST', '/api/projects', { path: repository });
   await page.reload();
-  const project = page.getByRole('button', {
-    name: 'main desktop-smoke',
-    exact: true,
-  });
+  await expectSmokeProjectSelected(page);
+}
+
+async function expectSmokeProjectSelected(page: Page) {
+  const project = page
+    .getByRole('navigation', {
+      name: 'Projects and worktrees',
+      exact: true,
+    })
+    .getByRole('button', { name: /^main, desktop-smoke,/ });
   await expect(project).toBeVisible();
+  await expect(project).toHaveAttribute('aria-current', 'page');
 }
 
 async function quitDuringRequestSetup(app: DesktopApp, path: string) {
@@ -378,12 +385,7 @@ test('closing the last window keeps the same server, the Dock reopens the window
     electronApp.emit('activate');
   });
   const reopenedPage = await reopened;
-  await expect(
-    reopenedPage.getByRole('button', {
-      name: 'main desktop-smoke',
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expectSmokeProjectSelected(reopenedPage);
 
   await app.quit();
   expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
@@ -539,9 +541,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
 
   const restarted = await desktop.launch();
   const restored = await restarted.window();
-  await expect(
-    restored.getByRole('button', { name: 'main desktop-smoke', exact: true }),
-  ).toBeVisible();
+  await expectSmokeProjectSelected(restored);
   await expect
     .poll(() =>
       restarted.electron.evaluate(({ BrowserWindow }) => {
