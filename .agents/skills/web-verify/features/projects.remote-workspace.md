@@ -71,7 +71,7 @@ Required instance mode: `--desktop`.
 ### A reviewed mark lands on the remote only
 
 3. Click button `Mark README.md as reviewed`
-   Expect: button "Unmark README.md as unreviewed" [pressed]; button "Unmark all".
+   Expect: button "Unmark README.md as unreviewed" [pressed]; File review actions contains "Unmark all".
 4. `$C server reviewed-files --remote` and `$C server reviewed-files`
    Expect: the remote's `marks` holds README.md; this computer's `marks` is `[]`. Inspect HTTP traffic lists `PUT /api/worktrees/<remote worktreeId>/reviewed` and `POST /api/live/tickets` sent to the remote address with 200; no `PUT …/reviewed` to this computer's web address.
 

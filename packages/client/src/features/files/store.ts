@@ -314,7 +314,7 @@ class FileDraft extends Context.Service<
                 const current = state.value;
                 if (
                   disposed.value ||
-                  current.owner !== null ||
+                  !fingerprint ||
                   current.saving ||
                   current.text !== current.savedText ||
                   current.fingerprint === fingerprint

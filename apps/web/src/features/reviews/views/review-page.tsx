@@ -19,6 +19,7 @@ import { useElement } from '@/shared/hooks/use-element';
 import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
+  counted,
   neighbourStop,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
@@ -49,7 +50,6 @@ import {
   reviewArchivable,
   reviewClosed,
   reviewListStatus,
-  reviewPullRequestNotice,
   stopName,
   stopTitle,
   summaryLinkExpiring,
@@ -71,6 +71,7 @@ import { useReviewSummary } from '../queries/summary';
 import {
   useReviewPanelOpen,
   useWalkthroughPlace,
+  usePullRequestLinkFocus,
   useReviewFileOrigins,
 } from '../store';
 import { ProgressMeter } from './progress-meter';
@@ -95,6 +96,7 @@ import {
   StateSkeleton,
 } from '@/shared/views/state-notice';
 import { ReviewBoundary } from './review-boundary';
+import { ReviewPullRequestChip } from './review-pull-request-chip';
 import { RevisionPanel } from './revision-panel';
 import { SidePanel, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -104,6 +106,7 @@ import { useDesktopReview } from '../adapters/desktop-review';
 type ReviewPageProps = {
   onOpen?: OpenDocument | undefined;
   toolbarTarget?: HTMLElement | null | undefined;
+  onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
   navigation?: ReactNode;
   revision?: number | undefined;
@@ -132,6 +135,7 @@ export function ReviewPage({
   onDeleted,
   liveScope,
   proofCurrent = true,
+  onShowReviewPanel,
   active = true,
 }: ReviewPageProps) {
   const query = readReview({
@@ -172,6 +176,7 @@ export function ReviewPage({
       liveScope={liveScope}
       proofCurrent={proofCurrent}
       active={active}
+      onShowReviewPanel={onShowReviewPanel}
       reread={{
         run: retry,
         failed: AsyncResult.isFailure(result),
@@ -276,6 +281,7 @@ function ReviewRevisionPage({
   onDeleted,
   liveScope,
   proofCurrent = true,
+  onShowReviewPanel,
   active = true,
   reread,
 }: Omit<ReviewPageProps, 'reviewId' | 'revision'> & {
@@ -299,6 +305,11 @@ function ReviewRevisionPage({
     data.revisions.find(
       (entry) => entry.revision === data.review?.latestRevision,
     )?.headOid ?? revision.headOid;
+  const branchTip = Option.getOrUndefined(
+    AsyncResult.value(
+      useBranchChanges(currentScope, context.connection, undefined).result,
+    ),
+  );
   const review = revision.content;
   const scope: ReviewScope = {
     projectId: revision.projectId,
@@ -377,6 +388,9 @@ function ReviewRevisionPage({
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
     revision.reviewId,
   );
+  const linkFocus = usePullRequestLinkFocus(revision.reviewId);
+  const openPullRequest = (number: number) =>
+    openDocument({ kind: 'pull-request', reviewId: revision.reviewId, number });
   const [sheetOpen, setSheetOpen] = useState(false);
   const railToggle = useElement<HTMLButtonElement>();
   const scroller = useElement<HTMLElement>();
@@ -501,14 +515,14 @@ function ReviewRevisionPage({
         aria-label="Review progress"
         className="hidden items-center gap-2 text-xs text-muted-foreground tabular-nums @min-4xl/pane:inline-flex"
       >
-        {reviewedFiles} of {items.length} files
+        {reviewedFiles} of {counted(items.length, 'file')}
         <ProgressMeter
           label="Files reviewed"
           value={reviewedFiles}
           max={items.length}
         />
         <span>
-          {reviewedDecisions} of {review.layers.length} decisions
+          {reviewedDecisions} of {counted(review.layers.length, 'decision')}
         </span>
       </span>
     </>
@@ -522,16 +536,12 @@ function ReviewRevisionPage({
   );
   const pullQuery = readReviewPullRequest(titleInput);
   const pullResult = useAtomValue(pullQuery);
-  const retryPull = useAtomRefresh(pullQuery);
   const pullValue = AsyncResult.isFailure(pullResult)
     ? { kind: 'failed' as const }
     : (Option.getOrUndefined(AsyncResult.value(pullResult)) ?? {
         kind: 'loading' as const,
       });
   const pull = data.review?.pullRequest ? pullValue : undefined;
-  const pullNotice = data.review?.pullRequest
-    ? reviewPullRequestNotice(pull)
-    : undefined;
   const title = reviewListTitle(
     data.review ?? revision,
     latestReview?.revision ?? revision,
@@ -543,6 +553,21 @@ function ReviewRevisionPage({
     if (desktop) setPanelOpen(true);
     else setSheetOpen(true);
   };
+  const pullRequestChip = (
+    <ReviewPullRequestChip
+      reviewId={revision.reviewId}
+      projectId={revision.projectId}
+      branch={revision.branch}
+      url={data.review?.pullRequest}
+      context={context}
+      onOpen={openPullRequest}
+      onShowPanel={(trigger, focusInput) => {
+        if (focusInput) linkFocus.request();
+        if (onShowReviewPanel) onShowReviewPanel(trigger);
+        else showPanel();
+      }}
+    />
+  );
   const togglePanel = () => {
     if (!desktop) {
       setSheetOpen((open) => !open);
@@ -601,6 +626,9 @@ function ReviewRevisionPage({
             }
             onStop={(key) => reveal(() => go(key))}
             onProof={() => reveal(() => go('briefing'))}
+            onOpenPullRequest={(number) =>
+              reveal(() => openPullRequest(number))
+            }
           />
         </ReviewBoundary>
       )}
@@ -640,28 +668,14 @@ function ReviewRevisionPage({
       {reviewActive && view === 'walkthrough' && (
         <WalkthroughKeys stops={stops} current={stop.key} onGo={go} />
       )}
-      {pullNotice && (
-        <div className="px-4 py-2">
-          <StateNotice role="status" title={pullNotice}>
-            {pull?.kind !== 'loading' && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pullResult.waiting}
-                onClick={retryPull}
-              >
-                Read pull request again
-              </Button>
-            )}
-          </StateNotice>
+      {branchTip && branchTip.head.oid !== latestHead && (
+        <div className="px-4 pt-3">
+          <StateNotice
+            role="status"
+            title="The branch tip differs from this review."
+            description="Publish a revision to include it."
+          />
         </div>
-      )}
-      {currentScope && (
-        <BranchTipNotice
-          scope={currentScope}
-          context={context}
-          headOid={latestHead}
-        />
       )}
       {reread.failed &&
         !(view === 'summary' && expiredLink === review.summary.expires) && (
@@ -726,6 +740,7 @@ function ReviewRevisionPage({
               current={view === 'summary' ? undefined : stop.key}
               done={done}
               onGo={go}
+              page={scroller.element}
             />
             <div className="flex min-w-0 flex-1 flex-col">
               {AsyncResult.isFailure(markResult) && (
@@ -770,6 +785,7 @@ function ReviewRevisionPage({
                     data.review?.latestRevision ?? revision.revision
                   }
                   title={title}
+                  pullRequestChip={pullRequestChip}
                   proofCurrent={proofCurrent && revision.headOid === latestHead}
                   margin={
                     <BriefingMargin
@@ -808,6 +824,7 @@ function ReviewRevisionPage({
                           }
                           stop={stop}
                           total={decisionCount}
+                          pullRequestChip={pullRequestChip}
                           review={review}
                           revision={revision}
                           scope={scope}
@@ -1108,7 +1125,7 @@ function FilesMark({
         <CheckIcon />
         {files.length === 0
           ? 'Every file reviewed'
-          : `Mark ${files.length} ${files.length === 1 ? 'file' : 'files'} reviewed`}
+          : `Mark ${counted(files.length, 'file')} reviewed`}
       </button>
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-2 text-xs text-destructive">
@@ -1117,28 +1134,6 @@ function FilesMark({
       )}
     </>
   );
-}
-
-function BranchTipNotice({
-  scope,
-  context,
-  headOid,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  headOid: string;
-}) {
-  const read = useBranchChanges(scope, context.connection, undefined);
-  const data = Option.getOrUndefined(AsyncResult.value(read.result));
-  return data && data.head.oid !== headOid ? (
-    <div className="px-4 pt-3">
-      <StateNotice
-        role="status"
-        title="The branch tip differs from this review."
-        description="Publish a revision to include it."
-      />
-    </div>
-  ) : null;
 }
 
 function WalkthroughKeys({

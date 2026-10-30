@@ -42,6 +42,10 @@
 }
 
 @theme inline {
+  --text-prose: 0.9375rem;
+  --text-prose--line-height: 1.5rem;
+  --tracking-pr-title: -0.04em;
+  --tracking-pr-subheading: -0.01em;
   --text-briefing-title: 2.75rem;
   --text-briefing-title--line-height: 3rem;
   --text-briefing-title--letter-spacing: -0.045em;
@@ -66,6 +70,8 @@
   --radius-check: calc(var(--radius) * 0.4);
   --breakpoint-narrow: 45rem;
   --container-code-wide: 40rem;
+  --container-reading: 47.5rem;
+  --container-commit: 51rem;
   --tracking-title: -0.04em;
   --tracking-lead: -0.005em;
   --font-heading: var(--font-sans);

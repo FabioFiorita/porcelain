@@ -9,8 +9,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
+import { plural } from '@porcelain/client/reviews/rules';
 
-const chipClass = 'h-4 min-w-0 max-w-40';
+const chipClass = 'min-w-0 max-w-40';
 
 export function CommitRefs({
   refs,
@@ -45,7 +46,7 @@ export function CommitRefs({
               />
             </Badge>
           ))}
-          <Badge variant="secondary" className="h-4">
+          <Badge variant="secondary" className={chipClass}>
             +{refs.length}
           </Badge>
         </div>
@@ -57,7 +58,7 @@ export function CommitRefs({
           renderTrigger={(label) => (
             <Badge
               render={<button type="button" onClick={onOpenCommit} />}
-              variant={current(ref) ? 'brand-soft' : 'secondary'}
+              variant={current(ref) ? 'brand-soft' : 'outline'}
               className={`${chipClass} pointer-events-auto shrink`}
             >
               {label}
@@ -74,8 +75,8 @@ export function CommitRefs({
               <Badge
                 render={<button type="button" />}
                 variant="secondary"
-                className="pointer-events-auto h-4 hover:bg-accent"
-                aria-label={`Show ${hidden.length} more ${hidden.length === 1 ? 'ref' : 'refs'}`}
+                className={`${chipClass} pointer-events-auto hover:bg-accent`}
+                aria-label={`Show ${hidden.length} more ${plural(hidden.length, 'ref')}`}
               />
             }
           >

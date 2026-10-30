@@ -174,6 +174,24 @@ export function useReviewPanelView(reviewId: string) {
   return { view: useAtomValue(atom), setView: useAtomSet(atom) };
 }
 
+const pullRequestLinkFocus = Atom.family((_reviewId: string) =>
+  Atom.make(false).pipe(Atom.keepAlive),
+);
+
+export function usePullRequestLinkFocus(reviewId: string) {
+  const atom = pullRequestLinkFocus(reviewId);
+  const requested = useAtomValue(atom);
+  const set = useAtomSet(atom);
+  return {
+    request: () => set(true),
+    attach: (element: HTMLInputElement | HTMLButtonElement | null) => {
+      if (!element || !requested || element.disabled) return;
+      element.focus();
+      set(false);
+    },
+  };
+}
+
 const reviewFileOrigins = Atom.family((_revision: string) =>
   Atom.make<Readonly<Record<string, string>>>({}).pipe(Atom.keepAlive),
 );

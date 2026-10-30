@@ -54,9 +54,20 @@ export function usePierreFileEditor(
     };
     const unsubscribePreferences = registry.subscribe(preferenceValues, update);
     const unsubscribeTheme = registry.subscribe(resolvedAppearance, update);
+    const unsubscribeDraft = draft.state.subscribe((state) => {
+      if (
+        state.text !== state.savedText ||
+        state.text === session.file.contents
+      )
+        return;
+      session.file = { name: path, contents: state.text };
+      if (state.text !== editor.getText()) session.initialText = state.text;
+      file.render({ file: session.file, containerWrapper: content });
+    });
     return () => {
       unsubscribePreferences();
       unsubscribeTheme();
+      unsubscribeDraft();
       editor.cleanUp('discard');
       file.cleanUp();
       virtualizer.cleanUp();

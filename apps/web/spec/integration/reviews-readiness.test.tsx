@@ -83,7 +83,7 @@ test('the readiness panel follows reviewed and stale files, waiting comments and
   ]);
   await expect.element(line('1 of 2 checks failing')).toBeVisible();
   await expect.element(line('Proof is incomplete')).toBeVisible();
-  await expect.element(line('0 of 1 decisions reviewed')).toBeVisible();
+  await expect.element(line('0 of 1 decision reviewed')).toBeVisible();
   await expect.element(line('1 comment waiting on the agent')).toBeVisible();
   await expect
     .element(line('2 lines in 2 files not explained'))

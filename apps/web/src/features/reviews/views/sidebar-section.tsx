@@ -1,7 +1,7 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ReactNode } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
-import { reviewSidebarActions } from '@porcelain/client/reviews/rules';
+import { counted, reviewSidebarActions } from '@porcelain/client/reviews/rules';
 import { SidebarActionMenu } from './sidebar-action-menu';
 import { ROW } from './change-row';
 
@@ -76,7 +76,7 @@ export function SidebarGroup({
               <Icon className="size-3.5 shrink-0" />
               <TruncatedText
                 className="min-w-0 flex-1"
-                text={`${name} · ${count} ${count === 1 ? 'file' : 'files'}`}
+                text={`${name} · ${counted(count, 'file')}`}
               />
             </button>
             {menu}

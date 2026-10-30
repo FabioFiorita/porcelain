@@ -27,6 +27,7 @@ export function CommitGraph({
       ) : (
         <GraphRows
           label="Commit graph"
+          highlightHead
           layout={phone ? 'stacked' : 'columns'}
           history={history}
           selected=""

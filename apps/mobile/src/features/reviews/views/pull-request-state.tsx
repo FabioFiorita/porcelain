@@ -10,6 +10,7 @@ import {
   reviewErrorMessage,
   reviewPullRequestNotice,
   pullRequestStateLabel,
+  pullRequestHeadLabel,
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Box } from '../../../components/ui/box';
@@ -63,14 +64,13 @@ export function PullRequestState({
           </Text>
           {available.state === 'open' && !available.matchesReviewHead ? (
             <Text variant="caption">
-              GitHub has commits newer than this review. PR at{' '}
-              {available.headSha} · review read{' '}
-              {review.value.revision?.headOid ?? 'unknown'}
+              {pullRequestHeadLabel(available)}. PR at {available.headSha} ·
+              review read {review.value.revision?.headOid ?? 'unknown'}
             </Text>
           ) : (
             <Text variant="caption" tone="muted">
               {available.state === 'open'
-                ? 'Same head as the review.'
+                ? `${pullRequestHeadLabel(available)}.`
                 : 'This review is closed and remains readable.'}
             </Text>
           )}

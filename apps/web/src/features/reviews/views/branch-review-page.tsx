@@ -20,12 +20,17 @@ function BranchReviewPage({
   active,
   toolbarTarget,
   onOpen,
+  onBrowse,
 }: {
-  onOpen: OpenDocument;
   toolbarTarget?: HTMLElement | null | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   active?: boolean | undefined;
+  onOpen: OpenDocument;
+  onBrowse: (
+    surface: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => void;
 }) {
   const published = usePublishedReview(scope, context);
   const [deleted, setDeleted] = useState<string>();
@@ -63,6 +68,7 @@ function BranchReviewPage({
         setDeleted(reviewId);
         published.refresh();
       }}
+      onShowReviewPanel={(trigger) => onBrowse('changes', trigger)}
       liveScope={scope}
     />
   );

@@ -43,7 +43,11 @@ export function RemoteComputerSettings({
   const remote = remotes.find((item) => item.environmentId === environmentId);
   if (!remote)
     return (
-      <Alert>
+      <Alert
+        data-unavailable-page={
+          status === 'ready' ? 'Computer unavailable' : undefined
+        }
+      >
         <AlertDescription>
           {status !== 'ready'
             ? (error ?? 'Reading saved remote computers…')

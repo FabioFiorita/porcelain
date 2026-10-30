@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -25,6 +26,7 @@ import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ChangeTable } from './change-table';
 import { ReviewFileDocument } from './review-file-document';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
@@ -33,9 +35,11 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
+import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export type DocumentProps = {
   scope: ReviewScope;
@@ -43,7 +47,10 @@ export type DocumentProps = {
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
   sideLabel: string;
-  onBrowse: (surface: 'files' | 'history', trigger: HTMLButtonElement) => void;
+  onBrowse: (
+    surface: 'changes' | 'files' | 'history',
+    trigger: HTMLButtonElement,
+  ) => void;
 };
 
 export function DocumentView({
@@ -110,6 +117,17 @@ export function DocumentView({
       return <TimelineDocument {...props} path={document.path} />;
     case 'graph':
       return <GraphDocument {...props} />;
+    case 'pull-request':
+      return (
+        <PullRequestDocument
+          reviewId={document.reviewId}
+          number={document.number}
+          context={context}
+          toolbarTarget={toolbarTarget}
+          onBack={() => onOpen({ kind: 'handoff' })}
+          onFile={(path) => onOpen({ kind: 'file', path })}
+        />
+      );
   }
 }
 
@@ -189,16 +207,16 @@ function NoReviewIntro({
   );
   const place = [branch, project?.name].filter(Boolean).join(' · ');
   return (
-    <header className="flex min-w-0 flex-col px-4 pt-8 pb-6">
+    <header className="flex min-w-0 flex-col pb-9">
       {place && (
         <div className="text-ui leading-5.5 font-medium text-muted-foreground">
           <TruncatedText text={place} className="block min-w-0" />
         </div>
       )}
-      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-[-0.04em]">
+      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-title">
         No review yet
       </h2>
-      <p className="mt-4 max-w-180 text-lg leading-7 tracking-[-0.005em] text-foreground-2">
+      <p className="mt-4 max-w-180 text-lg leading-7 tracking-lead text-foreground-2">
         The agent has not published a review for this worktree. Ask it to
         publish one (it calls{' '}
         <code className="font-mono text-base leading-7 text-foreground">
@@ -210,10 +228,11 @@ function NoReviewIntro({
   );
 }
 
-function changesTitle(specsOnly: boolean, entry: string) {
-  if (specsOnly) return 'Specs';
-  if (entry === 'all-changes') return 'All changes';
-  return 'Changes';
+function changesLabel(specsOnly: boolean, count: number) {
+  return counted(
+    count,
+    specsOnly ? 'uncommitted spec change' : 'uncommitted change',
+  );
 }
 
 export function PlainChangesDocument({
@@ -224,6 +243,7 @@ export function PlainChangesDocument({
   specsOnly = false,
   intro = false,
 }: DocumentProps & { specsOnly?: boolean; intro?: boolean }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
   const specsApart = useSpecsApart(context.connection);
@@ -235,6 +255,7 @@ export function PlainChangesDocument({
   const changes = specsOnly
     ? allChanges.filter((item) => isSpecPath(item.path))
     : allChanges;
+  if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (!specsOnly && changes.length === 0)
     return (
       <StateNotice
@@ -283,17 +304,34 @@ export function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
-        {...(intro
-          ? {
-              header: () => (
-                <NoReviewIntro
+        column
+        header={(controls) => (
+          <div className={intro ? 'pt-14' : 'pt-6'}>
+            {intro && (
+              <NoReviewIntro
+                scope={scope}
+                context={context}
+                branch={list.branch?.name}
+              />
+            )}
+            <ChangeTable
+              scope={scope}
+              context={context}
+              label={changesLabel(specsOnly, changes.length)}
+              items={changes}
+              controls={controls}
+              actionsOpen={actionsOpen}
+              onActionsOpenChange={setActionsOpen}
+              actions={
+                <MarkAllReviewed
                   scope={scope}
                   context={context}
-                  branch={list.branch?.name}
+                  entries={changes}
                 />
-              ),
-            }
-          : {})}
+              }
+            />
+          </div>
+        )}
         {...(review
           ? {
               files: story,
@@ -305,21 +343,6 @@ export function PlainChangesDocument({
               ),
             }
           : {})}
-        toolbar={(collapseControl) => (
-          <DocumentToolbar
-            target={interaction.toolbarTarget}
-            barActions={null}
-            title={changesTitle(specsOnly, interaction.entry)}
-            subtitle={`${changes.length} file${changes.length === 1 ? '' : 's'}`}
-          >
-            {collapseControl}
-            <MarkAllReviewed
-              scope={scope}
-              context={context}
-              entries={changes}
-            />
-          </DocumentToolbar>
-        )}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import { MarkdownView } from '@/features/files/index';
 import { cn } from '@/shared/lib/utils';
 import { LONG_DECISION_SUMMARY } from '@/config/limits';
 import {
+  counted,
   basename,
   checkResultLabel,
   decisionKey,
@@ -51,10 +52,12 @@ export function DecisionPage({
   finished,
   items,
   proofCurrent,
+  pullRequestChip,
   onStep,
   onGo,
 }: {
   proofCurrent: boolean;
+  pullRequestChip?: ReactNode;
   stop: DecisionStop;
   total: number;
   review: WalkthroughProps['review'];
@@ -170,6 +173,7 @@ export function DecisionPage({
                 <CheckIcon className="text-brand" /> Reviewed
               </span>
             )}
+            {pullRequestChip}
           </div>
           <h2 className="text-page-title font-semibold wrap-anywhere">
             <span aria-hidden="true" className="text-title-dim">
@@ -291,7 +295,7 @@ function RouteTable({
     <section aria-label="Route through the system" className="flex flex-col">
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b pb-1.5 text-xs text-muted-foreground">
         <span className="font-medium tabular-nums">
-          {layer.steps.length} {layer.steps.length === 1 ? 'stop' : 'stops'}
+          {counted(layer.steps.length, 'stop')}
         </span>
         {route.length > 0 && (
           <ol className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1.5 text-ui leading-4 font-medium text-foreground @2xl/review:order-none @2xl/review:flex-1 @2xl/review:basis-auto">
@@ -312,7 +316,7 @@ function RouteTable({
           </ol>
         )}
         <span className="ml-auto tabular-nums">
-          {reviewed} of {total} files reviewed here
+          {reviewed} of {counted(total, 'file')} reviewed here
         </span>
       </div>
       <ol aria-label="Steps" className="flex flex-col">

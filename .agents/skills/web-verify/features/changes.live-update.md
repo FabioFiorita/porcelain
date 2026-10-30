@@ -83,6 +83,8 @@ With an unsaved edit in one pane, repeat the disk update. The other pane shows t
 
 Edit the open file, save it with Done, and rewrite it on disk as soon as Edit returns. The view shows the rewritten text, not the saved one: the save never hides a later outside change.
 
+Edit the open file, save it with `Ctrl+S` and wait for status "Saved", then rewrite it on disk with the editor still open. The editor shows the rewritten text and status "Saves as you pause", including when the outside writer restores the text originally opened before the save. Done shows the rewritten text, Edit opens on it again, and a further edit saves with Done without the conflict alert.
+
 Automated coverage: `changes-live-update.test.tsx`, `files-disk-refresh.test.tsx`.
 
 ## Gotchas

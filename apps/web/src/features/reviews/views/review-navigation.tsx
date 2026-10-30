@@ -18,6 +18,7 @@ import {
   reviewCommands,
 } from '@porcelain/client/reviews';
 import {
+  counted,
   filesReviewed,
   revisionDecisionStates,
   revisionReviewItems,
@@ -360,7 +361,7 @@ export function RevisionNavigation({
             <ClosingRow
               label="All changes"
               icon={FilesIcon}
-              count={`${revision.files.length} ${revision.files.length === 1 ? 'file' : 'files'}`}
+              count={counted(revision.files.length, 'file')}
               active={allChanges.active}
               onOpen={allChanges.onOpen}
             />

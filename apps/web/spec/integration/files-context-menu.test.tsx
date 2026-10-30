@@ -26,7 +26,11 @@ test.for([1280, 414])(
     if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
       await page.getByRole('tab', { name: 'Files', exact: true }).click();
-    }
+    } else
+      await page
+        .getByRole('navigation', { name: 'Side panel', exact: true })
+        .getByRole('button', { name: 'Files', exact: true })
+        .click();
     const row = (name: string) =>
       page.getByRole('treeitem', { name, exact: true, includeHidden: true });
     const menu = (path: string) =>
@@ -124,6 +128,10 @@ test('an agent inserting a preceding file dismisses the menu before its row can 
   const page = await render.workspace();
   await page.viewport(1280, 800);
   await page
+    .getByRole('navigation', { name: 'Side panel', exact: true })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click();
+  await page
     .getByRole('treeitem', { name: 'guide.md', exact: true })
     .click({ button: 'right' });
   await expect
@@ -191,7 +199,11 @@ test.for(
     if (width === 414) {
       await page.getByRole('button', { name: 'Review', exact: true }).click();
       await page.getByRole('tab', { name: 'Files', exact: true }).click();
-    }
+    } else
+      await page
+        .getByRole('navigation', { name: 'Side panel', exact: true })
+        .getByRole('button', { name: 'Files', exact: true })
+        .click();
     held.arm();
     try {
       await page

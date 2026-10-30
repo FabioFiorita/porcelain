@@ -31,7 +31,7 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { CodeDocument } from './code-document';
+import { CodeDocument, type CodeHeaderControls } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
@@ -51,6 +51,7 @@ export function ReviewCodeDocument({
   toolbar,
   agentNotes,
   footer,
+  column = false,
 }: {
   agentNotes?: Readonly<Record<string, readonly AgentCodeNote[]>>;
   footer?: () => ReactNode;
@@ -60,7 +61,8 @@ export function ReviewCodeDocument({
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
-  header?: () => ReactNode;
+  header?: (controls: CodeHeaderControls) => ReactNode;
+  column?: boolean;
   headerActions?: ReactNode;
   headerLeading?: ReactNode;
   commentRequest?: number;
@@ -205,9 +207,9 @@ export function ReviewCodeDocument({
       : undefined;
   const documentHeader =
     header || loading || failed || unrenderable.length > 0
-      ? () => (
+      ? (controls: CodeHeaderControls) => (
           <>
-            {header?.()}
+            {header?.(controls)}
             {(loading || failed) && (
               <ContentState
                 failed={failed}
@@ -254,6 +256,7 @@ export function ReviewCodeDocument({
       interaction={interaction}
       {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
+      column={column}
       {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}
       {...(headerActions ? { headerActions } : {})}

@@ -92,3 +92,90 @@ it('summarizes checks without losing the PR identity and defines the recent wind
     '2026-09-19T00:00:00.000Z',
   );
 });
+
+it.each([
+  ['2026-10-19T12:00:00Z', '2026-10-19T12:01:48Z', 108000],
+  ['2026-10-19T12:00:00Z', '2026-10-19T12:00:00Z', 0],
+  ['2026-10-19T12:00:00Z', undefined, undefined],
+  [undefined, '2026-10-19T12:01:48Z', undefined],
+  [undefined, undefined, undefined],
+  ['unreadable', '2026-10-19T12:01:48Z', undefined],
+  ['2026-10-19T12:00:00Z', 'unreadable', undefined],
+  ['2026-10-19T12:01:48Z', '2026-10-19T12:00:00Z', undefined],
+] as const)(
+  'maps only a valid completed check interval (%s, %s) to its duration',
+  (startedAt, completedAt, durationMs) => {
+    const raw = githubPullRequest({
+      commits: {
+        nodes: [
+          {
+            commit: {
+              statusCheckRollup: {
+                state: 'SUCCESS',
+                contexts: {
+                  nodes: [
+                    {
+                      __typename: 'CheckRun',
+                      name: 'static',
+                      status: 'COMPLETED',
+                      conclusion: 'SUCCESS',
+                      detailsUrl: 'https://github.com/check/1',
+                      startedAt,
+                      completedAt,
+                    },
+                  ],
+                  pageInfo: { hasNextPage: false },
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(mapPullRequest(raw, raw.headRefOid).checks[0]?.durationMs).toBe(
+      durationMs,
+    );
+  },
+);
+
+it('leaves legacy status checks without a duration', () => {
+  expect(
+    mapPullRequest(githubPullRequest(), 'head').checks[1]?.durationMs,
+  ).toBeUndefined();
+});
+
+it('leaves running checks without a completed duration', () => {
+  const raw = githubPullRequest();
+  const check =
+    raw.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes[0];
+  if (check?.__typename !== 'CheckRun')
+    throw new Error('Missing check fixture');
+  const changed = {
+    ...raw,
+    commits: {
+      nodes: [
+        {
+          commit: {
+            statusCheckRollup: {
+              state: 'PENDING',
+              contexts: {
+                nodes: [
+                  {
+                    ...check,
+                    status: 'IN_PROGRESS',
+                    startedAt: '2026-10-19T12:00:00Z',
+                    completedAt: '2026-10-19T12:01:48Z',
+                  },
+                ],
+                pageInfo: { hasNextPage: false },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  expect(
+    mapPullRequest(changed, raw.headRefOid).checks[0]?.durationMs,
+  ).toBeUndefined();
+});

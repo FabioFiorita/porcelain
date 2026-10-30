@@ -230,6 +230,25 @@ describe('markAllPlan', () => {
     });
   });
 
+  it.each([
+    [[entry('a.ts', 'seen-a', 'stale')], 'Mark all 1 file reviewed'],
+    [
+      [
+        entry('a.ts', 'seen-a', 'unreviewed'),
+        entry('b.ts', 'seen-b', 'stale'),
+        entry('c.ts', 'seen-c', 'reviewed'),
+      ],
+      'Mark all 2 files reviewed',
+    ],
+  ])('names how many files it marks: %#', (entries, label) => {
+    expect(markAllPlan(entries)).toMatchObject({
+      unmarking: false,
+      blocked: false,
+      label,
+      text: 'Mark all reviewed',
+    });
+  });
+
   it('refuses when no file can be marked', () => {
     expect(markAllPlan([entry('a.ts', undefined, 'unreviewed')])).toEqual({
       entries: [entry('a.ts', undefined, 'unreviewed')],

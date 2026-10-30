@@ -18,7 +18,10 @@ test('a whole-branch comment being written survives a new commit and is saved at
     .getByRole('tab', { name: 'Changes', exact: true })
     .click();
   await workspace.getByRole('tab', { name: 'Comments', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Branch', exact: true }).click();
+  await workspace
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('tab', { name: 'Branch', exact: true })
+    .click();
   await workspace
     .getByRole('button', { name: 'Comment on the whole branch', exact: true })
     .click();

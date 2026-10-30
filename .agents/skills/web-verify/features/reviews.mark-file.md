@@ -31,11 +31,11 @@ A changed file's reviewed control in its diff header marks it reviewed at its cu
 Preconditions: [surface baseline](README.md).
 
 1. Navigate to `/`
-   Expect: region "Review content", heading "Changes", button "Mark README.md as reviewed".
+   Expect: region "Review content", heading "1 uncommitted change", button "Mark README.md as reviewed".
 2. Click button `Mark README.md as reviewed`
-   Expect: button "Unmark README.md as unreviewed" [pressed]; the toolbar's mark-all button now reads "Unmark all". `$C server reviewed-files` lists README.md in `marks`.
+   Expect: button "Unmark README.md as unreviewed" [pressed]; opening File review actions now shows "Unmark all". `$C server reviewed-files` lists README.md in `marks`.
 3. Click button `Unmark README.md as unreviewed`
-   Expect: button "Mark README.md as reviewed" enabled; toolbar button "Mark all 1 files reviewed". `$C server reviewed-files` shows `"marks": []`.
+   Expect: button "Mark README.md as reviewed" enabled; File review actions contains "Mark all 1 file reviewed". `$C server reviewed-files` shows `"marks": []`.
 4. Press `r`
    Expect: button "Unmark README.md as unreviewed" (the shortcut marked the focused, first entry).
 5. Press `r`

@@ -22,7 +22,11 @@ import {
   type PaneIndex,
 } from '../adapters/tab-layout';
 import { parseEntry, type OpenDocument } from '../rules/documents';
-import { openToSideText } from '../rules/tab-strip';
+import {
+  openToSideText,
+  reviewTabCount,
+  type TabCount,
+} from '../rules/tab-strip';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
@@ -111,11 +115,7 @@ export function ReviewDocumentWorkspace({
           review={review}
           reviewActions={reviewActions}
           panelControl={panelControl}
-          reviewCount={
-            <span className="text-muted-foreground tabular-nums">
-              {progress.reviewed}/{progress.total}
-            </span>
-          }
+          firstTabCount={reviewTabCount(progress.reviewed, progress.total)}
         />
       ))}
     </div>
@@ -132,7 +132,7 @@ function ReviewDocumentPane({
   review,
   reviewActions,
   panelControl,
-  reviewCount,
+  firstTabCount,
   available,
   focused,
 }: {
@@ -147,7 +147,7 @@ function ReviewDocumentPane({
   review: ReactNode;
   reviewActions: ReactNode;
   panelControl: ReactNode;
-  reviewCount: ReactNode;
+  firstTabCount: TabCount;
 }) {
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
@@ -172,7 +172,7 @@ function ReviewDocumentPane({
         pinned={pane.pinned}
         active={pane.active}
         reviewTitle="Review"
-        reviewCount={reviewCount}
+        firstTabCount={firstTabCount}
         side={side}
         focused={focused}
         leading={navigation}

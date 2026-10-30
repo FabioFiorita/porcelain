@@ -38,6 +38,7 @@ export function RevisionPanel({
   onChange,
   onStop,
   onProof,
+  onOpenPullRequest,
   activeStop,
   onStep,
   actionsTarget,
@@ -55,6 +56,7 @@ export function RevisionPanel({
   onStep: (step: ReviewStep) => void;
   actionsTarget: HTMLElement | null;
   onProof: () => void;
+  onOpenPullRequest: (number: number) => void;
 }) {
   const { view, setView } = useReviewPanelView(revision.reviewId);
   const [expanded, setExpanded] = useState(false);
@@ -62,7 +64,11 @@ export function RevisionPanel({
   const items = revisionReviewItems(revision, marks);
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PullRequestBlock reviewId={revision.reviewId} context={context} />
+      <PullRequestBlock
+        reviewId={revision.reviewId}
+        context={context}
+        onOpenPullRequest={onOpenPullRequest}
+      />
       <WholeChangeComment
         target={view === 'layers' ? actionsTarget : null}
         branch

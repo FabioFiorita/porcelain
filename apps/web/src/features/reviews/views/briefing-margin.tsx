@@ -1,5 +1,6 @@
 import { refLabel } from '@porcelain/client/history/rules';
 import {
+  counted,
   verdictSections,
   type DurableReviewRead,
   type ReviewRevision,
@@ -109,16 +110,6 @@ export function BriefingMargin({
           {data.review?.state === 'closed' && (
             <p className="text-muted-foreground">Closed</p>
           )}
-          {data.review?.pullRequest && (
-            <a
-              href={data.review.pullRequest}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="self-start underline underline-offset-4"
-            >
-              PR #{data.review.pullRequest.split('/').filter(Boolean).at(-1)}
-            </a>
-          )}
         </div>
         <div className="mt-2.5 flex flex-col items-start">
           {onBack && (
@@ -161,9 +152,7 @@ export function BriefingRemoved({ revision }: { revision: ReviewRevision }) {
     return null;
   return (
     <section aria-label="Removed" className="flex min-w-0 flex-col text-xs">
-      <MarginHeading
-        count={`${sections.removed.fileCount} ${sections.removed.fileCount === 1 ? 'file' : 'files'}`}
-      >
+      <MarginHeading count={counted(sections.removed.fileCount, 'file')}>
         Removed
       </MarginHeading>
       <div className="flex flex-col divide-y border-y">

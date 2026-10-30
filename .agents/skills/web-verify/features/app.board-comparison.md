@@ -51,7 +51,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | settings-computers            | Narrative-settings-computers     | `/settings/computers`                                |
 | settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                  |
 | commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                  |
-| history                       | Narrative-desktop-history        | Worktree with `?surface=history`                     |
+| history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`  |
 | graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                         |
 | pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                        |
 | pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented     |
@@ -526,7 +526,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] h2"
+          "selector": "[aria-label=\"Review content\"] header h2"
         },
         "properties": [
           "fontSize",
@@ -543,7 +543,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] [role=\"tablist\"] [role=\"tab\"]",
+          "selector": "[aria-label=\"Document controls\"] [aria-label=\"Compare\"] [role=\"tab\"]",
           "index": 0
         }
       },
@@ -565,7 +565,8 @@ Names without `.html` are also accepted for the first mapped screen using that H
         "app": {
           "selector": "[aria-label=\"Review content\"] [role=\"checkbox\"]",
           "index": 0
-        }
+        },
+        "properties": ["padding", "radius", "gap", "height", "icon"]
       }
     ]
   },
@@ -724,6 +725,45 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "letterSpacing",
           "colour"
         ]
+      },
+      {
+        "role": "GitHub account heading",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] h2"
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "index": 2
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      },
+      {
+        "role": "GitHub account source",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] span:has(+ button[aria-haspopup=\"listbox\"])",
+          "index": 0
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"item-actions\"] [data-slot=\"badge\"]",
+          "index": 0
+        }
+      },
+      {
+        "role": "GitHub account picker",
+        "board": {
+          "selector": "section[aria-labelledby=\"r-gh\"] button[aria-haspopup=\"listbox\"]",
+          "index": 0
+        },
+        "app": {
+          "selector": "main[aria-label=\"Settings\"] [data-slot=\"select-trigger\"]",
+          "index": 0
+        }
       }
     ]
   },
@@ -876,7 +916,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "article h1"
         },
         "app": {
-          "selector": "[aria-label=\"Review content\"] h1 > span"
+          "selector": "[aria-label=\"Review content\"] h1"
         },
         "properties": [
           "fontSize",
@@ -999,23 +1039,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
       {
         "role": "commit row",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] > li",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] > li:has(a[aria-current=\"true\"])"
         },
         "app": {
-          "selector": "[aria-label=\"Commits\"] > li",
-          "index": 0
+          "selector": "[aria-label=\"Commits\"] > li:has([aria-pressed=\"true\"])"
         },
         "properties": ["padding", "radius", "gap", "height", "icon"]
       },
       {
         "role": "commit subject",
         "board": {
-          "selector": "ol[aria-label=\"Commits\"] li a > span:first-child",
-          "index": 0
+          "selector": "ol[aria-label=\"Commits\"] a[aria-current=\"true\"] span[style*=\"font:600\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Commits\"] [data-slot=\"tooltip-trigger\"]",
+          "selector": "[aria-label=\"Commits\"] [aria-pressed=\"true\"] [data-slot=\"tooltip-trigger\"]",
           "index": 0
         },
         "properties": [
@@ -1051,7 +1088,20 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Commit graph\"] > li",
           "index": 0
         },
-        "properties": ["padding", "radius", "gap", "height", "icon"]
+        "properties": ["padding", "radius", "gap", "icon"]
+      },
+      {
+        "role": "graph row height",
+        "board": {
+          "selector": "ol[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "app": {
+          "selector": "[aria-label=\"Commit graph\"] > li",
+          "index": 0
+        },
+        "properties": ["height"],
+        "minWidth": 768
       },
       {
         "role": "HEAD ref",
@@ -1084,7 +1134,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1093,6 +1143,58 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "letterSpacing",
           "colour"
         ]
+      },
+      {
+        "role": "PR title",
+        "board": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(2) > span:last-child"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(2) > span:last-child"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour"
+        ]
+      },
+      {
+        "role": "PR state",
+        "board": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(3) > span:first-child"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(3) > span:first-child"
+        }
+      },
+      {
+        "role": "GitHub checks",
+        "board": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(3) > span:nth-child(2)"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Pull request\"] > div:nth-child(3) > span:nth-child(2)"
+        },
+        "properties": [
+          "fontSize",
+          "lineHeight",
+          "fontWeight",
+          "letterSpacing",
+          "colour",
+          "gap",
+          "icon"
+        ]
+      },
+      {
+        "role": "Open pull request",
+        "board": {
+          "selector": "section[aria-label=\"Pull request\"] > button"
+        },
+        "app": {
+          "selector": "section[aria-label=\"Pull request\"] > button"
+        }
       }
     ],
     "reveal": [
@@ -1115,7 +1217,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "article h1"
         },
         "app": {
-          "selector": "[aria-label=\"Pull request\"] h2"
+          "selector": "article[aria-label^=\"Pull request #\"] h1"
         }
       },
       {
@@ -1124,7 +1226,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-label=\"Description\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Pull request\"] [aria-label=\"Description\"]"
+          "selector": "article[aria-label^=\"Pull request #\"] section[aria-label=\"Description\"]"
         }
       },
       {
@@ -1133,7 +1235,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-label=\"Checks\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Pull request\"] [aria-label=\"Checks\"]"
+          "selector": "article[aria-label^=\"Pull request #\"] section[aria-label=\"GitHub checks\"]"
         }
       },
       {
@@ -1142,7 +1244,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-label=\"Conversation on GitHub\"]"
         },
         "app": {
-          "selector": "[aria-label=\"Pull request\"] [aria-label=\"Conversation on GitHub\"]"
+          "selector": "article[aria-label^=\"Pull request #\"] section[aria-label=\"Conversation on GitHub\"]"
         }
       }
     ]
@@ -1167,7 +1269,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 1:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1209,7 +1311,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 2:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1251,7 +1353,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 3:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1293,7 +1395,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 4:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1335,7 +1437,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 5:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1377,7 +1479,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 6:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1419,7 +1521,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 7:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",
@@ -1461,7 +1563,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label^=\"State 8:\"] section[aria-label=\"Pull request\"] h3"
         },
         "app": {
-          "selector": "section[aria-label=\"Pull request\"] > div:first-child > span"
+          "selector": "section[aria-label=\"Pull request\"] h3"
         },
         "properties": [
           "fontSize",

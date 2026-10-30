@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/tooltip';
 import {
   ChevronDownIcon,
-  ChevronRightIcon,
   ChevronUpIcon,
+  ChevronRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   MessageSquareIcon,
@@ -37,6 +37,7 @@ import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
+  PIERRE_CHANGES_HEADER_CSS,
   PIERRE_COMMENT_CSS,
   PIERRE_FILE_CSS,
   PIERRE_DECISION_CSS,
@@ -53,12 +54,21 @@ import {
   useTheme,
 } from '@/features/preferences/index';
 import { fileChangeBars } from '../adapters/file-changes';
-import { type CodeEntry, codeTarget } from '../adapters/code-entries';
+import {
+  type CodeEntry,
+  codeTarget,
+  type LineCounts,
+  lineCounts,
+} from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
-import { groupSpecPaths, isSpecPath } from '@porcelain/client/reviews/rules';
+import {
+  counted,
+  groupSpecPaths,
+  isSpecPath,
+} from '@porcelain/client/reviews/rules';
 import {
   anchorLabel,
   type FileCommentAnchor,
@@ -97,7 +107,7 @@ type Props = {
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
-  header?: () => ReactNode;
+  header?: (controls: CodeHeaderControls) => ReactNode;
   footer?: () => ReactNode;
   emptyActions?: ReactNode;
   headerLeading?: ReactNode;
@@ -113,8 +123,16 @@ type Props = {
   range?: ReviewRange;
   threadMargin?: boolean;
   decision?: boolean;
+  column?: boolean;
+  framed?: boolean;
   commentLabel?: string;
   collapseInHeader?: boolean;
+};
+export type CodeHeaderControls = {
+  collapse: ReactNode;
+  current: string | undefined;
+  counts: ReadonlyMap<string, LineCounts>;
+  open: (path: string) => void;
 };
 export function CodeDocument(props: Props) {
   const { threads, result } = useComments(props.scope, props.context);
@@ -162,6 +180,8 @@ function CodeSurface({
   collapsible = false,
   threadMargin = false,
   decision = false,
+  column = false,
+  framed = false,
   commentLabel,
   collapseInHeader = false,
   onToggleReviewed,
@@ -187,7 +207,11 @@ function CodeSurface({
   const [selection, setSelection] = useState<CodeViewLineSelection | null>(
     null,
   );
-  const [focused, setFocused] = useState(0);
+  const [focusedId, setFocusedId] = useState<CodeEntry['id']>();
+  const focused = Math.max(
+    entries.findIndex((entry) => entry.id === focusedId),
+    0,
+  );
   const [rangeError, setRangeError] = useState<string | null>(null);
   const collapsed = new Set(
     entries
@@ -207,7 +231,7 @@ function CodeSurface({
   );
   const openFileComment = (entry: CodeEntry | undefined) => {
     if (!entry?.comment) return;
-    setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
+    setFocusedId(entry.id);
     setComposer({
       id: entry.id,
       anchor: { ...entry.comment, kind: 'file' },
@@ -241,7 +265,7 @@ function CodeSurface({
   const focusEntry = (index: number) => {
     const entry = entries[index];
     if (!entry) return;
-    setFocused(index);
+    setFocusedId(entry.id);
     viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -345,7 +369,10 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const options: CodeViewReactOptions<Note, undefined> = {
-    theme: decision || compactThreads ? PIERRE_DECISION_THEME : PIERRE_THEME,
+    theme:
+      decision || column || compactThreads || framed
+        ? PIERRE_DECISION_THEME
+        : PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -355,10 +382,8 @@ function CodeSurface({
     disableFileHeader,
     enableLineSelection: true,
     enableGutterUtility: true,
-    onLineClick: (_, context) =>
-      setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
-    onLineNumberClick: (_, context) =>
-      setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
+    onLineClick: (_, context) => setFocusedId(context.item.id),
+    onLineNumberClick: (_, context) => setFocusedId(context.item.id),
     onGutterUtilityClick: (range, context) => {
       const entry = byId.get(context.item.id);
       if (!entry?.comment) return;
@@ -367,13 +392,16 @@ function CodeSurface({
         setRangeError('Select lines on one side of the comparison.');
         return;
       }
-      setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
+      setFocusedId(entry.id);
       setRangeError(null);
       setComposer({ id: entry.id, anchor, draft: { body: '' } });
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision ? PIERRE_DECISION_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}`,
+    ...(column
+      ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
+      : {}),
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -390,7 +418,7 @@ function CodeSurface({
       next,
     );
   const toggle = (id: string) => {
-    setFocused(entries.findIndex((entry) => entry.id === id));
+    setFocusedId(id);
     folds.setCollapsed([id], !collapsed.has(id));
   };
 
@@ -452,6 +480,20 @@ function CodeSurface({
     ) : (
       (emptyActions ?? headerActions)
     ));
+  const renderHeader =
+    header &&
+    (() =>
+      header({
+        collapse: collapseControl,
+        current: entries[focused]?.path,
+        counts: lineCounts(entries),
+        open: (path) => {
+          const index = entries.findIndex((entry) => entry.path === path);
+          const entry = entries[index];
+          if (entry) folds.setCollapsed([entry.id], false);
+          focusEntry(index);
+        },
+      }));
   const selectionAnchor = selectedRangeAnchor(
     selection,
     composer !== null && composer !== undefined,
@@ -462,8 +504,9 @@ function CodeSurface({
     <div
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
-        (decision || compactThreads) && 'decision-code',
+        (decision || column || compactThreads || framed) && 'decision-code',
         compactThreads && 'file-code',
+        framed && 'commit-code',
       )}
     >
       {interaction.toolbarTarget &&
@@ -524,7 +567,8 @@ function CodeSurface({
       )}
       {toolbar
         ? toolbar(collapseControl)
-        : !collapseInHeader &&
+        : !column &&
+          !collapseInHeader &&
           collapseControl && (
             <div className="flex shrink-0 justify-end px-3">
               {collapseControl}
@@ -532,7 +576,10 @@ function CodeSurface({
           )}
       {entries.length === 0 && (header || headerActions || footer) && (
         <div
-          className="min-h-0 flex-1 overflow-auto"
+          className={cn(
+            'min-h-0 flex-1 overflow-auto',
+            column && COLUMN_GUTTERS,
+          )}
           data-testid="empty-code-document"
         >
           {headerLeading && (
@@ -540,7 +587,7 @@ function CodeSurface({
               {headerLeading}
             </div>
           )}
-          {header?.()}
+          {renderHeader?.()}
           {footer?.()}
           {!paneFile && headerActions && (
             <div className="flex justify-end px-3.5 py-2">
@@ -606,9 +653,7 @@ function CodeSurface({
                       }
                     : { type: 'item', id: revealEntry.id, align: 'start' },
                 );
-                setFocused(
-                  entries.findIndex((entry) => entry.id === revealEntry.id),
-                );
+                setFocusedId(revealEntry.id);
                 setHandledReveal(reveal.nonce);
               }
             });
@@ -622,8 +667,7 @@ function CodeSurface({
           onSelectedLinesChange={(next) => {
             if (!composer) {
               setSelection(next);
-              if (next)
-                setFocused(entries.findIndex((entry) => entry.id === next.id));
+              if (next) setFocusedId(next.id);
             }
           }}
           renderAnnotation={(...[annotation, , item]) => {
@@ -676,8 +720,7 @@ function CodeSurface({
                       </span>
                     )}
                   </span>
-                  {note.threads.length}{' '}
-                  {note.threads.length === 1 ? 'comment' : 'comments'}
+                  {counted(note.threads.length, 'comment')}
                   {note.threads.some(({ thread }) =>
                     thread.messages.some(
                       (message) => message.author === 'agent',
@@ -799,11 +842,7 @@ function CodeSurface({
                                         ...side,
                                       },
                                     });
-                                    setFocused(
-                                      entries.findIndex(
-                                        (entry) => entry.id === item.id,
-                                      ),
-                                    );
+                                    setFocusedId(item.id);
                                   });
                                   revealMarginLine(control);
                                 }}
@@ -880,7 +919,46 @@ function CodeSurface({
                 </span>
               </Button>
             );
-            const comment = entry.comment && !paneFile ? commentButton : null;
+            const comment =
+              entry.comment && !paneFile && !column ? commentButton : null;
+            if (column)
+              return (
+                <span className="flex items-center gap-1.5">
+                  {stale}
+                  <span className="ml-1 flex h-4 items-center gap-2 border-l border-border-strong pl-2 text-muted-foreground">
+                    <FileHeaderAction
+                      label="Previous file"
+                      icon={ChevronUpIcon}
+                      shortcut={SHORTCUTS.previousFile}
+                      onClick={() =>
+                        focusEntry(
+                          Math.max(
+                            entries.findIndex(
+                              (candidate) => candidate.id === entry.id,
+                            ) - 1,
+                            0,
+                          ),
+                        )
+                      }
+                    />
+                    <FileHeaderAction
+                      label="Next file"
+                      icon={ChevronDownIcon}
+                      shortcut={SHORTCUTS.nextFile}
+                      onClick={() =>
+                        focusEntry(
+                          Math.min(
+                            entries.findIndex(
+                              (candidate) => candidate.id === entry.id,
+                            ) + 1,
+                            entries.length - 1,
+                          ),
+                        )
+                      }
+                    />
+                  </span>
+                </span>
+              );
             if (
               !stale &&
               !leading &&
@@ -916,17 +994,18 @@ function CodeSurface({
               </div>
             );
           }}
-          disableWorkerPool={decision || compactThreads}
+          disableWorkerPool={decision || column || compactThreads || framed}
           options={options}
           {...(margin.reserve > 0
             ? { style: { paddingBottom: margin.reserve } }
             : {})}
-          className={
+          className={cn(
             fullHeight
               ? 'flex-none overflow-visible'
-              : 'min-h-0 flex-1 overflow-auto'
-          }
-          {...(header ? { renderCodeViewHeader: header } : {})}
+              : 'min-h-0 flex-1 overflow-auto',
+            column && COLUMN_GUTTERS,
+          )}
+          {...(renderHeader ? { renderCodeViewHeader: renderHeader } : {})}
           {...(footer ? { renderCodeViewFooter: footer } : {})}
           renderHeaderPrefix={(item) => {
             const entry = byId.get(item.id);
@@ -940,29 +1019,40 @@ function CodeSurface({
                 ? review.control
                 : null;
             return (
-              <span className="flex items-center gap-1">
+              <span
+                className={cn('flex items-center', column ? 'gap-2' : 'gap-1')}
+              >
                 {!decision &&
                   specsApart &&
                   item.id === firstSpecId &&
                   entries.length > specEntries.length && (
                     <span className="mr-2 border-r pr-2 font-sans text-xs font-medium">
-                      Specs · {specCount} {specCount === 1 ? 'file' : 'files'}
+                      Specs · {counted(specCount, 'file')}
                     </span>
                   )}
-                {(collapsible || entries.length > 1) && (
-                  <button
-                    type="button"
-                    aria-expanded={!isCollapsed}
-                    aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
+                {column ? (
+                  <FileHeaderAction
+                    label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
+                    icon={isCollapsed ? ChevronRightIcon : ChevronDownIcon}
+                    expanded={!isCollapsed}
                     onClick={() => toggle(item.id)}
-                    className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    {isCollapsed ? (
-                      <ChevronRightIcon className="size-3.5" />
-                    ) : (
-                      <ChevronDownIcon className="size-3.5" />
-                    )}
-                  </button>
+                  />
+                ) : (
+                  (collapsible || entries.length > 1) && (
+                    <button
+                      type="button"
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
+                      onClick={() => toggle(item.id)}
+                      className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      {isCollapsed ? (
+                        <ChevronRightIcon className="size-3.5" />
+                      ) : (
+                        <ChevronDownIcon className="size-3.5" />
+                      )}
+                    </button>
+                  )
                 )}
                 {control}
               </span>
@@ -971,6 +1061,31 @@ function CodeSurface({
           renderHeaderFilenameSuffix={(item) => {
             const entry = byId.get(item.id);
             if (!entry) return null;
+            if (column && entry.comment) {
+              const label = `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`;
+              return (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        aria-label={label}
+                        onClick={() => openFileComment(entry)}
+                        className="ml-2 min-w-0 shrink"
+                      />
+                    }
+                  >
+                    <TruncatedText
+                      className="hidden max-w-48 @code-wide/code:block"
+                      text={entry.note ?? 'file'}
+                    />
+                    <MessageSquarePlusIcon className="@code-wide/code:hidden" />
+                  </TooltipTrigger>
+                  <TooltipContent>{label}</TooltipContent>
+                </Tooltip>
+              );
+            }
             return entry.note ? (
               <TruncatedText
                 className="ml-2 hidden max-w-48 font-sans text-xs text-muted-foreground @code-wide/code:block"
@@ -983,6 +1098,9 @@ function CodeSurface({
     </div>
   );
 }
+
+const COLUMN_GUTTERS =
+  'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';
 
 function HeaderStep({
   label,
@@ -1046,4 +1164,41 @@ function CodeShortcuts({
   useHotkey(SHORTCUTS.commentOnFile, comment, options);
   useHotkey(SHORTCUTS.toggleReviewed, review, options);
   return null;
+}
+
+function FileHeaderAction({
+  label,
+  icon: Icon,
+  shortcut,
+  expanded,
+  onClick,
+}: {
+  label: string;
+  icon: typeof ChevronUpIcon;
+  shortcut?: string;
+  expanded?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label={label}
+            aria-keyshortcuts={shortcut}
+            aria-expanded={expanded}
+            onClick={onClick}
+          />
+        }
+      >
+        <Icon />
+      </TooltipTrigger>
+      <TooltipContent>
+        {label}
+        {shortcut && <Kbd>{formatForDisplay(shortcut)}</Kbd>}
+      </TooltipContent>
+    </Tooltip>
+  );
 }

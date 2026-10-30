@@ -67,7 +67,7 @@ Preconditions: [surface baseline](README.md).
 8. On disk: `printf 'A note the review leaves out.\n' > "$REPO/notes.md"`, then wait for button `0 of 2 files reviewed`
    Expect: line "0 of 2 files reviewed".
 9. `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`, then wait for button `1 of 2 checks failing`
-   Expect: lines "1 of 2 checks failing", "Proof is incomplete", "0 of 1 decisions reviewed" and "1 comment waiting on the agent", and no file or explanation lines; the walkthrough lists button "Not explained" under the decisions. Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
+   Expect: lines "1 of 2 checks failing", "Proof is incomplete", "0 of 1 decision reviewed" and "1 comment waiting on the agent", and no file or explanation lines; the walkthrough lists button "Not explained" under the decisions. Publication commits the fixture changes; the pointer covers README.md line 3, leaving README.md line 4 and notes.md line 1 unexplained.
 10. Click button `1 of 2 checks failing`
     Expect: the sheet closes; the Review tab stays selected; the briefing's region "Proven at <head>" shows the alert "1 check failed The agent reported this work as not passing yet.".
 
@@ -83,3 +83,5 @@ Automated coverage: `reviews-readiness.test.tsx`.
 
 - Close the phone sheet before document comment/mark controls. Comment is submit, distinct from Comment on README.md (unstaged · modified).
 - Wait for live writes/publication. Cleanup notes.md, restore README and clear marks; comments remain unless deleted or instance reset.
+
+In the Changes document, the file comment button uses its comparison label ("unstaged · modified") at wide widths and a Comment icon in a narrow pane. Its full accessible name is unchanged.

@@ -25,6 +25,7 @@ import { useReviewOverview } from '@/features/changes/index';
 import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
+import { counted } from '@porcelain/client/reviews/rules';
 
 export function HistoryNavigation({
   scope,
@@ -59,7 +60,7 @@ export function HistoryNavigation({
         <BranchTracking tracking={tracking} />
       </section>
       <HistoryRestarted history={history} />
-      <ScrollArea className="h-0 min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-initial">
         {uncommitted > 0 && (
           <div className="pt-2 pr-3 pl-1.5">
             <button
@@ -70,7 +71,7 @@ export function HistoryNavigation({
               <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <TruncatedText className="flex-1" text="Uncommitted changes" />
               <span className="text-2xs text-muted-foreground tabular-nums">
-                {uncommitted} {uncommitted === 1 ? 'file' : 'files'}
+                {counted(uncommitted, 'file')}
               </span>
             </button>
           </div>
@@ -113,10 +114,10 @@ export function HistoryHeading({
   return (
     <>
       {history.snapshot !== null && history.snapshot !== undefined && (
-        <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-2xs text-muted-foreground">
+        <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3.5 font-mono text-caption leading-4 text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
           <TruncatedText
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 font-medium text-foreground"
             text={historyHeading(history.snapshot)}
           />
         </div>

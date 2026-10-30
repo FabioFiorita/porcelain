@@ -10,6 +10,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
 import {
+  counted,
   briefingTitle,
   decisionKey,
   type DecisionState,
@@ -50,6 +51,7 @@ export function WalkthroughBriefing({
   title,
   margin,
   proofCurrent,
+  pullRequestChip,
   scope,
   context,
 }: WalkthroughProps & {
@@ -58,6 +60,7 @@ export function WalkthroughBriefing({
   title: string;
   margin: ReactNode;
   proofCurrent: boolean;
+  pullRequestChip?: ReactNode;
   stops: readonly WalkthroughStop[];
   items: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[];
   decisions: ReadonlyMap<string, DecisionState>;
@@ -101,6 +104,7 @@ export function WalkthroughBriefing({
                 </span>
                 <span aria-hidden="true">·</span>
                 <span>{relativeTime(revision.publishedAt)}</span>
+                {pullRequestChip}
               </p>
               <h2 className="text-briefing-title font-semibold wrap-anywhere">
                 <TruncatedText
@@ -151,8 +155,8 @@ export function WalkthroughBriefing({
                 )}
                 {stale > 0 && (
                   <span className="px-3 text-ui leading-4 text-warn">
-                    {stale} {stale === 1 ? 'decision has' : 'decisions have'}{' '}
-                    code moved
+                    {counted(stale, 'decision has', 'decisions have')} code
+                    moved
                   </span>
                 )}
                 {unexplained && (
@@ -269,7 +273,7 @@ export function WalkthroughBriefing({
           >
             <SectionHeading
               id="briefing-decisions"
-              aside={`${done} of ${decisionStops.length} decisions · ${total.reviewed} of ${total.total} files reviewed`}
+              aside={`${done} of ${counted(decisionStops.length, 'decision')} · ${total.reviewed} of ${counted(total.total, 'file')} reviewed`}
             >
               The walkthrough
             </SectionHeading>
