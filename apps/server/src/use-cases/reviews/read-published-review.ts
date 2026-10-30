@@ -64,10 +64,13 @@ export class ReadPublishedReviewUseCase extends Context.Service<
                 review: published.review,
                 headOid: observed.headOid,
                 dirtyPaths: reviewDirtyPaths(observed.changes),
-                worktree: yield* files.execute({
-                  worktreeId,
-                  paths: reviewPaths(published.review.layers, []),
-                }),
+                worktree:
+                  observed.branch?.name === published.review.branch
+                    ? yield* files.execute({
+                        worktreeId,
+                        paths: reviewPaths(published.review.layers, []),
+                      })
+                    : undefined,
               });
               return { review: resolved };
             }),

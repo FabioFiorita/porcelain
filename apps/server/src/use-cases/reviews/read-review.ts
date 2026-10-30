@@ -12,6 +12,7 @@ import {
 } from '@porcelain/reviews/rules';
 import type { Review } from '@porcelain/reviews/models';
 import { ReadTextFilesService } from '@porcelain/files/services';
+import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type {
@@ -50,6 +51,7 @@ export class ReadReviewUseCase extends Context.Service<
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
       const files = yield* ReadTextFilesService;
+      const status = yield* ReadWorktreeStatusService;
       const worktreeTexts = (
         worktreeId: string,
         revision: Review,
@@ -58,14 +60,16 @@ export class ReadReviewUseCase extends Context.Service<
         revision.revision !== latestRevision
           ? Effect.succeed(undefined)
           : access
-              .reviews(worktreeId, 'read', (worktree) =>
-                worktree.branch?.replace(/^refs\/heads\//u, '') ===
-                revision.branch
-                  ? files.execute({
-                      worktreeId,
-                      paths: reviewPaths(revision.layers, []),
-                    })
-                  : Effect.succeed(undefined),
+              .reviews(worktreeId, 'read', () =>
+                Effect.gen(function* () {
+                  const observed = yield* status.execute({ worktreeId });
+                  return observed.branch?.name === revision.branch
+                    ? yield* files.execute({
+                        worktreeId,
+                        paths: reviewPaths(revision.layers, []),
+                      })
+                    : undefined;
+                }),
               )
               .pipe(Effect.catch(() => Effect.succeed(undefined)));
       return {
