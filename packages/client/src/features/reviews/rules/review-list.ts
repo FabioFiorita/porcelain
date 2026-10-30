@@ -44,14 +44,14 @@ export type ReviewListEntry = {
 };
 
 export function decisionMarked(
-  marks: ReviewMarks | undefined,
+  marks: ReviewMarks['decisions'] | undefined,
   layer: Pick<
     ReviewRevision['content']['layers'][number],
     'id' | 'fingerprint'
   >,
 ) {
   return (
-    marks?.decisions.some(
+    marks?.some(
       (mark) =>
         mark.layerId === layer.id && mark.fingerprint === layer.fingerprint,
     ) === true
@@ -71,7 +71,7 @@ export function reviewListStatus({
 }) {
   const layers = revision?.content.layers ?? [];
   const reviewed = layers.filter((layer) =>
-    decisionMarked(marks, layer),
+    decisionMarked(marks?.decisions, layer),
   ).length;
   const total = layers.length;
   const complete = marks !== undefined && total > 0 && reviewed === total;

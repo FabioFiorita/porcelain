@@ -109,7 +109,7 @@ it.each([
     true,
   ],
 ])('reads a decision as reviewed from %s: %s', (_, marks, expected) => {
-  expect(decisionMarked(marks, layer)).toBe(expected);
+  expect(decisionMarked(marks?.decisions, layer)).toBe(expected);
 });
 it('counts current decision marks once, ignoring file marks, stale and unrelated decisions', () => {
   const result = reviewListStatus({

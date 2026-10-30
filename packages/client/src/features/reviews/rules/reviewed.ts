@@ -1,12 +1,8 @@
-import type {
-  ListReviewedLayersResponse,
-  ListReviewedFilesResponse,
-} from '@porcelain/contracts/reviews';
+import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 import { counted, plural } from './counted.ts';
 import {
   isFingerprintable,
   type ReviewChangeItem,
-  type ReviewLayer,
   type SetReviewedBulkResponse,
   type SetReviewedRequest,
 } from './review.ts';
@@ -226,14 +222,6 @@ export function reviewedControlLabel(
     : status === 'stale'
       ? `Mark changed ${path} as reviewed`
       : `Mark ${path} as reviewed`;
-}
-
-export function layerReviewed(
-  marks: ListReviewedLayersResponse | undefined,
-  layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,
-): boolean {
-  const mark = marks?.marks.find((candidate) => candidate.layerId === layer.id);
-  return mark?.fingerprint === layer.fingerprint && !mark.stale;
 }
 
 export type ReviewNotice = {

@@ -30,7 +30,7 @@ export function revisionDecisionStates(
       layer.id,
       {
         stale: decisionCodeMoved(layer),
-        reviewed: decisionMarked(marks, layer),
+        reviewed: decisionMarked(marks?.decisions, layer),
       },
     ]),
   );

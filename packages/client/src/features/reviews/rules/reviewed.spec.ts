@@ -7,7 +7,6 @@ import {
   completionPlan,
   completionRefusal,
   inChunks,
-  layerReviewed,
   markAllPlan,
   reviewToggle,
   unavailableReviewText,
@@ -258,36 +257,6 @@ describe('markAllPlan', () => {
       label: 'No files can be marked reviewed',
       text: 'No reviewable files',
     });
-  });
-});
-
-describe('layerReviewed', () => {
-  const layer = {
-    id: '11111111-1111-4111-8111-111111111111',
-    fingerprint: 'layer-now',
-  };
-  const mark = (fingerprint: string, stale: boolean) => ({
-    worktreeId: 'w'.repeat(32),
-    marks: [
-      {
-        layerId: layer.id,
-        fingerprint,
-        reviewedAt: '2026-09-28T00:00:00.000Z',
-        stale,
-      },
-    ],
-  });
-
-  it('shows a layer reviewed when its mark matches the layer shown', () => {
-    expect(layerReviewed(mark('layer-now', false), layer)).toBe(true);
-  });
-
-  it('stops counting a layer whose mark the server found stale', () => {
-    expect(layerReviewed(mark('layer-now', true), layer)).toBe(false);
-  });
-
-  it('stops counting a layer whose mark was made for other code', () => {
-    expect(layerReviewed(mark('layer-before', false), layer)).toBe(false);
   });
 });
 
