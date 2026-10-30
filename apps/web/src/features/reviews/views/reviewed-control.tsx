@@ -15,6 +15,7 @@ import {
   LoaderCircleIcon,
   RotateCcwIcon,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -160,7 +161,6 @@ export function ReviewedCheckbox({
   const mark = useMarkReviewed(scope, context, WORKTREE_RANGE);
   const unmark = useUnmarkReviewed(scope, context, WORKTREE_RANGE);
   const busy = mark.result.waiting || unmark.result.waiting;
-  const pending = latest && busy;
   const failure = reviewedCommandFailure(mark.result, unmark.result);
   const error = latest ? failure : undefined;
   const hintId = useId();
@@ -174,37 +174,23 @@ export function ReviewedCheckbox({
       <Tooltip>
         <TooltipTrigger
           render={
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={reviewed}
+            <Checkbox
+              checked={reviewed}
               aria-label={`${path} reviewed`}
               aria-describedby={hintId}
               aria-invalid={error !== undefined}
-              aria-disabled={busy || !reviewable}
-              onClick={() => {
+              disabled={busy || !reviewable}
+              aria-busy={busy}
+              onCheckedChange={() => {
                 if (busy || fingerprint === null || fingerprint === undefined)
                   return;
                 onStart();
                 if (reviewed) unmark.start(path);
                 else mark.start({ path, fingerprint });
               }}
-              className={cn(
-                'grid size-4 shrink-0 place-items-center rounded-checkbox border-(length:--border-checkbox) border-border-strong bg-background text-background outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed',
-                !reviewable && 'opacity-50',
-                reviewed && 'border-foreground bg-foreground',
-                status === 'stale' && 'border-warn',
-                error !== undefined && 'border-destructive',
-              )}
             />
           }
-        >
-          {pending ? (
-            <LoaderCircleIcon className="size-3 animate-spin text-muted-foreground" />
-          ) : (
-            reviewed && <CheckIcon className="size-3" strokeWidth={3} />
-          )}
-        </TooltipTrigger>
+        />
         <TooltipContent role="tooltip" className="break-all">
           {error === undefined ? hint : reviewErrorMessage(error)}
         </TooltipContent>

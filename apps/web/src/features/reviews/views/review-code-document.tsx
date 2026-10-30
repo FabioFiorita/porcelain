@@ -1,3 +1,4 @@
+import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
 import { type ReactNode, useState } from 'react';
@@ -70,6 +71,7 @@ export function ReviewCodeDocument({
 }) {
   const { connection } = context;
   const [omittedComment, setOmittedComment] = useState(0);
+  const [omittedTargets] = useState(() => new Map<string, HTMLLIElement>());
   usePrefetchReviewed(scope, context);
   const changes = useChanges(scope, connection);
   const items = orderReviewChanges(
@@ -138,7 +140,7 @@ export function ReviewCodeDocument({
               changeId(change),
               item.path,
               text,
-              notes.get(item.path) ?? `${change.scope} · untracked`,
+              notes.get(item.path) ?? 'untracked',
             ),
             review,
             comment: {
@@ -209,7 +211,16 @@ export function ReviewCodeDocument({
     header || loading || failed || unrenderable.length > 0
       ? (controls: CodeHeaderControls) => (
           <>
-            {header?.(controls)}
+            {header?.({
+              ...controls,
+              open: (path) => {
+                const target = omittedTargets.get(path);
+                if (!renderedPaths.has(path) && target) {
+                  target.focus({ preventScroll: true });
+                  target.scrollIntoView({ block: 'start' });
+                } else controls.open(path);
+              },
+            })}
             {(loading || failed) && (
               <ContentState
                 failed={failed}
@@ -222,6 +233,11 @@ export function ReviewCodeDocument({
             {unrenderable.length > 0 && (
               <OmittedChanges
                 changes={unrenderable}
+                column={column}
+                onTarget={(path, target) => {
+                  if (target) omittedTargets.set(path, target);
+                  else omittedTargets.delete(path);
+                }}
                 renderedPaths={renderedPaths}
                 scope={scope}
                 context={context}
@@ -315,6 +331,8 @@ function ContentState({
 
 function OmittedChanges({
   changes,
+  column,
+  onTarget,
   renderedPaths,
   scope,
   context,
@@ -322,6 +340,8 @@ function OmittedChanges({
   paneFile,
 }: {
   paneFile: boolean;
+  column: boolean;
+  onTarget: (path: string, target: HTMLLIElement | null) => void;
   changes: ReadonlyArray<{
     item: ReviewChangeItem;
     reasons: readonly string[];
@@ -332,13 +352,21 @@ function OmittedChanges({
   context: ConnectionContext;
 }) {
   return (
-    <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
+    <section
+      className={cn(
+        'mt-3 rounded-lg border bg-muted/40 px-4 py-3',
+        !column && 'mx-4',
+      )}
+    >
       <p className="text-xs font-medium">Non-text content</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
         {changes.map(({ item, reasons }) => (
           <li
             key={item.path}
-            className="flex min-w-0 flex-wrap items-center gap-2"
+            aria-label={`${item.path}: ${omittedReasonText(reasons)}`}
+            tabIndex={-1}
+            ref={(target) => onTarget(item.path, target)}
+            className="flex min-w-0 scroll-mt-3 flex-wrap items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <TruncatedText className="min-w-0 basis-full" text={item.path} />
             {isImagePath(item.path) && (

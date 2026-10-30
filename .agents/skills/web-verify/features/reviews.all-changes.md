@@ -27,7 +27,7 @@ All changes opens one scrollable document of every current changed file, also wi
 - At phone width, Review opens the "Worktree review" sheet; choose tab "Review", then "All changes" in "Walkthrough".
 - With no review published, the handoff tab "Changes" is the same document under the "No review yet" introduction.
 
-The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that unfolds and scrolls to the file's diff and carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.
+The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that unfolds and scrolls to the file's diff. Counts include zero values and untracked additions, matching the card header. Non-text rows have no line counts; their buttons scroll to and focus the file's non-text notice. A text row carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.
 
 ## Driving it with browser
 
@@ -56,7 +56,7 @@ Automated coverage: `reviews-all-changes.test.tsx`.
 
 ### Clean worktree
 
-With the default fixture and no review published, commit the sample edit in the disposable repository before loading the page. The permanent Changes tab shows "No changes to review" and the branch name followed by "matches its last commit. Browse files or history from the right." It cannot close with Alt+W and has no Close Changes button.
+With the default fixture and no review published, commit the sample edit in the disposable repository before loading the page. The permanent Changes tab shows the horizontally centred "No changes to review" notice and the branch name followed by "matches its last commit. Browse files or history from the right." It cannot close with Alt+W and has no Close Changes button.
 
 Use the Files or History button inside the notice. Its shortcut hint comes from the shared shortcuts. The selected panel opens even when it was hidden. Escape closes the phone sheet and returns focus to the notice button that opened it. At desktop width, Files and History remain in the docked panel. Repeat at 1440 and 414, light and dark.
 
@@ -67,4 +67,6 @@ Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Chan
 - The bulk count leaves out current files already reviewed. Unmark first if the fixture has marks from an earlier run.
 - Files committed in a retained review are not all current worktree changes. Use the retained walkthrough to read the complete published revision.
 
-Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Click the comparison label (for example "unstaged · modified", or the Comment icon in a narrow pane) to comment on that file; its accessible name remains "Comment on <path> (<note>)".
+Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Use the visible Comment button (the Comment icon in a narrow pane) to comment on that file; the comparison or decision label is plain text and an untracked file reads "untracked" once. its accessible name remains "Comment on <path> (<note>)".
+
+For binary-row navigation, add and commit a binary fixture, modify it, then choose its path in the table. Expect its focused Non-text content entry, full reading-column width, reviewed and Comment controls. Repeat with text and binary files together, and at 1440/1080/414 in light and dark.

@@ -258,32 +258,34 @@ export function PlainChangesDocument({
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (!specsOnly && changes.length === 0)
     return (
-      <StateNotice
-        title="No changes to review"
-        description={
-          <>
-            <span className="font-mono text-foreground">
-              {list.branch?.name ?? 'This worktree'}
-            </span>{' '}
-            matches its last commit. Browse files or history from the right.
-          </>
-        }
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => onBrowse('files', event.currentTarget)}
+      <div className="mx-auto w-full max-w-reading">
+        <StateNotice
+          title="No changes to review"
+          description={
+            <>
+              <span className="font-mono text-foreground">
+                {list.branch?.name ?? 'This worktree'}
+              </span>{' '}
+              matches its last commit. Browse files or history from the right.
+            </>
+          }
         >
-          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => onBrowse('history', event.currentTarget)}
-        >
-          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
-        </Button>
-      </StateNotice>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(event) => onBrowse('files', event.currentTarget)}
+          >
+            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(event) => onBrowse('history', event.currentTarget)}
+          >
+            History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+          </Button>
+        </StateNotice>
+      </div>
     );
   const story = review
     ? walkthroughStops(

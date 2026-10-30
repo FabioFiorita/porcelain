@@ -59,9 +59,11 @@ import {
   codeTarget,
   type LineCounts,
   lineCounts,
+  entryLineCounts,
 } from '../adapters/code-entries';
 import type { AgentCodeNote } from '../rules/code-notes';
 import { useToggleReviewed } from '../commands/reviewed';
+import { ChangeCounts } from './change-counts';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
 import {
@@ -925,6 +927,8 @@ function CodeSurface({
               return (
                 <span className="flex items-center gap-1.5">
                   {stale}
+                  {entry.comment && commentButton}
+                  <ChangeCounts counts={entryLineCounts(entry)} />
                   <span className="ml-1 flex h-4 items-center gap-2 border-l border-border-strong pl-2 text-muted-foreground">
                     <FileHeaderAction
                       label="Previous file"
@@ -1061,31 +1065,6 @@ function CodeSurface({
           renderHeaderFilenameSuffix={(item) => {
             const entry = byId.get(item.id);
             if (!entry) return null;
-            if (column && entry.comment) {
-              const label = `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`;
-              return (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        aria-label={label}
-                        onClick={() => openFileComment(entry)}
-                        className="ml-2 min-w-0 shrink"
-                      />
-                    }
-                  >
-                    <TruncatedText
-                      className="hidden max-w-48 @code-wide/code:block"
-                      text={entry.note ?? 'file'}
-                    />
-                    <MessageSquarePlusIcon className="@code-wide/code:hidden" />
-                  </TooltipTrigger>
-                  <TooltipContent>{label}</TooltipContent>
-                </Tooltip>
-              );
-            }
             return entry.note ? (
               <TruncatedText
                 className="ml-2 hidden max-w-48 font-sans text-xs text-muted-foreground @code-wide/code:block"
