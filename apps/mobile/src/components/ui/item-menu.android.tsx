@@ -1,13 +1,8 @@
 import { useState } from 'react';
-import {
-  DropdownMenu,
-  DropdownMenuItem,
-  Host,
-  RNHostView,
-  Text,
-} from '@expo/ui/jetpack-compose';
+import { DropdownMenu, Host, RNHostView } from '@expo/ui/jetpack-compose';
 import type { ItemMenuProps } from './item-menu-props';
 import { MeasuredItemMenu } from './measured-item-menu';
+import { MenuActions } from './menu-actions.android';
 
 export function ItemMenu({ actions, ...item }: ItemMenuProps) {
   const [expanded, setExpanded] = useState(false);
@@ -26,20 +21,10 @@ export function ItemMenu({ actions, ...item }: ItemMenuProps) {
               <RNHostView matchContents>{row}</RNHostView>
             </DropdownMenu.Trigger>
             <DropdownMenu.Items>
-              {actions.map((action) => (
-                <DropdownMenuItem
-                  key={action.id}
-                  enabled={!action.disabled}
-                  onClick={() => {
-                    setExpanded(false);
-                    action.onPress();
-                  }}
-                >
-                  <DropdownMenuItem.Text>
-                    <Text>{action.label}</Text>
-                  </DropdownMenuItem.Text>
-                </DropdownMenuItem>
-              ))}
+              <MenuActions
+                actions={actions}
+                onSelect={() => setExpanded(false)}
+              />
             </DropdownMenu.Items>
           </DropdownMenu>
         </Host>
