@@ -133,6 +133,31 @@ describe('listWorktrees', () => {
     ]);
   });
 
+  it('reads no time for a head committed beyond what an ISO timestamp holds', async () => {
+    const { main, feature } = repositoryWithFeature();
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'far future',
+      ],
+      {
+        cwd: feature,
+        stdio: 'ignore',
+        env: { ...process.env, GIT_COMMITTER_DATE: '@300000000000 +0000' },
+      },
+    );
+    const [, linked] = (await list(main)).worktrees;
+    expect(linked).toMatchObject({ path: feature, headCommittedAt: null });
+  });
+
   it('keeps a linked worktree whose folder is gone, as unavailable', async () => {
     const { main, feature } = repositoryWithFeature();
     rmSync(feature, { recursive: true, force: true });

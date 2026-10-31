@@ -69,6 +69,8 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
   } satisfies DiscoveredRepository;
 });
 
+const FOUR_DIGIT_YEAR = /^\d{4}-/u;
+
 const readCommitTimes = Effect.fn('Git.readCommitTimes')(function* (
   checkout: string,
   commits: readonly string[],
@@ -87,6 +89,7 @@ const readCommitTimes = Effect.fn('Git.readCommitTimes')(function* (
       '--',
     ],
     limits,
+    { config: ['log.showSignature=false'] },
   ).pipe(Effect.orElseSucceed(() => Buffer.alloc(0)));
   return new Map(
     output
@@ -94,9 +97,12 @@ const readCommitTimes = Effect.fn('Git.readCommitTimes')(function* (
       .split('\n')
       .flatMap((line) => {
         const [commit, seconds] = line.split(' ');
-        const committed = DateTime.make(Number(seconds) * 1000);
+        const committed = DateTime.make(Number(seconds) * 1000).pipe(
+          Option.map(DateTime.formatIso),
+          Option.filter((time) => FOUR_DIGIT_YEAR.test(time)),
+        );
         return commit && Option.isSome(committed)
-          ? [[commit, DateTime.formatIso(committed.value)] as const]
+          ? [[commit, committed.value] as const]
           : [];
       }),
   );
