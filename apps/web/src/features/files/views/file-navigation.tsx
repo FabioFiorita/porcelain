@@ -575,14 +575,16 @@ function PinnedDirectoryTree({
   prefix: string;
   input: PierreFileTreeInput;
 }) {
+  const [height, setHeight] = useState(0);
   const relative = (path: string) => path.slice(prefix.length);
   const paths = input.paths.filter(
     (path) => path.startsWith(prefix) && path !== prefix,
   );
   return (
-    <div className="flex h-52 min-h-0 flex-col pl-3">
+    <div className="flex max-h-52 min-h-0 flex-col pl-3" style={{ height }}>
       <PierreFileTree
         {...input}
+        onContentHeight={setHeight}
         owner={`${input.owner}:pin:${prefix}`}
         paths={paths.map(relative)}
         kinds={

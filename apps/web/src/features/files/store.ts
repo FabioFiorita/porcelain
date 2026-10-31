@@ -112,6 +112,7 @@ export type PierreFileTreeInput = {
   ) => ReactNode;
   onInvalidName: (error: string) => void;
   onSelect: (path: string, toSide?: boolean) => void;
+  onContentHeight?: ((height: number) => void) | undefined;
 };
 
 export const fileTreePlaces = Atom.family((_owner: string) =>

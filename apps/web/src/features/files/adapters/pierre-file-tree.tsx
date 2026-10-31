@@ -245,6 +245,10 @@ function mountTree(
     if (expanded.length) read().onExpand(expanded);
   }
 
+  function reportHeight() {
+    read().onContentHeight?.(model.getVisibleCount() * model.getItemHeight());
+  }
+
   function reset() {
     if (pendingCreate) return;
     const { selected } = read();
@@ -309,9 +313,11 @@ function mountTree(
       model.setIcons(treeIconsFor(current.links));
     previous = current;
     create();
+    reportHeight();
   }
   const unsubscribeInput = registry.subscribe(input, sync);
   const unsubscribeModel = model.subscribe(() => {
+    reportHeight();
     if (!syncing) reportExpanded();
   });
 
