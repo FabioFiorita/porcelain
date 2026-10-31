@@ -1,4 +1,5 @@
 import * as Schema from 'effect/Schema';
+import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { eventually } from '../kit/reads.ts';
@@ -18,7 +19,7 @@ const everyProjectIs =
       (project) => record(project).available === available,
     );
 
-const registered = (session: Session, available: boolean) => ({
+const registered = async (session: Session, available: boolean) => ({
   id: session.projectId,
   name: session.fixture.folders.repository,
   available,
@@ -30,6 +31,17 @@ const registered = (session: Session, available: boolean) => ({
       branch: session.fixture.branch,
       available,
       status: null,
+      ...(available
+        ? {
+            headCommittedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(
+                (
+                  await session.git('show', '-s', '--format=%cI', 'HEAD')
+                ).trim(),
+              ),
+            ),
+          }
+        : {}),
     },
   ],
 });
@@ -50,7 +62,7 @@ test('reading the inventory lists the registered project with its main worktree 
   );
   expect(response.headers['cache-control']).toBe('no-store');
   expect(list(record(response.body).projects)).toStrictEqual([
-    registered(session, true),
+    await registered(session, true),
   ]);
 });
 
@@ -76,14 +88,14 @@ test('a project whose folder has gone away stays registered as unavailable and i
       ),
     );
     expect(list(record(response.body).projects)).toStrictEqual([
-      { ...registered(session, false), unavailableReason: 'missing' },
+      { ...(await registered(session, false)), unavailableReason: 'missing' },
     ]);
   } finally {
     await session.rename(moved, session.repository);
   }
   expect(
     list((await eventually(session, inventory, everyProjectIs(true))).projects),
-  ).toStrictEqual([registered(session, true)]);
+  ).toStrictEqual([await registered(session, true)]);
 });
 
 test('refreshing the inventory rechecks a missing repository and restores its original worktree when the folder returns', async ({
@@ -99,7 +111,7 @@ test('refreshing the inventory rechecks a missing repository and restores its or
     expect(missing.status).toBe(200);
     expect(missing.headers['content-type']).toContain('application/json');
     expect(list(record(missing.body).projects)).toStrictEqual([
-      { ...registered(session, false), unavailableReason: 'missing' },
+      { ...(await registered(session, false)), unavailableReason: 'missing' },
     ]);
   } finally {
     await session.rename(moved, session.repository);
@@ -111,7 +123,7 @@ test('refreshing the inventory rechecks a missing repository and restores its or
   expect(recovered.status).toBe(200);
   expect(recovered.headers['content-type']).toContain('application/json');
   expect(list(record(recovered.body).projects)).toStrictEqual([
-    registered(session, true),
+    await registered(session, true),
   ]);
 });
 
@@ -130,7 +142,7 @@ test('removing a moved project lets the replacement repository be registered', a
     });
     expect(moved.status).toBe(200);
     expect(list(record(moved.body).projects)).toStrictEqual([
-      { ...registered(session, false), unavailableReason: 'moved' },
+      { ...(await registered(session, false)), unavailableReason: 'moved' },
     ]);
 
     const removed = await session.send({
