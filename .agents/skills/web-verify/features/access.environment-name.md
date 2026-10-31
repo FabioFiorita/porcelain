@@ -81,7 +81,7 @@ Required instance mode: `--desktop`.
     Expect: menu with label "Icon of this computer" and radio items Desktop (checked), Laptop, Server, Cloud.
 16. Click menu item radio `Laptop`
     Expect: the trigger is named `Icon: Laptop` and shows a laptop; inventory `environment` is `{ name: $HOST, custom: false, icon: 'laptop' }`; the PUT answers 200.
-17. Click button `Icon: Laptop`, then menu item radio `Desktop`
+17. Press Escape to dismiss the radio menu, then click button `Icon: Laptop` and menu item radio `Desktop`
     Expect: trigger `Icon: Desktop`; inventory `environment` has no `icon`.
 
 Sidebar badge with two computers (after pairing the remote as above, 1280 × 800):
@@ -90,7 +90,9 @@ Sidebar badge with two computers (after pairing the remote as above, 1280 × 800
     Expect: each project header has a badge with role img `Computer: <name>` that shows its icon and the name.
 19. Rename the remote to a name longer than the badge (the remote fixture's `Remote journey computer`), or rename a project to a long name
     Expect: that header's badge shows only the icon, keeps role img `Computer: <full name>`, and hovering or focusing it (Tab) shows the full computer name in a tooltip. Headers whose names fit keep the icon and name.
-20. Click button `Filter worktrees`
+20. With short computer names and a project named `Document inspection`, resize the navigator from 220px to 420px, then repeat
+    Expect: the computer badge is icon-only at 220px and restores icon + name at 420px every time.
+21. Click button `Filter worktrees`
     Expect: each Environments row shows its computer's icon before the name.
 
 Automated coverage: `access-environment-name.desktop.e2e.ts`.

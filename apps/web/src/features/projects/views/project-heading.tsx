@@ -22,27 +22,33 @@ export function ProjectHeading({
   showEnvironment: boolean;
 }) {
   const names = `${projectName}\n${environmentName}`;
-  const [cramped, setCramped] = useState<string>();
-  const iconOnly = cramped === names;
+  const [cramped, setCramped] = useState<{ names: string; width: number }>();
+  const iconOnly = cramped?.names === names;
   const environmentLabel = `Computer: ${environmentName}`;
   const measure = (heading: HTMLDivElement | null) => {
-    if (!heading || !showEnvironment || iconOnly) return;
+    if (!heading || !showEnvironment) return;
     const texts = [
       ...heading.querySelectorAll<HTMLElement>('[data-truncated]'),
     ];
     let active = true;
     const check = () => {
-      if (active && texts.some((text) => text.scrollWidth > text.clientWidth))
-        setCramped(names);
+      if (!active) return;
+      const width = heading.clientWidth;
+      if (iconOnly) {
+        if (width > cramped.width) setCramped(undefined);
+      } else if (texts.some((text) => text.scrollWidth > text.clientWidth))
+        setCramped({ names, width });
     };
     check();
     const observer = new ResizeObserver(check);
+    observer.observe(heading);
     for (const text of texts) observer.observe(text);
-    document.fonts.addEventListener('loadingdone', check);
+    const fontsChanged = () => setCramped(undefined);
+    document.fonts.addEventListener('loadingdone', fontsChanged);
     return () => {
       active = false;
       observer.disconnect();
-      document.fonts.removeEventListener('loadingdone', check);
+      document.fonts.removeEventListener('loadingdone', fontsChanged);
     };
   };
   return (
