@@ -58,6 +58,15 @@ describe('knownWorktreesChanged', () => {
     ).toBe(true);
   });
 
+  it('sees a worktree whose head moved to a newer commit', () => {
+    expect(
+      knownWorktreesChanged(
+        listing([{ ...main, headCommittedAt: '2026-10-30T12:00:00.000Z' }]),
+        listing([{ ...main, headCommittedAt: '2026-10-31T08:00:00.000Z' }]),
+      ),
+    ).toBe(true);
+  });
+
   it('ignores identities that only Git plumbing reads', () => {
     expect(
       knownWorktreesChanged(

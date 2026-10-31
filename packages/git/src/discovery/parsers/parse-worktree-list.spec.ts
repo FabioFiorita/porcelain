@@ -16,10 +16,28 @@ describe('parseWorktreeList', () => {
         parseWorktreeList(fixture('worktrees/linked.txt').toString('utf8')),
       ),
     ).toEqual([
-      { path: '/tmp/porcelain-fixtures/repo', branch: 'refs/heads/main' },
-      { path: '/tmp/porcelain-fixtures/feature', branch: 'refs/heads/feature' },
-      { path: '/tmp/porcelain-fixtures/my detached', branch: null },
+      {
+        path: '/tmp/porcelain-fixtures/repo',
+        branch: 'refs/heads/main',
+        head: HEAD,
+      },
+      {
+        path: '/tmp/porcelain-fixtures/feature',
+        branch: 'refs/heads/feature',
+        head: HEAD,
+      },
+      { path: '/tmp/porcelain-fixtures/my detached', branch: null, head: HEAD },
     ]);
+  });
+
+  it('reads an unborn branch as having no head commit', () => {
+    expect(
+      Effect.runSync(
+        parseWorktreeList(
+          `worktree /repo\0HEAD ${'0'.repeat(40)}\0branch refs/heads/main\0\0`,
+        ),
+      ),
+    ).toEqual([{ path: '/repo', branch: 'refs/heads/main', head: null }]);
   });
 
   it('refuses a bare repository', () => {

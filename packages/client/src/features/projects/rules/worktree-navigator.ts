@@ -71,11 +71,26 @@ export type NavigatorEntry = {
   name: string;
   branch: string;
   main: boolean;
+  headCommittedAt?: string;
   detached: boolean;
   available: boolean;
   review: NavigatorReview;
   changes: NavigatorChanges;
 };
+type NavigatorOrder = Pick<
+  NavigatorEntry,
+  'key' | 'name' | 'main' | 'headCommittedAt'
+>;
+export function navigatorWorktreeOrder(a: NavigatorOrder, b: NavigatorOrder) {
+  return (
+    Number(b.main) - Number(a.main) ||
+    Number(b.headCommittedAt !== undefined) -
+      Number(a.headCommittedAt !== undefined) ||
+    (b.headCommittedAt ?? '').localeCompare(a.headCommittedAt ?? '') ||
+    a.name.localeCompare(b.name) ||
+    a.key.localeCompare(b.key)
+  );
+}
 export function navigatorReviewLabel(review: NavigatorReview) {
   if (review.state === 'none') return 'No review';
   if (review.state === 'loading') return 'Reading review…';

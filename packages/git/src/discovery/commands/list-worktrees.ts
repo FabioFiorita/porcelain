@@ -1,4 +1,4 @@
-import { Effect, FileSystem } from 'effect';
+import { DateTime, Effect, FileSystem, Option } from 'effect';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import { isRepositoryUnavailable } from '../../shared/errors/is-repository-unavailable.ts';
 import { parseWorktreeList } from '../parsers/parse-worktree-list.ts';
@@ -34,6 +34,11 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
   );
   const records = yield* parseWorktreeList(inventory.toString('utf8'));
   const registry = yield* readWorktreeRegistry(commonDirectory);
+  const committedAt = yield* readCommitTimes(
+    checkout,
+    records.flatMap((record) => (record.head ? [record.head] : [])),
+    limits,
+  );
   const worktrees = yield* Effect.forEach(records, (record, index) =>
     Effect.gen(function* () {
       const administrativeDirectory =
@@ -52,6 +57,7 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
         administrativeDirectory: administrativeDirectory ?? '',
         main: index === 0,
         branch: record.branch,
+        headCommittedAt: committedAt.get(record.head ?? '') ?? null,
         available: inspection.available,
       };
     }),
@@ -61,6 +67,45 @@ export const listWorktrees = Effect.fn('Git.listWorktrees')(function* (
     repositoryIdentity,
     worktrees,
   } satisfies DiscoveredRepository;
+});
+
+const FOUR_DIGIT_YEAR = /^\d{4}-/u;
+
+const readCommitTimes = Effect.fn('Git.readCommitTimes')(function* (
+  checkout: string,
+  commits: readonly string[],
+  limits: GitLimits,
+) {
+  const unique = [...new Set(commits)];
+  if (unique.length === 0) return new Map<string, string>();
+  const output = yield* gitRead(
+    checkout,
+    [
+      'log',
+      '--no-walk',
+      '--ignore-missing',
+      '--format=%H %ct',
+      ...unique,
+      '--',
+    ],
+    limits,
+    { config: ['log.showSignature=false'] },
+  ).pipe(Effect.orElseSucceed(() => Buffer.alloc(0)));
+  return new Map(
+    output
+      .toString('utf8')
+      .split('\n')
+      .flatMap((line) => {
+        const [commit, seconds] = line.split(' ');
+        const committed = DateTime.make(Number(seconds) * 1000).pipe(
+          Option.map(DateTime.formatIso),
+          Option.filter((time) => FOUR_DIGIT_YEAR.test(time)),
+        );
+        return commit && Option.isSome(committed)
+          ? [[commit, committed.value] as const]
+          : [];
+      }),
+  );
 });
 
 const unidentified = { metadataIdentity: null, available: false } as const;

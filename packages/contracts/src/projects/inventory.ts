@@ -2,6 +2,7 @@ import { projectUnavailableReasonSchema } from '@porcelain/projects/models';
 import { environmentSchema } from '../shared/environment.ts';
 import { Schema, SchemaTransformation } from 'effect';
 import {
+  isoDateTimeSchema,
   nullableAsUndefined,
   projectIdSchema,
   worktreeIdSchema,
@@ -22,6 +23,7 @@ const worktreeSchema = Schema.Struct({
   path: Schema.String,
   main: Schema.Boolean,
   branch: nullableAsUndefined(Schema.String),
+  headCommittedAt: Schema.optionalKey(isoDateTimeSchema),
   available: Schema.Boolean,
   status: nullableAsUndefined(
     Schema.Literals(['pending', 'reviewed', 'replied']),

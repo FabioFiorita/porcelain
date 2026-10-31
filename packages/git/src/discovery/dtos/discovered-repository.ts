@@ -4,6 +4,7 @@ type DiscoveredWorktree = {
   administrativeDirectory: string;
   main: boolean;
   branch: string | null;
+  headCommittedAt: string | null;
   available: boolean;
 };
 export type DiscoveredRepository = {
