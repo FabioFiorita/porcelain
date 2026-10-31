@@ -42,50 +42,64 @@ export function ReviewRoute({
   if (environment && !remote)
     return (
       <ConnectedWorkspace>
-        <StateFrame
-          navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
-          title="Review"
-        >
-          <StateNotice
-            title="Computer not paired"
-            description="This review's remote computer is not paired here."
+        {(navigationTrigger) => (
+          <StateFrame
+            navigation={
+              <SidebarTrigger
+                ref={navigationTrigger.attach}
+                aria-label="Toggle Sidebar"
+              />
+            }
+            title="Review"
           >
-            <Button
-              variant="outline"
-              onClick={() =>
-                void navigate({
-                  to: '/settings/$section',
-                  params: { section: 'computers' },
-                })
-              }
+            <StateNotice
+              title="Computer not paired"
+              description="This review's remote computer is not paired here."
             >
-              Computer settings
-            </Button>
-            <Button variant="ghost" onClick={back}>
-              Back to workspace
-            </Button>
-          </StateNotice>
-        </StateFrame>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void navigate({
+                    to: '/settings/$section',
+                    params: { section: 'computers' },
+                  })
+                }
+              >
+                Computer settings
+              </Button>
+              <Button variant="ghost" onClick={back}>
+                Back to workspace
+              </Button>
+            </StateNotice>
+          </StateFrame>
+        )}
       </ConnectedWorkspace>
     );
   const number = revision === undefined ? undefined : Number(revision);
   if (number !== undefined && (!Number.isSafeInteger(number) || number < 1))
     return (
       <ConnectedWorkspace>
-        <ReviewMissing
-          navigation={<SidebarTrigger aria-label="Toggle Sidebar" />}
-          reviewId={reviewId}
-          revision={revision}
-          context={context}
-          onBack={back}
-          onRevision={() =>
-            void navigate({
-              to: '/reviews/$reviewId',
-              params: { reviewId },
-              search: { environment, decision: undefined },
-            })
-          }
-        />
+        {(navigationTrigger) => (
+          <ReviewMissing
+            navigation={
+              <SidebarTrigger
+                ref={navigationTrigger.attach}
+                aria-label="Toggle Sidebar"
+              />
+            }
+            reviewId={reviewId}
+            revision={revision}
+            context={context}
+            onBack={back}
+            onRevision={() =>
+              void navigate({
+                to: '/reviews/$reviewId',
+                params: { reviewId },
+                search: { environment, decision: undefined },
+              })
+            }
+          />
+        )}
       </ConnectedWorkspace>
     );
   return (
@@ -93,66 +107,69 @@ export function ReviewRoute({
       openReview={{ reviewId, environment }}
       {...(remote ? { remote } : {})}
     >
-      <ReviewPage
-        navigation={
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <SidebarTrigger
-                  aria-label="Toggle Sidebar"
-                  aria-keyshortcuts={
-                    detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-                  }
-                />
-              }
-            />
-            <TooltipContent>
-              Toggle Sidebar{' '}
-              <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
-            </TooltipContent>
-          </Tooltip>
-        }
-        reviewId={reviewId}
-        initialEntry={entry}
-        revision={number}
-        decision={decision}
-        context={context}
-        onBack={back}
-        onRevision={(selected) => {
-          if (selected === undefined)
-            void navigate({
-              to: '/reviews/$reviewId',
-              params: { reviewId },
-              search: { environment, decision: undefined },
-            });
-          else
-            void navigate({
-              to: '/reviews/$reviewId/$revision',
-              params: { reviewId, revision: String(selected) },
-              search: { environment, decision: undefined },
-            });
-        }}
-        onStop={(layerId) => {
-          if (number === undefined)
-            void navigate({
-              to: '/reviews/$reviewId',
-              params: { reviewId },
-              search: { environment, decision: layerId },
-            });
-          else if (layerId === undefined)
-            void navigate({
-              to: '/reviews/$reviewId/$revision',
-              params: { reviewId, revision: String(number) },
-              search: { environment, decision: undefined },
-            });
-          else
-            void navigate({
-              to: '/reviews/$reviewId/$revision/decisions/$layerId',
-              params: { reviewId, revision: String(number), layerId },
-              search: { environment, decision: undefined },
-            });
-        }}
-      />
+      {(navigationTrigger) => (
+        <ReviewPage
+          navigation={
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <SidebarTrigger
+                    ref={navigationTrigger.attach}
+                    aria-label="Toggle Sidebar"
+                    aria-keyshortcuts={
+                      detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                    }
+                  />
+                }
+              />
+              <TooltipContent>
+                Toggle Sidebar{' '}
+                <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+              </TooltipContent>
+            </Tooltip>
+          }
+          reviewId={reviewId}
+          initialEntry={entry}
+          revision={number}
+          decision={decision}
+          context={context}
+          onBack={back}
+          onRevision={(selected) => {
+            if (selected === undefined)
+              void navigate({
+                to: '/reviews/$reviewId',
+                params: { reviewId },
+                search: { environment, decision: undefined },
+              });
+            else
+              void navigate({
+                to: '/reviews/$reviewId/$revision',
+                params: { reviewId, revision: String(selected) },
+                search: { environment, decision: undefined },
+              });
+          }}
+          onStop={(layerId) => {
+            if (number === undefined)
+              void navigate({
+                to: '/reviews/$reviewId',
+                params: { reviewId },
+                search: { environment, decision: layerId },
+              });
+            else if (layerId === undefined)
+              void navigate({
+                to: '/reviews/$reviewId/$revision',
+                params: { reviewId, revision: String(number) },
+                search: { environment, decision: undefined },
+              });
+            else
+              void navigate({
+                to: '/reviews/$reviewId/$revision/decisions/$layerId',
+                params: { reviewId, revision: String(number), layerId },
+                search: { environment, decision: undefined },
+              });
+          }}
+        />
+      )}
     </ConnectedWorkspace>
   );
 }

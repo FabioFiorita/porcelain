@@ -104,7 +104,19 @@ test('generic deletion protects stale and unacknowledged changes, then deletes t
   await session.git('init', '--bare', '-b', session.fixture.branch, remote);
   await session.git('remote', 'set-url', '--push', 'origin', remote);
   await session.git('push', remote, session.fixture.branch);
+  const pushedHead = (await session.git('rev-parse', 'HEAD')).trim();
+  await session.git(
+    'commit',
+    '--allow-empty',
+    '-m',
+    'Keep unpublished worktree history',
+  );
   const tree = await linked(session);
+  expect(
+    (
+      await session.git('rev-list', '--count', 'delete-topic', `^${pushedHead}`)
+    ).trim(),
+  ).toBe('1');
   const published = record(
     toolValue(
       await read(

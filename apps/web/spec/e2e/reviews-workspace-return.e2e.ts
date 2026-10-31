@@ -31,6 +31,7 @@ test('returning to a visited review reuses warm content and a later publication 
   await expect(
     page.getByText('Revision 1 of 1', { exact: true }),
   ).toBeVisible();
+  const live = app.holdLive();
   await page.waitForLoadState('networkidle');
   const probe = await reviewReturnProbe(page, published.reviewId);
   try {
@@ -47,6 +48,7 @@ test('returning to a visited review reuses warm content and a later publication 
       .toEqual({ heavyReads: [], loading: false });
   } finally {
     await probe.close();
+    live.release();
   }
   await agent.publishReview('Updated main cache decision');
   await expect(

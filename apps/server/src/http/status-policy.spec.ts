@@ -40,6 +40,22 @@ function errorClasses(): { name: string; instance: unknown }[] {
 }
 
 describe('status policy', () => {
+  it('answers a worktree cleanup refusal as a conflict with its safety reason', () => {
+    expect(
+      toStatusResponse(
+        new gitActionsErrors.WorktreeCleanupRefusedError({
+          message: 'The main worktree cannot be deleted.',
+        }),
+      ),
+    ).toEqual({
+      statusCode: 409,
+      body: {
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'The main worktree cannot be deleted.',
+      },
+    });
+  });
   it('finds the error classes every domain exports', () => {
     expect(errorClasses().length).toBeGreaterThan(
       Object.keys(domainErrors).length,

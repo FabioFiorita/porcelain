@@ -94,7 +94,9 @@ export function ConnectedWorkspace({
   children,
   settingsOpen = false,
 }: {
-  children?: ReactNode;
+  children?:
+    | ReactNode
+    | ((navigationTrigger: ElementTarget<HTMLButtonElement>) => ReactNode);
   settingsOpen?: boolean;
   review?: Review;
   openReview?: { reviewId: string; environment: string | undefined };
@@ -231,6 +233,9 @@ export function ConnectedWorkspace({
     ignoreInputs: true,
   });
 
+  const content =
+    typeof children === 'function' ? children(navigationTrigger) : children;
+
   return (
     <>
       {isMobile && (
@@ -252,7 +257,7 @@ export function ConnectedWorkspace({
         isMobile={isMobile}
         open={open}
       >
-        {children ??
+        {content ??
           (review ? (
             <ReviewWorkspace
               key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
