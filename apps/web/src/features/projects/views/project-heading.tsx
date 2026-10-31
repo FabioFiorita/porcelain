@@ -8,12 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { EnvironmentGlyph } from '@/features/access/index';
-import { useElement } from '@/shared/hooks/use-element';
 import { TruncatedText } from '@/shared/views/truncated-text';
-
-function clipped(element: HTMLElement) {
-  return element.scrollWidth > element.clientWidth;
-}
 
 export function ProjectHeading({
   projectName,
@@ -28,21 +23,21 @@ export function ProjectHeading({
 }) {
   const names = `${projectName}\n${environmentName}`;
   const [cramped, setCramped] = useState<string>();
-  const projectText = useElement<HTMLSpanElement>();
   const iconOnly = cramped === names;
   const environmentLabel = `Computer: ${environmentName}`;
-  const measure = (environmentText: HTMLSpanElement | null) => {
-    const project = projectText.element;
-    if (!environmentText || !project) return;
+  const measure = (heading: HTMLDivElement | null) => {
+    if (!heading || !showEnvironment || iconOnly) return;
+    const texts = [
+      ...heading.querySelectorAll<HTMLElement>('[data-truncated]'),
+    ];
     let active = true;
     const check = () => {
-      if (active && (clipped(project) || clipped(environmentText)))
+      if (active && texts.some((text) => text.scrollWidth > text.clientWidth))
         setCramped(names);
     };
     check();
     const observer = new ResizeObserver(check);
-    observer.observe(project);
-    observer.observe(environmentText);
+    for (const text of texts) observer.observe(text);
     document.fonts.addEventListener('loadingdone', check);
     return () => {
       active = false;
@@ -51,15 +46,12 @@ export function ProjectHeading({
     };
   };
   return (
-    <>
+    <div ref={measure} className="flex min-w-0 flex-1 items-center gap-1">
       <SidebarGroupLabel
         aria-label={`${projectName} · ${environmentName}`}
         className="min-w-0 flex-1"
       >
-        <TruncatedText
-          text={projectName}
-          render={<span ref={projectText.attach} />}
-        />
+        <TruncatedText text={projectName} />
       </SidebarGroupLabel>
       {showEnvironment &&
         (iconOnly ? (
@@ -86,12 +78,9 @@ export function ProjectHeading({
             aria-label={environmentLabel}
           >
             <EnvironmentGlyph icon={environmentIcon} />
-            <TruncatedText
-              text={environmentName}
-              render={<span ref={measure} />}
-            />
+            <TruncatedText text={environmentName} />
           </Badge>
         ))}
-    </>
+    </div>
   );
 }
