@@ -6,6 +6,7 @@ type WorktreeReport = {
   path: string;
   main: boolean;
   branch: string | undefined;
+  headCommittedAt?: string;
   available: boolean;
   status: ReviewBadge | undefined;
 };

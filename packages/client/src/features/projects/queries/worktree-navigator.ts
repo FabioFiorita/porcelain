@@ -20,6 +20,7 @@ import type { ReviewRecord } from '../../reviews/rules/review.ts';
 import {
   navigatorEntryMatches,
   navigatorFilterSections,
+  navigatorWorktreeOrder,
   type NavigatorEntry,
   type NavigatorReview,
 } from '../rules/worktree-navigator.ts';
@@ -70,6 +71,9 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
       name: worktree.branch ?? checkoutFolder(worktree.path).name,
       branch: worktreeLabel(worktree.branch),
       main: worktree.main,
+      ...(worktree.headCommittedAt
+        ? { headCommittedAt: worktree.headCommittedAt }
+        : {}),
       detached: !worktree.branch,
       available: project.available && worktree.available,
       review: { state: 'loading' },
@@ -78,12 +82,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
           project.available && worktree.available ? 'loading' : 'unavailable',
       },
     }))
-    .sort(
-      (a, b) =>
-        Number(b.main) - Number(a.main) ||
-        a.name.localeCompare(b.name) ||
-        a.key.localeCompare(b.key),
-    );
+    .sort(navigatorWorktreeOrder);
 }
 const readNavigatorProject = Atom.family(
   (input: {

@@ -238,7 +238,35 @@ describe('gitWorktreeListingReaderLayer', () => {
     });
     const [worktree] = result.kind === 'listed' ? result.worktrees : [];
     expect(worktree?.id).toBe(`project-1:${worktree?.metadataIdentity}`);
+    expect(worktree).not.toHaveProperty('headCommittedAt');
     expect(reports).toEqual([]);
+  });
+
+  it('carries the head commit time of each worktree', async () => {
+    const project = repository();
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'start',
+      ],
+      {
+        cwd: join(root, 'api'),
+        env: { ...process.env, GIT_COMMITTER_DATE: '2026-10-31T08:15:30Z' },
+      },
+    );
+    const result = await Effect.runPromise(listing(project).list);
+    expect(result).toMatchObject({
+      kind: 'listed',
+      worktrees: [{ main: true, headCommittedAt: '2026-10-31T08:15:30.000Z' }],
+    });
   });
 
   it('reports a repository that is gone as missing without logging each read', async () => {

@@ -3,6 +3,7 @@ import type { Worktree } from '@porcelain/kernel/models';
 export type ListedWorktree = Worktree & {
   path: string;
   branch: string | undefined;
+  headCommittedAt?: string;
   main: boolean;
   available: boolean;
   metadataIdentity: string;

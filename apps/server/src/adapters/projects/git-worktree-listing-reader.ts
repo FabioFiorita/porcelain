@@ -82,6 +82,9 @@ export const gitWorktreeListingReaderLayer = (
             projectId: project.id,
             path: worktree.path,
             branch: worktree.branch ?? undefined,
+            ...(worktree.headCommittedAt
+              ? { headCommittedAt: worktree.headCommittedAt }
+              : {}),
             main: worktree.main,
             available: worktree.available,
             metadataIdentity: worktree.metadataIdentity,

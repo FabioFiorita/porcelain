@@ -13,6 +13,7 @@ import {
   type NavigatorReview,
   navigatorFilterSections,
   navigatorEntrySelected,
+  navigatorWorktreeOrder,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
 
@@ -319,5 +320,35 @@ it('offers both same-named projects as scoped choices and keeps an empty review 
       checked: false,
       next: ['without-review'],
     },
+  ]);
+});
+
+it('keeps the main worktree first, then the newest head commit, with undated worktrees last by name', () => {
+  const worktree = (name: string, headCommittedAt?: string, main = false) => ({
+    key: `desk/project/${name}`,
+    name,
+    main,
+    ...(headCommittedAt ? { headCommittedAt } : {}),
+  });
+  expect(
+    [
+      worktree('unborn'),
+      worktree('older', '2026-10-01T09:00:00.000Z'),
+      worktree('beta', '2026-10-30T12:00:00.000Z'),
+      worktree('main', '2026-01-01T00:00:00.000Z', true),
+      worktree('alpha', '2026-10-30T12:00:00.000Z'),
+      worktree('newest', '2026-10-31T08:00:00.000Z'),
+      worktree('catalog-only'),
+    ]
+      .sort(navigatorWorktreeOrder)
+      .map((entry) => entry.name),
+  ).toEqual([
+    'main',
+    'newest',
+    'alpha',
+    'beta',
+    'older',
+    'catalog-only',
+    'unborn',
   ]);
 });

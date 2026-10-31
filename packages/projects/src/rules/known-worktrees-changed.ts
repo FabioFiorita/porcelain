@@ -12,6 +12,7 @@ function shown(listings: readonly ProjectWorktrees[]): string {
         branch: worktree.branch,
         main: worktree.main,
         available: worktree.available,
+        headCommittedAt: worktree.headCommittedAt,
       })),
     })),
   );

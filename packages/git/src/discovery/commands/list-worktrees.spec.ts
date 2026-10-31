@@ -95,6 +95,44 @@ describe('listWorktrees', () => {
     ).toBe(true);
   });
 
+  it('reads each head commit time and none for an unborn branch', async () => {
+    const { main, feature } = repositoryWithFeature();
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'later',
+      ],
+      {
+        cwd: feature,
+        stdio: 'ignore',
+        env: {
+          ...process.env,
+          GIT_COMMITTER_DATE: '2026-10-31T08:15:30Z',
+        },
+      },
+    );
+    const unborn = join(root, 'unborn');
+    git(main, 'worktree', 'add', '-q', '--orphan', '-b', 'unborn', unborn);
+    const [first, ...linked] = (await list(main)).worktrees;
+    expect(first?.headCommittedAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/u,
+    );
+    expect(
+      linked.map(({ path, headCommittedAt }) => ({ path, headCommittedAt })),
+    ).toEqual([
+      { path: feature, headCommittedAt: '2026-10-31T08:15:30.000Z' },
+      { path: unborn, headCommittedAt: null },
+    ]);
+  });
+
   it('keeps a linked worktree whose folder is gone, as unavailable', async () => {
     const { main, feature } = repositoryWithFeature();
     rmSync(feature, { recursive: true, force: true });
