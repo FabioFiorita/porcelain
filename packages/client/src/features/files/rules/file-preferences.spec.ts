@@ -1,9 +1,15 @@
-import { expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import {
+  canonicalPreferencePath,
+  hiddenPathFor,
+  hiddenSummary,
+  visibleFileTreePaths,
   filePreferenceActions,
   filePreferenceEntries,
-} from './file-preferences';
+  pinnedFileEntries,
+  pinnedParentDirectories,
+} from './file-preferences.ts';
 
 const entries: readonly FileTreeEntry[] = [
   { path: 'docs/', kind: 'directory' },
@@ -100,7 +106,7 @@ test('files can be pinned and unpinned with an optional side action', () => {
   expect(pinned.actions.some(({ id }) => id === 'open-to-side')).toBe(false);
 });
 
-test.each(['directory', 'symlink', 'submodule', 'other'] as const)(
+test.each(['symlink', 'submodule', 'other'] as const)(
   '%s entries have no pin or side action',
   (kind) => {
     const result = filePreferenceActions(
@@ -161,3 +167,139 @@ test('an inherited Show action clears the actual hidden ancestor rather than wri
     value: false,
   });
 });
+
+test('folder pins use folder labels and canonical paths', () => {
+  const result = filePreferenceActions(
+    { path: 'docs/', kind: 'directory' },
+    new Set(),
+    new Set(),
+    false,
+  );
+  expect(result.actions).toContainEqual({ id: 'pin', label: 'Pin folder' });
+  expect(result.pin).toEqual({ path: 'docs', flag: 'pinned', value: true });
+  expect(
+    filePreferenceActions(
+      { path: 'docs/', kind: 'directory' },
+      new Set(),
+      new Set(['docs']),
+      false,
+    ).actions,
+  ).toContainEqual({ id: 'pin', label: 'Unpin folder' });
+});
+
+test.each(['symlink', 'submodule', 'other'] as const)(
+  'existing %s pins remain removable',
+  (kind) => {
+    const result = filePreferenceActions(
+      { path: 'old', kind },
+      new Set(),
+      new Set(['old']),
+      false,
+    );
+    expect(result.actions).toContainEqual({ id: 'pin', label: 'Unpin file' });
+    expect(result.pin).toEqual({ path: 'old', flag: 'pinned', value: false });
+  },
+);
+
+test('pinned entry kind comes from its actual parent listing, including a known dotfile', () => {
+  expect(
+    pinnedFileEntries(
+      ['docs', 'docs/.env'],
+      [
+        {
+          path: '',
+          status: 'loaded',
+          entries: [{ name: 'docs', kind: 'directory' }],
+        },
+        {
+          path: 'docs',
+          status: 'loaded',
+          entries: [{ name: '.env', kind: 'file', ignored: true }],
+        },
+      ],
+    ),
+  ).toEqual([
+    {
+      path: 'docs',
+      state: 'resolved',
+      entry: { path: 'docs/', kind: 'directory' },
+    },
+    {
+      path: 'docs/.env',
+      state: 'resolved',
+      entry: { path: 'docs/.env', kind: 'file', ignored: true },
+    },
+  ]);
+});
+
+test('unread, failed and missing parent listings never invent a pinned file kind', () => {
+  expect(pinnedFileEntries(['docs/.env'], [])).toEqual([
+    { path: 'docs/.env', state: 'loading' },
+  ]);
+  expect(
+    pinnedFileEntries(['docs/.env'], [{ path: 'docs', status: 'unavailable' }]),
+  ).toEqual([{ path: 'docs/.env', state: 'unavailable' }]);
+  expect(
+    pinnedFileEntries(['docs/.env'], [{ path: '', status: 'unavailable' }]),
+  ).toEqual([{ path: 'docs/.env', state: 'unavailable' }]);
+  expect(
+    pinnedFileEntries(
+      ['docs/.env'],
+      [{ path: '', status: 'loaded', entries: [] }],
+    ),
+  ).toEqual([{ path: 'docs/.env', state: 'missing' }]);
+  expect(
+    pinnedFileEntries(
+      ['docs/.env'],
+      [{ path: 'docs', status: 'loaded', entries: [] }],
+    ),
+  ).toEqual([{ path: 'docs/.env', state: 'missing' }]);
+});
+
+test('pinned parents are deduplicated and ordered before descendants without reading pinned files as directories', () => {
+  expect(
+    pinnedParentDirectories([
+      { path: 'docs/private/.env', hidden: false, pinned: true },
+      { path: 'docs/guide.md', hidden: false, pinned: true },
+      { path: 'ignored/README.md', hidden: false, pinned: false },
+    ]),
+  ).toEqual(['docs', 'docs/private']);
+});
+
+describe('hidden project paths', () => {
+  it('hides a selected directory and its children without hiding a similarly named sibling', () => {
+    const hidden = new Set(['src/private']);
+    expect(hiddenPathFor('src/private/key.txt', hidden)).toBe('src/private');
+    expect(hiddenPathFor('src/private-copy/key.txt', hidden)).toBeNull();
+    expect(
+      visibleFileTreePaths(
+        ['src/private/key.txt', 'src/private-copy/key.txt'],
+        hidden,
+        false,
+      ),
+    ).toEqual(['src/private-copy/key.txt']);
+    expect(visibleFileTreePaths(['src/private/key.txt'], hidden, true)).toEqual(
+      ['src/private/key.txt'],
+    );
+  });
+
+  it('removes a trailing directory separator before saving a preference', () => {
+    expect(canonicalPreferencePath('src/private/')).toBe('src/private');
+  });
+});
+
+it.each([[['docs', 'scripts', 'tests'], '3 hidden folders']] as const)(
+  'summarises hidden %j as %s',
+  (paths, summary) => {
+    const kinds = new Map<string, string>([
+      ['docs', 'directory'],
+      ['scripts', 'directory'],
+      ['tests', 'directory'],
+      ['secrets.env', 'file'],
+      ['.envrc', 'file'],
+    ]);
+    expect(hiddenSummary(new Set(paths), (path) => kinds.get(path))).toBe(
+      summary,
+    );
+  },
+);

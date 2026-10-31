@@ -2,7 +2,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
-import { FileTypeIcon } from '@/features/files/index';
+import { FileTreeIcon } from '@/features/files/index';
 import type { DocumentRef, OpenDocument } from '../rules/documents';
 import {
   basename,
@@ -105,7 +105,7 @@ export function ChangeRow({
             }
           >
             <ReviewStatusIcon status={reviewStatus} />
-            <FileTypeIcon path={path} className="size-3.5 shrink-0" />
+            <FileTreeIcon path={path} className="size-3.5 shrink-0" />
             <TruncatedText
               className={cn(
                 'min-w-0 flex-1 ',

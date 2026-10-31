@@ -168,6 +168,10 @@ function SelectedWorkspace({
     <Box className="min-w-0 flex-1">
       <Box className={session.mode === 'files' ? 'flex-1' : 'hidden'}>
         <FilesNavigation
+          active={
+            session.mode === 'files' &&
+            (landscape ? session.inspectorOpen : sheetOpen)
+          }
           selected={workspace}
           comparison={session.comparison}
           sidebar={sidebar}

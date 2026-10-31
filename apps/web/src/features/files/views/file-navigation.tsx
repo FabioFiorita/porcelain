@@ -41,7 +41,7 @@ import {
   hiddenPathFor,
   hiddenSummary,
   visibleFileTreePaths,
-} from '@porcelain/client/projects/rules';
+} from '@porcelain/client/files/rules';
 import {
   useHiddenPaths,
   usePinnedPaths,
@@ -50,7 +50,11 @@ import {
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { useFileTreeControls } from '../store';
+import {
+  useFileTreeControls,
+  useFileNavigationState,
+  type PierreFileTreeInput,
+} from '../store';
 import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
@@ -63,8 +67,10 @@ import {
   changeStatus,
   fileTreeAncestors,
   mergeFileTreeEntries,
+  pinnedFileEntries,
+  pinnedParentDirectories,
+  type PinnedDirectoryState,
 } from '@porcelain/client/files/rules';
-import { isImagePath } from '@porcelain/client/files/rules';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import {
   duplicatePath,
@@ -73,7 +79,7 @@ import {
 } from '@porcelain/client/files/rules';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
-import { QuickOpen } from './quick-open';
+import { FileSectionHeader } from './file-section-header';
 import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
@@ -99,7 +105,7 @@ export function FileNavigation({
   sideLabel,
   actionsTarget,
 }: Props) {
-  const scopeKey = `${scope.projectId}:${scope.worktreeId}`;
+  const scopeKey = `${connection.environmentId}:${scope.projectId}:${scope.worktreeId}`;
   return (
     <ScopedFileNavigation
       key={scopeKey}
@@ -141,12 +147,34 @@ function ScopedFileNavigation({
   const setHidden = useSetHidden(connection, scope.projectId);
   const pinned = usePinnedPaths(connection, scope.projectId);
   const setPinned = useSetPinned(connection, scope.projectId);
-  const [showHidden, setShowHidden] = useState(false);
-  const [fileQuery, setFileQuery] = useState('');
+  const owner = `${connection.environmentId}:${scope.projectId}:${scope.worktreeId}`;
+  const navigation = useFileNavigationState(owner);
+  const {
+    showHidden,
+    query: fileQuery,
+    requested,
+    pinnedExpanded,
+  } = navigation.state;
+  const setShowHidden = (value: boolean) =>
+    navigation.set((state) => ({ ...state, showHidden: value }));
+  const setFileQuery = (query: string) =>
+    navigation.set((state) => ({ ...state, query }));
+  const setRequested = (
+    update: (paths: readonly string[]) => readonly string[],
+  ) =>
+    navigation.set((state) => {
+      const requested = update(state.requested);
+      return requested === state.requested ? state : { ...state, requested };
+    });
   const collapseLabel =
     fileQuery === '' ? 'Collapse all' : 'Clear search and collapse all';
-  const [requested, setRequested] = useState<readonly string[]>([]);
-  const requestedPaths = union(requested, fileTreeAncestors(selected));
+  const pinParents = pinnedParentDirectories(
+    pinned.map((path) => ({ path, pinned: true, hidden: false })),
+  );
+  const requestedPaths = union(
+    union(union(requested, pinParents), ['']),
+    fileTreeAncestors(selected),
+  );
 
   const directoriesRead = useDirectories(connection, scope, requestedPaths);
   const directories = [
@@ -160,6 +188,14 @@ function ScopedFileNavigation({
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
   const failed = directoriesRead.results.filter(AsyncResult.isFailure);
+  const pinDirectories: PinnedDirectoryState[] = [
+    { path: '', status: 'loaded', entries: root.entries },
+    ...directoriesRead.states,
+  ];
+  const pins = pinnedFileEntries(
+    visibleFileTreePaths(pinned, hidden, showHidden),
+    pinDirectories,
+  );
   const gitStatus: GitStatusEntry[] = [
     ...entries
       .filter((entry) => entry.ignored)
@@ -179,17 +215,7 @@ function ScopedFileNavigation({
   );
 
   const openFile = (path: string, toSide = false) =>
-    onOpen(
-      {
-        kind:
-          changed.has(path) && !isImagePath(path) && !/\.html?$/i.test(path)
-            ? 'change'
-            : 'file',
-        path,
-      },
-      undefined,
-      { toSide },
-    );
+    onOpen({ kind: 'file', path }, undefined, { toSide });
   const duplicate = (path: string) =>
     edit.duplicate(
       path,
@@ -210,12 +236,13 @@ function ScopedFileNavigation({
     else if (kind === 'file') openFile(path, toSide);
   };
   const { collapseAll, renameFile, bindCollapseAll, bindRename } =
-    useFileTreeControls(`${scope.projectId}:${scope.worktreeId}`);
+    useFileTreeControls(owner);
   const menuFor = (path: string) => {
     const hiddenEntry = hiddenPathFor(path, hidden);
-    const entry =
-      entries.find((entry) => entry.path === path) ??
-      (pinned.includes(path) ? { kind: 'file' as const } : undefined);
+    const entry = entries.find(
+      (entry) =>
+        canonicalPreferencePath(entry.path) === canonicalPreferencePath(path),
+    );
     return {
       hidden: hiddenEntry !== null,
       actions: entryTreeActions(entry, {
@@ -224,7 +251,10 @@ function ScopedFileNavigation({
         hiddenEntry,
         ownHidden: hiddenEntry === canonicalPreferencePath(path),
         hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
-        pinned: entry?.kind === 'file' ? pinned.includes(path) : undefined,
+        pinned:
+          entry?.kind === 'file' || entry?.kind === 'directory'
+            ? pinned.includes(canonicalPreferencePath(path))
+            : undefined,
       }),
       run: (
         id: TreeAction,
@@ -251,7 +281,7 @@ function ScopedFileNavigation({
             discardRejection(
               setPinned.submit({
                 path: next,
-                pinned: !pinned.includes(next),
+                pinned: !pinned.includes(canonicalPreferencePath(next)),
               }),
             ),
           onTrash: setDeleting,
@@ -262,16 +292,50 @@ function ScopedFileNavigation({
     };
   };
 
+  const treeInput: PierreFileTreeInput = {
+    owner,
+    filter: fileQuery,
+    onFilterChange: setFileQuery,
+    paths: visiblePaths,
+    kinds,
+    links: entries.filter(
+      (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
+    ),
+    creating,
+    onCreate: (path, entryKind) =>
+      edit.create(path, entryKind, (created) =>
+        onOpen({ kind: 'file', path: created }),
+      ),
+    onMove: edit.move,
+    gitStatus,
+    selected,
+    bindRename,
+    bindCollapseAll,
+    onInvalidName: (error) =>
+      toast.add({ title: 'Invalid name', description: error, type: 'error' }),
+    renderMenu: (item, context, rename) => {
+      const path =
+        item.kind === 'directory' && !item.path.endsWith('/')
+          ? `${item.path}/`
+          : item.path;
+      const menu = menuFor(path);
+      return (
+        <FileTreeMenu
+          key={path}
+          path={path}
+          finalFocus={context.finalFocus}
+          actions={menu.actions}
+          hidden={menu.hidden}
+          onAction={(id) => menu.run(id, context.close, rename)}
+        />
+      );
+    },
+    onExpand: (paths) => setRequested((current) => union(current, paths)),
+    onSelect,
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <QuickOpen
-        scope={scope}
-        connection={connection}
-        onOpen={(path) => {
-          setRequested((current) => union(current, fileTreeAncestors(path)));
-          onOpen({ kind: 'file', path });
-        }}
-      />
       <div className="flex shrink-0 items-center gap-1 px-2 pt-2">
         <Input
           aria-label="Search files"
@@ -354,7 +418,21 @@ function ScopedFileNavigation({
           actionsTarget,
         )}
       <PinnedFiles
-        paths={pinned}
+        entries={pins}
+        expanded={pinnedExpanded}
+        onExpand={(path, expanded) => {
+          navigation.set((state) => ({
+            ...state,
+            pinnedExpanded: expanded
+              ? union(state.pinnedExpanded, [path])
+              : state.pinnedExpanded.filter((entry) => entry !== path),
+          }));
+          if (expanded) setRequested((current) => union(current, [path]));
+        }}
+        onRetry={() => directoriesRead.retry()}
+        renderDirectory={(path) => (
+          <PinnedDirectoryTree prefix={`${path}/`} input={treeInput} />
+        )}
         statuses={gitStatus}
         selected={selected}
         onOpen={openFile}
@@ -363,8 +441,13 @@ function ScopedFileNavigation({
         }
         menuFor={(path) => {
           const menu = menuFor(path);
+          const resolved = pins.some(
+            (pin) =>
+              pin.path === canonicalPreferencePath(path) &&
+              pin.state === 'resolved',
+          );
           return {
-            actions: menu.actions,
+            actions: resolved ? menu.actions : [],
             hidden: menu.hidden,
             onAction: (id) =>
               menu.run(
@@ -379,54 +462,8 @@ function ScopedFileNavigation({
         aria-label="All files"
         className="flex min-h-0 flex-1 flex-col pt-1"
       >
-        <p className="px-3.5 pt-1 pb-0.5 text-2xs font-medium text-muted-foreground">
-          All files
-        </p>
-        <PierreFileTree
-          filter={fileQuery}
-          onFilterChange={setFileQuery}
-          paths={visiblePaths}
-          kinds={kinds}
-          links={entries.filter(
-            (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
-          )}
-          creating={creating}
-          onCreate={(path, entryKind) =>
-            edit.create(path, entryKind, (created) =>
-              onOpen({ kind: 'file', path: created }),
-            )
-          }
-          onMove={edit.move}
-          gitStatus={gitStatus}
-          selected={selected}
-          bindRename={bindRename}
-          bindCollapseAll={bindCollapseAll}
-          onInvalidName={(error) =>
-            toast.add({
-              title: 'Invalid name',
-              description: error,
-              type: 'error',
-            })
-          }
-          renderMenu={(item, context, rename) => {
-            const folder = item.kind === 'directory';
-            const path =
-              folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
-            const menu = menuFor(path);
-            return (
-              <FileTreeMenu
-                key={path}
-                path={path}
-                finalFocus={context.finalFocus}
-                actions={menu.actions}
-                hidden={menu.hidden}
-                onAction={(id) => menu.run(id, context.close, rename)}
-              />
-            );
-          }}
-          onExpand={(paths) => setRequested((current) => union(current, paths))}
-          onSelect={onSelect}
-        />
+        <FileSectionHeader label="All files" />
+        <PierreFileTree {...treeInput} />
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
             <EyeOffIcon className="size-3.5 shrink-0" />
@@ -440,7 +477,7 @@ function ScopedFileNavigation({
             <Button
               variant="link"
               size="xs"
-              onClick={() => setShowHidden((current) => !current)}
+              onClick={() => setShowHidden(!showHidden)}
             >
               {showHidden ? 'Hide' : 'Show'}
             </Button>
@@ -524,4 +561,63 @@ function union(left: readonly string[], right: readonly string[]) {
     merged.every((entry, index) => entry === left[index])
     ? left
     : merged;
+}
+
+function PinnedDirectoryTree({
+  prefix,
+  input,
+}: {
+  prefix: string;
+  input: PierreFileTreeInput;
+}) {
+  const [height, setHeight] = useState(0);
+  const relative = (path: string) => path.slice(prefix.length);
+  const paths = input.paths.filter(
+    (path) => path.startsWith(prefix) && path !== prefix,
+  );
+  return (
+    <div className="flex max-h-52 min-h-0 flex-col pl-1.5" style={{ height }}>
+      <PierreFileTree
+        {...input}
+        onContentHeight={setHeight}
+        owner={`${input.owner}:pin:${prefix}`}
+        paths={paths.map(relative)}
+        kinds={
+          new Map(
+            paths.flatMap((path) => {
+              const kind = input.kinds.get(path);
+              return kind === undefined ? [] : [[relative(path), kind]];
+            }),
+          )
+        }
+        links={input.links
+          .filter((entry) => entry.path.startsWith(prefix))
+          .map((entry) => ({ ...entry, path: relative(entry.path) }))}
+        gitStatus={input.gitStatus
+          .filter((entry) => entry.path.startsWith(prefix))
+          .map((entry) => ({ ...entry, path: relative(entry.path) }))}
+        selected={
+          input.selected.startsWith(prefix) ? relative(input.selected) : ''
+        }
+        creating={undefined}
+        onCreate={(path, kind) => input.onCreate(`${prefix}${path}`, kind)}
+        onMove={(from, to) =>
+          input.onMove(`${prefix}${from}`, `${prefix}${to}`)
+        }
+        onSelect={(path, toSide) => input.onSelect(`${prefix}${path}`, toSide)}
+        onExpand={(paths) =>
+          input.onExpand(paths.map((path) => `${prefix}${path}`))
+        }
+        bindRename={() => undefined}
+        bindCollapseAll={() => undefined}
+        renderMenu={(item, context, rename) =>
+          input.renderMenu(
+            { ...item, path: `${prefix}${item.path}` },
+            context,
+            rename,
+          )
+        }
+      />
+    </div>
+  );
 }

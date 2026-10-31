@@ -110,7 +110,7 @@ export function treeActions(input: {
   if (input.pinned !== undefined)
     actions.push({
       id: 'pin',
-      label: input.pinned ? 'Unpin file' : 'Pin file',
+      label: `${input.pinned ? 'Unpin' : 'Pin'} ${input.folder ? 'folder' : 'file'}`,
     });
   actions.push({
     id: 'hide',

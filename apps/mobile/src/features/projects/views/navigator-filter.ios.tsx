@@ -1,6 +1,7 @@
 import { Button, Toggle } from '@expo/ui/swift-ui';
 import { emptyNavigatorFilter } from '@porcelain/client/projects/rules';
 import { ContentMenu } from '../../../components/ui/content-menu.ios';
+import { isTablet } from '../../../shared/navigation/is-tablet';
 import type {
   NavigatorFilterProps,
   NavigatorScopePickerProps,
@@ -12,7 +13,11 @@ export function NavigatorFilter({
   onChange,
 }: NavigatorFilterProps) {
   return (
-    <ContentMenu label="Filter worktrees" icon="filter">
+    <ContentMenu
+      label="Filter worktrees"
+      icon="filter"
+      size={isTablet ? 'sm' : 'default'}
+    >
       {sections.flatMap((section) =>
         section.items.map((option) => (
           <Toggle
@@ -44,7 +49,7 @@ export function NavigatorScopePicker({
   onChange,
 }: NavigatorScopePickerProps) {
   return (
-    <ContentMenu label={label}>
+    <ContentMenu label={label} size={isTablet ? 'sm' : 'default'}>
       {section.items.map((option) => (
         <Toggle
           key={option.id}

@@ -5,6 +5,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
   test(`${entryPoint} focuses an already-open file in the other pane and adds no tab`, async ({
     repo,
     render,
+    reviewLayout,
   }) => {
     await repo.write(repo.readme.path, repo.readme.committed);
     await repo.write('guide.txt', 'Guide to the project\n');
@@ -48,9 +49,27 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
       await workspace
         .getByRole('combobox', { name: 'Find a file by name', exact: true })
         .fill('guide.txt');
-      await workspace
-        .getByRole('option', { name: 'guide.txt', exact: true })
-        .click();
+      const quickOpen = workspace.getByRole('dialog', {
+        name: 'Find a file',
+        exact: true,
+      });
+      const release = reviewLayout.holdDialogExit(quickOpen);
+      try {
+        await workspace
+          .getByRole('option', { name: 'guide.txt', exact: true })
+          .click();
+        await expect
+          .element(
+            workspace.getByRole('dialog', {
+              name: 'Worktree review',
+              exact: true,
+            }),
+          )
+          .not.toBeInTheDocument();
+        await expect.element(quickOpen).toBeInTheDocument();
+      } finally {
+        release();
+      }
     }
     const tab = workspace.getByRole('tab', {
       name: 'guide.txt',
@@ -227,14 +246,18 @@ test('Changes and comment links focus an already-open diff in the other pane and
     name: 'Right pane',
     exact: true,
   });
+  await right.getByRole('button', { name: 'Open diff', exact: true }).click();
+  const file = right
+    .getByRole('tab', { name: 'README.md', exact: true })
+    .nth(0);
+  await expect.element(file).toHaveAttribute('data-entry', 'file:README.md');
+  await file.click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /^Close Alt/ }).click();
   const original = left.getByRole('tab', {
     name: 'Changes',
     exact: true,
   });
-  const tab = workspace.getByRole('tab', {
-    name: 'README.md',
-    exact: true,
-  });
+  const tab = right.getByRole('tab', { name: 'README.md', exact: true });
   await original.click();
   await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
   await workspace

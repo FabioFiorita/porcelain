@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 
 // The Expo view owns bridge state; composition-local scroll/menu state stays in CodeContent.
 internal class CodeState {
+  var initialLine by mutableStateOf<Int?>(null)
   var tokens by mutableStateOf(RenderTokens())
   var options by mutableStateOf(CodeOptions())
   var lines by mutableStateOf(emptyList<CodeLine>())

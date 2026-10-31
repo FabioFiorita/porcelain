@@ -61,3 +61,4 @@ export {
   ClientRequest,
 } from './http-caller.ts';
 export { PorcelainClientApi } from './client-api.ts';
+export { relativePathSchema } from './relative-path.ts';

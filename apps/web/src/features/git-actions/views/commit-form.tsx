@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { FileTypeIcon } from '@/features/files/index';
+import { FileTreeIcon } from '@/features/files/index';
 import { groupedCommitModels } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
@@ -253,7 +253,7 @@ function CommitFiles({ form }: { form: CommitFormState }) {
           const choosing = commitAction === 'amend' || editingFiles;
           const body = (
             <>
-              <FileTypeIcon path={file.path} className="size-3.5 shrink-0" />
+              <FileTreeIcon path={file.path} className="size-3.5 shrink-0" />
               <TruncatedText className="min-w-0 flex-1" text={file.path} />
               <span className="shrink-0 text-muted-foreground">
                 {fileState(file.kind, included, commitAction)}

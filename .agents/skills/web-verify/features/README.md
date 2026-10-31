@@ -77,6 +77,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [files.move](files.move.md) — Move entries and verify their destinations.
 - [files.pin](files.pin.md) — Pin, open and unpin files.
 - [files.quick-open](files.quick-open.md) — Keyboard file search and opening.
+- [files.return](files.return.md) — Retained file reading and browsing position; explicit diff review.
 - [files.rename](files.rename.md) — Rename entries and preserve navigation.
 - [files.timeline](files.timeline.md) — Per-file history and commit navigation.
 - [files.trash](files.trash.md) — Trash confirmation, persistence and missing-path refusal.

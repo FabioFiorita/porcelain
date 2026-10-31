@@ -7,14 +7,7 @@ export {
   type Inventory,
   type Project,
 } from './inventory.ts';
-export {
-  canonicalPreferencePath,
-  hiddenPathFor,
-  type SetHiddenInput,
-  type SetPinnedInput,
-  visibleFileTreePaths,
-  hiddenSummary,
-} from './file-preferences.ts';
+
 export {
   workspaceChoices,
   type EnvironmentInventory,

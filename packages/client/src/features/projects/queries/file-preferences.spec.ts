@@ -6,7 +6,10 @@ import { queryKeys, type Transport } from '@porcelain/client/transport';
 import { Effect, Option, Stream } from 'effect';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import { expect, it } from 'vitest';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  clientFixtures,
+  visitClientRead,
+} from '../../../../spec/kit/client-fixture.ts';
 import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 
 const environmentId = '44444444-4444-4444-8444-444444444444';
@@ -27,6 +30,35 @@ function read(subject: ReturnType<typeof fixture>) {
     }),
   );
 }
+
+it('keeps confirmed pins and hiding visible when their reader reopens during refresh', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const saved = {
+    preferences: [{ path: 'config', hidden: true, pinned: true }],
+  };
+  let reads = 0;
+  const subject = fixture(() => {
+    if (++reads === 1) return Promise.resolve(Response.json(saved));
+    started.resolve();
+    return held.promise;
+  });
+  expect(await visitClientRead(subject.registry, subject.state)).toEqual(saved);
+  const stop = subject.registry.mount(subject.state);
+  try {
+    await started.promise;
+    expect(subject.registry.get(subject.state)).toMatchObject({
+      _tag: 'Success',
+      value: saved,
+      waiting: true,
+    });
+    held.resolve(Response.json({ preferences: [] }));
+    expect(await read(subject)).toEqual({ preferences: [] });
+  } finally {
+    held.resolve(Response.json(saved));
+    stop();
+  }
+});
 
 it('a complete write response replaces an unfinished older read and survives a failed refresh', async () => {
   const pendingRead = holdFirstRead();

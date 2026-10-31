@@ -1,5 +1,9 @@
 import type { ListDirectoryResponse as Directory } from '@porcelain/contracts/files';
 
+const pathCollator = new Intl.Collator();
+const comparePaths = (left: string, right: string) =>
+  pathCollator.compare(left, right);
+
 export type FileTreeEntry = {
   path: string;
   kind: Directory['entries'][number]['kind'];
@@ -35,7 +39,7 @@ export function fileTreeExpansion(
   const directories = entries
     .filter((entry) => entry.kind === 'directory')
     .map((entry) => normalize(entry.path))
-    .sort((left, right) => left.localeCompare(right));
+    .sort(comparePaths);
   const expanded = new Set(
     directories.filter((path) => normalizedOpen.has(path)),
   );
@@ -79,7 +83,7 @@ export function mergeFileTreeEntries(
     }
   }
   return [...entries.values()].sort((left, right) =>
-    left.path.localeCompare(right.path),
+    comparePaths(left.path, right.path),
   );
 }
 
@@ -88,12 +92,17 @@ export function visibleFileTreeRows(
   expanded: ReadonlySet<string>,
 ): { entry: FileTreeEntry; depth: number }[] {
   return entries
-    .filter((entry) =>
-      fileTreeAncestors(entry.path).every((ancestor) => expanded.has(ancestor)),
+    .map((entry) => ({
+      entry,
+      ancestors: fileTreeAncestors(entry.path),
+      parts: entry.path.replace(/\/$/, '').split('/'),
+    }))
+    .filter(({ ancestors }) =>
+      ancestors.every((ancestor) => expanded.has(ancestor)),
     )
     .sort((left, right) => {
-      const leftParts = left.path.replace(/\/$/, '').split('/');
-      const rightParts = right.path.replace(/\/$/, '').split('/');
+      const leftParts = left.parts;
+      const rightParts = right.parts;
       for (
         let index = 0;
         index < Math.min(leftParts.length, rightParts.length);
@@ -101,15 +110,15 @@ export function visibleFileTreeRows(
       ) {
         if (leftParts[index] === rightParts[index]) continue;
         const leftFolder =
-          index < leftParts.length - 1 || left.kind === 'directory';
+          index < leftParts.length - 1 || left.entry.kind === 'directory';
         const rightFolder =
-          index < rightParts.length - 1 || right.kind === 'directory';
+          index < rightParts.length - 1 || right.entry.kind === 'directory';
         return (
           Number(rightFolder) - Number(leftFolder) ||
-          (leftParts[index] ?? '').localeCompare(rightParts[index] ?? '')
+          comparePaths(leftParts[index] ?? '', rightParts[index] ?? '')
         );
       }
       return leftParts.length - rightParts.length;
     })
-    .map((entry) => ({ entry, depth: fileTreeAncestors(entry.path).length }));
+    .map(({ entry, ancestors }) => ({ entry, depth: ancestors.length }));
 }

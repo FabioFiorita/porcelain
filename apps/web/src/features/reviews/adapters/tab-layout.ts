@@ -11,11 +11,16 @@ import {
   neighbourAfterClose,
   openInPane,
   orderedTabs,
+  recentTabEntries,
   primaryPane,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
-import { tabLayoutState, useTabLayoutStore } from '../store';
+import {
+  tabActivationState,
+  tabLayoutState,
+  useTabLayoutStore,
+} from '../store';
 import type { SetWorkspaceSearch } from '@/shared/workspace/search';
 
 export type PaneIndex = 0 | 1;
@@ -111,6 +116,13 @@ export function useTabLayout({
     if (focused === 1 && !split) setFocused(0);
   }
   useAtomMount(persistTabLayout({ worktreeId, panes, ready }));
+  const recent = useAtomValue(tabActivationState(worktreeId));
+  const active = actives[focused] ?? null;
+  useAtomMount(rememberTabActivation({ worktreeId, panes, active, ready }));
+  const recentFiles = recentTabEntries(recent, panes, active).flatMap((key) => {
+    const document = parseEntry(key);
+    return document?.kind === 'file' ? [document.path] : [];
+  });
 
   const go = (updates: { entry?: string | null; side?: string | null }) => {
     cancelDestinationFocus();
@@ -142,6 +154,8 @@ export function useTabLayout({
   };
 
   return {
+    recentFiles,
+    bindQuickOpen: focus.bindQuickOpen,
     focusDestination: focus.schedule,
     hasDestinationFocus() {
       return focus.current() !== null;
@@ -151,7 +165,11 @@ export function useTabLayout({
       setFocused(index);
     },
     focusPane(index: PaneIndex, element: Element) {
-      if (focusBoundaryOpen) return;
+      if (
+        focusBoundaryOpen ||
+        (focus.restoringQuickOpen && element.getAttribute('role') === 'tab')
+      )
+        return;
       const target = focus.destination;
       if (
         target !== null &&
@@ -256,6 +274,8 @@ type FocusSnapshot = {
 const tabFocus = Atom.family((_owner: string) =>
   Atom.make((get) => {
     const elements: [HTMLElement | null, HTMLElement | null] = [null, null];
+    let quickOpen: HTMLElement | null = null;
+    let restoringQuickOpen = false;
     let destination: FocusTarget | null = null;
     let snapshot: FocusSnapshot | undefined;
     let frame: number | null = null;
@@ -265,6 +285,7 @@ const tabFocus = Atom.family((_owner: string) =>
     };
     const cancel = () => {
       destination = null;
+      restoringQuickOpen = false;
       cancelFrame();
     };
     const current = () => {
@@ -283,7 +304,12 @@ const tabFocus = Atom.family((_owner: string) =>
       frame = requestAnimationFrame(() => {
         frame = null;
         const target = current();
-        if (!target || snapshot?.focusBoundary?.isConnected) return;
+        if (
+          !target ||
+          snapshot?.focusBoundary?.isConnected ||
+          quickOpen?.isConnected
+        )
+          return;
         const tab = [
           ...(elements[target.pane]?.querySelectorAll<HTMLElement>(
             '[role="tab"]',
@@ -291,8 +317,10 @@ const tabFocus = Atom.family((_owner: string) =>
         ].find((element) => element.dataset.entry === target.key);
         if (!tab?.isConnected) return;
         tab.focus();
-        if (tab.ownerDocument.activeElement === tab && destination === target)
+        if (tab.ownerDocument.activeElement === tab && destination === target) {
           destination = null;
+          restoringQuickOpen = false;
+        }
       });
     };
     get.addFinalizer(cancel);
@@ -300,11 +328,19 @@ const tabFocus = Atom.family((_owner: string) =>
       get destination() {
         return destination;
       },
+      get restoringQuickOpen() {
+        return restoringQuickOpen;
+      },
       current,
       cancel,
       schedule,
+      bindQuickOpen: (element: HTMLElement | null) => {
+        quickOpen = element;
+        if (element === null) schedule();
+      },
       request(target: FocusTarget) {
         destination = target;
+        restoringQuickOpen = quickOpen?.isConnected === true;
       },
       bind(index: PaneIndex, element: HTMLElement | null, next: FocusSnapshot) {
         cancelFrame();
@@ -374,6 +410,32 @@ const persistTabLayout = Atom.family(
       )
         return;
       get.set(atom, { panes, saved: true });
+    }),
+);
+
+const rememberTabActivation = Atom.family(
+  ({
+    worktreeId,
+    panes,
+    active,
+    ready,
+  }: {
+    worktreeId: string;
+    panes: readonly Pane[];
+    active: string | null;
+    ready: boolean;
+  }) =>
+    Atom.make((get) => {
+      if (!ready) return;
+      const atom = tabActivationState(worktreeId);
+      const current = get.once(atom);
+      const next = recentTabEntries(current, panes, active);
+      if (
+        current.length === next.length &&
+        current.every((key, index) => key === next[index])
+      )
+        return;
+      get.set(atom, next);
     }),
 );
 

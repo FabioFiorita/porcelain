@@ -19,7 +19,38 @@ function highlightedLines(locator: Locator) {
   );
 }
 
+function codeScroller(locator: Locator) {
+  const scroller = locator
+    .element()
+    .querySelector<HTMLElement>('.overflow-auto');
+  if (!scroller) throw new Error('The code content has no scroll viewport');
+  return scroller;
+}
+
 export const reviewLayout = {
+  holdDialogExit(locator: Locator) {
+    const popup = locator.element();
+    const animations = new Set<Animation>();
+    const observer = new MutationObserver(() => {
+      if (!popup.hasAttribute('data-ending-style')) return;
+      for (const animation of popup.getAnimations()) {
+        animation.pause();
+        animations.add(animation);
+      }
+    });
+    observer.observe(popup, {
+      attributes: true,
+      attributeFilter: ['data-ending-style'],
+    });
+    return () => {
+      observer.disconnect();
+      for (const animation of animations) animation.finish();
+    };
+  },
+  scrollCodeTo(locator: Locator, position: number) {
+    codeScroller(locator).scrollTop = position;
+  },
+  codeScrollTop: (locator: Locator) => codeScroller(locator).scrollTop,
   currentChangeRows(table: Locator) {
     return [
       ...table.element().querySelectorAll('button[aria-current="true"]'),

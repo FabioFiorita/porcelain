@@ -1,4 +1,4 @@
-export { FileTypeIcon, PierreIconSprite } from './views/file-type-icon';
+export { FileTreeIcon, PierreIconSprite } from './views/file-tree-icon';
 export { ImagePreview } from './views/image-preview';
 export { MarkdownView } from './views/markdown-view';
 export { useTextContents } from './queries/text';
@@ -7,5 +7,6 @@ export { HtmlPreview } from './views/html-preview';
 export { useDirectory } from './queries/directory';
 export { useFileDraft } from './commands/edit-file';
 export { FileNavigation } from './views/file-navigation';
+export { FilesQuickOpen } from './views/quick-open';
 export { useDiskChangeNotice } from './adapters/disk-change';
 export { useUnsavedDraftsGuard } from './adapters/unsaved-drafts';

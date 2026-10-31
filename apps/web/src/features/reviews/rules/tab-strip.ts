@@ -148,3 +148,16 @@ export function changesTabCount(count: number): TabCount | undefined {
     description: counted(count, 'uncommitted file'),
   };
 }
+
+export function recentTabEntries(
+  previous: readonly string[],
+  panes: readonly Pane[],
+  active: string | null,
+): string[] {
+  const opened = panes.flatMap((pane) => orderedTabs(pane));
+  const candidates = active === null ? previous : [active, ...previous];
+  const current = new Set(opened);
+  return [...new Set([...candidates, ...opened])].filter((key) =>
+    current.has(key),
+  );
+}

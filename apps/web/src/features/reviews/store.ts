@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { CodeViewHandle } from '@pierre/diffs/react';
+import type { CodeViewLineSelection } from '@pierre/diffs';
 import { atomRegistry } from '@/shared/store';
 import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
@@ -55,6 +56,9 @@ const tabs = Atom.family((worktreeId: string) =>
     schema: tabsSchema,
     defaultValue: () => ({ panes: null, saved: false }),
   }),
+);
+export const tabActivationState = Atom.family((_worktreeId: string) =>
+  Atom.make<readonly string[]>([]).pipe(Atom.keepAlive),
 );
 const folds = Atom.family((key: string) =>
   Atom.kvs({
@@ -119,11 +123,28 @@ type CodeScroll = Pick<CodeViewHandle<undefined, undefined>, 'scrollTo'>;
 const codeViewScroll = Atom.family((_owner: string) =>
   Atom.make<CodeScroll | null>(null),
 );
-export function useCodeViewScroll() {
+const codePlaces = Atom.family((_owner: string) =>
+  Atom.make<{ scrollTop: number; selection: CodeViewLineSelection | null }>({
+    scrollTop: 0,
+    selection: null,
+  }).pipe(Atom.keepAlive),
+);
+export function useCodeViewScroll(owner?: string) {
   const atom = codeViewScroll(useId());
   useAtomMount(atom);
   const registry = useAtomValue(atomRegistry);
+  const place = owner === undefined ? undefined : codePlaces(owner);
   return {
+    position: place === undefined ? undefined : registry.get(place).scrollTop,
+    selection: place === undefined ? null : registry.get(place).selection,
+    rememberPosition: (scrollTop: number) => {
+      if (place !== undefined)
+        registry.set(place, { ...registry.get(place), scrollTop });
+    },
+    rememberSelection: (selection: CodeViewLineSelection | null) => {
+      if (place !== undefined)
+        registry.set(place, { ...registry.get(place), selection });
+    },
     scrollTo: (request: Parameters<CodeScroll['scrollTo']>[0]) =>
       registry.get(atom)?.scrollTo(request),
     attach: (viewer: CodeScroll | null) => {

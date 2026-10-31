@@ -230,3 +230,56 @@ test('Collapse all during a lazy read keeps its chain closed and a sibling can s
     held.release();
   }
 });
+
+test('returning to Files keeps its search and loaded folder expansion', async ({
+  repo,
+  render,
+  agent,
+}) => {
+  await agent.editFile({
+    kind: 'create',
+    path: 'notes',
+    entryKind: 'directory',
+  });
+  await repo.write('notes/first.md', '# First note\n');
+  await repo.write('notes/second.md', '# Second note\n');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.getByRole('treeitem', { name: 'notes', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.md', exact: true }))
+    .toBeVisible();
+  const search = page.getByRole('textbox', {
+    name: 'Search files',
+    exact: true,
+  });
+  await search.fill('first');
+  await page.getByRole('treeitem', { name: 'first.md', exact: true }).click();
+  await expect
+    .element(page.getByRole('heading', { name: 'First note', exact: true }))
+    .toBeVisible();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await expect.element(search).toHaveValue('first');
+  await search.fill('');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'second.md', exact: true }))
+    .toBeVisible();
+  await page.getByRole('treeitem', { name: 'notes', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'notes', exact: true }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await userEvent.keyboard('{Escape}');
+  await expect
+    .element(page.getByRole('dialog', { name: 'Worktree review', exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await expect
+    .element(page.getByRole('treeitem', { name: 'notes', exact: true }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await expect
+    .element(page.getByRole('treeitem', { name: 'first.md', exact: true }))
+    .not.toBeInTheDocument();
+});

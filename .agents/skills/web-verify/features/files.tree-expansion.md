@@ -56,3 +56,7 @@ Automated coverage: `files-tree-expansion.test.tsx`, `file-tree.spec.ts`.
 ## Gotchas
 
 - A pending directory read is not an empty folder. Close before release to prove cancellation rather than ordinary expansion.
+
+## Returning to Files
+
+Open a folder, enter a search, and open a matching file. Return through Review → Files: the query and requested folders remain. Clear search and confirm the earlier expansion. Close and reopen the panel with a closed loaded folder too: it stays closed. State is scoped to environment and worktree, and preserves the focused row and first visible tree path without retaining live tree subscriptions while closed. Pierre restores the row anchor rather than an exact pixel offset.

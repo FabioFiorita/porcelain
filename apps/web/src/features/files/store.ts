@@ -4,7 +4,7 @@ import { Option } from 'effect';
 import type { ReactNode } from 'react';
 import type { ContextMenuItem, GitStatusEntry } from '@pierre/trees';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
-import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import {
   readTextFile,
   retainFileDraft,
@@ -86,6 +86,7 @@ export function clearEditorFile(
 }
 
 export type PierreFileTreeInput = {
+  owner: string;
   paths: readonly string[];
   kinds: ReadonlyMap<string, FileTreeEntry['kind']>;
   links: readonly { path: string; kind: string; target?: string | undefined }[];
@@ -111,7 +112,38 @@ export type PierreFileTreeInput = {
   ) => ReactNode;
   onInvalidName: (error: string) => void;
   onSelect: (path: string, toSide?: boolean) => void;
+  onContentHeight?: ((height: number) => void) | undefined;
 };
+
+export const fileTreePlaces = Atom.family((_owner: string) =>
+  Atom.make<{
+    expanded: readonly string[];
+    selected: readonly string[];
+    focused: string | null;
+    anchor: string | null;
+    document: string;
+  }>({
+    expanded: [],
+    selected: [],
+    focused: null,
+    anchor: null,
+    document: '',
+  }).pipe(Atom.keepAlive),
+);
+
+const navigationState = Atom.family((_owner: string) =>
+  Atom.make({
+    showHidden: false,
+    query: '',
+    requested: [] as readonly string[],
+    pinnedExpanded: [] as readonly string[],
+  }).pipe(Atom.keepAlive),
+);
+
+export function useFileNavigationState(owner: string) {
+  const atom = navigationState(owner);
+  return { state: useAtomValue(atom), set: useAtomSet(atom) };
+}
 
 export const fileTreeInputs = Atom.family((_id: string) =>
   Atom.make<Option.Option<PierreFileTreeInput>>(Option.none()),

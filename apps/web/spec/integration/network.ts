@@ -88,6 +88,54 @@ export function createFetchGate(filePath: string) {
     };
   }
   return {
+    failDirectoryReads(directory: string) {
+      const original = window.fetch;
+      let failing = false;
+      window.fetch = (input, init) => {
+        const url = requestUrl(input);
+        return failing &&
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/directory') &&
+          url.searchParams.get('path') === directory
+          ? Promise.resolve(
+              Response.json(
+                { message: 'Folder listing unavailable' },
+                { status: 503 },
+              ),
+            )
+          : original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return () => {
+        failing = true;
+      };
+    },
+    recordFileLookupReads() {
+      const original = window.fetch;
+      const paths: string[] = [];
+      const preferences: string[] = [];
+      window.fetch = (input, init) => {
+        const url = requestUrl(input);
+        if ((init?.method ?? 'GET') === 'GET') {
+          if (url.pathname.endsWith('/paths')) paths.push(url.pathname);
+          if (url.pathname.endsWith('/file-preferences'))
+            preferences.push(url.pathname);
+        }
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return { paths, preferences };
+    },
+    holdNextFilePreferences: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/file-preferences'),
+      ),
     recordDirectoryReads() {
       const original = window.fetch;
       const paths: string[] = [];

@@ -4,7 +4,7 @@ import {
   canonicalPreferencePath,
   type SetHiddenInput,
   type SetPinnedInput,
-} from '@porcelain/client/projects/rules';
+} from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 function useSetFilePreference(connection: Connection, projectId: string) {

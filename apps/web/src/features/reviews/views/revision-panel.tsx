@@ -4,7 +4,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
 import { useReviewPanelView } from '../store';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileTypeIcon } from '@/features/files/index';
+import { FileTreeIcon } from '@/features/files/index';
 import {
   basename,
   type CommentThread,
@@ -125,7 +125,7 @@ export function RevisionPanel({
                   onOpen={() => onChange(item.path)}
                 >
                   <ReviewStatusIcon status={item.reviewStatus} />
-                  <FileTypeIcon
+                  <FileTreeIcon
                     path={item.path}
                     className="size-3.5 shrink-0"
                   />
