@@ -43,3 +43,10 @@ export {
   serviceUpdateProgress,
 } from './service-update.ts';
 export type { BrowserSession } from './browser-session.ts';
+export {
+  chosenEnvironmentIcon,
+  environmentIcon,
+  environmentIconLabels,
+  environmentIcons,
+  type EnvironmentIcon,
+} from './environment-icon.ts';

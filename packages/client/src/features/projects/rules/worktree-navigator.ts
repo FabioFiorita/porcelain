@@ -1,3 +1,4 @@
+import type { EnvironmentIcon } from '@porcelain/contracts/access';
 export type NavigatorFilter = {
   projects: readonly string[] | undefined;
   environments: readonly string[] | undefined;
@@ -16,6 +17,7 @@ export type NavigatorFilterSection = {
   items: readonly {
     id: string;
     label: string;
+    icon?: EnvironmentIcon;
     checked: boolean;
     next: readonly string[];
   }[];
@@ -219,6 +221,7 @@ export function navigatorFilterSections(
     name: string;
     environmentId: string;
     environmentName: string;
+    environmentIcon: EnvironmentIcon;
   }[],
   filter: NavigatorFilter,
 ): NavigatorFilterSection[] {
@@ -241,6 +244,7 @@ export function navigatorFilterSections(
             {
               id: source.environmentId,
               label: source.environmentName,
+              icon: source.environmentIcon,
             },
           ]),
         ).values(),

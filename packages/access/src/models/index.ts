@@ -55,3 +55,4 @@ export {
   type ReviewGitSettings,
   type SaveReviewGitSettingsInput,
 } from './review-git-settings.ts';
+export { environmentIconSchema } from './environment-label.ts';

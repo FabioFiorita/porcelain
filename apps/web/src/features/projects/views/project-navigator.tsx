@@ -14,7 +14,6 @@ import {
   SearchIcon,
   SettingsIcon,
   XIcon,
-  MonitorIcon,
 } from 'lucide-react';
 import {
   readWorktreeNavigator,
@@ -32,7 +31,11 @@ import {
   navigatorDiffSummary,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
-import { UpdatesMenu, useConnectedContext } from '@/features/access/index';
+import {
+  EnvironmentGlyph,
+  UpdatesMenu,
+  useConnectedContext,
+} from '@/features/access/index';
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import {
@@ -45,7 +48,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   InputGroup,
@@ -56,7 +58,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupAction,
   SidebarMenu,
   SidebarMenuItem,
@@ -83,6 +84,7 @@ import {
 import { SwitchWorktreeBranchDialog } from './switch-worktree-branch';
 import { DeleteWorktreeDialog } from './delete-worktree';
 import { ProjectActions } from './project-actions';
+import { ProjectHeading } from './project-heading';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
 
@@ -242,62 +244,65 @@ export function ProjectNavigator({
             </Tooltip>
             <DropdownMenuContent
               align="start"
-              className="max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto"
+              className="flex max-h-[min(24rem,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-hidden"
             >
-              {filters.map((section) => (
-                <DropdownMenuGroup key={section.key}>
-                  <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
-                  {section.items.map((option) => (
-                    <DropdownMenuCheckboxItem
-                      key={option.id}
-                      className="cursor-pointer"
-                      checked={option.checked}
-                      closeOnClick={false}
-                      onCheckedChange={() =>
-                        setState((current) => ({
-                          ...current,
-                          filter: {
-                            ...current.filter,
-                            [section.key]: option.next,
-                          },
-                        }))
-                      }
-                    >
-                      <TruncatedText
-                        propagateEscape
-                        text={option.label}
-                        className="min-w-0 flex-1"
-                      />
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </DropdownMenuGroup>
-              ))}
-              <DropdownMenuCheckboxItem
-                className="cursor-pointer"
-                checked={filter.older}
-                closeOnClick={false}
-                onCheckedChange={(older) =>
-                  setState((current) => ({
-                    ...current,
-                    filter: { ...current.filter, older },
-                  }))
-                }
-              >
-                Show older reviews
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() =>
-                  setState((current) => ({
-                    ...current,
-                    filter: emptyNavigatorFilter,
-                  }))
-                }
-              >
-                Clear filters
-              </DropdownMenuItem>
+              <div className="-m-1 min-h-0 overflow-y-auto p-1">
+                {filters.map((section) => (
+                  <DropdownMenuGroup key={section.key}>
+                    <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                    {section.items.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.id}
+                        className="cursor-pointer"
+                        checked={option.checked}
+                        closeOnClick={false}
+                        onCheckedChange={() =>
+                          setState((current) => ({
+                            ...current,
+                            filter: {
+                              ...current.filter,
+                              [section.key]: option.next,
+                            },
+                          }))
+                        }
+                      >
+                        {option.icon && <EnvironmentGlyph icon={option.icon} />}
+                        <TruncatedText
+                          propagateEscape
+                          text={option.label}
+                          className="min-w-0 flex-1"
+                        />
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </DropdownMenuGroup>
+                ))}
+                <DropdownMenuCheckboxItem
+                  className="cursor-pointer"
+                  checked={filter.older}
+                  closeOnClick={false}
+                  onCheckedChange={(older) =>
+                    setState((current) => ({
+                      ...current,
+                      filter: { ...current.filter, older },
+                    }))
+                  }
+                >
+                  Show older reviews
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() =>
+                    setState((current) => ({
+                      ...current,
+                      filter: emptyNavigatorFilter,
+                    }))
+                  }
+                >
+                  Clear filters
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -324,26 +329,12 @@ export function ProjectNavigator({
                 className="group/project"
               >
                 <div className="flex min-w-0 items-center gap-1">
-                  <SidebarGroupLabel
-                    aria-label={`${source.project.name} · ${source.environmentName}`}
-                    className="min-w-0 flex-1"
-                  >
-                    <TruncatedText text={source.project.name} />
-                  </SidebarGroupLabel>
-                  {connections.length > 1 && (
-                    <Badge
-                      variant="secondary"
-                      className="max-w-20"
-                      role="img"
-                      aria-label={`Computer: ${source.environmentName}`}
-                    >
-                      <MonitorIcon />
-                      <TruncatedText
-                        text={source.environmentName}
-                        className="min-w-0"
-                      />
-                    </Badge>
-                  )}
+                  <ProjectHeading
+                    projectName={source.project.name}
+                    environmentName={source.environmentName}
+                    environmentIcon={source.environmentIcon}
+                    showEnvironment={connections.length > 1}
+                  />
                   <ProjectActions
                     project={source.project}
                     environmentId={

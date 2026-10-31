@@ -1,7 +1,7 @@
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { Context, Effect, Layer } from 'effect';
 import {
-  ReadEnvironmentNameService,
+  ReadEnvironmentLabelService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
 import { type ReadInventoryResponse } from '@porcelain/contracts/projects';
@@ -31,7 +31,7 @@ export class ReadInventoryUseCase extends Context.Service<
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
       const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
       const readEnvironmentCapability = yield* ReadEnvironmentService;
-      const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const readEnvironmentLabelCapability = yield* ReadEnvironmentLabelService;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
 
@@ -65,7 +65,8 @@ export class ReadInventoryUseCase extends Context.Service<
                   return {
                     environmentId: (yield* readEnvironmentCapability.execute())
                       .environmentId,
-                    environment: yield* readEnvironmentNameCapability.execute(),
+                    environment:
+                      yield* readEnvironmentLabelCapability.execute(),
                   };
                 }),
             );

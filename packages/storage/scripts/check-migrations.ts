@@ -13,6 +13,7 @@ import {
   CommentMessageRow,
 } from '../src/db/models/comment-threads.ts';
 import { DeviceRow } from '../src/db/models/devices.ts';
+import { EnvironmentIconRow } from '../src/db/models/environment-icon.ts';
 import { EnvironmentNameRow } from '../src/db/models/environment-name.ts';
 import { EnvironmentRow } from '../src/db/models/environment.ts';
 import { GitActionReceiptRow } from '../src/db/models/git-action-receipts.ts';
@@ -43,6 +44,7 @@ const models = [
   CommentThreadRow,
   CommentMessageRow,
   DeviceRow,
+  EnvironmentIconRow,
   EnvironmentNameRow,
   EnvironmentRow,
   GitActionReceiptRow,

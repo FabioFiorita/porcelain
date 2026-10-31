@@ -3,7 +3,7 @@ import { Layer } from 'effect';
 import { databaseLayer } from './connection.ts';
 import { sqliteDeviceStoreLayer } from '../repositories/access/sqlite-device-store.ts';
 import { sqliteEnvironmentIdentityReaderLayer } from '../repositories/access/sqlite-environment-identity-reader.ts';
-import { sqliteEnvironmentNameStoreLayer } from '../repositories/access/sqlite-environment-name-store.ts';
+import { sqliteEnvironmentLabelStoreLayer } from '../repositories/access/sqlite-environment-label-store.ts';
 import { sqliteReviewGitSettingsStoreLayer } from '../repositories/access/sqlite-review-git-settings-store.ts';
 import { sqlitePairingGrantStoreLayer } from '../repositories/access/sqlite-pairing-grant-store.ts';
 import { sqliteRemoteAccessStoreLayer } from '../repositories/access/sqlite-remote-access-store.ts';
@@ -25,7 +25,7 @@ export function storageLayer(
     sqliteGitHubAccountStoreLayer,
     sqliteDeviceStoreLayer,
     sqliteEnvironmentIdentityReaderLayer,
-    sqliteEnvironmentNameStoreLayer,
+    sqliteEnvironmentLabelStoreLayer,
     sqliteReviewGitSettingsStoreLayer,
     sqlitePairingGrantStoreLayer,
     sqliteRemoteAccessStoreLayer,

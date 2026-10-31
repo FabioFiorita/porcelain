@@ -8,9 +8,9 @@ export {
   type EnvironmentIdentityReaderSubject,
 } from './environment-identity-reader-contract.ts';
 export {
-  environmentNameStoreContract,
-  type EnvironmentNameStoreSubject,
-} from './environment-name-store-contract.ts';
+  environmentLabelStoreContract,
+  type EnvironmentLabelStoreSubject,
+} from './environment-label-store-contract.ts';
 export {
   pairingGrantStoreContract,
   type PairingGrantStoreSubject,

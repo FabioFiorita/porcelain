@@ -27,12 +27,17 @@ import {
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readInventory } from './inventory.ts';
+import {
+  environmentIcon,
+  type EnvironmentIcon,
+} from '../../access/rules/environment-icon.ts';
 
 type NavigatorProject = {
   key: string;
   connection: RuntimeConnection;
   project: Project;
   environmentName: string;
+  environmentIcon: EnvironmentIcon;
   expanded: boolean;
   entries: readonly NavigatorEntry[];
 };
@@ -290,6 +295,7 @@ export const readWorktreeNavigator = Atom.family(
             connection,
             project,
             environmentName: inventory!.environment.name,
+            environmentIcon: environmentIcon(inventory!.environment),
             expanded:
               state.query.trim().length > 0 || state.expanded[key] !== false,
             entries: [],
@@ -308,6 +314,7 @@ export const readWorktreeNavigator = Atom.family(
           name: source.project.name,
           environmentId: source.connection.environmentId,
           environmentName: source.environmentName,
+          environmentIcon: source.environmentIcon,
         })),
         state.filter,
       );

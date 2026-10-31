@@ -30,6 +30,8 @@ import {
   readEnvironmentResponseSchema,
   renameEnvironmentRequestSchema,
   renameEnvironmentResponseSchema,
+  setEnvironmentIconRequestSchema,
+  setEnvironmentIconResponseSchema,
 } from './environment.ts';
 import { readHealthResponseSchema } from './health.ts';
 import { issueLiveTicketResponseSchema } from './live-updates.ts';
@@ -226,12 +228,19 @@ const remoteAccessGroup = HttpApiGroup.make('remoteAccess')
   )
   .middleware(PairedRequest)
   .middleware(ClientRequest);
-const environmentNameGroup = HttpApiGroup.make('environmentName')
+const environmentLabelGroup = HttpApiGroup.make('environmentLabel')
   .add(
     HttpApiEndpoint.put('renameEnvironment', '/environment/name', {
       disableCodecs: true,
       payload: renameEnvironmentRequestSchema,
       success: renameEnvironmentResponseSchema,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.put('setEnvironmentIcon', '/environment/icon', {
+      disableCodecs: true,
+      payload: setEnvironmentIconRequestSchema,
+      success: setEnvironmentIconResponseSchema,
     }),
   )
   .middleware(PairedRequest);
@@ -262,7 +271,7 @@ export class ReviewGitSettingsApi extends porcelainApi
   .add(reviewGitSettingsGroup)
   .prefix('/api') {}
 export class HostAccessApi extends porcelainApi
-  .add(administrationGroup, environmentNameGroup)
+  .add(administrationGroup, environmentLabelGroup)
   .prefix('/api') {}
 export class OwnerAccessApi extends porcelainApi.add(
   administrationGroup,
@@ -279,6 +288,6 @@ export class AccessApi extends porcelainApi
     remoteAccessGroup,
     reviewGitSettingsGroup,
     administrationGroup,
-    environmentNameGroup,
+    environmentLabelGroup,
   )
   .prefix('/api') {}
