@@ -26,6 +26,7 @@ tests:
   - packages/client/src/features/reviews/rules/pull-request.spec.ts
   - apps/web/spec/integration/reviews-file-tabs.test.tsx
   - apps/web/spec/integration/reviews-page.test.tsx
+  - packages/client/src/features/reviews/queries/review-comments.spec.ts
   - apps/web/spec/integration/reviews-summary.test.tsx
   - apps/web/spec/integration/reviews-briefing.test.tsx
   - apps/web/spec/integration/reviews-panel.test.tsx
@@ -48,6 +49,8 @@ api:
 ---
 
 # reviews.page
+
+The retained review discussion remains readable if stale inventory still associates it with a checkout whose comments answer WorktreeUnavailable, WorktreeNotFound or ProjectNotFound. That optional read may retain previously confirmed checkout comments; it must not replace a failed retained discussion or suppress unrelated authorization/server failures. When the checkout context recovers, its current comments join the retained discussion again. `packages/client/src/features/reviews/queries/review-comments.spec.ts` pins those typed boundaries; the stored-excerpt case in `reviews-page.test.tsx` drives the real repository-loss path.
 
 One page owns the latest durable route, numbered revisions, decision links and the worktree's branch Review tab.
 
