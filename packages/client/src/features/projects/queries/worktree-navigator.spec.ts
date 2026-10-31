@@ -382,9 +382,9 @@ it.each(['inventory', 'environment', 'durableReview'] as const)(
         filter: emptyNavigatorFilter,
         expanded: { [projectKey]: true },
       });
-      expect(navigator.view().projects[0]?.entries[1]?.review.state).toBe(
-        'available',
-      );
+      await expect
+        .poll(() => navigator.view().projects[0]?.entries[1]?.review.state)
+        .toBe('available');
       await readClientAtom(
         navigator.registry,
         readReview({ connection: navigator.connection, reviewId }),
