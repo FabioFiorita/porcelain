@@ -20,11 +20,11 @@ api:
 
 # access.environment-name
 
-Settings names the computer Porcelain runs on; each project badge shows that identity while the application header stays Porcelain.
+Settings names the computer Porcelain runs on. Project controls keep that identity accessible; badges show it when multiple computers are connected. The application header stays Porcelain.
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → the application header shows "Porcelain" and project badges show their computers.
+- Workspace → `Toggle Sidebar` (phone width) → the application header shows "Porcelain" and project controls name their computer; badges appear only with multiple connected computers.
 - Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer: <name>` → `Rename` beside the title → textbox "Name of this computer" → `Save` (or `Enter` in the field); `Cancel` or `Escape` closes the field.
 - Route: `/settings/computers/this-computer` (host-authorized browser or desktop).
 
@@ -32,7 +32,7 @@ Settings names the computer Porcelain runs on; each project badge shows that ide
 
 Preconditions: [surface baseline](README.md).
 
-Computer details, pairing and project badges show the host name until the owner saves a name in Settings → Computers → This computer. The title, tab title and project badges then show that name, and saving an empty name goes back to the host name. The application header and footer keep their own labels.
+Computer details, pairing and project identity use the host name until the owner saves a name in Settings → Computers → This computer. The title, tab title and accessible project identity then show that name, and saving an empty name goes back to the host name. The application header and footer keep their own labels.
 
 Required instance mode: `--desktop`.
 
@@ -41,7 +41,7 @@ Required instance mode: `--desktop`.
 `HOST=$(hostname)`: the server reads the machine's own host name (the sandbox does not change it). That is the name shown until one is saved. The project is named `repository`.
 
 1. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" with application header "Porcelain" and visible static project badge with role img `Computer: $HOST`.
+   Expect: navigation "Projects and worktrees" with application header "Porcelain". There is no redundant badge with one connected computer. Project actions and collapse controls include `$HOST` in their full accessible names. With multiple connected computers the static badge has role img `Computer: $HOST`.
 2. Click button `Settings`
    Expect: URL ends `/settings/general`; title "Settings".
 3. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
@@ -59,7 +59,7 @@ Required instance mode: `--desktop`.
 8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project badge to `Computer: Workstation`; the old `Computer: $HOST` badge is absent. Its full computer name stays in its accessible label; the static badge is not a control.
+   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no badge. With multiple computers, the static badge updates to `Computer: Workstation`, retaining its full accessible name.
 10. Click button `Settings`
     Expect: URL ends `/settings/general`; title "Settings · Workstation".
 11. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
@@ -69,7 +69,7 @@ Required instance mode: `--desktop`.
 13. Click button `Save`
     Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
 14. Click button `Close Settings` twice
-    Expect: title "Changes — repository"; reopening the navigator shows `Computer: $HOST` again.
+    Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer badge.
 
 Automated coverage: `access-environment-name.desktop.e2e.ts`.
 

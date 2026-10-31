@@ -7,6 +7,7 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   app,
 }) => {
   const host = (await server.inventory()).environment.name;
+  const project = (await server.project()).name;
   const offered = await server.serviceUpdate();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -18,6 +19,12 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
     navigator.getByRole('img', { name: `Computer: ${host}`, exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · ${host}`,
+      exact: true,
+    }),
   ).toBeVisible();
 
   await pairedPage
