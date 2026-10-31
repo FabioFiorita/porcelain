@@ -242,62 +242,64 @@ export function ProjectNavigator({
             </Tooltip>
             <DropdownMenuContent
               align="start"
-              className="max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto"
+              className="flex max-h-[min(24rem,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-hidden"
             >
-              {filters.map((section) => (
-                <DropdownMenuGroup key={section.key}>
-                  <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
-                  {section.items.map((option) => (
-                    <DropdownMenuCheckboxItem
-                      key={option.id}
-                      className="cursor-pointer"
-                      checked={option.checked}
-                      closeOnClick={false}
-                      onCheckedChange={() =>
-                        setState((current) => ({
-                          ...current,
-                          filter: {
-                            ...current.filter,
-                            [section.key]: option.next,
-                          },
-                        }))
-                      }
-                    >
-                      <TruncatedText
-                        propagateEscape
-                        text={option.label}
-                        className="min-w-0 flex-1"
-                      />
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </DropdownMenuGroup>
-              ))}
-              <DropdownMenuCheckboxItem
-                className="cursor-pointer"
-                checked={filter.older}
-                closeOnClick={false}
-                onCheckedChange={(older) =>
-                  setState((current) => ({
-                    ...current,
-                    filter: { ...current.filter, older },
-                  }))
-                }
-              >
-                Show older reviews
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() =>
-                  setState((current) => ({
-                    ...current,
-                    filter: emptyNavigatorFilter,
-                  }))
-                }
-              >
-                Clear filters
-              </DropdownMenuItem>
+              <div className="-m-1 min-h-0 overflow-y-auto p-1">
+                {filters.map((section) => (
+                  <DropdownMenuGroup key={section.key}>
+                    <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                    {section.items.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.id}
+                        className="cursor-pointer"
+                        checked={option.checked}
+                        closeOnClick={false}
+                        onCheckedChange={() =>
+                          setState((current) => ({
+                            ...current,
+                            filter: {
+                              ...current.filter,
+                              [section.key]: option.next,
+                            },
+                          }))
+                        }
+                      >
+                        <TruncatedText
+                          propagateEscape
+                          text={option.label}
+                          className="min-w-0 flex-1"
+                        />
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </DropdownMenuGroup>
+                ))}
+                <DropdownMenuCheckboxItem
+                  className="cursor-pointer"
+                  checked={filter.older}
+                  closeOnClick={false}
+                  onCheckedChange={(older) =>
+                    setState((current) => ({
+                      ...current,
+                      filter: { ...current.filter, older },
+                    }))
+                  }
+                >
+                  Show older reviews
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() =>
+                    setState((current) => ({
+                      ...current,
+                      filter: emptyNavigatorFilter,
+                    }))
+                  }
+                >
+                  Clear filters
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
