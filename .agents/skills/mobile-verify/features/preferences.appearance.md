@@ -33,7 +33,7 @@ General saves Theme, Long lines and one document default for Markdown and HTML f
 
 Preconditions: [surface baseline](README.md).
 
-1. Open General. Expect Theme, Code and Documents, with selected choices announced. On iPad toggle sidebar: controls stay bounded.
+1. Open General. Expect Appearance (Theme), Code and Documents, with selected choices announced. Long lines offers Scroll then Wrap; Documents offers Rendered then Source. On iPad, expect Settings. General and its description, with preference choices inline on the right. The footer says These preferences are saved on this device. Phone controls remain below their labels. On iPad toggle sidebar: controls stay bounded.
 2. Select Dark, Light, then System; inspect content and native navigation. Choose Scroll and Documents Source. Open Markdown and HTML from Files and expect Source; code files always open as source. Cold-launch/reopen: choices persist; independently read the owned app's porcelain-preferences.db.
 3. Back on phone or Computers on iPad preserves paired state/Add computer. Leave through tabs/sidebar and return.
 4. Seed a legacy preference record with only Markdown Source, then only HTML Source: both migrate to Documents Source. Select Rendered and cold-launch; it stays Rendered and the saved record contains only documentsDefault.
