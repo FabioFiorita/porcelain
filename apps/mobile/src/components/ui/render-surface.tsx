@@ -6,6 +6,10 @@ import type { ReviewRange } from './review-annotation';
 import type { RenderLine } from '../../shared/rules/render-model';
 type SurfaceProps = {
   data: string;
+  initialLine?: number | undefined;
+  onReadingLine?:
+    | ((event: NativeSyntheticEvent<{ line: number }>) => void)
+    | undefined;
   tokens: string;
   wrap: boolean;
   lineNumbers: boolean;
@@ -33,8 +37,12 @@ export function RenderSurface({
   selection,
   onSelect,
   onExpand,
+  initialLine,
+  onReadingLine,
 }: {
   lines: readonly RenderLine[];
+  initialLine?: number | undefined;
+  onReadingLine?: ((line: number) => void) | undefined;
   wrap?: boolean;
   lineNumbers?: boolean;
   selection?: ReviewRange | undefined;
@@ -46,6 +54,12 @@ export function RenderSurface({
   return (
     <NativeSurface
       data={data}
+      initialLine={initialLine}
+      onReadingLine={
+        onReadingLine
+          ? (event) => onReadingLine(event.nativeEvent.line)
+          : undefined
+      }
       tokens={JSON.stringify(tokens)}
       wrap={wrap}
       lineNumbers={lineNumbers}

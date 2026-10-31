@@ -6,7 +6,11 @@ import { FileTree, type ContextMenuItem } from '@pierre/trees';
 import { useId, useState } from 'react';
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { atomRegistry } from '@/shared/store';
-import { fileTreeInputs, type PierreFileTreeInput } from '../store';
+import {
+  fileTreeInputs,
+  fileTreePlaces,
+  type PierreFileTreeInput,
+} from '../store';
 import { FOLDER_ICON_CSS, treeIconsFor } from './file-icons';
 import {
   canDropPaths,
@@ -43,10 +47,10 @@ export function PierreFileTree(props: PierreFileTreeInput) {
     menuTarget?.pathsKey === props.paths.join('\0') &&
     menuTarget.filter === props.filter;
   if (menuOpen && !current) setMenuOpen(false);
-  function attach(host: HTMLDivElement | null) {
+  const attach = (host: HTMLDivElement | null) => {
     if (!host) return;
     return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
-  }
+  };
   return (
     <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
       <ContextMenuTrigger
@@ -95,9 +99,16 @@ function mountTree(
   setMenuOpen: (open: boolean) => void,
 ) {
   const read = () => Option.getOrThrow(registry.get(input));
+  const place = fileTreePlaces(read().owner);
+  const saved = registry.get(place);
+  const restoring = new Set(saved.expanded);
+  let restorePosition = saved.document === read().selected;
   let active = true;
   let syncing = false;
-  let reveal = { selected: '', complete: false };
+  let reveal = {
+    selected: saved.document,
+    complete: saved.document === read().selected,
+  };
   let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
   let handledCreate: number | undefined;
   const frames = new Set<number>();
@@ -192,6 +203,8 @@ function mountTree(
   function bindControls() {
     read().bindCollapseAll(() => {
       syncing = true;
+      restoring.clear();
+      restorePosition = false;
       reveal = { selected: read().selected, complete: true };
       model.setSearch(null);
       model.resetPaths(read().paths, { initialExpandedPaths: [] });
@@ -242,7 +255,7 @@ function mountTree(
         const kind = read().kinds.get(path);
         return kind === undefined ? [] : [{ path, kind }];
       }),
-      new Set(expandedDirectories(model, shown)),
+      new Set([...expandedDirectories(model, shown), ...restoring]),
       new Set(
         directoryPaths(shown).filter((path) => model.getItem(path) !== null),
       ),
@@ -253,6 +266,9 @@ function mountTree(
       model.resetPaths(shown, {
         initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
       });
+      for (const path of restoring) {
+        if (model.getItem(path) !== null) restoring.delete(path);
+      }
       const selectedItem = model.getItem(selected);
       if (!reveal.complete && selectedItem && !selectedItem.isDirectory()) {
         selectedItem.select();
@@ -260,6 +276,17 @@ function mountTree(
       }
     }
     syncing = false;
+    if (restorePosition) {
+      syncing = true;
+      for (const path of saved.selected) model.getItem(path)?.select();
+      if (saved.focused && model.getItem(saved.focused))
+        model.focusPath(saved.focused);
+      if (saved.anchor && model.getItem(saved.anchor)) {
+        model.scrollToPath(saved.anchor, { focus: false, offset: 'top' });
+        restorePosition = false;
+      }
+      syncing = false;
+    }
     reportExpanded();
   }
   let previous: PierreFileTreeInput | undefined;
@@ -401,6 +428,24 @@ function mountTree(
   model.getFileTreeContainer()?.setAttribute('aria-label', 'Worktree files');
   sync();
   return () => {
+    const container = model.getFileTreeContainer();
+    const top = container?.getBoundingClientRect().top ?? 0;
+    const anchor =
+      [
+        ...(container?.shadowRoot?.querySelectorAll<HTMLElement>(
+          '[data-item-path]',
+        ) ?? []),
+      ].find((row) => row.getBoundingClientRect().bottom > top)?.dataset
+        .itemPath ?? null;
+    registry.set(place, {
+      expanded: [
+        ...new Set([...expandedDirectories(model, read().paths), ...restoring]),
+      ],
+      selected: model.getSelectedPaths(),
+      focused: model.getFocusedPath(),
+      anchor,
+      document: read().selected,
+    });
     active = false;
     for (const id of frames) cancelAnimationFrame(id);
     unsubscribeInput();

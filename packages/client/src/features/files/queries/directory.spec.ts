@@ -1,7 +1,12 @@
-import { Effect } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { Effect, HashMap } from 'effect';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import { expect, it } from 'vitest';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  clientFixtures,
+  readClientAtom,
+  visitClientRead,
+} from '../../../../spec/kit/client-fixture.ts';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 const scope = {
   projectId: 'project',
@@ -15,21 +20,64 @@ const response = {
   path: 'src',
   entries: [{ name: 'index.ts', kind: 'file' }],
 };
-it('rejects another worktree returned by the transport', async () => {
-  const subject = fixture(() =>
-    Promise.resolve(
-      Response.json({
-        ...response,
-        worktreeId: '11111111111111111111111111111111',
-      }),
-    ),
-  );
-  await expect(
-    Effect.runPromise(
-      AtomRegistry.getResult(
-        subject.registry,
-        readDirectory({ connection: subject.connection, scope, path: 'src' }),
+it('retains the confirmed folder through closing and reopening without retaining its live read', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  let reads = 0;
+  const subject = fixture(() => {
+    if (++reads === 1) return Promise.resolve(Response.json(response));
+    started.resolve();
+    return held.promise;
+  });
+  const atom = readDirectory({
+    connection: subject.connection,
+    scope,
+    path: 'src',
+  });
+  expect(await visitClientRead(subject.registry, atom)).toEqual(response);
+  expect(
+    HashMap.size(
+      await subject.connection.runtime.runPromise(
+        ReadSubscriptions.use((reads) => reads.snapshot),
       ),
+    ),
+  ).toBe(0);
+  const stop = subject.registry.mount(atom);
+  try {
+    await started.promise;
+    expect(subject.registry.get(atom)).toMatchObject({
+      _tag: 'Success',
+      value: response,
+      waiting: true,
+    });
+    const updated = {
+      ...response,
+      entries: [{ name: 'new.ts', kind: 'file' }],
+    };
+    held.resolve(Response.json(updated));
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, atom, {
+          suspendOnWaiting: true,
+        }),
+      ),
+    ).toEqual(updated);
+    expect(AsyncResult.isSuccess(subject.registry.get(atom))).toBe(true);
+  } finally {
+    held.resolve(Response.json(response));
+    stop();
+  }
+});
+it('rejects another worktree returned by the transport', async () => {
+  const rejected = {
+    ...response,
+    worktreeId: '11111111111111111111111111111111',
+  };
+  const subject = fixture(() => Promise.resolve(Response.json(rejected)));
+  await expect(
+    readClientAtom(
+      subject.registry,
+      readDirectory({ connection: subject.connection, scope, path: 'src' }),
     ),
   ).rejects.toThrow('The connected context changed.');
 });

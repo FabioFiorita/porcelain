@@ -1,6 +1,7 @@
 import { Effect, Stream } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { retainRead } from '../../../shared/api/worktree-read.ts';
 import {
   FilePreferencesState,
   filePreferencesRuntime,
@@ -17,5 +18,6 @@ export const readFilePreferences = Atom.family(
       .pipe(
         Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
         Atom.setIdleTTL(0),
+        retainRead,
       ),
 );

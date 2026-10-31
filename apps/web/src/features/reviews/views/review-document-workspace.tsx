@@ -30,6 +30,7 @@ import {
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
+import { FilesQuickOpen } from '@/features/files/index';
 
 export function ReviewDocumentWorkspace({
   revision,
@@ -101,6 +102,15 @@ export function ReviewDocumentWorkspace({
   const progress = revisionDecisionProgress(revision, marks, { specsApart });
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-paper border bg-card md:flex-row">
+      {available && (
+        <FilesQuickOpen
+          bindPopup={layout.bindQuickOpen}
+          openFiles={layout.recentFiles}
+          scope={scope}
+          connection={context.connection}
+          onOpen={(path) => onOpen({ kind: 'file', path })}
+        />
+      )}
       {layout.panes.map((_pane, index) => (
         <ReviewDocumentPane
           key={index}

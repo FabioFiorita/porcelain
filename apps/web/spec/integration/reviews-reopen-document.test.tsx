@@ -227,14 +227,18 @@ test('Changes and comment links focus an already-open diff in the other pane and
     name: 'Right pane',
     exact: true,
   });
+  await right.getByRole('button', { name: 'Open diff', exact: true }).click();
+  const file = right
+    .getByRole('tab', { name: 'README.md', exact: true })
+    .nth(0);
+  await expect.element(file).toHaveAttribute('data-entry', 'file:README.md');
+  await file.click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /^Close Alt/ }).click();
   const original = left.getByRole('tab', {
     name: 'Changes',
     exact: true,
   });
-  const tab = workspace.getByRole('tab', {
-    name: 'README.md',
-    exact: true,
-  });
+  const tab = right.getByRole('tab', { name: 'README.md', exact: true });
   await original.click();
   await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
   await workspace

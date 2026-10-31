@@ -13,8 +13,12 @@ export function CodeView({
   lineNumbers = true,
   selection,
   onSelect,
+  initialLine,
+  onReadingLine,
 }: {
   source: string;
+  initialLine?: number | undefined;
+  onReadingLine?: ((line: number) => void) | undefined;
   language?: string;
   tokens?: readonly (readonly RenderToken[])[] | undefined;
   wrap?: boolean;
@@ -47,6 +51,8 @@ export function CodeView({
         lineNumbers={lineNumbers}
         selection={selection}
         onSelect={onSelect}
+        initialLine={initialLine}
+        onReadingLine={onReadingLine}
       />
     </View>
   );

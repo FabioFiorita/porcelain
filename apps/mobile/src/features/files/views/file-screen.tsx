@@ -1,7 +1,8 @@
+import { useFileReadingLine } from '../store';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useIsFocused } from 'expo-router';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
@@ -59,6 +60,11 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
 }
 
 export function FileContent(props: ContentProps & { selected: Workspace }) {
+  const focused = useIsFocused();
+  return focused ? <FileContentView {...props} /> : null;
+}
+
+function FileContentView(props: ContentProps & { selected: Workspace }) {
   const { path, selected } = props;
   return (
     <Box className="flex-1" surface="background">
@@ -152,6 +158,7 @@ function FilePreview({
           <View className="flex-1">
             {link.error ? <ErrorState message={link.error} /> : null}
             <FileContentsPreview
+              workspace={selected.key}
               path={path}
               text={text}
               onLink={link.open}
@@ -164,18 +171,25 @@ function FilePreview({
   return (
     <View className="flex-1">
       {link.error ? <ErrorState message={link.error} /> : null}
-      <FileContentsPreview path={path} text={text} onLink={link.open} />
+      <FileContentsPreview
+        workspace={selected.key}
+        path={path}
+        text={text}
+        onLink={link.open}
+      />
     </View>
   );
 }
 
 function FileContentsPreview({
+  workspace,
   path,
   text,
   onLink,
   selection,
   onSelect,
 }: {
+  workspace: string;
   path: string;
   text: string;
   onLink: (url: string) => void;
@@ -217,13 +231,42 @@ function FileContentsPreview({
         />
       </View>
     );
-  const language = sourceLanguage(path);
   return (
-    <CodeView
-      source={text}
+    <FileCode
+      workspace={workspace}
+      path={path}
+      text={text}
       selection={selection}
       onSelect={onSelect}
       wrap={preferences.lineOverflow === 'wrap'}
+    />
+  );
+}
+
+function FileCode({
+  workspace,
+  path,
+  text,
+  selection,
+  onSelect,
+  wrap,
+}: {
+  workspace: string;
+  path: string;
+  text: string;
+  selection: ReviewRange | undefined;
+  onSelect: ((range: ReviewRange) => void) | undefined;
+  wrap: boolean;
+}) {
+  const reading = useFileReadingLine(workspace, path, text);
+  const language = sourceLanguage(path);
+  return (
+    <CodeView
+      {...reading}
+      source={text}
+      selection={selection}
+      onSelect={onSelect}
+      wrap={wrap}
       {...(language ? { language } : {})}
     />
   );

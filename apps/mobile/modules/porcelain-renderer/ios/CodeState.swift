@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class CodeState {
+  var initialLine: Int?
   var tokens = RenderTokens()
   private(set) var gutterDigits = 1
   private(set) var lines: [CodeLine] = []

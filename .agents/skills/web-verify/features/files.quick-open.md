@@ -1,11 +1,11 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Find a file by name"
-  - "No file matches that name."
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'Find a file by name'
+  - 'No file matches that name.'
 tests:
   - apps/web/spec/integration/files-quick-open.test.tsx
 api:
@@ -15,11 +15,11 @@ api:
 
 # files.quick-open
 
-Quick open searches every worktree file name and opens the one chosen. Files an ignore rule hides are never offered.
+Quick open searches eligible worktree file names and opens the chosen file document. Ignore rules keep files out of name results. Entering an explicit relative path, such as `config/.env`, offers `Open path config/.env` without scanning ignored folders; the existing server path guards still decide whether it can be read. Project-hidden paths stay out until Files → Show is enabled.
 
 ## How to get to it (user POV)
 
-- `Mod+P` (`ControlOrMeta+p` with the browser driver) while the Files tree is mounted: at phone width, Review → tab Files first. It opens the command dialog "Find a file" with combobox "Find a file by name".
+- `Mod+P` (`ControlOrMeta+p` with the browser driver) while reading the worktree, including with the Files panel closed. It opens the command dialog "Find a file" with combobox "Find a file by name".
 - Pressing `Mod+P` again closes it.
 
 ## Driving it with browser
@@ -28,7 +28,7 @@ Preconditions: [surface baseline](README.md).
 
 ### Setup
 
-Before a full page load (the name list is read when the Files tab mounts):
+Before a full page load:
 
 ```sh
 printf '# Quick target\n' > "$REPO/quick-target.md"
@@ -45,7 +45,7 @@ printf 'ignored output\n' > "$REPO/build.log"
 3. Click tab `Files`
    Expect: treeitem "README.md" in the tree of region "All files".
 4. Press `ControlOrMeta+p`
-   Expect: dialog "Find a file" with combobox "Find a file by name" and options listing the worktree files (`.gitignore`, `README.md`, `quick-target.md`).
+   Expect: dialog "Find a file" with combobox "Find a file by name". With no open file tabs or pinned files, it prompts "Type a file name or relative path.".
 5. Replace the contents of combobox named `Find a file by name` with 'quick'
    Expect: exactly one option, "quick-target.md".
 6. Click option named `quick-target.md`
@@ -72,7 +72,25 @@ Automated coverage: `files-quick-open.test.tsx`.
 
 ## Gotchas
 
-- `Mod+P` is registered by the Files tree. At phone width it does nothing until the sheet "Worktree review" is open on tab Files. With the sheet closed, Chromium's own Ctrl+P is not intercepted either.
-- The name list is fetched once when the Files tab mounts. Write setup files before step 3, or reopen with a full reload of `/` after writing them.
+- `Mod+P` belongs to the worktree document workspace. Verify it with the Files panel closed too.
+- Write setup files before loading the workspace. Name results exclude Git-ignored paths; an explicit path is an intentional direct open, not a broader search.
 - While the list loads the dialog shows "Reading file names…". Wait for options before filling.
-- The match is a case-insensitive substring of the whole path, capped at 50 results.
+- Matches ignore case and surrounding whitespace. Exact basenames rank first, followed by basename prefixes, basename contains, then path contains. Shorter paths win ties, followed by deterministic path order. The 50-result limit applies after ranking. Rows show the basename first and the parent folder dimmed.
+
+## Explicit path and hidden preferences
+
+1. Create `config/.env` containing a distinctive value and ignore `config/` in `.gitignore` before loading.
+2. Close the Files panel, press Mod+P, enter `config/.env`, and choose `Open path config/.env`. The document displays the value, while GET paths still omits it.
+3. Hide a named file from Files, then search for it through Mod+P. It is absent. Enable Files → Show and repeat: it is offered. Hidden ancestors also apply to direct paths.
+4. Absolute paths, traversal, `.git`, repeated separators and backslashes never get an explicit-path action.
+
+Opening the worktree with Files closed makes no name-list or file-preference request for Quick Open. The shortcut opens the popup and reads preferences. Name-list reads begin only after entering a query. While visibility preferences are pending, candidates and explicit-path actions stay absent; failure offers Try again. Closing the popup unmounts those reads. Reopening the same file focuses its existing document tab.
+
+## Empty query suggestions
+
+1. Open three different file documents, then activate the middle tab and the first tab. Open Mod+P with an empty query.
+2. Expect actual open file document tabs in most recent activation order, followed by pinned files. A file present in both appears once; folders, hidden paths, Changes, review documents, timelines and history do not appear.
+3. Select an already-open file: its existing tab gains focus without moving tab positions. Open Mod+P again and confirm it is first. Close an unpinned file tab and confirm it leaves the suggestions.
+4. Inspect traffic: empty suggestions use only open tab state and targeted parent-directory reads for pinned file kinds, without GET paths. Closing the popup unmounts its data reads.
+
+Activation order lasts for the browser session in the existing tab owner and contains only currently open tabs. A cold reload seeds active-first followed by the saved tab order; it adds no stored history.

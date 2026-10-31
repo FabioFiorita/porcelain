@@ -3,7 +3,10 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
+import {
+  clientWorktreeRead,
+  retainRead,
+} from '../../../shared/api/worktree-read.ts';
 import type { FilesScope } from '../rules/scope.ts';
 
 export const readDirectory = Atom.family(
@@ -26,7 +29,7 @@ export const readDirectory = Atom.family(
         }),
       (answer) => answer.worktreeId === scope.worktreeId,
       [path],
-    ),
+    ).pipe(retainRead),
 );
 
 export type DirectorySelection = {

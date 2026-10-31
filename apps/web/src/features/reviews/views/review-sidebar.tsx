@@ -218,6 +218,7 @@ function SidebarSurface({
     <ReviewBoundary
       connection={context.connection}
       scope={scope}
+      loadingLabel={surface === 'files' ? 'Loading files' : 'Loading review'}
       key={`${scope.worktreeId}:${surface}`}
     >
       {surface === 'changes' && (

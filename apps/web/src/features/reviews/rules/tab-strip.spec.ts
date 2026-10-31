@@ -4,6 +4,7 @@ import {
   documentPane,
   primaryPane,
   orderedTabs,
+  recentTabEntries,
   closeInPane,
   closeOthersInPane,
   closeUnpinnedInPane,
@@ -213,5 +214,53 @@ describe('first tab count', () => {
     [2, 9, { value: '2/9', description: '2 of 9 decisions reviewed' }],
   ])('counts %i of %i decisions for Review', (reviewed, total, expected) => {
     expect(reviewTabCount(reviewed, total)).toEqual(expected);
+  });
+});
+
+describe('session tab activation order', () => {
+  it('seeds a cold session from the active tab then the current tabs without reordering them', () => {
+    const panes = [{ tabs: ['handoff', 'file:a.ts', 'file:b.ts'], pinned: [] }];
+    expect(recentTabEntries([], panes, 'file:b.ts')).toEqual([
+      'file:b.ts',
+      'handoff',
+      'file:a.ts',
+    ]);
+    expect(panes[0]?.tabs).toEqual(['handoff', 'file:a.ts', 'file:b.ts']);
+  });
+
+  it('keeps actual activation order across panes and prunes closed entries', () => {
+    const panes = [
+      { tabs: ['file:a.ts', 'file:c.ts'], pinned: [] },
+      { tabs: ['file:b.ts'], pinned: [] },
+    ];
+    const order = recentTabEntries([], panes, 'file:a.ts');
+    const second = recentTabEntries(order, panes, 'file:b.ts');
+    const third = recentTabEntries(second, panes, 'file:c.ts');
+    expect(third).toEqual(['file:c.ts', 'file:b.ts', 'file:a.ts']);
+    expect(recentTabEntries(third, panes, 'file:a.ts')).toEqual([
+      'file:a.ts',
+      'file:c.ts',
+      'file:b.ts',
+    ]);
+    expect(
+      recentTabEntries(
+        third,
+        [{ tabs: ['file:a.ts'], pinned: [] }],
+        'file:a.ts',
+      ),
+    ).toEqual(['file:a.ts']);
+    expect(recentTabEntries(third, [], null)).toEqual([]);
+  });
+
+  it('keeps repeated focus idempotent and deduplicates documents shared by two panes', () => {
+    const panes = [
+      { tabs: ['file:a.ts', 'file:b.ts'], pinned: [] },
+      { tabs: ['file:a.ts'], pinned: [] },
+    ];
+    const first = recentTabEntries([], panes, 'file:a.ts');
+    expect(recentTabEntries(first, panes, 'file:a.ts')).toEqual([
+      'file:a.ts',
+      'file:b.ts',
+    ]);
   });
 });

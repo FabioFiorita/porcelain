@@ -70,6 +70,7 @@ import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { FilesQuickOpen } from '@/features/files/index';
 
 type Worktree = Project['worktrees'][number];
 
@@ -284,6 +285,13 @@ function ReviewWorkspaceContent({
         if (!open) layout.focusDestination();
       }}
     >
+      <FilesQuickOpen
+        bindPopup={layout.bindQuickOpen}
+        openFiles={layout.recentFiles}
+        scope={scope}
+        connection={context.connection}
+        onOpen={(path) => open({ kind: 'file', path })}
+      />
       <div className="flex min-h-0 flex-1">
         <ResizablePanelGroup
           orientation="horizontal"

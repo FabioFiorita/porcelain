@@ -19,7 +19,19 @@ function highlightedLines(locator: Locator) {
   );
 }
 
+function codeScroller(locator: Locator) {
+  const scroller = locator
+    .element()
+    .querySelector<HTMLElement>('.overflow-auto');
+  if (!scroller) throw new Error('The code content has no scroll viewport');
+  return scroller;
+}
+
 export const reviewLayout = {
+  scrollCodeTo(locator: Locator, position: number) {
+    codeScroller(locator).scrollTop = position;
+  },
+  codeScrollTop: (locator: Locator) => codeScroller(locator).scrollTop,
   currentChangeRows(table: Locator) {
     return [
       ...table.element().querySelectorAll('button[aria-current="true"]'),

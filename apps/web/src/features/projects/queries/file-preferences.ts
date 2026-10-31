@@ -1,6 +1,15 @@
 import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { readFilePreferences } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+
+export function useFilePreferencesRead(
+  connection: Connection,
+  projectId: string,
+) {
+  const atom = readFilePreferences({ connection, projectId });
+  return { result: useAtomValue(atom), refresh: useAtomRefresh(atom) };
+}
 
 function useFilePreferences(connection: Connection, projectId: string) {
   return useConfirmedRead(readFilePreferences({ connection, projectId })).value;

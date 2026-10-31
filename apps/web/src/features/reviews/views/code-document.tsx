@@ -198,7 +198,11 @@ function CodeSurface({
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
-  const viewer = useCodeViewScroll();
+  const viewer = useCodeViewScroll(
+    interaction.entry.startsWith('file:')
+      ? `${gitContext.connection.environmentId}:${interaction.worktreeId}:${interaction.entry}`
+      : undefined,
+  );
   const margin = useMarginStack();
   const [composer, setComposer] = useState<{
     id: string;
@@ -206,7 +210,7 @@ function CodeSurface({
     draft: InlineCommentDraft;
   } | null>(null);
   const [selection, setSelection] = useState<CodeViewLineSelection | null>(
-    null,
+    viewer.selection,
   );
   const [focusedId, setFocusedId] = useState<CodeEntry['id']>();
   const focused = Math.max(
@@ -459,17 +463,19 @@ function CodeSurface({
     paneFile &&
     (focusedEntry ? (
       <>
-        <BarAction
-          label="Reviewed"
-          variant="outline"
-          icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
-          shortcut={SHORTCUTS.toggleReviewed}
-          disabled={!focusedEntry?.review?.fingerprint}
-          pressed={focusedEntry?.review?.reviewed}
-          onClick={() => {
-            if (focusedEntry) onToggleReviewed(focusedEntry);
-          }}
-        />
+        {focusedEntry.review && (
+          <BarAction
+            label="Reviewed"
+            variant="outline"
+            icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
+            shortcut={SHORTCUTS.toggleReviewed}
+            disabled={!focusedEntry?.review?.fingerprint}
+            pressed={focusedEntry?.review?.reviewed}
+            onClick={() => {
+              if (focusedEntry) onToggleReviewed(focusedEntry);
+            }}
+          />
+        )}
         <BarAction
           label="Comment"
           icon={MessageSquarePlusIcon}
@@ -504,6 +510,8 @@ function CodeSurface({
 
   return (
     <div
+      role="region"
+      aria-label="Code content"
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
         (decision || column || compactThreads || framed) && 'decision-code',
@@ -521,7 +529,7 @@ function CodeSurface({
           comment={() => openFileComment(entries[focused])}
           review={() => {
             const entry = entries[focused];
-            if (entry) onToggleReviewed(entry);
+            if (entry?.review) onToggleReviewed(entry);
           }}
         />
       )}
@@ -603,6 +611,8 @@ function CodeSurface({
           ref={(handle) => {
             if (!handle) return;
             const release = viewer.attach(handle);
+            if (viewer.position !== undefined)
+              handle.scrollTo({ type: 'position', position: viewer.position });
             if (
               reveal &&
               revealEntry &&
@@ -665,10 +675,12 @@ function CodeSurface({
             };
           }}
           items={items}
+          onScroll={viewer.rememberPosition}
           selectedLines={selection}
           onSelectedLinesChange={(next) => {
             if (!composer) {
               setSelection(next);
+              viewer.rememberSelection(next);
               if (next) setFocusedId(next.id);
             }
           }}

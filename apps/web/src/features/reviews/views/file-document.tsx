@@ -2,12 +2,9 @@ import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { createPortal } from 'react-dom';
-import { CheckIcon, SquareIcon, MessageSquarePlusIcon } from 'lucide-react';
+import { MessageSquarePlusIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { useReviewChangeItems } from '../queries/reviewed';
-import { fileReviewControl } from './reviewed-control';
-import { useToggleReviewed } from '../commands/reviewed';
-import { toast } from '@/components/ui/toast';
 import { type ReactNode, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -216,9 +213,6 @@ function ReadableFileDocument({
     comparison && 'kind' in comparison
       ? `${comparison.scope} · ${comparison.kind}`
       : comparison?.scope;
-  const toggle = useToggleReviewed(scope, context, (notice) =>
-    toast.add(notice),
-  );
   const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
@@ -356,30 +350,12 @@ function ReadableFileDocument({
             setMode('source');
             setCommentRequest(Date.now());
           }}
-          onReview={() => {
-            if (reviewItem)
-              toggle.toggle(fileReviewControl(scope, context, reviewItem));
-          }}
         />
       )}
       {interaction.toolbarTarget &&
         !showingSource &&
         createPortal(
           <>
-            <BarAction
-              label="Reviewed"
-              variant="outline"
-              icon={
-                reviewItem?.reviewStatus === 'reviewed' ? CheckIcon : SquareIcon
-              }
-              shortcut={SHORTCUTS.toggleReviewed}
-              disabled={!reviewItem?.fingerprint}
-              pressed={reviewItem?.reviewStatus === 'reviewed'}
-              onClick={() => {
-                if (reviewItem)
-                  toggle.toggle(fileReviewControl(scope, context, reviewItem));
-              }}
-            />
             <BarAction
               label="Comment"
               icon={MessageSquarePlusIcon}
@@ -440,9 +416,6 @@ function ReadableFileDocument({
             entries={[
               {
                 ...fileEntry(`file:${path}`, path, text),
-                ...(reviewItem
-                  ? { review: fileReviewControl(scope, context, reviewItem) }
-                  : {}),
                 ...(contentFingerprint
                   ? {
                       comment: {
@@ -576,12 +549,6 @@ function PreviewFileControls({
 }: FileDocumentProps) {
   const changes = useChanges(scope, context.connection);
   const item = useReviewChangeItems(scope, context, changes, [path])[0];
-  const toggle = useToggleReviewed(scope, context, (notice) =>
-    toast.add(notice),
-  );
-  const review = () => {
-    if (item) toggle.toggle(fileReviewControl(scope, context, item));
-  };
   const comment = () => {
     if (item)
       onOpen(
@@ -593,25 +560,9 @@ function PreviewFileControls({
   if (!interaction.toolbarTarget) return null;
   return (
     <>
-      {interaction.active && (
-        <RenderedFileShortcuts onReview={review} onComment={comment} />
-      )}
+      {interaction.active && <RenderedFileShortcuts onComment={comment} />}
       {createPortal(
         <>
-          <BarAction
-            label="Reviewed"
-            variant="outline"
-            icon={item?.reviewStatus === 'reviewed' ? CheckIcon : SquareIcon}
-            shortcut={SHORTCUTS.toggleReviewed}
-            disabled={!item?.fingerprint}
-            pressed={item?.reviewStatus === 'reviewed'}
-            description={
-              item?.fingerprint
-                ? 'Reviewed'
-                : 'There is no reviewable change for this file.'
-            }
-            onClick={review}
-          />
           <BarAction
             label="Comment"
             icon={MessageSquarePlusIcon}
@@ -632,14 +583,7 @@ function PreviewFileControls({
   );
 }
 
-function RenderedFileShortcuts({
-  onComment,
-  onReview,
-}: {
-  onComment: () => void;
-  onReview: () => void;
-}) {
+function RenderedFileShortcuts({ onComment }: { onComment: () => void }) {
   useHotkey(SHORTCUTS.commentOnFile, onComment, { ignoreInputs: true });
-  useHotkey(SHORTCUTS.toggleReviewed, onReview, { ignoreInputs: true });
   return null;
 }

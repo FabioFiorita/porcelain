@@ -7,6 +7,7 @@ final class CodeSurface: ExpoView {
   let model = CodeState()
   let onCodeSelect = EventDispatcher()
   let onExpand = EventDispatcher()
+  let onReadingLine = EventDispatcher()
   private var host: UIHostingController<CodeContent>?
 
   required init(appContext: AppContext? = nil) {
@@ -20,6 +21,8 @@ final class CodeSurface: ExpoView {
       onCodeSelect(range)
     }, expand: { [weak self] id in
       self?.onExpand(["id": id])
+    }, reading: { [weak self] line in
+      self?.onReadingLine(["line": line])
     }, copy: { text in
       UIPasteboard.general.string = text
     }))

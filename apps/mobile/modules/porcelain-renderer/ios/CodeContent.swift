@@ -4,7 +4,10 @@ struct CodeContent: View {
   @Bindable var model: CodeState
   let choose: (CodeLine, Bool) -> Void
   let expand: (String) -> Void
+  let reading: (Int) -> Void
   let copy: (String) -> Void
+  @State private var topLine: String?
+  @State private var restored = false
   @Environment(\.fontResolutionContext) private var fontContext
   @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
   private var codeSize: CGFloat { model.tokens.codeSize * textScale }
@@ -29,11 +32,23 @@ struct CodeContent: View {
             }
           }
         }
+        .scrollTargetLayout(isEnabled: model.initialLine != nil)
         .frame(width: contentWidth, alignment: .leading)
         .padding(.vertical, model.tokens.spacing)
       }
+      .scrollPosition(id: $topLine, anchor: .top)
+      .onChange(of: model.initialLine, initial: true) { restore() }
+      .onChange(of: model.lines.isEmpty, initial: true) { restore() }
+      .onChange(of: topLine) { _, value in
+        if restored, let value, let line = Int(value) { reading(line) }
+      }
     }
     .background(model.background)
+  }
+  private func restore() {
+    guard !restored, !model.lines.isEmpty, let line = model.initialLine else { return }
+    topLine = String(min(max(line, 1), model.lines.count))
+    restored = true
   }
   private func textWidth(_ text: AttributedString, fallbackFont: Font) -> CGFloat {
     let measured = NSMutableAttributedString(string: "")

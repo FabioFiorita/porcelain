@@ -7,6 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,7 +25,20 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (CodeLine, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit) {
+internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (CodeLine, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit, initialLine: Int?, reading: (Int) -> Unit) {
+  val listState = rememberLazyListState()
+  var restored by remember { mutableStateOf(false) }
+  LaunchedEffect(initialLine, lines.isEmpty()) {
+    if (!restored && initialLine != null && lines.isNotEmpty()) {
+      listState.scrollToItem((initialLine - 1).coerceIn(0, lines.lastIndex))
+      restored = true
+    }
+  }
+  LaunchedEffect(restored, lines) {
+    if (restored) snapshotFlow { listState.firstVisibleItemIndex }
+      .distinctUntilChanged()
+      .collect { index -> lines.getOrNull(index)?.id?.toIntOrNull()?.let(reading) }
+  }
   val digits = remember(lines) { (lines.maxOfOrNull { maxOf(it.oldLine ?: 0, it.newLine ?: 0) } ?: 1).toString().length }
   val measurer = rememberTextMeasurer()
   val density = LocalDensity.current
@@ -35,7 +50,7 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
   BoxWithConstraints(Modifier.fillMaxSize().background(options.background)) {
     val viewportWidth = maxWidth
     Box(Modifier.then(scrolling)) {
-    LazyColumn(Modifier.fillMaxHeight().then(if (options.wrap) Modifier.fillMaxWidth() else Modifier.widthIn(min = viewportWidth))) {
+    LazyColumn(Modifier.fillMaxHeight().then(if (options.wrap) Modifier.fillMaxWidth() else Modifier.widthIn(min = viewportWidth)), state = listState) {
       items(lines, key = { it.id }) { line ->
         if (line.kind == "gap") {
           TextButton(onClick = { expand(line.id) }) { Text(line.text, color = options.muted, fontFamily = sansFamily) }

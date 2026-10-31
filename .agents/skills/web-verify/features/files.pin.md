@@ -17,11 +17,11 @@ api:
 
 # files.pin
 
-Pinning a file lists it under "Pinned" above the file tree; the group header shows the count and folds the group. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
+Pinning a file or folder lists it under "Pinned" above the file tree; the group header shows the count and folds the group. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
 
 ## How to get to it (user POV)
 
-- Review (phone width) → tab Files → right-click a file row → menuitem "Pin file" (files only; folders have no pin).
+- Review (phone width) → tab Files → right-click a file row → menuitem "Pin file" or a folder row → menuitem "Pin folder".
 - Unpin: button "Unpin <path>" on the pinned row, or right-click the pinned row or the tree row → menuitem "Unpin file".
 
 ## Driving it with browser
@@ -55,7 +55,7 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
 9. Press `Escape`
    Expect: the menu is gone.
 10. Click treeitem `README.md`
-    Expect: the dialog is gone and the text "A change to review." shows (README's diff).
+    Expect: the dialog is gone and the text "A change to review." shows (README's file document).
 11. Click button `Review`
     Expect: dialog "Worktree review" on tab "Files", still showing region "Pinned files".
 12. Click button `guide.md`
@@ -78,3 +78,10 @@ Automated coverage: `files-pin.test.tsx`.
 Pin, unpin and the menus open nothing, so the sheet stays open. Opening a file (steps 10 and 12) closes it.
 - Address the pinned row with the exact name "guide.md". A pattern such as `/guide\.md/` also matches button "Unpin guide.md" and fails as ambiguous. The tree row has role treeitem, so it does not collide with role button.
 - Pins belong to the project and stay on the server for the life of the instance. Unpin before driving again, or the region is there from the start.
+
+## Pinned folders and unavailable entries
+
+1. Pin an unopened folder with two child files. Its Pinned row has `aria-expanded=false`, and no directory read for that folder occurs. Click it once: a bounded Pierre subtree appears, loads that folder, and opens a child as a file document.
+2. Return to Files: the pin stays expanded. Close its row: its subtree unmounts. Unpin removes the row and updates server preferences.
+3. Hide a pinned file or ancestor folder: its Pinned row disappears. Files → Show restores it.
+4. Pins resolve against actual parent directory listings. Loading, Missing and Unavailable entries cannot open a guessed file; Unavailable has Try again, and every row retains its Unpin button. Symlinks and submodules are not followed.

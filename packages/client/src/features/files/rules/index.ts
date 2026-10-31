@@ -17,7 +17,7 @@ export {
   visibleFileTreeRows,
   type FileTreeEntry,
 } from './file-tree.ts';
-export { quickOpenMatches } from './quick-open.ts';
+export { quickOpenMatches, quickOpenPath } from './quick-open.ts';
 export { isImagePath } from './image-path.ts';
 export {
   branchChangeMarks,
@@ -26,3 +26,18 @@ export {
   worktreeChangeMarks,
   type FileChangeMarks,
 } from './change-marks.ts';
+
+export {
+  canonicalPreferencePath,
+  hiddenPathFor,
+  hiddenSummary,
+  visibleFileTreePaths,
+  type SetHiddenInput,
+  type SetPinnedInput,
+  filePreferenceEntries,
+  filePreferenceActions,
+  pinnedParentDirectories,
+  pinnedFileEntries,
+  type PinnedDirectoryState,
+  type PinnedFileEntry,
+} from './file-preferences.ts';

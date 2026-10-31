@@ -10,11 +10,12 @@ import androidx.compose.runtime.Composable
 class CodeSurface(context: Context, appContext: AppContext) : RendererHost(context, appContext) {
   val onCodeSelect by EventDispatcher()
   val onExpand by EventDispatcher()
+  val onReadingLine by EventDispatcher()
   internal val state = CodeState()
 
   @Composable
   override fun RenderContent() {
-    CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy)
+    CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy, state.initialLine, { line -> onReadingLine(mapOf("line" to line)) })
   }
 
   private fun select(line: CodeLine, reset: Boolean) {
