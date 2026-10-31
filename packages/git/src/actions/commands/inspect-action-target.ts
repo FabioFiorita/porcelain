@@ -68,10 +68,16 @@ export const inspectActionTarget = Effect.fn('Git.inspectActionTarget')(
     const stash =
       intent.action === 'stash-apply' || intent.action === 'stash-pop';
     const changes =
-      intent.action === 'pull' || intent.action === 'stash-create' || stash
+      intent.action === 'pull' ||
+      intent.action === 'switch' ||
+      intent.action === 'stash-create' ||
+      stash
         ? yield* readActionStatus(process)
         : [];
-    if (intent.action === 'pull' && changes.length > 0)
+    if (
+      (intent.action === 'pull' || intent.action === 'switch') &&
+      changes.length > 0
+    )
       return yield* new GitActionRejectedError({ reason: 'CHECKOUT_BUSY' });
     const stashLog = stash ? yield* readStashLog(process) : '';
     if (stash) {

@@ -6,18 +6,15 @@ test('renaming a project in the navigator shows the new name and the server keep
   server,
 }) => {
   const project = await server.project();
+  const computer = (await server.inventory()).environment.name;
   const name = 'Browser renamed project';
-  await navigator
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  const projectButton = navigator.getByRole('menuitem', {
-    name: project.name,
+  const projectButton = navigator.getByRole('button', {
+    name: `Project actions: ${project.name} · ${computer}`,
     exact: true,
   });
   await expect.element(projectButton).toBeVisible();
-  await userEvent.keyboard('{ArrowDown}');
-  await expect.element(projectButton).toHaveFocus();
-  await userEvent.keyboard('{ArrowRight}{ArrowDown}');
+  await projectButton.click();
+  await userEvent.keyboard('{ArrowDown}{ArrowDown}');
   await expect
     .element(
       navigator.getByRole('menuitem', { name: 'Rename project', exact: true }),
@@ -33,11 +30,16 @@ test('renaming a project in the navigator shows the new name and the server keep
     .getByRole('textbox', { name: 'Name', exact: true })
     .fill(name);
   await navigator.getByRole('button', { name: 'Rename', exact: true }).click();
-  await navigator
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
   await expect
-    .element(navigator.getByRole('menuitem', { name, exact: true }))
+    .element(
+      navigator.getByRole('button', {
+        name: `Project actions: ${name} · ${computer}`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(navigator.getByText(name, { exact: true }))
     .toBeVisible();
   await expect.poll(async () => (await server.project()).name).toBe(name);
 });

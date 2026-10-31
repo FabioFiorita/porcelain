@@ -178,10 +178,12 @@ function Navigator({
 }) {
   return (
     <ProjectNavigator
+      settingsOpen={false}
       remotes={remotes}
       selected={undefined}
       openReview={undefined}
       onSelect={() => {}}
+      onOpenPullRequest={() => {}}
       onOpenProject={() => {}}
       onOpenSettings={() => {}}
       onOpenShortcuts={() => {}}

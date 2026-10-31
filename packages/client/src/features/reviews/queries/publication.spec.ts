@@ -1,6 +1,7 @@
 import { afterEach, expect, it } from 'vitest';
-import { Layer, Effect } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { visitClientRead } from '../../../../spec/kit/client-fixture.ts';
+import { HashMap, Layer, Effect, Option } from 'effect';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import {
   createWorktreeConnection,
   type Transport,
@@ -10,6 +11,7 @@ import {
   readProofFile,
   readReviewSummary,
 } from './publication.ts';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import { reviewSummaryUrl } from '../rules/review.ts';
 import type { SummaryDelivery } from '../api.ts';
 
@@ -76,6 +78,40 @@ it('reads the selected published review and preserves an absent review as null',
   });
   expect(await query(null)).toBeNull();
 });
+it('shows a visited publication while revalidating without retaining its live subscription', async () => {
+  let requests = 0;
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const subject = fixture(() => {
+    if (++requests === 2) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(Response.json({ review: published }));
+  });
+  owned.push(subject);
+  expect(
+    (await visitClientRead(subject.registry, subject.atom))?.revision,
+  ).toBe(3);
+  expect(
+    HashMap.size(
+      await subject.connection.runtime.runPromise(
+        ReadSubscriptions.use((reads) => reads.snapshot),
+      ),
+    ),
+  ).toBe(0);
+  const back = subject.registry.mount(subject.atom);
+  await started.promise;
+  const visible = subject.registry.get(subject.atom);
+  expect(AsyncResult.isInitial(visible)).toBe(false);
+  expect(Option.getOrThrow(AsyncResult.value(visible))?.revision).toBe(3);
+  expect(visible.waiting).toBe(true);
+  held.resolve(Response.json({ review: { ...published, revision: 4 } }));
+  expect((await read(subject))?.revision).toBe(4);
+  expect(requests).toBe(2);
+  back();
+});
+
 it.each([
   ['worktree', { ...published, worktreeId: 'b'.repeat(32) }],
   [
@@ -177,6 +213,55 @@ it('reads the exact published summary HTML through the selected connection and s
   expect(paths).toEqual([
     `/review-summaries/${proofId}?expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
   ]);
+});
+it('reuses immutable summary HTML across rotated signed links while keeping publications separate', async () => {
+  const paths: string[] = [];
+  const subject = fixture((path) => {
+    paths.push(path);
+    return Promise.resolve(
+      new Response(
+        path.includes(proofId) ? '<h1>First</h1>' : '<h1>Second</h1>',
+      ),
+    );
+  });
+  owned.push(subject);
+  const summary = { ...summaryCapability, byteLength: 14 };
+  const atom = readReviewSummary({
+    connection: subject.connection,
+    scope,
+    summary,
+  });
+  const stop = subject.registry.mount(atom);
+  expect(await readSummary(subject, summary)).toBe('<h1>First</h1>');
+  stop();
+  await Effect.runPromise(Effect.yieldNow);
+  expect(await readSummary(subject, summary)).toBe('<h1>First</h1>');
+  const rotated = readReviewSummary({
+    connection: subject.connection,
+    scope,
+    summary: {
+      ...summary,
+      expires: '2026-10-16T23:00:00.000Z',
+      signature: 'r'.repeat(43),
+    },
+    delivery: {
+      url: 'https://proxy.test/rotated',
+      transport: () =>
+        Promise.reject(
+          new Error('A rotated link must reuse the immutable HTML'),
+        ),
+    },
+  });
+  const visible = subject.registry.get(rotated);
+  expect(AsyncResult.isSuccess(visible)).toBe(true);
+  expect(Option.getOrThrow(AsyncResult.value(visible))).toBe('<h1>First</h1>');
+  expect(
+    await readSummary(subject, {
+      ...summary,
+      token: '22222222-2222-4222-8222-222222222222',
+    }),
+  ).toBe('<h1>Second</h1>');
+  expect(paths).toHaveLength(2);
 });
 
 it('reads a remote signed summary through the public app proxy without using the authenticated remote transport', async () => {

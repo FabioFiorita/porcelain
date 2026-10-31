@@ -212,6 +212,7 @@ const fixture = Effect.fn(function* (progress?: string) {
     Layer.succeed(RecordGitActionProgressOptions, { progressLines: 10 }),
     Layer.succeed(GitActionRunner, runner),
     Layer.succeed(ChangeStatusReader, {
+      readSummary: () => Effect.die('Summary is not part of queued actions'),
       readStatus: unused,
       readBranchDetails: unused,
     }),

@@ -42,3 +42,8 @@ export {
   type ReadGitStatusResponse,
 } from './git-status.ts';
 export { ChangesApi } from './api.ts';
+
+export {
+  readWorktreeSummaryResponseSchema,
+  type ReadWorktreeSummaryResponse,
+} from './git-status.ts';

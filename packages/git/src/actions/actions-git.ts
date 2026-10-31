@@ -1,3 +1,4 @@
+import { switchBranch } from './commands/switch-branch.ts';
 import { Effect } from 'effect';
 import type { EffectCheckoutSession } from '../inspection/index.ts';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
@@ -79,6 +80,8 @@ export const executeGitAction = Effect.fn('Git.executeAction')(function* (
       ? onProgress
       : undefined;
   switch (intent.action) {
+    case 'switch':
+      return yield* switchBranch(process, { id, intent, preview });
     case 'commit':
     case 'amend':
       return yield* commitIndex(process, { id, intent, preview });

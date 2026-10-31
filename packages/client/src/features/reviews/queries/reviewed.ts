@@ -3,7 +3,10 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { worktreeResource } from '../../../shared/api/worktree-read.ts';
+import {
+  retainRead,
+  worktreeResource,
+} from '../../../shared/api/worktree-read.ts';
 import { ReviewedFilesState, reviewedRuntime } from '../store/reviewed.ts';
 import {
   reviewedReadRange,
@@ -22,7 +25,7 @@ const reads = Atom.family(
       'reviewed',
       ReviewedFilesState,
       reviewedRuntime(input),
-    ),
+    ).pipe(retainRead),
 );
 export function readReviewedFiles({
   range = WORKTREE_RANGE,

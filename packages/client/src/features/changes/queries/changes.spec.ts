@@ -1,7 +1,10 @@
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  clientFixtures,
+  visitClientRead,
+} from '../../../../spec/kit/client-fixture.ts';
 import { editFile } from '@porcelain/client/files';
 import { expect, it } from 'vitest';
-import { Effect, Option, Schema, Stream } from 'effect';
+import { Effect, HashMap, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import {
   readChangeDiffs,
@@ -10,6 +13,7 @@ import {
 } from '@porcelain/client/changes';
 import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
 
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import { readChanges, readGitStatus } from './changes.ts';
 import { readCurrentChanges, refreshGitLook } from '@porcelain/client/changes';
 
@@ -29,6 +33,62 @@ const snapshot = {
   changes: [],
 };
 const fixture = clientFixtures(environmentId);
+
+it('shows a visited worktree snapshot while revalidating without retaining its live subscription', async () => {
+  const reads: string[] = [];
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const subject = fixture((path) => {
+    const worktreeId = path.includes('1'.repeat(32))
+      ? '1'.repeat(32)
+      : scope.worktreeId;
+    reads.push(worktreeId);
+    if (reads.length === 3) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(Response.json({ ...snapshot, worktreeId }));
+  });
+  const atom = readChanges({ connection: subject.connection, scope });
+  expect((await visitClientRead(subject.registry, atom)).statusToken).toBe(
+    'a'.repeat(64),
+  );
+  expect(
+    HashMap.size(
+      await subject.connection.runtime.runPromise(
+        ReadSubscriptions.use((reads) => reads.snapshot),
+      ),
+    ),
+  ).toBe(0);
+  const other = readChanges({
+    connection: subject.connection,
+    scope: { ...scope, worktreeId: '1'.repeat(32) },
+  });
+  expect(
+    (await Effect.runPromise(AtomRegistry.getResult(subject.registry, other)))
+      .worktreeId,
+  ).toBe('1'.repeat(32));
+  const back = subject.registry.mount(atom);
+  await started.promise;
+  const visible = subject.registry.get(atom);
+  expect(AsyncResult.isInitial(visible)).toBe(false);
+  expect(Option.getOrThrow(AsyncResult.value(visible)).worktreeId).toBe(
+    scope.worktreeId,
+  );
+  expect(visible.waiting).toBe(true);
+  held.resolve(Response.json({ ...snapshot, statusToken: 'b'.repeat(64) }));
+  expect(
+    (
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, atom, {
+          suspendOnWaiting: true,
+        }),
+      )
+    ).statusToken,
+  ).toBe('b'.repeat(64));
+  expect(reads).toEqual([scope.worktreeId, '1'.repeat(32), scope.worktreeId]);
+  back();
+});
 
 it.each([
   { environmentId: '5c9f2dc8-a554-45f1-aeab-0b22431137b4' },

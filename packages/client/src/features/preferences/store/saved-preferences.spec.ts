@@ -18,7 +18,6 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
       diffStyle: 'unified',
       lineOverflow: 'scroll',
       documentsDefault: 'rendered',
-      reviewListGroupOpen: {},
       reviewGitSettingsImportCandidate: {
         pullStrategy: 'merge',
         collapseSpecs: false,
@@ -57,7 +56,6 @@ const legacyRecord = {
   lineOverflow: 'wrap',
   documentsDefault: 'source',
   collapseSpecs: true,
-  reviewListGroupOpen: {},
   archiveDeleteWorktree: false,
   archiveDeleteLocalBranch: true,
   archiveDeleteRemoteBranch: false,
@@ -75,7 +73,6 @@ const upgraded = {
   diffStyle: 'split',
   lineOverflow: 'wrap',
   documentsDefault: 'source',
-  reviewListGroupOpen: {},
   reviewGitSettingsImportCandidate: legacyCandidate,
 } as const;
 it('moves the old Reviews & Git choices into the import candidate and writes only the canonical shape', () => {
@@ -132,7 +129,6 @@ it.each([
   ['diffStyle', 'side-by-side'],
   ['lineOverflow', true],
   ['documentsDefault', 'preview'],
-  ['reviewListGroupOpen', { Projects: 'false' }],
 ] as const)(
   'repairs invalid %s without losing another valid field',
   (key, value) => {
@@ -159,7 +155,6 @@ it.each([
   'diffStyle',
   'lineOverflow',
   'documentsDefault',
-  'reviewListGroupOpen',
 ] as const)('repairs missing %s without losing another field', (key) => {
   const saved: Record<string, unknown> = {
     ...defaultPreferences,
@@ -215,7 +210,7 @@ it('reads web records through the browser key-value path, keeping an old record 
   });
 });
 
-it('round-trips independent review group choices without losing other preferences', () => {
+it('ignores obsolete review-status collapse choices without losing other preferences', () => {
   const saved = readPreferences(
     JSON.stringify({
       appearance: 'dark',
@@ -229,14 +224,7 @@ it('round-trips independent review group choices without losing other preference
       },
     }),
   );
-  expect(saved.reviewListGroupOpen).toEqual({
-    Projects: false,
-    'Needs you': true,
-    'Waiting on agent': false,
-    'Ready to merge': true,
-    'No review': false,
-    Closed: true,
-  });
+  expect(saved).not.toHaveProperty('reviewListGroupOpen');
   expect(
     readPreferences(
       JSON.stringify(Schema.encodeSync(preferencesSchema)(saved)),

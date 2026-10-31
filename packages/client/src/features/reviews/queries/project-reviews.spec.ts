@@ -4,11 +4,13 @@ import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import {
   clientFixtures,
   readClientAtom,
+  visitClientRead,
 } from '../../../../spec/kit/client-fixture.ts';
 import {
   readReview,
   readProjectReviews,
   observeReviewSeen,
+  readReviewPullChecks,
 } from './project-reviews.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { reviewCommands } from '../commands/project-reviews.ts';
@@ -27,6 +29,41 @@ const answer = {
   unknown: [{ area: 'baseline', reason: 'No last seen revision', ids: [] }],
 };
 const fixture = clientFixtures('00000000-0000-4000-8000-000000000001');
+it('retains PR checks as a passive payload and rechecks only after the review becomes visible again', async () => {
+  let requests = 0;
+  let checks: 'passed' | 'running' = 'passed';
+  const subject = fixture(() => {
+    requests += 1;
+    return Promise.resolve(
+      Response.json({ kind: 'available', number: 42, checks }),
+    );
+  });
+  const atom = readReviewPullChecks({
+    connection: subject.connection,
+    reviewId,
+  });
+  expect(await visitClientRead(subject.registry, atom)).toEqual({
+    kind: 'available',
+    number: 42,
+    checks: 'passed',
+  });
+  checks = 'running';
+  await subject.connection.runtime.runPromise(
+    Reactivity.invalidate([
+      queryKeys.inventory(subject.connection.environmentId),
+      queryKeys.environment(subject.connection.environmentId),
+      queryKeys.durableReview(subject.connection.environmentId, reviewId),
+    ]),
+  );
+  await Effect.runPromise(Effect.yieldNow);
+  expect(requests).toBe(1);
+  expect(await visitClientRead(subject.registry, atom)).toEqual({
+    kind: 'available',
+    number: 42,
+    checks: 'running',
+  });
+  expect(requests).toBe(2);
+});
 it('leaves defaults to the server and reads an explicit selection through the selected connection', async () => {
   const paths: string[] = [];
   const subject = fixture((path) => {

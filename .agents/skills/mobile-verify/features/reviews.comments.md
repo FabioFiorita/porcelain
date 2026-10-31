@@ -13,6 +13,8 @@ selectors:
   - 'Thread unavailable'
 tests:
   - packages/client/src/features/reviews/rules/comments.spec.ts
+  - packages/client/src/features/reviews/commands/comments.spec.ts
+  - packages/client/src/features/reviews/queries/comments.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
@@ -26,6 +28,8 @@ api:
 # reviews.comments
 
 The native comments sheet supports feedback, replies, resolution and reopening without losing the underlying document. iOS presents it as a form sheet; Android pushes it as a page, because an Android form sheet has no header for Done and Resolve and sits under the tab bar.
+
+Comment filters and document owners share the canonical connection/worktree discussion read. Switching open/resolved filters must not start separate cached readers; both nonempty filters must see the current discussion before it is acknowledged. Shared-client tests hold further reads while proving the already loaded discussion can be acknowledged and a newer snapshot resets the required filters.
 
 ## How to get to it (user POV)
 

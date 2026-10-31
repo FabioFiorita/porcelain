@@ -2,6 +2,7 @@ export type IconName = 'review' | 'files' | 'history' | 'settings';
 
 export type HeaderIconName =
   | 'workspace'
+  | 'worktrees'
   | 'refresh'
   | 'done'
   | 'close'

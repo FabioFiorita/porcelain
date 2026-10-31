@@ -2,6 +2,7 @@ import { reducedMotion } from '../shared/adapters/accessibility';
 import { useAtomMount, useAtomValue } from '@effect/atom-react';
 import { Slot, usePathname } from 'expo-router';
 import { useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { Box } from '../components/ui/box';
 import { SidebarPane } from '../components/ui/sidebar-pane';
 import { useAppSidebar, tabletSidebar } from '../features/preferences';
@@ -9,6 +10,8 @@ import { TabletSidebar } from './tablet-sidebar';
 import { destinationForPath } from './destinations';
 
 export function TabletLayout() {
+  const window = useWindowDimensions();
+  const landscape = window.width > window.height;
   const reduceMotion = useAtomValue(reducedMotion);
   const { sidebar } = useAppSidebar();
   const inSettings = destinationForPath(usePathname()).group === '(settings)';
@@ -22,7 +25,7 @@ export function TabletLayout() {
       surface="sidebar"
       onLayout={({ nativeEvent: { layout } }) => setWidth(layout.width)}
     >
-      {!inSettings ? (
+      {!inSettings && landscape ? (
         <SidebarPane
           visible={sidebarVisible}
           compact={compact}

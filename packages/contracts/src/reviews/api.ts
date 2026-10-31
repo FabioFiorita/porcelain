@@ -13,6 +13,7 @@ import {
   setReviewPullRequestRequestSchema,
   setReviewPullRequestResponseSchema,
   readPullRequestResponseSchema,
+  readPullChecksResponseSchema,
   listPullRequestsResponseSchema,
   githubAccountResultSchema,
   setGitHubAccountRequestSchema,
@@ -187,6 +188,19 @@ export class ReviewsApi extends porcelainApi.add(
             httpFailure(ReviewPullRequestRefusedError, 'Conflict', {
               message: { fromError: true },
             }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'readReviewPullChecks',
+        '/api/reviews/:reviewId/pull-request/checks',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          success: readPullChecksResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(ProjectNotFoundError, 'NotFound'),
           ],
         },
       ),

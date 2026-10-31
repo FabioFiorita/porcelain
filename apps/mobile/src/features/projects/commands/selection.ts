@@ -1,4 +1,4 @@
-import { type Context, Effect } from 'effect';
+import { type Context, Effect, Exit } from 'effect';
 import { useAtom, useAtomRef } from '@effect/atom-react';
 import { ProjectSelectionCommands } from '@porcelain/client/projects';
 import {
@@ -20,7 +20,15 @@ const selectWorkspace = clientRuntime.fn(
 );
 
 export function useProjectSelectionCommands() {
-  const [result, submit] = useAtom(selectWorkspace);
+  const [result, run] = useAtom(selectWorkspace, { mode: 'promiseExit' });
   const pending = useAtomRef(pendingSelections);
-  return { result, submit, pending };
+  return {
+    result,
+    pending,
+    submit: (command: Parameters<typeof run>[0], onDone?: () => void) => {
+      void run(command).then((exit) => {
+        if (Exit.isSuccess(exit)) onDone?.();
+      });
+    },
+  };
 }

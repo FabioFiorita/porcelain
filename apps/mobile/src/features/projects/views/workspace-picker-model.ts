@@ -69,13 +69,15 @@ export function useWorkspacePickerModel(onSelect?: () => void) {
         return;
       }
       requestDocumentLeave(() => {
-        commands.submit({
-          kind: 'workspace',
-          environmentId,
-          projectId,
-          worktreeId,
-        });
-        onSelect?.();
+        commands.submit(
+          {
+            kind: 'workspace',
+            environmentId,
+            projectId,
+            worktreeId,
+          },
+          onSelect,
+        );
       });
     },
   } satisfies WorkspacePickerProps;

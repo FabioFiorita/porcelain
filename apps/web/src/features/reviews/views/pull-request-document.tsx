@@ -19,6 +19,7 @@ import {
   SettingsIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
+import { ArchiveReview } from '@/features/projects/index';
 import { readReviewPullRequest } from '@porcelain/client/reviews';
 import type { PullRequestRead } from '@porcelain/client/reviews/rules';
 import {
@@ -133,7 +134,18 @@ export function PullRequestDocument({
   const pull = value.pullRequest;
   return (
     <div className="@container/pr flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
-      <PullRequestActions url={pull.url} target={toolbarTarget} />
+      <PullRequestActions
+        url={pull.url}
+        target={toolbarTarget}
+        archive={
+          pull.state === 'merged' || pull.state === 'closed' ? (
+            <ArchiveReview
+              connection={context.connection}
+              reviewId={reviewId}
+            />
+          ) : undefined
+        }
+      />
       <article
         aria-busy={result.waiting}
         aria-label={`Pull request #${number}`}
@@ -190,33 +202,40 @@ const sectionHeading =
 function PullRequestActions({
   url,
   target,
+  archive,
 }: {
+  archive: ReactNode;
   url: string;
   target: Props['toolbarTarget'];
 }) {
   const action = (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            nativeButton={false}
-            render={<a href={url} target="_blank" rel="noreferrer" />}
-            aria-label="Open on GitHub"
-            className=""
-          />
-        }
-      >
-        <span
-          className={cn(target !== undefined && 'hidden @min-3xl/pane:inline')}
+    <>
+      {archive}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<a href={url} target="_blank" rel="noreferrer" />}
+              aria-label="Open on GitHub"
+              className=""
+            />
+          }
         >
-          Open on GitHub
-        </span>
-        <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent>Open on GitHub</TooltipContent>
-    </Tooltip>
+          <span
+            className={cn(
+              target !== undefined && 'hidden @min-3xl/pane:inline',
+            )}
+          >
+            Open on GitHub
+          </span>
+          <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipContent>Open on GitHub</TooltipContent>
+      </Tooltip>
+    </>
   );
   if (target !== undefined) return target ? createPortal(action, target) : null;
   return (

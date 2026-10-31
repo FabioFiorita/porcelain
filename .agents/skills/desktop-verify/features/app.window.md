@@ -25,7 +25,7 @@ The Mac app's window and the private server behind it.
 Preconditions: [surface baseline](README.md).
 
 1. Inspect the sidebar: traffic lights have clearance, the header drags, and buttons remain clickable. Resize, maximize and enter/leave full screen through the traffic lights and View → Toggle Full Screen; the sidebar inset follows full screen.
-2. Choose an appearance. For restart persistence, use the named regression's reusable disposable profile: restore bounds, maximized state, appearance and project. A fresh CLI start creates a new profile.
+2. Choose an appearance. For restart persistence, use the named regression's reusable disposable profile: restore bounds, maximized state, appearance and project. Confirm the main worktree card in Projects and worktrees remains visible with aria-current=page after reopening or restarting. A fresh CLI start creates a new profile.
 3. Close with ⌘W. The captured server PID stays alive; passive `status --instance <id>` has no page targets. Activate the same development app from the Dock; its window returns.
 4. Quit with ⌘Q or the card's stop command. Captured app/server PIDs exit, the owner socket disappears, and retained `server.log` includes shutdown. Inspect the stop outcome for a normal exit.
 5. Through the paired HTTP boundary, verify the server is loopback-only and refuses unauthenticated/wrong credentials. The renderer must expose no credential, cookies or Node access.

@@ -218,3 +218,122 @@ describe('native Git actions', () => {
     },
   );
 });
+
+it('switch changes the main checkout through the guarded action and reports a literal terminal outcome', async () => {
+  git('switch', '-qc', 'feature');
+  writeFileSync(join(checkout, 'a.txt'), 'feature content\n');
+  git('commit', '-qam', 'Feature');
+  const feature = head();
+  git('switch', '-q', 'main');
+  const original = head();
+  expect(
+    await run(action({ action: 'switch', targetRef: 'refs/heads/feature' })),
+  ).toEqual({
+    state: 'succeeded',
+    refreshRequired: true,
+    result: { branch: 'feature', headOid: feature },
+  });
+  expect(git('branch', '--show-current')).toBe('feature');
+  expect(readFileSync(join(checkout, 'a.txt'), 'utf8')).toBe(
+    'feature content\n',
+  );
+  expect(git('diff', '--cached', '--name-only')).toBe('');
+  expect(git('rev-parse', 'main')).toBe(original);
+  expect(
+    await run(
+      executeGitAction(
+        session(),
+        gitLimits,
+        'switch-again',
+        { action: 'switch', targetRef: 'refs/heads/feature' },
+        { ...expected(), branch: 'feature' },
+      ),
+    ),
+  ).toEqual({ state: 'no-change', refreshRequired: false });
+});
+it('switch preserves both checkouts when the target branch is already in use', async () => {
+  git('branch', 'feature');
+  const other = join(root, 'occupied');
+  git('worktree', 'add', '-q', other, 'feature');
+  const before = head();
+  expect(
+    await run(action({ action: 'switch', targetRef: 'refs/heads/feature' })),
+  ).toMatchObject({ state: 'rejected', reason: 'GIT_REJECTED' });
+  expect(git('branch', '--show-current')).toBe('main');
+  expect(head()).toBe(before);
+  expect(readFileSync(join(other, 'a.txt'), 'utf8')).toBe('base\n');
+});
+it.each(['tracked', 'staged', 'untracked'] as const)(
+  'switch refuses %s local edits without discarding or moving them',
+  async (kind) => {
+    git('branch', 'feature');
+    const path = kind === 'untracked' ? 'new.txt' : 'a.txt';
+    writeFileSync(join(checkout, path), 'keep this edit\n');
+    if (kind === 'staged') git('add', path);
+    const before = git('status', '--porcelain');
+    expect(
+      await run(
+        Effect.flip(
+          action({ action: 'switch', targetRef: 'refs/heads/feature' }),
+        ),
+      ),
+    ).toMatchObject({
+      _tag: 'GitActionRejectedError',
+      reason: 'CHECKOUT_BUSY',
+    });
+    expect(git('branch', '--show-current')).toBe('main');
+    expect(git('status', '--porcelain')).toBe(before);
+    expect(readFileSync(join(checkout, path), 'utf8')).toBe('keep this edit\n');
+  },
+);
+it('switch rejects a changed source head instead of adopting a newer preparation', async () => {
+  git('branch', 'feature');
+  const looked = expected();
+  git('commit', '--allow-empty', '-qm', 'Another operation');
+  const latest = head();
+  expect(
+    await run(
+      Effect.flip(
+        executeGitAction(
+          session(),
+          gitLimits,
+          'switch-old',
+          { action: 'switch', targetRef: 'refs/heads/feature' },
+          looked,
+        ),
+      ),
+    ),
+  ).toMatchObject({
+    _tag: 'GitActionRejectedError',
+    reason: 'CHANGED_SINCE_LOOKED',
+  });
+  expect(git('branch', '--show-current')).toBe('main');
+  expect(head()).toBe(latest);
+});
+it.each(['refs/remotes/origin/feature', 'refs/heads/--discard-changes'])(
+  'switch refuses the unsafe local target %s before changing files',
+  async (targetRef) => {
+    const before = head();
+    expect(
+      await run(Effect.flip(action({ action: 'switch', targetRef }))),
+    ).toMatchObject({ _tag: 'GitActionRejectedError', reason: 'GIT_REJECTED' });
+    expect(head()).toBe(before);
+    expect(git('branch', '--show-current')).toBe('main');
+  },
+);
+it('switch can attach a detached checkout to an available local branch', async () => {
+  git('branch', 'feature');
+  git('switch', '--detach', '-q');
+  expect(
+    await run(
+      executeGitAction(
+        session(),
+        gitLimits,
+        'switch-detached',
+        { action: 'switch', targetRef: 'refs/heads/feature' },
+        { ...expected(), branch: null },
+      ),
+    ),
+  ).toMatchObject({ state: 'succeeded', result: { branch: 'feature' } });
+  expect(git('branch', '--show-current')).toBe('feature');
+});

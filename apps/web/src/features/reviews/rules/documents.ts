@@ -18,7 +18,12 @@ export type DocumentRef =
       path: string;
     }
   | { kind: 'commit'; oid: string }
-  | { kind: 'pull-request'; reviewId: string; number: number }
+  | {
+      kind: 'pull-request';
+      reviewId: string;
+      number: number;
+      environmentId?: string;
+    }
   | { kind: 'branch' }
   | { kind: 'branch-file'; path: string }
   | { kind: 'graph' }
@@ -48,7 +53,7 @@ export function entryKey(ref: DocumentRef): string {
     case 'commit':
       return `commit:${ref.oid}`;
     case 'pull-request':
-      return `pull-request:${ref.reviewId}:${ref.number}`;
+      return `pull-request:${ref.reviewId}:${ref.number}${ref.environmentId ? `:environment=${encodeURIComponent(ref.environmentId)}` : ''}`;
     case 'branch':
       return 'branch';
     case 'branch-file':
@@ -93,14 +98,23 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
     case 'pull-request': {
-      const [reviewId, number, extra] = value.split(':');
+      const [reviewId, number, environmentId, extra] = value.split(':');
       return reviewId !== undefined &&
         Schema.is(Schema.String.check(Schema.isUUID()))(reviewId) &&
         number !== undefined &&
         extra === undefined &&
+        (environmentId === undefined ||
+          /^environment=[a-zA-Z0-9_-]+$/.test(environmentId)) &&
         /^[1-9][0-9]*$/.test(number) &&
         Number.isSafeInteger(Number(number))
-        ? { kind, reviewId, number: Number(number) }
+        ? {
+            kind,
+            reviewId,
+            number: Number(number),
+            ...(environmentId
+              ? { environmentId: environmentId.slice('environment='.length) }
+              : {}),
+          }
         : null;
     }
     default:

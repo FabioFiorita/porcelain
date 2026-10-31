@@ -89,6 +89,10 @@ export function gitActionBlocker(
   if (status.inProgress === 'merge' && !status.mergeHeadOid)
     return 'Finish this merge in a terminal.';
   switch (action) {
+    case 'switch':
+      return status.changes.length
+        ? 'Commit or stash local changes before switching branches.'
+        : null;
     case 'commit':
       return hasConflicts(status) && status.inProgress !== 'merge'
         ? 'Resolve the conflicts before committing.'
@@ -142,6 +146,8 @@ export function gitActionReason(
   if (status.inProgress === 'merge' && action !== 'commit')
     return 'Finish or abort the merge first.';
   switch (action) {
+    case 'switch':
+      return null;
     case 'commit':
       return status.changes.length ? null : 'Nothing to commit.';
     case 'amend':

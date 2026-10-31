@@ -107,7 +107,8 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.remove](projects.remove.md) — Project removal and cancellation.
 - [projects.rename](projects.rename.md) — Project naming and persistence.
 - [preferences.reviews-git](preferences.reviews-git.md) — Reviews & Git settings each computer keeps, the first import and the computer picker.
-- [projects.search](projects.search.md) — Search, status filters, checkout selection and archive.
+- [projects.search](projects.search.md) — Search, filters, checkout selection and deferred summaries.
+- [projects.worktree-actions](projects.worktree-actions.md) — Worktree branch switching and one-off deletion choices.
 - [reviews.all-changes](reviews.all-changes.md) — Review-wide changes and file selection.
 - [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.
 - [reviews.change-comment](reviews.change-comment.md) — Comment on the whole uncommitted change or the whole branch.

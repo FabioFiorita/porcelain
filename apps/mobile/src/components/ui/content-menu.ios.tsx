@@ -2,14 +2,16 @@ import { Host, Menu, RNHostView } from '@expo/ui/swift-ui';
 import { buttonStyle } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import { Icon } from './icon';
+import { Icon, type IconName } from './icon';
 import { Text } from './text';
 
 export function ContentMenu({
   label,
   children,
+  icon,
 }: {
   label: string;
+  icon?: IconName;
   children: ReactNode;
 }) {
   return (
@@ -24,10 +26,16 @@ export function ContentMenu({
               accessibilityLabel={label}
               className="min-h-11 flex-row items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2"
             >
-              <Text accessible={false} variant="control" weight="medium">
-                {label}
-              </Text>
-              <Icon name="down" size="small" tone="muted" />
+              {icon ? (
+                <Icon name={icon} />
+              ) : (
+                <>
+                  <Text accessible={false} variant="control" weight="medium">
+                    {label}
+                  </Text>
+                  <Icon name="down" size="small" tone="muted" />
+                </>
+              )}
             </View>
           </RNHostView>
         }

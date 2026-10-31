@@ -1,45 +1,18 @@
 import {
-  reviewListCheckout,
-  reviewListRow,
-  reviewListSignal,
-  type ReviewListEntry,
-} from '@porcelain/client/reviews/rules';
+  navigatorCardChangesLabel,
+  navigatorCardReviewLabel,
+  navigatorDiffSummary,
+  type NavigatorEntry,
+} from '@porcelain/client/projects/rules';
 
-export function worktreeRow(entry: ReviewListEntry, selected: boolean) {
-  const signal = reviewListSignal(entry);
-  const row = reviewListRow(entry);
-  const statuses = {
-    Projects: 'none',
-    'Needs you': 'needs-you',
-    'Waiting on agent': 'waiting',
-    'Ready to merge': 'ready',
-    'No review': 'none',
-    Closed: 'closed',
-  } as const;
+export function worktreeRow(entry: NavigatorEntry) {
+  const diff = navigatorDiffSummary(entry.changes);
+  const clean =
+    entry.changes.state === 'available' && entry.changes.count === 0 && !diff;
   return {
-    ...row,
-    status:
-      signal?.tone === 'destructive'
-        ? ('failed' as const)
-        : statuses[entry.group],
-    accessibilityLabel: [
-      ...new Set([
-        row.title,
-        entry.projectName,
-        reviewListCheckout(entry).full,
-        entry.group === 'Projects' ? 'No review' : entry.group,
-        entry.pullRequestNumber
-          ? `Pull request #${entry.pullRequestNumber}`
-          : undefined,
-        entry.reviewId
-          ? `${entry.reviewed}/${entry.total} decisions reviewed`
-          : undefined,
-        ...entry.badges.map((badge) => badge.label),
-        selected ? 'current' : undefined,
-        entry.disabled ? 'unavailable' : undefined,
-      ]),
-    ]
-      .filter(Boolean)
-      .join(', '),
+    title: entry.detached ? entry.name : entry.branch || entry.name,
+    review: navigatorCardReviewLabel(entry),
+    changes: clean ? '' : navigatorCardChangesLabel(entry.changes),
+    diff,
   };
 }

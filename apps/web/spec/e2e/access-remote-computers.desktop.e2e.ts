@@ -1,3 +1,4 @@
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, shows needs pairing after revocation, and forgets it from its detail page', async ({
@@ -61,9 +62,7 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
   await expect(settings.getByText('Online', { exact: true })).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
   await expect
     .poll(async () =>
       (await remote.server.devices()).map((device) => device.label),

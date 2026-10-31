@@ -13,34 +13,35 @@ const faults = [
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`unavailable project actions fit and Retry recovers at ${width}px in ${colorScheme}`, async ({
-      pairedPage: page,
-      server,
-      app,
-    }) => {
-      await page.setViewportSize({ width, height: 896 });
-      await page.emulateMedia({ colorScheme });
-      const project = await server.project();
-      const main = project.worktrees.find((worktree) => worktree.main)?.path;
-      if (!main) throw new Error('Missing main checkout');
-      const fixture = await projectFixture(main);
-      await app.open('/?worktree=unselected');
-      await expect(
-        page.getByText('Worktree not found', { exact: true }),
-      ).toBeVisible();
-      const live = app.holdLive();
-      const manage = page.getByRole('button', {
-        name: 'Manage projects',
-        exact: true,
-      });
-      const openActions = async () => {
-        await manage.click();
-        await page
-          .getByRole('menuitem', { name: project.name, exact: true })
-          .click();
-      };
-      try {
-        for (const [fault, message] of faults) {
+    for (const [fault, message] of faults) {
+      test(`unavailable ${fault} project actions fit and reloading recovers at ${width}px in ${colorScheme}`, async ({
+        page,
+        server,
+        app,
+      }) => {
+        await page.setViewportSize({ width, height: 896 });
+        await page.emulateMedia({ colorScheme });
+        const project = await server.project();
+        const computer = (await server.inventory()).environment.name;
+        const main = project.worktrees.find((worktree) => worktree.main)?.path;
+        if (!main) throw new Error('Missing main checkout');
+        const fixture = await projectFixture(main);
+        await app.open(`/${project.id}/unselected-worktree`);
+        await expect(
+          page.getByRole('heading', {
+            name: 'This browser is not paired',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await app.open(await app.link('this'));
+        await expect(
+          page.getByText('Worktree not found', { exact: true }),
+        ).toBeVisible();
+        const actionsButton = page.getByRole('button', {
+          name: `Project actions: ${project.name} · ${computer}`,
+          exact: true,
+        });
+        try {
           await page.waitForLoadState('networkidle');
           await fixture.unavailable(fault);
           await app.reload();
@@ -49,14 +50,16 @@ for (const width of [1440, 414]) {
             exact: true,
           });
           await expect(toggle).toBeVisible();
-          if (!(await manage.isVisible())) await toggle.click();
-          await openActions();
+          if ((await toggle.getAttribute('aria-expanded')) === 'false')
+            await toggle.click();
+          await actionsButton.click();
           await expect(page.getByText(message, { exact: true })).toBeVisible();
-          const retry = page.getByRole('menuitem', {
-            name: 'Retry',
-            exact: true,
+          const actions = page.getByRole('menu').filter({
+            has: page.getByRole('menuitem', {
+              name: 'Remove from Porcelain',
+              exact: true,
+            }),
           });
-          const actions = page.getByRole('menu').filter({ has: retry });
           await expect
             .poll(() =>
               actions.evaluate((node, viewportWidth) => {
@@ -72,12 +75,11 @@ for (const width of [1440, 414]) {
             }),
           ).toBeVisible();
           await fixture.restore();
-          const before = await fixture.refreshes();
-          await retry.click();
-          await expect.poll(() => fixture.refreshes()).toBe(before + 1);
-          await expect(page.getByRole('menu')).toHaveCount(0);
-          await openActions();
-          await expect(retry).not.toBeAttached();
+          await page.keyboard.press('Escape');
+          await app.reload();
+          if ((await toggle.getAttribute('aria-expanded')) === 'false')
+            await toggle.click();
+          await actionsButton.click();
           await expect(
             page.getByText(message, { exact: true }),
           ).not.toBeAttached();
@@ -87,11 +89,10 @@ for (const width of [1440, 414]) {
           await expect
             .poll(async () => (await server.project()).available)
             .toBe(true);
+        } finally {
+          await fixture.restore();
         }
-      } finally {
-        await fixture.restore();
-        live.release();
-      }
-    });
+      });
+    }
   }
 }

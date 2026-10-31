@@ -6,6 +6,7 @@ import type {
 import { Effect, Layer } from 'effect';
 import {
   readCheckoutStatus,
+  readWorktreeSummary,
   readBranchDetails,
 } from '@porcelain/git/inspection';
 import { ChangeStatusReader } from '@porcelain/changes/ports';
@@ -20,6 +21,16 @@ export const gitChangeStatusReaderLayer = (open: OpenInspection) =>
     Effect.gen(function* () {
       const provideGit = yield* captureGitPlatform();
       return {
+        readSummary: Effect.fn('GitChangeStatusReader.readSummary')(
+          (input: ReadWorktreeStatusInput) =>
+            readGitEffect(
+              input.worktreeId,
+              Effect.gen(function* () {
+                const { checkout, limits } = yield* open(input.worktreeId);
+                return yield* readWorktreeSummary(checkout, limits);
+              }).pipe(provideGit),
+            ),
+        ),
         readStatus: Effect.fn('GitChangeStatusReader.readStatus')(
           (input: ReadWorktreeStatusInput) =>
             readGitEffect(

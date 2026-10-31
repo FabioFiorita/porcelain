@@ -19,6 +19,11 @@ import {
 } from '@porcelain/client/transport';
 import { OperationStore, operationKey } from '@porcelain/client/git-actions';
 import {
+  switchWorktreeBranch,
+  recoverWorktreeBranchSwitch,
+  readWorktreeBranchSwitch,
+} from '@porcelain/client/projects';
+import {
   runGitAction,
   gitActionCommands,
   recoverGitAction,
@@ -101,6 +106,7 @@ function setup(
     );
   };
   return {
+    execute,
     connection,
     commands: gitActionCommands(selection, registry),
     key: operationKey(scope, 'commit'),
@@ -166,6 +172,78 @@ it('retains the original request after an unanswered write and resends that exac
     expect(
       subject.operations.state.value.operations.get(subject.key)?.receipt,
     ).toEqual(receipt);
+  } finally {
+    await subject.close();
+  }
+});
+
+it('recovers a lost sidebar branch-switch response with the original durable request and receipt identity', async () => {
+  const sent: string[] = [];
+  const switched = {
+    ...receipt,
+    action: 'switch' as const,
+    result: { branch: 'topic', headOid: 'b'.repeat(40) },
+  };
+  const subject = setup((path, init) => {
+    if (path.endsWith('/git/status'))
+      return Promise.resolve(
+        Response.json({
+          environmentId: '44444444-4444-4444-8444-444444444444',
+          worktreeId: scope.worktreeId,
+          statusToken: 'a'.repeat(64),
+          consistency: 'best-effort',
+          headOid: 'a'.repeat(40),
+          inProgress: null,
+          mergeHeadOid: null,
+          headCommit: null,
+          changes: [],
+          branch: {
+            name: 'main',
+            upstream: null,
+            ahead: 0,
+            behind: 0,
+            remoteName: null,
+            sourceRef: null,
+            upstreamOid: null,
+            stashes: [],
+            discarded: [],
+          },
+        }),
+      );
+    if (!(init?.body instanceof Uint8Array))
+      throw new Error('Expected encoded branch-switch request');
+    sent.push(new TextDecoder().decode(init.body));
+    return sent.length === 1
+      ? Promise.reject(new Error('Lost response after branch switched'))
+      : Promise.resolve(Response.json(switched));
+  });
+  try {
+    const selection = { connection: subject.connection, scope };
+    const state = readWorktreeBranchSwitch(selection);
+    await expect(
+      subject.execute(switchWorktreeBranch(selection), 'refs/heads/topic'),
+    ).rejects.toThrow('Could not reach Porcelain');
+    expect(
+      subject.operations.state.value.operations.get(
+        operationKey(scope, 'switch'),
+      )?.requestId,
+    ).toBe(requestId);
+    expect(state.value.unresolved).toBe(true);
+    expect(
+      await subject.execute(recoverWorktreeBranchSwitch(selection), undefined),
+    ).toEqual(switched);
+    expect(state.value.unresolved).toBe(false);
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toBe(sent[0]);
+    expect(
+      Schema.decodeUnknownSync(runGitActionRequestSchema)(
+        JSON.parse(sent[0] ?? ''),
+      ),
+    ).toMatchObject({
+      requestId,
+      input: { action: 'switch', targetRef: 'refs/heads/topic' },
+    });
+    expect(subject.ids()).toBe(1);
   } finally {
     await subject.close();
   }

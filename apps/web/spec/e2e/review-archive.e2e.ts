@@ -3,7 +3,7 @@ import { archiveFixture } from '../kit/archive-fixture.ts';
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`sidebar and completion disclose ignored-file deletion at ${width}px in ${colorScheme}`, async ({
+    test(`PR document and completion disclose ignored-file deletion at ${width}px in ${colorScheme}`, async ({
       pairedPage,
       server,
       app,
@@ -19,32 +19,16 @@ for (const width of [1440, 414]) {
         await pairedPage
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
-      if (
-        (await pairedPage
-          .getByRole('button', { name: 'Closed reviews', exact: true })
-          .getAttribute('aria-expanded')) !== 'true'
-      )
-        await pairedPage
-          .getByRole('button', { name: 'Closed reviews', exact: true })
-          .click();
-      await pairedPage
-        .getByRole('button', {
-          name: 'Search reviews and worktrees',
-          exact: true,
-        })
-        .click();
       const search = pairedPage.getByRole('searchbox', {
         name: 'Search reviews and worktrees',
         exact: true,
       });
-      await search.fill('Completed archive fixture');
+      await search.fill('archive-fixture');
       await expect(
         pairedPage.getByText('No matching worktrees', { exact: true }),
       ).not.toBeAttached();
       const row = pairedPage.getByRole('listitem').filter({
-        has: pairedPage.getByRole('link', {
-          name: /Completed archive fixture/,
-        }),
+        has: pairedPage.getByRole('button', { name: /^archive-fixture,/ }),
       });
       await expect(row).toBeVisible();
       await expect(
@@ -58,7 +42,10 @@ for (const width of [1440, 414]) {
         name: 'Archive review?',
         exact: true,
       });
-      await row.getByRole('button', { name: 'Archive', exact: true }).click();
+      await row.getByRole('button', { name: /^Open PR #423/ }).click();
+      await pairedPage
+        .getByRole('button', { name: 'Archive', exact: true })
+        .click();
       await expect(dialog).toContainText(
         'The entire worktree folder will be permanently deleted, including ignored files such as .env and local build output.',
       );
@@ -67,7 +54,7 @@ for (const width of [1440, 414]) {
       await expect
         .poll(() => fixture.ignoredFile())
         .toBe('LOCAL_ONLY=archive-fixture\n');
-      await row.getByRole('link').click();
+      await app.open(`/reviews/${fixture.reviewId}`);
       await pairedPage
         .getByRole('region', { name: 'The walkthrough', exact: true })
         .getByRole('button', { name: 'Not explained', exact: true })
@@ -90,7 +77,7 @@ for (const width of [1440, 414]) {
   }
 }
 
-test('Closed keeps Archive inside the review row, ignores dependencies, and explains worktree removal failures without a stale checking state', async ({
+test('the PR document keeps Archive, ignores dependencies, and explains worktree removal failures without a stale checking state', async ({
   pairedPage,
   server,
   app,
@@ -103,18 +90,15 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  if (
-    (await pairedPage
-      .getByRole('button', { name: 'Closed reviews', exact: true })
-      .getAttribute('aria-expanded')) !== 'true'
-  )
-    await pairedPage
-      .getByRole('button', { name: 'Closed reviews', exact: true })
-      .click();
-  const row = pairedPage.getByRole('listitem').filter({
-    has: pairedPage.getByRole('link', { name: /Completed archive fixture/ }),
+  await pairedPage.getByRole('button', { name: /^Open PR #423/ }).click();
+  await expect(
+    pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
+  ).toBeVisible();
+  const archive = pairedPage.getByRole('button', {
+    name: 'Archive',
+    exact: true,
   });
-  await row.getByRole('button', { name: 'Archive', exact: true }).click();
+  await archive.click();
   const dialog = pairedPage.getByRole('alertdialog', {
     name: 'Archive review?',
     exact: true,
@@ -130,7 +114,7 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await expect
     .poll(() => fixture.ignoredFile())
     .toBe('LOCAL_ONLY=archive-fixture\n');
-  await row.getByRole('button', { name: 'Archive', exact: true }).click();
+  await archive.click();
   await expect(
     dialog.getByRole('button', { name: 'Archive review', exact: true }),
   ).toBeEnabled();
@@ -148,20 +132,15 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
     .poll(() => fixture.remoteBranch())
     .toContain('refs/heads/archive-fixture');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  if (
-    (await pairedPage
-      .getByRole('button', { name: 'Closed reviews', exact: true })
-      .getAttribute('aria-expanded')) !== 'true'
-  )
-    await pairedPage
-      .getByRole('button', { name: 'Closed reviews', exact: true })
-      .click();
   fixture.unlock();
   fixture.dirty();
-  await row.getByRole('button', { name: 'Archive', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: /^Open pull request #423:/ })
+    .click();
+  await expect(
+    pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
+  ).toBeVisible();
+  await archive.click();
   await expect(dialog).toContainText('uncommitted changes');
   await expect(
     dialog.getByRole('button', { name: 'Archive review', exact: true }),
@@ -179,16 +158,15 @@ test('Closed keeps Archive inside the review row, ignores dependencies, and expl
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  const closed = pairedPage.getByRole('button', {
-    name: 'Closed reviews',
-    exact: true,
-  });
-  if ((await closed.getAttribute('aria-expanded')) !== 'true')
-    await closed.click();
+  await pairedPage
+    .getByRole('button', { name: 'Filter worktrees', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitemcheckbox', { name: 'Show older reviews', exact: true })
+    .click();
+  await pairedPage.keyboard.press('Escape');
   await expect(
-    pairedPage.getByRole('link', {
-      name: /Completed archive fixture.*Archived/,
-    }),
+    pairedPage.getByRole('link', { name: /archive-fixture.*Archived review/ }),
   ).toBeVisible();
   await expect.poll(() => fixture.exists()).toBe(false);
 });

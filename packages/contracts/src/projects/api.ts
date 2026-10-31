@@ -1,3 +1,10 @@
+import { WorktreeCleanupRefusedError } from '@porcelain/git-actions/errors';
+import { worktreeParamsSchema } from '../shared/worktree-params.ts';
+import { worktreeFailures } from '../shared/worktree-failures.ts';
+import {
+  deleteWorktreeRequestSchema,
+  deleteWorktreeResponseSchema,
+} from './worktree-cleanup.ts';
 import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import { environmentUnavailable } from '../shared/environment-failure.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
@@ -35,6 +42,22 @@ const projectNotFound = httpFailure(ProjectNotFoundError, 'NotFound');
 export class ProjectsApi extends porcelainApi.add(
   HttpApiGroup.make('projects')
     .add(
+      HttpApiEndpoint.post(
+        'deleteWorktree',
+        '/api/worktrees/:worktreeId/delete',
+        {
+          disableCodecs: true,
+          params: worktreeParamsSchema,
+          payload: deleteWorktreeRequestSchema,
+          success: deleteWorktreeResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(WorktreeCleanupRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
       HttpApiEndpoint.get('browseProjectFolders', '/api/projects/folders', {
         disableCodecs: true,
         query: browseProjectFoldersQuerySchema.fields,

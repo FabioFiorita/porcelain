@@ -39,20 +39,14 @@ test('only the repository selected by browsing is registered', async ({
     .getByRole('button', { name: 'Open selected', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Filter reviews', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: 'Worktrees', exact: true })
-    .click();
+
   await expect(
-    pairedPage.getByRole('menuitemradio', {
-      name: /\bselected\b/,
-      checked: true,
+    pairedPage.getByRole('button', {
+      name: /, selected,.*Current$/,
     }),
   ).toBeVisible();
   await expect(
-    pairedPage.getByRole('menuitemradio', { name: /\bunselected\b/ }),
+    pairedPage.getByRole('button', { name: /, unselected,/ }),
   ).not.toBeAttached();
   await expect.poll(registered).toContain(selected);
   await expect.poll(registered).toHaveLength(2);

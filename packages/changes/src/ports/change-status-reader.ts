@@ -1,3 +1,4 @@
+import type { WorktreeSummary } from '../models/worktree-summary.ts';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import { type Effect, Context } from 'effect';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
@@ -9,6 +10,9 @@ import {
 import { type ReadWorktreeStatusInput } from '../models/read-worktree-status.ts';
 
 export interface ChangeStatusReader {
+  readSummary(
+    input: ReadWorktreeStatusInput,
+  ): Effect.Effect<WorktreeSummary, GitIoFailure, WorktreeRead>;
   readStatus(
     input: ReadWorktreeStatusInput,
   ): Effect.Effect<ChangeStatusObservation, GitIoFailure, WorktreeRead>;

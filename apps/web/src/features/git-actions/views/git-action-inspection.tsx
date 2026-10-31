@@ -62,6 +62,7 @@ export function GitActionInspection({
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   if (
+    entry === 'switch' ||
     entry === 'discard' ||
     entry === 'fetch' ||
     entry === 'pull' ||

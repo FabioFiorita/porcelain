@@ -130,21 +130,7 @@ export {
   reviewPullRequestNotice,
   pullRequestBlockHidden,
   pullRequestLink,
-  reviewListView,
-  reviewListGroups,
-  reviewListMeta,
-  reviewListSignal,
-  reviewListRow,
-  reviewListWithoutClosedCheckouts,
-  compareNoReviewRows,
-  reviewListSections,
-  reviewListIsSelected,
-  type ReviewListSelection,
-  reviewListCheckout,
-  emptyReviewListFilter,
-  type ReviewListEntry,
 } from './review-list.ts';
-export { archiveDescription, archiveFailureMessage } from './archive-review.ts';
 export {
   foundPullRequests,
   githubUnavailable,

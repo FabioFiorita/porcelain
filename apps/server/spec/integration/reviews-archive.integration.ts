@@ -616,7 +616,7 @@ test('real remote failure reports completed targets, holds both owners through c
         Exit.isFailure(result) && Cause.squash(result.cause),
       ).toMatchObject({
         _tag: 'ReviewArchiveRefusedError',
-        message: `Could not delete remote branch origin/feature. Deleted: worktree ${f.worktree}, local branch feature. Not deleted: remote branch origin/feature. Reopen Archive to review the remaining targets.`,
+        message: `Could not delete remote branch origin/feature. Deleted: worktree ${f.worktree}, local branch feature. Not deleted: remote branch origin/feature. Reopen the deletion confirmation to review the remaining targets.`,
       });
       yield* Fiber.joinAll(followers);
       expect(entered.toSorted()).toEqual(['P', 'R']);
@@ -960,7 +960,7 @@ test.each(['dirty', 'unpushed', 'both'] as const)(
           Exit.isFailure(refused) && Cause.squash(refused.cause),
         ).toMatchObject({
           message:
-            'Explicitly confirm the uncommitted changes and unpushed commits before archiving.',
+            'Explicitly confirm the uncommitted changes and unpushed commits before deleting.',
         });
         expect(f.trace).not.toContain('inventory');
         expect(
@@ -1001,7 +1001,7 @@ test('stale bytes with the same dirty status refuse deletion, then a new preview
         Exit.isFailure(refused) && Cause.squash(refused.cause),
       ).toMatchObject({
         message:
-          'The worktree, branches or settings changed. Reopen Archive and confirm the new deletion plan.',
+          'The worktree, branches or settings changed. Reopen the deletion confirmation and confirm the new deletion plan.',
       });
       expect(yield* Effect.promise(() => readFile(path, 'utf8'))).toBe(
         'New bytes\n',

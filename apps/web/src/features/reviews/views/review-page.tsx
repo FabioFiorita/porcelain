@@ -107,6 +107,7 @@ type ReviewPageProps = {
   toolbarTarget?: HTMLElement | null | undefined;
   onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
+  initialEntry?: string | undefined;
   navigation?: ReactNode;
   revision?: number | undefined;
   decision?: string | undefined;
@@ -122,6 +123,7 @@ type ReviewPageProps = {
 
 export function ReviewPage({
   reviewId,
+  initialEntry,
   onOpen,
   toolbarTarget,
   navigation,
@@ -162,6 +164,7 @@ export function ReviewPage({
     <ReviewRevisionPage
       key={`${reviewId}:${data.revision.revision}`}
       toolbarTarget={toolbarTarget}
+      initialEntry={initialEntry}
       navigation={navigation}
       onOpen={onOpen}
       data={data}
@@ -267,6 +270,7 @@ function ReviewFailure({
 }
 
 function ReviewRevisionPage({
+  initialEntry,
   toolbarTarget,
   navigation,
   onOpen,
@@ -356,8 +360,14 @@ function ReviewRevisionPage({
   const [view, setView] = useState<'walkthrough' | 'summary'>('walkthrough');
   const standalone = toolbarTarget === undefined;
   const [tabSearch, setTabSearch] = useState<WorkspaceSearch>({
-    entry: 'handoff',
+    entry: initialEntry ?? 'handoff',
   });
+  const [openedEntry, setOpenedEntry] = useState(initialEntry);
+  if (openedEntry !== initialEntry) {
+    setOpenedEntry(initialEntry);
+    if (initialEntry)
+      setTabSearch((current) => ({ ...current, entry: initialEntry }));
+  }
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const tabLayout = useTabLayout({
     worktreeId: `review:${revision.reviewId}:${revision.revision}`,
@@ -658,7 +668,7 @@ function ReviewRevisionPage({
       aria-label="Review walkthrough"
       className={cn(
         '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
-        !standalone && 'rounded-paper border',
+        !standalone && 'border',
       )}
       style={{ containerName: 'pane review' }}
     >

@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import { useAtomValue } from '@effect/atom-react';
+import { readReview } from '@porcelain/client/reviews';
+import { useInventory } from '../queries/inventory';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import {
   archiveDescription,
   archiveFailureMessage,
-} from '@porcelain/client/reviews/rules';
-import {
   archiveOptions,
+} from '@porcelain/client/projects/rules';
+import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
@@ -22,7 +25,7 @@ import {
   type ArchivePlan,
   type ArchiveOptions,
 } from '../commands/archive-review';
-export function ArchiveReview(props: {
+function ArchiveReview(props: {
   connection: RuntimeConnection;
   reviewId: string;
   projectId: string;
@@ -97,4 +100,39 @@ export function ArchiveReview(props: {
       </AlertDialog>
     </>
   );
+}
+
+export function PullRequestArchive({
+  projectId,
+  reviewId,
+  connection,
+}: {
+  projectId: string;
+  reviewId: string;
+  connection: RuntimeConnection;
+}) {
+  const inventory = useInventory(connection);
+  const review = useAtomValue(readReview({ connection, reviewId }));
+  if (
+    !AsyncResult.isSuccess(inventory.result) ||
+    !AsyncResult.isSuccess(review) ||
+    !review.value.review ||
+    review.value.review.archived ||
+    review.value.review.projectId !== projectId
+  )
+    return null;
+  const project = inventory.result.value.projects.find(
+    (entry) => entry.id === projectId,
+  );
+  const main = project?.worktrees.find(
+    (entry) => entry.main && entry.available,
+  );
+  return main ? (
+    <ArchiveReview
+      connection={connection}
+      reviewId={reviewId}
+      projectId={projectId}
+      mainWorktreeId={main.id}
+    />
+  ) : null;
 }

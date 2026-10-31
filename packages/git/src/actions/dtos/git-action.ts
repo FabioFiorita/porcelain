@@ -1,6 +1,7 @@
 import type { GitActionReason } from '../../shared/errors/git-action-reason.ts';
 
 export type GitActionIntent =
+  | { action: 'switch'; targetRef: string }
   | {
       action: 'pull';
       remoteName: string;

@@ -75,6 +75,7 @@ import {
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
+  WorktreeCleanupRefusedError,
 } from '@porcelain/git-actions/errors';
 import {
   GitActionRejectedError,
@@ -172,6 +173,7 @@ const rules: readonly StatusRule[] = [
       ReviewPublishRefusedError,
       ReviewArchiveRefusedError,
       ReviewPullRequestRefusedError,
+      WorktreeCleanupRefusedError,
     ],
     statusCode: 409,
   },

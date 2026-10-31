@@ -2,6 +2,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
+  type NavigatorEntry,
   firstWaitingWorktree,
   selectedWorktreeInProject,
   worktreeLabel,
@@ -14,7 +15,8 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ComponentProps, type ReactNode, useState } from 'react';
+import type { Sheet } from '@/components/ui/sheet';
 import { StateNotice } from '@/shared/views/state-notice';
 import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
@@ -39,7 +41,11 @@ import {
   type WorktreeTarget,
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
-import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
+import {
+  ReviewWorkspace,
+  entryKey,
+  workspaceTitle,
+} from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import {
   useOpenProjectOnThisComputer,
@@ -86,8 +92,12 @@ export function ConnectedWorkspace({
   unavailable,
   notice,
   children,
+  settingsOpen = false,
 }: {
-  children?: ReactNode;
+  children?:
+    | ReactNode
+    | ((navigationTrigger: ElementTarget<HTMLButtonElement>) => ReactNode);
+  settingsOpen?: boolean;
   review?: Review;
   openReview?: { reviewId: string; environment: string | undefined };
   remote?: RemoteConnection;
@@ -95,8 +105,24 @@ export function ConnectedWorkspace({
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
   const navigationTrigger = useElement<HTMLButtonElement>();
+  const [restoreNavigatorFocus, setRestoreNavigatorFocus] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
+  const mobileNavigatorEvents: Pick<
+    ComponentProps<typeof Sheet>,
+    'onOpenChange' | 'onOpenChangeComplete'
+  > = {
+    onOpenChange: (next, details) => {
+      setRestoreNavigatorFocus(!next && details.reason === 'escape-key');
+      setOpenMobile(next);
+    },
+    onOpenChangeComplete: (next) => {
+      if (!next && restoreNavigatorFocus) {
+        setRestoreNavigatorFocus(false);
+        navigationTrigger.element?.focus();
+      }
+    },
+  };
   const navigate = useNavigate();
   const local = useConnectedContext();
   const localInventory = useInventory(local.connection);
@@ -146,9 +172,35 @@ export function ConnectedWorkspace({
     void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
+    settingsOpen,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     openReview,
+    onOpenPullRequest: (entry: NavigatorEntry) => {
+      if (entry.review.state !== 'available' || !entry.review.pullRequestNumber)
+        return;
+      const key = entryKey({
+        kind: 'pull-request',
+        reviewId: entry.review.reviewId,
+        number: entry.review.pullRequestNumber,
+        environmentId: entry.environmentId,
+      });
+      setOpenMobile(false);
+      if (shown) onSearch({ entry: key });
+      else
+        void navigate({
+          to: '/reviews/$reviewId',
+          params: { reviewId: entry.review.reviewId },
+          search: {
+            environment:
+              entry.environmentId === local.connection.environmentId
+                ? undefined
+                : entry.environmentId,
+            decision: undefined,
+            entry: key,
+          },
+        });
+    },
     onOpenProject: (entry: RemoteConnection | null) =>
       entry
         ? openProjectDialog.openWithPayload({
@@ -181,10 +233,13 @@ export function ConnectedWorkspace({
     ignoreInputs: true,
   });
 
+  const content =
+    typeof children === 'function' ? children(navigationTrigger) : children;
+
   return (
     <>
       {isMobile && (
-        <Sidebar variant="floating">
+        <Sidebar variant="floating" {...mobileNavigatorEvents}>
           <ProjectNavigator
             {...navigator}
             onSelect={(target) => {
@@ -202,7 +257,7 @@ export function ConnectedWorkspace({
         isMobile={isMobile}
         open={open}
       >
-        {children ??
+        {content ??
           (review ? (
             <ReviewWorkspace
               key={`${shownOn ?? ''}:${review.selection.worktree.id}`}

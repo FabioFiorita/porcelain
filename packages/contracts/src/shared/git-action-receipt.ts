@@ -4,6 +4,7 @@ import { oidSchema } from './oid.ts';
 import { worktreeIdSchema } from './schema.ts';
 
 export const gitActionSchema = Schema.Literals([
+  'switch',
   'fetch',
   'pull',
   'push',

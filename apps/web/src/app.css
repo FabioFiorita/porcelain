@@ -233,7 +233,3 @@
     grid-column: 1;
   }
 }
-
-.review-navigator [data-slot='sidebar-group'] {
-  padding: 0;
-}

@@ -1,3 +1,4 @@
+import { ReadReviewGitHubTargetUseCasePort } from '../ports/read-review-github-target-use-case-port.ts';
 import { ArchiveReviewService } from '@porcelain/reviews/services';
 import { ReadReviewPullRequestUseCasePort } from '../ports/read-review-pull-request-use-case-port.ts';
 import { ArchiveReviewUseCase } from '../use-cases/reviews/archive-review.ts';
@@ -11,6 +12,7 @@ import { ReadReviewInterdiffUseCase } from '../use-cases/reviews/read-review-int
 import {
   GitHubAccountPreferenceService,
   ReadGitHubPullRequestService,
+  ReadGitHubPullChecksService,
   ListGitHubPullRequestsService,
   ReadReviewRecordService,
 } from '@porcelain/reviews/services';
@@ -25,6 +27,8 @@ import { CheckProjectService } from '@porcelain/projects/services';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { ResolveProjectGitHubUseCase } from '../use-cases/reviews/resolve-project-github.ts';
 import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
+import { ReadReviewPullChecksUseCase } from '../use-cases/reviews/read-review-pull-checks.ts';
+import { ReadReviewGitHubTargetUseCase } from '../use-cases/reviews/read-review-github-target.ts';
 import { ReadReviewPullRequestUseCase } from '../use-cases/reviews/read-review-pull-request.ts';
 import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-project-pull-requests.ts';
 import {
@@ -254,6 +258,7 @@ export function composeReviews(
     SelectGitHubAccountService.layer,
     GitHubAccountPreferenceService.layer,
     ReadGitHubPullRequestService.layer,
+    ReadGitHubPullChecksService.layer,
     ListGitHubPullRequestsService.layer,
     ReadReviewRecordService.layer,
     CheckProjectService.layer,
@@ -306,11 +311,19 @@ export function composeReviews(
     ResolveProjectGitHubUseCasePort,
     ResolveProjectGitHubUseCase,
   ).pipe(Layer.provideMerge(githubResolution));
+  const githubTargets = ReadReviewGitHubTargetUseCase.layer.pipe(
+    Layer.provideMerge(githubContext),
+  );
+  const linkedGitHub = Layer.effect(
+    ReadReviewGitHubTargetUseCasePort,
+    ReadReviewGitHubTargetUseCase,
+  ).pipe(Layer.provideMerge(githubTargets));
   const operations = Layer.mergeAll(
     CompareReviewUseCase.layer,
     ReadReviewInterdiffUseCase.layer,
     ReadProjectGitHubAccountUseCase.layer,
     ReadReviewPullRequestUseCase.layer,
+    ReadReviewPullChecksUseCase.layer,
     ListProjectPullRequestsUseCase.layer,
     RemoveReviewMarkUseCase.layer,
     SetReviewMarkUseCase.layer,
@@ -343,7 +356,7 @@ export function composeReviews(
     ListReviewedLayersUseCase.layer,
     SetReviewedLayerUseCase.layer,
     RemoveReviewedLayerUseCase.layer,
-  ).pipe(Layer.provideMerge(githubContext));
+  ).pipe(Layer.provideMerge(linkedGitHub));
   const archivePorts = Layer.effect(
     ReadReviewPullRequestUseCasePort,
     ReadReviewPullRequestUseCase,
@@ -369,6 +382,7 @@ export function composeReviews(
         readReviewInterdiff: yield* ReadReviewInterdiffUseCase,
         readProjectGitHubAccount: yield* ReadProjectGitHubAccountUseCase,
         readReviewPullRequest: yield* ReadReviewPullRequestUseCase,
+        readReviewPullChecks: yield* ReadReviewPullChecksUseCase,
         listProjectPullRequests: yield* ListProjectPullRequestsUseCase,
         atReviewScope: yield* AtReviewScopeUseCase,
         removeReviewMark: yield* RemoveReviewMarkUseCase,

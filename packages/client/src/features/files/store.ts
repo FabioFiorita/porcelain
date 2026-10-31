@@ -370,6 +370,10 @@ export class FileDrafts extends Context.Service<
     readonly adopt: (connection: RuntimeConnection) => void;
     readonly connection: (connection: RuntimeConnection) => RuntimeConnection;
     readonly hasUnsaved: (environmentIds: readonly string[]) => boolean;
+    readonly hasUnsavedWorktree: (
+      environmentId: string,
+      scope: WorktreeScope,
+    ) => boolean;
     readonly save: (environmentId: string) => Effect.Effect<boolean>;
     readonly drop: (environmentId: string) => Effect.Effect<void>;
     readonly relocate: (
@@ -475,6 +479,14 @@ export class FileDrafts extends Context.Service<
                 draft.state.value.saving ||
                 draft.state.value.text !== draft.state.value.savedText,
             ),
+          ),
+        hasUnsavedWorktree: (environmentId, scope) =>
+          [...entries(environmentId)].some(
+            ([key, { draft }]) =>
+              key.startsWith(draftKey(scope, '')) &&
+              (draft.state.value.saving ||
+                draft.state.value.text !== draft.state.value.savedText ||
+                draft.blocked),
           ),
         save: Effect.fn('FileDrafts.save')(function* (environmentId: string) {
           for (const { draft } of entries(environmentId).values())

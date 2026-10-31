@@ -27,3 +27,10 @@ export {
   type FindWorktreeByPathResponse,
 } from './worktree-path.ts';
 export { ProjectsApi } from './api.ts';
+
+export {
+  type DeleteWorktreeRequest,
+  type DeleteWorktreeResponse,
+  type WorktreeCleanupPlan,
+  type WorktreeCleanupRequest,
+} from './worktree-cleanup.ts';

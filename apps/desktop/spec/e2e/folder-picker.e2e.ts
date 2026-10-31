@@ -76,28 +76,17 @@ test('the Open project button opens the chosen Git repository through the native
   await page.waitForURL((url) => url.pathname !== '/');
   const changes = page.getByRole('tab', { name: 'Changes', exact: true });
   await expect(changes).toBeVisible();
-  const worktrees = page.getByRole('button', {
-    name: 'Filter reviews',
-    exact: true,
-  });
-  await worktrees.click();
-  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
-  const project = page.getByRole('menuitemradio', { name: /desktop-smoke/ });
+  const project = page
+    .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+    .getByRole('button', { name: /, desktop-smoke,.*Main worktree/ });
   await expect(project).toBeVisible();
-  await expect(project).toHaveAttribute('aria-checked', 'true');
+  await expect(project).toHaveAttribute('aria-current', 'page');
   expect(await registered(page)).toEqual([desktop.repository]);
   expect(browsing).toEqual([]);
-
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
   await page.reload();
   await expect(changes).toBeVisible();
-  await worktrees.click();
-  await page.getByRole('menuitem', { name: 'Worktrees', exact: true }).click();
   await expect(project).toBeVisible();
-  await expect(project).toHaveAttribute('aria-checked', 'true');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  await expect(project).toHaveAttribute('aria-current', 'page');
   const reviewToggle = page.getByRole('button', {
     name: 'Review',
     exact: true,

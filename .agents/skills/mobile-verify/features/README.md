@@ -53,9 +53,10 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
-- [projects.workspace-picker](projects.workspace-picker.md) — Worktree selection, filters, status and archive.
+- [projects.workspace-picker](projects.workspace-picker.md) — Projects, worktrees, review progress, filters and archive.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
 - [reviews.linked-review](reviews.linked-review.md) — Published verdicts, decisions and retained excerpts.
+- [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
 - [reviews.retained-review](reviews.retained-review.md) — Closed reviews that return to Files or History Worktrees.
 - [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.

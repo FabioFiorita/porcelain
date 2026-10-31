@@ -6,14 +6,14 @@ import { AsyncResult } from 'effect/reactivity';
 import { Cause } from 'effect';
 import type { Connection } from '@/shared/workspace/connection';
 import {
-  archiveOptions,
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
 import {
   archiveDescription,
   archiveFailureMessage,
-} from '@porcelain/client/reviews/rules';
+  archiveOptions,
+} from '@porcelain/client/projects/rules';
 import { useReviewGitSettings } from '@/features/preferences';
 import {
   Tooltip,

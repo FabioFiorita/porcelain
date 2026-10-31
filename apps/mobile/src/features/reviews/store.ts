@@ -2,7 +2,28 @@ import { useId, type ComponentRef } from 'react';
 import type { ScrollView, View } from 'react-native';
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import type { WalkthroughKey } from '@porcelain/client/reviews/rules';
+import type {
+  CommentAnchor,
+  WalkthroughKey,
+} from '@porcelain/client/reviews/rules';
+
+export type ComposerTarget = {
+  anchor: CommentAnchor;
+  threadId?: string | undefined;
+  reviewId?: string | undefined;
+  reviewRevision?: number | undefined;
+};
+
+export type CommentDraft = {
+  target: ComposerTarget | undefined;
+  body: string;
+  invalid: string | undefined;
+  intent: { body: string; threadId: string; messageId: string } | undefined;
+};
+
+export const commentDraftState = Atom.family((_document: string) =>
+  Atom.make<CommentDraft | undefined>(undefined).pipe(Atom.keepAlive),
+);
 
 type Place = {
   stop: WalkthroughKey;

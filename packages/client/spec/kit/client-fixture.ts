@@ -89,6 +89,19 @@ export function readClientAtom<A, E>(
   );
 }
 
+export async function visitClientRead<A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+) {
+  const stop = registry.mount(atom);
+  try {
+    return await readClientAtom(registry, atom);
+  } finally {
+    stop();
+    await Effect.runPromise(Effect.yieldNow);
+  }
+}
+
 export function idleLiveConnectionInput(
   environmentId: string,
   address: string,

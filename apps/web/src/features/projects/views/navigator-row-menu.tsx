@@ -1,54 +1,79 @@
+import { ClipboardIcon, Trash2Icon, GitBranchIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { ReviewListEntry } from '@porcelain/client/reviews/rules';
+import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuGroup,
   ContextMenuItem,
-  ContextMenuLabel,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { ArchiveReview } from './archive-review';
+import { copyText } from '@/shared/workspace/copy';
+import { deleteWorktreeDialog, switchWorktreeBranchDialog } from '../overlays';
 
 export function NavigatorRowMenu({
   entry,
   connection,
-  onRetry,
-  beforeLeave,
   children,
 }: {
-  entry: ReviewListEntry;
+  entry: NavigatorEntry;
   connection: Connection;
-  onRetry: () => void;
-  beforeLeave: () => void;
   children: ReactNode;
 }) {
-  if (!entry.reviewId || !entry.pullRequestNumber) return children;
+  const worktreeId = entry.worktreeId;
   return (
     <ContextMenu>
-      <ContextMenuTrigger
-        render={<div className="flex min-w-0 flex-1 items-center" />}
-      >
+      <ContextMenuTrigger render={<div className="min-w-0 flex-1 py-0.5" />}>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="max-w-72">
+      <ContextMenuContent>
         <ContextMenuGroup>
-          {entry.pullRequestIssue && (
-            <ContextMenuLabel className="whitespace-normal break-words">
-              {entry.pullRequestIssue}
-            </ContextMenuLabel>
+          {entry.path && (
+            <ContextMenuItem
+              className="cursor-pointer"
+              onClick={() =>
+                entry.path && copyText(entry.path, 'worktree path')
+              }
+            >
+              <ClipboardIcon />
+              Copy worktree path
+            </ContextMenuItem>
           )}
-          <ContextMenuItem onClick={onRetry}>
-            Read pull request again
-          </ContextMenuItem>
-          {entry.archivable && (
-            <ArchiveReview
-              connection={connection}
-              reviewId={entry.reviewId}
-              beforeLeave={beforeLeave}
-              menuItem
-            />
+          {entry.kind === 'worktree' && worktreeId && (
+            <ContextMenuItem
+              className="cursor-pointer"
+              disabled={!entry.available}
+              onClick={() =>
+                switchWorktreeBranchDialog.openWithPayload({
+                  entry,
+                  connection,
+                  worktreeId,
+                  requestId: crypto.randomUUID(),
+                })
+              }
+            >
+              <GitBranchIcon />
+              Switch branch
+            </ContextMenuItem>
+          )}
+          {!entry.main && entry.kind === 'worktree' && worktreeId && (
+            <ContextMenuItem
+              variant="destructive"
+              className="cursor-pointer"
+              disabled={!entry.available}
+              onClick={() =>
+                deleteWorktreeDialog.openWithPayload({
+                  entry,
+                  connection,
+                  worktreeId,
+                  requestId: crypto.randomUUID(),
+                })
+              }
+            >
+              <Trash2Icon />
+              Delete
+            </ContextMenuItem>
           )}
         </ContextMenuGroup>
       </ContextMenuContent>

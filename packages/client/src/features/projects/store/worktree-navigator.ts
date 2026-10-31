@@ -1,13 +1,15 @@
 import { Atom } from 'effect/reactivity';
 import {
-  emptyReviewListFilter,
-  type ReviewListFilter,
-} from '../../reviews/rules/review-list.ts';
+  emptyNavigatorFilter,
+  type NavigatorFilter,
+} from '../rules/worktree-navigator.ts';
 
 export const worktreeNavigatorState = Atom.make<{
   readonly query: string;
-  readonly filter: ReviewListFilter;
+  readonly filter: NavigatorFilter;
+  readonly expanded: Readonly<Record<string, boolean>>;
 }>({
   query: '',
-  filter: emptyReviewListFilter,
+  filter: emptyNavigatorFilter,
+  expanded: {},
 }).pipe(Atom.keepAlive);

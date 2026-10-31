@@ -10,7 +10,7 @@ selectors:
   - "Open project"
   - "Folder path"
   - "Every worktree appears in the sidebar."
-  - "Open a worktree"
+  - "Main worktree"
 tests:
   - apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts
 api:
@@ -59,7 +59,7 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 6. Click button `repository`
    Expect: text "Every worktree appears in the sidebar."; button "Open repository" enabled.
 7. Click button `Open repository`
-   Expect: dialog "Open project" is gone; URL `/<new projectId>/<main worktreeId>` (not `/`); title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Open a worktree" and is pressed, one labelled "linked".
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<main worktreeId>` (not `/`); title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one labelled Main worktree with aria-current=page, one labelled linked.
 8. Inspect HTTP traffic
    Expect: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
 9. Go back in browser history
@@ -67,12 +67,12 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 
 ### Observable proof
 
-New project main worktree is pressed and both checkouts appear. Browser Back skips the empty workspace and reaches the removed-worktree page.
+New project main worktree has aria-current=page and both checkouts appear. Browser Back skips the empty workspace and reaches the removed-worktree page.
 
 Automated coverage: `projects-open-linked-worktree.e2e.ts`.
 
 ## Gotchas
 
-- Browser Back must skip the empty `/` workspace; landing there indicates push instead of replacement. Navigator sheet stays open after remove/open.
-- Match `/Open a worktree/`, not an exact row name. Reregistering creates new IDs; old URLs/marks/comments/preferences are gone.
+- Browser Back must skip the empty `/` workspace; landing there indicates push instead of replacement. Reopen the navigator after opening a project to inspect its cards.
+- Match the main card by Main worktree and its scoped project/computer identity. Reregistering creates new IDs; old URLs/marks/comments/preferences are gone.
 - Cleanup: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.

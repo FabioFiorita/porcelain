@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { ScrollView, useWindowDimensions } from 'react-native';
 import { TabletSurface } from './tablet-surface';
@@ -13,6 +13,7 @@ import {
   HistoryDiffContent,
 } from '../features/history';
 import {
+  PullRequestDocumentContent,
   ReviewNavigation,
   ReviewOverview,
   ReviewFileContent,
@@ -365,6 +366,10 @@ function SelectedWorkspace({
 }
 
 function PaneBar({ children }: { children?: ReactNode }) {
+  const inWorktrees = useSegments().at(-1) === 'workspaces';
+  const window = useWindowDimensions();
+  const landscape = window.width > window.height;
+  const router = useRouter();
   const { sidebar } = useAppSidebar();
   return (
     <Box
@@ -373,7 +378,16 @@ function PaneBar({ children }: { children?: ReactNode }) {
       paddingX={2}
       divider="bottom"
     >
-      {sidebar ? (
+      {!landscape && !inWorktrees ? (
+        <IconButton
+          icon="folder"
+          accessibilityLabel="Worktrees"
+          onPress={() =>
+            requestDocumentLeave(() => router.push('/(files)/workspaces'))
+          }
+        />
+      ) : null}
+      {landscape && sidebar ? (
         <IconButton
           icon="sidebar"
           accessibilityLabel={sidebar.visible ? 'Hide sidebar' : 'Show sidebar'}
@@ -423,6 +437,8 @@ function WorkspaceDocumentContent({
   onParentChange: (parent: number) => void;
 }) {
   switch (document.kind) {
+    case 'pull-request':
+      return <PullRequestDocumentContent document={document} />;
     case 'file':
       return (
         <FileContent

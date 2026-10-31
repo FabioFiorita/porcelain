@@ -1,3 +1,4 @@
+import { useAtom } from '@effect/atom-react';
 import { useState } from 'react';
 import { usePreventRemove } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
@@ -8,8 +9,12 @@ import {
   commentBodyValid,
   retainIntent,
   reviewErrorMessage,
-  type CommentAnchor,
 } from '@porcelain/client/reviews/rules';
+import {
+  commentDraftState,
+  type ComposerTarget,
+  type CommentDraft,
+} from '../store';
 import { useDocumentLeave, type Workspace } from '../../projects';
 import {
   commentBodyLimit,
@@ -19,36 +24,49 @@ import {
 
 export type CommentWorkspace = Pick<Workspace, 'connection' | 'scope'>;
 
-export type ComposerTarget = {
-  anchor: CommentAnchor;
-  threadId?: string | undefined;
-  reviewId?: string | undefined;
-  reviewRevision?: number | undefined;
-};
+export type { ComposerTarget } from '../store';
 
 export function useCommentDraft(
   workspace: CommentWorkspace,
-  target: ComposerTarget | undefined,
+  initialTarget: ComposerTarget | undefined,
   onClose: () => void,
   leaveScope?: string,
   initialBody = '',
+  options: { document: string; keepTarget?: boolean } = {
+    document: 'comments',
+  },
 ) {
-  const commands = useCommentCommands(workspace);
+  const [openingTarget, setOpeningTarget] = useState(initialTarget);
+  const owner = JSON.stringify([
+    workspace.connection.environmentId,
+    workspace.scope,
+    options.document,
+  ]);
+  const [saved, setSaved] = useAtom(commentDraftState(owner));
+  const initial: CommentDraft = {
+    target: openingTarget,
+    body: initialBody,
+    invalid: undefined,
+    intent: undefined,
+  };
+  const state = saved ?? initial;
+  const { target, body, invalid, intent } = state;
+  const update = (change: Partial<CommentDraft>) =>
+    setSaved((current) => ({ ...(current ?? initial), ...change }));
+  const commands = useCommentCommands(workspace, owner);
   const create = useCommentWrite(commands.create);
   const reply = useCommentWrite(commands.reply);
   const result = target?.threadId ? reply.result : create.result;
   const pending = target !== undefined && result.waiting;
-  const [body, setBody] = useState(initialBody);
-  const [invalid, setInvalid] = useState<string>();
-  const [intent, setIntent] = useState<
-    { body: string; threadId: string; messageId: string } | undefined
-  >(undefined);
   const failure = target ? writeFailure(result) : undefined;
   const dirty = body.length > 0 && body !== initialBody;
   const reset = (complete: () => void) => {
-    setBody('');
-    setInvalid(undefined);
-    setIntent(undefined);
+    if (options.keepTarget)
+      update({ body: '', invalid: undefined, intent: undefined });
+    else {
+      setOpeningTarget(undefined);
+      setSaved(undefined);
+    }
     create.reset();
     reply.reset();
     complete();
@@ -77,24 +95,25 @@ export function useCommentDraft(
   useDocumentLeave(leaveScope, dirty || pending ? confirmDiscard : undefined);
   usePreventRemove(dirty || pending, ({ repeat }) => confirmDiscard(repeat));
   return {
+    target,
+    setTarget: (next: ComposerTarget | undefined) => update({ target: next }),
     body,
     pending,
     error: invalid ?? failure,
     edit: (value: string) => {
-      setBody(value);
-      setInvalid(undefined);
+      update({ body: value, invalid: undefined });
     },
     cancel: () => confirmDiscard(onClose),
     submit: () => {
       if (!target || pending) return;
       if (initialBody.length > 0 && body.trim() === initialBody.trim()) {
-        setInvalid('Write your comment after the prefilled text.');
+        update({ invalid: 'Write your comment after the prefilled text.' });
         return;
       }
       if (!commentBodyValid(body)) {
-        setInvalid(
-          `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
-        );
+        update({
+          invalid: `Enter a comment of at most ${commentBodyLimit} characters without a NUL character.`,
+        });
         return;
       }
       const input = retainIntent(intent, body, () => ({
@@ -102,7 +121,7 @@ export function useCommentDraft(
         threadId: target.threadId ?? randomUUID(),
         messageId: randomUUID(),
       }));
-      setIntent(input);
+      update({ intent: input });
       const sent = () => reset(onClose);
       if (target.threadId)
         reply.send(

@@ -96,3 +96,31 @@ it.each([
     expect(parseEntry(key)).toEqual(expected);
   },
 );
+
+it('keeps equal pull request and review IDs on two computers as separate tabs', () => {
+  const reviewId = '10000000-0000-4000-8000-000000000001';
+  const local = entryKey({
+    kind: 'pull-request',
+    reviewId,
+    number: 482,
+    environmentId: 'local-computer',
+  });
+  const remote = entryKey({
+    kind: 'pull-request',
+    reviewId,
+    number: 482,
+    environmentId: 'remote-computer',
+  });
+  expect(local).toBe(
+    'pull-request:10000000-0000-4000-8000-000000000001:482:environment=local-computer',
+  );
+  expect(remote).toBe(
+    'pull-request:10000000-0000-4000-8000-000000000001:482:environment=remote-computer',
+  );
+  expect(parseEntry(remote)).toEqual({
+    kind: 'pull-request',
+    reviewId,
+    number: 482,
+    environmentId: 'remote-computer',
+  });
+});

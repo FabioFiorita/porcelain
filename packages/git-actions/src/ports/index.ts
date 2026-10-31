@@ -8,3 +8,5 @@ export { CaptureCommitDraftOptions } from './capture-commit-draft-options.ts';
 export { ExpireGitActionReceiptsOptions } from './expire-git-action-receipts-options.ts';
 export { GenerateCommitDraftOptions } from './generate-commit-draft-options.ts';
 export { RecordGitActionProgressOptions } from './record-git-action-progress-options.ts';
+
+export { WorktreeCleaner } from './worktree-cleaner.ts';

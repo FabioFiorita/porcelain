@@ -1,4 +1,8 @@
-import { seedPreferences, savedPreferences } from '../kit/settings.ts';
+import {
+  closeSettings,
+  seedPreferences,
+  savedPreferences,
+} from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 for (const legacy of ['markdownDefault', 'htmlDefault']) {
@@ -77,9 +81,7 @@ for (const section of ['devices', 'integrations']) {
     await expect(settings.getByRole('status')).toHaveText(
       'claude mcp add porcelain -- porcelain mcp',
     );
-    await settings
-      .getByRole('button', { name: 'Close Settings', exact: true })
-      .click();
+    await closeSettings(settings.page());
     await expect(pairedPage).toHaveURL(/\/settings\/computers$/);
   });
 }

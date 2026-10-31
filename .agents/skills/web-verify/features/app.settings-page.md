@@ -19,17 +19,17 @@ api: []
 
 # app.settings-page
 
-Settings replaces the workspace while keeping the worktree sidebar, with section navigation inside the page, a breadcrumb and Close in its top bar.
+Settings replaces the workspace while keeping the worktree sidebar, with section navigation inside the page, a breadcrumb. The navigator footer replaces Settings with Close and its Escape hint while Settings is open; the page header has no Close control.
 
 ## How to get to it (user POV)
 
-- Workspace sidebar → Settings; Alt+Shift+S; desktop native Settings menu. Close / Escape returns.
+- Workspace sidebar → Settings; Alt+Shift+S; desktop native Settings menu. Open the sidebar if needed and use its footer Close, or press Escape outside an input, to return.
 
 ## Driving it with browser
 
 Preconditions: [surface baseline](README.md).
 
-Section navigation replaces the current entry; opening a computer detail adds a detail entry. Close or Escape returns detail to Computers, then leaves Settings for its originating workspace. Switching from a detail to another section still allows one Escape to leave Settings. Escape while typing keeps the field and Settings open.
+Section navigation replaces the current entry; opening a computer detail adds a detail entry. Close or Escape returns detail to Computers, then leaves Settings for its originating workspace. Each exit dismisses the mobile navigator sheet and retains the existing return-focus owner. Switching from a detail to another section still allows one Escape to leave Settings. Escape while typing keeps the field and Settings open.
 
 Start a desktop verification instance and open Settings from the workspace sidebar. Expect heading General and no Review content region. Choose Reviews & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title.
 

@@ -21,12 +21,19 @@ const dialogCommandLifetime = Atom.family(
     }),
 );
 
+export function useProjectCommand<Input, A, E>(
+  command: Atom.AtomResultFn<Input, A, E>,
+) {
+  const operation = useAtom(command, { mode: 'promise' });
+  useAtomMount(dialogCommandLifetime(command));
+  return operation;
+}
+
 function useDialogCommand<Input, A, E>(
   command: Atom.AtomResultFn<Input, A, E>,
   close: () => void,
 ) {
-  const [result, run] = useAtom(command, { mode: 'promise' });
-  useAtomMount(dialogCommandLifetime(command));
+  const [result, run] = useProjectCommand(command);
   return {
     result,
     submit: (input: Input) => run(input).then(close, () => undefined),

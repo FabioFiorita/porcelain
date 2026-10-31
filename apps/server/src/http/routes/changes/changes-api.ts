@@ -14,9 +14,14 @@ import { type ReadChangeLinesUseCase } from '../../../use-cases/changes/read-cha
 import { type ReadChangesUseCase } from '../../../use-cases/changes/read-changes.ts';
 import { type ReadCommitDiffsUseCase } from '../../../use-cases/changes/read-commit-diffs.ts';
 import { type ReadCommitFilesUseCase } from '../../../use-cases/changes/read-commit-files.ts';
+import { type ReadWorktreeSummaryUseCase } from '../../../use-cases/changes/read-worktree-summary.ts';
 import { type ReadGitStatusUseCase } from '../../../use-cases/changes/read-git-status.ts';
 
 type ChangesUseCases = {
+  readWorktreeSummary: Pick<
+    Context.Service.Shape<typeof ReadWorktreeSummaryUseCase>,
+    'execute'
+  >;
   listBranchBases: Pick<
     Context.Service.Shape<typeof ListBranchBasesUseCase>,
     'execute'
@@ -66,6 +71,9 @@ type ChangesUseCases = {
 export function changesRoutes(useCases: ChangesUseCases) {
   const handlers = HttpApiBuilder.group(ChangesApi, 'changes', (handlers) =>
     handlers
+      .handle('readWorktreeSummary', ({ params }) =>
+        useCases.readWorktreeSummary.execute(params),
+      )
       .handle('listBranchBases', ({ params }) =>
         useCases.listBranchBases.execute(params),
       )

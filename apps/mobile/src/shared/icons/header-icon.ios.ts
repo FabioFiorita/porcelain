@@ -6,6 +6,7 @@ const symbols = {
   inspector: 'sidebar.right',
   add: 'plus',
   workspace: 'line.3.horizontal.decrease',
+  worktrees: 'folder',
   refresh: 'arrow.clockwise',
   done: 'checkmark',
   close: 'xmark',

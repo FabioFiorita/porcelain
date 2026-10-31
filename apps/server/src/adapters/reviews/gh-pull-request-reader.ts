@@ -11,6 +11,7 @@ import {
 import { GitHubReader } from '@porcelain/reviews/ports';
 import {
   githubPullRequestSchema,
+  githubPullChecksSchema,
   githubPullSummarySchema,
 } from '@porcelain/reviews/models';
 import type { Limits } from '../../config/limits.ts';
@@ -30,6 +31,16 @@ const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $num
     } ${PAGE} }
   } }
 }`;
+const CHECKS_QUERY = `query PullRequestChecks($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
+    number commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+  } }
+}`;
+const checksSchema = Schema.Struct({
+  data: Schema.Struct({
+    repository: Schema.Struct({ pullRequest: githubPullChecksSchema }),
+  }),
+});
 const listQuery = `query PullRequestList($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
     open: pullRequests(first: 50, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${summaryFields} } ${PAGE} }
@@ -105,6 +116,26 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
           );
           const decoded = yield* Schema.decodeEffect(
             Schema.fromJsonString(detailSchema),
+          )(json).pipe(
+            Effect.mapError(
+              () => new GitHubReadError({ reason: 'invalid-response' }),
+            ),
+          );
+          return decoded.data.repository.pullRequest;
+        }),
+        checks: Effect.fn('GitHubReader.checks')(function* (input) {
+          const json = yield* api({
+            account: input.account,
+            endpoint: 'graphql',
+            query: CHECKS_QUERY,
+            variables: {
+              owner: input.owner,
+              repo: input.repo,
+              number: input.number,
+            },
+          }).pipe(Effect.mapError(unavailable));
+          const decoded = yield* Schema.decodeEffect(
+            Schema.fromJsonString(checksSchema),
           )(json).pipe(
             Effect.mapError(
               () => new GitHubReadError({ reason: 'invalid-response' }),

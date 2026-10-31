@@ -1,7 +1,6 @@
 import { useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useState } from 'react';
 import { readReviewSummary } from '@porcelain/client/reviews';
 import {
   reviewSummaryUrl,
@@ -31,14 +30,7 @@ export function useReviewSummary(
       delivery: { url, transport: summaryTransport },
     }),
   );
-  const read = Option.getOrUndefined(AsyncResult.value(result));
-  const [held, setHeld] = useState<{ token: string; page: string }>();
-  if (
-    read !== undefined &&
-    (held?.token !== summary.token || held.page !== read)
-  )
-    setHeld({ token: summary.token, page: read });
-  const page = read ?? (held?.token === summary.token ? held.page : undefined);
+  const page = Option.getOrUndefined(AsyncResult.value(result));
   return {
     result,
     page,

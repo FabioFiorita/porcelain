@@ -1,11 +1,11 @@
 import {
-  archiveSettings,
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
   reviewGitSettingsKeptMessage,
   shownReviewGitSettings,
   type ReviewGitSettingsView,
 } from '@porcelain/client/preferences/rules';
+import { archiveSettings } from '@porcelain/client/projects/rules';
 import type { PreferenceChange } from '@porcelain/client/preferences';
 import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

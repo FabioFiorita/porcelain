@@ -40,6 +40,7 @@ const gitActionRequestParamsSchema = Schema.Struct({
 });
 
 const gitActionIntentSchema = Schema.Union([
+  Schema.Struct({ action: Schema.Literal('switch'), targetRef: refSchema }),
   Schema.Struct({
     action: Schema.Literal('fetch'),
     remoteName: remoteSchema,

@@ -43,6 +43,21 @@ export function worktreeRead<A, E, R>(
   return atom;
 }
 
+export function retainRead<A, E>(
+  read: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+) {
+  const retained = Atom.make<AsyncResult.AsyncResult<A, E>>(
+    AsyncResult.initial(),
+  ).pipe(Atom.keepAlive);
+  const fallback = read.pipe(Atom.withFallback(retained));
+  return Atom.transform(fallback, (get) => {
+    const result = get(read);
+    if (AsyncResult.isSuccess(result) && get.once(retained) !== result)
+      get.set(retained, result);
+    return get(fallback);
+  }).pipe(Atom.setIdleTTL(0));
+}
+
 export function worktreePull<A, E, R>(
   connection: RuntimeConnection,
   scope: WorktreeScope,

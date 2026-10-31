@@ -1,4 +1,4 @@
-import { openThisComputer } from '../kit/settings.ts';
+import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test, type Page, type Repo } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
@@ -91,12 +91,8 @@ test('disconnecting this browser ends its session and shows how to pair it again
     name: 'Settings',
     exact: true,
   });
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
+  await closeSettings(settings.page());
   await expect(settings).not.toBeAttached();
   await pairedPage
     .getByRole('button', { name: 'Resume edit', exact: true })

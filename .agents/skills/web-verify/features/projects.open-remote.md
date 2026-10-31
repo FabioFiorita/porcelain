@@ -62,7 +62,7 @@ Required instance mode: `--desktop`.
 ### Case 1: open a project on the remote computer
 
 1. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: the navigator header says Porcelain without a computer name. The former per-computer Settings shortcut buttons are absent; Settings → Computers owns those details. Manage projects remains available from its own labelled navigator control.
+   Expect: the navigator header says Porcelain without a computer name. The former per-computer Settings shortcut buttons are absent; Settings → Computers owns those details. Each scoped project header has static project/computer text, a labelled Project actions ellipsis, and a separate rightmost Collapse/Expand button. There is no footer Manage projects button.
 2. Click button `Open project`
    Expect: menu "Open project" with group "Open project on" holding menuitems "This computer" and "Remote journey computer".
 3. Click menuitem `Remote journey computer`

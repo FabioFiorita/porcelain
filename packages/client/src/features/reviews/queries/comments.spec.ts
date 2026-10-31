@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Layer, Effect } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { Layer, Effect, HashMap, Option } from 'effect';
+import { AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import { createWorktreeConnection } from '@porcelain/client/transport';
 import { readCommentThreads } from './comments.ts';
 
@@ -70,4 +71,59 @@ describe('a discussion stays with its selected worktree', () => {
         'The connected context changed. Reopen Porcelain to continue safely.',
     });
   });
+});
+
+it('shows a visited discussion while revalidating and releases its hidden live subscription', async () => {
+  let requests = 0;
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      timeoutMs: 10_000,
+      transport: () => {
+        requests += 1;
+        if (requests === 2) {
+          started.resolve();
+          return held.promise;
+        }
+        return Promise.resolve(Response.json([thread]));
+      },
+    },
+    undefined,
+    Layer.empty,
+  );
+  const registry = AtomRegistry.make();
+  owned.push({ close: lifetime.close, registry });
+  const atom = readCommentThreads({ scope, connection: lifetime.connection });
+  const first = registry.mount(atom);
+  expect(
+    await Effect.runPromise(AtomRegistry.getResult(registry, atom)),
+  ).toEqual([thread]);
+  first();
+  await expect
+    .poll(async () =>
+      HashMap.size(
+        await lifetime.connection.runtime.runPromise(
+          ReadSubscriptions.use((reads) => reads.snapshot),
+        ),
+      ),
+    )
+    .toBe(0);
+  const back = registry.mount(atom);
+  try {
+    const visible = registry.get(atom);
+    expect(AsyncResult.isInitial(visible)).toBe(false);
+    expect(Option.getOrThrow(AsyncResult.value(visible))).toEqual([thread]);
+    await started.promise;
+    held.resolve(Response.json([{ ...thread, resolved: true }]));
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+      ),
+    ).toEqual([{ ...thread, resolved: true }]);
+  } finally {
+    held.resolve(Response.json([thread]));
+    back();
+  }
 });

@@ -15,3 +15,5 @@ export { MergeExpectationMismatchError } from './merge-expectation-mismatch-erro
 export { MissingExpectedFilesError } from './missing-expected-files-error.ts';
 export { MissingUpstreamExpectationError } from './missing-upstream-expectation-error.ts';
 export { UnsupportedCommitModelError } from './unsupported-commit-model-error.ts';
+
+export { WorktreeCleanupRefusedError } from './worktree-cleanup-refused-error.ts';

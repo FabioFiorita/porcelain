@@ -375,3 +375,60 @@ it('comment visibility waits for both nonempty filters again after the discussio
     keepRead();
   }
 });
+
+it('comment filters share the loaded discussion while further reads are held', async () => {
+  const threads = [
+    thread,
+    {
+      ...thread,
+      id: '11111111-1111-4111-8111-111111111111',
+      resolved: true,
+      revision: 2,
+    },
+  ];
+  const pending = Promise.withResolvers<Response>();
+  const writes: { body: unknown; reads: number }[] = [];
+  let reads = 0;
+  const subject = fixture(async (path, init) => {
+    if (path.endsWith('/comments/seen')) {
+      writes.push({
+        body: JSON.parse(await new Response(init?.body).text()),
+        reads,
+      });
+      return Response.json({ worktreeId: scope.worktreeId, seenThrough: 2 });
+    }
+    return ++reads === 1 ? Response.json(threads) : pending.promise;
+  });
+  const keepRead = subject.registry.mount(subject.state);
+  const stops: (() => void)[] = [];
+  try {
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, subject.state),
+      ),
+    ).toEqual(threads);
+    const input = {
+      connection: subject.connection,
+      scope,
+      owner: 'filtered-comments',
+    };
+    stops.push(
+      subject.registry.mount(
+        observeCommentVisibility({ ...input, filter: 'open' }),
+      ),
+    );
+    expect(writes).toEqual([]);
+    stops.push(
+      subject.registry.mount(
+        observeCommentVisibility({ ...input, filter: 'resolved' }),
+      ),
+    );
+    await expect
+      .poll(() => writes)
+      .toEqual([{ body: { throughRevision: 2 }, reads: 1 }]);
+  } finally {
+    pending.resolve(Response.json(threads));
+    for (const stop of stops) stop();
+    keepRead();
+  }
+});

@@ -1,3 +1,4 @@
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
@@ -32,9 +33,7 @@ for (const entry of ['list', 'direct']) {
       .fill(await app.remoteLink());
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     if (entry === 'direct') {
-      await page
-        .getByRole('button', { name: 'Close Settings', exact: true })
-        .click();
+      await closeSettings(page);
       await expect(page).toHaveURL(workspace);
       await app.follow(`/settings/computers/${inventory.environmentId}`);
     } else await openComputer(page, inventory.environment.name);
@@ -69,9 +68,7 @@ test('direct detail URLs recover a missing computer and explain both ways to cle
       { exact: true },
     ),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(page).toHaveURL(/\/settings\/computers$/);
   await page
     .getByRole('textbox', { name: 'Pairing link', exact: true })
@@ -134,9 +131,7 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(
     page.getByRole('navigation', { name: 'breadcrumb', exact: true }),
   ).toContainText(name);
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await expect
     .poll(() => list.evaluate((element) => element.scrollTop))
@@ -161,9 +156,7 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(
     page.getByText(inventory.environmentId, { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(page).toHaveURL(/\/settings\/computers$/);
 });
 
@@ -184,12 +177,8 @@ test('Computers and outage links open the exact computer, saved offline details 
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await openComputer(page, name);
   await expect(page.getByText('Online', { exact: true })).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
+  await closeSettings(page);
   await expect(page).toHaveURL(workspace);
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -213,13 +202,9 @@ test('Computers and outage links open the exact computer, saved offline details 
   await expect(page).toHaveURL(/\/settings\/computers$/);
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(page).toHaveURL(/\/settings\/computers$/);
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(page).toHaveURL(workspace);
   const restore = await app.failRemoteStatus(link);
   try {
@@ -329,18 +314,14 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await expect(page).toHaveURL(
     new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(
     page.getByRole('listitem', {
       name: inventory.environment.name,
       exact: true,
     }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(page);
   await expect(page).toHaveURL(new RegExp(`${workspace}\\?`));
   await page.getByRole('button', { name: 'Resume edit', exact: true }).click();
   await expect(editor).toHaveText('Keep this unsaved remote draft');

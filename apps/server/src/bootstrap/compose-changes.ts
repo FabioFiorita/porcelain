@@ -28,6 +28,7 @@ import {
   ReadCommitFilesService,
   ReadBranchChangesService,
   ReadWorktreeStatusService,
+  ReadWorktreeSummaryService,
   ReadChangeFingerprintsService,
   ReadChangeDiffsService,
 } from '@porcelain/changes/services';
@@ -42,6 +43,7 @@ import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.t
 import { ReadChangesUseCase } from '../use-cases/changes/read-changes.ts';
 import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.ts';
 import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
+import { ReadWorktreeSummaryUseCase } from '../use-cases/changes/read-worktree-summary.ts';
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import { makeSharedReads } from '../runtime/shared-reads.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
@@ -109,6 +111,7 @@ export function composeChanges(
   );
   const services = Layer.mergeAll(
     WorktreeAccess.layer,
+    ReadWorktreeSummaryService.layer,
     ReadBranchDetailsService.layer,
     ListCommitsService.layer,
     ReadCommitFilesService.layer,
@@ -129,6 +132,7 @@ export function composeChanges(
     ReadChangeDiffsUseCase.layer,
     ReadChangeLinesUseCase.layer,
     ReadGitStatusUseCase.layer,
+    ReadWorktreeSummaryUseCase.layer,
     ListCommitsUseCase.layer,
     ListFileCommitsUseCase.layer,
     ReadCommitFilesUseCase.layer,
@@ -145,6 +149,7 @@ export function composeChanges(
         readChangeDiffs: yield* ReadChangeDiffsUseCase,
         readChangeLines: yield* ReadChangeLinesUseCase,
         readGitStatus: yield* ReadGitStatusUseCase,
+        readWorktreeSummary: yield* ReadWorktreeSummaryUseCase,
         listCommits: yield* ListCommitsUseCase,
         listFileCommits: yield* ListFileCommitsUseCase,
         readCommitFiles: yield* ReadCommitFilesUseCase,

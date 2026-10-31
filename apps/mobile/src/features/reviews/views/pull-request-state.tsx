@@ -18,7 +18,8 @@ import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { usePreviewLink } from '../../../shared/adapters/preview-link';
+import { useOpenPullRequest } from '../../projects';
+import { pullRequestNumber } from '@porcelain/client/reviews/rules';
 
 export function PullRequestState({
   connection,
@@ -35,7 +36,7 @@ export function PullRequestState({
   const [mutation, setPullRequest] = useAtom(
     reviewCommands(input).setPullRequest,
   );
-  const link = usePreviewLink();
+  const openPullRequest = useOpenPullRequest();
   const pull = AsyncResult.isFailure(result)
     ? { kind: 'failed' as const }
     : (Option.getOrUndefined(AsyncResult.value(result)) ?? {
@@ -45,6 +46,8 @@ export function PullRequestState({
   if (!AsyncResult.isSuccess(review) || !review.value.review?.pullRequest)
     return null;
   const url = review.value.review.pullRequest;
+  const projectId = review.value.review.projectId;
+  const number = pullRequestNumber(url);
   const available = pull.kind === 'available' ? pull.pullRequest : undefined;
   return (
     <Box gap={3} padding={4}>
@@ -100,7 +103,17 @@ export function PullRequestState({
       <Button
         label="Open pull request"
         variant="outline"
-        onPress={() => link.open(url)}
+        disabled={number === undefined}
+        onPress={() => {
+          if (number !== undefined)
+            openPullRequest({
+              kind: 'pull-request',
+              environmentId: connection.environmentId,
+              projectId,
+              reviewId,
+              number,
+            });
+        }}
       />
       <Button
         label="Unlink pull request"
@@ -117,7 +130,6 @@ export function PullRequestState({
           message={reviewErrorMessage(Cause.squash(mutation.cause))}
         />
       )}
-      {link.error ? <ErrorState message={link.error} /> : null}
     </Box>
   );
 }

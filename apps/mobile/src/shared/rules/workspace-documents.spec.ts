@@ -4,6 +4,7 @@ import {
   documentMode,
   documentTab,
   workspaceDocumentSchema,
+  pullRequestDocumentSchema,
   type WorkspaceDocument,
 } from './workspace-documents';
 import { emptyDocuments, openDocument } from './document-tabs';
@@ -115,3 +116,40 @@ it.each([
   'classifies %j under its inspector mode %s',
   (document, mode) => expect(documentMode(document)).toBe(mode),
 );
+
+it('scopes pull-request tabs by computer, review and number while retaining a return tab', () => {
+  const file = documentTab({ kind: 'file', path: 'README.md' });
+  const first = documentTab({
+    kind: 'pull-request',
+    environmentId: 'one',
+    projectId: 'project',
+    reviewId: 'review',
+    number: 42,
+  });
+  const other = documentTab({
+    kind: 'pull-request',
+    environmentId: 'two',
+    projectId: 'project',
+    reviewId: 'review',
+    number: 42,
+  });
+  const relinked = documentTab({
+    kind: 'pull-request',
+    environmentId: 'one',
+    projectId: 'project',
+    reviewId: 'review',
+    number: 43,
+  });
+  const opened = openDocument(
+    openDocument(emptyDocuments<ReturnType<typeof documentTab>>(), file),
+    first,
+  );
+  expect(opened.tabs.map((tab) => tab.title)).toEqual(['README.md', 'PR #42']);
+  expect(opened.active).toBe('["pull-request","one","review",42]');
+  expect(other.key).toBe('["pull-request","two","review",42]');
+  expect(relinked.key).toBe('["pull-request","one","review",43]');
+  expect(documentMode(first)).toBe('review');
+  const decode = Schema.decodeUnknownOption(pullRequestDocumentSchema);
+  expect(decode({ ...first, number: 0 })).toEqual(Option.none());
+  expect(decode({ ...first, environmentId: undefined })).toEqual(Option.none());
+});

@@ -1,5 +1,5 @@
 import { Box } from '../../../components/ui/box';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
@@ -146,22 +146,29 @@ export function CommentThreads({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  const [target, setTarget] = useState<ComposerTarget | undefined>(() =>
-    compose && anchor ? { ...review, anchor } : undefined,
-  );
   const draft = useCommentDraft(
     workspace,
-    target,
+    compose && anchor ? { ...review, anchor } : undefined,
     () => {
-      setTarget(undefined);
       onComposerChange?.(undefined);
     },
     leaveScope,
     initialBody,
+    {
+      document: JSON.stringify([
+        leaveScope,
+        path,
+        comparison,
+        review,
+        initialBody,
+        compose ? anchor : undefined,
+      ]),
+    },
   );
+  const target = draft.target;
   const open = (next: ComposerTarget) =>
     draft.confirmDiscard(() => {
-      setTarget(next);
+      draft.setTarget(next);
       onComposerChange?.(next.anchor);
     });
   useVisibleComments(workspace, !path);

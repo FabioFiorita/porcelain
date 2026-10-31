@@ -9,14 +9,12 @@ test.for([1280, 414])(
       const page = await render.navigator();
 
       const project = await server.project();
+      const computer = (await server.inventory()).environment.name;
       const worktree = project.worktrees.find((entry) => entry.main);
       if (worktree === undefined)
         throw new Error('The project has no main worktree.');
-      await page
-        .getByRole('button', { name: 'Manage projects', exact: true })
-        .click();
-      const projectButton = page.getByRole('menuitem', {
-        name: project.name,
+      const projectButton = page.getByRole('button', {
+        name: `Project actions: ${project.name} · ${computer}`,
         exact: true,
       });
       await expect.element(projectButton).toBeVisible();
@@ -40,9 +38,6 @@ test.for([1280, 414])(
         .click();
 
       await expect.element(confirm).not.toBeInTheDocument();
-      await page
-        .getByRole('button', { name: 'Manage projects', exact: true })
-        .click();
       await expect.element(projectButton).toBeVisible();
       await expect
         .poll(async () =>
@@ -63,11 +58,9 @@ test.for([1280, 414])(
       const page = await render.navigator();
 
       const project = await server.project();
-      await page
-        .getByRole('button', { name: 'Manage projects', exact: true })
-        .click();
-      const projectButton = page.getByRole('menuitem', {
-        name: project.name,
+      const computer = (await server.inventory()).environment.name;
+      const projectButton = page.getByRole('button', {
+        name: `Project actions: ${project.name} · ${computer}`,
         exact: true,
       });
       await projectButton.click();

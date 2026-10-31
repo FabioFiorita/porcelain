@@ -18,3 +18,10 @@ export type {
 export type { ReviewBadge, ReviewBadges } from './review-badge.ts';
 
 export { expectedFileSchema } from './change.ts';
+
+export {
+  worktreeCleanupPlanSchema,
+  worktreeCleanupRequestSchema,
+  type WorktreeCleanupPlan,
+  type WorktreeCleanupRequest,
+} from './worktree-cleanup.ts';

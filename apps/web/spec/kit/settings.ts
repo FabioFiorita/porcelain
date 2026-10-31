@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export async function openThisComputer(page: Page) {
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
@@ -35,4 +35,22 @@ export async function savedPreferences(page: Page): Promise<unknown> {
     );
     return saved;
   });
+}
+
+export async function closeSettings(page: Page) {
+  const navigator = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const opened = !(await navigator.isVisible());
+  if (opened)
+    await page
+      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      .click();
+  await navigator
+    .getByRole('button', { name: 'Close Settings', exact: true })
+    .click();
+  await expect(
+    page.getByRole('dialog', { name: 'Sidebar', exact: true }),
+  ).not.toBeVisible();
 }

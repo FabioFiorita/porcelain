@@ -61,3 +61,8 @@ export {
   type GitHubAccountResult,
 } from './pull-request.ts';
 export * from './review-archive.ts';
+
+export {
+  githubPullChecksSchema,
+  pullChecksResultSchema,
+} from './pull-request.ts';
