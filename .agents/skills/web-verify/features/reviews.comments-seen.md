@@ -9,13 +9,18 @@ selectors:
   - "Agent replied"
 tests:
   - apps/web/spec/integration/reviews-comments-seen.test.tsx
+  - packages/client/src/features/reviews/commands/comments.spec.ts
+  - packages/client/src/features/reviews/queries/comments.spec.ts
 api:
+  - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments/seen
 ---
 
 # reviews.comments-seen
 
 Showing the comment list marks the agent's comments as seen and clears the worktree's "Agent replied" flag; an agent comment seen only inline in the code keeps the flag until the list shows it.
+
+Open, resolved and all filters share the canonical discussion read for the connection and worktree; filter and document-owner metadata cannot create separate cached readers. With the discussion already loaded and further reads held, showing both nonempty filters acknowledges that loaded revision before another discussion GET is needed. The acknowledgement retains its ordinary canonical refresh. A newer discussion snapshot requires both nonempty filters again.
 
 ## How to get to it (user POV)
 
