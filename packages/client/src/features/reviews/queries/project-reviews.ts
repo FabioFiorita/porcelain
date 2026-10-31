@@ -1,4 +1,4 @@
-import { Effect, Option } from 'effect';
+import { Cause, Effect, Option } from 'effect';
 import { Atom, AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
 import type {
   RuntimeConnection,
@@ -253,7 +253,21 @@ export const readReviewComments = Atom.family(
     });
     return Atom.readable((get) => {
       const retainedResult = get(retained);
-      const worktreeResult = get(worktree);
+      const current = get(worktree);
+      const failure = AsyncResult.isFailure(current)
+        ? Option.getOrUndefined(Cause.findErrorOption(current.cause))
+        : undefined;
+      const unavailable =
+        failure &&
+        '_tag' in failure &&
+        (failure._tag === 'WorktreeUnavailableError' ||
+          failure._tag === 'WorktreeNotFoundError' ||
+          failure._tag === 'ProjectNotFoundError');
+      const worktreeResult = unavailable
+        ? AsyncResult.success(
+            Option.getOrElse(AsyncResult.value(current), () => []),
+          )
+        : current;
       return AsyncResult.flatMap(retainedResult, (retainedThreads) =>
         AsyncResult.map(
           worktreeResult,
