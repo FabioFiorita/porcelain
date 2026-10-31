@@ -3,6 +3,8 @@ import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import {
   filePreferenceActions,
   filePreferenceEntries,
+  pinnedParentDirectories,
+  pinnedFileTreeRows,
 } from './file-preferences';
 
 const entries: readonly FileTreeEntry[] = [
@@ -38,7 +40,9 @@ test('hidden directories and descendants disappear from tree, search and pinned 
     'README.md',
   ]);
   expect(result.matches).toEqual([{ path: 'docs-other.md', kind: 'file' }]);
-  expect(result.pinnedPaths).toEqual(['README.md']);
+  expect(result.pinnedEntries.map((entry) => entry.path)).toEqual([
+    'README.md',
+  ]);
   expect(result.hidden.size).toBe(2);
   expect(result.pinned.has('docs/guide.md')).toBe(true);
 });
@@ -52,7 +56,10 @@ test('show hidden restores the same tree, search and pinned paths while leaving 
     'docs/guide.md',
     'docs/private/secret.md',
   ]);
-  expect(result.pinnedPaths).toEqual(['docs/guide.md', 'README.md']);
+  expect(result.pinnedEntries.map((entry) => entry.path)).toEqual([
+    'docs/guide.md',
+    'README.md',
+  ]);
   expect(preferences).toEqual(savedPreferences);
 });
 
@@ -63,7 +70,7 @@ test('durable pins remain reachable before their containing directory has been r
       entries: [],
       paths: [],
       showHidden: true,
-    }).pinnedPaths,
+    }).pinnedEntries.map((entry) => entry.path),
   ).toEqual(['docs/guide.md', 'README.md']);
 });
 
@@ -100,7 +107,7 @@ test('files can be pinned and unpinned with an optional side action', () => {
   expect(pinned.actions.some(({ id }) => id === 'open-to-side')).toBe(false);
 });
 
-test.each(['directory', 'symlink', 'submodule', 'other'] as const)(
+test.each(['symlink', 'submodule', 'other'] as const)(
   '%s entries have no pin or side action',
   (kind) => {
     const result = filePreferenceActions(
@@ -160,4 +167,94 @@ test('an inherited Show action clears the actual hidden ancestor rather than wri
     flag: 'hidden',
     value: false,
   });
+});
+
+test.each([false, true])(
+  'folders can be pinned and unpinned (pinned: %s)',
+  (pinned) => {
+    const result = filePreferenceActions(
+      { path: 'docs/private/', kind: 'directory' },
+      new Set(),
+      new Set(pinned ? ['docs/private'] : []),
+      true,
+    );
+    expect(result.actions).toContainEqual({
+      id: 'pin',
+      label: pinned ? 'Unpin folder' : 'Pin folder',
+    });
+    expect(result.pin).toEqual({
+      path: 'docs/private',
+      flag: 'pinned',
+      value: !pinned,
+    });
+    expect(
+      result.actions.some(({ id }) => id === 'open' || id === 'open-to-side'),
+    ).toBe(false);
+  },
+);
+
+test('pinned folders retain directory ownership, including empty folders, and respect hidden ancestors', () => {
+  const ownedEntries: readonly FileTreeEntry[] = [
+    ...entries,
+    { path: 'empty/', kind: 'directory' },
+  ];
+  const pinned = [
+    { path: 'empty', hidden: false, pinned: true },
+    { path: 'docs', hidden: false, pinned: true },
+    { path: 'docs/private', hidden: true, pinned: true },
+    { path: 'README.md', hidden: false, pinned: true },
+  ];
+  expect(
+    filePreferenceEntries({
+      ...input,
+      entries: ownedEntries,
+      preferences: pinned,
+      showHidden: false,
+    }).pinnedEntries,
+  ).toEqual([
+    { path: 'empty/', kind: 'directory' },
+    { path: 'docs/', kind: 'directory' },
+    { path: 'README.md', kind: 'file' },
+  ]);
+  expect(
+    filePreferenceEntries({
+      ...input,
+      entries: ownedEntries,
+      preferences: pinned,
+      showHidden: true,
+    }).pinnedEntries,
+  ).toEqual([
+    { path: 'empty/', kind: 'directory' },
+    { path: 'docs/', kind: 'directory' },
+    { path: 'docs/private/', kind: 'directory' },
+    { path: 'README.md', kind: 'file' },
+  ]);
+});
+
+test('reading pinned parents identifies nested and empty folders without expanding them', () => {
+  expect(
+    pinnedParentDirectories([
+      { path: 'docs/private/empty', hidden: false, pinned: true },
+      { path: 'docs/guide.md', hidden: false, pinned: true },
+      { path: 'README.md', hidden: false, pinned: true },
+      { path: 'unread/deep/file.ts', hidden: false, pinned: false },
+    ]),
+  ).toEqual(['docs', 'docs/private']);
+  expect(pinnedParentDirectories([])).toEqual([]);
+});
+
+test('pinned folders expand directly beneath their pin without requiring their ancestors to be expanded', () => {
+  const pins: FileTreeEntry[] = [{ path: 'docs/private/', kind: 'directory' }];
+  const collapsed = pinnedFileTreeRows(pins, entries, new Set());
+  expect(
+    collapsed.map(({ entry, depth, pin }) => [entry.path, depth, pin]),
+  ).toEqual([['docs/private/', 0, true]]);
+  const expanded = pinnedFileTreeRows(pins, entries, new Set(['docs/private']));
+  expect(
+    expanded.map(({ entry, depth, pin }) => [entry.path, depth, pin]),
+  ).toEqual([
+    ['docs/private/', 0, true],
+    ['docs/private/secret.md', 1, false],
+  ]);
+  expect(pinnedFileTreeRows([], entries, new Set())).toEqual([]);
 });

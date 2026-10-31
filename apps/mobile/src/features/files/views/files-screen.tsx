@@ -13,14 +13,12 @@ import { Stack } from 'expo-router';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
-  changeStatusMarks,
   fileErrorMessage,
   fileTreeAncestors,
   mergeFileTreeEntries,
-  entryName,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
-import { FileTree } from '../../../components/ui/file-tree';
+import { FileTree, FileTreeItem } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -34,17 +32,16 @@ import { FileActionSheet } from './file-action';
 import { CreateMenu } from './create-menu';
 import type { FileAction } from '../commands/edit-file';
 import { ButtonSurface } from '../../../components/ui/button-surface';
-import { ChangeMark } from '../../../components/ui/change-mark';
 import { GroupHeader } from '../../../components/ui/group-header';
 import { Icon } from '../../../components/ui/icon';
 import { IconButton } from '../../../components/ui/icon-button';
-import { FileIcon } from '../../../components/ui/file-icon';
-import { ItemMenu } from '../../../components/ui/item-menu';
 import { useFilePreferences } from '../queries/file-preferences';
 import { useSetFilePreference } from '../commands/file-preferences';
 import {
   filePreferenceActions,
   filePreferenceEntries,
+  pinnedParentDirectories,
+  pinnedFileTreeRows,
 } from '../rules/file-preferences';
 
 export function FilesScreen({
@@ -120,13 +117,21 @@ function FilesNavigationView({
   } = useFileNavigation(selected.key, embedded);
   const [action, setAction] = useState<FileAction>();
   const [refreshRequested, setRefreshRequested] = useState(false);
+  const preferenceData = Option.getOrUndefined(
+    AsyncResult.value(preferences.read.result),
+  );
+  const pinDirectories = useDirectories({
+    connection: selected.connection,
+    scope: selected.scope,
+    paths: pinnedParentDirectories(preferenceData?.preferences ?? []),
+  });
   const directories = useDirectories({
     connection: selected.connection,
     scope: selected.scope,
     paths: requested,
   });
-  const data = directories.results.flatMap((result) =>
-    Option.toArray(AsyncResult.value(result)),
+  const data = [...directories.results, ...pinDirectories.results].flatMap(
+    (result) => Option.toArray(AsyncResult.value(result)),
   );
   {
     const confirmed = directories.results.flatMap((result) =>
@@ -141,30 +146,35 @@ function FilesNavigationView({
       );
     }
   }
-  const failure = directories.results.find(AsyncResult.isFailure);
+  const failure = [...directories.results, ...pinDirectories.results].find(
+    AsyncResult.isFailure,
+  );
   const loading = directoryLoading(
     Array.zip(requested, directories.results).map(([path, result]) => ({
       path,
       result,
     })),
   );
-  const pending = directories.results.some(
+  const pending = [...directories.results, ...pinDirectories.results].some(
     (result) => AsyncResult.isInitial(result) || result.waiting,
   );
+  const readingPins =
+    directories.results.some(
+      (result, index) =>
+        requested[index] === '' && AsyncResult.isInitial(result),
+    ) || pinDirectories.results.some(AsyncResult.isInitial);
   const refreshing = refreshRequested && pending;
   if (refreshRequested && !pending) setRefreshRequested(false);
   const refresh = () => {
     setRefreshRequested(true);
     directories.refresh();
+    pinDirectories.refresh();
   };
   const paths = useFilePaths(selected.connection, selected.scope);
   const pathData = Option.getOrUndefined(AsyncResult.value(paths.result));
   const searching = Boolean(query.trim());
   const open = (path: string) => onOpen(path, selected.key);
   const nodes = mergeFileTreeEntries(data);
-  const preferenceData = Option.getOrUndefined(
-    AsyncResult.value(preferences.read.result),
-  );
   const preferenceEntries = filePreferenceEntries({
     entries: nodes,
     paths: pathData?.paths ?? [],
@@ -180,6 +190,17 @@ function FilesNavigationView({
     !preferenceData ||
     preferences.read.result.waiting ||
     preferences.write.result.waiting;
+  const toggleFolder = (path: string) => {
+    setExpanded((current) => {
+      const next = new Set([...current, ...fileTreeAncestors(path)]);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+    setRequested((current) => [
+      ...new Set([...current, ...fileTreeAncestors(path), path]),
+    ]);
+  };
   const menuFor = (node: FileTreeEntry) => {
     const { path, pin, hide, actions } = filePreferenceActions(
       node,
@@ -363,43 +384,39 @@ function FilesNavigationView({
           }}
         />
       ) : null}
-      {!searching && preferenceEntries.pinnedPaths.length > 0 ? (
+      {!searching && preferenceEntries.pinnedEntries.length > 0 ? (
         <Box gap={1}>
           <GroupHeader
             label="Pinned"
-            count={preferenceEntries.pinnedPaths.length}
+            count={preferenceEntries.pinnedEntries.length}
             expanded={pinnedOpen}
             onPress={() => setPinnedOpen((current) => !current)}
           />
-          {pinnedOpen
-            ? preferenceEntries.pinnedPaths.map((path) => {
-                const status = review.changes.files.get(path);
-                const mark = status ? changeStatusMarks[status] : undefined;
-                const parent = fileTreeAncestors(path).at(-1);
-                return (
-                  <ItemMenu
-                    key={path}
-                    title={entryName(path)}
-                    titleNumberOfLines={1}
-                    {...(parent ? { detail: parent } : {})}
-                    leading={<FileIcon kind="file" />}
-                    trailing={
-                      mark ? <ChangeMark letter={mark.letter} /> : undefined
-                    }
-                    size="sm"
-                    selected={path === activePath}
-                    accessibilityLabel={[
-                      `Open pinned file ${path}`,
-                      mark?.label,
-                      review.labels.get(path),
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
-                    onPress={() => open(path)}
-                    actions={menuFor({ path, kind: 'file' })}
-                  />
-                );
-              })
+          {pinnedOpen && readingPins ? (
+            <Loading label="Reading pinned paths…" />
+          ) : null}
+          {pinnedOpen && !readingPins
+            ? pinnedFileTreeRows(
+                preferenceEntries.pinnedEntries,
+                preferenceEntries.nodes,
+                expanded,
+              ).map(({ entry, depth, pin, key }) => (
+                <FileTreeItem
+                  key={key}
+                  node={entry}
+                  depth={depth}
+                  expanded={expanded}
+                  selected={activePath}
+                  loading={loading.folders}
+                  onToggle={toggleFolder}
+                  onSelect={open}
+                  contextMenu={menuFor}
+                  showParent={pin}
+                  pinned={pin}
+                  annotations={review.labels}
+                  changes={review.changes}
+                />
+              ))
             : null}
         </Box>
       ) : null}
@@ -459,17 +476,7 @@ function FilesNavigationView({
         expanded={expanded}
         {...(activePath ? { selected: activePath } : {})}
         loading={loading.folders}
-        onToggle={(id) => {
-          setExpanded((current) => {
-            const next = new Set(current);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-          });
-          setRequested((current) =>
-            current.includes(id) ? current : [...current, id],
-          );
-        }}
+        onToggle={toggleFolder}
         onSelect={(path) => {
           if (
             searching ||

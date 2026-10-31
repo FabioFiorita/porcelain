@@ -11,6 +11,7 @@ export function HistoryScreen() {
           key={current.key}
           selection={current}
           workspace={current.key}
+          project={current.project.name}
           onOpen={(oid, workspace) =>
             router.push({
               pathname: '/history/commit/[oid]',
