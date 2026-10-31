@@ -31,7 +31,7 @@ revision and decision query as the public `/open/reviews/[reviewId]` entry.
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document) to reach lower review sections and return to the top. On iPad run `orientation landscape-left` first, then `orientation portrait`, refreshing bounds and refs each time.
 
 Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
 
