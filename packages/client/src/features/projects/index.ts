@@ -29,4 +29,15 @@ export { openProject } from './commands/open-project.ts';
 export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';
 
 export { readWorktreeNavigator } from './queries/worktree-navigator.ts';
+export { readWorktreeBranchSwitch } from './queries/worktree-actions.ts';
 export { refreshWorktreeNavigator } from './commands/worktree-navigator.ts';
+
+export {
+  deleteWorktree,
+  switchWorktreeBranch,
+  recoverWorktreeBranchSwitch,
+} from './commands/worktree-actions.ts';
+export type {
+  WorktreeCleanupPlan,
+  WorktreeCleanupRequest,
+} from '@porcelain/contracts/projects';

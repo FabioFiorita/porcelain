@@ -1,3 +1,5 @@
+import { Schema } from 'effect';
+import { readReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -144,7 +146,17 @@ export async function archiveFixture(
       },
     },
   });
+  const reviewId = text(record(toolValue(result.body)).reviewId);
   return {
+    readReview: async () =>
+      Schema.decodeUnknownSync(readReviewResponseSchema)(
+        (
+          await session.read({
+            method: 'GET',
+            path: `/api/reviews/${reviewId}`,
+          })
+        ).body,
+      ).review,
     pullRequestUnavailable,
     lock: () => git('worktree', 'lock', tree),
     unlock: () => git('worktree', 'unlock', tree),
@@ -160,6 +172,6 @@ export async function archiveFixture(
     tree,
     remote,
     main,
-    reviewId: text(record(toolValue(result.body)).reviewId),
+    reviewId,
   };
 }

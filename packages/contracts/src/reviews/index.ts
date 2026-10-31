@@ -69,6 +69,7 @@ export { ReviewToolkit } from './review-toolkit.ts';
 
 export {
   listProjectReviewsResponseSchema,
+  readReviewResponseSchema,
   type ReadReviewResponse,
 } from './review.ts';
 
@@ -122,3 +123,5 @@ export type {
 } from './pull-requests.ts';
 
 export { ReviewPullRequestRefusedError } from '@porcelain/reviews/errors';
+
+export { type ReadPullChecksResponse } from './pull-requests.ts';

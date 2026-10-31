@@ -5,6 +5,7 @@ import {
   githubAccountResultSchema,
   pullRequestSchema,
   pullRequestSummarySchema,
+  pullChecksResultSchema,
 } from '@porcelain/reviews/models';
 export const readPullRequestResponseSchema = Schema.Union([
   Schema.Struct({
@@ -67,3 +68,14 @@ export type SetReviewPullRequestRequest =
   typeof setReviewPullRequestRequestSchema.Type;
 export type SetReviewPullRequestResponse =
   typeof setReviewPullRequestResponseSchema.Type;
+
+export const readPullChecksResponseSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('available'),
+    number: Schema.Int,
+    checks: pullChecksResultSchema,
+  }),
+  Schema.Struct({ kind: Schema.Literal('not-linked') }),
+  githubUnavailableSchema,
+]);
+export type ReadPullChecksResponse = typeof readPullChecksResponseSchema.Type;

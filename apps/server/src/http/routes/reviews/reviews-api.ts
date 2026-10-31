@@ -3,6 +3,7 @@ import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-re
 import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
 import type { ReadProjectGitHubAccountUseCase } from '../../../use-cases/reviews/read-project-github-account.ts';
 import type { SetReviewPullRequestUseCase } from '../../../use-cases/reviews/set-review-pull-request.ts';
+import type { ReadReviewPullChecksUseCase } from '../../../use-cases/reviews/read-review-pull-checks.ts';
 import type { ReadReviewPullRequestUseCase } from '../../../use-cases/reviews/read-review-pull-request.ts';
 import type { ListProjectPullRequestsUseCase } from '../../../use-cases/reviews/list-project-pull-requests.ts';
 import { type RemoveReviewMarkUseCase } from '../../../use-cases/reviews/remove-review-mark.ts';
@@ -42,6 +43,9 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  readReviewPullChecks: Context.Service.Shape<
+    typeof ReadReviewPullChecksUseCase
+  >;
   archiveReview: Context.Service.Shape<typeof ArchiveReviewUseCase>;
   compareReview: Pick<
     Context.Service.Shape<typeof CompareReviewUseCase>,
@@ -157,6 +161,9 @@ export function reviewsRoutes(
       )
       .handle('setReviewPullRequest', ({ params, payload }) =>
         useCases.setReviewPullRequest.execute({ ...params, ...payload }),
+      )
+      .handle('readReviewPullChecks', ({ params }) =>
+        useCases.readReviewPullChecks.execute(params),
       )
       .handle('readReviewPullRequest', ({ params }) =>
         useCases.readReviewPullRequest.execute(params),

@@ -1,3 +1,4 @@
+import type { DeleteWorktreeUseCase } from '../../../use-cases/projects/delete-worktree.ts';
 import { requestBody } from '../../hooks/request-body.ts';
 import { handlerAudit } from '../../diagnostics.ts';
 import { ProjectsApi } from '@porcelain/contracts/projects';
@@ -14,6 +15,7 @@ import { type RenameProjectUseCase } from '../../../use-cases/projects/rename-pr
 import { type SetFilePreferenceUseCase } from '../../../use-cases/projects/set-file-preference.ts';
 
 type ProjectsUseCases = {
+  deleteWorktree: Context.Service.Shape<typeof DeleteWorktreeUseCase>;
   browseProjectFolders: Context.Service.Shape<
     typeof BrowseProjectFoldersUseCase
   >;
@@ -29,6 +31,9 @@ type ProjectsUseCases = {
 export function projectsRoutes(useCases: ProjectsUseCases) {
   const handlers = HttpApiBuilder.group(ProjectsApi, 'projects', (handlers) =>
     handlers
+      .handle('deleteWorktree', ({ params, payload }) =>
+        useCases.deleteWorktree.execute({ ...params, ...payload }),
+      )
       .handle('browseProjectFolders', ({ query }) =>
         useCases.browseProjectFolders.execute(query),
       )

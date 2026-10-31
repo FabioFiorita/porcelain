@@ -1,3 +1,4 @@
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('Spec files creates a separate collapsed section only while the setting is on', async ({
@@ -58,9 +59,7 @@ test('Spec files creates a separate collapsed section only while the setting is 
   await expect
     .poll(() => server.reviewGitSettings())
     .toMatchObject({ kind: 'configured', settings: { collapseSpecs: true } });
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await expect(

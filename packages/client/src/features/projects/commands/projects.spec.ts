@@ -1,4 +1,5 @@
-import { afterEach, expect, it } from 'vitest';
+import { ownFileDraftLifetime } from '../../../../spec/kit/file-draft-lifetime.ts';
+import { expect, it } from 'vitest';
 import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
@@ -6,7 +7,6 @@ import { FileDrafts } from '@porcelain/client/files';
 import { ContentChangedError } from '@porcelain/files/errors';
 import {
   createWorktreeConnection,
-  type RuntimeConnection,
   type Transport,
 } from '@porcelain/client/transport';
 import { InventorySeed, readInventory } from '@porcelain/client/projects';
@@ -21,19 +21,6 @@ const initial: ReadInventoryResponse = {
     { id: projectId, name: 'Project', available: true, worktrees: [] },
   ],
 };
-const owned = new Set<{
-  connection: RuntimeConnection;
-  registry: AtomRegistry.AtomRegistry;
-  application: ManagedRuntime.ManagedRuntime<FileDrafts, never>;
-}>();
-afterEach(async () => {
-  for (const { connection, registry, application } of owned) {
-    registry.dispose();
-    await connection.close();
-    await application.dispose();
-  }
-  owned.clear();
-});
 function fixture(steps: string[], transport?: Transport) {
   let deleted = false;
   const application = ManagedRuntime.make(FileDrafts.layer);
@@ -64,7 +51,7 @@ function fixture(steps: string[], transport?: Transport) {
     Layer.succeed(InventorySeed, Option.some(initial)),
   );
   const registry = AtomRegistry.make();
-  owned.add({ connection, registry, application });
+  ownFileDraftLifetime({ connection, registry, application });
   const atom = removeProject(connection);
   return {
     connection,

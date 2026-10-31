@@ -1,3 +1,6 @@
+import { DeleteWorktreeService } from '@porcelain/git-actions/services';
+import { gitWorktreeCleanerLayer } from '../adapters/projects/git-worktree-cleaner.ts';
+import { DeleteWorktreeUseCase } from '../use-cases/projects/delete-worktree.ts';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
   ReadEnvironmentService,
@@ -103,6 +106,7 @@ export function composeProjects(
   const { catalog, readWorktreeStatuses } = shared;
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
+    gitWorktreeCleanerLayer(settings.limits.git),
     gitWorktreeListingReaderLayer({
       git: settings.limits.git,
       launches: settings.limits.inventory.listingLaunches,
@@ -138,6 +142,7 @@ export function composeProjects(
   );
   const services = Layer.mergeAll(
     ListProjectWorktreesService.layer,
+    DeleteWorktreeService.layer,
     UpdateProjectAvailabilityService.layer,
     CheckProjectService.layer,
     RecordWorktreePresenceService.layer,
@@ -182,9 +187,10 @@ export function composeProjects(
   const layer6 = Layer.mergeAll(WorktreeAccess.layer).pipe(
     Layer.provideMerge(layer5),
   );
-  const layer7 = Layer.mergeAll(ReadInventoryBadgesUseCase.layer).pipe(
-    Layer.provideMerge(layer6),
-  );
+  const layer7 = Layer.mergeAll(
+    ReadInventoryBadgesUseCase.layer,
+    DeleteWorktreeUseCase.layer,
+  ).pipe(Layer.provideMerge(layer6));
   const layer8 = Layer.mergeAll(
     Layer.effect(ReadInventoryBadgesUseCasePort, ReadInventoryBadgesUseCase),
   ).pipe(Layer.provideMerge(layer7));
@@ -209,6 +215,7 @@ export function composeProjects(
         registerProject: yield* RegisterProjectUseCase,
         renameProject: yield* RenameProjectUseCase,
         removeProject: yield* RemoveProjectUseCase,
+        deleteWorktree: yield* DeleteWorktreeUseCase,
         browseProjectFolders: yield* BrowseProjectFoldersUseCase,
         listFilePreferences: yield* ListFilePreferencesUseCase,
         setFilePreference: yield* SetFilePreferenceUseCase,

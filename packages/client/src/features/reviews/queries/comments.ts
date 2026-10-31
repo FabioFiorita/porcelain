@@ -3,7 +3,10 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { worktreeResource } from '../../../shared/api/worktree-read.ts';
+import {
+  retainRead,
+  worktreeResource,
+} from '../../../shared/api/worktree-read.ts';
 import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
 
 export const readCommentThreads = Atom.family(
@@ -13,5 +16,5 @@ export const readCommentThreads = Atom.family(
       'comments',
       CommentThreadsState,
       commentsRuntime(input),
-    ),
+    ).pipe(retainRead),
 );

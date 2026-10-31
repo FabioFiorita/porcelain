@@ -1,3 +1,4 @@
+import { closeSettings } from './settings.ts';
 import { expect, test } from '../e2e/fixtures.ts';
 
 export function routingPromises() {
@@ -7,6 +8,7 @@ export function routingPromises() {
     server,
   }) => {
     const project = await server.project();
+    const computer = (await server.inventory()).environment.name;
     const workspace = app.address().path;
     for (const path of [
       '/nonexistent-route',
@@ -26,11 +28,17 @@ export function routingPromises() {
         name: 'Projects and worktrees',
         exact: true,
       });
-      await pairedPage
-        .getByRole('button', { name: 'Manage projects', exact: true })
+      await navigator
+        .getByRole('button', {
+          name: `Project actions: ${project.name} · ${computer}`,
+          exact: true,
+        })
         .click();
       await expect(
-        pairedPage.getByRole('menuitem', { name: project.name, exact: true }),
+        pairedPage.getByRole('menuitem', {
+          name: 'Rename project',
+          exact: true,
+        }),
       ).toBeVisible();
       await pairedPage.keyboard.press('Escape');
       await expect(pairedPage.getByRole('menu')).toHaveCount(0);
@@ -96,9 +104,7 @@ export function routingPromises() {
       await expect(
         pairedPage.getByRole('main', { name: 'Settings', exact: true }),
       ).toBeVisible();
-      await pairedPage
-        .getByRole('button', { name: 'Close Settings', exact: true })
-        .click();
+      await closeSettings(pairedPage);
       await expect(
         pairedPage.getByText('Page not found', { exact: true }),
       ).toBeVisible();

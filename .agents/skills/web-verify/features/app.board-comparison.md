@@ -93,7 +93,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[aria-label^=\"Computer:\"] [data-slot=\"badge\"]",
+          "selector": "[data-slot=\"badge\"][aria-label^=\"Computer:\"]",
           "index": 0
         },
         "properties": [
@@ -111,7 +111,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-slot=\"sidebar-menu-button\"] [data-truncated]",
+          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:first-child > span:first-child",
           "index": 0
         },
         "properties": [
@@ -129,7 +129,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:last-child > span:first-child",
+          "selector": "[data-navigator-card] [role=\"img\"][aria-label^=\"Local uncommitted changes:\"]",
           "index": 0
         },
         "properties": [
@@ -147,7 +147,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:last-child > span:last-child",
+          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:last-child > span:first-child",
           "index": 0
         },
         "properties": [
@@ -179,7 +179,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     ],
     "reveal": [
       {
-        "target": ".review-navigator [data-slot=\"sidebar-menu-button\"]:visible",
+        "target": ".review-navigator [data-sidebar=\"menu-button\"]:visible",
         "trigger": "[aria-label=\"Toggle Sidebar\"]:visible"
       }
     ]

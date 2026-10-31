@@ -64,13 +64,5 @@ export async function projectFixture(main: string) {
         headers: kitHeaders,
       });
     },
-    refreshes: async () =>
-      (await server.hits()).filter(
-        (hit) =>
-          !hit.kit &&
-          hit.method === 'POST' &&
-          hit.route === '/api/inventory/refresh' &&
-          hit.status === 200,
-      ).length,
   };
 }

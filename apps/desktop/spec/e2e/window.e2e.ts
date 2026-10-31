@@ -518,7 +518,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
       app.electron.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
     )
     .toBe('dark');
-  await settings
+  await page
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();
   await expect(settings).toBeHidden();

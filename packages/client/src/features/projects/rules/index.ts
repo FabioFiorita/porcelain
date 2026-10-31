@@ -28,11 +28,25 @@ export {
 
 export {
   emptyNavigatorFilter,
-  navigatorReviewLabel,
-  navigatorChangesLabel,
+  navigatorCardReviewLabel,
+  navigatorCardChangesLabel,
+  navigatorChecksLabel,
+  navigatorDiffSummary,
   navigatorEntryLabel,
   navigatorEntrySelected,
   type NavigatorFilter,
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
+
+export {
+  archiveSettings,
+  archiveOptions,
+  archiveDescription,
+  archiveFailureMessage,
+  worktreeCleanupOptions,
+  worktreeCleanupFields,
+  worktreeBranchChoices,
+  worktreeCleanupDescription,
+  worktreeCleanupFailureMessage,
+} from './worktree-actions.ts';

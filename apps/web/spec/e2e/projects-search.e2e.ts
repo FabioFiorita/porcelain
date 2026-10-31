@@ -1,3 +1,4 @@
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
@@ -27,21 +28,19 @@ for (const width of [1440, 414]) {
         name: 'Projects and worktrees',
         exact: true,
       });
-      const computer = sidebar.getByRole('button', {
+      const computer = sidebar.getByRole('img', {
         name: `Computer: ${environment.name}`,
         exact: true,
       });
       await expect(computer).toBeVisible();
-      await computer.focus();
-      await computer.press('Enter');
-      await expect(
-        page.getByText(`Environment ${inventory.environmentId}`, {
-          exact: true,
-        }),
-      ).toBeVisible();
-      await page.keyboard.press('Escape');
+      await expect(computer).toHaveAccessibleName(
+        `Computer: ${environment.name}`,
+      );
+      await expect(computer).not.toHaveAttribute('tabindex');
       const cards = sidebar.getByRole('listitem');
-      await expect(cards.first()).toContainText('Main worktree');
+      await expect(
+        cards.first().getByRole('button', { name: /Main worktree/ }),
+      ).toHaveAccessibleName(/Main worktree/);
       for (const folder of ['detached-531', 'detached-532']) {
         const target = project.worktrees.find((row) =>
           row.path.endsWith(`/${folder}`),
@@ -51,7 +50,16 @@ for (const width of [1440, 414]) {
           name: new RegExp(`${folder}.*Detached HEAD`),
         });
         await expect(row).toBeVisible();
-        await expect(row.getByText(folder, { exact: true })).toBeVisible();
+        await expect(
+          sidebar
+            .getByRole('listitem')
+            .filter({
+              has: page.getByRole('button', {
+                name: new RegExp(`${folder}.*Detached HEAD`),
+              }),
+            })
+            .getByText(folder, { exact: true }),
+        ).toBeVisible();
         await row.click();
         await expect
           .poll(() => app.address().path)
@@ -62,12 +70,6 @@ for (const width of [1440, 414]) {
             .click();
         await expect(row).toHaveAttribute('aria-current', 'page');
       }
-      await sidebar
-        .getByRole('button', {
-          name: 'Search reviews and worktrees',
-          exact: true,
-        })
-        .click();
       const search = sidebar.getByRole('searchbox', {
         name: 'Search reviews and worktrees',
         exact: true,
@@ -103,16 +105,17 @@ test('search reveals a collapsed project without replacing its session choice an
     exact: true,
   });
   const projectToggle = sidebar.getByRole('button', {
-    name: `${project.name} · ${computer}`,
+    name: `Collapse ${project.name} · ${computer}`,
     exact: true,
   });
   const topic = sidebar.getByRole('button', { name: /^collapsed-topic,/ });
   await projectToggle.click();
-  await expect(projectToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedProject = sidebar.getByRole('button', {
+    name: `Expand ${project.name} · ${computer}`,
+    exact: true,
+  });
+  await expect(collapsedProject).toHaveAttribute('aria-expanded', 'false');
   await expect(topic).not.toBeVisible();
-  await sidebar
-    .getByRole('button', { name: 'Search reviews and worktrees', exact: true })
-    .click();
   const search = sidebar.getByRole('searchbox', {
     name: 'Search reviews and worktrees',
     exact: true,
@@ -120,16 +123,14 @@ test('search reveals a collapsed project without replacing its session choice an
   await search.fill('collapsed-topic');
   await expect(topic).toBeVisible();
   await search.fill('');
-  await expect(projectToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(collapsedProject).toHaveAttribute('aria-expanded', 'false');
   await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await expect(projectToggle).toHaveAttribute('aria-expanded', 'false');
-  await projectToggle.press('Enter');
+  await closeSettings(page);
+  await expect(collapsedProject).toHaveAttribute('aria-expanded', 'false');
+  await collapsedProject.press('Enter');
   await expect(topic).toBeVisible();
   await sidebar
     .getByRole('button', { name: 'Filter worktrees', exact: true })
@@ -181,9 +182,6 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   ).toBeVisible();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('button', { name: 'Search reviews and worktrees', exact: true })
     .click();
   const search = pairedPage.getByRole('searchbox', {
     name: 'Search reviews and worktrees',

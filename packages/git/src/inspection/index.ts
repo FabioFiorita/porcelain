@@ -25,3 +25,5 @@ export { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
 export { readBlobAtOid } from './commands/read-blob-at-oid.ts';
 
 export { pinReviewRevision } from './commands/pin-review-revision.ts';
+
+export { readWorktreeSummary } from './commands/read-worktree-summary.ts';

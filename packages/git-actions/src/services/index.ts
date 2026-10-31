@@ -12,3 +12,5 @@ export { RecordGitActionProgressService } from './record-git-action-progress-ser
 export { RunGitActionService } from './run-git-action-service.ts';
 export { BeginGitActionService } from './begin-git-action-service.ts';
 export { ReadQueuedGitActionService } from './read-queued-git-action-service.ts';
+
+export { DeleteWorktreeService } from './delete-worktree-service.ts';

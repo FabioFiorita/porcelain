@@ -41,7 +41,7 @@ Required instance mode: `--desktop`.
 `HOST=$(hostname)`: the server reads the machine's own host name (the sandbox does not change it). That is the name shown until one is saved. The project is named `repository`.
 
 1. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" with application header "Porcelain" and visible project badge button `Computer: $HOST`.
+   Expect: navigation "Projects and worktrees" with application header "Porcelain" and visible static project badge with role img `Computer: $HOST`.
 2. Click button `Settings`
    Expect: URL ends `/settings/general`; title "Settings".
 3. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
@@ -59,7 +59,7 @@ Required instance mode: `--desktop`.
 8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project badge to `Computer: Workstation`; the old `Computer: $HOST` badge is absent. Press the badge to reveal its full name and environment identity.
+   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project badge to `Computer: Workstation`; the old `Computer: $HOST` badge is absent. Its full computer name stays in its accessible label; the static badge is not a control.
 10. Click button `Settings`
     Expect: URL ends `/settings/general`; title "Settings · Workstation".
 11. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`

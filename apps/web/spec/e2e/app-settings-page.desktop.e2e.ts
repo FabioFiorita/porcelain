@@ -1,4 +1,4 @@
-import { openThisComputer } from '../kit/settings.ts';
+import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('Settings opens as its own page with one section at a time, and Close returns to the review', async ({
@@ -39,9 +39,7 @@ test('Settings opens as its own page with one section at a time, and Close retur
     settings.getByText('Diff layout', { exact: true }),
   ).not.toBeAttached();
 
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
   await expect(settings).not.toBeAttached();
   await expect(review).toBeVisible();
 });
@@ -87,14 +85,15 @@ test('Settings still opens once the last project is removed', async ({
   server,
 }) => {
   const project = await server.project();
+  const computer = (await server.inventory()).environment.name;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: project.name, exact: true })
+    .getByRole('button', {
+      name: `Project actions: ${project.name} · ${computer}`,
+      exact: true,
+    })
     .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
@@ -120,15 +119,13 @@ test('Settings still opens once the last project is removed', async ({
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
   await expect(
     pairedPage.getByText('Worktree not found', { exact: true }),
   ).toBeVisible();
 });
 
-test('Settings keeps worktrees beside its own section navigation and top bar controls', async ({
+test('Settings keeps worktrees beside its section navigation and owns Close in the navigator footer', async ({
   pairedPage,
 }) => {
   await pairedPage.setViewportSize({ width: 1440, height: 960 });
@@ -153,6 +150,9 @@ test('Settings keeps worktrees beside its own section navigation and top bar con
   ).toBeVisible();
   await expect(
     settings.getByRole('button', { name: 'Close Settings', exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    worktrees.getByRole('button', { name: 'Close Settings', exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () => {
@@ -166,7 +166,13 @@ test('Settings keeps worktrees beside its own section navigation and top bar con
     .click();
   await expect(worktrees).not.toBeVisible();
   await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  const close = worktrees.getByRole('button', {
+    name: 'Close Settings',
+    exact: true,
+  });
+  await close.focus();
+  await close.press('Escape');
   await expect(settings).not.toBeAttached();
 });

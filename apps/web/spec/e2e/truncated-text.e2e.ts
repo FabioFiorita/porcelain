@@ -133,25 +133,44 @@ for (const width of [1440, 414]) {
       await page
         .getByRole('button', { name: 'Toggle Sidebar', exact: true })
         .click();
-    const row = page
-      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
-      .getByRole('button', { name: new RegExp(branch) });
+    const project = await server.project();
+    const target = project.worktrees.find(
+      (worktree) => worktree.branch === branch,
+    );
+    if (!target) throw new Error('Missing long-name worktree');
+    const sidebar = page.getByRole('navigation', {
+      name: 'Projects and worktrees',
+      exact: true,
+    });
+    const row = sidebar.getByRole('button', {
+      name: new RegExp(`^${branch},`),
+    });
+    const card = sidebar.getByRole('listitem').filter({
+      has: page.getByRole('button', { name: new RegExp(`^${branch},`) }),
+    });
+    const label = card.getByText(branch, { exact: true });
+    await expect(label).toBeVisible();
+    await expect(label).not.toHaveAttribute('tabindex');
+    await expect
+      .poll(() =>
+        label.evaluate((element) => element.scrollWidth > element.clientWidth),
+      )
+      .toBe(true);
     await row.focus();
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
     await expect(row).toBeFocused();
-    const tooltip = page.getByRole('tooltip', { name: new RegExp(branch) });
+    const tooltip = page.getByRole('tooltip', {
+      name: `${branch} · ${target.path}`,
+      exact: true,
+    });
     await expect(tooltip).toBeVisible();
     await row.press('Escape');
     await expect(tooltip).not.toBeVisible();
     await expect(row).toBeFocused();
     await row.press('Enter');
-    const project = await server.project();
-    const target = project.worktrees.find(
-      (worktree) => worktree.branch === branch,
-    );
     await expect
       .poll(() => app.address().path)
-      .toBe(`/${project.id}/${target?.id ?? ''}`);
+      .toBe(`/${project.id}/${target.id}`);
   });
 }

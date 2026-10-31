@@ -19,12 +19,6 @@ for (const width of [1440, 414]) {
         await pairedPage
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
-      await pairedPage
-        .getByRole('button', {
-          name: 'Search reviews and worktrees',
-          exact: true,
-        })
-        .click();
       const search = pairedPage.getByRole('searchbox', {
         name: 'Search reviews and worktrees',
         exact: true,
@@ -83,7 +77,7 @@ for (const width of [1440, 414]) {
   }
 }
 
-test('The card context menu keeps Archive, ignores dependencies, and explains worktree removal failures without a stale checking state', async ({
+test('the PR document keeps Archive, ignores dependencies, and explains worktree removal failures without a stale checking state', async ({
   pairedPage,
   server,
   app,
@@ -100,25 +94,11 @@ test('The card context menu keeps Archive, ignores dependencies, and explains wo
   await expect(
     pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
   ).toBeVisible();
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('button', { name: 'Filter worktrees', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitemcheckbox', { name: 'Show older reviews', exact: true })
-    .click();
-  await pairedPage.keyboard.press('Escape');
-  const row = pairedPage.getByRole('listitem').filter({
-    has: pairedPage.getByRole('link', { name: /^archive-fixture,/ }),
+  const archive = pairedPage.getByRole('button', {
+    name: 'Archive',
+    exact: true,
   });
-  await row
-    .getByRole('link', { name: /^archive-fixture,/ })
-    .click({ button: 'right' });
-  await pairedPage
-    .getByRole('menuitem', { name: 'Archive', exact: true })
-    .click();
+  await archive.click();
   const dialog = pairedPage.getByRole('alertdialog', {
     name: 'Archive review?',
     exact: true,
@@ -134,12 +114,7 @@ test('The card context menu keeps Archive, ignores dependencies, and explains wo
   await expect
     .poll(() => fixture.ignoredFile())
     .toBe('LOCAL_ONLY=archive-fixture\n');
-  await row
-    .getByRole('link', { name: /^archive-fixture,/ })
-    .click({ button: 'right' });
-  await pairedPage
-    .getByRole('menuitem', { name: 'Archive', exact: true })
-    .click();
+  await archive.click();
   await expect(
     dialog.getByRole('button', { name: 'Archive review', exact: true }),
   ).toBeEnabled();
@@ -157,17 +132,15 @@ test('The card context menu keeps Archive, ignores dependencies, and explains wo
     .poll(() => fixture.remoteBranch())
     .toContain('refs/heads/archive-fixture');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await pairedPage
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
   fixture.unlock();
   fixture.dirty();
-  await row
-    .getByRole('link', { name: /^archive-fixture,/ })
-    .click({ button: 'right' });
   await pairedPage
-    .getByRole('menuitem', { name: 'Archive', exact: true })
+    .getByRole('button', { name: /^Open pull request #423:/ })
     .click();
+  await expect(
+    pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
+  ).toBeVisible();
+  await archive.click();
   await expect(dialog).toContainText('uncommitted changes');
   await expect(
     dialog.getByRole('button', { name: 'Archive review', exact: true }),
@@ -185,6 +158,13 @@ test('The card context menu keeps Archive, ignores dependencies, and explains wo
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await pairedPage
+    .getByRole('button', { name: 'Filter worktrees', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitemcheckbox', { name: 'Show older reviews', exact: true })
+    .click();
+  await pairedPage.keyboard.press('Escape');
   await expect(
     pairedPage.getByRole('link', { name: /archive-fixture.*Archived review/ }),
   ).toBeVisible();

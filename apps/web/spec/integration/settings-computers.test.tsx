@@ -52,6 +52,9 @@ test.for([414, 1080, 1440])(
         .toBeVisible();
       reviewLayout.focus(open);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+      await expect
+        .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
+        .not.toBeInTheDocument();
       await expect.element(open).toHaveFocus();
       await expect
         .element(app.page.getByRole('tooltip'))
@@ -117,6 +120,10 @@ test.for([414, 1080, 1440])(
           .element(app.page.getByRole('tooltip'))
           .toHaveTextContent(remoteName);
       }
+      if (width === 414)
+        await app.page
+          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+          .click();
       await app.page
         .getByRole('button', { name: 'Close Settings', exact: true })
         .click();

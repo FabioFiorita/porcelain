@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { archiveReview } from './archive-review.ts';
+import { cleanupWorktree } from './cleanup-worktree.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 let root: string;
 let main: string;
@@ -77,14 +77,14 @@ describe('review archive deletion settings', () => {
         ...input(),
         options: { deleteWorktree, deleteLocalBranch, deleteRemoteBranch },
       };
-      const plan = await run(archiveReview(request, gitLimits));
+      const plan = await run(cleanupWorktree(request, gitLimits));
       expect(plan.worktreePath).toBe(deleteWorktree ? tree : undefined);
       expect(plan.localBranch).toBe(deleteLocalBranch ? 'feature' : undefined);
       expect(plan.remoteBranch).toBe(
         deleteRemoteBranch ? 'origin/feature' : undefined,
       );
       await run(
-        archiveReview(
+        cleanupWorktree(
           { ...request, confirmation: { plan, discardChanges: false } },
           gitLimits,
         ),
@@ -126,7 +126,9 @@ describe.each([true, false])('push remote reachable=%s', (reachable) => {
       if (!reachable)
         git(main, 'remote', 'set-url', '--push', 'origin', unavailable);
       if (!reachable && cleanup) {
-        await expect(run(archiveReview(request, gitLimits))).rejects.toThrow();
+        await expect(
+          run(cleanupWorktree(request, gitLimits)),
+        ).rejects.toThrow();
         expect(existsSync(tree)).toBe(true);
         expect(git(main, 'rev-parse', 'feature')).toBe(
           git(tree, 'rev-parse', 'HEAD'),
@@ -134,13 +136,13 @@ describe.each([true, false])('push remote reachable=%s', (reachable) => {
         expect(git(remote, 'log', '-1', '--format=%s', 'feature')).toBe('Base');
         git(main, 'remote', 'set-url', '--push', 'origin', remote);
       }
-      const plan = await run(archiveReview(request, gitLimits));
+      const plan = await run(cleanupWorktree(request, gitLimits));
       expect(plan.unpushed).toBe(cleanup);
       expect(plan.dirty).toBe(deleteWorktree);
       if (cleanup) {
         await expect(
           run(
-            archiveReview(
+            cleanupWorktree(
               { ...request, confirmation: { plan, discardChanges: false } },
               gitLimits,
             ),
@@ -151,7 +153,7 @@ describe.each([true, false])('push remote reachable=%s', (reachable) => {
         git(main, 'remote', 'set-url', '--push', 'origin', unavailable);
       }
       await run(
-        archiveReview(
+        cleanupWorktree(
           { ...request, confirmation: { plan, discardChanges: cleanup } },
           gitLimits,
         ),
@@ -185,11 +187,11 @@ describe.each([true, false])('push remote reachable=%s', (reachable) => {
 });
 it('requires explicit confirmation before discarding dirty files', async () => {
   writeFileSync(join(tree, 'untracked.txt'), 'unsaved');
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   expect(plan.dirty).toBe(true);
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), confirmation: { plan, discardChanges: false } },
         gitLimits,
       ),
@@ -197,7 +199,7 @@ it('requires explicit confirmation before discarding dirty files', async () => {
   ).rejects.toThrow('Explicitly confirm');
   expect(existsSync(tree)).toBe(true);
   await run(
-    archiveReview(
+    cleanupWorktree(
       { ...input(), confirmation: { plan, discardChanges: true } },
       gitLimits,
     ),
@@ -207,11 +209,11 @@ it('requires explicit confirmation before discarding dirty files', async () => {
 it('warns about commits missing from the remote even with stale tracking refs', async () => {
   writeFileSync(join(tree, 'file.txt'), 'unpublished');
   git(tree, 'commit', '-qam', 'Unpushed');
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   expect(plan.unpushed).toBe(true);
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), confirmation: { plan, discardChanges: false } },
         gitLimits,
       ),
@@ -228,7 +230,7 @@ it.each(combinations)(
       branch: 'main',
       options: { deleteWorktree, deleteLocalBranch, deleteRemoteBranch },
     };
-    const plan = await run(archiveReview(request, gitLimits));
+    const plan = await run(cleanupWorktree(request, gitLimits));
     expect(plan).toMatchObject({
       mainCheckout: true,
       worktreePath: undefined,
@@ -236,7 +238,7 @@ it.each(combinations)(
       remoteBranch: undefined,
     });
     await run(
-      archiveReview(
+      cleanupWorktree(
         { ...request, confirmation: { plan, discardChanges: true } },
         gitLimits,
       ),
@@ -246,11 +248,11 @@ it.each(combinations)(
   },
 );
 it('refuses a stale deletion confirmation without deleting anything', async () => {
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   writeFileSync(join(tree, 'file.txt'), 'changed since dialog');
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), confirmation: { plan, discardChanges: true } },
         gitLimits,
       ),
@@ -264,11 +266,11 @@ it.each(['tracked', 'untracked'] as const)(
   async (kind) => {
     const file = join(tree, kind === 'tracked' ? 'file.txt' : 'new.txt');
     writeFileSync(file, 'first dirty content');
-    const plan = await run(archiveReview(input(), gitLimits));
+    const plan = await run(cleanupWorktree(input(), gitLimits));
     writeFileSync(file, 'new dirty content after confirmation');
     await expect(
       run(
-        archiveReview(
+        cleanupWorktree(
           { ...input(), confirmation: { plan, discardChanges: true } },
           gitLimits,
         ),
@@ -289,7 +291,7 @@ it('archives after the worktree and local branch have already been removed', asy
       deleteRemoteBranch: false,
     },
   };
-  const plan = await run(archiveReview(request, gitLimits));
+  const plan = await run(cleanupWorktree(request, gitLimits));
   expect(plan).toMatchObject({
     worktreePath: undefined,
     localBranch: undefined,
@@ -297,7 +299,7 @@ it('archives after the worktree and local branch have already been removed', asy
   });
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...request, confirmation: { plan, discardChanges: false } },
         gitLimits,
       ),
@@ -307,7 +309,7 @@ it('archives after the worktree and local branch have already been removed', asy
 it('refuses a project repository replaced at the same path', async () => {
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), repositoryIdentity: 'another-repository' },
         gitLimits,
       ),
@@ -326,10 +328,10 @@ it('ignores a large node_modules in fast previews and confirmation', async () =>
       join(modules, `${'dependency-'.repeat(7)}${i}.js`),
       'ignored',
     );
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   expect(plan.dirty).toBe(false);
   const keep = await run(
-    archiveReview(
+    cleanupWorktree(
       {
         ...input(),
         options: {
@@ -344,7 +346,7 @@ it('ignores a large node_modules in fast previews and confirmation', async () =>
   expect(keep.dirty).toBe(false);
   writeFileSync(join(modules, 'changed-after-preview.js'), 'ignored too');
   await run(
-    archiveReview(
+    cleanupWorktree(
       { ...input(), confirmation: { plan, discardChanges: false } },
       gitLimits,
     ),
@@ -355,14 +357,14 @@ it('uses the merged PR head when GitHub already deleted the remote branch', asyn
   const mergedHead = git(tree, 'rev-parse', 'HEAD');
   git(tree, 'push', 'origin', '--delete', 'feature');
   const request = { ...input(), mergedHead };
-  const plan = await run(archiveReview(request, gitLimits));
+  const plan = await run(cleanupWorktree(request, gitLimits));
   expect(plan).toMatchObject({
     unpushed: false,
     remoteBranch: undefined,
     remoteBranchNote: 'origin/feature: already deleted on remote.',
   });
   await run(
-    archiveReview(
+    cleanupWorktree(
       { ...request, confirmation: { plan, discardChanges: false } },
       gitLimits,
     ),
@@ -374,12 +376,14 @@ it('still warns for commits newer than the merged PR head after remote deletion'
   git(tree, 'push', 'origin', '--delete', 'feature');
   writeFileSync(join(tree, 'file.txt'), 'after merge');
   git(tree, 'commit', '-qam', 'After merge');
-  const plan = await run(archiveReview({ ...input(), mergedHead }, gitLimits));
+  const plan = await run(
+    cleanupWorktree({ ...input(), mergedHead }, gitLimits),
+  );
   expect(plan.unpushed).toBe(true);
 });
 it('skips remote deletion without an upstream and distinguishes published commits', async () => {
   git(tree, 'branch', '--unset-upstream');
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   expect(plan).toMatchObject({
     unpushed: false,
     remoteBranch: undefined,
@@ -387,7 +391,7 @@ it('skips remote deletion without an upstream and distinguishes published commit
       'Remote branch deletion skipped: this branch has no upstream.',
   });
   await run(
-    archiveReview(
+    cleanupWorktree(
       { ...input(), confirmation: { plan, discardChanges: false } },
       gitLimits,
     ),
@@ -399,15 +403,15 @@ it('warns about genuinely unpublished commits without an upstream', async () => 
   git(tree, 'branch', '--unset-upstream');
   writeFileSync(join(tree, 'file.txt'), 'not published');
   git(tree, 'commit', '-qam', 'Local only');
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   expect(plan.unpushed).toBe(true);
 });
 it('leaves both branches intact when removing a locked worktree fails', async () => {
   git(main, 'worktree', 'lock', tree);
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), confirmation: { plan, discardChanges: false } },
         gitLimits,
       ),
@@ -425,10 +429,10 @@ it('reports completed local cleanup when the remote rejects deletion and can ret
   writeFileSync(join(remote, 'hooks/pre-receive'), '#!/bin/sh\nexit 1\n', {
     mode: 0o755,
   });
-  const plan = await run(archiveReview(input(), gitLimits));
+  const plan = await run(cleanupWorktree(input(), gitLimits));
   await expect(
     run(
-      archiveReview(
+      cleanupWorktree(
         { ...input(), confirmation: { plan, discardChanges: false } },
         gitLimits,
       ),
@@ -444,10 +448,10 @@ it('reports completed local cleanup when the remote rejects deletion and can ret
     git(remote, 'show-ref', '--verify', 'refs/heads/feature'),
   ).toBeTruthy();
   rmSync(join(remote, 'hooks/pre-receive'));
-  const remaining = await run(archiveReview(input(), gitLimits));
+  const remaining = await run(cleanupWorktree(input(), gitLimits));
   expect(remaining.remoteBranch).toBe('origin/feature');
   await run(
-    archiveReview(
+    cleanupWorktree(
       { ...input(), confirmation: { plan: remaining, discardChanges: false } },
       gitLimits,
     ),
@@ -456,3 +460,151 @@ it('reports completed local cleanup when the remote rejects deletion and can ret
     git(remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/feature'),
   ).toBe('');
 });
+it.each([
+  [false, true, false],
+  [false, false, true],
+  [false, true, true],
+  [true, true, false],
+  [true, false, true],
+  [true, true, true],
+])(
+  'protects the actual remote default after main switches away: unset-upstream=%s local=%s remote=%s',
+  async (unsetUpstream, deleteLocalBranch, deleteRemoteBranch) => {
+    git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+    git(main, 'switch', '-c', 'other-main');
+    git(tree, 'switch', 'main');
+    if (unsetUpstream) git(tree, 'branch', '--unset-upstream', 'main');
+    await expect(
+      run(
+        cleanupWorktree(
+          {
+            ...input(),
+            branch: 'main',
+            options: {
+              deleteWorktree: true,
+              deleteLocalBranch,
+              deleteRemoteBranch,
+            },
+          },
+          gitLimits,
+        ),
+      ),
+    ).rejects.toThrow('The remote default branch is protected');
+    expect(existsSync(tree)).toBe(true);
+    const request = {
+      ...input(),
+      branch: 'main',
+      options: {
+        deleteWorktree: true,
+        deleteLocalBranch: false,
+        deleteRemoteBranch: false,
+      },
+    };
+    const plan = await run(cleanupWorktree(request, gitLimits));
+    expect(plan).toMatchObject({ worktreePath: tree, unpushed: false });
+    await run(
+      cleanupWorktree(
+        { ...request, confirmation: { plan, discardChanges: false } },
+        gitLimits,
+      ),
+    );
+    expect(existsSync(tree)).toBe(false);
+    expect(git(main, 'rev-parse', 'main')).toBe(
+      git(remote, 'rev-parse', 'main'),
+    );
+  },
+);
+it('cleans a detached worktree without pretending to delete its previous branch', async () => {
+  git(tree, 'switch', '--detach', '-q');
+  const request = {
+    ...input(),
+    branch: undefined,
+    options: {
+      deleteWorktree: true,
+      deleteLocalBranch: false,
+      deleteRemoteBranch: false,
+    },
+  };
+  const plan = await run(cleanupWorktree(request, gitLimits));
+  expect(plan).toMatchObject({
+    worktreePath: tree,
+    dirty: false,
+    unpushed: false,
+    mainCheckout: false,
+  });
+  expect(plan.localBranch).toBeUndefined();
+  expect(plan.remoteBranch).toBeUndefined();
+  await run(
+    cleanupWorktree(
+      { ...request, confirmation: { plan, discardChanges: false } },
+      gitLimits,
+    ),
+  );
+  expect(existsSync(tree)).toBe(false);
+  expect(git(main, 'rev-parse', 'feature')).toBe(
+    git(remote, 'rev-parse', 'feature'),
+  );
+});
+it('requires explicit acknowledgement for unpublished detached commits before deleting the checkout', async () => {
+  git(tree, 'switch', '--detach', '-q');
+  writeFileSync(join(tree, 'file.txt'), 'detached local commit\n');
+  git(tree, 'commit', '-qam', 'Unpublished detached work');
+  const request = {
+    ...input(),
+    branch: undefined,
+    options: {
+      deleteWorktree: true,
+      deleteLocalBranch: false,
+      deleteRemoteBranch: false,
+    },
+  };
+  const plan = await run(cleanupWorktree(request, gitLimits));
+  expect(plan.unpushed).toBe(true);
+  await expect(
+    run(
+      cleanupWorktree(
+        { ...request, confirmation: { plan, discardChanges: false } },
+        gitLimits,
+      ),
+    ),
+  ).rejects.toThrow('Explicitly confirm');
+  expect(existsSync(tree)).toBe(true);
+  await run(
+    cleanupWorktree(
+      { ...request, confirmation: { plan, discardChanges: true } },
+      gitLimits,
+    ),
+  );
+  expect(existsSync(tree)).toBe(false);
+});
+
+it.each([false, true])(
+  'protects a default branch on a second push destination: unset-upstream=%s',
+  async (unsetUpstream) => {
+    const second = join(root, 'second.git');
+    execFileSync('git', ['clone', '-q', '--bare', main, second]);
+    git(second, 'symbolic-ref', 'HEAD', 'refs/heads/feature');
+    git(main, 'config', '--add', 'remote.origin.pushurl', remote);
+    git(main, 'config', '--add', 'remote.origin.pushurl', second);
+    if (unsetUpstream) git(tree, 'branch', '--unset-upstream', 'feature');
+    await expect(
+      run(
+        cleanupWorktree(
+          {
+            ...input(),
+            options: {
+              deleteWorktree: true,
+              deleteLocalBranch: true,
+              deleteRemoteBranch: false,
+            },
+          },
+          gitLimits,
+        ),
+      ),
+    ).rejects.toThrow('The remote default branch is protected');
+    expect(existsSync(tree)).toBe(true);
+    expect(git(main, 'rev-parse', 'feature')).toBe(
+      git(second, 'rev-parse', 'feature'),
+    );
+  },
+);

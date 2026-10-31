@@ -38,7 +38,7 @@ function SettingsRoute() {
   );
   if (!valid) return <ConnectedWorkspace notice="not-found" />;
   return (
-    <ConnectedWorkspace>
+    <ConnectedWorkspace settingsOpen>
       <SettingsPage
         section={section}
         environmentId={detail?.params.environmentId}

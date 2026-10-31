@@ -10,27 +10,40 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
+import { retainRead } from '../../../shared/api/worktree-read.ts';
 
 type ReviewInput = { connection: RuntimeConnection; reviewId: string };
 type RevisionInput = ReviewInput & { revision: number };
 type ReviewReadInput = ReviewInput & { revision?: number };
 function query<A, E>(
   connection: RuntimeConnection,
-  request: (api: PorcelainApi) => Effect.Effect<A, E>,
+  request: (
+    api: PorcelainApi,
+    previous: Option.Option<unknown>,
+  ) => Effect.Effect<A, E, AtomRegistry.AtomRegistry>,
   accepts: (answer: A) => boolean = () => true,
+  dependencies: { inventory?: boolean } = {},
 ) {
   return clientRuntime(connection)
-    .atom(
-      Effect.gen(function* () {
-        const answer = yield* requestApi(connection, request);
+    .atom((get) => {
+      const previous = Option.flatMap(
+        get.self<AsyncResult.AsyncResult<A, E>>(),
+        AsyncResult.value,
+      );
+      return Effect.gen(function* () {
+        const answer = yield* requestApi(connection, (api) =>
+          request(api, previous),
+        );
         yield* currentAnswerEffect(connection, accepts(answer));
         return answer;
-      }),
-    )
+      });
+    })
     .pipe(
       connection.atoms.withReactivity([
         queryKeys.environment(connection.environmentId),
-        queryKeys.inventory(connection.environmentId),
+        ...(dependencies.inventory === false
+          ? []
+          : [queryKeys.inventory(connection.environmentId)]),
       ]),
       Atom.setIdleTTL(0),
     );
@@ -82,14 +95,50 @@ function acceptsReview(
 }
 
 export const readReview = Atom.family((input: ReviewReadInput) => {
+  const cached = Atom.make<
+    Option.Option<Effect.Success<ReturnType<typeof requestReview>>>
+  >(Option.none()).pipe(Atom.keepAlive);
   const read = query(
     input.connection,
-    (api) => requestReview(input, api),
+    (api, active) =>
+      Effect.gen(function* () {
+        const registry = yield* AtomRegistry.AtomRegistry;
+        const previous = Option.getOrUndefined(registry.get(cached));
+        if (Option.isNone(active) && previous?.review && previous.revision) {
+          const records = yield* AtomRegistry.getResult(
+            registry,
+            readProjectReviews({
+              connection: input.connection,
+              projectId: previous.review.projectId,
+            }),
+            { suspendOnWaiting: true },
+          );
+          const record = records.find(
+            (record) => record.reviewId === input.reviewId,
+          );
+          if (
+            record &&
+            record.latestRevision === previous.review.latestRevision
+          ) {
+            const answer = { ...previous, review: record };
+            registry.set(cached, Option.some(answer));
+            return answer;
+          }
+        }
+        const answer = yield* requestReview(input, api);
+        yield* currentAnswerEffect(
+          input.connection,
+          acceptsReview(input, answer),
+        );
+        registry.set(cached, Option.some(answer));
+        return answer;
+      }),
     (answer) => acceptsReview(input, answer),
   ).pipe(
     input.connection.atoms.withReactivity([
       queryKeys.durableReview(input.connection.environmentId, input.reviewId),
     ]),
+    Atom.setIdleTTL(0),
   );
   const watched = clientRuntime(input.connection)
     .atom((get) =>
@@ -124,7 +173,15 @@ export const readReview = Atom.family((input: ReviewReadInput) => {
       Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
       Atom.setIdleTTL(0),
     );
-  return Atom.transform(read, (get) => get(watched)).pipe(Atom.setIdleTTL(0));
+  const fallback = Atom.map(cached, (answer) =>
+    Option.isSome(answer)
+      ? AsyncResult.success(answer.value)
+      : AsyncResult.initial(),
+  );
+  return Atom.transform(read, (get) => get(watched)).pipe(
+    Atom.withFallback(fallback),
+    Atom.setIdleTTL(0),
+  );
 });
 export const readProjectReviews = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) => {
@@ -164,13 +221,13 @@ export const readProjectReviews = Atom.family(
         ),
       );
       return result;
-    }).pipe(Atom.setIdleTTL(0));
+    }).pipe(retainRead);
   },
 );
 export const readReviewMarks = Atom.family((input: ReviewInput) =>
   query(input.connection, (api) =>
     api.reviews.listReviewMarks({ params: { reviewId: input.reviewId } }),
-  ).pipe(reactive(input, true)),
+  ).pipe(reactive(input, true), retainRead),
 );
 const retainedReviewComments = Atom.family((input: ReviewInput) =>
   query(
@@ -337,4 +394,16 @@ export const observeReviewSeen = Atom.family((input: RevisionInput) =>
       ]),
       Atom.keepAlive,
     ),
+);
+
+export const readReviewPullChecks = Atom.family((input: ReviewInput) =>
+  query(
+    input.connection,
+    (api) =>
+      api.reviews.readReviewPullChecks({
+        params: { reviewId: input.reviewId },
+      }),
+    undefined,
+    { inventory: false },
+  ).pipe(reactive(input), retainRead),
 );

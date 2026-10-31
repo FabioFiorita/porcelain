@@ -1,3 +1,4 @@
+import { worktreeSummarySchema } from '@porcelain/changes/models';
 import { Schema, SchemaTransformation } from 'effect';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
@@ -143,3 +144,20 @@ export const readGitStatusResponseSchema = Schema.Struct({
 });
 
 export type ReadGitStatusResponse = typeof readGitStatusResponseSchema.Type;
+
+export const readWorktreeSummaryResponseSchema = Schema.Struct({
+  environmentId: Schema.String.check(Schema.isUUID()),
+  worktreeId: worktreeIdSchema,
+  ...worktreeSummarySchema.fields,
+  additions: worktreeSummarySchema.fields.additions.check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+  deletions: worktreeSummarySchema.fields.deletions.check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+  binaryFiles: worktreeSummarySchema.fields.binaryFiles.check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+});
+export type ReadWorktreeSummaryResponse =
+  typeof readWorktreeSummaryResponseSchema.Type;

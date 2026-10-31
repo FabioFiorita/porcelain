@@ -1,4 +1,4 @@
-import { openThisComputer } from '../kit/settings.ts';
+import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
 test('the owner names this computer in Settings, tab titles, pairing and project badges', async ({
@@ -17,7 +17,7 @@ test('the owner names this computer in Settings, tab titles, pairing and project
   });
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
-    navigator.getByRole('button', { name: `Computer: ${host}`, exact: true }),
+    navigator.getByRole('img', { name: `Computer: ${host}`, exact: true }),
   ).toBeVisible();
 
   await pairedPage
@@ -50,12 +50,8 @@ test('the owner names this computer in Settings, tab titles, pairing and project
     }),
   ).toBeVisible();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
+  await closeSettings(settings.page());
   await expect
     .poll(() => app.title())
     .toBe(`Changes — ${project} · Workstation`);
@@ -64,13 +60,13 @@ test('the owner names this computer in Settings, tab titles, pairing and project
     .click();
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
-    navigator.getByRole('button', {
+    navigator.getByRole('img', {
       name: 'Computer: Workstation',
       exact: true,
     }),
   ).toBeVisible();
   await expect(
-    navigator.getByRole('button', { name: `Computer: ${host}`, exact: true }),
+    navigator.getByRole('img', { name: `Computer: ${host}`, exact: true }),
   ).not.toBeAttached();
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })
@@ -85,11 +81,7 @@ test('the owner names this computer in Settings, tab titles, pairing and project
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: host, custom: false });
   await expect.poll(() => app.title()).toBe('Settings');
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
+  await closeSettings(settings.page());
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
 });

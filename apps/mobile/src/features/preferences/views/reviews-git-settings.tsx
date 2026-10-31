@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAtomRef } from '@effect/atom-react';
+import { archiveSettings } from '@porcelain/client/projects/rules';
 import {
-  archiveSettings,
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
   reviewGitSettingsKeptMessage,

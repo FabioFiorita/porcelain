@@ -8,7 +8,7 @@ import type { RemoteConnection } from '@porcelain/client/access';
 import { remoteStatusText } from '@porcelain/client/access/rules';
 import { MonitorIcon, PlusIcon, ServerIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { SidebarGroupAction } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,13 +28,11 @@ export function OpenProjectMenu({
 }) {
   if (!remotes?.length)
     return (
-      <Tooltip>
+      <Tooltip disableHoverablePopup>
         <TooltipTrigger
           render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="ml-auto"
+            <SidebarGroupAction
+              className="relative top-0 right-0 ml-auto w-6 cursor-pointer"
               aria-label="Open project"
               onClick={() => openProject(null)}
             />
@@ -47,15 +45,13 @@ export function OpenProjectMenu({
     );
   return (
     <DropdownMenu>
-      <Tooltip>
+      <Tooltip disableHoverablePopup>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="ml-auto"
+                <SidebarGroupAction
+                  className="relative top-0 right-0 ml-auto w-6 cursor-pointer"
                   aria-label="Open project"
                 />
               }
@@ -103,7 +99,10 @@ function RemoteItem({
         text={online ? status.name : entry.remote.name}
       />
       {!online && (
-        <Badge variant={remoteStatusVariant(status)} className="ml-auto">
+        <Badge
+          variant={remoteStatusVariant(status)}
+          className="relative top-0 right-0 ml-auto w-6 cursor-pointer"
+        >
           {remoteStatusText(status)}
         </Badge>
       )}

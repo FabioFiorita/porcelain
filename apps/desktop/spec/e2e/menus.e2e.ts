@@ -31,10 +31,10 @@ test('the Settings menu opens Settings, which shows the app version and that the
   await expect(
     settings.getByRole('button', { name: 'Check for updates', exact: true }),
   ).not.toBeAttached();
-  await settings
+  await page
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();
-  await settings
+  await page
     .getByRole('button', { name: 'Close Settings', exact: true })
     .click();
   await expect(settings).toBeHidden();

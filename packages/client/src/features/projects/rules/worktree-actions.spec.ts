@@ -1,5 +1,117 @@
 import { expect, it } from 'vitest';
-import { archiveDescription, archiveFailureMessage } from './archive-review.ts';
+import {
+  archiveSettings,
+  archiveOptions,
+  archiveDescription,
+  archiveFailureMessage,
+  worktreeCleanupOptions,
+  worktreeBranchChoices,
+  worktreeCleanupDescription,
+  worktreeCleanupFailureMessage,
+  worktreeCleanupFields,
+} from './worktree-actions.ts';
+const settings = {
+  pullStrategy: 'merge' as const,
+  collapseSpecs: false,
+  archiveDeleteWorktree: true,
+  archiveDeleteLocalBranch: true,
+  archiveDeleteRemoteBranch: true,
+};
+it('uses the same explicit resource choices on web and native without introducing saved preferences', () => {
+  expect(worktreeCleanupFields).toEqual([
+    { key: 'deleteWorktree', label: 'Delete local worktree' },
+    { key: 'deleteLocalBranch', label: 'Delete local branch' },
+    { key: 'deleteRemoteBranch', label: 'Delete remote branch' },
+  ]);
+});
+it('starts each one-off deletion from saved options and disables branch deletion for detached worktrees without mutating settings', () => {
+  expect(worktreeCleanupOptions(settings, false)).toEqual({
+    deleteWorktree: true,
+    deleteLocalBranch: true,
+    deleteRemoteBranch: true,
+  });
+  expect(worktreeCleanupOptions(settings, true)).toEqual({
+    deleteWorktree: true,
+    deleteLocalBranch: false,
+    deleteRemoteBranch: false,
+  });
+  expect(settings.archiveDeleteRemoteBranch).toBe(true);
+});
+it('lists only local branches and distinguishes the current checkout from another occupied branch', () => {
+  expect(
+    worktreeBranchChoices(
+      [
+        { ref: 'refs/heads/main', name: 'main', remote: false },
+        { ref: 'refs/heads/topic', name: 'topic', remote: false },
+        { ref: 'refs/heads/free', name: 'free', remote: false },
+        { ref: 'refs/remotes/origin/main', name: 'origin/main', remote: true },
+      ],
+      [
+        { id: 'main', branch: 'main' },
+        { id: 'other', branch: 'topic' },
+      ],
+      'main',
+    ),
+  ).toEqual([
+    {
+      ref: 'refs/heads/main',
+      name: 'main',
+      remote: false,
+      current: true,
+      inUse: false,
+    },
+    {
+      ref: 'refs/heads/topic',
+      name: 'topic',
+      remote: false,
+      current: false,
+      inUse: true,
+    },
+    {
+      ref: 'refs/heads/free',
+      name: 'free',
+      remote: false,
+      current: false,
+      inUse: false,
+    },
+  ]);
+});
+it('describes deletion resources and ignored-file loss without claiming a review is archived', () => {
+  const text = worktreeCleanupDescription({
+    worktreePath: '/project/topic',
+    mainCheckout: false,
+    dirty: true,
+    unpushed: false,
+    fingerprint: 'snapshot',
+  });
+  expect(text).toContain('including ignored files');
+  expect(text).toContain('uncommitted changes');
+  expect(text).not.toContain('review');
+  expect(worktreeCleanupFailureMessage(new Error('Locked'))).toBe('Locked');
+  expect(worktreeCleanupFailureMessage(undefined)).toBe(
+    'Deletion could not be completed. Prepare the deletion again.',
+  );
+});
+
+it('turns the computer’s archive settings into the deletions an archive plan asks for', () => {
+  expect(
+    archiveOptions({
+      archiveDeleteWorktree: true,
+      archiveDeleteLocalBranch: false,
+      archiveDeleteRemoteBranch: true,
+    }),
+  ).toEqual({
+    deleteWorktree: true,
+    deleteLocalBranch: false,
+    deleteRemoteBranch: true,
+  });
+  expect(archiveSettings.map((setting) => setting.label)).toEqual([
+    'Delete local worktree',
+    'Delete local branch',
+    'Delete remote branch',
+  ]);
+});
+
 it('names the exact deletion targets and warns separately about files and commits', () => {
   expect(
     archiveDescription({

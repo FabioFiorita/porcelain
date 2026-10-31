@@ -30,6 +30,13 @@ export type NavigatorReview =
       closed: boolean;
       archived: boolean;
       pullRequestNumber: number | undefined;
+      checks?:
+        | { state: 'loading' }
+        | { state: 'unavailable' }
+        | {
+            state: 'available';
+            result: 'passed' | 'running' | 'failed' | 'none';
+          };
       progress: { reviewed: number; total: number } | undefined;
       progressUnavailable?: boolean;
       retained?: boolean;
@@ -37,7 +44,19 @@ export type NavigatorReview =
 export type NavigatorChanges =
   | { state: 'loading' }
   | { state: 'unavailable' }
-  | { state: 'available'; count: number };
+  | {
+      state: 'available';
+      count: number;
+      summary?:
+        | { state: 'loading' }
+        | { state: 'unavailable' }
+        | {
+            state: 'available';
+            additions: number;
+            deletions: number;
+            binaryFiles: number;
+          };
+    };
 export type NavigatorEntry = {
   key: string;
   kind: 'worktree' | 'review';
@@ -73,6 +92,46 @@ export function navigatorChangesLabel(changes: NavigatorChanges) {
   return changes.count === 0
     ? 'Working tree clean'
     : `${changes.count} ${changes.count === 1 ? 'file' : 'files'} changed`;
+}
+export function navigatorCardReviewLabel(entry: NavigatorEntry) {
+  const parts = [navigatorReviewLabel(entry.review).replace('Review · ', '')];
+  if (entry.detached) parts.unshift('Detached');
+  return parts.join(' · ');
+}
+export function navigatorDiffSummary(changes: NavigatorChanges) {
+  if (changes.state !== 'available') return undefined;
+  const summary = changes.summary;
+  return summary?.state === 'available' &&
+    (summary.additions || summary.deletions || summary.binaryFiles)
+    ? summary
+    : undefined;
+}
+export function navigatorCardChangesLabel(changes: NavigatorChanges) {
+  if (changes.state === 'loading') return 'Reading changes…';
+  if (changes.state === 'unavailable') return 'Changes unavailable';
+  const summary = navigatorDiffSummary(changes);
+  if (summary) {
+    const binary = summary.binaryFiles
+      ? ` · ${summary.binaryFiles} binary`
+      : '';
+    return `+${summary.additions} −${summary.deletions}${binary}`;
+  }
+  if (changes.count === 0) return 'Clean';
+  return `${changes.count} ${changes.count === 1 ? 'file' : 'files'}`;
+}
+export function navigatorChecksLabel(
+  checks: Extract<NavigatorReview, { state: 'available' }>['checks'],
+) {
+  if (!checks) return 'Checks loading';
+  if (checks.state !== 'available')
+    return checks.state === 'loading' ? 'Checks loading' : 'Checks unavailable';
+  const labels = {
+    passed: 'Checks passed',
+    running: 'Checks running',
+    failed: 'Checks failed',
+    none: 'No checks',
+  };
+  return labels[checks.result];
 }
 export function navigatorEntryLabel(entry: NavigatorEntry) {
   return [

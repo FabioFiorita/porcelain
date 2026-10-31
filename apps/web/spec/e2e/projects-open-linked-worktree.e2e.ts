@@ -7,6 +7,7 @@ test('opening a repository with a linked worktree from the empty workspace after
 }) => {
   const opened = await app.open(await app.link('this'));
   const sample = await server.project();
+  const computer = (await server.inventory()).environment.name;
   const main = sample.worktrees.find((worktree) => worktree.main) ?? {
     id: '',
     path: '',
@@ -16,10 +17,10 @@ test('opening a repository with a linked worktree from the empty workspace after
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await opened
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await opened
-    .getByRole('menuitem', { name: sample.name, exact: true })
+    .getByRole('button', {
+      name: `Project actions: ${sample.name} · ${computer}`,
+      exact: true,
+    })
     .click();
   await opened
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })

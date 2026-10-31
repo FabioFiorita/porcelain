@@ -188,3 +188,34 @@ export const pullRequestSchema = Schema.Struct({
 });
 export type PullRequest = typeof pullRequestSchema.Type;
 export type PullRequestSummary = typeof pullRequestSummarySchema.Type;
+
+export const githubPullChecksSchema = Schema.Struct({
+  number: Schema.Int,
+  commits: Schema.Struct({
+    nodes: Schema.Array(
+      Schema.Struct({
+        commit: Schema.Struct({
+          statusCheckRollup: Schema.NullOr(
+            Schema.Struct({
+              state: Schema.Literals([
+                'SUCCESS',
+                'PENDING',
+                'EXPECTED',
+                'FAILURE',
+                'ERROR',
+              ]),
+            }),
+          ),
+        }),
+      }),
+    ),
+  }),
+});
+export type GitHubPullChecks = typeof githubPullChecksSchema.Type;
+export const pullChecksResultSchema = Schema.Literals([
+  'passed',
+  'running',
+  'failed',
+  'none',
+]);
+export type PullChecksResult = typeof pullChecksResultSchema.Type;

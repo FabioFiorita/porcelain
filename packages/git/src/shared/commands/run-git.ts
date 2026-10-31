@@ -10,6 +10,7 @@ import type { GitLimits } from '../dtos/git-limits.ts';
 type GitMode = 'read' | 'write';
 
 export type GitReadOptions = {
+  allowDifference?: boolean;
   maxBytes?: number;
   timeoutMs?: number;
   config?: readonly string[];
@@ -49,7 +50,14 @@ export const gitRead = Effect.fn('Git.read')(function* (
   ).pipe(Effect.mapError((cause) => notStarted(checkout, args, cause)));
   const completed =
     output.stopped === undefined || output.stopped === 'lingering';
-  if (completed && output.exitCode === 0) return output.stdout;
+  if (
+    completed &&
+    (output.exitCode === 0 ||
+      (options.allowDifference &&
+        output.exitCode === 1 &&
+        output.stdout.length > 0))
+  )
+    return output.stdout;
   if (output.stopped === 'output-limit')
     return yield* new GitOutputLimitError();
   if (output.stopped === 'deadline') return yield* new GitTimeoutError();

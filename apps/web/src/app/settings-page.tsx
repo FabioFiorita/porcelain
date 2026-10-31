@@ -1,6 +1,5 @@
 import { useElement } from '@/shared/hooks/use-element';
 import {
-  XIcon,
   GitBranchIcon,
   SlidersHorizontalIcon,
   ServerIcon,
@@ -19,7 +18,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Kbd } from '@/components/ui/kbd';
 import {
   Tooltip,
@@ -92,6 +91,7 @@ export function SettingsPage({
   environmentId?: string | undefined;
 }) {
   const navigate = useNavigate();
+  const { setOpenMobile } = useSidebar();
   const router = useRouter();
   const canGoBack = useCanGoBack();
   const [entry] = useState(() => ({
@@ -148,6 +148,7 @@ export function SettingsPage({
   if (environmentId === 'this-computer') detailName = 'This computer';
   else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
+    setOpenMobile(false);
     if (environmentId !== undefined) returnToList();
     else if (entry.hasPredecessor)
       router.history.go(
@@ -169,6 +170,14 @@ export function SettingsPage({
       aria-label="Settings"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper bg-card shadow-paper outline-none"
     >
+      <form
+        id="close-settings"
+        hidden
+        onSubmit={(event) => {
+          event.preventDefault();
+          leave();
+        }}
+      />
       <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
         <Tooltip>
           <TooltipTrigger
@@ -208,17 +217,6 @@ export function SettingsPage({
             )}
           </BreadcrumbList>
         </Breadcrumb>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto shrink-0"
-          onClick={leave}
-          aria-label="Close Settings"
-        >
-          <XIcon />
-          <span className="hidden sm:inline">Close</span>
-          <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
-        </Button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <nav

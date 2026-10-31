@@ -16,6 +16,7 @@ function subject(
   const store = new InMemoryGitHubAccountStore();
   const probes: string[] = [];
   const reader: GitHubReader = {
+    checks: () => Effect.die('Checks are not part of account selection'),
     accounts: () =>
       failure === 'gh-not-installed'
         ? Effect.fail(new GitHubReadError({ reason: failure }))

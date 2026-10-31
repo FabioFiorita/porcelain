@@ -33,7 +33,7 @@ test('touch opens the sidebar without holding a tooltip', async ({
     ).toBeVisible();
     await expect(tooltip).not.toBeVisible();
     await expect(
-      page.getByRole('button', {
+      page.getByRole('searchbox', {
         name: 'Search reviews and worktrees',
         exact: true,
       }),
@@ -57,6 +57,9 @@ for (const width of [1280, 414]) {
     await page.setViewportSize({ width, height: 896 });
     await page.emulateMedia({ colorScheme: 'light' });
     await app.follow('/shortcut-hints');
+    await expect(
+      page.getByRole('heading', { name: 'Page not found', exact: true }),
+    ).toBeVisible();
     const toggle = page.getByRole('button', {
       name: 'Toggle Sidebar',
       exact: true,
@@ -69,9 +72,10 @@ for (const width of [1280, 414]) {
     await expect(tooltip).toHaveText('Toggle sidebarCtrl+B');
     await expect(tooltip.getByText('Ctrl+B', { exact: true })).toBeVisible();
     await page.mouse.move(width - 20, 800);
-    await toggle.focus();
+    await page
+      .getByRole('link', { name: 'Back to workspace', exact: true })
+      .focus();
     await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Tab');
     await expect(toggle).toBeFocused();
     await expect(tooltip).toHaveText('Toggle sidebarCtrl+B');
     await expect(tooltip.getByText('Ctrl+B', { exact: true })).toBeVisible();
@@ -118,12 +122,6 @@ for (const width of [1280, 414]) {
     await expect(dialog).not.toBeVisible();
     await expect(footer).toBeFocused();
 
-    await page
-      .getByRole('button', {
-        name: 'Search reviews and worktrees',
-        exact: true,
-      })
-      .click();
     const search = page.getByRole('searchbox', {
       name: 'Search reviews and worktrees',
       exact: true,
@@ -164,7 +162,7 @@ for (const width of [1280, 414]) {
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole('button', {
+        page.getByRole('searchbox', {
           name: 'Search reviews and worktrees',
           exact: true,
         }),

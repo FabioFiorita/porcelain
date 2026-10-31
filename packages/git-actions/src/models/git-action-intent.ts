@@ -1,6 +1,10 @@
 import { Schema } from 'effect';
 export const gitActionIntentSchema = Schema.Union([
   Schema.Struct({
+    action: Schema.mutableKey(Schema.Literal('switch')),
+    targetRef: Schema.mutableKey(Schema.String),
+  }),
+  Schema.Struct({
     action: Schema.mutableKey(Schema.Literal('pull')),
     remoteName: Schema.mutableKey(Schema.String),
     sourceRef: Schema.mutableKey(Schema.String),

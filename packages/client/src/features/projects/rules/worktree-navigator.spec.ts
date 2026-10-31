@@ -5,6 +5,12 @@ import {
   navigatorEntryLabel,
   navigatorChangesLabel,
   navigatorReviewLabel,
+  navigatorCardReviewLabel,
+  navigatorCardChangesLabel,
+  navigatorDiffSummary,
+  navigatorChecksLabel,
+  type NavigatorChanges,
+  type NavigatorReview,
   navigatorFilterSections,
   navigatorEntrySelected,
   type NavigatorEntry,
@@ -34,6 +40,145 @@ const entry: NavigatorEntry = {
   },
   changes: { state: 'loading' },
 };
+it('uses decisions directly in the compact card while preserving detached and retained review meaning', () => {
+  expect(
+    navigatorCardReviewLabel({
+      ...entry,
+      detached: false,
+      review: {
+        state: 'available',
+        reviewId: 'review',
+        closed: false,
+        archived: false,
+        pullRequestNumber: 42,
+        progress: { reviewed: 3, total: 12 },
+      },
+    }),
+  ).toBe('3/12 decisions');
+  expect(
+    navigatorCardReviewLabel({ ...entry, review: { state: 'none' } }),
+  ).toBe('Detached · No review');
+  expect(
+    navigatorCardReviewLabel({
+      ...entry,
+      detached: false,
+      review: {
+        state: 'available',
+        reviewId: 'retained',
+        closed: false,
+        archived: false,
+        retained: true,
+        pullRequestNumber: undefined,
+        progress: undefined,
+      },
+    }),
+  ).toBe('Retained review');
+});
+
+it.each<{ changes: NavigatorChanges; label: string }>([
+  { changes: { state: 'loading' }, label: 'Reading changes…' },
+  { changes: { state: 'unavailable' }, label: 'Changes unavailable' },
+  { changes: { state: 'available', count: 0 }, label: 'Clean' },
+  {
+    changes: { state: 'available', count: 2, summary: { state: 'loading' } },
+    label: '2 files',
+  },
+  {
+    changes: {
+      state: 'available',
+      count: 1,
+      summary: { state: 'unavailable' },
+    },
+    label: '1 file',
+  },
+  {
+    changes: {
+      state: 'available',
+      count: 1,
+      summary: {
+        state: 'available',
+        additions: 0,
+        deletions: 0,
+        binaryFiles: 0,
+      },
+    },
+    label: '1 file',
+  },
+  {
+    changes: {
+      state: 'available',
+      count: 3,
+      summary: {
+        state: 'available',
+        additions: 12,
+        deletions: 4,
+        binaryFiles: 0,
+      },
+    },
+    label: '+12 −4',
+  },
+  {
+    changes: {
+      state: 'available',
+      count: 1,
+      summary: {
+        state: 'available',
+        additions: 0,
+        deletions: 0,
+        binaryFiles: 1,
+      },
+    },
+    label: '+0 −0 · 1 binary',
+  },
+])('shows honest compact change information: $label', ({ changes, label }) => {
+  expect(navigatorCardChangesLabel(changes)).toBe(label);
+});
+
+it('only exposes a numeric diff summary when there are line changes or binary files', () => {
+  expect(navigatorDiffSummary({ state: 'loading' })).toBeUndefined();
+  expect(
+    navigatorDiffSummary({
+      state: 'available',
+      count: 2,
+      summary: {
+        state: 'available',
+        additions: 0,
+        deletions: 0,
+        binaryFiles: 0,
+      },
+    }),
+  ).toBeUndefined();
+  expect(
+    navigatorDiffSummary({
+      state: 'available',
+      count: 1,
+      summary: {
+        state: 'available',
+        additions: 0,
+        deletions: 0,
+        binaryFiles: 1,
+      },
+    }),
+  ).toEqual({ state: 'available', additions: 0, deletions: 0, binaryFiles: 1 });
+});
+
+it.each<{
+  checks: Extract<NavigatorReview, { state: 'available' }>['checks'];
+  label: string;
+}>([
+  { checks: undefined, label: 'Checks loading' },
+  { checks: { state: 'loading' }, label: 'Checks loading' },
+  { checks: { state: 'unavailable' }, label: 'Checks unavailable' },
+  { checks: { state: 'available', result: 'passed' }, label: 'Checks passed' },
+  {
+    checks: { state: 'available', result: 'running' },
+    label: 'Checks running',
+  },
+  { checks: { state: 'available', result: 'failed' }, label: 'Checks failed' },
+  { checks: { state: 'available', result: 'none' }, label: 'No checks' },
+])('keeps PR check status accessible in words: $label', ({ checks, label }) => {
+  expect(navigatorChecksLabel(checks)).toBe(label);
+});
 it('combines every search term and review choice while unknown review state remains visible', () => {
   expect(
     navigatorEntryMatches(

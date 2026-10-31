@@ -15,7 +15,8 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ComponentProps, type ReactNode, useState } from 'react';
+import type { Sheet } from '@/components/ui/sheet';
 import { StateNotice } from '@/shared/views/state-notice';
 import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
@@ -91,8 +92,10 @@ export function ConnectedWorkspace({
   unavailable,
   notice,
   children,
+  settingsOpen = false,
 }: {
   children?: ReactNode;
+  settingsOpen?: boolean;
   review?: Review;
   openReview?: { reviewId: string; environment: string | undefined };
   remote?: RemoteConnection;
@@ -100,8 +103,24 @@ export function ConnectedWorkspace({
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
   const navigationTrigger = useElement<HTMLButtonElement>();
+  const [restoreNavigatorFocus, setRestoreNavigatorFocus] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
+  const mobileNavigatorEvents: Pick<
+    ComponentProps<typeof Sheet>,
+    'onOpenChange' | 'onOpenChangeComplete'
+  > = {
+    onOpenChange: (next, details) => {
+      setRestoreNavigatorFocus(!next && details.reason === 'escape-key');
+      setOpenMobile(next);
+    },
+    onOpenChangeComplete: (next) => {
+      if (!next && restoreNavigatorFocus) {
+        setRestoreNavigatorFocus(false);
+        navigationTrigger.element?.focus();
+      }
+    },
+  };
   const navigate = useNavigate();
   const local = useConnectedContext();
   const localInventory = useInventory(local.connection);
@@ -151,6 +170,7 @@ export function ConnectedWorkspace({
     void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
+    settingsOpen,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     openReview,
@@ -214,7 +234,7 @@ export function ConnectedWorkspace({
   return (
     <>
       {isMobile && (
-        <Sidebar variant="floating">
+        <Sidebar variant="floating" {...mobileNavigatorEvents}>
           <ProjectNavigator
             {...navigator}
             onSelect={(target) => {

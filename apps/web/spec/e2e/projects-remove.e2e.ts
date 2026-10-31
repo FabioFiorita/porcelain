@@ -7,6 +7,7 @@ test("a removed project's worktree address says the worktree is no longer presen
   server,
 }) => {
   const sample = await server.project();
+  const computer = (await server.inventory()).environment.name;
   const removed = app.address();
   await projectHome.repository('other');
   await pairedPage
@@ -23,10 +24,10 @@ test("a removed project's worktree address says the worktree is no longer presen
   await dialog.getByRole('button', { name: 'Open other', exact: true }).click();
   await expect(dialog).not.toBeAttached();
   await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitem', { name: sample.name, exact: true })
+    .getByRole('button', {
+      name: `Project actions: ${sample.name} · ${computer}`,
+      exact: true,
+    })
     .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
@@ -45,7 +46,10 @@ test("a removed project's worktree address says the worktree is no longer presen
     )
     .not.toContain(sample.id);
   await expect(
-    pairedPage.getByRole('menuitem', { name: sample.name, exact: true }),
+    pairedPage.getByRole('button', {
+      name: `Project actions: ${sample.name} · ${computer}`,
+      exact: true,
+    }),
   ).not.toBeAttached();
 
   await app.open(`${removed.path}${removed.query}`);

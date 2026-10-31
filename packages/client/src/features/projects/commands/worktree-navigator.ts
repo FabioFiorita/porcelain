@@ -1,9 +1,13 @@
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Effect, Option } from 'effect';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import { readGitStatus } from '../../changes/queries/changes.ts';
+import {
+  readGitStatus,
+  readWorktreeSummary,
+} from '../../changes/queries/changes.ts';
 import {
   readProjectReviews,
+  readReviewPullChecks,
   readReview,
   readReviewMarks,
 } from '../../reviews/queries/project-reviews.ts';
@@ -51,7 +55,20 @@ export const refreshWorktreeNavigator = Atom.family(
             );
           }
           for (const entry of source.entries) {
-            if (entry.worktreeId && entry.available)
+            if (entry.worktreeId && entry.available) {
+              if (
+                entry.changes.state === 'available' &&
+                entry.changes.count > 0
+              )
+                get.refresh(
+                  readWorktreeSummary({
+                    connection: source.connection,
+                    scope: {
+                      projectId: entry.projectId,
+                      worktreeId: entry.worktreeId,
+                    },
+                  }),
+                );
               get.refresh(
                 readGitStatus({
                   connection: source.connection,
@@ -59,6 +76,17 @@ export const refreshWorktreeNavigator = Atom.family(
                     projectId: entry.projectId,
                     worktreeId: entry.worktreeId,
                   },
+                }),
+              );
+            }
+            if (
+              entry.review.state === 'available' &&
+              entry.review.pullRequestNumber
+            )
+              get.refresh(
+                readReviewPullChecks({
+                  connection: source.connection,
+                  reviewId: entry.review.reviewId,
                 }),
               );
             if (

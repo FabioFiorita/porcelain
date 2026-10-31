@@ -1,4 +1,4 @@
-import { openThisComputer } from '../kit/settings.ts';
+import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import {
   updateFeed,
@@ -130,12 +130,8 @@ test('the release app checks on demand, shows each result and installs the offer
   ).toBeVisible();
   await expect(check).toBeDisabled();
   await expect(newer).not.toBeAttached();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
+  await closeSettings(settings.page());
   await expect(settings).not.toBeAttached();
 });
 

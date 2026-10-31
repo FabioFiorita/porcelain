@@ -1,3 +1,5 @@
+import { pullRequestAction } from '../kit/navigator.ts';
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 import { archiveFixture } from '../kit/archive-fixture.ts';
 import { desktopSummaryHost } from '../kit/desktop-summaries.ts';
@@ -38,9 +40,7 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: other.environment.name, exact: true }),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -168,31 +168,24 @@ test('PR actions on two computers keep the same PR number scoped to its review w
     await expect(
       settings.getByRole('listitem', { name: remoteName, exact: true }),
     ).toBeVisible();
-    await settings
-      .getByRole('button', { name: 'Close Settings', exact: true })
-      .click();
+    await closeSettings(settings.page());
     const sidebar = page.getByRole('navigation', {
       name: 'Projects and worktrees',
       exact: true,
     });
-    await sidebar
-      .getByRole('button', {
-        name: `Open PR #423 · ${localProject.name} · ${localName}`,
-        exact: true,
-      })
-      .click();
+    await pullRequestAction(sidebar, 423, localProject.name, localName).click();
     await expect(
       page.getByRole('heading', {
         name: 'Pull request unavailable',
         exact: true,
       }),
     ).toBeVisible();
-    await sidebar
-      .getByRole('button', {
-        name: `Open PR #423 · ${remoteProject.name} · ${remoteName}`,
-        exact: true,
-      })
-      .click();
+    await pullRequestAction(
+      sidebar,
+      423,
+      remoteProject.name,
+      remoteName,
+    ).click();
     await expect(
       page.getByRole('article', { name: 'Pull request #423', exact: true }),
     ).toBeVisible();

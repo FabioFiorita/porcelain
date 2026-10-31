@@ -1,18 +1,29 @@
-import { Duration, Effect } from 'effect';
+import { Duration, Effect, Option } from 'effect';
 import { PUBLISHED_REVIEW_REFRESH_MS } from '../../../config/limits.ts';
-import { Atom } from 'effect/reactivity';
+import { Atom, AsyncResult } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { readSummaryHtml, type SummaryDelivery } from '../api.ts';
 import { worktreeResource } from '../../../shared/api/worktree-read.ts';
 import type { ReviewResponse } from '../rules/review.ts';
 import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
+
+const summaryPages = Atom.family(
+  (_identity: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    token: string;
+  }) =>
+    Atom.make<Option.Option<string>>(Option.none()).pipe(
+      Atom.setIdleTTL(PUBLISHED_REVIEW_REFRESH_MS),
+    ),
+);
 
 export const readReviewSummary = Atom.family(
   ({
@@ -25,20 +36,22 @@ export const readReviewSummary = Atom.family(
     scope: WorktreeScope;
     summary: ReviewResponse['summary'];
     delivery?: SummaryDelivery;
-  }) =>
-    worktreeRead(
-      connection,
-      scope,
-      [
-        'review-summary',
-        summary.token,
-        summary.expires,
-        summary.signature,
-        delivery?.url,
-      ],
-      readSummaryHtml(connection, summary, delivery),
-      clientRuntime(connection),
-    ),
+  }) => {
+    const page = summaryPages({ connection, scope, token: summary.token });
+    const read = clientRuntime(connection).atom(
+      readSummaryHtml(connection, summary, delivery).pipe(
+        Effect.tap(() => currentAnswerEffect(connection)),
+      ),
+    );
+    return Atom.transform(read, (get) => {
+      const cached = get(page);
+      if (Option.isSome(cached)) return AsyncResult.success(cached.value);
+      const result = get(read);
+      if (AsyncResult.isSuccess(result))
+        get.set(page, Option.some(result.value));
+      return result;
+    }).pipe(Atom.setIdleTTL(0));
+  },
 );
 
 export const readPublishedReview = Atom.family(
@@ -71,6 +84,7 @@ export const readPublishedReview = Atom.family(
       }),
       clientRuntime(connection),
     ).pipe(
+      retainRead,
       Atom.withRefresh(Duration.millis(PUBLISHED_REVIEW_REFRESH_MS)),
       Atom.setIdleTTL(0),
     ),

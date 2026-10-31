@@ -1,3 +1,4 @@
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test, type Page } from './fixtures.ts';
 
 async function addRemoteComputer(page: Page, link: string, name: string) {
@@ -18,9 +19,7 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name, exact: true }),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -67,9 +66,7 @@ test('the desktop app opens a project on another computer from the Open project 
       .getByRole('list', { name: 'Computers', exact: true })
       .getByRole('listitem', { name: other.environment.name, exact: true }),
   ).toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await closeSettings(settings.page());
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -120,13 +117,11 @@ test('the desktop app opens a project on another computer from the Open project 
     .toBe(
       `/remotes/${other.environmentId}/${project?.id ?? ''}/${worktree?.id ?? ''}`,
     );
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
   await expect(
-    pairedPage
-      .getByRole('group', { name: other.environment.name, exact: true })
-      .getByRole('menuitem', { name: 'elsewhere', exact: true }),
+    pairedPage.getByRole('button', {
+      name: `Project actions: elsewhere · ${other.environment.name}`,
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -176,13 +171,11 @@ test('This computer in the Open project menu still opens a project on this compu
   await expect
     .poll(() => app.address().path)
     .toBe(`/${project?.id ?? ''}/${worktree?.id ?? ''}`);
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
   await expect(
-    pairedPage
-      .getByRole('group', { name: 'This computer', exact: true })
-      .getByRole('menuitem', { name: 'here', exact: true }),
+    pairedPage.getByRole('button', {
+      name: `Project actions: here · ${(await server.inventory()).environment.name}`,
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -200,26 +193,19 @@ test('the desktop sidebar renames and removes a project on another computer, and
     await app.remoteLink(),
     other.environment.name,
   );
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  const there = pairedPage.getByRole('group', {
-    name: other.environment.name,
-    exact: true,
-  });
-  const here = pairedPage.getByRole('group', {
-    name: 'This computer',
-    exact: true,
-  });
+  const computer = (await server.inventory()).environment.name;
+  const remoteActions = (name: string) =>
+    pairedPage.getByRole('button', {
+      name: `Project actions: ${name} · ${other.environment.name}`,
+      exact: true,
+    });
   const rename = pairedPage.getByRole('dialog', {
     name: 'Rename project',
     exact: true,
   });
   const renamed = 'Renamed on the other computer';
 
-  await there
-    .getByRole('menuitem', { name: project.name, exact: true })
-    .click();
+  await remoteActions(project.name).click();
   await pairedPage
     .getByRole('menuitem', { name: 'Rename project', exact: true })
     .click();
@@ -228,11 +214,11 @@ test('the desktop sidebar renames and removes a project on another computer, and
     .fill(renamed);
   await rename.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(rename).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
+  await expect(remoteActions(renamed)).toBeVisible();
   await expect(
-    there.getByRole('menuitem', { name: renamed, exact: true }),
+    pairedPage
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByText(renamed, { exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () => (await remote.server.project()).name)
@@ -243,20 +229,15 @@ test('the desktop sidebar renames and removes a project on another computer, and
     name: `Remove ${renamed} from Porcelain?`,
     exact: true,
   });
-  await there.getByRole('menuitem', { name: renamed, exact: true }).click();
+  await remoteActions(renamed).click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
   await remove.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(remove).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await expect(
-    there.getByRole('menuitem', { name: renamed, exact: true }),
-  ).toBeVisible();
+  await expect(remoteActions(renamed)).toBeVisible();
 
-  await there.getByRole('menuitem', { name: renamed, exact: true }).click();
+  await remoteActions(renamed).click();
   await pairedPage
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
     .click();
@@ -264,12 +245,7 @@ test('the desktop sidebar renames and removes a project on another computer, and
     .getByRole('button', { name: 'Remove from Porcelain', exact: true })
     .click();
   await expect(remove).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await expect(
-    pairedPage.getByRole('menuitem', { name: renamed, exact: true }),
-  ).not.toBeAttached();
+  await expect(remoteActions(renamed)).not.toBeAttached();
   await expect
     .poll(async () =>
       (await remote.server.inventory()).projects.map((entry) => entry.id),
@@ -282,18 +258,28 @@ test('the desktop sidebar renames and removes a project on another computer, and
     .toEqual([local.id]);
 
   const named = 'Renamed on this computer';
-  await here.getByRole('menuitem', { name: local.name, exact: true }).click();
+  await pairedPage
+    .getByRole('button', {
+      name: `Project actions: ${local.name} · ${computer}`,
+      exact: true,
+    })
+    .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Rename project', exact: true })
     .click();
   await rename.getByRole('textbox', { name: 'Name', exact: true }).fill(named);
   await rename.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(rename).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
   await expect(
-    here.getByRole('menuitem', { name: named, exact: true }),
+    pairedPage.getByRole('button', {
+      name: `Project actions: ${named} · ${computer}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    pairedPage
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByText(named, { exact: true }),
   ).toBeVisible();
   await expect.poll(async () => (await server.project()).name).toBe(named);
 });
@@ -311,11 +297,10 @@ test('a rename dialog for another computer’s project is disabled with the reas
     other.environment.name,
   );
   await pairedPage
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('group', { name: other.environment.name, exact: true })
-    .getByRole('menuitem', { name: project.name, exact: true })
+    .getByRole('button', {
+      name: `Project actions: ${project.name} · ${other.environment.name}`,
+      exact: true,
+    })
     .click();
   await pairedPage
     .getByRole('menuitem', { name: 'Rename project', exact: true })

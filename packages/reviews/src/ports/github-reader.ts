@@ -3,6 +3,7 @@ import type { GitHubPullRequestNotFoundError } from '../errors/github-pull-reque
 import { Context, type Effect } from 'effect';
 import type {
   GitHubPullRequest,
+  GitHubPullChecks,
   GitHubPullSummary,
   GitHubRepository,
 } from '../models/pull-request.ts';
@@ -15,6 +16,12 @@ export interface GitHubReader {
     input: GitHubRepository & { account: string; number: number },
   ): Effect.Effect<
     GitHubPullRequest,
+    GitHubReadError | GitHubPullRequestNotFoundError
+  >;
+  checks(
+    input: GitHubRepository & { account: string; number: number },
+  ): Effect.Effect<
+    GitHubPullChecks,
     GitHubReadError | GitHubPullRequestNotFoundError
   >;
   list(input: GitHubRepository & { account: string }): Effect.Effect<

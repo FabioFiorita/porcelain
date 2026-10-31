@@ -9,7 +9,6 @@ import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
   ChevronDownIcon,
-  FolderCogIcon,
   KeyboardIcon,
   ListFilterIcon,
   SearchIcon,
@@ -27,8 +26,10 @@ import {
   emptyNavigatorFilter,
   navigatorEntryLabel,
   navigatorEntrySelected,
-  navigatorReviewLabel,
-  navigatorChangesLabel,
+  navigatorCardReviewLabel,
+  navigatorCardChangesLabel,
+  navigatorChecksLabel,
+  navigatorDiffSummary,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 import { UpdatesMenu, useConnectedContext } from '@/features/access/index';
@@ -44,11 +45,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,9 +57,9 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarGroupAction,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
   useSidebar,
 } from '@/components/ui/sidebar';
 import {
@@ -73,7 +69,6 @@ import {
   EmptyDescription,
 } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Item, ItemContent } from '@/components/ui/item';
 import {
   DropdownMenu,
@@ -85,9 +80,18 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { SwitchWorktreeBranchDialog } from './switch-worktree-branch';
+import { DeleteWorktreeDialog } from './delete-worktree';
 import { ProjectActions } from './project-actions';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
+
+const checkTones = {
+  passed: 'text-add-fg group-hover/button:text-add-fg/70',
+  running: 'text-warn group-hover/button:text-warn/70',
+  failed: 'text-del-fg group-hover/button:text-del-fg/70',
+  none: 'text-muted-foreground group-hover/button:text-foreground',
+} as const;
 
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
@@ -97,6 +101,7 @@ type Props = {
   onOpenPullRequest: (entry: NavigatorEntry) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
+  settingsOpen: boolean;
   onOpenShortcuts: () => void;
 };
 
@@ -108,24 +113,23 @@ export function ProjectNavigator({
   onOpenPullRequest,
   onOpenProject,
   onOpenSettings,
+  settingsOpen,
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
   const settingsButton = useElement<HTMLButtonElement>();
-  const searchButton = useElement<HTMLButtonElement>();
-  const firstEntry = useElement<HTMLButtonElement>();
-  const lastEntry = useElement<HTMLButtonElement>();
+  const firstEntry = useElement<HTMLElement>();
+  const lastEntry = useElement<HTMLElement>();
   const connections = [
     connection,
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
-  const { projects, allProjects, filters, loading, messages } = useAtomValue(
+  const { projects, filters, loading, messages } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
   const setState = useAtomSet(worktreeNavigatorState);
   const { query, filter } = state;
-  const [searching, setSearching] = useState(query.length > 0);
   useAtomMount(refreshInventories(connections));
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const location = useLocation();
@@ -138,12 +142,7 @@ export function ProjectNavigator({
     filter.environments !== undefined ||
     filter.reviews !== undefined ||
     filter.older;
-  const closeSearch = () => {
-    setQuery('');
-    setSearching(false);
-    searchButton.element?.focus();
-  };
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar();
   const checkoutSelection = selected
     ? {
         kind: 'worktree' as const,
@@ -181,7 +180,7 @@ export function ProjectNavigator({
     setOpenMobile(false);
   };
   return (
-    <div className="review-navigator h-full min-h-0 overflow-hidden bg-frame text-ui [--sidebar:var(--frame)] [--sidebar-foreground:var(--foreground)]">
+    <div className="review-navigator h-full min-h-0 overflow-hidden bg-frame text-ui [--sidebar:var(--frame)] [--sidebar-foreground:var(--foreground)] [--muted:var(--card)] [--secondary:var(--card)] [--sidebar-accent:var(--card)]">
       <Sidebar
         role="navigation"
         collapsible="none"
@@ -190,77 +189,48 @@ export function ProjectNavigator({
       >
         <NavigatorHeader>
           <div className="ml-auto flex shrink-0 items-center">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    ref={(element) => searchButton.attach(element)}
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={
-                      searching
-                        ? 'Close search'
-                        : 'Search reviews and worktrees'
-                    }
-                    aria-expanded={searching}
-                    onClick={() =>
-                      searching ? closeSearch() : setSearching(true)
-                    }
-                  />
-                }
-              >
-                {searching ? <XIcon /> : <SearchIcon />}
-              </TooltipTrigger>
-              <TooltipContent>
-                {searching ? 'Close search' : 'Search reviews and worktrees'}
-              </TooltipContent>
-            </Tooltip>
             <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
           </div>
         </NavigatorHeader>
         <div className="navigator-filters mb-2 flex items-center gap-1 px-2">
-          {searching && (
-            <InputGroup className="min-w-0 flex-1">
-              <InputGroupInput
-                autoFocus
-                type="search"
-                aria-label="Search reviews and worktrees"
-                placeholder="Search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.stopPropagation();
-                    closeSearch();
-                  }
-                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    (event.key === 'ArrowDown'
-                      ? firstEntry
-                      : lastEntry
-                    ).element?.focus();
-                  }
-                }}
-              />
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
-            </InputGroup>
-          )}
+          <InputGroup className="min-w-0 flex-1">
+            <InputGroupInput
+              autoFocus={isMobile}
+              type="search"
+              aria-label="Search reviews and worktrees"
+              placeholder="Search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && query.length > 0) {
+                  event.stopPropagation();
+                  setQuery('');
+                }
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  (event.key === 'ArrowDown'
+                    ? firstEntry
+                    : lastEntry
+                  ).element?.focus();
+                }
+              }}
+            />
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+          </InputGroup>
           <DropdownMenu
-            highlightItemOnHover={false}
             open={menuOpen}
             onOpenChange={(open) => setMenu({ href: location.href, open })}
           >
-            <Tooltip>
+            <Tooltip disableHoverablePopup>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
                     render={
-                      <Button
-                        variant={filtered ? 'secondary' : 'ghost'}
-                        size="icon-sm"
+                      <SidebarGroupAction
                         aria-label="Filter worktrees"
+                        className="relative top-0 right-0 w-6 cursor-pointer"
                       />
                     }
                   />
@@ -278,34 +248,33 @@ export function ProjectNavigator({
                 <DropdownMenuGroup key={section.key}>
                   <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
                   {section.items.map((option) => (
-                    <TruncatedText
-                      propagateEscape
+                    <DropdownMenuCheckboxItem
                       key={option.id}
-                      text={option.label}
-                      className="min-w-0 flex-1"
-                      renderTrigger={(label) => (
-                        <DropdownMenuCheckboxItem
-                          checked={option.checked}
-                          closeOnClick={false}
-                          onCheckedChange={() =>
-                            setState((current) => ({
-                              ...current,
-                              filter: {
-                                ...current.filter,
-                                [section.key]: option.next,
-                              },
-                            }))
-                          }
-                        >
-                          {label}
-                        </DropdownMenuCheckboxItem>
-                      )}
-                    />
+                      className="cursor-pointer"
+                      checked={option.checked}
+                      closeOnClick={false}
+                      onCheckedChange={() =>
+                        setState((current) => ({
+                          ...current,
+                          filter: {
+                            ...current.filter,
+                            [section.key]: option.next,
+                          },
+                        }))
+                      }
+                    >
+                      <TruncatedText
+                        propagateEscape
+                        text={option.label}
+                        className="min-w-0 flex-1"
+                      />
+                    </DropdownMenuCheckboxItem>
                   ))}
                   <DropdownMenuSeparator />
                 </DropdownMenuGroup>
               ))}
               <DropdownMenuCheckboxItem
+                className="cursor-pointer"
                 checked={filter.older}
                 closeOnClick={false}
                 onCheckedChange={(older) =>
@@ -319,6 +288,7 @@ export function ProjectNavigator({
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                className="cursor-pointer"
                 onClick={() =>
                   setState((current) => ({
                     ...current,
@@ -355,38 +325,52 @@ export function ProjectNavigator({
               >
                 <div className="flex min-w-0 items-center gap-1">
                   <SidebarGroupLabel
-                    render={<CollapsibleTrigger />}
                     aria-label={`${source.project.name} · ${source.environmentName}`}
-                    className="min-w-0 flex-1 cursor-pointer"
+                    className="min-w-0 flex-1"
                   >
-                    <ChevronDownIcon className="group-data-closed/project:-rotate-90" />
                     <TruncatedText text={source.project.name} />
                   </SidebarGroupLabel>
-                  <Popover>
-                    <PopoverTrigger
+                  <Badge
+                    variant="secondary"
+                    className="max-w-1/2"
+                    role="img"
+                    aria-label={`Computer: ${source.environmentName}`}
+                  >
+                    <MonitorIcon />
+                    <TruncatedText
+                      text={source.environmentName}
+                      className="min-w-0"
+                    />
+                  </Badge>
+                  <ProjectActions
+                    project={source.project}
+                    environmentId={
+                      source.connection.environmentId ===
+                      connection.environmentId
+                        ? null
+                        : source.connection.environmentId
+                    }
+                    environmentName={source.environmentName}
+                  />
+                  <Tooltip disableHoverablePopup>
+                    <TooltipTrigger
                       render={
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Computer: ${source.environmentName}`}
+                        <CollapsibleTrigger
+                          render={
+                            <SidebarGroupAction
+                              className="relative top-0 right-0 w-6 cursor-pointer"
+                              aria-label={`${source.expanded ? 'Collapse' : 'Expand'} ${source.project.name} · ${source.environmentName}`}
+                            />
+                          }
                         />
                       }
                     >
-                      <Badge variant="secondary">
-                        <MonitorIcon />
-                        <TruncatedText
-                          text={source.environmentName}
-                          className="max-w-20"
-                        />
-                      </Badge>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <p className="break-words">{source.environmentName}</p>
-                      <p className="break-all text-muted-foreground">
-                        Environment {source.connection.environmentId}
-                      </p>
-                    </PopoverContent>
-                  </Popover>
+                      <ChevronDownIcon className="group-data-closed/project:-rotate-90" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {source.expanded ? 'Collapse project' : 'Expand project'}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <CollapsibleContent>
                   <SidebarMenu>
@@ -398,15 +382,17 @@ export function ProjectNavigator({
                         entry.review.state === 'available'
                           ? entry.review
                           : undefined;
+                      const checkResult =
+                        review?.checks?.state === 'available'
+                          ? review.checks.result
+                          : 'none';
+                      const summary = navigatorDiffSummary(entry.changes);
                       const retained = entry.kind === 'review';
                       const openRetained =
                         retained || (!entry.available && review !== undefined);
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      let identity = retained ? 'Older review' : 'Worktree';
-                      if (entry.detached) identity = 'Detached HEAD';
-                      if (entry.main) identity = 'Main worktree';
                       const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
@@ -419,122 +405,135 @@ export function ProjectNavigator({
                                   source.connection.environmentId,
                               ) ?? connection
                             }
-                            onRetry={() => retry(undefined)}
-                            beforeLeave={() => setOpenMobile(false)}
                           >
-                            <div
-                              className={
-                                active ? 'rounded-md bg-card' : undefined
+                            <TruncatedText
+                              text={
+                                entry.path
+                                  ? `${entry.name} · ${entry.path}`
+                                  : entry.name
                               }
-                            >
-                              <Item data-navigator-card="" size="xs">
-                                <ItemContent className="min-w-0">
-                                  <div className="flex min-w-0 items-start gap-1">
-                                    <SidebarMenuButton
-                                      size="lg"
-                                      aria-label={label}
-                                      aria-current={active ? 'page' : undefined}
-                                      disabled={
-                                        !openRetained && !entry.available
-                                      }
-                                      ref={attach}
-                                      onClick={() =>
-                                        openRetained
-                                          ? setOpenMobile(false)
-                                          : openWorktree(entry)
-                                      }
-                                      render={
-                                        openRetained && review ? (
-                                          <Link
-                                            to="/reviews/$reviewId"
-                                            params={{
-                                              reviewId: review.reviewId,
-                                            }}
-                                            search={{
-                                              environment:
-                                                entry.environmentId ===
-                                                connection.environmentId
-                                                  ? undefined
-                                                  : entry.environmentId,
-                                              decision: undefined,
-                                            }}
-                                          />
-                                        ) : undefined
-                                      }
-                                    >
-                                      <div className="min-w-0 flex-1">
-                                        <TruncatedText
-                                          text={
-                                            entry.path
-                                              ? `${entry.name} · ${entry.path}`
-                                              : entry.name
-                                          }
-                                          disclose={
-                                            entry.detached
-                                              ? 'always'
-                                              : 'clipped'
-                                          }
-                                          className="block font-medium"
-                                        >
-                                          {entry.name}
-                                        </TruncatedText>
-                                        <span className="block text-xs text-muted-foreground">
-                                          {identity}
-                                          {active ? ' · Current' : ''}
-                                          {!entry.available && !retained
-                                            ? ' · Unavailable'
-                                            : ''}
-                                        </span>
-                                      </div>
-                                    </SidebarMenuButton>
-                                    {review?.pullRequestNumber && (
-                                      <Button
-                                        variant="secondary"
-                                        size="xs"
-                                        aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName}`}
-                                        onClick={() => {
-                                          onOpenPullRequest(entry);
-                                          setOpenMobile(false);
-                                        }}
-                                      >
-                                        PR #{review.pullRequestNumber}
-                                      </Button>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col gap-1 px-2 text-xs text-muted-foreground">
-                                    {!retained &&
-                                      (entry.changes.state === 'loading' ? (
-                                        <Skeleton
-                                          className="h-3 w-28"
-                                          role="status"
-                                          aria-label="Reading changes…"
+                              disclose={entry.detached ? 'always' : 'clipped'}
+                              renderTrigger={(_label, clip) => (
+                                <div
+                                  data-navigator-card=""
+                                  role="presentation"
+                                  tabIndex={-1}
+                                  className={
+                                    active
+                                      ? 'relative rounded-md bg-card'
+                                      : 'relative rounded-md hover:bg-card'
+                                  }
+                                >
+                                  <Item
+                                    className="absolute inset-0 h-full cursor-pointer"
+                                    data-sidebar="menu-button"
+                                    size="xs"
+                                    aria-label={label}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() =>
+                                      openRetained
+                                        ? setOpenMobile(false)
+                                        : openWorktree(entry)
+                                    }
+                                    render={
+                                      openRetained && review ? (
+                                        <Link
+                                          ref={attach}
+                                          to="/reviews/$reviewId"
+                                          params={{
+                                            reviewId: review.reviewId,
+                                          }}
+                                          search={{
+                                            environment:
+                                              entry.environmentId ===
+                                              connection.environmentId
+                                                ? undefined
+                                                : entry.environmentId,
+                                            decision: undefined,
+                                          }}
                                         />
                                       ) : (
-                                        <span>
-                                          {navigatorChangesLabel(entry.changes)}
-                                        </span>
-                                      ))}
-                                    {entry.review.state === 'loading' ||
-                                    (review &&
-                                      !review.closed &&
-                                      !review.archived &&
-                                      !review.progress &&
-                                      !review.progressUnavailable &&
-                                      !review.retained) ? (
-                                      <Skeleton
-                                        className="h-3 w-32"
-                                        role="status"
-                                        aria-label="Reading review…"
-                                      />
-                                    ) : (
-                                      <span>
-                                        {navigatorReviewLabel(entry.review)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </ItemContent>
-                              </Item>
-                            </div>
+                                        <button
+                                          type="button"
+                                          ref={attach}
+                                          disabled={
+                                            !openRetained && !entry.available
+                                          }
+                                        />
+                                      )
+                                    }
+                                  />
+                                  <Item
+                                    size="xs"
+                                    className="pointer-events-none"
+                                  >
+                                    <ItemContent className="min-w-0">
+                                      <div className="flex min-w-0 items-center gap-1">
+                                        {clip(
+                                          entry.name,
+                                          'min-w-0 flex-1 font-medium',
+                                        )}
+                                        {review?.pullRequestNumber && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            className="relative pointer-events-auto cursor-pointer"
+                                            aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
+                                            onClick={() => {
+                                              onOpenPullRequest(entry);
+                                              setOpenMobile(false);
+                                            }}
+                                          >
+                                            <span
+                                              className={
+                                                checkTones[checkResult]
+                                              }
+                                            >
+                                              PR #{review.pullRequestNumber}
+                                            </span>
+                                          </Button>
+                                        )}
+                                      </div>
+                                      <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                                        {clip(
+                                          navigatorCardReviewLabel(entry),
+                                          'min-w-0 flex-1',
+                                        )}
+                                        {!retained &&
+                                          !(
+                                            entry.changes.state ===
+                                              'available' &&
+                                            entry.changes.count === 0
+                                          ) && (
+                                            <span
+                                              className="shrink-0"
+                                              role="img"
+                                              aria-label={`Local uncommitted changes: ${navigatorCardChangesLabel(entry.changes)}`}
+                                            >
+                                              {summary ? (
+                                                <>
+                                                  <span className="text-add-fg">
+                                                    +{summary.additions}
+                                                  </span>{' '}
+                                                  <span className="text-del-fg">
+                                                    −{summary.deletions}
+                                                  </span>
+                                                  {summary.binaryFiles > 0 &&
+                                                    ` · ${summary.binaryFiles} binary`}
+                                                </>
+                                              ) : (
+                                                navigatorCardChangesLabel(
+                                                  entry.changes,
+                                                )
+                                              )}
+                                            </span>
+                                          )}
+                                      </div>
+                                    </ItemContent>
+                                  </Item>
+                                </div>
+                              )}
+                            />
                           </NavigatorRowMenu>
                         </SidebarMenuItem>
                       );
@@ -566,7 +565,11 @@ export function ProjectNavigator({
             </Empty>
           )}
           {messages.map((message) => (
-            <p key={message} role="status" className="px-3 text-xs">
+            <p
+              key={message}
+              role="status"
+              className="px-3 text-xs wrap-anywhere"
+            >
               {message}
             </p>
           ))}
@@ -585,85 +588,50 @@ export function ProjectNavigator({
           aria-label="Navigator controls"
           className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
-          <Tooltip>
+          <Tooltip disableHoverablePopup>
             <TooltipTrigger
               render={
                 <Button
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
                   className="min-w-0 shrink"
-                  onClick={onOpenSettings}
+                  aria-label={settingsOpen ? 'Close Settings' : 'Settings'}
+                  type={settingsOpen ? 'submit' : 'button'}
+                  form={settingsOpen ? 'close-settings' : undefined}
+                  onClick={settingsOpen ? undefined : onOpenSettings}
+                  onKeyDown={(event) => {
+                    if (settingsOpen && event.key === 'Escape') {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
                 />
               }
             >
-              <SettingsIcon className="text-muted-foreground" />
-              <TruncatedText text="Settings" />
+              {settingsOpen ? (
+                <XIcon />
+              ) : (
+                <SettingsIcon className="text-muted-foreground" />
+              )}
+              <TruncatedText text={settingsOpen ? 'Close' : 'Settings'} />
+              {settingsOpen && (
+                <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
+              )}
             </TooltipTrigger>
             <TooltipContent role="tooltip">
-              Settings <Kbd>{formatForDisplay(SHORTCUTS.openSettings)}</Kbd>
+              {settingsOpen ? 'Close Settings' : 'Settings'}{' '}
+              <Kbd>
+                {formatForDisplay(
+                  settingsOpen
+                    ? SHORTCUTS.closeSettings
+                    : SHORTCUTS.openSettings,
+                )}
+              </Kbd>
             </TooltipContent>
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="shrink-0"
-                          aria-label="Manage projects"
-                        />
-                      }
-                    />
-                  }
-                >
-                  <FolderCogIcon className="text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>Manage projects</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent
-                align="end"
-                className="max-h-96 w-80 min-w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"
-              >
-                {allProjects.length === 0 ? (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle>No projects registered</EmptyTitle>
-                    </EmptyHeader>
-                  </Empty>
-                ) : (
-                  allProjects.map((source) => (
-                    <div
-                      role="group"
-                      aria-label={
-                        source.connection.environmentId ===
-                        connection.environmentId
-                          ? 'This computer'
-                          : source.environmentName
-                      }
-                      key={`${source.connection.environmentId}/${source.project.id}`}
-                    >
-                      <ProjectActions
-                        key={`${source.connection.environmentId}/${source.project.id}`}
-                        environmentId={
-                          source.connection.environmentId ===
-                          connection.environmentId
-                            ? null
-                            : source.connection.environmentId
-                        }
-                        project={source.project}
-                        onRetry={() => retry(undefined)}
-                      />
-                    </div>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Tooltip>
+            <Tooltip disableHoverablePopup>
               <TooltipTrigger
                 render={
                   <Button
@@ -684,6 +652,8 @@ export function ProjectNavigator({
           </div>
         </footer>
       </Sidebar>
+      <DeleteWorktreeDialog />
+      <SwitchWorktreeBranchDialog />
     </div>
   );
 }

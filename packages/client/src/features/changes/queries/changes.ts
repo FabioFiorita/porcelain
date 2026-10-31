@@ -3,7 +3,7 @@ import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
 export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
@@ -27,7 +27,7 @@ export const readChanges = Atom.family((selection: WorktreeSelection) =>
     ['changes'],
     readChangesSnapshot(selection),
     clientRuntime(selection.connection),
-  ),
+  ).pipe(retainRead),
 );
 
 export const readGitStatusSnapshot = Effect.fn('Changes.readGitStatusSnapshot')(
@@ -51,5 +51,27 @@ export const readGitStatus = Atom.family((selection: WorktreeSelection) =>
     ['git-status'],
     readGitStatusSnapshot(selection),
     clientRuntime(selection.connection),
-  ),
+  ).pipe(retainRead),
+);
+
+export const readWorktreeSummary = Atom.family((selection: WorktreeSelection) =>
+  worktreeRead(
+    selection.connection,
+    selection.scope,
+    ['git-status'],
+    Effect.gen(function* () {
+      const answer = yield* requestApi(selection.connection, (api) =>
+        api.changes.readWorktreeSummary({
+          params: { worktreeId: selection.scope.worktreeId },
+        }),
+      );
+      yield* currentAnswerEffect(
+        selection.connection,
+        answer.environmentId === selection.connection.environmentId &&
+          answer.worktreeId === selection.scope.worktreeId,
+      );
+      return answer;
+    }),
+    clientRuntime(selection.connection),
+  ).pipe(retainRead),
 );

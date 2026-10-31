@@ -38,15 +38,16 @@ test('first run offers project registration without inactive search advice', asy
   server,
 }) => {
   const project = await server.project();
+  const computer = (await server.inventory()).environment.name;
   const app = await render.route('/');
   await app.page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await app.page
-    .getByRole('button', { name: 'Manage projects', exact: true })
-    .click();
-  await app.page
-    .getByRole('menuitem', { name: project.name, exact: true })
+    .getByRole('button', {
+      name: `Project actions: ${project.name} · ${computer}`,
+      exact: true,
+    })
     .click();
   await app.page
     .getByRole('menuitem', { name: 'Remove from Porcelain', exact: true })
@@ -66,6 +67,9 @@ test('first run offers project registration without inactive search advice', asy
     )
     .not.toBeInTheDocument();
   await userEvent.keyboard('{Escape}');
+  await expect
+    .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
+    .not.toBeInTheDocument();
   await app.navigate('/');
   await expect
     .element(

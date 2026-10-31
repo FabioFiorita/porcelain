@@ -1,11 +1,11 @@
 ---
 route: /
 selectors:
-  - "Toggle Sidebar"
-  - "repository"
-  - "Rename project"
-  - "Name"
-  - "Rename"
+  - 'Toggle Sidebar'
+  - 'repository'
+  - 'Rename project'
+  - 'Name'
+  - 'Rename'
 tests:
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
   - apps/web/spec/integration/projects-rename.test.tsx
@@ -15,12 +15,12 @@ api:
 
 # projects.rename
 
-Renaming a project from the navigator's project action submenu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
+Renaming a project from the navigator's project-header action menu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
 
 ## How to get to it (user POV)
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → Manage projects → project menuitem (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
-- Desktop shell: a remote computer's project (under Manage projects, in the group named for that computer) has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → activate `Project actions: <project> · <computer>` → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
+- Desktop shell: a remote computer's project header, identified by its visible computer badge, has the same `Rename project` item; the dialog sends the rename to that computer. If the computer stops answering or accepting this app while the dialog is open, the dialog shows its status and reason (e.g. "Needs pairing. It no longer accepts this app. …") and `Rename` is disabled; an unavailable computer can retain its last known projects; the existing action guards still refuse changes until it reconnects.
 
 ## Driving it with browser
 
@@ -32,8 +32,8 @@ Preconditions: [surface baseline](README.md).
    Expect: title "Changes — repository".
 2. Click button `Toggle Sidebar`
    Expect: dialog "Sidebar" with Filter worktrees.
-3. Open Manage projects → menuitem `repository`
-   Expect: project action submenu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
+3. Activate `Project actions: repository · <computer>`
+   Expect: project action menu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
 4. Click menuitem `Rename project`
    Expect: dialog "Rename project"; textbox "Name" focused with value "repository"; buttons "Cancel" and "Rename".
 5. Fill textbox `Name` with ' '
@@ -41,11 +41,11 @@ Preconditions: [surface baseline](README.md).
 6. Fill textbox `Name` with 'Browser renamed project'
    Expect: the alert is gone; button "Rename" enabled.
 7. Click button `Rename`
-   Expect: dialog "Rename project" is gone; project menuitem "Browser renamed project" after reopening Manage projects in the sheet and no project menuitem "repository"; title "Changes — Browser renamed project".
+   Expect: dialog "Rename project" is gone; project header "Browser renamed project · <computer>" in the sheet and no old "repository · <computer>" header; title "Changes — Browser renamed project".
 8. Inspect HTTP traffic
    Expect: `PATCH /api/projects/<projectId>` with status 200.
 9. Navigate to `/`, then click button `Toggle Sidebar`
-   Expect: after reopening Manage projects the project menuitem is still "Browser renamed project".
+   Expect: the project header is still "Browser renamed project · <computer>".
 
 ### Observable proof
 

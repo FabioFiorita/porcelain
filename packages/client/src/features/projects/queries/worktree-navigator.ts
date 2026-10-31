@@ -1,9 +1,13 @@
 import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import { readGitStatus } from '../../changes/queries/changes.ts';
+import {
+  readGitStatus,
+  readWorktreeSummary,
+} from '../../changes/queries/changes.ts';
 import {
   readProjectReviews,
+  readReviewPullChecks,
   readReview,
   readReviewMarks,
 } from '../../reviews/queries/project-reviews.ts';
@@ -81,164 +85,186 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
         a.key.localeCompare(b.key),
     );
 }
-const readNavigatorProject = Atom.family((input: ProjectInput) =>
-  Atom.readable((get) => {
-    const entries = inventoryEntries(input);
-    const recordsResult = get(
-      readProjectReviews({
-        connection: input.connection,
-        projectId: input.project.id,
-      }),
-    );
-    const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
-    const messages: string[] = [];
-    const active = (records ?? []).filter(
-      (record) => record.state === 'open' && !record.archived,
-    );
-    const branches = new Set(entries.map((entry) => entry.branch));
-    const candidates = active
-      .filter((record) => branches.has(record.branch))
-      .map((record) => {
-        const result = get(
-          readReview({
-            connection: input.connection,
-            reviewId: record.reviewId,
-          }),
-        );
-        return {
-          record,
-          result,
-          revision: Option.getOrUndefined(AsyncResult.value(result))?.revision,
-        };
-      })
-      .sort(
-        (a, b) =>
-          (b.revision?.publishedAt ?? '').localeCompare(
-            a.revision?.publishedAt ?? '',
-          ) || a.record.reviewId.localeCompare(b.record.reviewId),
+const readNavigatorProject = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    projectId: string;
+    older: boolean;
+  }) =>
+    Atom.readable((get) => {
+      const inventoryResult = get(readInventory(input.connection));
+      const inventory = Option.getOrUndefined(
+        AsyncResult.value(inventoryResult),
       );
-    if (AsyncResult.isFailure(recordsResult))
-      messages.push(`Reviews for ${input.project.name} could not be read.`);
-    const byCheckout = new Map<string, (typeof candidates)[number]>();
-    const pending = new Set<string>();
-    const failed = new Set<string>();
-    for (const candidate of candidates) {
-      if (AsyncResult.isInitial(candidate.result))
-        pending.add(candidate.record.branch);
-      if (AsyncResult.isFailure(candidate.result) || !candidate.revision)
-        failed.add(candidate.record.branch);
-      const revision = candidate.revision;
-      if (!revision || revision.projectId !== input.project.id) continue;
-      const key = JSON.stringify([
-        revision.worktreePath,
-        revision.content.worktreeId,
-      ]);
-      if (!byCheckout.has(key)) byCheckout.set(key, candidate);
-    }
-    const associated = new Set<string>();
-    for (const entry of entries) {
-      if (entry.available && entry.worktreeId) {
-        const status = get(
-          readGitStatus({
-            connection: input.connection,
-            scope: { projectId: entry.projectId, worktreeId: entry.worktreeId },
-          }),
-        );
-        const answer = Option.getOrUndefined(AsyncResult.value(status));
-        if (AsyncResult.isFailure(status))
-          messages.push(
-            `Working tree status for ${entry.name} on ${input.environmentName} could not be read.`,
-          );
-        entry.changes = AsyncResult.isFailure(status)
-          ? { state: 'unavailable' }
-          : answer
-            ? {
-                state: 'available',
-                count: new Set(
-                  answer.changes.map((change) =>
-                    change.scope === 'untracked' || change.scope === 'unmerged'
-                      ? change.path
-                      : (change.newPath ?? change.oldPath),
-                  ),
-                ).size,
-              }
-            : { state: 'loading' };
-      }
-      if (AsyncResult.isFailure(recordsResult)) {
-        entry.review = { state: 'unavailable' };
-        continue;
-      }
-      if (!records) continue;
-      const match = byCheckout.get(
-        JSON.stringify([entry.path, entry.worktreeId]),
+      const savedProject = inventory?.projects.find(
+        (project) => project.id === input.projectId,
       );
-      if (!match) {
-        if (failed.has(entry.branch) && !pending.has(entry.branch))
-          messages.push(
-            `Review for ${entry.name} on ${input.environmentName} could not be read.`,
-          );
-        entry.review = { state: 'none' };
-        if (failed.has(entry.branch)) entry.review = { state: 'unavailable' };
-        if (pending.has(entry.branch)) entry.review = { state: 'loading' };
-        continue;
-      }
-      associated.add(match.record.reviewId);
-      const markResult = get(
-        readReviewMarks({
+      if (!inventory || !savedProject) return { entries: [], messages: [] };
+      const project: Project = AsyncResult.isFailure(inventoryResult)
+        ? { ...savedProject, available: false }
+        : savedProject;
+      const environmentName = inventory.environment.name;
+      const entries = inventoryEntries({ ...input, project, environmentName });
+      const recordsResult = get(
+        readProjectReviews({
           connection: input.connection,
-          reviewId: match.record.reviewId,
+          projectId: project.id,
         }),
       );
-      const marks = Option.getOrUndefined(AsyncResult.value(markResult));
-      if (AsyncResult.isFailure(markResult))
-        messages.push(
-          `Progress for ${entry.name} on ${input.environmentName} could not be read.`,
+      const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
+      const messages: string[] = [];
+      const active = (records ?? []).filter(
+        (record) => record.state === 'open' && !record.archived,
+      );
+      const branches = new Set(entries.map((entry) => entry.branch));
+      const candidates = active
+        .filter((record) => branches.has(record.branch))
+        .map((record) => {
+          const result = get(
+            readReview({
+              connection: input.connection,
+              reviewId: record.reviewId,
+            }),
+          );
+          return {
+            record,
+            result,
+            revision: Option.getOrUndefined(AsyncResult.value(result))
+              ?.revision,
+          };
+        })
+        .sort(
+          (a, b) =>
+            (b.revision?.publishedAt ?? '').localeCompare(
+              a.revision?.publishedAt ?? '',
+            ) || a.record.reviewId.localeCompare(b.record.reviewId),
         );
-      const layers = match.revision?.content.layers;
-      entry.review = {
-        ...recordReview(match.record),
-        ...(marks && layers && !AsyncResult.isFailure(markResult)
-          ? {
-              progress: {
-                reviewed: layers.filter((layer) =>
-                  decisionMarked(marks.decisions, layer),
-                ).length,
-                total: layers.length,
-              },
-            }
-          : {}),
-        progressUnavailable: AsyncResult.isFailure(markResult),
-      };
-    }
-    if (input.older) {
-      for (const record of records ?? []) {
-        if (associated.has(record.reviewId)) continue;
-        const revision = candidates.find(
-          (candidate) => candidate.record.reviewId === record.reviewId,
-        )?.revision;
-        entries.push({
-          key: `${input.connection.environmentId}/${record.reviewId}`,
-          kind: 'review',
-          environmentId: input.connection.environmentId,
-          environmentName: input.environmentName,
-          projectId: input.project.id,
-          projectName: input.project.name,
-          worktreeId: entries.find(
-            (entry) => revision?.worktreePath === entry.path,
-          )?.worktreeId,
-          path: revision?.worktreePath,
-          name: record.branch,
-          branch: record.branch,
-          main: false,
-          detached: record.branch === 'Detached HEAD',
-          available: true,
-          review: { ...recordReview(record), retained: true },
-          changes: { state: 'unavailable' },
-        });
+      if (AsyncResult.isFailure(recordsResult))
+        messages.push(`Reviews for ${project.name} could not be read.`);
+      const byCheckout = new Map<string, (typeof candidates)[number]>();
+      const pending = new Set<string>();
+      const failed = new Set<string>();
+      for (const candidate of candidates) {
+        if (AsyncResult.isInitial(candidate.result))
+          pending.add(candidate.record.branch);
+        if (AsyncResult.isFailure(candidate.result) || !candidate.revision)
+          failed.add(candidate.record.branch);
+        const revision = candidate.revision;
+        if (!revision || revision.projectId !== project.id) continue;
+        const key = JSON.stringify([
+          revision.worktreePath,
+          revision.content.worktreeId,
+        ]);
+        if (!byCheckout.has(key)) byCheckout.set(key, candidate);
       }
-    }
-    return { entries, messages };
-  }),
+      const associated = new Set<string>();
+      for (const entry of entries) {
+        if (entry.available && entry.worktreeId) {
+          const status = get(
+            readGitStatus({
+              connection: input.connection,
+              scope: {
+                projectId: entry.projectId,
+                worktreeId: entry.worktreeId,
+              },
+            }),
+          );
+          const answer = Option.getOrUndefined(AsyncResult.value(status));
+          if (AsyncResult.isFailure(status))
+            messages.push(
+              `Working tree status for ${entry.name} on ${environmentName} could not be read.`,
+            );
+          entry.changes = AsyncResult.isFailure(status)
+            ? { state: 'unavailable' }
+            : answer
+              ? {
+                  state: 'available',
+                  count: new Set(
+                    answer.changes.map((change) =>
+                      change.scope === 'untracked' ||
+                      change.scope === 'unmerged'
+                        ? change.path
+                        : (change.newPath ?? change.oldPath),
+                    ),
+                  ).size,
+                }
+              : { state: 'loading' };
+        }
+        if (AsyncResult.isFailure(recordsResult)) {
+          entry.review = { state: 'unavailable' };
+          continue;
+        }
+        if (!records) continue;
+        const match = byCheckout.get(
+          JSON.stringify([entry.path, entry.worktreeId]),
+        );
+        if (!match) {
+          if (failed.has(entry.branch) && !pending.has(entry.branch))
+            messages.push(
+              `Review for ${entry.name} on ${environmentName} could not be read.`,
+            );
+          entry.review = { state: 'none' };
+          if (failed.has(entry.branch)) entry.review = { state: 'unavailable' };
+          if (pending.has(entry.branch)) entry.review = { state: 'loading' };
+          continue;
+        }
+        associated.add(match.record.reviewId);
+        const markResult = get(
+          readReviewMarks({
+            connection: input.connection,
+            reviewId: match.record.reviewId,
+          }),
+        );
+        const marks = Option.getOrUndefined(AsyncResult.value(markResult));
+        if (AsyncResult.isFailure(markResult))
+          messages.push(
+            `Progress for ${entry.name} on ${environmentName} could not be read.`,
+          );
+        const layers = match.revision?.content.layers;
+        entry.review = {
+          ...recordReview(match.record),
+          ...(marks && layers && !AsyncResult.isFailure(markResult)
+            ? {
+                progress: {
+                  reviewed: layers.filter((layer) =>
+                    decisionMarked(marks.decisions, layer),
+                  ).length,
+                  total: layers.length,
+                },
+              }
+            : {}),
+          progressUnavailable: AsyncResult.isFailure(markResult),
+        };
+      }
+      if (input.older) {
+        for (const record of records ?? []) {
+          if (associated.has(record.reviewId)) continue;
+          const revision = candidates.find(
+            (candidate) => candidate.record.reviewId === record.reviewId,
+          )?.revision;
+          entries.push({
+            key: `${input.connection.environmentId}/${record.reviewId}`,
+            kind: 'review',
+            environmentId: input.connection.environmentId,
+            environmentName: environmentName,
+            projectId: project.id,
+            projectName: project.name,
+            worktreeId: entries.find(
+              (entry) => revision?.worktreePath === entry.path,
+            )?.worktreeId,
+            path: revision?.worktreePath,
+            name: record.branch,
+            branch: record.branch,
+            main: false,
+            detached: record.branch === 'Detached HEAD',
+            available: true,
+            review: { ...recordReview(record), retained: true },
+            changes: { state: 'unavailable' },
+          });
+        }
+      }
+      return { entries, messages };
+    }).pipe(Atom.setIdleTTL(0)),
 );
 export const readWorktreeNavigator = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
@@ -306,15 +332,78 @@ export const readWorktreeNavigator = Atom.family(
         const answer = get(
           readNavigatorProject({
             connection: source.connection,
-            project: source.project,
-            environmentName: source.environmentName,
+            projectId: source.project.id,
             older: state.filter.older,
           }),
         );
         messages.push(...answer.messages);
-        const entries = answer.entries.filter((entry) =>
-          navigatorEntryMatches(entry, state.query, state.filter),
-        );
+        const entries = answer.entries
+          .filter((entry) =>
+            navigatorEntryMatches(entry, state.query, state.filter),
+          )
+          .map((entry): NavigatorEntry => ({
+            ...entry,
+            review: { ...entry.review },
+            changes: { ...entry.changes },
+          }));
+        for (const entry of entries) {
+          if (entry.changes.state === 'available' && entry.worktreeId) {
+            if (entry.changes.count === 0)
+              entry.changes.summary = {
+                state: 'available',
+                additions: 0,
+                deletions: 0,
+                binaryFiles: 0,
+              };
+            else {
+              const result = get(
+                readWorktreeSummary({
+                  connection: source.connection,
+                  scope: {
+                    projectId: entry.projectId,
+                    worktreeId: entry.worktreeId,
+                  },
+                }),
+              );
+              const value = Option.getOrUndefined(AsyncResult.value(result));
+              entry.changes.summary = { state: 'loading' };
+              if (AsyncResult.isFailure(result))
+                entry.changes.summary = { state: 'unavailable' };
+              else if (value)
+                entry.changes.summary = {
+                  state: 'available',
+                  additions: value.additions,
+                  deletions: value.deletions,
+                  binaryFiles: value.binaryFiles,
+                };
+            }
+          }
+          if (
+            entry.review.state === 'available' &&
+            entry.review.pullRequestNumber
+          ) {
+            const result = get(
+              readReviewPullChecks({
+                connection: source.connection,
+                reviewId: entry.review.reviewId,
+              }),
+            );
+            const value = Option.getOrUndefined(AsyncResult.value(result));
+            entry.review.checks = { state: 'loading' };
+            if (
+              AsyncResult.isFailure(result) ||
+              (value &&
+                (value.kind !== 'available' ||
+                  value.number !== entry.review.pullRequestNumber))
+            )
+              entry.review.checks = { state: 'unavailable' };
+            else if (value?.kind === 'available')
+              entry.review.checks = {
+                state: 'available',
+                result: value.checks,
+              };
+          }
+        }
         if (
           entries.length === 0 &&
           (state.query.trim() || state.filter.reviews !== undefined)

@@ -8,8 +8,7 @@ import {
   ReadReviewRecordService,
 } from '@porcelain/reviews/services';
 import { ObserveReviewPullRequestService } from '@porcelain/reviews/services';
-import { reviewPullRequestNumber } from '@porcelain/reviews/rules';
-import { ResolveProjectGitHubUseCasePort } from '../../ports/resolve-project-github-use-case-port.ts';
+import { ReadReviewGitHubTargetUseCasePort } from '../../ports/read-review-github-target-use-case-port.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 export class ReadReviewPullRequestUseCase extends Context.Service<
@@ -26,7 +25,7 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     ReadReviewPullRequestUseCase,
     Effect.gen(function* () {
-      const resolve = yield* ResolveProjectGitHubUseCasePort;
+      const target = yield* ReadReviewGitHubTargetUseCasePort;
       const events = yield* EventPublisher;
       const github = yield* ReadGitHubPullRequestService;
       const reviews = yield* ReadReviewRecordService;
@@ -36,33 +35,13 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
       return {
         execute: Effect.fn('ReadReviewPullRequestUseCase.execute')(
           function* (input) {
-            const record = yield* lanes.run(
-              keys.reviews({ repositoryId: `review:${input.reviewId}` }),
-              'read',
-              () => reviews.execute(input),
-            );
-            if (record.pullRequest === undefined) return { kind: 'not-linked' };
-            const { repository, selection } = yield* resolve.execute({
-              projectId: record.projectId,
-            });
-            if (selection.unavailable !== undefined)
-              return selection.unavailable;
-            if (repository === undefined || selection.choice === undefined)
-              return { kind: 'unavailable', reason: 'not-github' };
-            const number = reviewPullRequestNumber(record.pullRequest);
-            const url = URL.parse(record.pullRequest);
-            if (
-              number === undefined ||
-              url?.hostname !== 'github.com' ||
-              url.pathname.toLowerCase() !==
-                `/${repository.owner}/${repository.repo}/pull/${number}`.toLowerCase()
-            )
-              return { kind: 'unavailable', reason: 'not-github' };
+            const linked = yield* target.execute(input);
+            if (linked.kind !== 'available') return linked;
             const result = yield* github
               .execute({
-                ...repository,
-                account: selection.choice.account,
-                number,
+                ...linked.repository,
+                account: linked.account,
+                number: linked.number,
               })
               .pipe(Effect.result);
             if (result._tag === 'Failure')
@@ -79,8 +58,7 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
               () =>
                 Effect.gen(function* () {
                   const current = yield* reviews.execute(input);
-                  if (current.pullRequest !== record.pullRequest)
-                    return undefined;
+                  if (current.pullRequest !== linked.url) return undefined;
                   return yield* close.execute({
                     ...input,
                     pullRequest: result.success,
@@ -94,7 +72,7 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
             if (!observed) return { kind: 'not-linked' as const };
             return {
               kind: 'available' as const,
-              account: selection.choice?.account ?? '',
+              account: linked.account,
               pullRequest: observed.pullRequest,
             };
           },

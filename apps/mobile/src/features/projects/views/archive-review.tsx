@@ -8,9 +8,9 @@ import type { RuntimeConnection } from '@porcelain/client/transport';
 import {
   archiveDescription,
   archiveFailureMessage,
-} from '@porcelain/client/reviews/rules';
-import {
   archiveOptions,
+} from '@porcelain/client/projects/rules';
+import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';

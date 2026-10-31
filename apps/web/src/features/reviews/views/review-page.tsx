@@ -668,7 +668,7 @@ function ReviewRevisionPage({
       aria-label="Review walkthrough"
       className={cn(
         '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
-        !standalone && 'rounded-paper border',
+        !standalone && 'border',
       )}
       style={{ containerName: 'pane review' }}
     >

@@ -45,11 +45,28 @@ import {
   listFileCommitsQuerySchema,
   listFileCommitsResponseSchema,
 } from './commit-history.ts';
-import { readGitStatusResponseSchema } from './git-status.ts';
+import {
+  readGitStatusResponseSchema,
+  readWorktreeSummaryResponseSchema,
+} from './git-status.ts';
 
 export class ChangesApi extends porcelainApi.add(
   HttpApiGroup.make('changes')
     .add(
+      HttpApiEndpoint.get(
+        'readWorktreeSummary',
+        '/api/worktrees/:worktreeId/summary',
+        {
+          disableCodecs: true,
+          params: worktreeParamsSchema,
+          success: readWorktreeSummaryResponseSchema,
+          error: [
+            environmentUnavailable,
+            ...worktreeFailures,
+            ...gitReadFailures,
+          ],
+        },
+      ),
       HttpApiEndpoint.get(
         'listBranchBases',
         '/api/worktrees/:worktreeId/branch-bases',

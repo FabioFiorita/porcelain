@@ -20,6 +20,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     JSON.parse(await readFile(server.manifestPath, 'utf8')),
   );
   const statePath = join(session.projectHome, 'github-state.json');
+  const checksQueryPath = join(session.projectHome, 'github-checks-query.txt');
   const heldPath = join(session.projectHome, 'github-accounts-held');
   const releasePath = join(session.projectHome, 'github-accounts-released');
   const probesPath = join(session.projectHome, 'github-account-probes');
@@ -27,6 +28,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
   const secret = 'github-test-token-never-return-this';
   const state = {
     mode: 'ok',
+    checkState: '',
     state: 'OPEN',
     headBranch: (await session.git('branch', '--show-current')).trim(),
     accounts: ['personal', 'work'],
@@ -60,10 +62,12 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
 } else {
  const pageInfo = { hasNextPage: false };
  const detailQuery = args.find(arg => arg.includes('PullRequestRead')) ?? '';
+ const checksQuery = args.find(arg => arg.includes('PullRequestChecks'));
+ if (checksQuery) fs.writeFileSync(${JSON.stringify(checksQueryPath)}, checksQuery);
  const avatarUrl = detailQuery.includes('avatarUrl') ? 'https://avatars.githubusercontent.com/u/1' : undefined;
  const diffHunk = detailQuery.includes('diffHunk') ? '@@ -1 +1 @@\\n-old\\n+new' : undefined;
  const pr = { number: 423, title: 'Fixture PR', url: 'https://github.com/FabioFiorita/porcelain/pull/423', state: fixture.state, isDraft: false,
- author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
+ author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: fixture.checkState ? [{ commit: { statusCheckRollup: {state: fixture.checkState, contexts:{nodes:[],pageInfo} } } }] : [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
  comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [{ id: 'review', author: { login: 'reviewer', avatarUrl }, submittedAt: '2026-10-19T12:00:00Z', body: 'A review', url: 'https://github.com/review', state: 'COMMENTED', comments: { nodes: [{ id: 'inline', author: { login: 'reviewer', avatarUrl }, createdAt: '2026-10-19T10:00:00Z', body: 'Inline comment', url: 'https://github.com/inline', path: 'README.md', line: 1, originalLine: 1, diffHunk }], pageInfo } }], pageInfo } };
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
 }
@@ -138,6 +142,9 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     expect(await request(`${review}/pull-request`)).toEqual({
       kind: 'not-linked',
     });
+    expect(await request(`${review}/pull-request/checks`)).toEqual({
+      kind: 'not-linked',
+    });
     const pullRequest = 'https://github.com/FabioFiorita/porcelain/pull/423';
     await read(
       session,
@@ -210,8 +217,37 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       review: { pullRequest, latestRevision: 1 },
       revision: { revision: 1 },
     });
+    for (const [checkState, checks] of [
+      ['SUCCESS', 'passed'],
+      ['PENDING', 'running'],
+      ['FAILURE', 'failed'],
+      ['', 'none'],
+    ]) {
+      state.checkState = checkState ?? '';
+      await save();
+      expect(await request(`${review}/pull-request/checks`)).toEqual({
+        kind: 'available',
+        number: 423,
+        checks,
+      });
+    }
+    state.checkState = 'UNRECOGNIZED';
+    await save();
+    expect(await request(`${review}/pull-request/checks`)).toEqual({
+      kind: 'unavailable',
+      reason: 'invalid-response',
+    });
+    state.checkState = '';
+    await save();
+    expect(await readFile(checksQueryPath, 'utf8')).not.toMatch(
+      /\b(body|comments|reviews|labels|contexts)\b/,
+    );
     state.mode = 'offline';
     await save();
+    expect(await request(`${review}/pull-request/checks`)).toEqual({
+      kind: 'unavailable',
+      reason: 'offline',
+    });
     expect(await setPull(null)).toEqual({ kind: 'updated' });
     expect(await setPull(null)).toEqual({ kind: 'updated' });
     expect(await request(`${review}/pull-request`)).toEqual({
@@ -334,6 +370,12 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     state.accounts = ['personal'];
     state.state = 'MERGED';
     await save();
+    expect(await request(`${review}/pull-request/checks`)).toEqual({
+      kind: 'available',
+      number: 423,
+      checks: 'none',
+    });
+    expect(await request(review)).toMatchObject({ review: { state: 'open' } });
     const viewer = await session.live();
     expect(await request(`${review}/pull-request`)).toMatchObject({
       kind: 'available',
