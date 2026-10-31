@@ -32,7 +32,6 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { Empty } from '../../../components/ui/empty';
 import { headerIcon } from '../../../shared/icons/header-icon';
-import { directoryRequests } from '../rules/directory-requests';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
@@ -113,6 +112,7 @@ function FilesNavigationView({
     setExpanded,
     requested,
     setRequested,
+    reconcileDirectories,
     query,
     setQuery,
     showHidden,
@@ -141,19 +141,9 @@ function FilesNavigationView({
   const data = directories.results.flatMap((result) =>
     Option.toArray(AsyncResult.value(result)),
   );
-  {
-    const confirmed = directories.results.flatMap((result) =>
-      AsyncResult.isSuccess(result) && !result.waiting ? [result.value] : [],
-    );
-    const reachable = directoryRequests(requested, confirmed);
-    if (reachable.length !== requested.length) {
-      setRequested(reachable);
-      setExpanded(
-        (current) =>
-          new Set([...current].filter((path) => reachable.includes(path))),
-      );
-    }
-  }
+  const confirmed = directories.results.flatMap((result) =>
+    AsyncResult.isSuccess(result) && !result.waiting ? [result.value] : [],
+  );
   const failure = directories.results.find(AsyncResult.isFailure);
   const loading = directoryLoading(
     Array.zip(requestPaths, directories.results).map(([path, result]) => ({
@@ -455,7 +445,14 @@ function FilesNavigationView({
       ],
     );
   return (
-    <Box className="flex-1" surface="background" collapsable={false}>
+    <Box
+      className="flex-1"
+      surface="background"
+      collapsable={false}
+      ref={(view) => {
+        if (view) reconcileDirectories(confirmed);
+      }}
+    >
       {!embedded ? (
         <LeadingToolbar sidebar={sidebar}>
           <Stack.Toolbar.Menu

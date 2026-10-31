@@ -1,4 +1,5 @@
-import { View, type ViewProps } from 'react-native';
+import type { ComponentPropsWithRef } from 'react';
+import { View } from 'react-native';
 
 const gaps = {
   0.5: 'gap-0.5',
@@ -19,7 +20,7 @@ const surfaces = {
   panel: 'overflow-hidden rounded-xl border border-border bg-background',
 };
 
-export type BoxProps = Omit<ViewProps, 'style'> & {
+export type BoxProps = Omit<ComponentPropsWithRef<typeof View>, 'style'> & {
   gap?: keyof typeof gaps;
   padding?: keyof typeof paddings;
   paddingX?: keyof typeof horizontal;

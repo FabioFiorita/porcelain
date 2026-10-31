@@ -1,15 +1,12 @@
 import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
+import type { ListDirectoryResponse } from '@porcelain/contracts/files';
+import {
+  reconcileFileNavigation,
+  type FileNavigationState,
+} from './rules/file-navigation';
 
-type NavigationState = {
-  readonly expanded: ReadonlySet<string>;
-  readonly requested: readonly string[];
-  readonly query: string;
-  readonly showHidden: boolean;
-  readonly selectedPath: string | undefined;
-};
-
-const initialNavigation = (): NavigationState => ({
+const initialNavigation = (): FileNavigationState => ({
   expanded: new Set(),
   requested: [''],
   query: '',
@@ -39,6 +36,8 @@ export function useFileNavigation(workspace: string) {
     ...state,
     scrollOffset: useAtomValue(initialFileNavigationOffset(workspace)),
     setScrollOffset,
+    reconcileDirectories: (directories: readonly ListDirectoryResponse[]) =>
+      set((current) => reconcileFileNavigation(current, directories)),
     setSelectedPath: (selectedPath: string) =>
       set((current) => ({ ...current, selectedPath })),
     setExpanded: (

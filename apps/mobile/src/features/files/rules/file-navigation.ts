@@ -4,6 +4,31 @@ import {
   type FileTreeEntry,
   type PinnedFileEntry,
 } from '@porcelain/client/files/rules';
+import type { ListDirectoryResponse } from '@porcelain/contracts/files';
+import { directoryRequests } from './directory-requests';
+
+export type FileNavigationState = {
+  readonly expanded: ReadonlySet<string>;
+  readonly requested: readonly string[];
+  readonly query: string;
+  readonly showHidden: boolean;
+  readonly selectedPath: string | undefined;
+};
+
+export function reconcileFileNavigation(
+  state: FileNavigationState,
+  directories: readonly ListDirectoryResponse[],
+): FileNavigationState {
+  const requested = directoryRequests(state.requested, directories);
+  if (requested.length === state.requested.length) return state;
+  return {
+    ...state,
+    requested,
+    expanded: new Set(
+      [...state.expanded].filter((path) => requested.includes(path)),
+    ),
+  };
+}
 
 type PinnedNavigationRow = {
   key: string;

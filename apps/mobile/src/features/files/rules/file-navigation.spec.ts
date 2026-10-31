@@ -1,5 +1,40 @@
 import { expect, test } from 'vitest';
-import { pinnedNavigationRows } from './file-navigation';
+import {
+  pinnedNavigationRows,
+  reconcileFileNavigation,
+  type FileNavigationState,
+} from './file-navigation';
+
+test('removed folders retire expansion and child reads together without losing the saved place', () => {
+  const state: FileNavigationState = {
+    expanded: new Set(['docs', 'docs/nested', 'src']),
+    requested: ['', 'docs', 'docs/nested', 'src'],
+    query: '.env',
+    showHidden: true,
+    selectedPath: 'docs/nested/.env',
+  };
+  expect(reconcileFileNavigation(state, [])).toBe(state);
+  const reconciled = reconcileFileNavigation(state, [
+    {
+      worktreeId: 'w',
+      path: '',
+      entries: [{ name: 'src', kind: 'directory' }],
+    },
+    {
+      worktreeId: 'w',
+      path: 'docs',
+      entries: [{ name: 'nested', kind: 'directory' }],
+    },
+  ]);
+  expect(reconciled).toEqual({
+    expanded: new Set(['src']),
+    requested: ['', 'src'],
+    query: '.env',
+    showHidden: true,
+    selectedPath: 'docs/nested/.env',
+  });
+  expect(reconcileFileNavigation(reconciled, [])).toBe(reconciled);
+});
 
 test('expanded pinned folder descendants are list rows with depth relative to the pin', () => {
   const rows = pinnedNavigationRows(

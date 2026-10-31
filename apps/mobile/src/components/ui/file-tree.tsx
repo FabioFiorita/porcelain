@@ -76,7 +76,9 @@ export function FileTree({
         list.scrollToOffset({ offset: initialOffset, animated: false });
         setRestored(true);
       }}
-      onContentSizeChange={(_, height) => setContentHeight(height)}
+      onContentSizeChange={(_, height) => {
+        if (!restored) setContentHeight(height);
+      }}
       contentInsetAdjustmentBehavior="automatic"
       onScroll={
         onScrollOffset
