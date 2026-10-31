@@ -63,6 +63,7 @@ async function fixture(owner = false) {
         }),
     },
     renameEnvironment: unused,
+    setEnvironmentIcon: unused,
     readReviewGitSettings: unused,
     saveReviewGitSettings: unused,
     revokeAccess: unused,

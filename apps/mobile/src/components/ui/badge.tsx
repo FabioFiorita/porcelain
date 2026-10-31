@@ -1,4 +1,5 @@
 import { Pressable, View, type ViewProps } from 'react-native';
+import { Icon, type IconName } from './icon';
 import { Text } from './text';
 const variants = {
   default: 'border-transparent bg-primary',
@@ -27,6 +28,7 @@ const tones = {
 export function Badge({
   label,
   labelNumberOfLines,
+  icon,
   variant = 'default',
   className,
   onPress,
@@ -34,26 +36,37 @@ export function Badge({
 }: Omit<ViewProps, 'style' | 'children'> & {
   label: string;
   labelNumberOfLines?: number;
+  icon?: IconName;
   variant?: keyof typeof variants;
   onPress?: () => void;
 }) {
   const classes = [
     'self-start rounded-full border px-2 py-0.5',
+    icon && 'flex-row items-center gap-1',
     variants[variant],
     className,
   ]
     .filter(Boolean)
     .join(' ');
-  const content = (
+  const text = (
     <Text
       {...(onPress ? { accessible: false } : {})}
       numberOfLines={labelNumberOfLines}
       variant="badge"
       weight="medium"
       tone={tones[variant]}
+      {...(icon ? { className: 'shrink' } : {})}
     >
       {label}
     </Text>
+  );
+  const content = icon ? (
+    <>
+      <Icon name={icon} size="tiny" tone={tones[variant]} />
+      {text}
+    </>
+  ) : (
+    text
   );
   if (onPress) {
     return (

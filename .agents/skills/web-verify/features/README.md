@@ -37,7 +37,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 - [access.device-trust](access.device-trust.md) (desktop) — Trust grants, revocation and trusted pairing links.
 - [access.disconnect](access.disconnect.md) — Session disconnect, draft refusal and return to pairing.
-- [access.environment-name](access.environment-name.md) (desktop) — Computer naming and persistence.
+- [access.environment-name](access.environment-name.md) (desktop) — Computer naming, icon and persistence.
 - [access.foreign-link](access.foreign-link.md) — Refuse links for another installation without pairing a device.
 - [access.pair-open-page](access.pair-open-page.md) — Pairing-page entry and return destination.
 - [access.pairing](access.pairing.md) — Pairing, invalid links and session restoration.

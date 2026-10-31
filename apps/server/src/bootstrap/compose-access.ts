@@ -10,7 +10,7 @@ import { accessServicesLayer } from './access-layers.ts';
 import { accessRoutes } from '../http/routes/access/access-api.ts';
 import {
   ReadEnvironmentService,
-  ReadEnvironmentNameService,
+  ReadEnvironmentLabelService,
 } from '@porcelain/access/services';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
@@ -22,6 +22,7 @@ import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
 import { SetWaysInPermissionUseCase } from '../use-cases/access/set-ways-in-permission.ts';
 import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
+import { SetEnvironmentIconUseCase } from '../use-cases/access/set-environment-icon.ts';
 import { ReadReviewGitSettingsUseCase } from '../use-cases/access/read-review-git-settings.ts';
 import { SaveReviewGitSettingsUseCase } from '../use-cases/access/save-review-git-settings.ts';
 import { ReadServiceUpdateUseCase } from '../use-cases/access/read-service-update.ts';
@@ -60,8 +61,8 @@ export function composeAccess(
     Layer.succeed(ReadEnvironmentService, readEnvironment),
     Layer.succeed(Logger, logger),
     Layer.succeed(
-      ReadEnvironmentNameService,
-      dependencies.shared.readEnvironmentName,
+      ReadEnvironmentLabelService,
+      dependencies.shared.readEnvironmentLabel,
     ),
     Layer.succeed(ReadEnvironmentUseCaseOptions, {
       version: dependencies.serverVersion,
@@ -83,6 +84,7 @@ export function composeAccess(
     ReadServiceUpdateUseCase.layer,
     StartServiceUpdateUseCase.layer,
     RenameEnvironmentUseCase.layer,
+    SetEnvironmentIconUseCase.layer,
     ReadReviewGitSettingsUseCase.layer,
     SaveReviewGitSettingsUseCase.layer,
     ReadRemoteAccessUseCase.layer,
@@ -117,6 +119,7 @@ export function composeAccess(
         readServiceUpdate: yield* ReadServiceUpdateUseCase,
         startServiceUpdate: yield* StartServiceUpdateUseCase,
         renameEnvironment: yield* RenameEnvironmentUseCase,
+        setEnvironmentIcon: yield* SetEnvironmentIconUseCase,
         readReviewGitSettings: yield* ReadReviewGitSettingsUseCase,
         saveReviewGitSettings: yield* SaveReviewGitSettingsUseCase,
         readRemoteAccess: yield* ReadRemoteAccessUseCase,

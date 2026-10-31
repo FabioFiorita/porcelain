@@ -1,9 +1,14 @@
 export {
+  environmentIconSchema,
   readEnvironmentResponseSchema,
   renameEnvironmentResponseSchema,
+  setEnvironmentIconResponseSchema,
+  type EnvironmentIcon,
   type ReadEnvironmentResponse,
   type RenameEnvironmentRequest,
   type RenameEnvironmentResponse,
+  type SetEnvironmentIconRequest,
+  type SetEnvironmentIconResponse,
 } from './environment.ts';
 export { readHealthResponseSchema, type ReadHealthResponse } from './health.ts';
 export {

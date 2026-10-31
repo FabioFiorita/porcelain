@@ -1,7 +1,7 @@
 import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('the owner names this computer in Settings, tab titles and accessible project identity', async ({
+test('the owner names this computer and picks its icon in Settings, tab titles and accessible project identity', async ({
   pairedPage,
   app,
   server,
@@ -117,4 +117,33 @@ test('the owner names this computer in Settings, tab titles and accessible proje
       exact: true,
     }),
   ).not.toBeAttached();
+
+  await navigator
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  await openThisComputer(pairedPage);
+  await settings
+    .getByRole('button', { name: 'Icon: Desktop', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitemradio', { name: 'Laptop', exact: true })
+    .click();
+  await expect
+    .poll(async () => (await server.inventory()).environment)
+    .toEqual({ name: host, custom: false, icon: 'laptop' });
+  const laptop = settings.getByRole('button', {
+    name: 'Icon: Laptop',
+    exact: true,
+  });
+  await expect(laptop).toBeVisible();
+  await laptop.click();
+  await pairedPage
+    .getByRole('menuitemradio', { name: 'Desktop', exact: true })
+    .click();
+  await expect
+    .poll(async () => (await server.inventory()).environment)
+    .toEqual({ name: host, custom: false });
+  await expect(
+    settings.getByRole('button', { name: 'Icon: Desktop', exact: true }),
+  ).toBeVisible();
 });

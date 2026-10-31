@@ -2,7 +2,7 @@ import { ReadEnvironmentUseCaseOptions } from '../../ports/read-environment-use-
 import { Context, Effect, Layer } from 'effect';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import {
-  ReadEnvironmentNameService,
+  ReadEnvironmentLabelService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
 import { type ReadEnvironmentResponse } from '@porcelain/contracts/access';
@@ -22,7 +22,7 @@ export class ReadEnvironmentUseCase extends Context.Service<
     ReadEnvironmentUseCase,
     Effect.gen(function* () {
       const readEnvironmentCapability = yield* ReadEnvironmentService;
-      const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const readEnvironmentLabelCapability = yield* ReadEnvironmentLabelService;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
       const optionsCapability = yield* ReadEnvironmentUseCaseOptions;
@@ -41,7 +41,8 @@ export class ReadEnvironmentUseCase extends Context.Service<
                   return {
                     environmentId: (yield* readEnvironmentCapability.execute())
                       .environmentId,
-                    name: (yield* readEnvironmentNameCapability.execute()).name,
+                    name: (yield* readEnvironmentLabelCapability.execute())
+                      .name,
                     version: optionsCapability.version,
                     protocol: optionsCapability.protocol,
                   };

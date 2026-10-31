@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import {
+  connectionErrorMessage,
+  type EnvironmentIcon,
+} from '@porcelain/client/access/rules';
 import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
@@ -25,7 +28,7 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Icon } from '../../../components/ui/icon';
+import { Icon, type IconName } from '../../../components/ui/icon';
 import { Input } from '../../../components/ui/input';
 import { Item } from '../../../components/ui/item';
 import { Badge } from '../../../components/ui/badge';
@@ -51,6 +54,13 @@ const pullCheckTones = {
   failed: 'del',
   none: 'muted',
 } as const;
+
+const environmentGlyphs: Record<EnvironmentIcon, IconName> = {
+  desktop: 'environments',
+  laptop: 'laptop',
+  server: 'server',
+  cloud: 'cloud',
+};
 
 export function WorktreeNavigator({
   onSelect,
@@ -229,6 +239,7 @@ export function WorktreeNavigator({
                     <Badge
                       label={project.environmentName}
                       labelNumberOfLines={1}
+                      icon={environmentGlyphs[project.environmentIcon]}
                       variant="secondary"
                       accessibilityLabel={`Computer: ${project.environmentName}`}
                     />

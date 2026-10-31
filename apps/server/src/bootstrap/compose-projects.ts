@@ -4,7 +4,7 @@ import { DeleteWorktreeUseCase } from '../use-cases/projects/delete-worktree.ts'
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
   ReadEnvironmentService,
-  ReadEnvironmentNameService,
+  ReadEnvironmentLabelService,
 } from '@porcelain/access/services';
 import { ReadInventoryBadgesUseCasePort } from '../ports/read-inventory-badges-use-case-port.ts';
 import { ReadTextFilesService } from '@porcelain/files/services';
@@ -129,7 +129,7 @@ export function composeProjects(
     Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
     Layer.succeed(ReadReviewBadgesService, readWorktreeStatuses),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),
-    Layer.succeed(ReadEnvironmentNameService, shared.readEnvironmentName),
+    Layer.succeed(ReadEnvironmentLabelService, shared.readEnvironmentLabel),
     Layer.succeed(IdSource, ids),
     Layer.succeed(FilePreferenceStore, filePreference),
     Layer.succeed(ProjectFolderReader, projectFolderReader),
