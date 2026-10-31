@@ -1,7 +1,7 @@
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('inventory cards remain useful before a review is published and name their computer', async ({
+test('single-computer inventory cards retain accessible identity without a redundant badge', async ({
   navigator,
   server,
 }) => {
@@ -11,6 +11,14 @@ test('inventory cards remain useful before a review is published and name their 
     .element(
       navigator.getByRole('img', {
         name: `Computer: ${computer}`,
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      navigator.getByRole('button', {
+        name: `Collapse ${project.name} · ${computer}`,
         exact: true,
       }),
     )

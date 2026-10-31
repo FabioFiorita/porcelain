@@ -7,12 +7,11 @@ import {
 
 export function worktreeRow(entry: NavigatorEntry) {
   const diff = navigatorDiffSummary(entry.changes);
-  const clean =
-    entry.changes.state === 'available' && entry.changes.count === 0 && !diff;
   return {
     title: entry.detached ? entry.name : entry.branch || entry.name,
     review: navigatorCardReviewLabel(entry),
-    changes: clean ? '' : navigatorCardChangesLabel(entry.changes),
+    changes:
+      entry.kind === 'worktree' ? navigatorCardChangesLabel(entry.changes) : '',
     diff,
   };
 }

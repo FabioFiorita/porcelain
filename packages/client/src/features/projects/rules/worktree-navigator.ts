@@ -94,9 +94,9 @@ export function navigatorChangesLabel(changes: NavigatorChanges) {
     : `${changes.count} ${changes.count === 1 ? 'file' : 'files'} changed`;
 }
 export function navigatorCardReviewLabel(entry: NavigatorEntry) {
-  const parts = [navigatorReviewLabel(entry.review).replace('Review · ', '')];
-  if (entry.detached) parts.unshift('Detached');
-  return parts.join(' · ');
+  return entry.review.state === 'none'
+    ? ''
+    : navigatorReviewLabel(entry.review).replace('Review · ', '');
 }
 export function navigatorDiffSummary(changes: NavigatorChanges) {
   if (changes.state !== 'available') return undefined;
@@ -116,7 +116,7 @@ export function navigatorCardChangesLabel(changes: NavigatorChanges) {
       : '';
     return `+${summary.additions} −${summary.deletions}${binary}`;
   }
-  if (changes.count === 0) return 'Clean';
+  if (changes.count === 0) return '';
   return `${changes.count} ${changes.count === 1 ? 'file' : 'files'}`;
 }
 export function navigatorChecksLabel(

@@ -330,18 +330,20 @@ export function ProjectNavigator({
                   >
                     <TruncatedText text={source.project.name} />
                   </SidebarGroupLabel>
-                  <Badge
-                    variant="secondary"
-                    className="max-w-1/2"
-                    role="img"
-                    aria-label={`Computer: ${source.environmentName}`}
-                  >
-                    <MonitorIcon />
-                    <TruncatedText
-                      text={source.environmentName}
-                      className="min-w-0"
-                    />
-                  </Badge>
+                  {connections.length > 1 && (
+                    <Badge
+                      variant="secondary"
+                      className="max-w-20"
+                      role="img"
+                      aria-label={`Computer: ${source.environmentName}`}
+                    >
+                      <MonitorIcon />
+                      <TruncatedText
+                        text={source.environmentName}
+                        className="min-w-0"
+                      />
+                    </Badge>
+                  )}
                   <ProjectActions
                     project={source.project}
                     environmentId={
@@ -388,6 +390,10 @@ export function ProjectNavigator({
                           : 'none';
                       const summary = navigatorDiffSummary(entry.changes);
                       const retained = entry.kind === 'review';
+                      const detail = navigatorCardReviewLabel(entry);
+                      const changes = retained
+                        ? ''
+                        : navigatorCardChangesLabel(entry.changes);
                       const openRetained =
                         retained || (!entry.available && review !== undefined);
                       let attach =
@@ -471,7 +477,14 @@ export function ProjectNavigator({
                                       <div className="flex min-w-0 items-center gap-1">
                                         {clip(
                                           entry.name,
-                                          'min-w-0 flex-1 font-medium',
+                                          active
+                                            ? 'min-w-0 flex-1 font-semibold'
+                                            : 'min-w-0 flex-1 font-medium',
+                                        )}
+                                        {entry.detached && (
+                                          <span className="text-xs text-muted-foreground">
+                                            Detached
+                                          </span>
                                         )}
                                         {review?.pullRequestNumber && (
                                           <Button
@@ -494,21 +507,15 @@ export function ProjectNavigator({
                                           </Button>
                                         )}
                                       </div>
-                                      <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
-                                        {clip(
-                                          navigatorCardReviewLabel(entry),
-                                          'min-w-0 flex-1',
-                                        )}
-                                        {!retained &&
-                                          !(
-                                            entry.changes.state ===
-                                              'available' &&
-                                            entry.changes.count === 0
-                                          ) && (
+                                      {(detail || changes) && (
+                                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                                          {detail &&
+                                            clip(detail, 'min-w-0 flex-1')}
+                                          {changes && (
                                             <span
-                                              className="shrink-0"
+                                              className="ml-auto shrink-0"
                                               role="img"
-                                              aria-label={`Local uncommitted changes: ${navigatorCardChangesLabel(entry.changes)}`}
+                                              aria-label={`Local uncommitted changes: ${changes}`}
                                             >
                                               {summary ? (
                                                 <>
@@ -522,13 +529,12 @@ export function ProjectNavigator({
                                                     ` · ${summary.binaryFiles} binary`}
                                                 </>
                                               ) : (
-                                                navigatorCardChangesLabel(
-                                                  entry.changes,
-                                                )
+                                                changes
                                               )}
                                             </span>
                                           )}
-                                      </div>
+                                        </div>
+                                      )}
                                     </ItemContent>
                                   </Item>
                                 </div>
