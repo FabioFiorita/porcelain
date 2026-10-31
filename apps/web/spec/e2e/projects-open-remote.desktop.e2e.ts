@@ -42,7 +42,7 @@ test('the desktop app opens a project on another computer from the Open project 
   remote,
 }) => {
   const other = await remote.server.inventory();
-  const elsewhere = await remote.projectHome.repository('elsewhere');
+  const elsewhere = await remote.projectHome.repository('landing-site');
 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -96,9 +96,11 @@ test('the desktop app opens a project on another computer from the Open project 
       exact: true,
     }),
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'elsewhere', exact: true }).click();
   await dialog
-    .getByRole('button', { name: 'Open elsewhere', exact: true })
+    .getByRole('button', { name: 'landing-site', exact: true })
+    .click();
+  await dialog
+    .getByRole('button', { name: 'Open landing-site', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
 
@@ -119,7 +121,37 @@ test('the desktop app opens a project on another computer from the Open project 
     );
   await expect(
     pairedPage.getByRole('button', {
-      name: `Project actions: elsewhere · ${other.environment.name}`,
+      name: `Project actions: landing-site · ${other.environment.name}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  const navigator = pairedPage.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  for (const [computer, count] of [
+    [(await server.inventory()).environment.name, 1],
+    [other.environment.name, 2],
+  ] as const) {
+    const badges = navigator.getByRole('img', {
+      name: `Computer: ${computer}`,
+      exact: true,
+    });
+    await expect(badges).toHaveCount(count);
+    await expect(badges.first()).toBeVisible();
+  }
+  await expect(
+    navigator.getByText('landing-site', { exact: true }),
+  ).not.toHaveAttribute('data-clipped');
+  await navigator
+    .getByRole('searchbox', {
+      name: 'Search reviews and worktrees',
+      exact: true,
+    })
+    .fill('landing-site');
+  await expect(
+    navigator.getByRole('img', {
+      name: `Computer: ${other.environment.name}`,
       exact: true,
     }),
   ).toBeVisible();

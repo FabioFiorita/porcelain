@@ -23,7 +23,7 @@ const entry: NavigatorEntry = {
 it('shows a branch once without clean-state filler', () => {
   expect(worktreeRow(entry)).toEqual({
     title: 'feat/pinned-files',
-    review: 'No review',
+    review: '',
     changes: '',
     diff: undefined,
   });
@@ -71,7 +71,7 @@ it.each(['qa-531', 'qa-532'])(
       }),
     ).toEqual({
       title: name,
-      review: 'Detached · No review',
+      review: '',
       changes: '',
       diff: undefined,
     });
@@ -139,7 +139,7 @@ it.each([
       }),
     ).toEqual({
       title: 'feat/pinned-files',
-      review: 'No review',
+      review: '',
       changes: '1 file',
       diff: undefined,
     });

@@ -1,7 +1,7 @@
 import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('the owner names this computer in Settings, tab titles, pairing and project badges', async ({
+test('the owner names this computer in Settings, tab titles and accessible project identity', async ({
   pairedPage,
   app,
   server,
@@ -18,6 +18,12 @@ test('the owner names this computer in Settings, tab titles, pairing and project
   await expect(navigator.getByText('Porcelain', { exact: true })).toBeVisible();
   await expect(
     navigator.getByRole('img', { name: `Computer: ${host}`, exact: true }),
+  ).not.toBeAttached();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · ${host}`,
+      exact: true,
+    }),
   ).toBeVisible();
 
   await pairedPage
@@ -64,7 +70,19 @@ test('the owner names this computer in Settings, tab titles, pairing and project
       name: 'Computer: Workstation',
       exact: true,
     }),
+  ).not.toBeAttached();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · Workstation`,
+      exact: true,
+    }),
   ).toBeVisible();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · ${host}`,
+      exact: true,
+    }),
+  ).not.toBeAttached();
   await expect(
     navigator.getByRole('img', { name: `Computer: ${host}`, exact: true }),
   ).not.toBeAttached();
@@ -84,4 +102,19 @@ test('the owner names this computer in Settings, tab titles, pairing and project
   await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · ${host}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    navigator.getByRole('button', {
+      name: `Project actions: ${project} · Workstation`,
+      exact: true,
+    }),
+  ).not.toBeAttached();
 });

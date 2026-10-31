@@ -40,7 +40,7 @@ const entry: NavigatorEntry = {
   },
   changes: { state: 'loading' },
 };
-it('uses decisions directly in the compact card while preserving detached and retained review meaning', () => {
+it('uses decision progress without empty review filler in compact cards', () => {
   expect(
     navigatorCardReviewLabel({
       ...entry,
@@ -57,7 +57,7 @@ it('uses decisions directly in the compact card while preserving detached and re
   ).toBe('3/12 decisions');
   expect(
     navigatorCardReviewLabel({ ...entry, review: { state: 'none' } }),
-  ).toBe('Detached · No review');
+  ).toBe('');
   expect(
     navigatorCardReviewLabel({
       ...entry,
@@ -78,7 +78,7 @@ it('uses decisions directly in the compact card while preserving detached and re
 it.each<{ changes: NavigatorChanges; label: string }>([
   { changes: { state: 'loading' }, label: 'Reading changes…' },
   { changes: { state: 'unavailable' }, label: 'Changes unavailable' },
-  { changes: { state: 'available', count: 0 }, label: 'Clean' },
+  { changes: { state: 'available', count: 0 }, label: '' },
   {
     changes: { state: 'available', count: 2, summary: { state: 'loading' } },
     label: '2 files',

@@ -224,14 +224,16 @@ export function WorktreeNavigator({
                 >
                   {project.project.name}
                 </Text>
-                <Box className="min-w-0 max-w-1/2 shrink">
-                  <Badge
-                    label={project.environmentName}
-                    labelNumberOfLines={1}
-                    variant="secondary"
-                    accessibilityLabel={`Computer: ${project.environmentName}`}
-                  />
-                </Box>
+                {connections.length > 1 && (
+                  <Box className="min-w-0 max-w-20 shrink">
+                    <Badge
+                      label={project.environmentName}
+                      labelNumberOfLines={1}
+                      variant="secondary"
+                      accessibilityLabel={`Computer: ${project.environmentName}`}
+                    />
+                  </Box>
+                )}
                 <ProjectActions
                   connection={project.connection}
                   project={project.project}
@@ -262,6 +264,7 @@ export function WorktreeNavigator({
                       <Box key={entry.key} gap={1}>
                         <Item
                           title={row.title}
+                          {...(entry.detached ? { detail: 'Detached' } : {})}
                           titleNumberOfLines={1}
                           titleTrailing={
                             number !== undefined ? (
@@ -337,43 +340,50 @@ export function WorktreeNavigator({
                               }
                             : {})}
                         >
-                          <Box
-                            className="flex-row items-center justify-between"
-                            gap={2}
-                          >
-                            <Text
-                              variant="caption"
-                              tone="muted"
-                              numberOfLines={1}
-                              className="min-w-0 flex-1"
+                          {row.review || row.changes ? (
+                            <Box
+                              className="flex-row items-center justify-between"
+                              gap={2}
                             >
-                              {row.review}
-                            </Text>
-                            {entry.kind === 'worktree' &&
-                              !(
-                                entry.changes.state === 'available' &&
-                                entry.changes.count === 0
-                              ) &&
-                              (row.diff ? (
-                                <Box className="flex-row items-center" gap={1}>
-                                  <Text variant="caption" tone="add">
-                                    +{row.diff.additions}
-                                  </Text>
-                                  <Text variant="caption" tone="del">
-                                    −{row.diff.deletions}
-                                  </Text>
-                                  {row.diff.binaryFiles > 0 && (
-                                    <Text variant="caption" tone="muted">
-                                      {row.diff.binaryFiles} binary
-                                    </Text>
-                                  )}
-                                </Box>
-                              ) : (
-                                <Text variant="caption" tone="muted">
-                                  {row.changes}
+                              {row.review ? (
+                                <Text
+                                  variant="caption"
+                                  tone="muted"
+                                  numberOfLines={1}
+                                  className="min-w-0 flex-1"
+                                >
+                                  {row.review}
                                 </Text>
-                              ))}
-                          </Box>
+                              ) : null}
+                              {row.changes &&
+                                (row.diff ? (
+                                  <Box
+                                    className="ml-auto flex-row items-center"
+                                    gap={1}
+                                  >
+                                    <Text variant="caption" tone="add">
+                                      +{row.diff.additions}
+                                    </Text>
+                                    <Text variant="caption" tone="del">
+                                      −{row.diff.deletions}
+                                    </Text>
+                                    {row.diff.binaryFiles > 0 && (
+                                      <Text variant="caption" tone="muted">
+                                        {row.diff.binaryFiles} binary
+                                      </Text>
+                                    )}
+                                  </Box>
+                                ) : (
+                                  <Text
+                                    variant="caption"
+                                    tone="muted"
+                                    className="ml-auto"
+                                  >
+                                    {row.changes}
+                                  </Text>
+                                ))}
+                            </Box>
+                          ) : null}
                         </Item>
                       </Box>
                     );

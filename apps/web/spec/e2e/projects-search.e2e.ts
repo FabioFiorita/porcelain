@@ -1,10 +1,11 @@
 import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
+import { nameWeight } from '../kit/navigator.ts';
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`project cards distinguish detached worktrees and disclose computer identity at ${width}px in ${colorScheme}`, async ({
+    test(`compact project cards distinguish selection and keep single-computer headers clear at ${width}px in ${colorScheme}`, async ({
       pairedPage: page,
       repo,
       server,
@@ -16,6 +17,7 @@ for (const width of [1440, 414]) {
         await repo.worktree(name);
         await repo.detachWorktree(name);
       }
+      await repo.worktree('clean-topic');
       await app.reload();
       const project = await server.project();
       const inventory = await server.inventory();
@@ -32,15 +34,24 @@ for (const width of [1440, 414]) {
         name: `Computer: ${environment.name}`,
         exact: true,
       });
-      await expect(computer).toBeVisible();
-      await expect(computer).toHaveAccessibleName(
-        `Computer: ${environment.name}`,
-      );
-      await expect(computer).not.toHaveAttribute('tabindex');
+      await expect(computer).not.toBeAttached();
+      await expect(
+        sidebar.getByRole('button', {
+          name: `Collapse ${project.name} · ${environment.name}`,
+          exact: true,
+        }),
+      ).toBeVisible();
       const cards = sidebar.getByRole('listitem');
       await expect(
         cards.first().getByRole('button', { name: /Main worktree/ }),
       ).toHaveAccessibleName(/Main worktree/);
+      const clean = cards.filter({
+        has: page.getByRole('button', { name: /^clean-topic,/ }),
+      });
+      await expect(clean).toHaveText('clean-topic');
+      await expect(
+        clean.getByRole('button', { name: /No review, Working tree clean/ }),
+      ).toBeVisible();
       for (const folder of ['detached-531', 'detached-532']) {
         const target = project.worktrees.find((row) =>
           row.path.endsWith(`/${folder}`),
@@ -69,6 +80,26 @@ for (const width of [1440, 414]) {
             .getByRole('button', { name: 'Toggle Sidebar', exact: true })
             .click();
         await expect(row).toHaveAttribute('aria-current', 'page');
+        const selectedCard = cards.filter({
+          has: page.getByRole('button', {
+            name: new RegExp(`${folder}.*Detached HEAD`),
+          }),
+        });
+        await expect(
+          selectedCard.getByText('Detached', { exact: true }),
+        ).toBeVisible();
+        await clean.hover();
+        await expect
+          .poll(
+            async () =>
+              (await nameWeight(
+                selectedCard.getByText(folder, { exact: true }),
+              )) >
+              (await nameWeight(
+                clean.getByText('clean-topic', { exact: true }),
+              )),
+          )
+          .toBe(true);
       }
       const search = sidebar.getByRole('searchbox', {
         name: 'Search reviews and worktrees',
