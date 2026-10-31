@@ -23,11 +23,11 @@ import {
 import { Context, Effect, Layer, Clock } from 'effect';
 import {
   EnvironmentIdentityReader,
-  EnvironmentNameStore,
+  EnvironmentLabelStore,
   HostNameReader,
 } from '@porcelain/access/ports';
 import {
-  ReadEnvironmentNameService,
+  ReadEnvironmentLabelService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
 import { osHostNameReaderLayer } from '../adapters/access/os-host-name-reader.ts';
@@ -132,7 +132,7 @@ export function composeShared(dependencies: SharedDependencies) {
     ).pipe(Layer.provideMerge(ports));
     const native = Layer.mergeAll(
       ReadEnvironmentService.layer,
-      ReadEnvironmentNameService.layer,
+      ReadEnvironmentLabelService.layer,
     )
       .pipe(
         Layer.provideMerge(
@@ -142,8 +142,8 @@ export function composeShared(dependencies: SharedDependencies) {
               dependencies.stores.environmentIdentity,
             ),
             Layer.succeed(
-              EnvironmentNameStore,
-              dependencies.stores.environmentName,
+              EnvironmentLabelStore,
+              dependencies.stores.environmentLabel,
             ),
             osHostNameReaderLayer,
           ),
@@ -189,7 +189,7 @@ export function composeShared(dependencies: SharedDependencies) {
         confirmWorktree: yield* ConfirmWorktreeService,
         checkRefreshedWorktree: yield* CheckRefreshedWorktreeService,
         readEnvironment: yield* ReadEnvironmentService,
-        readEnvironmentName: yield* ReadEnvironmentNameService,
+        readEnvironmentLabel: yield* ReadEnvironmentLabelService,
         hostNames: yield* HostNameReader,
         readTextFileService: yield* ReadTextFileService,
         readWorktreeStatus: yield* ReadWorktreeStatusService,

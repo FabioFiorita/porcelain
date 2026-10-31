@@ -173,6 +173,13 @@ export const nativeMigrations = Migrator.fromRecord({
       repository TEXT NOT NULL, detected TEXT, override TEXT
     )`;
   }),
+  '006_environment_icon': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE environment_icon (
+      singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
+      icon TEXT NOT NULL
+    )`;
+  }),
 });
 
 export const readLegacyMigrations = Effect.fn('Storage.readLegacyMigrations')(

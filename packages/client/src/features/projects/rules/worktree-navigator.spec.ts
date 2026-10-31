@@ -277,12 +277,14 @@ it('offers both same-named projects as scoped choices and keeps an empty review 
       name: 'Porcelain',
       environmentId: 'desk',
       environmentName: 'Desk',
+      environmentIcon: 'desktop' as const,
     },
     {
       key: 'laptop/project',
       name: 'Porcelain',
       environmentId: 'laptop',
       environmentName: 'Laptop',
+      environmentIcon: 'laptop' as const,
     },
   ];
   const sections = navigatorFilterSections(projects, {
@@ -306,6 +308,24 @@ it('offers both same-named projects as scoped choices and keeps an empty review 
       },
     ],
   );
+  expect(
+    sections.find((section) => section.key === 'environments')?.items,
+  ).toEqual([
+    {
+      id: 'desk',
+      label: 'Desk',
+      icon: 'desktop',
+      checked: true,
+      next: ['laptop'],
+    },
+    {
+      id: 'laptop',
+      label: 'Laptop',
+      icon: 'laptop',
+      checked: true,
+      next: ['desk'],
+    },
+  ]);
   expect(sections.find((section) => section.key === 'reviews')?.items).toEqual([
     {
       id: 'with-review',

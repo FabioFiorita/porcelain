@@ -28,6 +28,7 @@ import { type ReadServiceUpdateUseCase } from '../../../use-cases/access/read-se
 import { type ReadSessionUseCase } from '../../../use-cases/access/read-session.ts';
 import { type RedeemPairingUseCase } from '../../../use-cases/access/redeem-pairing.ts';
 import { type RenameEnvironmentUseCase } from '../../../use-cases/access/rename-environment.ts';
+import { type SetEnvironmentIconUseCase } from '../../../use-cases/access/set-environment-icon.ts';
 import { type ReadReviewGitSettingsUseCase } from '../../../use-cases/access/read-review-git-settings.ts';
 import { type SaveReviewGitSettingsUseCase } from '../../../use-cases/access/save-review-git-settings.ts';
 import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
@@ -77,6 +78,10 @@ type AccessUseCases = {
   >;
   renameEnvironment: Pick<
     Context.Service.Shape<typeof RenameEnvironmentUseCase>,
+    'execute'
+  >;
+  setEnvironmentIcon: Pick<
+    Context.Service.Shape<typeof SetEnvironmentIconUseCase>,
     'execute'
   >;
   readReviewGitSettings: Pick<
@@ -301,13 +306,17 @@ export function accessRoutes(useCases: AccessUseCases) {
           }),
         ),
   );
-  const environmentName = HttpApiBuilder.group(
+  const environmentLabel = HttpApiBuilder.group(
     HostAccessApi,
-    'environmentName',
+    'environmentLabel',
     (handlers) =>
-      handlers.handle('renameEnvironment', ({ payload }) =>
-        useCases.renameEnvironment.execute(payload),
-      ),
+      handlers
+        .handle('renameEnvironment', ({ payload }) =>
+          useCases.renameEnvironment.execute(payload),
+        )
+        .handle('setEnvironmentIcon', ({ payload }) =>
+          useCases.setEnvironmentIcon.execute(payload),
+        ),
   );
   const ownerStatus = HttpApiBuilder.group(
     OwnerAccessApi,
@@ -354,7 +363,7 @@ export function accessRoutes(useCases: AccessUseCases) {
       Layer.provide(requestBody.layer),
     ),
     host: HttpApiBuilder.layer(HostAccessApi).pipe(
-      Layer.provide(Layer.merge(hostAdministration, environmentName)),
+      Layer.provide(Layer.merge(hostAdministration, environmentLabel)),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),

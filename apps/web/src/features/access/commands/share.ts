@@ -6,6 +6,7 @@ import {
   setRemoteAccess,
   setWaysInPermission,
   renameEnvironment,
+  setEnvironmentIcon,
 } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
 
@@ -26,4 +27,7 @@ export function useSetRemoteAccess(connection: Connection) {
 }
 export function useRenameEnvironment(connection: Connection) {
   return useAtom(renameEnvironment(connection), { mode: 'promise' });
+}
+export function useSetEnvironmentIcon(connection: Connection) {
+  return useAtom(setEnvironmentIcon(connection));
 }

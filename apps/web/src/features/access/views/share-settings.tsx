@@ -12,13 +12,19 @@ import { SettingsHeading } from '@/shared/views/settings-heading';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { desktopShell } from '@/shared/shell';
 import { usePairedAccess } from '../queries/share';
-import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import {
+  chosenEnvironmentIcon,
+  connectionErrorMessage,
+  environmentIcon,
+} from '@porcelain/client/access/rules';
 import type { Environment, PairedAccess } from '@porcelain/client/access/rules';
 import { useConnectedContext } from '../store';
 import { DisconnectBrowser } from './disconnect-browser';
 
 import { useDesktopCapabilities } from '../queries/app-update';
 import { EnvironmentName } from './environment-name';
+import { EnvironmentIconPicker } from './environment-icon-picker';
+import { useSetEnvironmentIcon } from '../commands/share';
 import { ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
@@ -79,6 +85,7 @@ export function ComputerSettings({
   const served = new URL(connection.address);
   const address = /^https?:$/.test(served.protocol) ? served.origin : undefined;
   const renaming = renamingFrom === named;
+  const [iconChange, setIcon] = useSetEnvironmentIcon(connection);
 
   return (
     <>
@@ -113,7 +120,12 @@ export function ComputerSettings({
         action={
           access &&
           !renaming && (
-            <span className="mt-1 text-muted-foreground">
+            <span className="mt-1 flex items-center gap-1 text-muted-foreground">
+              <EnvironmentIconPicker
+                icon={environmentIcon(environment)}
+                pending={iconChange.waiting}
+                onChange={(icon) => setIcon(chosenEnvironmentIcon(icon))}
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -138,6 +150,13 @@ export function ComputerSettings({
           )
         }
       >
+        {access && AsyncResult.isFailure(iconChange) && (
+          <Alert variant="destructive" className="mt-4 max-w-160">
+            <AlertDescription>
+              {connectionErrorMessage(Cause.squash(iconChange.cause))}
+            </AlertDescription>
+          </Alert>
+        )}
         {access && renaming && (
           <div className="mt-4">
             <EnvironmentName

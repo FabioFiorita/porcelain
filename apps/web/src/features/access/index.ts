@@ -34,3 +34,4 @@ export {
 } from './adapters/pairing-destination';
 
 export { UpdatesMenu } from './views/updates-menu';
+export { EnvironmentGlyph } from './views/environment-glyph';

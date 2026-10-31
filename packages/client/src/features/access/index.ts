@@ -30,7 +30,10 @@ export {
   setWaysInPermission,
   startServiceUpdate,
 } from './commands/share.ts';
-export { renameEnvironment } from './commands/environment-name.ts';
+export {
+  renameEnvironment,
+  setEnvironmentIcon,
+} from './commands/environment-label.ts';
 export {
   readPairedAccess,
   readRemoteAccess,

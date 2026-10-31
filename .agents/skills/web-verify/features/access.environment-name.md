@@ -9,6 +9,9 @@ selectors:
   - 'Rename'
   - 'Name of this computer'
   - 'Save'
+  - 'Icon: '
+  - 'Laptop'
+  - 'Desktop'
   - 'Open This computer:'
   - 'Close Settings'
 tests:
@@ -16,17 +19,20 @@ tests:
 api:
   - GET /api/inventory
   - PUT /api/environment/name
+  - PUT /api/environment/icon
 ---
 
 # access.environment-name
 
-Settings names the computer Porcelain runs on. Project controls keep that identity accessible; badges show it when multiple computers are connected. The application header stays Porcelain.
+Settings names the computer Porcelain runs on and picks its icon (desktop, laptop, server or cloud; desktop until one is picked). Project controls keep that identity accessible; badges show the icon and name when multiple computers are connected, and only the icon, with the name in a tooltip, when the project or computer name would be cut off. The application header stays Porcelain.
 
 ## How to get to it (user POV)
 
 - Workspace → `Toggle Sidebar` (phone width) → the application header shows "Porcelain" and project controls name their computer; badges appear only with multiple connected computers.
 - Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer: <name>` → `Rename` beside the title → textbox "Name of this computer" → `Save` (or `Enter` in the field); `Cancel` or `Escape` closes the field.
+- Same page → `Icon: <icon>` beside `Rename` → menu "Icon of this computer" → `Desktop`, `Laptop`, `Server` or `Cloud`; the choice saves at once. `Desktop` is the default and clears the choice.
 - Route: `/settings/computers/this-computer` (host-authorized browser or desktop).
+- The sidebar badge needs a second computer: `$C remote start`, then add `$C remote pairing-link` in Settings → `Computers` → `Pairing link` → `Add` (see [projects.remote-workspace](projects.remote-workspace.md)). The remote computer's icon comes from its own inventory: set it with `PUT /api/environment/icon` on the remote server.
 
 ## Driving it with browser
 
@@ -70,6 +76,24 @@ Required instance mode: `--desktop`.
     Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
 14. Click button `Close Settings` twice
     Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer badge.
+
+15. Click button `Settings`, then button `Computers`, then button named `Open This computer: <name>`, then button `Icon: Desktop`
+    Expect: menu with label "Icon of this computer" and radio items Desktop (checked), Laptop, Server, Cloud.
+16. Click menu item radio `Laptop`
+    Expect: the trigger is named `Icon: Laptop` and shows a laptop; inventory `environment` is `{ name: $HOST, custom: false, icon: 'laptop' }`; the PUT answers 200.
+17. Press Escape to dismiss the radio menu, then click button `Icon: Laptop` and menu item radio `Desktop`
+    Expect: trigger `Icon: Desktop`; inventory `environment` has no `icon`.
+
+Sidebar badge with two computers (after pairing the remote as above, 1280 × 800):
+
+18. Give both short names (`PUT /api/environment/name` `Desk` here, `Lab` on the remote) and the remote icon `server`
+    Expect: each project header has a badge with role img `Computer: <name>` that shows its icon and the name.
+19. Rename the remote to a name longer than the badge (the remote fixture's `Remote journey computer`), or rename a project to a long name
+    Expect: that header's badge shows only the icon, keeps role img `Computer: <full name>`, and hovering or focusing it (Tab) shows the full computer name in a tooltip. Headers whose names fit keep the icon and name.
+20. With short computer names and a project named `Document inspection`, resize the navigator from 220px to 420px, then repeat
+    Expect: the computer badge is icon-only at 220px and restores icon + name at 420px every time.
+21. Click button `Filter worktrees`
+    Expect: each Environments row shows its computer's icon before the name.
 
 Automated coverage: `access-environment-name.desktop.e2e.ts`.
 

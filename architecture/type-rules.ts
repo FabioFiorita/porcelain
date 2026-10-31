@@ -60,7 +60,7 @@ const tableLanes: Readonly<
   WorktreeCatalogStore: { save: ['inventory'] },
   DeviceStore: { any: ['access'] },
   PairingGrantStore: { any: ['access'] },
-  EnvironmentNameStore: { any: ['access'] },
+  EnvironmentLabelStore: { any: ['access'] },
   ReviewGitSettingsStore: { any: ['access'] },
   RemoteAccessStore: { any: ['remoteAccess'] },
   DeviceSightingStore: { any: ['access'] },

@@ -1,7 +1,7 @@
 export { DeviceSightingStore } from './device-sighting-store.ts';
 export { DeviceStore } from './device-store.ts';
 export { EnvironmentIdentityReader } from './environment-identity-reader.ts';
-export { EnvironmentNameStore } from './environment-name-store.ts';
+export { EnvironmentLabelStore } from './environment-label-store.ts';
 export { HostNameReader } from './host-name-reader.ts';
 export { PairingAttemptStore } from './pairing-attempt-store.ts';
 export { PairingGrantStore } from './pairing-grant-store.ts';

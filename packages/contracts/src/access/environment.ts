@@ -1,6 +1,9 @@
 import { Schema, SchemaTransformation } from 'effect';
 import { nullableAsUndefined } from '../shared/schema.ts';
-import { environmentSchema } from '../shared/environment.ts';
+import {
+  environmentIconSchema,
+  environmentSchema,
+} from '../shared/environment.ts';
 import { ENVIRONMENT_NAME_LENGTH } from '../shared/limits.ts';
 
 export const readEnvironmentResponseSchema = Schema.Struct({
@@ -21,8 +24,20 @@ export const renameEnvironmentRequestSchema = Schema.Struct({
 
 export const renameEnvironmentResponseSchema = environmentSchema;
 
+export const setEnvironmentIconRequestSchema = Schema.Struct({
+  icon: Schema.NullOr(environmentIconSchema),
+});
+
+export const setEnvironmentIconResponseSchema = environmentSchema;
+
 export type ReadEnvironmentResponse = typeof readEnvironmentResponseSchema.Type;
 export type RenameEnvironmentRequest =
   typeof renameEnvironmentRequestSchema.Type;
 export type RenameEnvironmentResponse =
   typeof renameEnvironmentResponseSchema.Type;
+export type SetEnvironmentIconRequest =
+  typeof setEnvironmentIconRequestSchema.Type;
+export type SetEnvironmentIconResponse =
+  typeof setEnvironmentIconResponseSchema.Type;
+export type EnvironmentIcon = typeof environmentIconSchema.Type;
+export { environmentIconSchema };
