@@ -44,7 +44,7 @@ test('invoking the right Review control chooses the source pane before opening a
   });
   await expect
     .element(destination)
-    .toHaveAttribute('data-entry', `change:${repo.readme.path}`);
+    .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
   await expect.element(destination).toHaveAttribute('aria-selected', 'true');
   await expect
     .element(
@@ -102,7 +102,7 @@ test('tree side menu preserves the source document and focuses the destination a
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(destination)
-    .toHaveAttribute('data-entry', `change:${repo.readme.path}`);
+    .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
   await expect
     .element(
       workspace.getByRole('dialog', { name: 'Worktree review', exact: true }),
@@ -207,7 +207,7 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
   });
   await expect
     .element(rightTab)
-    .toHaveAttribute('data-entry', `change:${repo.readme.path}`);
+    .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await pinned.click({ button: 'right' });
   await expect
@@ -230,7 +230,7 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
     });
   await expect
     .element(leftTab)
-    .toHaveAttribute('data-entry', `change:${repo.readme.path}`);
+    .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
   await expect.element(rightTab).toHaveAttribute('aria-selected', 'true');
   await expect
     .element(

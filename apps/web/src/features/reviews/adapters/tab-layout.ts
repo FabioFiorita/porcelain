@@ -165,7 +165,11 @@ export function useTabLayout({
       setFocused(index);
     },
     focusPane(index: PaneIndex, element: Element) {
-      if (focusBoundaryOpen) return;
+      if (
+        focusBoundaryOpen ||
+        (focus.restoringQuickOpen && element.getAttribute('role') === 'tab')
+      )
+        return;
       const target = focus.destination;
       if (
         target !== null &&
@@ -271,6 +275,7 @@ const tabFocus = Atom.family((_owner: string) =>
   Atom.make((get) => {
     const elements: [HTMLElement | null, HTMLElement | null] = [null, null];
     let quickOpen: HTMLElement | null = null;
+    let restoringQuickOpen = false;
     let destination: FocusTarget | null = null;
     let snapshot: FocusSnapshot | undefined;
     let frame: number | null = null;
@@ -280,6 +285,7 @@ const tabFocus = Atom.family((_owner: string) =>
     };
     const cancel = () => {
       destination = null;
+      restoringQuickOpen = false;
       cancelFrame();
     };
     const current = () => {
@@ -311,14 +317,19 @@ const tabFocus = Atom.family((_owner: string) =>
         ].find((element) => element.dataset.entry === target.key);
         if (!tab?.isConnected) return;
         tab.focus();
-        if (tab.ownerDocument.activeElement === tab && destination === target)
+        if (tab.ownerDocument.activeElement === tab && destination === target) {
           destination = null;
+          restoringQuickOpen = false;
+        }
       });
     };
     get.addFinalizer(cancel);
     return {
       get destination() {
         return destination;
+      },
+      get restoringQuickOpen() {
+        return restoringQuickOpen;
       },
       current,
       cancel,
@@ -329,6 +340,7 @@ const tabFocus = Atom.family((_owner: string) =>
       },
       request(target: FocusTarget) {
         destination = target;
+        restoringQuickOpen = quickOpen?.isConnected === true;
       },
       bind(index: PaneIndex, element: HTMLElement | null, next: FocusSnapshot) {
         cancelFrame();
