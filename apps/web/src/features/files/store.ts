@@ -137,7 +137,6 @@ const navigationState = Atom.family((_owner: string) =>
     query: '',
     requested: [] as readonly string[],
     pinnedExpanded: [] as readonly string[],
-    pinnedGroupExpanded: true,
   }).pipe(Atom.keepAlive),
 );
 

@@ -6,8 +6,6 @@ type NavigationState = {
   readonly requested: readonly string[];
   readonly query: string;
   readonly showHidden: boolean;
-  readonly pinnedOpen: boolean;
-  readonly allOpen: boolean;
   readonly selectedPath: string | undefined;
 };
 
@@ -16,8 +14,6 @@ const initialNavigation = (): NavigationState => ({
   requested: [''],
   query: '',
   showHidden: false,
-  pinnedOpen: true,
-  allOpen: true,
   selectedPath: undefined,
 });
 
@@ -71,13 +67,6 @@ export function useFileNavigation(workspace: string) {
         ...current,
         showHidden: update(current.showHidden),
       })),
-    setPinnedOpen: (update: (current: boolean) => boolean) =>
-      set((current) => ({
-        ...current,
-        pinnedOpen: update(current.pinnedOpen),
-      })),
-    setAllOpen: (update: (current: boolean) => boolean) =>
-      set((current) => ({ ...current, allOpen: update(current.allOpen) })),
   };
 }
 

@@ -1,4 +1,4 @@
-export { FileTypeIcon, PierreIconSprite } from './views/file-type-icon';
+export { FileTreeIcon, PierreIconSprite } from './views/file-tree-icon';
 export { ImagePreview } from './views/image-preview';
 export { MarkdownView } from './views/markdown-view';
 export { useTextContents } from './queries/text';

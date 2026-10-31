@@ -79,6 +79,7 @@ import {
 } from '@porcelain/client/files/rules';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
+import { FileSectionHeader } from './file-section-header';
 import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
@@ -418,10 +419,6 @@ function ScopedFileNavigation({
         )}
       <PinnedFiles
         entries={pins}
-        groupExpanded={navigation.state.pinnedGroupExpanded}
-        onGroupExpand={(pinnedGroupExpanded) =>
-          navigation.set((state) => ({ ...state, pinnedGroupExpanded }))
-        }
         expanded={pinnedExpanded}
         onExpand={(path, expanded) => {
           navigation.set((state) => ({
@@ -465,9 +462,7 @@ function ScopedFileNavigation({
         aria-label="All files"
         className="flex min-h-0 flex-1 flex-col pt-1"
       >
-        <p className="px-3.5 pt-1 pb-0.5 text-2xs font-medium text-muted-foreground">
-          All files
-        </p>
+        <FileSectionHeader label="All files" />
         <PierreFileTree {...treeInput} />
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
@@ -581,7 +576,7 @@ function PinnedDirectoryTree({
     (path) => path.startsWith(prefix) && path !== prefix,
   );
   return (
-    <div className="flex max-h-52 min-h-0 flex-col pl-3" style={{ height }}>
+    <div className="flex max-h-52 min-h-0 flex-col pl-1.5" style={{ height }}>
       <PierreFileTree
         {...input}
         onContentHeight={setHeight}

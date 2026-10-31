@@ -11,7 +11,7 @@ import {
   fileTreePlaces,
   type PierreFileTreeInput,
 } from '../store';
-import { FOLDER_ICON_CSS, treeIconsFor } from './file-icons';
+import { treeIconsFor } from './file-icons';
 import {
   canDropPaths,
   directoryPaths,
@@ -125,7 +125,8 @@ function mountTree(
     flattenEmptyDirectories: true,
     initialExpansion: 'closed',
     icons: treeIconsFor(read().links),
-    unsafeCSS: `${FOLDER_ICON_CSS} :not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }`,
+    unsafeCSS:
+      ':not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus: read().gitStatus,
     search: false,
     onSearchChange: (value) => {

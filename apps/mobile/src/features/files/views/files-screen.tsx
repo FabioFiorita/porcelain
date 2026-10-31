@@ -117,10 +117,6 @@ function FilesNavigationView({
     setQuery,
     showHidden,
     setShowHidden,
-    pinnedOpen,
-    setPinnedOpen,
-    allOpen,
-    setAllOpen,
     scrollOffset,
     setScrollOffset,
     selectedPath,
@@ -269,6 +265,7 @@ function FilesNavigationView({
         </Box>
         <IconButton
           icon="collapse"
+          size={embedded ? 'sm' : 'default'}
           accessibilityLabel={
             searching ? 'Clear search and collapse all' : 'Collapse all'
           }
@@ -429,33 +426,16 @@ function FilesNavigationView({
           ? [
               {
                 key: 'pinned',
-                header: (
-                  <GroupHeader
-                    label="Pinned"
-                    count={pins.length}
-                    expanded={pinnedOpen}
-                    onPress={() => setPinnedOpen((current) => !current)}
-                  />
-                ),
+                header: <GroupHeader label="Pinned" count={pins.length} />,
               },
-              ...(pinnedOpen
-                ? pinnedNavigationRows(pins, preferenceEntries.nodes, expanded)
-                : []),
+              ...pinnedNavigationRows(pins, preferenceEntries.nodes, expanded),
             ]
           : []),
         {
           key: 'all',
-          header: (
-            <GroupHeader
-              label="All files"
-              expanded={allOpen}
-              onPress={() => setAllOpen((current) => !current)}
-            />
-          ),
+          header: <GroupHeader label="All files" />,
         },
-        ...(allOpen &&
-        loading.rootLoaded &&
-        preferenceEntries.nodes.length === 0
+        ...(loading.rootLoaded && preferenceEntries.nodes.length === 0
           ? [
               {
                 key: 'empty',
@@ -469,11 +449,9 @@ function FilesNavigationView({
               },
             ]
           : []),
-        ...(allOpen
-          ? visibleFileTreeRows(preferenceEntries.nodes, expanded).map(
-              (row) => ({ ...row, key: `all:${row.entry.path}` }),
-            )
-          : []),
+        ...visibleFileTreeRows(preferenceEntries.nodes, expanded).map(
+          (row) => ({ ...row, key: `all:${row.entry.path}` }),
+        ),
       ],
     );
   return (
@@ -518,13 +496,9 @@ function FilesNavigationView({
         flat={searching}
         loaded={
           preferencesLoaded &&
-          (searching
-            ? AsyncResult.isSuccess(paths.result)
-            : allOpen && loading.rootLoaded)
+          (searching ? AsyncResult.isSuccess(paths.result) : loading.rootLoaded)
         }
-        nodes={
-          preferencesLoaded && (searching || allOpen) ? visibleEntries : []
-        }
+        nodes={preferencesLoaded ? visibleEntries : []}
         annotations={review.labels}
         changes={review.changes}
         expanded={expanded}

@@ -9,9 +9,11 @@ export function ContentMenu({
   label,
   children,
   icon,
+  size = 'default',
 }: {
   label: string;
   icon?: IconName;
+  size?: 'default' | 'sm';
   children: ReactNode;
 }) {
   return (
@@ -24,18 +26,32 @@ export function ContentMenu({
               accessible
               accessibilityRole="button"
               accessibilityLabel={label}
-              className="min-h-11 flex-row items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2"
+              className="min-h-11 min-w-11 items-center justify-center"
             >
-              {icon ? (
-                <Icon name={icon} />
-              ) : (
-                <>
-                  <Text accessible={false} variant="control" weight="medium">
-                    {label}
-                  </Text>
-                  <Icon name="down" size="small" tone="muted" />
-                </>
-              )}
+              <View
+                className={[
+                  'flex-row items-center justify-center gap-2 rounded-md border border-border bg-background',
+                  size === 'sm'
+                    ? icon
+                      ? 'min-h-8 w-8'
+                      : 'min-h-8 px-2.5 py-1'
+                    : 'min-h-11 px-3 py-2',
+                ].join(' ')}
+              >
+                {icon ? (
+                  <Icon
+                    name={icon}
+                    size={size === 'sm' ? 'control' : 'default'}
+                  />
+                ) : (
+                  <>
+                    <Text accessible={false} variant="control" weight="medium">
+                      {label}
+                    </Text>
+                    <Icon name="down" size="small" tone="muted" />
+                  </>
+                )}
+              </View>
             </View>
           </RNHostView>
         }

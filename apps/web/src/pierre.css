@@ -30,9 +30,22 @@ diffs-container {
   --diffs-bg-deletion-emphasis-override: var(--del-strong);
 }
 
-[data-slot='file-tree'] {
+[data-slot='file-tree'],
+[data-file-tree-row] {
   --trees-font-family-override: var(--font-mono);
+  --trees-font-size-override: var(--text-ui);
   --trees-status-modified-override: var(--brand);
+}
+
+[data-file-tree-row] {
+  font-family: var(--trees-font-family-override);
+  font-size: var(--trees-font-size-override);
+  font-weight: 400;
+  line-height: var(--trees-item-height, 30px);
+}
+
+[data-file-tree-row][aria-current='page'] .pierre-file-icon {
+  color: var(--foreground);
 }
 
 .pierre-file-icon {

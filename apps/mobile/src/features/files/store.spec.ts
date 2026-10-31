@@ -37,7 +37,6 @@ test('Files place survives owner unmount and workspace switches without leaking 
       requested: ['', 'docs'],
       selectedPath: 'docs/.env',
       showHidden: true,
-      pinnedOpen: false,
     }));
     registry.set(offset, 450);
     leave();
@@ -55,7 +54,6 @@ test('Files place survives owner unmount and workspace switches without leaking 
       requested: ['', 'docs'],
       selectedPath: 'docs/.env',
       showHidden: true,
-      pinnedOpen: false,
     });
   } finally {
     registry.dispose();

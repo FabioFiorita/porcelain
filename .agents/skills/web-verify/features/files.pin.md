@@ -17,7 +17,7 @@ api:
 
 # files.pin
 
-Pinning a file or folder lists it under "Pinned" above the file tree; the group header shows the count and folds the group. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
+Pinning a file or folder lists it under "Pinned" above the file tree; the plain section heading shows the count; sections stay visible and individual folders expand and collapse. There it opens the file, and its menu offers the same commands as the tree, with "Unpin file" in place of "Pin file". The server keeps the pin for the project until the file is unpinned.
 
 ## How to get to it (user POV)
 
@@ -81,7 +81,7 @@ Pin, unpin and the menus open nothing, so the sheet stays open. Opening a file (
 
 ## Pinned folders and unavailable entries
 
-1. Pin an unopened folder with two child files. Its Pinned row has `aria-expanded=false`, and no directory read for that folder occurs. Click it once: a bounded Pierre subtree appears, loads that folder, and opens a child as a file document.
+1. Pin an unopened folder with two child files. Its Pinned folder row has a chevron and `aria-expanded=false`, and no directory read for that folder occurs. Click it once: a bounded Pierre subtree appears, loads that folder, and opens a child as a file document.
 2. Return to Files: the pin stays expanded. Close its row: its subtree unmounts. Unpin removes the row and updates server preferences.
 3. Hide a pinned file or ancestor folder: its Pinned row disappears. Files → Show restores it.
 4. Pins resolve against actual parent directory listings. Loading, Missing and Unavailable entries cannot open a guessed file; Unavailable has Try again, and every row retains its Unpin button. Symlinks and submodules are not followed.
