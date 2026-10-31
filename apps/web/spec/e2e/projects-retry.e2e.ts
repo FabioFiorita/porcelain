@@ -13,35 +13,35 @@ const faults = [
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`unavailable project actions fit and reloading recovers at ${width}px in ${colorScheme}`, async ({
-      page,
-      server,
-      app,
-    }) => {
-      await page.setViewportSize({ width, height: 896 });
-      await page.emulateMedia({ colorScheme });
-      const project = await server.project();
-      const computer = (await server.inventory()).environment.name;
-      const main = project.worktrees.find((worktree) => worktree.main)?.path;
-      if (!main) throw new Error('Missing main checkout');
-      const fixture = await projectFixture(main);
-      await app.open(`/${project.id}/unselected-worktree`);
-      await expect(
-        page.getByRole('heading', {
-          name: 'This browser is not paired',
+    for (const [fault, message] of faults) {
+      test(`unavailable ${fault} project actions fit and reloading recovers at ${width}px in ${colorScheme}`, async ({
+        page,
+        server,
+        app,
+      }) => {
+        await page.setViewportSize({ width, height: 896 });
+        await page.emulateMedia({ colorScheme });
+        const project = await server.project();
+        const computer = (await server.inventory()).environment.name;
+        const main = project.worktrees.find((worktree) => worktree.main)?.path;
+        if (!main) throw new Error('Missing main checkout');
+        const fixture = await projectFixture(main);
+        await app.open(`/${project.id}/unselected-worktree`);
+        await expect(
+          page.getByRole('heading', {
+            name: 'This browser is not paired',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await app.open(await app.link('this'));
+        await expect(
+          page.getByText('Worktree not found', { exact: true }),
+        ).toBeVisible();
+        const actionsButton = page.getByRole('button', {
+          name: `Project actions: ${project.name} · ${computer}`,
           exact: true,
-        }),
-      ).toBeVisible();
-      await app.open(await app.link('this'));
-      await expect(
-        page.getByText('Worktree not found', { exact: true }),
-      ).toBeVisible();
-      const actionsButton = page.getByRole('button', {
-        name: `Project actions: ${project.name} · ${computer}`,
-        exact: true,
-      });
-      try {
-        for (const [fault, message] of faults) {
+        });
+        try {
           await page.waitForLoadState('networkidle');
           await fixture.unavailable(fault);
           await app.reload();
@@ -89,10 +89,10 @@ for (const width of [1440, 414]) {
           await expect
             .poll(async () => (await server.project()).available)
             .toBe(true);
+        } finally {
+          await fixture.restore();
         }
-      } finally {
-        await fixture.restore();
-      }
-    });
+      });
+    }
   }
 }
