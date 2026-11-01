@@ -10,6 +10,7 @@ import type {
   CodeViewLineSelection,
   DiffLineAnnotation,
 } from '@pierre/diffs';
+import { DEFAULT_VIRTUAL_FILE_METRICS } from '@pierre/diffs';
 import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
@@ -151,6 +152,7 @@ export function CodeDocument(props: Props) {
         </p>
       )}
       <CodeSurface
+        key={JSON.stringify([props.interaction.entry, props.range])}
         {...props}
         threads={threads}
         onToggleReviewed={
@@ -185,6 +187,7 @@ function CodeSurface({
   framed = false,
   commentLabel,
   collapseInHeader = false,
+  range,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -199,9 +202,12 @@ function CodeSurface({
   const entries = decision ? given : groupSpecPaths(given, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useCodeViewScroll(
-    interaction.entry.startsWith('file:')
-      ? `${gitContext.connection.environmentId}:${interaction.worktreeId}:${interaction.entry}`
-      : undefined,
+    JSON.stringify([
+      gitContext.connection.environmentId,
+      interaction.worktreeId,
+      interaction.entry,
+      range,
+    ]),
   );
   const margin = useMarginStack();
   const [composer, setComposer] = useState<{
@@ -209,10 +215,35 @@ function CodeSurface({
     anchor: FileCommentAnchor;
     draft: InlineCommentDraft;
   } | null>(null);
-  const [selection, setSelection] = useState<CodeViewLineSelection | null>(
-    viewer.selection,
-  );
-  const [focusedId, setFocusedId] = useState<CodeEntry['id']>();
+  const [savedSelection, saveSelection] = useState(() => viewer.selection());
+  const selectedEntry = savedSelection
+    ? entries.find((entry) => entry.id === savedSelection.lines.id)
+    : undefined;
+  const staleSelection =
+    savedSelection?.anchor && selectedEntry?.comment
+      ? codeCommentStale(savedSelection.anchor, selectedEntry.comment)
+      : false;
+  const selection = staleSelection ? null : (savedSelection?.lines ?? null);
+  const setSelection = (next: CodeViewLineSelection | null) => {
+    const entry = next
+      ? entries.find((entry) => entry.id === next.id)
+      : undefined;
+    const selected = next
+      ? {
+          lines: next,
+          anchor: entry?.comment
+            ? rangeAnchor(entry.comment, next.range)
+            : null,
+        }
+      : null;
+    saveSelection(selected);
+    viewer.rememberSelection(selected);
+  };
+  const [focusedId, focus] = useState(() => viewer.focused());
+  const setFocusedId = (id: CodeEntry['id'] | undefined) => {
+    focus(id);
+    viewer.rememberFocus(id);
+  };
   const focused = Math.max(
     entries.findIndex((entry) => entry.id === focusedId),
     0,
@@ -502,11 +533,8 @@ function CodeSurface({
           focusEntry(index);
         },
       }));
-  const selectionAnchor = selectedRangeAnchor(
-    selection,
-    composer !== null && composer !== undefined,
-    byId,
-  );
+  const selectionAnchor =
+    composer || staleSelection ? null : savedSelection?.anchor;
 
   return (
     <div
@@ -533,12 +561,14 @@ function CodeSurface({
           }}
         />
       )}
-      {rangeError ? (
+      {staleSelection || rangeError ? (
         <p
           role="status"
           className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2 text-xs"
         >
-          {rangeError}
+          {staleSelection
+            ? 'Code changed since these lines were selected. Select lines again.'
+            : rangeError}
         </p>
       ) : (
         selectionAnchor !== null &&
@@ -611,8 +641,7 @@ function CodeSurface({
           ref={(handle) => {
             if (!handle) return;
             const release = viewer.attach(handle);
-            if (viewer.position !== undefined)
-              handle.scrollTo({ type: 'position', position: viewer.position });
+            const position = viewer.position();
             if (
               reveal &&
               revealEntry &&
@@ -623,6 +652,16 @@ function CodeSurface({
               return release;
             }
             const frame = requestAnimationFrame(() => {
+              handle.scrollTo({
+                type: 'position',
+                position:
+                  position +
+                  (options.stickyHeaders && !options.disableFileHeader
+                    ? (options.itemMetrics?.diffHeaderHeight ??
+                      DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
+                    : 0),
+                behavior: 'instant',
+              });
               const entry = entries[0];
               if (foundLine && entry && handledFound !== foundLine.nonce) {
                 setSelection({
@@ -680,7 +719,6 @@ function CodeSurface({
           onSelectedLinesChange={(next) => {
             if (!composer) {
               setSelection(next);
-              viewer.rememberSelection(next);
               if (next) setFocusedId(next.id);
             }
           }}
@@ -1115,16 +1153,6 @@ function HeaderStep({
       </TooltipContent>
     </Tooltip>
   );
-}
-
-function selectedRangeAnchor(
-  selection: CodeViewLineSelection | null,
-  composing: boolean,
-  byId: ReadonlyMap<string, CodeEntry>,
-) {
-  if (selection === null || selection === undefined || composing) return null;
-  const entry = byId.get(selection.id);
-  return entry?.comment ? rangeAnchor(entry.comment, selection.range) : null;
 }
 
 function CodeShortcuts({

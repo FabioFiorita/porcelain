@@ -1,14 +1,14 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Review"
-  - "Changes"
-  - "Mark as reviewed"
-  - "Unmark as reviewed"
-  - "Comment"
-  - "Show timeline"
-  - "Timeline of "
-  - " as unreviewed"
+  - 'Review'
+  - 'Changes'
+  - 'Mark as reviewed'
+  - 'Unmark as reviewed'
+  - 'Comment'
+  - 'Show timeline'
+  - 'Timeline of '
+  - ' as unreviewed'
 tests:
   - apps/web/spec/integration/reviews-changed-file-menu.test.tsx
 api:
@@ -36,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 
 ### Setup
 
- the sample `README.md` is already modified.
+the sample `README.md` is already modified.
 
 1. Navigate to `/` then click button `Review`, then click tab `Changes`
    Expect: dialog "Worktree review" with tab "Changes" selected and a button `README.md · unstaged`.
@@ -63,3 +63,7 @@ Automated coverage: `reviews-changed-file-menu.test.tsx`.
 
 - Row names include changing scopes: use regex. Comment/Show timeline close the phone sheet; reopen before another row menu. Escape inside the comment field cancels its draft.
 - Marks and tabs persist; unmark README and close leftovers before another map.
+
+## Change and review signals
+
+Changed-file rows keep change type separate from review progress: green added/untracked, amber modified, red deleted and blue renamed dots, with the change type and review state in the focused row's accessible description, status image name and hover text. A reviewed filename is struck through; unreviewed or changed-since-review names are not. Mark/unmark from the row menu or the explicit diff control and independently read marks. Changing content clears the strike and announces Changed since review without changing the file's change-type color. Plain Files contents do not acquire Reviewed controls. Check Uncommitted, Branch and retained changed-file callers.

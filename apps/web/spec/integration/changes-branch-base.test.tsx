@@ -41,8 +41,9 @@ test.for([1280, 414])(
         .toBeVisible();
 
       await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
         .getByRole('button', {
-          name: 'Compare against the default branch',
+          name: 'Compare against main',
           exact: true,
         })
         .click();
@@ -74,6 +75,7 @@ test.for([1280, 414])(
       await expect.poll(base).toBe('refs/heads/checkpoint');
 
       await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
         .getByRole('button', {
           name: 'Compare against checkpoint',
           exact: true,

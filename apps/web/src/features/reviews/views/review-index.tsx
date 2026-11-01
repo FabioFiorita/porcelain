@@ -38,6 +38,7 @@ import {
 import { useReviewRevisionSelection, useWalkthroughPlace } from '../store';
 import { BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
+import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import {
   ChangeComment,
@@ -278,6 +279,7 @@ function LayersView({
     : paths;
   const specPaths = specsApart ? paths.filter(isSpecPath) : [];
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
+  const changeMarks = worktreeChangeMarks(list.changes);
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),
   );
@@ -291,6 +293,7 @@ function LayersView({
       path={path}
       document={{ kind: 'change', path }}
       note={undefined}
+      changeStatus={changeMarks.files.get(path)}
       scopes={[
         ...new Set(
           list.changes

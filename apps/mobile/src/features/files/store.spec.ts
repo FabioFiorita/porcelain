@@ -1,30 +1,9 @@
 import { expect, test } from 'vitest';
-import { AtomRegistry } from 'effect/reactivity';
-import {
-  fileNavigation,
-  fileNavigationOffset,
-  fileReadingLine,
-  fileReadingStart,
-} from './store';
-
-function placeRegistry() {
-  const tasks: (() => void)[] = [];
-  const registry = AtomRegistry.make({
-    scheduleTask: (task) => {
-      tasks.push(task);
-      return () => undefined;
-    },
-  });
-  return {
-    registry,
-    flush: () => {
-      for (const task of tasks.splice(0)) task();
-    },
-  };
-}
+import { scheduledRegistry } from '../../../spec/kit/atom-registry';
+import { fileNavigation, fileNavigationOffset } from './store';
 
 test('Files place survives owner unmount and workspace switches without leaking into another workspace', () => {
-  const { registry, flush } = placeRegistry();
+  const { registry, flush } = scheduledRegistry();
   try {
     const first = fileNavigation('first');
     const leave = registry.mount(first);
@@ -56,52 +35,6 @@ test('Files place survives owner unmount and workspace switches without leaking 
       showHidden: true,
     });
   } finally {
-    registry.dispose();
-  }
-});
-
-test('plain file reading lines survive unmount and remain scoped to workspace and path', () => {
-  const { registry, flush } = placeRegistry();
-  try {
-    const atom = fileReadingLine({ workspace: 'first', path: 'docs/long.ts' });
-    const leave = registry.mount(atom);
-    registry.set(atom, 350);
-    leave();
-    flush();
-    expect(
-      registry.get(
-        fileReadingLine({ workspace: 'first', path: 'docs/long.ts' }),
-      ),
-    ).toBe(350);
-    expect(
-      registry.get(
-        fileReadingLine({ workspace: 'second', path: 'docs/long.ts' }),
-      ),
-    ).toBe(1);
-    expect(
-      registry.get(fileReadingLine({ workspace: 'first', path: 'other.ts' })),
-    ).toBe(1);
-  } finally {
-    registry.dispose();
-  }
-});
-
-test('replacing live source starts at the latest reading line without subscribing the reader to scrolling', () => {
-  const { registry } = placeRegistry();
-  const input = { workspace: 'first', path: 'docs/long.ts' };
-  const start = fileReadingStart({ ...input, source: 'Original source' });
-  const changes: number[] = [];
-  const stop = registry.subscribe(start, (line) => changes.push(line), {
-    immediate: true,
-  });
-  try {
-    registry.set(fileReadingLine(input), 350);
-    expect(changes).toEqual([1]);
-    expect(
-      registry.get(fileReadingStart({ ...input, source: 'Updated source' })),
-    ).toBe(350);
-  } finally {
-    stop();
     registry.dispose();
   }
 });

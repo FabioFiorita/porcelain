@@ -1,12 +1,20 @@
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import type { ReviewPanelSelection } from '../../../shared/rules/workspace-session';
 import { Box } from '../../../components/ui/box';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
-import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { useState, type ComponentProps } from 'react';
+import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readBranchBases } from '@porcelain/client/changes';
+import {
+  branchChangeMarks,
+  changeStatusMarks,
+  worktreeChangeMarks,
+  type ChangeStatus,
+} from '@porcelain/client/files/rules';
+import { refLabel } from '@porcelain/client/history/rules';
 import { readCommentThreads } from '@porcelain/client/reviews';
 import { changeAnchor } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
@@ -14,9 +22,8 @@ import { WorkspaceGate } from '../../projects';
 import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
-import { Badge } from '../../../components/ui/badge';
+import { StatusDot } from '../../../components/ui/status-dot';
 import { Icon } from '../../../components/ui/icon';
-import { FileIcon } from '../../../components/ui/file-icon';
 import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -26,7 +33,11 @@ import {
 } from '../rules/comparison';
 import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
-import { useReviewNavigation } from '../store';
+import {
+  phoneReviewComparison,
+  useReviewListOffset,
+  useReviewNavigation,
+} from '../store';
 import { ComparisonMenu } from './comparison-menu';
 import {
   PublishedReview,
@@ -35,18 +46,19 @@ import {
 } from './published-review';
 
 export function ReviewScreen() {
-  return (
+  const focused = useIsFocused();
+  return focused ? (
     <WorkspaceGate title="Review">
       {(workspace) => <PhoneReview key={workspace.key} workspace={workspace} />}
     </WorkspaceGate>
-  );
+  ) : null;
 }
 
 function PhoneReview({ workspace }: { workspace: Workspace }) {
   const router = useRouter();
-  const [comparison, setComparison] = useState<ReviewComparison>({
-    kind: 'worktree',
-  });
+  const [comparison, setComparison] = useAtom(
+    phoneReviewComparison(workspace.key),
+  );
   return (
     <ReviewNavigation
       workspace={workspace}
@@ -64,15 +76,7 @@ function PhoneReview({ workspace }: { workspace: Workspace }) {
   );
 }
 
-export function ReviewNavigation({
-  workspace,
-  comparison,
-  onComparison,
-  onFile,
-  onOverview,
-  selection,
-  inlineOverview = false,
-}: {
+type ReviewNavigationProps = {
   workspace: Workspace;
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
@@ -80,27 +84,99 @@ export function ReviewNavigation({
   onOverview: () => void;
   selection?: ReviewPanelSelection | undefined;
   inlineOverview?: boolean;
-}) {
+};
+
+export function ReviewNavigation({
+  active = true,
+  ...props
+}: ReviewNavigationProps & { active?: boolean }) {
+  return active ? <ReviewNavigationContent {...props} /> : null;
+}
+
+function ReviewNavigationContent({
+  workspace,
+  comparison,
+  onComparison,
+  onFile,
+  onOverview,
+  selection,
+  inlineOverview = false,
+}: ReviewNavigationProps) {
+  const [comparisonWidth, setComparisonWidth] = useState<number>();
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
-  const bases = useAtomValue(
-    readBranchBases({
-      connection: workspace.connection,
-      scope: workspace.scope,
-    }),
-  );
+  const basesQuery = readBranchBases({
+    connection: workspace.connection,
+    scope: workspace.scope,
+  });
+  const bases = useAtomValue(basesQuery);
+  const refreshBases = useAtomRefresh(basesQuery);
+  const choices = Option.getOrUndefined(AsyncResult.value(bases));
+  const base =
+    comparison.kind === 'branch'
+      ? (comparison.base ??
+        (AsyncResult.isSuccess(result) && result.value.kind === 'branch'
+          ? result.value.answer.base?.ref
+          : undefined) ??
+        choices?.defaultRef ??
+        undefined)
+      : undefined;
+  let label = 'Uncommitted';
+  if (comparison.kind === 'branch') {
+    if (base) label = `Branch · ${refLabel(base)}`;
+    else if (AsyncResult.isInitial(result) || result.waiting)
+      label = 'Branch · Reading base…';
+    else if (AsyncResult.isFailure(result)) label = 'Branch · Base unavailable';
+    else label = 'Branch · No base';
+  }
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
       <Box
-        className="flex-row items-center justify-between"
+        className="items-start"
+        gap={2}
         paddingX={4}
         paddingY={2}
         divider="bottom"
       >
-        <ComparisonMenu
-          comparison={comparison}
-          bases={AsyncResult.isSuccess(bases) ? bases.value.bases : []}
-          onComparison={onComparison}
-        />
+        <Box
+          className="items-start self-stretch"
+          onLayout={({ nativeEvent: { layout } }) =>
+            setComparisonWidth(layout.width)
+          }
+        >
+          <ComparisonMenu
+            comparison={comparison}
+            label={label}
+            maximumWidth={comparisonWidth}
+            base={base}
+            bases={choices?.bases ?? []}
+            onComparison={onComparison}
+          />
+        </Box>
+        {AsyncResult.isInitial(bases) || bases.waiting ? (
+          <Text variant="caption" tone="muted" accessibilityRole="text">
+            {choices ? 'Refreshing branches…' : 'Reading branches…'}
+          </Text>
+        ) : null}
+        {AsyncResult.isFailure(bases) ? (
+          <Box className="flex-row flex-wrap items-center" gap={2}>
+            <Text variant="caption" tone="muted">
+              Base branches could not be read.
+            </Text>
+            <Button
+              label="Read branches again"
+              variant="outline"
+              size="sm"
+              onPress={refreshBases}
+            />
+          </Box>
+        ) : null}
+        {!AsyncResult.isFailure(bases) &&
+        !bases.waiting &&
+        choices?.bases.length === 0 ? (
+          <Text variant="caption" tone="muted">
+            No base branches available.
+          </Text>
+        ) : null}
       </Box>
       {AsyncResult.isSuccess(result) ? (
         <ReviewNavigationList
@@ -198,6 +274,13 @@ function ReviewNavigationList({
   const files = AsyncResult.isSuccess(marks.result)
     ? reviewFiles(snapshot, marks.result.value)
     : [];
+  const changes =
+    snapshot.kind === 'worktree'
+      ? worktreeChangeMarks(snapshot.answer.changes)
+      : branchChangeMarks(snapshot.answer.files);
+  const reading = useReviewListOffset(
+    JSON.stringify([workspace.key, comparison]),
+  );
   const publishedStop = usePublishedStop(
     workspace,
     snapshot.kind === 'worktree'
@@ -216,6 +299,11 @@ function ReviewNavigationList({
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="grow gap-3 p-4"
+        contentOffset={{ x: 0, y: reading.initialOffset }}
+        onScroll={(event) =>
+          reading.onScrollOffset(event.nativeEvent.contentOffset.y)
+        }
+        scrollEventThrottle={100}
       >
         {inlineOverview ? (
           <ReviewOverview
@@ -278,27 +366,26 @@ function ReviewNavigationList({
                         ? file.path
                         : (file.path.split('/').at(-1) ?? file.path)
                     }
+                    titleDecoration={
+                      file.reviewStatus === 'reviewed'
+                        ? 'line-through'
+                        : undefined
+                    }
                     description={
                       inlineOverview
                         ? file.note
                         : `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
                     }
-                    leading={inlineOverview ? undefined : <FileIcon />}
+                    leading={
+                      <ChangeStatusDot status={changes.files.get(file.path)} />
+                    }
                     size={inlineOverview ? 'default' : 'sm'}
                     selected={
                       !inlineOverview &&
                       selection?.kind === 'file' &&
                       selection.path === file.path
                     }
-                    accessibilityLabel={`Review ${file.path}`}
-                    trailing={
-                      inlineOverview ? (
-                        <Badge
-                          label={reviewStatusLabel(file.reviewStatus)}
-                          variant="secondary"
-                        />
-                      ) : undefined
-                    }
+                    accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
                     onPress={() => onFile(file.path)}
                   />
                 ))}
@@ -328,6 +415,30 @@ function ReviewNavigationList({
       ) : null}
     </Box>
   );
+}
+
+const changeTones: Record<
+  ChangeStatus,
+  ComponentProps<typeof StatusDot>['tone']
+> = {
+  added: 'add',
+  untracked: 'add',
+  modified: 'warning',
+  deleted: 'del',
+  renamed: 'info',
+};
+
+function ChangeStatusDot({ status }: { status: ChangeStatus | undefined }) {
+  return (
+    <StatusDot
+      label={changeLabel(status)}
+      tone={status ? changeTones[status] : 'muted'}
+    />
+  );
+}
+
+function changeLabel(status: ChangeStatus | undefined) {
+  return status ? changeStatusMarks[status].label : 'Changed';
 }
 
 function commentsAnchor(

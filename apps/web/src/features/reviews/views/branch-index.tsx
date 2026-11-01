@@ -20,6 +20,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
+import { branchChangeStatus } from '@porcelain/client/files/rules';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
 import { groupSpecPaths } from '@porcelain/client/reviews/rules';
@@ -168,6 +169,7 @@ function BranchFileList({
             path={item.path}
             document={{ kind: 'branch-file', path: item.path }}
             note={item.status}
+            changeStatus={branchChangeStatus(item)}
             scopes={[item.status]}
             reviewStatus={item.reviewStatus}
             commentCount={

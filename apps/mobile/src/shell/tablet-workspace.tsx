@@ -188,6 +188,10 @@ function SelectedWorkspace({
       </Box>
       <Box className={session.mode === 'review' ? 'flex-1' : 'hidden'}>
         <ReviewNavigation
+          active={
+            session.mode === 'review' &&
+            (landscape ? session.inspectorOpen : sheetOpen)
+          }
           workspace={workspace}
           comparison={session.comparison}
           onComparison={changeComparison}

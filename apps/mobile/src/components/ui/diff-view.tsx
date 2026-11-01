@@ -11,6 +11,8 @@ export function DiffView({
   selection,
   onSelect,
   onExpand,
+  initialLine,
+  onReadingLine,
 }: {
   lines: readonly RenderLine[];
   language?: string;
@@ -18,6 +20,8 @@ export function DiffView({
   selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
+  initialLine?: number | undefined;
+  onReadingLine?: ((line: number) => void) | undefined;
 }) {
   const oldLines = lines.filter((line) => line.kind !== 'added');
   const newLines = lines.filter((line) => line.kind !== 'removed');
@@ -52,6 +56,8 @@ export function DiffView({
       selection={selection}
       onSelect={onSelect}
       onExpand={onExpand}
+      initialLine={initialLine}
+      onReadingLine={onReadingLine}
     />
   );
 }

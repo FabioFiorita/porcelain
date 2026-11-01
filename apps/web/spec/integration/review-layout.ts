@@ -51,6 +51,7 @@ export const reviewLayout = {
     codeScroller(locator).scrollTop = position;
   },
   codeScrollTop: (locator: Locator) => codeScroller(locator).scrollTop,
+  codeScrollHeight: (locator: Locator) => codeScroller(locator).scrollHeight,
   currentChangeRows(table: Locator) {
     return [
       ...table.element().querySelectorAll('button[aria-current="true"]'),

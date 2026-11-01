@@ -37,7 +37,7 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
   LaunchedEffect(restored, lines) {
     if (restored) snapshotFlow { listState.firstVisibleItemIndex }
       .distinctUntilChanged()
-      .collect { index -> lines.getOrNull(index)?.id?.toIntOrNull()?.let(reading) }
+      .collect { index -> reading(index + 1) }
   }
   val digits = remember(lines) { (lines.maxOfOrNull { maxOf(it.oldLine ?: 0, it.newLine ?: 0) } ?: 1).toString().length }
   val measurer = rememberTextMeasurer()

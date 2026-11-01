@@ -40,14 +40,14 @@ struct CodeContent: View {
       .onChange(of: model.initialLine, initial: true) { restore() }
       .onChange(of: model.lines.isEmpty, initial: true) { restore() }
       .onChange(of: topLine) { _, value in
-        if restored, let value, let line = Int(value) { reading(line) }
+        if restored, let value, let index = model.lines.firstIndex(where: { $0.id == value }) { reading(index + 1) }
       }
     }
     .background(model.background)
   }
   private func restore() {
     guard !restored, !model.lines.isEmpty, let line = model.initialLine else { return }
-    topLine = String(min(max(line, 1), model.lines.count))
+    topLine = model.lines[min(max(line, 1), model.lines.count) - 1].id
     restored = true
   }
   private func textWidth(_ text: AttributedString, fallbackFont: Font) -> CGFloat {

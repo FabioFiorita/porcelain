@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   branchChangeMarks,
+  branchChangeStatus,
   changeStatus,
   changeStatusMarks,
   worktreeChangeMarks,
@@ -121,6 +122,7 @@ it.each([
   ['renamed', 'renamed'],
   ['type-changed', 'modified'],
 ] as const)('marks a branch file %s as %s', (status, expected) => {
+  expect(branchChangeStatus({ status })).toBe(expected);
   const marks = branchChangeMarks([
     {
       path: 'packages/a/b.ts',

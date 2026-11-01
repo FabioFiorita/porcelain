@@ -7,11 +7,13 @@ import { Text } from './text';
 
 export function ContentMenu({
   label,
+  maximumWidth,
   children,
   icon,
   size = 'default',
 }: {
   label: string;
+  maximumWidth?: number | undefined;
   icon?: IconName;
   size?: 'default' | 'sm';
   children: ReactNode;
@@ -26,11 +28,12 @@ export function ContentMenu({
               accessible
               accessibilityRole="button"
               accessibilityLabel={label}
+              style={{ maxWidth: maximumWidth }}
               className="min-h-11 min-w-11 items-center justify-center"
             >
               <View
                 className={[
-                  'flex-row items-center justify-center gap-2 rounded-md border border-border bg-background',
+                  'max-w-full flex-row items-center justify-center gap-2 rounded-md border border-border bg-background',
                   size === 'sm'
                     ? icon
                       ? 'min-h-8 w-8'
@@ -45,7 +48,13 @@ export function ContentMenu({
                   />
                 ) : (
                   <>
-                    <Text accessible={false} variant="control" weight="medium">
+                    <Text
+                      accessible={false}
+                      variant="control"
+                      weight="medium"
+                      numberOfLines={1}
+                      className="shrink"
+                    >
                       {label}
                     </Text>
                     <Icon name="down" size="small" tone="muted" />

@@ -38,8 +38,9 @@ test.for([1280, 414])(
         .getByRole('tab', { name: 'Branch', exact: true })
         .click();
       await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
         .getByRole('button', {
-          name: 'Compare against the default branch',
+          name: 'Compare against main',
           exact: true,
         })
         .click();
@@ -71,6 +72,7 @@ test.for([1280, 414])(
       if (width === 414)
         await page.getByRole('button', { name: 'Review', exact: true }).click();
       await page
+        .getByRole('complementary', { name: 'Review sidebar', exact: true })
         .getByRole('button', {
           name: 'Compare against checkpoint',
           exact: true,
