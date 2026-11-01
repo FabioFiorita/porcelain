@@ -15,7 +15,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
-import { cn } from '@/shared/lib/utils';
 import {
   threadCounts,
   type CommentAnchor,
@@ -168,7 +167,7 @@ export function CommentsView({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {composer}
-      <div className="flex shrink-0 gap-1 px-2 pt-2">
+      <div className="flex shrink-0 gap-1 px-2 pt-2 pb-2">
         {(['open', 'resolved'] as const).map((value) => (
           <Button
             type="button"
@@ -198,21 +197,21 @@ export function CommentsView({
         >
           <MessageScroller className="min-h-0 flex-1">
             <MessageScrollerViewport aria-label="Comments">
-              <MessageScrollerContent
-                className={cn('', filter === 'open' ? '' : '')}
-              >
+              <MessageScrollerContent>
                 {visible.map((thread, index) => (
                   <MessageScrollerItem
                     key={thread.id}
                     messageId={thread.id}
                     scrollAnchor={index === visible.length - 1}
                   >
-                    <ThreadCard
-                      thread={thread}
-                      scope={scope}
-                      context={context}
-                      onReveal={() => onReveal(thread.anchor)}
-                    />
+                    <div className="mx-2">
+                      <ThreadCard
+                        thread={thread}
+                        scope={scope}
+                        context={context}
+                        onReveal={() => onReveal(thread.anchor)}
+                      />
+                    </div>
                   </MessageScrollerItem>
                 ))}
               </MessageScrollerContent>

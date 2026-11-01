@@ -88,7 +88,7 @@ import {
   codeCommentStale,
 } from '../rules/retained-comments';
 import { StateNotice } from '@/shared/views/state-notice';
-import { InlineComposer, type InlineCommentDraft } from './inline-composer';
+import { InlineComposer } from './inline-composer';
 import { AgentNote } from './agent-note';
 import { ThreadCard } from './thread-card';
 import { MarginThreadLocation } from './margin-thread-location';
@@ -213,7 +213,7 @@ function CodeSurface({
   const [composer, setComposer] = useState<{
     id: string;
     anchor: FileCommentAnchor;
-    draft: InlineCommentDraft;
+    focusRequested: boolean;
   } | null>(null);
   const [savedSelection, saveSelection] = useState(() => viewer.selection());
   const selectedEntry = savedSelection
@@ -265,14 +265,17 @@ function CodeSurface({
       )
       .map((entry) => entry.id),
   );
-  const openFileComment = (entry: CodeEntry | undefined) => {
-    if (!entry?.comment) return;
+  const openComposer = (entry: CodeEntry, anchor: FileCommentAnchor) => {
     setFocusedId(entry.id);
     setComposer({
       id: entry.id,
-      anchor: { ...entry.comment, kind: 'file' },
-      draft: { body: '' },
+      anchor,
+      focusRequested: true,
     });
+  };
+  const openFileComment = (entry: CodeEntry | undefined) => {
+    if (!entry?.comment) return;
+    openComposer(entry, { ...entry.comment, kind: 'file' });
     setSelection(null);
   };
   const closeComposer = () => {
@@ -428,9 +431,8 @@ function CodeSurface({
         setRangeError('Select lines on one side of the comparison.');
         return;
       }
-      setFocusedId(entry.id);
       setRangeError(null);
-      setComposer({ id: entry.id, anchor, draft: { body: '' } });
+      openComposer(entry, anchor);
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
@@ -783,20 +785,21 @@ function CodeSurface({
                 </Button>
               );
             return note.kind === 'composer' ? (
-              composer && composer.anchor === note.anchor && (
+              composer?.id === item.id && (
                 <InlineComposer
-                  key={JSON.stringify(note.anchor)}
+                  key={JSON.stringify(composer.anchor)}
                   scope={scope}
                   context={gitContext}
-                  anchor={note.anchor}
-                  draft={composer.draft}
-                  onDraftChange={(draft) =>
+                  anchor={composer.anchor}
+                  inputRef={(input) => {
+                    if (!input || !composer.focusRequested) return;
+                    input.focus();
                     setComposer((current) =>
-                      current?.anchor === note.anchor
-                        ? { ...current, draft }
+                      current === composer
+                        ? { ...current, focusRequested: false }
                         : current,
-                    )
-                  }
+                    );
+                  }}
                   onClose={closeComposer}
                 />
               )

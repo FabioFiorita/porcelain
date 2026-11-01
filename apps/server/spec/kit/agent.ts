@@ -102,7 +102,7 @@ export async function agentActs(
   action: AgentAction,
 ): Promise<unknown> {
   if (action.kind === 'publish-architecture')
-    return seedArchitectureSample(agent);
+    return seedArchitectureSample(agent, action.questions);
   if (action.kind === 'seed') return seedStressSample(agent, action.variant);
   if (action.kind === 'publish-review' || action.kind === 'publish-proof') {
     await commitReviewFixture(agent);

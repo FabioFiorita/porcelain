@@ -9,6 +9,7 @@ selectors:
 tests:
   - apps/web/spec/integration/reviews-comment.test.tsx
   - apps/web/spec/integration/reviews-retained-comments.test.tsx
+  - apps/web/spec/integration/reviews-comment-drafts.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
@@ -26,10 +27,16 @@ A blank comment cannot be posted, and a written comment on a changed file is sav
 - Keyboard: `C` (no modifier) with focus outside any input opens the composer on the focused file of the active code document.
 - Right-click a changed file in Review → Changes → menuitem "Comment" (see `reviews.changed-file-menu`).
 - In the composer: `ControlOrMeta+Enter` posts, `Escape` cancels.
+- Clicking the same file comment button again keeps the draft visible, retains its text and focuses its field. Hover an added line and click its gutter plus; repeating that plus on the same line has the same behavior. Sending saves one thread on that exact line and side.
+- Reopening through the C shortcut, toolbar or context-menu request restores focus to the existing field too. Focus moves when the opening request commits; typing or incoming comments must not repeatedly steal it.
+- Leave a decision or file and return, then reopen the same comment: its unsent text returns. Another file, range, question, review revision or environment has its own draft. Cancel or Escape clears the selected new-comment draft. These drafts last for the running client session.
+- Lose a POST response after the server stores the comment, then click the same file's Comment button and retry. Text and write IDs stay together; independent readback must contain exactly one thread and one message.
+- While one file's send is held, open another file's retained draft. Releasing the first send must leave the second composer open with its text; only the submitted draft clears.
+- Distinct question IDs keep separate answer drafts even when the question text is identical. The same question in the briefing and decision shares its draft. Sending still quotes the question in a whole-change comment; the draft key adds no wire anchor.
 
 ## Driving it with browser
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). For the visual sweep, pass the concrete `/<projectId>/<worktreeId>?entry=handoff` URL; the workspace adds that canonical document entry when opened without one.
 
 ### Setup
 

@@ -1,6 +1,7 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { type ChangeEvent, type KeyboardEvent, useId, useState } from 'react';
+import { useAtom } from '@effect/atom-react';
+import { type ChangeEvent, type KeyboardEvent, type Ref, useId } from 'react';
 import { ArrowUpIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { shortOid } from '@porcelain/client/history/rules';
@@ -20,20 +21,8 @@ import {
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-
-export type InlineCommentDraft = {
-  body: string;
-  pending?:
-    | { body: string; anchor: string; threadId: string; messageId: string }
-    | undefined;
-};
-
-type DraftControl =
-  | {
-      draft: InlineCommentDraft;
-      onDraftChange: (draft: InlineCommentDraft) => void;
-    }
-  | { draft?: never; onDraftChange?: never };
+import { commentDraftKey, newCommentDraftState } from '../store';
+import { commentKeyDown } from '../adapters/comment-keyboard';
 
 export function InlineComposer({
   scope,
@@ -41,63 +30,64 @@ export function InlineComposer({
   anchor,
   onClose,
   quote,
-  draft: controlledDraft,
-  onDraftChange,
+  questionId,
   variant = 'comment',
   autoFocus = true,
   closable = true,
+  inputRef,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   anchor: CommentAnchor;
   onClose: () => void;
   quote?: string | undefined;
+  questionId?: string | undefined;
   variant?: 'comment' | 'answer';
   autoFocus?: boolean;
   closable?: boolean;
-} & DraftControl) {
+  inputRef?: Ref<HTMLTextAreaElement>;
+}) {
   const id = useId();
-  const [localDraft, setLocalDraft] = useState<InlineCommentDraft>({
-    body: '',
-  });
-  const draft = controlledDraft ?? localDraft;
-  const setDraft = onDraftChange ?? setLocalDraft;
+  const [draft, setDraft] = useAtom(
+    newCommentDraftState(
+      commentDraftKey(context.connection.environmentId, scope, {
+        kind: 'create',
+        anchor,
+        quote,
+        questionId,
+      }),
+    ),
+  );
   const { body, pending } = draft;
-  const anchorKey = JSON.stringify(anchor);
   const mutation = useCreateComment(scope, context);
   const message = quote === undefined ? body : questionAnswer(quote, body);
+  const target = pending?.body === message ? pending.anchor : anchor;
   const quoteLength = message.length - body.length;
   const valid = commentBodyValid(body) && commentBodyValid(message);
-  const submit = () => {
+  const cancel = () => {
+    if (mutation.result.waiting) return;
+    setDraft({ body: '' });
+    onClose();
+  };
+  const submit = (form: HTMLFormElement) => {
     if (!valid || mutation.result.waiting) return;
-    const intent = retainIntent(
-      pending?.anchor === anchorKey ? pending : undefined,
-      message,
-      () => ({
-        body: message,
-        anchor: anchorKey,
-        threadId: crypto.randomUUID(),
-        messageId: crypto.randomUUID(),
-      }),
-    );
+    const intent = retainIntent(pending, message, () => ({
+      body: message,
+      anchor,
+      threadId: crypto.randomUUID(),
+      messageId: crypto.randomUUID(),
+      ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
+    }));
     setDraft({ ...draft, pending: intent });
-    mutation.send(
-      {
-        anchor,
-        body: message,
-        threadId: intent.threadId,
-        messageId: intent.messageId,
-        ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
-      },
-      () => {
-        setDraft({ body: '', pending: undefined });
-        onClose();
-      },
-    );
+    mutation.send(intent, () => {
+      setDraft({ body: '', pending: undefined });
+      if (form.isConnected) onClose();
+    });
   };
   const answer = variant === 'answer';
   const field = {
     id,
+    ref: inputRef,
     autoFocus,
     value: body,
     maxLength: Math.max(0, mutation.bodyLimit - quoteLength),
@@ -106,14 +96,11 @@ export function InlineComposer({
       setDraft({ body: event.target.value, pending: undefined });
     },
     onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault();
-        submit();
-      }
-      if (closable && event.key === 'Escape' && !mutation.result.waiting) {
-        event.stopPropagation();
-        onClose();
-      }
+      commentKeyDown(
+        event,
+        mutation.result.waiting,
+        closable ? cancel : undefined,
+      );
     },
   };
   return (
@@ -125,7 +112,7 @@ export function InlineComposer({
       }
       onSubmit={(event) => {
         event.preventDefault();
-        submit();
+        submit(event.currentTarget);
       }}
     >
       <label
@@ -139,12 +126,12 @@ export function InlineComposer({
         {answer
           ? 'Answer the agent'
           : [
-              anchorPath(anchor),
-              anchorLabel(anchor),
-              anchor.kind === 'change' &&
-              anchor.revision !== null &&
-              anchor.revision !== undefined
-                ? `at ${shortOid(anchor.revision)}`
+              anchorPath(target),
+              anchorLabel(target),
+              target.kind === 'change' &&
+              target.revision !== null &&
+              target.revision !== undefined
+                ? `at ${shortOid(target.revision)}`
                 : undefined,
             ]
               .filter((part) => part !== null && part !== undefined)
@@ -176,7 +163,7 @@ export function InlineComposer({
               size="sm"
               className="ml-auto"
               disabled={mutation.result.waiting}
-              onClick={onClose}
+              onClick={cancel}
             >
               Cancel
             </Button>
@@ -198,7 +185,7 @@ export function InlineComposer({
             size="sm"
             variant="ghost"
             disabled={mutation.result.waiting}
-            onClick={onClose}
+            onClick={cancel}
           >
             Cancel
           </Button>

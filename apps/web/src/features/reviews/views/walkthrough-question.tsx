@@ -32,6 +32,7 @@ function QuestionAnswer({
       scope={scope}
       context={context}
       quote={part.problem}
+      questionId={part.id}
       anchor={changeAnchor({
         base: revision.base,
         tip: revision.headOid,

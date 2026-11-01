@@ -82,7 +82,8 @@ export function agentOn(step: Step) {
     await step({ kind: 'agent', action });
   };
   return {
-    publishArchitecture: () => act({ kind: 'publish-architecture' }),
+    publishArchitecture: (questions?: Readonly<Record<string, string>>) =>
+      act({ kind: 'publish-architecture', questions }),
     publishReview: (
       title: string,
       kind: 'changed' | 'context' = 'changed',

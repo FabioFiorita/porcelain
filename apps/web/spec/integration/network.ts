@@ -192,6 +192,26 @@ export function createFetchGate(filePath: string) {
         (url, init) =>
           init?.method === 'POST' && url.pathname.endsWith(pathEnding),
       ),
+    loseNextPostResponse(pathEnding: string) {
+      const original = window.fetch;
+      let armed = true;
+      window.fetch = async (input, init) => {
+        const response = await original(input, init);
+        if (
+          armed &&
+          init?.method === 'POST' &&
+          requestUrl(input).pathname.endsWith(pathEnding)
+        ) {
+          armed = false;
+          await response.clone().arrayBuffer();
+          throw new TypeError('The comment response was lost after saving.');
+        }
+        return response;
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+    },
     restore() {
       for (const restore of restores.splice(0).reverse()) restore();
     },
