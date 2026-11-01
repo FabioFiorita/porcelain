@@ -35,3 +35,48 @@ test('pushing to a remote whose address Porcelain cannot use is refused in the G
     .poll(async () => (await server.gitStatus()).branch)
     .toEqual({ name: branch, ahead: 0, behind: 0, stashes: [], discarded: [] });
 });
+
+test('a lost Push response offers Check outcome and reads the existing receipt without submitting another Push', async ({
+  render,
+  repo,
+  server,
+  fetchGate,
+  live,
+}) => {
+  const traffic = fetchGate.loseNextGitActionResponse();
+  const workspace = await render.workspace();
+  await repo.remote('origin', 'git://127.0.0.1:9/remote.git');
+  await workspace
+    .getByRole('button', { name: 'Git actions', exact: true })
+    .click();
+  await expect
+    .element(workspace.getByRole('menuitem', { name: /^Push/ }))
+    .toBeEnabled();
+  live.drop();
+  await expect.poll(() => live.connected()).toBe(false);
+  await workspace.getByRole('menuitem', { name: /^Push/ }).click();
+  const progress = workspace.getByRole('dialog');
+  await expect
+    .element(
+      progress.getByRole('button', { name: 'Check outcome', exact: true }),
+    )
+    .toBeEnabled();
+  await expect
+    .element(progress.getByRole('alert'))
+    .toMatchTextContent(/could not reach/i);
+  await progress
+    .getByRole('button', { name: 'Check outcome', exact: true })
+    .click();
+  await expect
+    .element(
+      workspace.getByRole('dialog', { name: 'Push did not run', exact: true }),
+    )
+    .toBeVisible();
+  await expect.poll(() => traffic.writes.length).toBe(1);
+  await expect.poll(() => traffic.reads.length).toBe(1);
+  await expect
+    .poll(async () => (await server.gitStatus()).branch?.upstream)
+    .toBeUndefined();
+  live.restore();
+  await userEvent.keyboard('{Escape}');
+});

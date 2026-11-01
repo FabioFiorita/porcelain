@@ -203,7 +203,7 @@ test('a draft that leaves a selected path out, or a model the tool does not serv
   expect(uncovered.status).toBe(422);
   expect(uncovered.body).toStrictEqual(
     unprocessable(
-      'The generated groups did not cover the selected files. Generate again or write the message manually.',
+      'The generated draft did not cover the selected files. Generate again or write the message manually.',
     ),
   );
   expect(failing.status).toBe(422);

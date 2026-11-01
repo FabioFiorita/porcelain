@@ -13,6 +13,7 @@ import { RequestError } from '../../../shared/api/request-error.ts';
 import { isTerminal, operationKey } from '../store/operations.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
+import { readGitReceipt } from '../queries/read-receipt.ts';
 
 type Selection = {
   readonly connection: GitConnection;
@@ -21,7 +22,14 @@ type Selection = {
 };
 class GitOperationStateError extends Schema.TaggedError<GitOperationStateError>()(
   'GitOperationStateError',
-  { reason: Schema.Literals(['pending', 'missing', 'mismatch']) },
+  {
+    reason: Schema.Literals([
+      'pending',
+      'missing',
+      'mismatch',
+      'receipt-unavailable',
+    ]),
+  },
 ) {
   override get message() {
     switch (this.reason) {
@@ -31,6 +39,8 @@ class GitOperationStateError extends Schema.TaggedError<GitOperationStateError>(
         return 'No operation to recover';
       case 'mismatch':
         return 'Action mismatch';
+      case 'receipt-unavailable':
+        return 'The operation receipt is unavailable. Inspect the current Git state in your terminal before taking another action. This operation was not submitted again.';
     }
   }
 }
@@ -142,7 +152,28 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
             return yield* Effect.fail(
               new GitOperationStateError({ reason: 'missing' }),
             );
-          return yield* send(current.request);
+          const receipt = yield* readGitReceipt(connection, current).pipe(
+            Effect.catchTag('GitActionNotFoundError', () =>
+              Effect.fail(
+                new GitOperationStateError({ reason: 'receipt-unavailable' }),
+              ),
+            ),
+            Effect.mapError(
+              (
+                error,
+              ):
+                | Effect.Error<ReturnType<typeof send>>
+                | GitOperationStateError =>
+                error instanceof RequestError && error.status === 404
+                  ? new GitOperationStateError({
+                      reason: 'receipt-unavailable',
+                    })
+                  : error,
+            ),
+          );
+          yield* currentAnswerEffect(connection, receipt.action === action);
+          yield* accept(receipt);
+          return yield* operations.wait(key, current.requestId);
         }),
       );
     }),

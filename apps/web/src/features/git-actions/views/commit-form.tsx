@@ -3,6 +3,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { PlusIcon, SparklesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DialogDescription,
   DialogHeader,
@@ -255,7 +256,10 @@ function CommitFiles({ form }: { form: CommitFormState }) {
             <>
               <FileTreeIcon path={file.path} className="size-3.5 shrink-0" />
               <TruncatedText className="min-w-0 flex-1" text={file.path} />
-              <span className="shrink-0 text-muted-foreground">
+              <span
+                aria-hidden={choosing}
+                className="shrink-0 text-muted-foreground"
+              >
                 {fileState(file.kind, included, commitAction)}
               </span>
             </>
@@ -265,12 +269,10 @@ function CommitFiles({ form }: { form: CommitFormState }) {
               key={file.path}
               className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted"
             >
-              <input
-                type="checkbox"
-                aria-label={file.path}
+              <Checkbox
                 checked={included}
-                onChange={(event) =>
-                  form.setIncluded(file.path, event.target.checked)
+                onCheckedChange={(checked) =>
+                  form.setIncluded(file.path, checked)
                 }
               />
               {body}

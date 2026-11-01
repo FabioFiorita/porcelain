@@ -26,6 +26,7 @@ export {
 } from './commands/discard.ts';
 export {
   runNetworkAction,
+  recoverNetworkAction,
   restoreDiscardedItem,
   type DiscardedItem,
   type GitMenuControls,

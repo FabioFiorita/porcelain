@@ -14,6 +14,7 @@ import type {
 import {
   type GitMenuControls,
   runNetworkAction,
+  recoverNetworkAction,
   refreshGitLook,
   restoreDiscardedItem,
   type DiscardedItem,
@@ -63,6 +64,7 @@ export function useGitMenu(
       name,
       operation: runners[name].operation,
       canStartNew: runners[name].canStartNew,
+      checking: runners[name].recovered.waiting,
     }))
     .find(
       ({ operation, canStartNew }) =>
@@ -70,6 +72,12 @@ export function useGitMenu(
     );
   return {
     running,
+    checkOutcome: () => {
+      if (running)
+        Effect.runFork(
+          recoverNetworkAction(controls, runners[running.name], running.name),
+        );
+    },
     runNetwork: (
       next: NetworkAction,
       displayedBranch: GitActionStatus['branch'],

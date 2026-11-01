@@ -27,7 +27,7 @@ api:
 
 # git-actions.draft-commit
 
-With a coding CLI on the server, the Commit dialog drafts the message (Generate with AI) or a sequence of commits (Use groups) with the chosen model and commits what was drafted; the server refuses a commit the worktree moved past since the draft, and refuses a draft that leaves a selected file out.
+With a coding CLI on the server, the Commit dialog drafts the message (Generate with AI) or a sequence of commits (Use groups) with the chosen model and commits what was drafted; the server refuses a commit the worktree moved past since the draft, and refuses a draft that leaves a selected file out. With no saved model choice, Codex defaults to an available Luna model and Claude defaults to Haiku. An available explicit choice is preserved.
 
 ## How to get to it (user POV)
 

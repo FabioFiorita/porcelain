@@ -143,7 +143,7 @@ it.effect(
         subject.operations.state.value.operations.get(subject.key)?.requestId,
       ).toBe(requestId);
       expect(yield* subject.commands.recover()).toEqual(receipt);
-      expect(sent).toEqual([sent[0], sent[0]]);
+      expect(sent).toHaveLength(1);
       expect(subject.ids()).toBe(1);
       yield* subject.commands.startNew();
       expect(
@@ -154,9 +154,10 @@ it.effect(
     }),
 );
 
-it('retains the original request after an unanswered write and resends that exact request on recovery', async () => {
+it('retains the original request after an unanswered write and reads its receipt without submitting again', async () => {
   const sent: string[] = [];
-  const subject = setup(disconnectFirstWrite(sent));
+  const reads: string[] = [];
+  const subject = setup(disconnectFirstWrite(sent, reads));
   try {
     await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
     await expect(subject.run()).rejects.toThrow('Check the existing receipt');
@@ -166,8 +167,9 @@ it('retains the original request after an unanswered write and resends that exac
       JSON.stringify(
         Schema.encodeSync(runGitActionRequestSchema)({ ...input, requestId }),
       ),
-      sent[0],
     ]);
+    expect(reads).toHaveLength(1);
+    expect(reads[0]).toContain(`/git/receipts/${requestId}`);
     expect(subject.ids()).toBe(1);
     expect(
       subject.operations.state.value.operations.get(subject.key)?.receipt,
@@ -177,14 +179,75 @@ it('retains the original request after an unanswered write and resends that exac
   }
 });
 
+it('follows a running recovery receipt until the terminal result is delivered', async () => {
+  const read = Promise.withResolvers<void>();
+  const subject = setup((path) => {
+    if (path.endsWith(`/git/receipts/${requestId}`)) {
+      read.resolve();
+      return Promise.resolve(Response.json({ ...receipt, state: 'running' }));
+    }
+    return Promise.reject(new Error('Lost response'));
+  });
+  try {
+    await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
+    const recovered = subject.recover();
+    await read.promise;
+    await Effect.runPromise(subject.operations.accept(receipt));
+    await expect(recovered).resolves.toEqual(receipt);
+  } finally {
+    await subject.close();
+  }
+});
+
+it('keeps an unanswered operation blocked when its receipt is missing instead of submitting it again', async () => {
+  let writes = 0;
+  let reads = 0;
+  const subject = setup((path) => {
+    if (path.endsWith(`/git/receipts/${requestId}`)) {
+      reads++;
+      return Promise.resolve(
+        Response.json(
+          {
+            statusCode: 404,
+            error: 'Not Found',
+            message: 'Git action receipt not found',
+          },
+          { status: 404 },
+        ),
+      );
+    }
+    writes++;
+    return Promise.reject(new Error('Lost response'));
+  });
+  try {
+    await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
+    await expect(subject.recover()).rejects.toThrow(
+      'This operation was not submitted again.',
+    );
+    await expect(subject.run()).rejects.toThrow('Check the existing receipt');
+    expect(writes).toBe(1);
+    expect(reads).toBe(1);
+    expect(
+      subject.operations.state.value.operations.get(subject.key)?.requestId,
+    ).toBe(requestId);
+  } finally {
+    await subject.close();
+  }
+});
+
 it('recovers a lost sidebar branch-switch response with the original durable request and receipt identity', async () => {
   const sent: string[] = [];
+  const reads: string[] = [];
   const switched = {
     ...receipt,
     action: 'switch' as const,
     result: { branch: 'topic', headOid: 'b'.repeat(40) },
   };
   const subject = setup((path, init) => {
+    if (path.endsWith(`/git/receipts/${requestId}`)) {
+      reads.push(path);
+      return Promise.resolve(Response.json(switched));
+    }
     if (path.endsWith('/git/status'))
       return Promise.resolve(
         Response.json({
@@ -233,8 +296,8 @@ it('recovers a lost sidebar branch-switch response with the original durable req
       await subject.execute(recoverWorktreeBranchSwitch(selection), undefined),
     ).toEqual(switched);
     expect(state.value.unresolved).toBe(false);
-    expect(sent).toHaveLength(2);
-    expect(sent[1]).toBe(sent[0]);
+    expect(sent).toHaveLength(1);
+    expect(reads).toHaveLength(1);
     expect(
       Schema.decodeUnknownSync(runGitActionRequestSchema)(
         JSON.parse(sent[0] ?? ''),
@@ -416,8 +479,12 @@ it('does not send or publish a Git operation when its recovery identity cannot b
   }
 });
 
-function disconnectFirstWrite(sent: string[]): Transport {
-  return (_path, init) => {
+function disconnectFirstWrite(sent: string[], reads: string[] = []): Transport {
+  return (path, init) => {
+    if (path.endsWith(`/git/receipts/${requestId}`)) {
+      reads.push(path);
+      return Promise.resolve(Response.json(receipt));
+    }
     if (!(init?.body instanceof Uint8Array))
       throw new Error('Expected encoded write');
     sent.push(new TextDecoder().decode(init.body));

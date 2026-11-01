@@ -42,7 +42,7 @@ export function useActionForm(
   );
   const [look, reread] = useAtom(lookCommand, { mode: 'promiseExit' });
   const resetLook = useAtomSet(lookCommand);
-  const busy = git.execution.waiting || look.waiting;
+  const busy = git.execution.waiting || git.recovered.waiting || look.waiting;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const failure = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
     AsyncResult.isFailure(result) ? Cause.squash(result.cause) : null;

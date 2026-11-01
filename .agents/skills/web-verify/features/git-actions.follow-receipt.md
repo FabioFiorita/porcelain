@@ -9,8 +9,11 @@ selectors:
   - "Stash changes"
   - "Pop stash"
   - "Working…"
+  - "Check outcome"
 tests:
   - apps/web/spec/integration/git-actions-follow-receipt.test.tsx
+  - apps/web/spec/integration/git-actions-recover-groups.test.tsx
+  - apps/web/spec/integration/git-actions-push.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/git/receipts/:requestId
   - POST /api/worktrees/:worktreeId/git/actions
@@ -70,3 +73,10 @@ Automated coverage: `git-actions-follow-receipt.test.tsx`.
 
 - Without the live outage the outcome arrives over the live connection at once and the receipt path is never taken.
 - Section 2 leaves a stash and a modified README.md behind; `git -C "$REPO" stash drop` and `git -C "$REPO" checkout README.md` reset it, or start a fresh instance.
+
+### Lost response and manual recovery
+
+- If the action response is lost, open the progress box and choose Check outcome. It reads the retained request's receipt using GET; it never submits the write again. A running receipt remains followed until terminal completion and keeps another submission blocked; an unavailable receipt keeps the original operation blocked and explains terminal inspection.
+- Fetch/Pull/Push interruption says outcome not confirmed; a conflicted receipt asks for conflict resolution. Only a known rejection says did not run.
+- In Use groups, lose the first response while holding live traffic, independently read the first commit, then Check outcome. Commit 1 becomes committed. Restore live traffic and continue: only the remaining group submits, using the recovered HEAD. Independent log, parent and file readbacks must match the two groups exactly once.
+- Automated recovery coverage also lives in `git-actions-recover-groups.test.tsx` and `git-actions-push.test.tsx`.

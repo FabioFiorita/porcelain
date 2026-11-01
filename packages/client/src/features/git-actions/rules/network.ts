@@ -1,5 +1,6 @@
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
-import type { ActionInput } from './git-action.ts';
+import type { ActionInput, Receipt } from './git-action.ts';
+import { receiptWords, type GitNotice } from './feedback.ts';
 import {
   branchStatus,
   type GitActionStatus,
@@ -84,6 +85,33 @@ export function networkInput(
 
 export const networkTitle = (action: NetworkAction) =>
   action === 'fetch' ? 'Fetch' : action === 'pull' ? 'Pull' : 'Push';
+
+export function networkNotice(
+  action: NetworkAction,
+  receipt: Receipt,
+): GitNotice {
+  const label = networkTitle(action);
+  const title =
+    receipt.state === 'interrupted'
+      ? `${label} outcome not confirmed`
+      : receipt.state === 'conflicted'
+        ? `${label} needs conflict resolution`
+        : receipt.state === 'rejected'
+          ? `${label} did not run`
+          : receipt.state === 'running'
+            ? `${label} in progress`
+            : label;
+  return {
+    title,
+    description: receiptWords(receipt),
+    type:
+      receipt.state === 'succeeded' || receipt.state === 'no-change'
+        ? 'success'
+        : receipt.state === 'running'
+          ? 'info'
+          : 'error',
+  };
+}
 
 export const networkLabel = (action: NetworkAction) =>
   action === 'fetch' ? 'Fetching' : action === 'pull' ? 'Pulling' : 'Pushing';

@@ -5,6 +5,7 @@ export {
 } from './settings-summary.ts';
 export {
   confirmedReviewGitSettings,
+  reviewGitPullStrategy,
   reviewGitSettingsKeptMessage,
   shownReviewGitSettings,
   specsApart,

@@ -88,6 +88,41 @@ export function createFetchGate(filePath: string) {
     };
   }
   return {
+    loseNextGitActionResponse() {
+      const original = window.fetch;
+      let armed = true;
+      const writes: string[] = [];
+      const reads: string[] = [];
+      window.fetch = async (input, init) => {
+        const url = requestUrl(input);
+        if (
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.includes('/git/receipts/')
+        )
+          reads.push(url.pathname);
+        if (init?.method === 'POST' && url.pathname.endsWith('/git/actions')) {
+          writes.push(
+            typeof init.body === 'string'
+              ? init.body
+              : new TextDecoder().decode(
+                  init.body instanceof Uint8Array ? init.body : undefined,
+                ),
+          );
+          const response = await original(input, init);
+          if (armed) {
+            armed = false;
+            await response.arrayBuffer();
+            throw new Error('Lost accepted Git response');
+          }
+          return response;
+        }
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return { writes, reads };
+    },
     failDirectoryReads(directory: string) {
       const original = window.fetch;
       let failing = false;

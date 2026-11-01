@@ -4,6 +4,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { useState } from 'react';
 import { useGitStatus } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DialogDescription,
   DialogHeader,
@@ -316,11 +317,7 @@ function ActionForm({
           </Field>
         )}
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={option}
-            onChange={(event) => setOption(event.target.checked)}
-          />
+          <Checkbox checked={option} onCheckedChange={setOption} />
           {action === 'stash-create'
             ? 'Include untracked files'
             : 'Restore staged changes'}

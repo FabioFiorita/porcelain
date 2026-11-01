@@ -15,6 +15,14 @@ export type ReviewGitSettingsView =
       unreadable: string | undefined;
     };
 
+export const defaultReviewGitSettings: ReviewGitSettings = {
+  pullStrategy: 'merge',
+  collapseSpecs: false,
+  archiveDeleteWorktree: true,
+  archiveDeleteLocalBranch: true,
+  archiveDeleteRemoteBranch: true,
+};
+
 const UNREADABLE = 'Reviews & Git settings could not be read.';
 
 function failureMessage(error: unknown): string {
@@ -63,6 +71,14 @@ export function confirmedReviewGitSettings(
   return view.kind === 'configured' && view.unreadable === undefined
     ? view.settings
     : undefined;
+}
+
+export function reviewGitPullStrategy(
+  view: ReviewGitSettingsView,
+): ReviewGitSettings['pullStrategy'] | undefined {
+  return view.kind === 'unconfigured'
+    ? defaultReviewGitSettings.pullStrategy
+    : confirmedReviewGitSettings(view)?.pullStrategy;
 }
 
 export function shownReviewGitSettings(

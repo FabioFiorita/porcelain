@@ -1,6 +1,6 @@
 import { expectationFor } from './feedback.ts';
 import { describe, expect, it } from 'vitest';
-import { networkInput, networkTarget } from './network.ts';
+import { networkInput, networkTarget, networkNotice } from './network.ts';
 
 const displayed = { name: 'main', upstream: 'origin/main' };
 const looked = { branch: { name: 'main', upstream: 'origin/main' } };
@@ -138,5 +138,30 @@ it.each([
       destinationRef,
       allowCreate: true,
     });
+  },
+);
+
+it.each([
+  ['interrupted', 'Pull outcome not confirmed', 'error'],
+  ['conflicted', 'Pull needs conflict resolution', 'error'],
+  ['rejected', 'Pull did not run', 'error'],
+  ['running', 'Pull in progress', 'info'],
+  ['succeeded', 'Pull', 'success'],
+  ['no-change', 'Pull', 'success'],
+] as const)(
+  'describes a %s receipt without denying possible effects',
+  (state, title, type) => {
+    expect(
+      networkNotice('pull', {
+        projectId: '11111111-1111-4111-8111-111111111111',
+        worktreeId: '0123456789abcdef0123456789abcdef',
+        requestId: '22222222-2222-4222-8222-222222222222',
+        action: 'pull',
+        state,
+        acceptedAt: '2026-11-01T00:00:00.000Z',
+        progress: [],
+        message: 'Inspect the current branch.',
+      }),
+    ).toEqual({ title, description: 'Inspect the current branch.', type });
   },
 );
