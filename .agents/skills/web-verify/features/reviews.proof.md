@@ -8,6 +8,9 @@ selectors:
   - 'The agent reported this work as not passing yet.'
   - 'Checks'
   - 'Attachments'
+  - 'Enlarge '
+  - 'View original size'
+  - 'Fit image'
 tests:
   - apps/web/spec/integration/reviews-proof.test.tsx
   - apps/desktop/src/rules/content-security-policy.spec.ts
@@ -39,6 +42,9 @@ Preconditions: [surface baseline](README.md).
    Expect: the review sheet with Readiness and its "1 of 2 checks failing" button.
 3. Click button `1 of 2 checks failing`, then wait for img named `Saved notice`
    Expect: the sheet closes; the permanent Review tab stays selected; region "Proven at <head>" holds the published timestamp, alert "1 check failed The agent reported this work as not passing yet.", region "Checks" whose first listitem is "Save journey: Failed" holding "Readme layer" and "Expected the Saved notice to be visible", the second "Unit tests: Passed", and region "Attachments" with figure "Saved notice" holding img "Saved notice". No Proof tab or second review bar appears.
+
+4. Activate button `Enlarge Saved notice` by keyboard.
+   Expect: stock dialog named "Saved notice", the image and "View original size" button. Use it to inspect the original pixels within the scrollable dialog, then Fit image to restore the fitted view. Escape dismisses it and restores focus to the thumbnail button. Repeat with a readable large image at 1440 and 414; the image stays inside the dialog and its size controls remain reachable.
 
 ### Observable proof
 

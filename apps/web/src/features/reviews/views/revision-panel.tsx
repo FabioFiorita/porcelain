@@ -2,6 +2,13 @@ import { PullRequestBlock } from './pull-request-block';
 import { RevisionNavigation } from './review-navigation';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
+import { FileDiffIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useReviewPanelView } from '../store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileTreeIcon } from '@/features/files/index';
@@ -38,6 +45,7 @@ export function RevisionPanel({
   file,
   onFile,
   onChange,
+  onAllChanges,
   onStop,
   onProof,
   onOpenPullRequest,
@@ -53,6 +61,7 @@ export function RevisionPanel({
   file: string | undefined;
   onFile: (path: string) => void;
   onChange: (path: string) => void;
+  onAllChanges: () => void;
   onStop: (key: WalkthroughKey) => void;
   activeStop: string;
   onStep: (step: ReviewStep) => void;
@@ -121,6 +130,23 @@ export function RevisionPanel({
               expanded={expanded}
               onExpanded={setExpanded}
               onAll={setExpanded}
+              action={
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Open all changes"
+                        onClick={onAllChanges}
+                      />
+                    }
+                  >
+                    <FileDiffIcon />
+                  </TooltipTrigger>
+                  <TooltipContent>Open all changes</TooltipContent>
+                </Tooltip>
+              }
             >
               {items.map((item) => (
                 <SidebarDocumentRow

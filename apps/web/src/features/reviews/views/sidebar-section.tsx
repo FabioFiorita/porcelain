@@ -47,6 +47,7 @@ export function SidebarGroup({
   expanded,
   onExpanded,
   onAll,
+  action,
   children,
 }: {
   name: string;
@@ -54,35 +55,41 @@ export function SidebarGroup({
   expanded: boolean;
   onExpanded: (expanded: boolean) => void;
   onAll: (expanded: boolean) => void;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const Icon = expanded ? ChevronDownIcon : ChevronRightIcon;
+  const row = (control: ReactNode) => (
+    <div className="flex min-w-0 items-center">
+      <button
+        type="button"
+        className={ROW}
+        aria-label={name}
+        aria-expanded={expanded}
+        onClick={() => onExpanded(!expanded)}
+      >
+        <TruncatedText
+          className="min-w-0 flex-1"
+          text={`${name} · ${counted(count, 'file')}`}
+        />
+        <Icon className="size-3.5 shrink-0" />
+      </button>
+      {control}
+    </div>
+  );
   return (
     <section aria-label={name} className="mt-3 border-t pt-2">
-      <SidebarActionMenu
-        label={`Actions for ${name}`}
-        actions={reviewSidebarActions({ kind: 'group' })}
-        onAction={(id) => onAll(id === 'expand-all')}
-      >
-        {(menu) => (
-          <div className="flex min-w-0 items-center">
-            <button
-              type="button"
-              className={ROW}
-              aria-label={name}
-              aria-expanded={expanded}
-              onClick={() => onExpanded(!expanded)}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              <TruncatedText
-                className="min-w-0 flex-1"
-                text={`${name} · ${counted(count, 'file')}`}
-              />
-            </button>
-            {menu}
-          </div>
-        )}
-      </SidebarActionMenu>
+      {action ? (
+        row(action)
+      ) : (
+        <SidebarActionMenu
+          label={`Actions for ${name}`}
+          actions={reviewSidebarActions({ kind: 'group' })}
+          onAction={(id) => onAll(id === 'expand-all')}
+        >
+          {row}
+        </SidebarActionMenu>
+      )}
       {expanded && children}
     </section>
   );

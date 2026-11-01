@@ -21,12 +21,12 @@ api:
 
 # reviews.all-changes
 
-All changes opens one scrollable document of every current changed file, also with a published review.
+The worktree Changes tab opens one scrollable document of every current changed file. The published Review tab has a separate immutable All changes presentation, covered in [reviews.walkthrough](reviews.walkthrough.md); its files and marks belong to the selected revision.
 
 ## How to get to it (user POV)
 
-- At desktop width, the Review rail button opens the Review panel directly; choose "All changes" in "Walkthrough".
-- At phone width, Review opens the "Worktree review" sheet; choose tab "Review", then "All changes" in "Walkthrough".
+- At desktop width, the Review rail button opens the Review panel directly; choose its Changes tab, then "All changes".
+- At phone width, Review opens the "Worktree review" sheet; choose tab "Changes", then "All changes".
 - With no review published, the handoff tab "Changes" is the same document under the "No review yet" introduction.
 
 The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that unfolds and scrolls to the file's diff. Counts include zero values and untracked additions, matching the card header. Non-text rows have no line counts; their buttons scroll to and focus the file's non-text notice. A text row carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.

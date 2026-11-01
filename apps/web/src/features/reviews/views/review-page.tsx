@@ -1,6 +1,11 @@
 import { cn } from '@/shared/lib/utils';
 import { createPortal } from 'react-dom';
-import { ListChecksIcon, FileTextIcon, PanelRightIcon } from 'lucide-react';
+import {
+  ListChecksIcon,
+  FileTextIcon,
+  PanelRightIcon,
+  FileDiffIcon,
+} from 'lucide-react';
 import {
   Tooltip,
   TooltipTrigger,
@@ -357,7 +362,9 @@ function ReviewRevisionPage({
   );
   const origins = useReviewFileOrigins(revision.reviewId, revision.revision);
   const [chosen, setChosen] = useState<string>();
-  const [view, setView] = useState<'walkthrough' | 'summary'>('walkthrough');
+  const [view, setView] = useState<'walkthrough' | 'summary' | 'changes'>(
+    'walkthrough',
+  );
   const standalone = toolbarTarget === undefined;
   const [tabSearch, setTabSearch] = useState<WorkspaceSearch>({
     entry: initialEntry ?? 'handoff',
@@ -444,7 +451,7 @@ function ReviewRevisionPage({
     onStop?.(review.layers.find((entry) => decisionKey(entry.id) === key)?.id);
   };
   const interaction = {
-    active: reviewActive,
+    active: reviewActive && view === 'walkthrough',
     worktreeId: revision.reviewId,
     entry: `review:${revision.revision}`,
   };
@@ -475,7 +482,11 @@ function ReviewRevisionPage({
       className="shrink-0"
       value={view}
       onValueChange={(value: unknown) => {
-        if (value === 'walkthrough' || value === 'summary') {
+        if (
+          value === 'walkthrough' ||
+          value === 'summary' ||
+          value === 'changes'
+        ) {
           if (
             value === 'summary' &&
             summaryLinkExpiring(review.summary, Date.now())
@@ -502,26 +513,41 @@ function ReviewRevisionPage({
           </TooltipTrigger>
           <TooltipContent>Walkthrough</TooltipContent>
         </Tooltip>
+        {showSummary && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <TabsTrigger value="summary" aria-label="Agent summary" />
+              }
+            >
+              <FileTextIcon className="size-3.5 @min-3xl/pane:hidden" />
+              <span className="hidden whitespace-nowrap @min-3xl/pane:inline">
+                Agent summary
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Agent summary</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger
-            render={<TabsTrigger value="summary" aria-label="Agent summary" />}
+            render={<TabsTrigger value="changes" aria-label="All changes" />}
           >
-            <FileTextIcon className="size-3.5 @min-3xl/pane:hidden" />
+            <FileDiffIcon className="size-3.5 @min-3xl/pane:hidden" />
             <span className="hidden whitespace-nowrap @min-3xl/pane:inline">
-              Agent summary
+              All changes
             </span>
           </TooltipTrigger>
-          <TooltipContent>Agent summary</TooltipContent>
+          <TooltipContent>All changes in this revision</TooltipContent>
         </Tooltip>
       </TabsList>
     </Tabs>
   );
   const bar = (
     <>
-      {showSummary && presentation}
+      {presentation}
       <span
         aria-label="Review progress"
-        className="hidden shrink-0 items-center gap-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums @min-2xl/pane:inline-flex"
+        className="mx-1.5 hidden shrink-0 items-center gap-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums @min-2xl/pane:inline-flex"
       >
         {reviewedFiles} of {counted(items.length, 'file')}
         <ProgressMeter
@@ -633,6 +659,12 @@ function ReviewRevisionPage({
               })
             }
             onStop={(key) => reveal(() => go(key))}
+            onAllChanges={() =>
+              reveal(() => {
+                setView('changes');
+                if (standalone) tabLayout.activate(0, 'handoff');
+              })
+            }
             onProof={() => reveal(() => go('briefing'))}
             onOpenPullRequest={(number) =>
               reveal(() => openPullRequest(number))
@@ -642,7 +674,7 @@ function ReviewRevisionPage({
       )}
     </SidePanel>
   );
-  const panelControl = (
+  const panelControl = desktop ? null : (
     <Tooltip>
       <TooltipTrigger
         render={
@@ -662,13 +694,49 @@ function ReviewRevisionPage({
       </TooltipContent>
     </Tooltip>
   );
-  const page = (
+  const flatChanges = (
+    <section
+      aria-label="All changes in this revision"
+      className="@container-size/review min-h-0 min-w-0 flex-1 overflow-auto bg-card px-4 py-6"
+      style={{ containerName: 'pane review' }}
+    >
+      <header className="mb-5 flex flex-col gap-2">
+        <h2 className="text-2xl font-semibold">All changes</h2>
+        <p className="text-sm text-muted-foreground">
+          Revision {revision.revision} · {revision.headOid.slice(0, 7)} ·{' '}
+          {counted(revision.files.length, 'file')}, including specs
+        </p>
+        <Button
+          variant="outline"
+          className="self-start"
+          onClick={() => setView('walkthrough')}
+        >
+          Back to the walkthrough
+        </Button>
+      </header>
+      <RevisionCode
+        revision={revision}
+        place="changes"
+        paths={revision.files.map((file) => file.path)}
+        scope={scope}
+        context={context}
+        active={reviewActive}
+        marks={marks ?? { files: [], decisions: [] }}
+        gaps={false}
+        explanations={false}
+      />
+    </section>
+  );
+  const walkthrough = (
     <section
       ref={(element) => scroller.attach(element)}
       aria-label="Review walkthrough"
+      aria-hidden={view === 'changes'}
+      inert={view === 'changes'}
       className={cn(
         '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
         !standalone && 'border',
+        view === 'changes' && 'pointer-events-none invisible absolute inset-0',
       )}
       style={{ containerName: 'pane review' }}
     >
@@ -741,7 +809,7 @@ function ReviewRevisionPage({
           </p>
         }
       >
-        {(view === 'walkthrough' || (view === 'summary' && showSummary)) && (
+        {(view !== 'summary' || showSummary) && (
           <div className="flex min-w-0 flex-1 items-start">
             <WalkthroughSpine
               stops={stops}
@@ -785,7 +853,7 @@ function ReviewRevisionPage({
                     />
                   </div>
                 )}
-              {view === 'walkthrough' && stop.kind === 'briefing' && (
+              {view !== 'summary' && stop.kind === 'briefing' && (
                 <WalkthroughBriefing
                   {...props}
                   revision={revision}
@@ -812,15 +880,16 @@ function ReviewRevisionPage({
                   onGo={go}
                 />
               )}
-              {view === 'walkthrough' && stop.kind !== 'briefing' && (
+              {view !== 'summary' && stop.kind !== 'briefing' && (
                 <section
+                  key={stop.key}
                   role="region"
                   aria-label={
                     stop.kind === 'decision'
                       ? stopTitle(stop)
                       : 'After the decisions'
                   }
-                  className="flex min-w-0 flex-col"
+                  className="flex min-w-0 animate-in flex-col fade-in-0 duration-200 motion-reduce:animate-none"
                 >
                   <div className="mx-auto flex w-full max-w-264 flex-col gap-8 px-4 pt-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
                     {stop.kind === 'decision' ? (
@@ -847,10 +916,11 @@ function ReviewRevisionPage({
                           <RevisionCode
                             key={stop.key}
                             revision={revision}
+                            place={stop.key}
                             paths={stop.paths}
                             scope={scope}
                             context={context}
-                            active={reviewActive}
+                            active={reviewActive && view === 'walkthrough'}
                             marks={marks ?? { files: [], decisions: [] }}
                             steps={stop.layer.steps}
                             decision
@@ -897,10 +967,15 @@ function ReviewRevisionPage({
                         code={(section) => (
                           <RevisionCode
                             revision={revision}
+                            place={section.key}
                             paths={section.paths}
                             scope={scope}
                             context={context}
-                            active={reviewActive && section.key === stop.key}
+                            active={
+                              reviewActive &&
+                              view === 'walkthrough' &&
+                              section.key === stop.key
+                            }
                             marks={marks ?? { files: [], decisions: [] }}
                             card
                             gaps={false}
@@ -972,6 +1047,12 @@ function ReviewRevisionPage({
         )}
       </Suspense>
     </section>
+  );
+  const page = (
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      {view === 'changes' && flatChanges}
+      {walkthrough}
+    </div>
   );
   if (!standalone) return page;
   return (

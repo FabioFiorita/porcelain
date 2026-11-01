@@ -17,7 +17,13 @@ selectors:
   - 'Walkthrough dock'
   - 'Review completion'
   - 'Links in this page'
+  - 'All changes in this revision'
+  - 'Open all changes'
+  - 'Back to the walkthrough'
+  - 'Expand all files'
+  - 'Collapse all files'
 tests:
+  - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-code-moved.test.tsx
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
   - apps/web/spec/integration/reviews-briefing.test.tsx
@@ -61,6 +67,16 @@ The Agent summary view shows a credit line with the revision, a Sandboxed chip a
 Automated coverage: `reviews-walkthrough.test.tsx`, `reviews-walkthrough-shortcuts.test.tsx`, `reviews-page.test.tsx`, `reviews-unavailable-completion.test.tsx`, `reviews-decision-pages.test.tsx`.
 
 Publish a review, then edit a line its decision explains in the live worktree. The latest review shows the soft amber "Code moved since it was explained" Badge on that decision and "1 decision has code moved" in the briefing (plural for several). The sidebar decision row also says "code moved". Restoring the explained text clears the warning. Retained code, locations and fingerprints stay at publication; older revisions and a latest review whose worktree changed branches omit the comparison. Deleting the explained file counts as moved. Merely shifting unchanged explained lines does not.
+
+## Flat published changes and return
+
+The presentation tabs always offer Walkthrough and All changes; Agent summary appears only when published. In the standalone Review sidebar, the Changed files chevron still expands the complete file list. Its adjacent Open all changes button opens the same flat presentation, replacing that group's redundant expand/collapse menu. Other sidebar groups retain their menus.
+
+1. Open an older revision, enter a decision and scroll its code. Choose tab All changes, or open the standalone Review panel and use Open all changes.
+2. Expect region All changes in this revision with the selected revision number/head, every published file including specs/deletions (Read more files pages the list), retained file marks and comments. Decision explanations are omitted. Later worktree edits and newer publications must not replace these diffs. Repeat after removing the disposable publishing checkout.
+3. Use Back to the walkthrough or tab Walkthrough. The same decision and scroll position return. A retained file tab still returns by its banner, Review tab, Alt+Left or closing the file. Flat view keyboard shortcuts act on its visible diff only.
+4. Expand all files / Collapse all files sits above the document, outside any individual file header. Per-file comments and reviewed checkboxes remain reachable. Decision changes have a brief opacity entry transition; prefers-reduced-motion disables it. Cold code reads show a labelled placeholder without hiding the decision title.
+5. At desktop width, standalone reviews use the right rail for Review; the duplicate pane-bar toggle is absent. At phone width the pane-bar Review button opens the sheet. Check Escape/focus return and all tabs at 414 in light/dark.
 
 ## Gotchas
 
