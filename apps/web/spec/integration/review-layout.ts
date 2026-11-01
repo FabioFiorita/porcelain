@@ -41,6 +41,21 @@ export const reviewLayout = {
     viewport.scrollTop = viewport.scrollHeight;
   },
   historyScrollTop: (locator: Locator) => historyScroller(locator).scrollTop,
+  saveTabs(worktreeId: string, entries: readonly string[]) {
+    localStorage.setItem(
+      `porcelain.tabs.${worktreeId}`,
+      JSON.stringify({
+        panes: [{ tabs: ['handoff', ...entries], pinned: [] }],
+        saved: true,
+        focused: 0,
+      }),
+    );
+  },
+  visibleHeight(locator: Locator) {
+    const element = locator.element();
+    return () =>
+      element.isConnected ? element.getBoundingClientRect().height : 0;
+  },
   holdDialogExit(locator: Locator) {
     const popup = locator.element();
     const animations = new Set<Animation>();

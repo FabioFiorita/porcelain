@@ -1,6 +1,81 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
+test('returning from Settings restores the focused side pane for tab shortcuts', async ({
+  render,
+  server,
+  repo,
+}) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree');
+  const route = await render.route(`/${project.id}/${worktree.id}`);
+  const workspace = route.page;
+  await userEvent.keyboard('{Alt>}1{/Alt}');
+  await workspace
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const right = workspace.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  await expect.element(right).toHaveAttribute('data-focused', 'true');
+  const destination = route.location();
+  await route.navigate('/settings/general');
+  await expect.element(right).not.toBeInTheDocument();
+  await route.navigate(destination);
+  await expect.element(right).toHaveAttribute('data-focused', 'true');
+  await userEvent.keyboard('{Alt>}w{/Alt}');
+  await expect.element(right).not.toBeInTheDocument();
+  await expect
+    .element(workspace.getByRole('tab', { name: 'Changes', exact: true }))
+    .toBeVisible();
+});
+
+test('opening and closing a side file keeps the primary walkthrough mounted', async ({
+  workspace,
+  agent,
+  repo,
+  reviewLayout,
+}) => {
+  await agent.publishArchitecture();
+  const review = workspace.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await expect.element(review).toBeVisible();
+  const continuity = reviewLayout.continuity(review);
+  try {
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+    await workspace
+      .getByRole('treeitem', { name: repo.readme.path, exact: true })
+      .click({ button: 'right' });
+    await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+    const right = workspace.getByRole('region', {
+      name: 'Right pane',
+      exact: true,
+    });
+    await expect.element(right).toBeVisible();
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+    await right
+      .getByRole('tab', { name: repo.readme.path, exact: true })
+      .click();
+    await userEvent.keyboard('{Alt>}w{/Alt}');
+    await expect.element(right).not.toBeInTheDocument();
+    await expect
+      .poll(() => continuity.read())
+      .toEqual({ remounted: false, reloaded: false });
+  } finally {
+    continuity.stop();
+  }
+});
+
 for (const [width, labelled] of [
   [1440, true],
   [1080, false],

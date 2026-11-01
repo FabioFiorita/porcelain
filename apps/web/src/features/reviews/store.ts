@@ -70,6 +70,9 @@ export const replyCommentDraftState = Atom.family((_target: string) =>
 export const editCommentDraftState = Atom.family((_target: string) =>
   Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );
+const savedFocus = Schema.decodeUnknownOption(
+  Schema.Struct({ focused: Schema.Literals([0, 1]) }),
+);
 const tabsSchema = Schema.Unknown.pipe(
   Schema.decodeTo(
     Schema.Struct({
@@ -82,6 +85,7 @@ const tabsSchema = Schema.Unknown.pipe(
         ),
       ),
       saved: Schema.Boolean,
+      focused: Schema.Literals([0, 1]),
     }),
     {
       decode: SchemaGetter.transform((value) => ({
@@ -89,6 +93,10 @@ const tabsSchema = Schema.Unknown.pipe(
         saved: savedFlag(value).pipe(
           Option.map((saved) => saved.saved),
           Option.getOrElse(() => true),
+        ),
+        focused: savedFocus(value).pipe(
+          Option.map((layout) => layout.focused),
+          Option.getOrElse(() => 0 as const),
         ),
       })),
       encode: SchemaGetter.passthrough(),
@@ -112,7 +120,7 @@ const tabs = Atom.family((worktreeId: string) =>
     runtime: storageRuntime,
     key: `porcelain.tabs.${worktreeId}`,
     schema: tabsSchema,
-    defaultValue: () => ({ panes: null, saved: false }),
+    defaultValue: () => ({ panes: null, saved: false, focused: 0 as const }),
   }),
 );
 export const tabActivationState = Atom.family((_worktreeId: string) =>
@@ -129,12 +137,20 @@ const folds = Atom.family((key: string) =>
 
 export function useTabLayoutStore(worktreeId: string) {
   const atom = tabs(worktreeId);
-  const { panes, saved } = useAtomValue(atom);
+  const { panes, saved, focused } = useAtomValue(atom);
   const set = useAtomSet(atom);
+  const registry = useAtomValue(atomRegistry);
   return {
     panes,
     saved,
-    save: (panes: readonly Pane[]) => set({ panes, saved: true }),
+    focused,
+    setFocused: (focused: 0 | 1) => {
+      const current = registry.get(atom);
+      if (current.focused !== focused)
+        registry.set(atom, { ...current, focused });
+    },
+    save: (panes: readonly Pane[]) =>
+      set((current) => ({ ...current, panes, saved: true })),
   };
 }
 export function useCodeFolds(worktreeId: string, entry: string) {

@@ -124,6 +124,13 @@ test('two file editors keep one save shortcut owner while pane focus changes', a
     .poll(() => tabShortcuts.registered(['Mod+S']))
     .toEqual([['Mod+S', 'error']]);
   await replaceEditorContent(editor, 'Right editor saved');
+  await userEvent.keyboard('{Alt>}w{/Alt}');
+  await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}');
+  await userEvent.keyboard('{Alt>}\\{/Alt}');
+  await expect.element(editor).toBeVisible();
+  await expect
+    .element(right.getByRole('tab', { name: 'other.md', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
   await userEvent.keyboard('{ControlOrMeta>}s{/ControlOrMeta}');
   await expect
     .poll(async () => (await server.text('other.md')).text)

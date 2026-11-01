@@ -3,6 +3,36 @@ import {
   pullRequestReviewDestination,
   reviewRouteSearch,
 } from './review-route';
+
+it('restores each document URL independently without accepting malformed or oversized entries', () => {
+  expect(
+    reviewRouteSearch({
+      entry: 'file:src/a b.ts',
+      side: 'timeline:src/a b.ts',
+      decision: 'chosen-decision',
+      environment: 'paired-computer',
+    }),
+  ).toEqual({
+    entry: 'file:src/a b.ts',
+    side: 'timeline:src/a b.ts',
+    decision: 'chosen-decision',
+    environment: 'paired-computer',
+  });
+  expect(
+    reviewRouteSearch({ entry: ['file:wrong'], side: 'file:valid.ts' }),
+  ).toEqual({
+    entry: undefined,
+    side: 'file:valid.ts',
+    decision: undefined,
+    environment: undefined,
+  });
+  expect(reviewRouteSearch({ entry: 'x'.repeat(8193), side: 4 })).toEqual({
+    entry: undefined,
+    side: undefined,
+    decision: undefined,
+    environment: undefined,
+  });
+});
 it('keeps the decision and paired environment in a durable browser destination', () => {
   expect(
     reviewRouteSearch({

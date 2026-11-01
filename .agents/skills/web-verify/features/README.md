@@ -139,4 +139,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.sidebar-actions](reviews.sidebar-actions.md) — Review actions from the sidebar.
 - [reviews.spec-files](reviews.spec-files.md) — Group specs and tests apart from other changed files.
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.
+- [reviews.document-navigation](reviews.document-navigation.md) — Durable document URLs, browser Back and readable tab transitions.
 - [reviews.walkthrough](reviews.walkthrough.md) — Briefing, decision navigation and completion.

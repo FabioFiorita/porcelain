@@ -23,12 +23,14 @@ export function ReviewRoute({
   decision,
   environment,
   entry,
+  side,
 }: {
   reviewId: string;
   revision?: string;
   decision?: string;
   environment?: string;
   entry?: string;
+  side?: string;
 }) {
   const remotes = useRemoteConnections();
   const remote = remotes.find(
@@ -129,7 +131,16 @@ export function ReviewRoute({
             </Tooltip>
           }
           reviewId={reviewId}
-          initialEntry={entry}
+          documentNavigation={{
+            search: { entry, side },
+            onSearch: (update, options) => {
+              void navigate({
+                to: '.',
+                search: (previous) => ({ ...previous, ...update }),
+                ...options,
+              });
+            },
+          }}
           revision={number}
           decision={decision}
           context={context}
@@ -153,19 +164,34 @@ export function ReviewRoute({
               void navigate({
                 to: '/reviews/$reviewId',
                 params: { reviewId },
-                search: { environment, decision: layerId },
+                search: {
+                  environment,
+                  entry: 'handoff',
+                  side,
+                  decision: layerId,
+                },
               });
             else if (layerId === undefined)
               void navigate({
                 to: '/reviews/$reviewId/$revision',
                 params: { reviewId, revision: String(number) },
-                search: { environment, decision: undefined },
+                search: {
+                  environment,
+                  entry: 'handoff',
+                  side,
+                  decision: undefined,
+                },
               });
             else
               void navigate({
                 to: '/reviews/$reviewId/$revision/decisions/$layerId',
                 params: { reviewId, revision: String(number), layerId },
-                search: { environment, decision: undefined },
+                search: {
+                  environment,
+                  entry: 'handoff',
+                  side,
+                  decision: undefined,
+                },
               });
           }}
         />
