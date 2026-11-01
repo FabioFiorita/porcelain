@@ -10,7 +10,11 @@ import { timelineChange } from '@porcelain/client/history/rules';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import { CommitRow } from './commit-row';
 import { type Connection } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/reviews/rules';
+import { Button } from '@/components/ui/button';
+import { AsyncResult } from 'effect/reactivity';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { historyPlace } from '@porcelain/client/history';
+import { useHistoryScroll } from '../adapters/history-scroll';
 
 export function FileTimeline({
   scope,
@@ -26,7 +30,15 @@ export function FileTimeline({
   sideLabel: string;
 }) {
   const timeline = useFileTimeline(connection, scope, path);
-  if (timeline.commits.length === 0)
+  const place = historyPlace({ connection, scope, kind: 'file', path });
+  const selected = useAtomValue(place, (current) => current.selected);
+  const setPlace = useAtomSet(place);
+  const scroll = useHistoryScroll(place);
+  const open = (entry: (typeof timeline.commits)[number], toSide?: boolean) => {
+    setPlace((current) => ({ ...current, selected: entry.commit.oid }));
+    onSelect({ oid: entry.commit.oid, path: entry.path }, toSide);
+  };
+  if (timeline.commits.length === 0 && timeline.nextAfter === null)
     return (
       <Empty>
         <EmptyHeader>
@@ -38,36 +50,77 @@ export function FileTimeline({
       </Empty>
     );
   return (
-    <ol aria-label={`Timeline of ${path}`} className="flex flex-col p-2">
-      {timeline.commits.map((entry) => (
-        <li key={entry.commit.oid}>
-          <CommitRow
-            commit={entry.commit}
-            selected={false}
-            onSelect={(toSide) =>
-              onSelect({ oid: entry.commit.oid, path: entry.path }, toSide)
-            }
-            openToSide={{
-              label: sideLabel,
-              open: () =>
-                onSelect({ oid: entry.commit.oid, path: entry.path }, true),
-            }}
-          >
-            <TruncatedText
-              className="text-2xs text-muted-foreground"
-              text={timelineChange(entry, path)}
-            />
-          </CommitRow>
+    <div
+      role="region"
+      aria-label="Timeline reading area"
+      className="min-h-0 flex-1 overflow-auto"
+      {...scroll}
+    >
+      <ol aria-label={`Timeline of ${path}`} className="flex flex-col p-2">
+        {timeline.commits.map((entry) => (
+          <li key={entry.commit.oid}>
+            <CommitRow
+              commit={entry.commit}
+              selected={selected === entry.commit.oid}
+              onSelect={(toSide) => open(entry, toSide)}
+              openToSide={{
+                label: sideLabel,
+                open: () => open(entry, true),
+              }}
+            >
+              <TruncatedText
+                className="text-2xs text-muted-foreground"
+                text={timelineChange(entry, path)}
+              />
+            </CommitRow>
+          </li>
+        ))}
+        <li className="flex flex-col gap-1 px-2 py-3 text-2xs text-muted-foreground">
+          {timeline.restarted && (
+            <span role="status">History changed. Showing it from the top.</span>
+          )}
+          <TimelineStatus timeline={timeline} />
+          <span>
+            A merge appears only when its own result changed the file.
+          </span>
         </li>
-      ))}
-      <li className="flex flex-col gap-1 px-2 py-3 text-2xs text-muted-foreground">
-        <span>
-          {timeline.more
-            ? `Showing the latest ${counted(timeline.commits.length, 'commit')}.`
-            : 'Start of this file’s history.'}
-        </span>
-        <span>A merge appears only when its own result changed the file.</span>
-      </li>
-    </ol>
+      </ol>
+    </div>
+  );
+}
+
+function TimelineStatus({
+  timeline,
+}: {
+  timeline: ReturnType<typeof useFileTimeline>;
+}) {
+  if (AsyncResult.isFailure(timeline.result))
+    return (
+      <div role="status">
+        Couldn't load older commits
+        <Button size="xs" variant="outline" onClick={timeline.readMore}>
+          Retry
+        </Button>
+      </div>
+    );
+  if (timeline.nextAfter)
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={timeline.result.waiting}
+        onClick={timeline.readMore}
+      >
+        {timeline.result.waiting
+          ? 'Loading older commits…'
+          : 'Load older commits'}
+      </Button>
+    );
+  return (
+    <span>
+      {timeline.boundary === 'shallow'
+        ? 'Shallow clone: older history is not available.'
+        : 'Start of this file’s history.'}
+    </span>
   );
 }

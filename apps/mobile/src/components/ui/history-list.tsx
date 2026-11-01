@@ -6,6 +6,7 @@ import { Empty } from './empty';
 import { Loading } from './loading';
 import { Text } from './text';
 import { Item } from './item';
+import { useListReadingOffset } from './list-reading-offset';
 
 export function HistoryList({
   entries,
@@ -18,6 +19,9 @@ export function HistoryList({
   header,
   uncommitted,
   unavailable = false,
+  empty,
+  scrollOffset = 0,
+  onScrollOffset,
 }: {
   entries: readonly HistoryEntry[];
   selected?: string;
@@ -29,10 +33,19 @@ export function HistoryList({
   header?: ReactNode;
   uncommitted?: string;
   unavailable?: boolean;
+  empty?: ReactNode;
+  scrollOffset?: number;
+  onScrollOffset?: ((offset: number) => void) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
+  const reading = useListReadingOffset(
+    scrollOffset,
+    !loading && entries.length > 0,
+    onScrollOffset,
+  );
   return (
     <FlatList
+      {...reading}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={padding}
       ListHeaderComponent={
@@ -78,14 +91,18 @@ export function HistoryList({
         />
       )}
       ListEmptyComponent={
-        loading || unavailable ? (
+        loading || unavailable || hasMore ? (
           <></>
         ) : (
-          <Empty
-            title="No commits yet"
-            description="Commits will appear here once this worktree has history."
-            icon="history"
-          />
+          <>
+            {empty ?? (
+              <Empty
+                title="No commits yet"
+                description="Commits will appear here once this worktree has history."
+                icon="history"
+              />
+            )}
+          </>
         )
       }
       ListFooterComponent={

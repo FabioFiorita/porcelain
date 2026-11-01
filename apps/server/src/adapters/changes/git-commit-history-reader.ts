@@ -83,6 +83,7 @@ export const gitCommitHistoryReaderLayer = (
           {
             path: input.path,
             ...(input.limit === undefined ? {} : { limit: input.limit }),
+            ...(input.after === undefined ? {} : { after: input.after }),
           },
           limits,
         );
@@ -93,7 +94,10 @@ export const gitCommitHistoryReaderLayer = (
             previousPath: entry.previousPath ?? undefined,
             status: entry.status,
           })),
-          more: listed.more,
+          nextAfter: listed.nextAfter ?? undefined,
+          tip: listed.tip ?? undefined,
+          boundary: listed.boundary ?? undefined,
+          restarted: listed.restarted,
         } satisfies FileCommits;
       });
       const readCommitFilesNative = Effect.fn(

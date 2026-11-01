@@ -9,6 +9,7 @@ selectors:
   - "Start of history."
 tests:
   - apps/web/spec/integration/history-list.test.tsx
+  - apps/web/spec/integration/history-return.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits
 ---
@@ -66,6 +67,10 @@ The last line prints `Merge branch 'topic'` and two parent ids.
 Compare four subjects/order/short IDs/ref chips with `git -C "$REPO" log --format="%h %s %D" --decorate-refs="refs/*"`.
 
 Automated coverage: `history-list.test.tsx`.
+
+### Older pages and return
+
+Load more than one page, select an older commit, switch to Files and back to History. The same loaded depth, selected OID and reading offset remain. A refresh rereads current data to the remembered depth rather than retaining hidden live reads. Compare the complete loaded OID order with Git and verify the graph prefix keeps its row and lane identity as older pages append. A rewritten continuation explicitly resets the list; shallow and wide boundaries remain distinct from the real start.
 
 ## Gotchas
 

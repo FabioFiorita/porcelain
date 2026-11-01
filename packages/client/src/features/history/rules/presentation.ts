@@ -36,7 +36,11 @@ export function commitEntry(commit: CommitSummary) {
     author: commit.author.name,
     time: new Date(commit.author.timestamp).toLocaleString(),
     shortHash: shortOid(commit.oid),
-    refs: shownRefs(commit.refs),
+    refs: commit.refs,
+    graph: {
+      merge: commit.parentOids.length > 1,
+      continues: commit.parentOids.length > 0,
+    },
   };
 }
 export function historyHeading(

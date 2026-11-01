@@ -111,6 +111,7 @@ it.each([
     'review',
   ],
   [{ kind: 'commit', oid: '0123456', parent: 1 }, 'history'],
+  [{ kind: 'timeline', path: 'README.md' }, 'files'],
   [{ kind: 'diff', oid: '0123456', parent: 1, path: 'README.md' }, 'history'],
 ] satisfies readonly (readonly [WorkspaceDocument, string])[])(
   'classifies %j under its inspector mode %s',

@@ -16,6 +16,9 @@ function FilesRoute() {
         onOpen={(path, workspace) =>
           router.push({ pathname: '/file', params: { path, workspace } })
         }
+        onOpenTimeline={(path, workspace) =>
+          router.push({ pathname: '/timeline', params: { path, workspace } })
+        }
       />
     </DestinationScreen>
   );

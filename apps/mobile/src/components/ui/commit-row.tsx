@@ -4,6 +4,7 @@ import { Item } from './item';
 import { Badge } from './badge';
 import { Text } from './text';
 import { Icon } from './icon';
+import { commitRefLabel } from '../../shared/rules/commit-ref';
 
 export type HistoryEntry = {
   id: string;
@@ -12,6 +13,7 @@ export type HistoryEntry = {
   time: string;
   shortHash: string;
   refs?: readonly CommitRef[];
+  change?: string;
   graph?: { merge: boolean; continues: boolean };
 };
 export function CommitRow({
@@ -49,7 +51,7 @@ export function CommitRow({
           selected={selected}
           onPress={onPress}
           size="sm"
-          accessibilityLabel={`${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.refs?.length ? ` · ${entry.refs.map((ref) => ref.name).join(', ')}` : ''}`}
+          accessibilityLabel={`${entry.graph?.merge ? 'Merge commit · ' : ''}${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.change ? ` · ${entry.change}` : ''}${entry.refs?.length ? ` · ${entry.refs.map(commitRefLabel).join(', ')}` : ''}`}
           trailing={<Icon name="chevron" size="small" tone="muted" />}
         >
           <Text variant="caption" tone="muted" numberOfLines={1}>
@@ -63,13 +65,18 @@ export function CommitRow({
               {entry.refs.map((ref) => (
                 <Badge
                   key={`${ref.kind}:${ref.name}`}
-                  label={ref.name}
+                  label={commitRefLabel(ref)}
                   labelNumberOfLines={1}
                   className="max-w-full"
                   variant="secondary"
                 />
               ))}
             </View>
+          ) : null}
+          {entry.change ? (
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {entry.change}
+            </Text>
           ) : null}
         </Item>
       </View>

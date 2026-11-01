@@ -11,6 +11,9 @@ import type {
   HistorySnapshot,
 } from '../dtos/commit-history.ts';
 import { HistoryWorktreeUnavailableError } from '../../shared/errors/history-worktree-unavailable-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
+import { decodeHistory } from '../parsers/decode-history.ts';
 
 export const confirmHistoryCheckout = Effect.fn('Git.confirmHistoryCheckout')(
   function* (checkout: HistoryCheckout) {
@@ -43,12 +46,18 @@ export const inspectHistoryCheckout = Effect.fn('Git.inspectHistoryCheckout')(
         (cause) => new HistoryWorktreeUnavailableError({ cause }),
       ),
     );
+    const shallowOids =
+      shallow.length === 0
+        ? []
+        : (yield* decodeHistory(Buffer.from(shallow))).trim().split(/\s+/u);
+    if (shallowOids.some((oid) => !isOid(oid)))
+      return yield* Effect.fail(new UnsupportedHistoryDataError());
     return {
       graph: createHash('sha256')
         .update(gitVersion)
         .update(shallow)
         .digest('hex'),
-      shallow: shallow.length > 0,
+      shallowOids,
     } satisfies HistorySnapshot;
   },
 );

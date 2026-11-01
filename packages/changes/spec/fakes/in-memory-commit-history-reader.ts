@@ -56,7 +56,15 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
 
   listFileCommits(input: ListFileCommitsInput): Effect.Effect<FileCommits> {
     return Effect.sync(() => {
-      return this.timelines.get(input.path) ?? { commits: [], more: false };
+      return (
+        this.timelines.get(input.path) ?? {
+          commits: [],
+          nextAfter: undefined,
+          tip: undefined,
+          boundary: undefined,
+          restarted: false,
+        }
+      );
     });
   }
 

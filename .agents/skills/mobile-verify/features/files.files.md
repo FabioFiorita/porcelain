@@ -1,6 +1,8 @@
 ---
 screen: /files
 selectors:
+  - 'Show timeline'
+  - 'Timeline'
   - 'Reading workspace…'
   - 'Workspace unavailable'
   - 'Read again'

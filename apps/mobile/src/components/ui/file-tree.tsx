@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import { useListReadingOffset } from './list-reading-offset';
 import { useResolveClassNames } from 'uniwind';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
@@ -66,28 +67,15 @@ export function FileTree({
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
 }) {
   const padding = useResolveClassNames('px-2');
-  const [initialOffset] = useState(scrollOffset ?? 0);
-  const [restored, setRestored] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
+  const reading = useListReadingOffset(
+    scrollOffset ?? 0,
+    restoreReady,
+    onScrollOffset,
+  );
   return (
     <FlatList<FileTreeRow>
-      ref={(list) => {
-        if (!list || !restoreReady || restored || contentHeight === 0) return;
-        list.scrollToOffset({ offset: initialOffset, animated: false });
-        setRestored(true);
-      }}
-      onContentSizeChange={(_, height) => {
-        if (!restored) setContentHeight(height);
-      }}
+      {...reading}
       contentInsetAdjustmentBehavior="automatic"
-      onScroll={
-        onScrollOffset
-          ? (event) => {
-              if (restored) onScrollOffset(event.nativeEvent.contentOffset.y);
-            }
-          : undefined
-      }
-      scrollEventThrottle={100}
       ListHeaderComponent={<>{header}</>}
       keyboardShouldPersistTaps="handled"
       removeClippedSubviews={false}

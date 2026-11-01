@@ -5,6 +5,7 @@ export type ListFileCommitsInput = {
   worktreeId: string;
   path: string;
   limit: number | undefined;
+  after: { readonly tip: string; readonly offset: number } | undefined;
 };
 
 type FileCommit = {
@@ -16,5 +17,8 @@ type FileCommit = {
 
 export type FileCommits = {
   commits: FileCommit[];
-  more: boolean;
+  nextAfter: { readonly tip: string; readonly offset: number } | undefined;
+  tip: string | undefined;
+  boundary: 'shallow' | undefined;
+  restarted: boolean;
 };

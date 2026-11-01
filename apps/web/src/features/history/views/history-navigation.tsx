@@ -1,3 +1,4 @@
+import { historyPlace } from '@porcelain/client/history';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -26,6 +27,7 @@ import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
 import { counted } from '@porcelain/client/reviews/rules';
+import { useHistoryScroll } from '../adapters/history-scroll';
 
 export function HistoryNavigation({
   scope,
@@ -50,6 +52,9 @@ export function HistoryNavigation({
   );
   const tracking = branchTracking(overview?.branch, history.snapshot);
   const uncommitted = overview?.changes.length ?? 0;
+  const scroll = useHistoryScroll(
+    historyPlace({ connection, scope, kind: 'commits' }),
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -60,7 +65,12 @@ export function HistoryNavigation({
         <BranchTracking tracking={tracking} />
       </section>
       <HistoryRestarted history={history} />
-      <ScrollArea className="min-h-0 flex-initial">
+      <ScrollArea
+        className="min-h-0 flex-initial"
+        role="region"
+        aria-label="History reading area"
+        {...scroll}
+      >
         {uncommitted > 0 && (
           <div className="pt-2 pr-3 pl-1.5">
             <button
@@ -83,8 +93,11 @@ export function HistoryNavigation({
             label="Commits"
             layout="stacked"
             history={history}
-            selected={selected}
-            onSelect={onSelect}
+            selected={selected || history.selected || ''}
+            onSelect={(oid, toSide) => {
+              history.select(oid);
+              onSelect(oid, toSide);
+            }}
             sideLabel={sideLabel}
           />
         )}

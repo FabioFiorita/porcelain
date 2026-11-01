@@ -91,6 +91,10 @@ test('files can be pinned and unpinned with an optional side action', () => {
     id: 'open-to-side',
     label: 'Open to the side',
   });
+  expect(unpinned.actions).toContainEqual({
+    id: 'timeline',
+    label: 'Show timeline',
+  });
   const pinned = filePreferenceActions(
     file,
     new Set(),

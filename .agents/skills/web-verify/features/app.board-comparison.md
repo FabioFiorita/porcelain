@@ -1021,11 +1021,11 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "nav[aria-label=\"Side panel\"] button[aria-label=\"History\"]:visible, button[aria-label=\"Review\"]:visible"
       },
       {
         "target": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Commits\"]:visible",
-        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"History\")"
+        "trigger": "aside[aria-label=\"Review sidebar\"] [role=\"tab\"]:has-text(\"History\"), nav[aria-label=\"Side panel\"] button[aria-label=\"History\"]:visible"
       }
     ]
   },

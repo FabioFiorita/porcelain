@@ -11,6 +11,7 @@ import {
   HistoryNavigation,
   CommitContent,
   HistoryDiffContent,
+  FileTimelineContent,
 } from '../features/history';
 import {
   PullRequestDocumentContent,
@@ -180,6 +181,7 @@ function SelectedWorkspace({
             fileSelection?.kind === 'file' ? fileSelection.path : undefined
           }
           onOpen={(path) => openFromPanel({ kind: 'file', path })}
+          onOpenTimeline={(path) => openFromPanel({ kind: 'timeline', path })}
           onOpenToSide={(path) => {
             openSide({ kind: 'file', path });
             showContent();
@@ -211,6 +213,10 @@ function SelectedWorkspace({
       </Box>
       <Box className={session.mode === 'history' ? 'flex-1' : 'hidden'}>
         <HistoryNavigation
+          active={
+            session.mode === 'history' &&
+            (landscape ? session.inspectorOpen : sheetOpen)
+          }
           selection={workspace}
           workspace={workspace.key}
           selected={
@@ -452,8 +458,19 @@ function WorkspaceDocumentContent({
         <FileContent
           selected={workspace}
           path={document.path}
+          onOpenTimeline={(path) => onOpen({ kind: 'timeline', path })}
           inlineComments
           leaveScope={leaveScope}
+        />
+      );
+    case 'timeline':
+      return (
+        <FileTimelineContent
+          selection={workspace}
+          path={document.path}
+          onOpen={(oid, path) =>
+            onOpen({ kind: 'commit', oid, path, parent: 1 })
+          }
         />
       );
     case 'review-file':
@@ -469,9 +486,11 @@ function WorkspaceDocumentContent({
     case 'commit':
       return (
         <CommitContent
+          key={`${workspace.key}:${document.oid}:${document.parent}`}
           selection={workspace}
           oid={document.oid}
           parent={document.parent}
+          selectedPath={document.path}
           onParentChange={onParentChange}
           onOpenFile={(path) =>
             onOpen({

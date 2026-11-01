@@ -5,14 +5,15 @@ const ancestryExitCodes = { notAncestor: 1, fatal: 128 };
 const UNKNOWN_REVISION =
   /(?:not a valid (?:commit name|object name)|unknown revision|bad revision|ambiguous argument)/iu;
 
-export function isAncestorOfHead(
+export function isHistoryAncestor(
   checkout: string,
-  tip: string,
+  ancestor: string,
+  descendant: string,
   limits: GitLimits,
 ) {
   return askHistory(
     checkout,
-    ['merge-base', '--is-ancestor', tip, 'HEAD'],
+    ['merge-base', '--is-ancestor', ancestor, descendant],
     limits,
     (failure) =>
       failure.exitCode === ancestryExitCodes.notAncestor ||

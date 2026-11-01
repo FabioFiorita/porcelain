@@ -2,7 +2,7 @@ import { useDocumentReadingLine } from '../../../shared/application/document-rea
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import { Stack, useIsFocused } from 'expo-router';
+import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
@@ -24,14 +24,17 @@ import { MarkdownView } from '../../../components/ui/markdown-view';
 import { HtmlPreview } from '../../../components/ui/html-preview';
 import { ImageView } from '../../../components/ui/image-view';
 import { Text } from '../../../components/ui/text';
+import { IconButton } from '../../../components/ui/icon-button';
 
 type ContentProps = {
   path: string;
   inlineComments?: boolean;
   leaveScope?: string | undefined;
+  onOpenTimeline?: ((path: string) => void) | undefined;
 };
 
 export function FileScreen(props: ContentProps & { workspace: string }) {
+  const router = useRouter();
   return (
     <>
       <Stack.Screen
@@ -52,6 +55,12 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
             key={`${selected.key}:${props.path}`}
             {...props}
             selected={selected}
+            onOpenTimeline={(path) =>
+              router.push({
+                pathname: '/timeline',
+                params: { path, workspace: selected.key },
+              })
+            }
           />
         )}
       </WorkspaceGate>
@@ -66,10 +75,21 @@ export function FileContent(props: ContentProps & { selected: Workspace }) {
 
 function FileContentView(props: ContentProps & { selected: Workspace }) {
   const { path, selected } = props;
+  const timeline = props.onOpenTimeline ? (
+    <IconButton
+      icon="history"
+      accessibilityLabel="Timeline"
+      onPress={() => props.onOpenTimeline?.(path)}
+    />
+  ) : null;
   return (
     <Box className="flex-1" surface="background">
       {!props.inlineComments || isNativeImagePath(path) ? (
-        <FileHeader path={path} documentToolbar={props.inlineComments} />
+        <FileHeader
+          path={path}
+          documentToolbar={props.inlineComments}
+          actions={timeline}
+        />
       ) : null}
       {isNativeImagePath(path) ? (
         <FileImage path={path} selected={selected} />
@@ -134,6 +154,7 @@ function FilePreview({
   file,
   inlineComments,
   leaveScope,
+  onOpenTimeline,
 }: {
   path: string;
   text: string;
@@ -141,6 +162,7 @@ function FilePreview({
   file: FileContents;
   inlineComments?: boolean | undefined;
   leaveScope?: string | undefined;
+  onOpenTimeline?: ((path: string) => void) | undefined;
 }) {
   const link = usePreviewLink();
   if (inlineComments)
@@ -152,7 +174,22 @@ function FilePreview({
         document={JSON.stringify(['file', path])}
         target={savedFileCommentTarget(path, file.contentFingerprint)}
         renderToolbar={(actions) => (
-          <FileHeader path={path} documentToolbar actions={actions} />
+          <FileHeader
+            path={path}
+            documentToolbar
+            actions={
+              <>
+                {onOpenTimeline ? (
+                  <IconButton
+                    icon="history"
+                    accessibilityLabel="Timeline"
+                    onPress={() => onOpenTimeline(path)}
+                  />
+                ) : null}
+                {actions}
+              </>
+            }
+          />
         )}
       >
         {(selection) => (

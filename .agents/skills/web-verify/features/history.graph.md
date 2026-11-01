@@ -9,6 +9,7 @@ selectors:
   - "history-graph"
 tests:
   - apps/web/spec/e2e/history-graph.e2e.ts
+  - apps/web/spec/integration/history-return.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits
   - GET /api/worktrees/:worktreeId/commits/:oid/files
@@ -76,5 +77,9 @@ Automated coverage: `history-graph.e2e.ts`.
 - Setup leaves topic, merge and files; reset before maps expecting the initial fixture.
 
 ## Graph presentation
+
+Opening a commit and returning through Graph retains its selected OID, loaded depth and reading offset. The shared History query rereads current data to that depth after unmounting. Append pages and compare the existing row/lane prefix before and after; a new checkout must never reuse a different commit under the selected row identity.
+
+History and Graph share loaded commits and selection, but retain separate reading offsets. Scroll Graph, open a commit, then switch the side panel to Files and back to History: its earlier list position remains. A rewritten history resets both positions.
 
 The checked-out HEAD row has a muted background and a semibold 13px title. Other rows use 13px titles, with 12px hashes, authors and ages. The branch heading is mono. Stacked rows keep the subject and metadata on two lines: stock ref badges and an overflow disclosure for hidden refs follow the subject on its line, and the metadata line keeps the full row width. History retains upstream labels and pins Open graph under the list: right after a short list, at the panel's bottom for a long one.

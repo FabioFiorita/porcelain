@@ -73,8 +73,16 @@ export const listCommitsResponseSchema = Schema.Struct({
   restarted: Schema.Boolean,
 });
 
+const fileHistoryCursorSchema = Schema.Struct({
+  tip: oidSchema,
+  offset: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).check(
+    Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - COMMITS_PER_PAGE - 1),
+  ),
+});
+
 export const listFileCommitsQuerySchema = Schema.Struct({
   path: relativePathSchema,
+  after: Schema.optional(Schema.fromJsonString(fileHistoryCursorSchema)),
   limit: Schema.optional(
     Schema.NumberFromString.check(Schema.isInt())
       .check(Schema.isGreaterThanOrEqualTo(1))
@@ -97,7 +105,10 @@ export const listFileCommitsResponseSchema = Schema.Struct({
       ]),
     }),
   ).check(Schema.isMaxLength(COMMITS_PER_PAGE)),
-  more: Schema.Boolean,
+  nextAfter: nullableAsUndefined(fileHistoryCursorSchema),
+  tip: nullableAsUndefined(oidSchema),
+  boundary: nullableAsUndefined(Schema.Literal('shallow')),
+  restarted: Schema.Boolean,
 });
 
 export type ListCommitsQuery = typeof listCommitsQuerySchema.Type;

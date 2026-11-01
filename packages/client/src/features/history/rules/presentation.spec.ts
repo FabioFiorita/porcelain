@@ -78,34 +78,43 @@ it('labels local, remote and tag refs without removing their identity', () => {
     ].map(refLabel),
   ).toEqual(['main', 'origin/topic', 'v1', 'HEAD']);
 });
-it('labels a commit with its subject, author, hash, refs and local time', () => {
-  expect(
-    commitEntry({
-      oid: '0123456789',
+it.each([
+  { parentOids: [], graph: { merge: false, continues: false } },
+  { parentOids: ['parent'], graph: { merge: false, continues: true } },
+  { parentOids: ['left', 'right'], graph: { merge: true, continues: true } },
+])(
+  'labels a commit without losing refs or parent structure: $parentOids',
+  ({ parentOids, graph }) => {
+    expect(
+      commitEntry({
+        oid: '0123456789',
+        subject: 'Fix the file',
+        subjectTruncated: false,
+        body: undefined,
+        bodyTruncated: false,
+        parentOids,
+        author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
+        refs: [
+          { kind: 'remote-branch', name: 'origin/topic' },
+          { kind: 'tag', name: 'v1' },
+          { kind: 'head', name: 'HEAD' },
+        ],
+      }),
+    ).toEqual({
+      id: '0123456789',
       subject: 'Fix the file',
-      subjectTruncated: false,
-      body: undefined,
-      bodyTruncated: false,
-      parentOids: [],
-      author: { name: 'Developer', timestamp: '2026-01-01T00:00:00Z' },
+      author: 'Developer',
+      time: new Date('2026-01-01T00:00:00Z').toLocaleString(),
+      shortHash: '0123456',
       refs: [
         { kind: 'remote-branch', name: 'origin/topic' },
         { kind: 'tag', name: 'v1' },
         { kind: 'head', name: 'HEAD' },
       ],
-    }),
-  ).toEqual({
-    id: '0123456789',
-    subject: 'Fix the file',
-    author: 'Developer',
-    time: new Date('2026-01-01T00:00:00Z').toLocaleString(),
-    shortHash: '0123456',
-    refs: [
-      { kind: 'remote-branch', name: 'origin/topic' },
-      { kind: 'tag', name: 'v1' },
-    ],
-  });
-});
+      graph,
+    });
+  },
+);
 
 const attached = {
   tipOid: undefined,
