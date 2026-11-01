@@ -83,6 +83,9 @@ export function useStopCompletion({
     .map((item) => ({ ...item, fingerprint: item.fingerprint ?? undefined }));
   const plan = completionPlan(files);
   const layer = stop.kind === 'decision' ? stop.layer : undefined;
+  const target = layer
+    ? `decision ${stopTitle(stop)}`
+    : `files in ${stopTitle(stop)}`;
   const disabled =
     !progress.settled || unavailable || completion.pending || plan.blocked;
   const complete = (onDone?: () => void) => {
@@ -120,7 +123,7 @@ export function useStopCompletion({
     advance: () => go(next?.key ?? 'briefing'),
     markLabel: plan.action
       ? `${plan.action} for ${stopTitle(stop)}`
-      : `Mark decision ${stopTitle(stop)} as reviewed`,
+      : `Mark ${target} as reviewed`,
   };
 }
 
