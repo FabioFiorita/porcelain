@@ -89,6 +89,12 @@ export function readClientAtom<A, E>(
   );
 }
 
+export function idleClientAtoms(registry: AtomRegistry.AtomRegistry) {
+  return new Promise<void>((resolve) =>
+    registry.schedulerAsync.makeDispatcher().scheduleTask(resolve, 0),
+  );
+}
+
 export async function visitClientRead<A, E>(
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
