@@ -5,7 +5,10 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type { Transport } from '@porcelain/client/transport';
 import { InventorySeed, readInventory } from '@porcelain/client/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  clientFixtures,
+  idleClientAtoms,
+} from '../../../../spec/kit/client-fixture.ts';
 import {
   refreshInventory,
   refreshInventories,
@@ -28,12 +31,6 @@ async function seed(
       readInventory(fixture.connection),
       { suspendOnWaiting: true },
     ),
-  );
-}
-
-async function idleAtomsSwept(fixture: ReturnType<typeof create>) {
-  await new Promise<void>((resolve) =>
-    fixture.registry.schedulerAsync.makeDispatcher().scheduleTask(resolve, 0),
   );
 }
 
@@ -424,7 +421,7 @@ it('publishes a retried inventory when only the refreshInventories setter is mou
   onTestFinished(fixture.registry.mount(retryAll));
   fixture.registry.set(retryAll, undefined);
   await expect.poll(() => pending.length).toBe(1);
-  await idleAtomsSwept(fixture);
+  await idleClientAtoms(fixture.registry);
   pending.shift()?.(Response.json(recovered));
   await expect.poll(() => fixture.registry.get(inventory).waiting).toBe(false);
   expect(

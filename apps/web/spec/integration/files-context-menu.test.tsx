@@ -112,11 +112,11 @@ test.for([1280, 414])(
         (await server.directory('beta')).entries.map((entry) => entry.name),
       )
       .toContain('second-target');
-    await expect
-      .poll(async () =>
-        (await server.directory('alpha')).entries.map((entry) => entry.name),
-      )
-      .not.toContain('second-target');
+    await expect(
+      server
+        .directory('alpha')
+        .then((directory) => directory.entries.map((entry) => entry.name)),
+    ).resolves.not.toContain('second-target');
   },
 );
 

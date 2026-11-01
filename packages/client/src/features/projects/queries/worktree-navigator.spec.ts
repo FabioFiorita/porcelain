@@ -1,12 +1,13 @@
 import type { Transport } from '../../../shared/api/transport.ts';
 import type { ReadReviewResponse } from '@porcelain/contracts/reviews';
 import { expect, it } from 'vitest';
-import { Effect, HashMap } from 'effect';
+import { Effect, HashMap, Stream } from 'effect';
 import { Reactivity, type AtomRegistry } from 'effect/reactivity';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import {
   clientFixtures,
+  idleClientAtoms,
   readClientAtom,
 } from '../../../../spec/kit/client-fixture.ts';
 import { readReview } from '../../reviews/queries/project-reviews.ts';
@@ -355,14 +356,20 @@ it.each(['inventory', 'environment', 'durableReview'] as const)(
           ReadSubscriptions.use((reads) => reads.snapshot),
         );
       expect(HashMap.size(await subscriptions())).toBeGreaterThan(0);
+      const released = navigator.connection.runtime.runPromise(
+        ReadSubscriptions.use((reads) =>
+          Stream.runHead(
+            Stream.filter(reads.changes, (state) => HashMap.size(state) === 0),
+          ),
+        ),
+      );
       navigator.registry.set(worktreeNavigatorState, {
         query: '',
         filter: emptyNavigatorFilter,
         expanded: { [projectKey]: false },
       });
-      await expect
-        .poll(async () => HashMap.size(await subscriptions()))
-        .toBe(0);
+      await released;
+      await idleClientAtoms(navigator.registry);
       const before = [...paths];
       await navigator.connection.runtime.runPromise(
         Reactivity.invalidate([
