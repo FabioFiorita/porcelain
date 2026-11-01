@@ -11,12 +11,17 @@ selectors:
   - "Delete"
 tests:
   - apps/web/spec/integration/reviews-edit-comment.test.tsx
+  - apps/web/spec/integration/reviews-comment-drafts.test.tsx
 api:
   - DELETE /api/worktrees/:worktreeId/comments/:threadId/messages
   - PATCH /api/worktrees/:worktreeId/comments/:threadId/messages
 ---
 
 # reviews.edit-comment
+
+The edit field also saves with `ControlOrMeta+Enter`; Escape cancels the edit without closing the surrounding review. Composition input does not save, and a pending save cannot be dismissed through the edit field.
+
+An unsent edit returns when the same message is edited after leaving and returning. Cancel/Escape clears that edit draft; reopening then starts from the stored message. Drafts stay within the running client session, scoped to the environment, review/worktree, thread and message.
 
 The reviewer rewrites their own comment, which then shows "edited" and is saved with the new text, and deletes it, which removes the thread; an agent message has no "Comment actions" menu, so it offers neither.
 
@@ -27,7 +32,7 @@ The reviewer rewrites their own comment, which then shows "edited" and is saved 
 
 ## Driving it with browser
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). For the visual sweep, pass the concrete `/<projectId>/<worktreeId>?entry=handoff` URL; the workspace adds that canonical document entry when opened without one.
 
 ### Setup
 

@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('the reviewer edits and then deletes their own comment, and cannot change the agent comment', async ({
@@ -50,7 +51,7 @@ test('the reviewer edits and then deletes their own comment, and cannot change t
     .element(workspace.getByRole('button', { name: 'Save', exact: true }))
     .toBeDisabled();
   await replaceEditorContent(editor, rewritten);
-  await workspace.getByRole('button', { name: 'Save', exact: true }).click();
+  await userEvent.keyboard('{Control>}{Enter}{/Control}');
   await expect
     .element(workspace.getByText(rewritten, { exact: true }))
     .toBeVisible();

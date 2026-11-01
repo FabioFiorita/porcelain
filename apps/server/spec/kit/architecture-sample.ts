@@ -175,7 +175,10 @@ async function accepted(
   return response.body;
 }
 
-export async function seedArchitectureSample(session: Session) {
+export async function seedArchitectureSample(
+  session: Session,
+  questions?: Readonly<Record<string, string>>,
+) {
   const inventory = Schema.decodeUnknownSync(readInventoryResponseSchema)(
     await accepted(session, { method: 'GET', path: '/api/inventory' }),
   );
@@ -417,18 +420,18 @@ export async function seedArchitectureSample(session: Session) {
     const owner = existing ?? { id: randomUUID(), layerId: id };
     if (!existing) {
       owners.set(scenario.owner, owner);
+      const problem =
+        questions?.[scenario.owner] ??
+        (scenario.owner === 'Delivery outbox'
+          ? 'Outbox and journal are updated separately. Transaction ownership needs a decision.'
+          : undefined);
       boxes.push({
         id: owner.id,
         label: scenario.owner,
         detail: `Shared by the related behaviors. ${scenario.decision}`,
         change: scenario.owner === 'Workspace policy' ? 'changed' : 'new',
         layerId: id,
-        ...(scenario.owner === 'Delivery outbox'
-          ? {
-              problem:
-                'Outbox and journal are updated separately. Transaction ownership needs a decision.',
-            }
-          : {}),
+        ...(problem === undefined ? {} : { problem }),
       });
     }
     arrows.push({ from: node, to: owner.id, label: 'uses' });

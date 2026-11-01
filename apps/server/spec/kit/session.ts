@@ -132,7 +132,10 @@ export type ProofCheckStep = {
 };
 
 export type AgentAction =
-  | { kind: 'publish-architecture' }
+  | {
+      kind: 'publish-architecture';
+      questions?: Readonly<Record<string, string>> | undefined;
+    }
   | { kind: 'seed'; variant: StressVariant }
   | {
       kind: 'publish-review';

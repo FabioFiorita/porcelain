@@ -17,6 +17,12 @@ import {
   UserIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { useAtom } from '@effect/atom-react';
+import {
+  commentDraftKey,
+  editCommentDraftState,
+  replyCommentDraftState,
+} from '../store';
 import { Badge } from '@/components/ui/badge';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -65,6 +71,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { shortOid } from '@porcelain/client/history/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { commentKeyDown } from '../adapters/comment-keyboard';
 
 const relative = (iso?: string) =>
   iso === null || iso === undefined ? null : relativeTime(iso);
@@ -173,7 +180,20 @@ function MessageEditor({
   message: Pick<CommentMessage, 'id' | 'body'>;
   onDone: () => void;
 }) {
-  const [body, setBody] = useState(message.body);
+  const [saved, setSaved] = useAtom(
+    editCommentDraftState(
+      commentDraftKey(owner.context.connection.environmentId, owner.scope, {
+        kind: 'edit',
+        threadId: owner.threadId,
+        messageId: message.id,
+      }),
+    ),
+  );
+  const body = saved ?? message.body;
+  const finish = () => {
+    setSaved(undefined);
+    onDone();
+  };
   const edit = useEditComment(owner.scope, owner.context);
   const valid = commentBodyValid(body);
   return (
@@ -184,7 +204,7 @@ function MessageEditor({
         if (!valid || edit.result.waiting) return;
         edit.send(
           { threadId: owner.threadId, messageId: message.id, body },
-          onDone,
+          finish,
         );
       }}
     >
@@ -194,9 +214,9 @@ function MessageEditor({
         value={body}
         maxLength={edit.bodyLimit}
         disabled={edit.result.waiting}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => setSaved(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') onDone();
+          commentKeyDown(event, edit.result.waiting, finish);
         }}
       />
       {AsyncResult.isFailure(edit.result) && (
@@ -210,7 +230,7 @@ function MessageEditor({
           size="sm"
           variant="ghost"
           disabled={edit.result.waiting}
-          onClick={onDone}
+          onClick={finish}
         >
           Cancel
         </Button>
@@ -305,10 +325,15 @@ export function ThreadCard({
   };
   const [replying, setReplying] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [body, setBody] = useState('');
-  const [pendingReply, setPendingReply] = useState<
-    { body: string; messageId: string } | undefined
-  >(undefined);
+  const [draft, setDraft] = useAtom(
+    replyCommentDraftState(
+      commentDraftKey(context.connection.environmentId, scope, {
+        kind: 'reply',
+        threadId: thread.id,
+      }),
+    ),
+  );
+  const { body, pending: pendingReply } = draft;
   const reply = useReplyComment(scope, context);
   const resolve = useResolveComment(scope, context);
   const state = threadState(thread);
@@ -385,12 +410,11 @@ export function ThreadCard({
           body,
           messageId: crypto.randomUUID(),
         }));
-        setPendingReply(intent);
+        setDraft({ body, pending: intent });
         reply.send(
           { threadId: thread.id, body, messageId: intent.messageId },
           () => {
-            setPendingReply(undefined);
-            setBody('');
+            setDraft({ body: '' });
             setReplying(false);
           },
         );
@@ -401,13 +425,18 @@ export function ThreadCard({
           <FieldLabel htmlFor={`reply-${thread.id}`}>Reply</FieldLabel>
           <Textarea
             id={`reply-${thread.id}`}
+            autoFocus
             value={body}
             maxLength={reply.bodyLimit}
             required
             disabled={reply.result.waiting}
             onChange={(event) => {
-              setPendingReply(undefined);
-              setBody(event.target.value);
+              setDraft({ body: event.target.value });
+            }}
+            onKeyDown={(event) => {
+              commentKeyDown(event, reply.result.waiting, () =>
+                setReplying(false),
+              );
             }}
             placeholder="Add a reply…"
           />

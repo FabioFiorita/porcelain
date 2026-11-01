@@ -19,6 +19,8 @@ api:
 
 A whole-branch comment being written keeps its text when a new commit lands on the branch, its label moves to the new tip, and it is saved against the tip the branch has when it is posted.
 
+After sending starts, an uncertain save keeps the original target and submission IDs. If the response is lost and another commit arrives, returning and retrying saves exactly one thread at the original tip. Editing the text starts a new submission.
+
 ## How to get to it (user POV)
 
 - Review (phone; the right sidebar on desktop) → tab "Branch" (tablist "Changes to review") → tab "Comments" → button "Comment on the whole branch", while the agent (or anyone) commits on the branch.
@@ -26,7 +28,7 @@ A whole-branch comment being written keeps its text when a new commit lands on t
 
 ## Driving it with browser
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). For the visual sweep, pass the concrete `/<projectId>/<worktreeId>?entry=handoff` URL; the workspace adds that canonical document entry when opened without one.
 
 ### Setup
 
@@ -67,6 +69,8 @@ Do not make the second commit yet: it lands in step 6, while the draft is open.
 Reload → Review → Branch → /^Comments/: draft survived commit and saved Whole branch in <new tip> anchor persists.
 
 Automated coverage: `reviews-change-comment-draft.test.tsx`.
+
+For recovery, lose the first POST response after the server saves it, commit another change, wait until Changed files shows the new commit count, then return to Comments and reopen the composer. Expect retained text and the original tip label. Retry and independently read the server: exactly one thread and one message, anchored to the first tip.
 
 ## Gotchas
 

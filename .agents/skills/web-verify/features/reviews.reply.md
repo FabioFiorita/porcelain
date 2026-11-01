@@ -9,6 +9,8 @@ selectors:
   - "From the agent"
 tests:
   - apps/web/spec/integration/reviews-reply.test.tsx
+  - apps/web/spec/integration/reviews-comment.test.tsx
+  - apps/web/spec/integration/reviews-comment-drafts.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
@@ -23,10 +25,12 @@ A blank reply cannot be posted, and a written reply to the agent's comment joins
 ## How to get to it (user POV)
 
 - An open thread, inline under its file or in Review → Comments: button "Reply" → textbox "Reply" (placeholder "Add a reply…") → button "Post reply" (or "Cancel").
+- Reply focuses its field. `ControlOrMeta+Enter` posts through the same form as Post reply; Escape closes the reply form. Composition input does not submit. Resolve and Reopen preserve both messages; an inline resolved thread is named "Resolved comment thread".
+- Navigate away with an unsent reply and return to its thread. Reply restores that thread's text and retry identity; a confirmed send clears it. The draft belongs to that environment/review/thread and lasts for the running client session.
 
 ## Driving it with browser
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). For the visual sweep, pass the concrete `/<projectId>/<worktreeId>?entry=handoff` URL; the workspace adds that canonical document entry when opened without one.
 
 ### Setup
 
