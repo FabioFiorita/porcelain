@@ -29,18 +29,20 @@ export function ReviewBoundary({
   connection,
   scope,
   loadingLabel = 'Loading review',
+  documentKey,
 }: {
   children: ReactNode;
   connection: Connection;
   scope: ReviewScope;
   loadingLabel?: string;
+  documentKey?: string | undefined;
 }) {
   const reset = useRetryReview(connection, scope);
   return (
-    <ReviewErrorBoundary reset={reset}>
-      <Suspense fallback={<StateSkeleton label={loadingLabel} />}>
+    <Suspense fallback={<StateSkeleton label={loadingLabel} />}>
+      <ReviewErrorBoundary key={documentKey} reset={reset}>
         {children}
-      </Suspense>
-    </ReviewErrorBoundary>
+      </ReviewErrorBoundary>
+    </Suspense>
   );
 }

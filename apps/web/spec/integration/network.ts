@@ -52,6 +52,7 @@ export function createFetchGate(filePath: string) {
     const original = window.fetch;
     const requested = Promise.withResolvers<void>();
     const released = Promise.withResolvers<void>();
+    const finished = Promise.withResolvers<void>();
     let armed = false;
     let held = false;
     let responded = false;
@@ -62,10 +63,14 @@ export function createFetchGate(filePath: string) {
         held = true;
         requested.resolve();
         await released.promise;
-        const response = await original(input, init);
-        await response.clone().arrayBuffer();
-        responded = true;
-        return response;
+        try {
+          const response = await original(input, init);
+          await response.clone().arrayBuffer();
+          responded = true;
+          return response;
+        } finally {
+          finished.resolve();
+        }
       }
       return original(input, init);
     };
@@ -79,6 +84,7 @@ export function createFetchGate(filePath: string) {
     });
     return {
       requested: requested.promise,
+      finished: finished.promise,
       arm() {
         armed = true;
       },
@@ -207,6 +213,13 @@ export function createFetchGate(filePath: string) {
       holdNextFetch(
         (url, init) =>
           (init?.method ?? 'GET') === 'GET' && url.pathname.endsWith('/review'),
+      ),
+    holdNextTextRead: (path: string) =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/text') &&
+          url.searchParams.get('path') === path,
       ),
     holdNextDirectoryRead: (directory?: string) =>
       holdNextFetch(

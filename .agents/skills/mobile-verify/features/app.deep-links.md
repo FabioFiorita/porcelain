@@ -7,6 +7,7 @@ selectors:
   - 'Settings'
   - 'Pair this computer'
   - 'All decisions'
+  - 'Back'
   - 'Select a worktree to continue.'
   - 'No computers paired.'
 tests:
@@ -34,6 +35,7 @@ Preconditions: [surface baseline](README.md).
 2. Publish a committed review through the fixture CLI. Deliver `/open/reviews/<reviewId>?environment=<environmentId>&host=<host>` with `protocol=http` for the local listener (or `https` for remote HTTPS), and optional `revision` and `decision`. On Android use a VIEW intent targeting the disposable development package, warm and cold. With another environment selected, expect the linked computer/review; independently read saved selection and seen revision.
 3. Unpaired, open a decision link → Pair this computer → pair that computer. The exact review/decision opens without resending the link. Cancel preserves the destination and pairing offer; native header Back exits to Review.
 4. Try missing review/revision/decision, offline computer and a host containing a scheme/path. Expect explanation and Back; connectivity failures offer Read again. A missing decision leaves the verdict/list usable. Return to the existing workspace Review and confirm it still opens.
+5. On iPad, open an exact-revision review link in landscape, then portrait. The native header exposes Back separately from Show/Hide sidebar. Back returns to the current workspace Review, including a cold link with no prior destination. Repeat the return on iPhone; All decisions only returns to the retained briefing.
 
 Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 
@@ -42,4 +44,5 @@ Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 - Apply the shared development-link flags and accept iOS open-link prompts. Pair/select a worktree before routes that require them.
 - Associated domains/intent filters require a matching native build. Explicit Android package routing does not prove automatic domain verification; physical iPhone association requires its Preview binary and deployed hub files. Android signing fingerprints remain placeholders until distribution.
 - Debug cold HTTPS intents can stop at Expo DevLauncherActivity before routing. Report that boundary; a separate release-mode development APK can test cold routing, but its HTTP reads may hit Android cleartext policy (#424). Restore the normal debug client afterward.
+- Expo development clients require the project to be open for app-specific links. On iOS, use an isolated Release-configuration Porcelain Dev with embedded JavaScript for a cold app-link check, then restore the matching development client. Opening Metro first and then delivering the link proves warm delivery only.
 - Browser fallback needs the hub rewrite and explicit navigation button. Simulator, local-intent and physical association proof are separate.

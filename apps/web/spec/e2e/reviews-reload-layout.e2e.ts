@@ -61,3 +61,28 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
     opened.getByRole('button', { name: `Close ${notes}`, exact: true }),
   ).toBeVisible();
 });
+
+test('a reloaded split keeps shortcuts on the saved side pane and closing it preserves Changes', async ({
+  app,
+  repo,
+}) => {
+  const opened = await app.open(await app.link('this'));
+  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click({ button: 'right' });
+  await opened.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const right = opened.getByRole('region', { name: 'Right pane', exact: true });
+  await expect(right).toHaveAttribute('data-focused', 'true');
+  await app.reload();
+  await expect(right).toHaveAttribute('data-focused', 'true');
+  await expect(
+    right.getByRole('tab', { name: repo.readme.path, exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
+  await opened.keyboard.press('Alt+w');
+  await expect(right).not.toBeAttached();
+  await expect(
+    opened.getByRole('tab', { name: 'Changes', exact: true }),
+  ).toBeVisible();
+});

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useDeferredValue } from 'react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
@@ -162,25 +162,35 @@ function ReviewDocumentPane({
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
   const pane = layout.panes[index];
+  const deferredEntry = useDeferredValue(pane?.active ?? null);
   if (!pane) return null;
+  const shownEntry =
+    pane.active !== 'handoff' && pane.tabs.includes(deferredEntry ?? '')
+      ? deferredEntry
+      : pane.active;
+  const pending = shownEntry !== pane.active;
   const side = layout.split ? paneSide(index) : null;
-  const document = parseEntry(pane.active ?? undefined);
+  const document = parseEntry(shownEntry ?? undefined);
   const showingReview = document?.kind === 'handoff';
   return (
     <section
       ref={(element) => layout.bindPane(index, element)}
       aria-label={side ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
+      data-focused={focused}
+      aria-busy={pending}
       onPointerDownCapture={() => layout.selectPane(index)}
       onFocusCapture={(event) => layout.focusPane(index, event.target)}
       className={cn(
         '@container/pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
         index === 1 && 'border-t md:border-t-0 md:border-l',
+        index === 1 &&
+          'motion-safe:animate-in motion-safe:fade-in-0 duration-150',
       )}
     >
       <DocumentTabs
         tabs={pane.tabs}
         pinned={pane.pinned}
-        active={pane.active}
+        active={shownEntry}
         reviewTitle="Review"
         firstTabCount={firstTabCount}
         side={side}
@@ -212,7 +222,7 @@ function ReviewDocumentPane({
       {pane.tabs.includes('handoff') && (
         <div
           aria-hidden={!showingReview}
-          inert={!showingReview}
+          inert={!showingReview || pending}
           className={cn(
             'flex min-h-0 flex-1 flex-col',
             !showingReview &&
@@ -223,22 +233,24 @@ function ReviewDocumentPane({
         </div>
       )}
       {document && !showingReview && (
-        <ReviewBoundary
-          key={pane.active}
-          connection={context.connection}
-          scope={scope}
-        >
-          <DocumentView
+        <div inert={pending} className="flex min-h-0 flex-1 flex-col">
+          <ReviewBoundary
+            documentKey={shownEntry ?? undefined}
+            connection={context.connection}
             scope={scope}
-            context={context}
-            document={document}
-            onOpen={onOpen}
-            onBrowse={() => {}}
-            sideLabel={openToSideText(side)}
-            active={focused}
-            toolbarTarget={toolbarTarget}
-          />
-        </ReviewBoundary>
+          >
+            <DocumentView
+              scope={scope}
+              context={context}
+              document={document}
+              onOpen={onOpen}
+              onBrowse={() => {}}
+              sideLabel={openToSideText(side)}
+              active={focused && !pending}
+              toolbarTarget={pending ? null : toolbarTarget}
+            />
+          </ReviewBoundary>
+        </div>
       )}
     </section>
   );

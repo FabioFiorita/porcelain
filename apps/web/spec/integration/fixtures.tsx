@@ -64,6 +64,7 @@ export type Render = {
   ) => Promise<{
     page: typeof page;
     navigate: (path: string) => Promise<void>;
+    back: () => Promise<void>;
     whenRendered: (path: string) => Promise<void>;
     pair: () => Promise<void>;
     location: () => string;
@@ -447,6 +448,10 @@ export const test = base
           page,
           navigate: async (path) => {
             mounted.router.history.push(path);
+            await mounted.router.load();
+          },
+          back: async () => {
+            mounted.router.history.back();
             await mounted.router.load();
           },
           whenRendered: (path) =>

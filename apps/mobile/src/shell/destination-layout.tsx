@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { DestinationHeader } from './destination-header';
 import { isTablet } from '../shared/navigation/is-tablet';
@@ -12,6 +12,7 @@ export function DestinationLayout({
   title: string;
   children?: ReactNode;
 }) {
+  const router = useRouter();
   return (
     <Stack
       screenOptions={({ theme }) => ({
@@ -22,6 +23,13 @@ export function DestinationLayout({
       })}
       screenLayout={({ children, route }) => (
         <DestinationHeader
+          back={
+            isTablet &&
+            (route.name === 'open/reviews/[reviewId]' ||
+              route.name === 'reviews/[reviewId]')
+              ? () => router.dismissTo('/review')
+              : undefined
+          }
           leading={
             route.name !== 'files' &&
             route.name !== 'workspaces' &&

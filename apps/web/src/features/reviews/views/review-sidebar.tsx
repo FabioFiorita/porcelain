@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { cn } from '@/shared/lib/utils';
 import {
   ALL_CHANGES,
   publishedReviewTitle,
@@ -104,7 +105,11 @@ export function SidePanel({
     <aside
       aria-label="Review sidebar"
       data-testid="review-sidebar"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-paper bg-background shadow-paper"
+      className={cn(
+        'flex h-full min-h-0 flex-col overflow-hidden rounded-paper bg-background shadow-paper',
+        layout === 'docked' &&
+          'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-1 duration-150',
+      )}
     >
       {layout === 'docked' ? (
         <>

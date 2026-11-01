@@ -78,6 +78,7 @@ import {
   useWalkthroughPlace,
   usePullRequestLinkFocus,
   useReviewFileOrigins,
+  useTabLayoutStore,
 } from '../store';
 import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
@@ -91,8 +92,11 @@ import { WalkthroughDock } from './walkthrough-dock';
 import { useComments } from '../queries/comments';
 import { ReviewDocumentWorkspace } from './review-document-workspace';
 import { entryKey, type OpenDocument } from '../rules/documents';
-import { useTabLayout, type PaneIndex } from '../adapters/tab-layout';
-import type { WorkspaceSearch } from '@/shared/workspace/search';
+import { useTabLayout } from '../adapters/tab-layout';
+import type {
+  WorkspaceSearch,
+  SetWorkspaceSearch,
+} from '@/shared/workspace/search';
 import { RevisionCode } from './revision-code';
 import {
   StateFrame,
@@ -112,7 +116,12 @@ type ReviewPageProps = {
   toolbarTarget?: HTMLElement | null | undefined;
   onShowReviewPanel?: ((trigger: HTMLButtonElement) => void) | undefined;
   reviewId: string;
-  initialEntry?: string | undefined;
+  documentNavigation?:
+    | {
+        search: WorkspaceSearch;
+        onSearch: SetWorkspaceSearch;
+      }
+    | undefined;
   navigation?: ReactNode;
   revision?: number | undefined;
   decision?: string | undefined;
@@ -128,7 +137,7 @@ type ReviewPageProps = {
 
 export function ReviewPage({
   reviewId,
-  initialEntry,
+  documentNavigation,
   onOpen,
   toolbarTarget,
   navigation,
@@ -169,7 +178,7 @@ export function ReviewPage({
     <ReviewRevisionPage
       key={`${reviewId}:${data.revision.revision}`}
       toolbarTarget={toolbarTarget}
-      initialEntry={initialEntry}
+      documentNavigation={documentNavigation}
       navigation={navigation}
       onOpen={onOpen}
       data={data}
@@ -275,7 +284,7 @@ function ReviewFailure({
 }
 
 function ReviewRevisionPage({
-  initialEntry,
+  documentNavigation,
   toolbarTarget,
   navigation,
   onOpen,
@@ -365,23 +374,16 @@ function ReviewRevisionPage({
   const [view, setView] = useState<'walkthrough' | 'summary' | 'changes'>(
     'walkthrough',
   );
-  const standalone = toolbarTarget === undefined;
-  const [tabSearch, setTabSearch] = useState<WorkspaceSearch>({
-    entry: initialEntry ?? 'handoff',
-  });
-  const [openedEntry, setOpenedEntry] = useState(initialEntry);
-  if (openedEntry !== initialEntry) {
-    setOpenedEntry(initialEntry);
-    if (initialEntry)
-      setTabSearch((current) => ({ ...current, entry: initialEntry }));
-  }
-  const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
+  const standalone = documentNavigation !== undefined;
+  const tabOwner = `review:${revision.reviewId}:${revision.revision}`;
+  const { focused: focusedPane, setFocused: setFocusedPane } =
+    useTabLayoutStore(tabOwner);
   const tabLayout = useTabLayout({
-    worktreeId: `review:${revision.reviewId}:${revision.revision}`,
-    entry: tabSearch.entry,
-    side: tabSearch.side,
-    onSearch: (updates) =>
-      setTabSearch((current) => ({ ...current, ...updates })),
+    worktreeId: tabOwner,
+    entry: documentNavigation?.search.entry ?? 'handoff',
+    side: documentNavigation?.search.side,
+    onSearch: (updates, options) =>
+      documentNavigation?.onSearch(updates, options),
     fallback: 'handoff',
     ready: standalone,
     focused: focusedPane,
@@ -447,7 +449,7 @@ function ReviewRevisionPage({
     setChosen(key);
     place.setPlace(key);
     setView('walkthrough');
-    if (standalone) tabLayout.activate(0, 'handoff');
+    if (standalone) tabLayout.selectPane(0);
     onStop?.(review.layers.find((entry) => decisionKey(entry.id) === key)?.id);
   };
   const interaction = {

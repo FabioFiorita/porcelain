@@ -13,6 +13,8 @@ selectors:
   - 'Git controls'
 tests:
   - apps/web/spec/integration/reviews-split-shortcuts.test.tsx
+  - apps/web/spec/integration/reviews-document-navigation.test.tsx
+  - apps/web/spec/integration/files-editor-reopen.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/text
@@ -26,7 +28,7 @@ With the document area split into two panes, the tab shortcuts act on the focuse
 
 - Split: right-click a tab → menuitem "Open to the side" (its name also carries the shortcut text), or `Alt+\` on the focused pane's active tab. Once split, the menu item reads "Open in the right pane" / "Open in the left pane".
 - Tab shortcuts (shortcuts dialog `Mod+/`, group "Tabs"): `Alt+ArrowRight` next tab, `Alt+ArrowLeft` previous tab, `Alt+W` close tab, `Alt+\` open the tab to the side. They are ignored while focus is in a text field.
-- The split works at phone width too: there is no breakpoint guard, the two panes share the 414px width.
+- A narrow browser stacks the two panes vertically. This is browser behavior, not native phone or iPad proof.
 - The right pane keeps the Git action label at the existing `lg` pane breakpoint (512px). Check a 1440px split with the navigator visible: Commit remains labelled beside its chevron. At 1080px and 414px, narrower panes fold the label into its icon while keeping the action's accessible name, tooltip and Git actions menu. Check light and dark in web and the desktop renderer.
 
 ## Driving it with browser
@@ -51,6 +53,10 @@ Opening the split registers the tab shortcuts once; development builds reject du
 ### Observable proof
 
 - Step 5 closes only the right pane's tab (the split folds, the left pane keeps README.md) and step 6 shows no duplicate-registration errors.
+- Keep a published walkthrough visible while opening and closing a side file: its DOM and reading place remain mounted.
+- Focus the right pane, open Settings, return and reload the exact URL. The saved right pane owns the next tab shortcut; closing its final file preserves the primary document.
+- Repeat tab shortcuts inside the file editor and comment composer: typing and editing retain ownership and the shortcut must not close or switch a document.
+- With a destination text read held, switching an existing tab keeps the previous document visibly readable and its controls inactive until the requested document is ready. A first open still has an honest loading state. Reduced motion removes the side-pane entrance animation.
 
 Automated coverage: `reviews-split-shortcuts.test.tsx`.
 

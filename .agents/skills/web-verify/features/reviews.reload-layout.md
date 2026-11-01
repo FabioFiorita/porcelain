@@ -24,7 +24,7 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 
 ## How to get to it (user POV)
 
-- Open files as tabs: Review → sidebar tab "Files" → right-click a changed file's treeitem → menuitem "Open file" (a plain click on a changed file opens its diff instead).
+- Open file contents as tabs: Review → sidebar tab "Files" → click a file, or right-click its treeitem → menuitem "Open file". Explicit Changes/review entrances own diffs.
 - Pin a tab: right-click the tab → menuitem "Pin"; the tab's close button becomes "Unpin <name>" and pinned tabs move to the front. Right-click → "Unpin" or the "Unpin <name>" button undoes it.
 - Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" folds every file; in Changes, open File review actions at the progress count to reach it.
 - Reload: any full page load of the workspace.
@@ -56,11 +56,12 @@ printf '# Notes\n' > "$REPO/notes.md"
 
 ### Observable proof
 
-Reload exact path/query: pin, third tab and collapsed README diff remain.
+Reload exact path/query: pin, third tab and collapsed README diff remain. Open a file to the side, reload while the right pane is focused and press Alt+W: only the right pane closes and the permanent Changes document remains.
 
 Automated coverage: `reviews-reload-layout.e2e.ts`.
 
 ## Gotchas
 
 - Reload exact path/query: without entry=handoff, bare `/` may activate notes.md. Inactive Close buttons remain accessible while transparent.
+- Focus is saved per worktree or immutable review revision in the existing layout record. Reloading a split restores logical pane ownership without forcing DOM focus into an editor or composer. Old saved records default to the left pane.
 - Tabs/pins/folds persist locally. Reset via Unpin, close file tabs, Expand README.md and remove notes.md.

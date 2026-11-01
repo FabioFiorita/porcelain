@@ -97,6 +97,7 @@ for (const [width, entry] of [
     async ({ openedReview: { review, step, tabs }, reviewLayout }) => {
       await step.click();
       await tabs.getByRole('tab', { name: 'Review', exact: true }).click();
+      await expect.element(review).toBeVisible();
       reviewLayout.scrollToEnd(review);
       const before = reviewLayout.scrollTop(review);
       await expect

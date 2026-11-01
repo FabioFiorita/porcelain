@@ -88,7 +88,7 @@ export function useTabLayout({
         ? (fallback ?? 'handoff')
         : (orderedTabs(base[0] ?? emptyPane()).at(-1) ?? null)),
     current(1) ??
-      (base[1] === null || base[1] === undefined
+      (current(0) !== undefined || base[1] === null || base[1] === undefined
         ? null
         : (orderedTabs(base[1]).at(-1) ?? null)),
   ];
@@ -100,7 +100,6 @@ export function useTabLayout({
     panes[0] = base[0] ?? emptyPane();
   if (actives[1] !== null && actives[1] !== undefined)
     panes[1] = openInPane(base[1] ?? emptyPane(), actives[1], lastActive[1]);
-  else if (base[1]?.tabs.length) panes[1] = base[1];
   const split = panes.length > 1;
 
   if (ready) {
@@ -113,7 +112,6 @@ export function useTabLayout({
       setPending([settled[0], settled[1]]);
     if (lastActive[0] !== actives[0] || lastActive[1] !== actives[1])
       setLastActive(actives);
-    if (focused === 1 && !split) setFocused(0);
   }
   useAtomMount(persistTabLayout({ worktreeId, panes, ready }));
   const recent = useAtomValue(tabActivationState(worktreeId));
@@ -296,7 +294,7 @@ const tabFocus = Atom.family((_owner: string) =>
           snapshot.actives[destination.pane] !== destination.key ||
           !snapshot.panes[destination.pane]?.tabs.includes(destination.key))
       )
-        cancel();
+        return null;
       return destination;
     };
     const schedule = () => {
@@ -406,10 +404,16 @@ const persistTabLayout = Atom.family(
       const current = get.once(atom);
       if (
         current.saved &&
-        JSON.stringify(current.panes) === JSON.stringify(panes)
+        JSON.stringify(current.panes) === JSON.stringify(panes) &&
+        (panes.length > 1 || current.focused === 0)
       )
         return;
-      get.set(atom, { panes, saved: true });
+      get.set(atom, {
+        ...current,
+        panes,
+        saved: true,
+        focused: panes.length > 1 ? current.focused : 0,
+      });
     }),
 );
 

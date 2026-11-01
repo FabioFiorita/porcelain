@@ -9,7 +9,12 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { PanelRightIcon } from 'lucide-react';
-import { type ReactNode, type SyntheticEvent, useState } from 'react';
+import {
+  type ReactNode,
+  type SyntheticEvent,
+  useDeferredValue,
+  useState,
+} from 'react';
 import {
   Tooltip,
   TooltipTrigger,
@@ -113,7 +118,6 @@ function ReviewWorkspaceContent({
       setMobileOpen(false);
     }
   }
-  const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const railToggle = useElement<HTMLButtonElement>();
   const mobileTrigger = useElement<HTMLButtonElement>();
   const mobileSheet = useElement<HTMLDivElement>();
@@ -124,7 +128,11 @@ function ReviewWorkspaceContent({
   } = useSidebar();
   const surface = search.surface ?? 'files';
   const scope = { projectId, worktreeId: worktree.id };
-  const { saved } = useTabLayoutStore(worktree.id);
+  const {
+    saved,
+    focused: focusedPane,
+    setFocused: setFocusedPane,
+  } = useTabLayoutStore(worktree.id);
   const overview = useReviewOverview(scope, context.connection);
   const published = usePublishedReview(scope, context);
   const awaitingChanges = Option.isNone(AsyncResult.value(overview));
@@ -510,7 +518,6 @@ function DocumentPanes({
     tabControls,
   });
 
-  if (!layout.split) return <PaneView {...paneProps(0)} />;
   return (
     <ResizablePanelGroup
       orientation={navigatorIsMobile ? 'vertical' : 'horizontal'}
@@ -519,17 +526,24 @@ function DocumentPanes({
       <ResizablePanel id="pane-left" minSize={navigatorIsMobile ? 200 : 320}>
         <PaneView {...paneProps(0)} />
       </ResizablePanel>
-      <ResizableHandle
-        aria-label={
-          navigatorIsMobile
-            ? 'Top and bottom document panes'
-            : 'Left and right document panes'
-        }
-        withHandle
-      />
-      <ResizablePanel id="pane-right" minSize={navigatorIsMobile ? 200 : 320}>
-        <PaneView {...paneProps(1)} />
-      </ResizablePanel>
+      {layout.split && (
+        <>
+          <ResizableHandle
+            aria-label={
+              navigatorIsMobile
+                ? 'Top and bottom document panes'
+                : 'Left and right document panes'
+            }
+            withHandle
+          />
+          <ResizablePanel
+            id="pane-right"
+            minSize={navigatorIsMobile ? 200 : 320}
+          >
+            <PaneView {...paneProps(1)} />
+          </ResizablePanel>
+        </>
+      )}
     </ResizablePanelGroup>
   );
 }
@@ -569,7 +583,13 @@ function PaneView({
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
-  const activeDocument = parseEntry(pane.active ?? undefined);
+  const deferredEntry = useDeferredValue(pane.active);
+  const shownEntry =
+    pane.active !== 'handoff' && pane.tabs.includes(deferredEntry ?? '')
+      ? deferredEntry
+      : pane.active;
+  const pending = shownEntry !== pane.active;
+  const activeDocument = parseEntry(shownEntry ?? undefined);
   const focusPane = (event: SyntheticEvent<HTMLElement>) => {
     const target = event.target;
     if (
@@ -593,11 +613,14 @@ function PaneView({
       ref={(element) => layout.bindPane(index, element)}
       aria-label={split ? `${index === 0 ? 'Left' : 'Right'} pane` : undefined}
       data-focused={focused}
+      aria-busy={pending}
       onPointerDownCapture={focusPane}
       onFocusCapture={focusPane}
       className={cn(
         '@container/pane relative flex h-full min-h-0 min-w-0 flex-col',
         split && index === 1 && 'border-l',
+        index === 1 &&
+          'motion-safe:animate-in motion-safe:fade-in-0 duration-150',
       )}
     >
       <DocumentTabs
@@ -634,7 +657,7 @@ function PaneView({
         }
         tabs={pane.tabs}
         pinned={pane.pinned}
-        active={pane.active}
+        active={shownEntry}
         reviewTitle={reviewTitle}
         side={paneSide(split, index)}
         focused={focused}
@@ -690,28 +713,32 @@ function PaneView({
       {pane.tabs
         .filter(
           (key) =>
-            key === pane.active || (key === 'handoff' && review !== undefined),
+            key === shownEntry || (key === 'handoff' && review !== undefined),
         )
         .map((key) => {
           const ref = parseEntry(key);
           if (!ref) return null;
-          const showing = key === pane.active;
+          const showing = key === shownEntry;
           const shownDocument =
             ref.kind === 'handoff' && !review && changes.scope === 'branch'
               ? ({ kind: 'branch' } as const)
               : ref;
           return (
             <div
-              key={key}
+              key={ref.kind === 'handoff' ? 'handoff' : 'document'}
               aria-hidden={!showing}
-              inert={!showing}
+              inert={!showing || pending}
               className={cn(
                 'flex min-h-0 flex-1 flex-col overflow-hidden',
                 !showing &&
                   'pointer-events-none invisible absolute opacity-0 inset-x-0 top-12 bottom-0',
               )}
             >
-              <ReviewBoundary connection={context.connection} scope={scope}>
+              <ReviewBoundary
+                documentKey={key}
+                connection={context.connection}
+                scope={scope}
+              >
                 <DocumentView
                   handoff={HandoffDocument}
                   scope={scope}
@@ -721,12 +748,12 @@ function PaneView({
                   base={base}
                   onOpen={onOpen}
                   onBrowse={onBrowse}
-                  active={showing && focused}
-                  toolbarTarget={showing ? toolbarTarget : null}
+                  active={showing && focused && !pending}
+                  toolbarTarget={showing && !pending ? toolbarTarget : null}
                   reveal={
                     showing &&
                     reveal?.pane === index &&
-                    reveal.key === pane.active
+                    reveal.key === shownEntry
                       ? reveal
                       : undefined
                   }
