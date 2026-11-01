@@ -641,7 +641,6 @@ function CodeSurface({
           ref={(handle) => {
             if (!handle) return;
             const release = viewer.attach(handle);
-            const position = viewer.position();
             if (
               reveal &&
               revealEntry &&
@@ -652,6 +651,7 @@ function CodeSurface({
               return release;
             }
             const frame = requestAnimationFrame(() => {
+              const position = viewer.position();
               handle.scrollTo({
                 type: 'position',
                 position:
