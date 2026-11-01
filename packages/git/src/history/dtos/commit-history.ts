@@ -34,7 +34,7 @@ export type CommitPage = {
 };
 export type HistorySnapshot = {
   graph: string;
-  shallow: boolean;
+  shallowOids: readonly string[];
 };
 export type CommitFilesRequest = {
   oid: string;
@@ -69,6 +69,7 @@ export type HistoryCheckout = {
 export type FileCommitsRequest = {
   path: string;
   limit?: number;
+  after?: { readonly tip: string; readonly offset: number };
 };
 export type FileCommit = {
   commit: CommitSummary;
@@ -78,7 +79,10 @@ export type FileCommit = {
 };
 export type FileCommits = {
   commits: FileCommit[];
-  more: boolean;
+  nextAfter: { readonly tip: string; readonly offset: number } | null;
+  tip: string | null;
+  boundary: 'shallow' | null;
+  restarted: boolean;
 };
 
 export type HistoryRepository = { kind: 'repository'; path: string };

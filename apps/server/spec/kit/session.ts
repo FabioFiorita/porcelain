@@ -65,6 +65,7 @@ export const gitSubcommands = [
   'cat-file',
   'checkout',
   'commit',
+  'commit-tree',
   'config',
   'diff',
   'for-each-ref',

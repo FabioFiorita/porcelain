@@ -17,7 +17,7 @@ import {
   confirmHistoryCheckout,
   inspectHistoryCheckout,
 } from './inspect-history-checkout.ts';
-import { isAncestorOfHead } from './is-ancestor.ts';
+import { isHistoryAncestor } from './is-ancestor.ts';
 import { runHistory } from './run-history.ts';
 
 export const listCommits = Effect.fn('Git.listCommits')(function* (
@@ -26,7 +26,7 @@ export const listCommits = Effect.fn('Git.listCommits')(function* (
   request: CommitPageRequest,
   limits: GitLimits,
 ) {
-  const { shallow } = yield* inspectHistoryCheckout(checkout, gitVersion);
+  const { shallowOids } = yield* inspectHistoryCheckout(checkout, gitVersion);
   const { history } = limits;
   const limit = request.limit ?? history.defaultCommits;
   if (!Number.isInteger(limit) || limit < 1 || limit > history.maxCommits)
@@ -38,15 +38,14 @@ export const listCommits = Effect.fn('Git.listCommits')(function* (
     return yield* Effect.fail(new InvalidHistoryRequestError());
   const page =
     after.length === 0 || request.tip === undefined
-      ? yield* readTop(checkout, limit, shallow, limits)
-      : yield* continueFrom(
-          checkout,
-          request.tip,
-          after,
-          limit,
-          shallow,
-          limits,
-        );
+      ? yield* readTop(checkout, limit, limits)
+      : yield* continueFrom(checkout, request.tip, after, limit, limits);
+  if (page.nextAfter === null && page.tip !== null && page.boundary === null)
+    for (const shallow of shallowOids)
+      if (yield* isHistoryAncestor(checkout.path, shallow, page.tip, limits)) {
+        page.boundary = 'shallow';
+        break;
+      }
   yield* confirmHistoryCheckout(checkout);
   return page;
 });
@@ -56,18 +55,27 @@ const continueFrom = Effect.fn('Git.continueFrom')(function* (
   tip: string,
   frontier: readonly string[],
   limit: number,
-  shallow: boolean,
   limits: GitLimits,
 ) {
-  if (!(yield* isAncestorOfHead(checkout.path, tip, limits)))
+  if (!(yield* isHistoryAncestor(checkout.path, tip, 'HEAD', limits)))
     return {
-      ...(yield* readTop(checkout, limit, shallow, limits)),
+      ...(yield* readTop(checkout, limit, limits)),
       restarted: true,
     } satisfies CommitPage;
-  const parsed = yield* readLog(checkout, frontier, limit, limits);
+  const skipped = (yield* decodeHistory(
+    yield* runHistory(
+      checkout.path,
+      ['rev-list', '--count', tip, '--not', ...frontier, '--'],
+      limits,
+    ),
+  )).trim();
+  const offset = Number(skipped);
+  if (!/^\d+$/u.test(skipped) || !Number.isSafeInteger(offset))
+    return yield* Effect.fail(new UnsupportedHistoryDataError());
+  const parsed = yield* readLog(checkout, [tip], limit, limits, offset);
   return {
     snapshot: null,
-    ...trim(parsed, limit, shallow, limits),
+    ...trim(parsed, limit, frontier, limits),
     tip,
     restarted: false,
   } satisfies CommitPage;
@@ -76,7 +84,6 @@ const continueFrom = Effect.fn('Git.continueFrom')(function* (
 const readTop = Effect.fn('Git.readTop')(function* (
   checkout: HistoryCheckout,
   limit: number,
-  shallow: boolean,
   limits: GitLimits,
 ) {
   const head = yield* readHeadFile(checkout.administrativeDirectory);
@@ -107,7 +114,7 @@ const readTop = Effect.fn('Git.readTop')(function* (
   if (!first) return yield* Effect.fail(new UnsupportedHistoryDataError());
   return {
     snapshot: { tipOid: first.oid, head },
-    ...trim(parsed, limit, shallow, limits),
+    ...trim(parsed, limit, [], limits),
     restarted: false,
   } satisfies CommitPage;
 });
@@ -115,7 +122,7 @@ const readTop = Effect.fn('Git.readTop')(function* (
 function trim(
   parsed: readonly CommitSummary[],
   limit: number,
-  shallow: boolean,
+  previousFrontier: readonly string[],
   limits: GitLimits,
 ): Pick<CommitPage, 'commits' | 'nextAfter' | 'boundary'> & {
   tip: string | null;
@@ -123,7 +130,7 @@ function trim(
   const more = parsed.length > limit;
   const shown = parsed.slice(0, limit);
   const seen = new Set(shown.map((commit) => commit.oid));
-  const frontier: string[] = [];
+  const frontier = previousFrontier.filter((oid) => !seen.has(oid));
   for (const commit of shown)
     for (const parent of commit.parentOids)
       if (!seen.has(parent) && !frontier.includes(parent))
@@ -134,7 +141,7 @@ function trim(
     commits: shown,
     nextAfter: continues ? frontier : null,
     tip: shown[0]?.oid ?? null,
-    boundary: tooWide ? 'wide' : !more && shallow ? 'shallow' : null,
+    boundary: tooWide ? 'wide' : null,
   };
 }
 
@@ -143,6 +150,7 @@ const readLog = Effect.fn('Git.readLog')(function* (
   range: readonly string[],
   limit: number,
   limits: GitLimits,
+  offset = 0,
 ) {
   const output = yield* runHistory(
     checkout.path,
@@ -151,6 +159,7 @@ const readLog = Effect.fn('Git.readLog')(function* (
       '--topo-order',
       '-z',
       `--max-count=${limit + 1}`,
+      `--skip=${offset}`,
       '--decorate=full',
       '--decorate-refs=refs/*',
       '--decorate-refs=HEAD',

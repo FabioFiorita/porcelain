@@ -19,7 +19,9 @@ export const parseFileCommits = Effect.fn('Git.parseFileCommits')(function* (
   path: string,
   limits: GitLimits,
 ) {
-  const commits: FileCommit[] = [];
+  const commits: { entry: FileCommit; position: number }[] = [];
+  let records = 0;
+  let reachedCreation = false;
   let followed = path;
   let at = 0;
   while (at < output.length) {
@@ -32,6 +34,7 @@ export const parseFileCommits = Effect.fn('Git.parseFileCommits')(function* (
       at = end + 1;
     }
     const commit = yield* parseCommitRecord(fields, limits);
+    const position = records++;
     const { entries, end } = yield* readEntries(output, at);
     at = end;
     const entry = entries.find(
@@ -43,15 +46,21 @@ export const parseFileCommits = Effect.fn('Git.parseFileCommits')(function* (
     if (status === undefined)
       return yield* Effect.fail(new UnsupportedHistoryDataError());
     commits.push({
-      commit,
-      path: status === 'deleted' ? entry.oldPath : entry.newPath,
-      previousPath: status === 'renamed' ? entry.oldPath : null,
-      status,
+      position,
+      entry: {
+        commit,
+        path: status === 'deleted' ? entry.oldPath : entry.newPath,
+        previousPath: status === 'renamed' ? entry.oldPath : null,
+        status,
+      },
     });
-    if (status === 'added') break;
+    if (status === 'added') {
+      reachedCreation = true;
+      break;
+    }
     followed = entry.oldPath;
   }
-  return commits;
+  return { commits, records, reachedCreation };
 });
 
 const readEntries = Effect.fn('Git.readEntries')(function* (

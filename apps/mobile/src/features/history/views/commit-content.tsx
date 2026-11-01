@@ -1,4 +1,7 @@
 import { FlatList } from 'react-native';
+import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
+import { historyPlace, focusCommitFile } from '@porcelain/client/history';
+import { useListReadingOffset } from '../../../components/ui/list-reading-offset';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { Loading } from '../../../components/ui/loading';
@@ -8,31 +11,60 @@ import { Item } from '../../../components/ui/item';
 import { useCommit, type HistorySelection } from '../queries/history';
 import {
   commitPath,
+  commitPaths,
   shortOid,
-  shownRefs,
 } from '@porcelain/client/history/rules';
 import { CommitReadState } from './commit-state';
 import { CommitParentMenu } from './commit-parent-menu';
+import { commitRefLabel } from '../../../shared/rules/commit-ref';
 
-export function CommitContent({
-  selection,
-  oid,
-  parent,
-  onParentChange,
-  onOpenFile,
-}: {
+type CommitContentProps = {
   selection: HistorySelection;
   oid: string;
   parent: number;
   onParentChange: (parent: number) => void;
   onOpenFile: (path: string) => void;
-}) {
+  selectedPath?: string | undefined;
+};
+
+export function CommitContent(props: CommitContentProps) {
+  const resetId = useAtomValue(
+    historyPlace({
+      ...props.selection,
+      kind: 'commit',
+      oid: props.oid,
+      parent: props.parent,
+    }),
+    (place) => place.resetId,
+  );
+  return <CommitContentView key={resetId} {...props} />;
+}
+
+function CommitContentView({
+  selection,
+  oid,
+  parent,
+  onParentChange,
+  onOpenFile,
+  selectedPath,
+}: CommitContentProps) {
   const commit = useCommit(selection, oid, parent);
+  const [place, setPlace] = useAtom(
+    historyPlace({ ...selection, kind: 'commit', oid, parent }),
+  );
+  const focusedPath = place.selected ?? selectedPath;
+  const focusFile = useAtomSet(focusCommitFile(selection));
+  const reading = useListReadingOffset(
+    place.scrollOffset,
+    !commit.result.waiting,
+    (scrollOffset) => setPlace((current) => ({ ...current, scrollOffset })),
+  );
   return (
     <CommitReadState commit={commit}>
       {(value) => (
         <Box collapsable={false} className="flex-1" surface="background">
           <FlatList
+            {...reading}
             contentInsetAdjustmentBehavior="automatic"
             data={value.files}
             keyExtractor={(file) =>
@@ -69,14 +101,23 @@ export function CommitContent({
                   <CommitParentMenu
                     parentOids={value.commit.parentOids}
                     parent={parent}
-                    onSelect={onParentChange}
+                    onSelect={(nextParent) => {
+                      if (nextParent === parent) return;
+                      if (focusedPath !== undefined)
+                        focusFile({
+                          oid,
+                          parent: nextParent,
+                          path: focusedPath,
+                        });
+                      onParentChange(nextParent);
+                    }}
                   />
                 ) : null}
                 <Box className="flex-row flex-wrap" gap={1}>
-                  {shownRefs(value.commit.refs).map((ref) => (
+                  {value.commit.refs.map((ref) => (
                     <Badge
                       key={`${ref.kind}:${ref.name}`}
-                      label={ref.name}
+                      label={commitRefLabel(ref)}
                       variant="secondary"
                     />
                   ))}
@@ -99,9 +140,17 @@ export function CommitContent({
             renderItem={({ item }) => (
               <Item
                 title={commitPath(item)}
+                selected={
+                  focusedPath !== undefined &&
+                  commitPaths(item).includes(focusedPath)
+                }
                 description={`${item.status}${item.status === 'renamed' ? ` from ${item.oldPath}` : ''}`}
                 disabled={commit.result.waiting}
-                onPress={() => onOpenFile(commitPath(item))}
+                onPress={() => {
+                  const path = commitPath(item);
+                  setPlace((current) => ({ ...current, selected: path }));
+                  onOpenFile(path);
+                }}
               />
             )}
           />

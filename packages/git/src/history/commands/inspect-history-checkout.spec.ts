@@ -55,10 +55,10 @@ const snapshot = () =>
 describe('history checkout', () => {
   it('reports the shallow boundary and changes the graph when it changes', async () => {
     const full = await snapshot();
-    expect(full.shallow).toBe(false);
+    expect(full.shallowOids).toEqual([]);
     writeFileSync(join(root, '.git', 'shallow'), `${'1'.repeat(40)}\n`);
     const shallow = await snapshot();
-    expect(shallow.shallow).toBe(true);
+    expect(shallow.shallowOids).toEqual(['1'.repeat(40)]);
     expect(shallow.graph).not.toBe(full.graph);
   });
 

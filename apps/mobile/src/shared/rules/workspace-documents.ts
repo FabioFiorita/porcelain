@@ -15,6 +15,7 @@ export type PullRequestDocument = typeof pullRequestDocumentSchema.Type;
 export const workspaceDocumentSchema = Schema.Union([
   pullRequestDocumentSchema,
   Schema.Struct({ kind: Schema.Literal('file'), path: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal('timeline'), path: Schema.String }),
   Schema.Struct({
     kind: Schema.Literal('review-file'),
     path: Schema.String,
@@ -24,6 +25,7 @@ export const workspaceDocumentSchema = Schema.Union([
     kind: Schema.Literal('commit'),
     oid: Schema.String,
     parent: parentSchema,
+    path: Schema.optional(Schema.String),
   }),
   Schema.Struct({
     kind: Schema.Literal('diff'),
@@ -65,6 +67,14 @@ export function documentTab(document: WorkspaceDocument): WorkspaceTab {
         key: JSON.stringify(['file', document.path]),
         title: document.path.split('/').at(-1) ?? document.path,
         label: document.path,
+        closable: true,
+      };
+    case 'timeline':
+      return {
+        ...document,
+        key: JSON.stringify(['timeline', document.path]),
+        title: `Timeline ${document.path.split('/').at(-1) ?? document.path}`,
+        label: `Timeline of ${document.path}`,
         closable: true,
       };
     case 'review-file': {
@@ -111,6 +121,7 @@ export function documentTab(document: WorkspaceDocument): WorkspaceTab {
 export function documentMode(document: WorkspaceDocument): InspectorMode {
   switch (document.kind) {
     case 'file':
+    case 'timeline':
       return 'files';
     case 'review-file':
     case 'pull-request':

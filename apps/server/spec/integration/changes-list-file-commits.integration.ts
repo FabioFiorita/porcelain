@@ -59,7 +59,9 @@ test('the timeline of a file follows it back across its rename, newest first', a
         status: 'added',
       },
     ],
-    more: false,
+    nextAfter: null,
+    boundary: null,
+    restarted: false,
   });
 });
 
@@ -76,7 +78,26 @@ test('a limit keeps the newest commits of the timeline and says older ones exist
     .split('\n');
   expect(response.body).toMatchObject({
     commits: [{ commit: { oid: rename } }, { commit: { oid: second } }],
-    more: true,
+    nextAfter: { tip: rename, offset: 2 },
+    boundary: null,
+    restarted: false,
+  });
+  const first = Schema.decodeUnknownSync(listFileCommitsResponseSchema)(
+    response.body,
+  );
+  const continued = await session.send(
+    fileCommits(session, {
+      path: 'GUIDE.md',
+      limit: 2,
+      after: JSON.stringify(first.nextAfter),
+    }),
+  );
+  expect(continued.status).toBe(200);
+  expect(continued.body).toMatchObject({
+    commits: [{ path: session.fixture.readme.path, status: 'added' }],
+    nextAfter: null,
+    tip: rename,
+    restarted: false,
   });
 });
 
@@ -105,7 +126,9 @@ test('the timeline of a file that replaced a folder of the same name ends at the
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject({
     commits: [{ commit: { oid: added }, path: 'cfg', status: 'added' }],
-    more: false,
+    nextAfter: null,
+    boundary: null,
+    restarted: false,
   });
 });
 
@@ -115,5 +138,10 @@ test('a path no commit touched has an empty timeline', async ({ session }) => {
   );
 
   expect(response.status).toBe(200);
-  expect(response.body).toStrictEqual({ commits: [], more: false });
+  expect(response.body).toMatchObject({
+    commits: [],
+    nextAfter: null,
+    boundary: null,
+    restarted: false,
+  });
 });

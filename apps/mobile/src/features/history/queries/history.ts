@@ -3,12 +3,14 @@ import {
   readCommit,
   readHistory,
   readHistoryWindow,
+  readFileTimeline,
+  readFileTimelineWindow,
 } from '@porcelain/client/history';
 import { readCommitDiffs, readGitStatus } from '@porcelain/client/changes';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
+import { AsyncResult, type Atom } from 'effect/reactivity';
 
 export type HistorySelection = {
   connection: RuntimeConnection;
@@ -21,8 +23,22 @@ export function useHistoryStatus(selection: HistorySelection) {
 }
 
 export function useHistory(selection: HistorySelection) {
-  const query = readHistory(selection);
-  const result = useAtomValue(readHistoryWindow(selection));
+  return usePagedHistory(readHistory(selection), readHistoryWindow(selection));
+}
+
+export function useFileTimeline(selection: HistorySelection, path: string) {
+  const input = { ...selection, path };
+  return usePagedHistory(
+    readFileTimeline(input),
+    readFileTimelineWindow(input),
+  );
+}
+
+function usePagedHistory<Page, Window, E>(
+  query: Atom.Writable<Atom.PullResult<Page, E>, void>,
+  window: Atom.Atom<AsyncResult.AsyncResult<Window, E>>,
+) {
+  const result = useAtomValue(window);
   const more = useAtomSet(query);
   return {
     result,

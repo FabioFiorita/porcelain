@@ -5,7 +5,9 @@ import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import { parseFileCommits as parseFileCommitsEffect } from './parse-file-commits.ts';
 
 const parseFileCommits = (...args: Parameters<typeof parseFileCommitsEffect>) =>
-  Effect.runSync(parseFileCommitsEffect(...args));
+  Effect.runSync(parseFileCommitsEffect(...args)).commits.map(
+    ({ entry }) => entry,
+  );
 
 const timeline = fixture('log/file-timeline.txt');
 

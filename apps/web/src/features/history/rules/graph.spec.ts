@@ -17,6 +17,22 @@ function commit(oid: string, parentOids: string[]): Commit {
 }
 
 describe('history graph layout', () => {
+  it('retains the loaded merge rows and lanes as older parent pages append', () => {
+    const commits = [
+      commit('merge', ['left', 'right']),
+      commit('left', ['root']),
+      commit('right', ['root']),
+      commit('root', []),
+    ];
+    const first = layoutGraph(commits.slice(0, 2));
+    expect(
+      first.map(({ commit, lane, outgoing }) => [commit.oid, lane, outgoing]),
+    ).toEqual([
+      ['merge', 0, [0, 1]],
+      ['left', 0, [0]],
+    ]);
+    expect(layoutGraph(commits).slice(0, 2)).toEqual(first);
+  });
   it('keeps a straight ancestry in one lane and leaves an empty history empty', () => {
     expect(layoutGraph([])).toEqual([]);
     const rows = layoutGraph([commit('new', ['root']), commit('root', [])]);

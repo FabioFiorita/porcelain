@@ -3,7 +3,11 @@ import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
 import { DiffContent } from './diff-content';
 
-export function CommitDiffScreen() {
+export function CommitDiffScreen({
+  returnTo = 'History',
+}: {
+  returnTo?: 'History' | 'Files';
+}) {
   const {
     oid,
     workspace,
@@ -19,7 +23,7 @@ export function CommitDiffScreen() {
   const changed = (
     <Empty
       title="Workspace changed"
-      description="Return to History to open a commit in the selected worktree."
+      description={`Return to ${returnTo} to open a commit in the selected worktree.`}
     />
   );
   return (

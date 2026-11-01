@@ -62,7 +62,9 @@ export function worktreePull<A, E, R>(
   connection: RuntimeConnection,
   scope: WorktreeScope,
   surface: readonly unknown[],
-  read: Stream.Stream<A, E, R>,
+  read:
+    | Stream.Stream<A, E, R>
+    | ((get: Atom.AtomContext) => Stream.Stream<A, E, R>),
   runtime: Atom.AtomRuntime<R | ReadSubscriptions>,
 ) {
   const atom: Atom.Writable<
@@ -84,7 +86,7 @@ export function worktreePull<A, E, R>(
               suspendOnWaiting: true,
             }).pipe(Effect.ignore, Effect.asVoid),
           });
-          return read;
+          return typeof read === 'function' ? read(get) : read;
         }),
       ),
     ),

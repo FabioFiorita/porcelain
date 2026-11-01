@@ -82,6 +82,7 @@ export function filePreferenceActions(
         id === 'new-folder' ||
         id === 'open' ||
         id === 'open-to-side' ||
+        id === 'timeline' ||
         id === 'rename' ||
         id === 'trash' ||
         id === 'pin' ||

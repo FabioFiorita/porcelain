@@ -34,13 +34,14 @@ export class ListFileCommitsUseCase extends Context.Service<
           WorktreeAccessFailure | GitIoFailure
         > {
           return yield* Effect.suspend(() => {
-            const { worktreeId, path, limit } = input;
+            const { worktreeId, path, limit, after } = input;
             return accessCapability.read(worktreeId, () =>
               Effect.gen(function* () {
                 const listed = yield* listFileCommitsCapability.execute({
                   worktreeId,
                   path,
                   limit,
+                  after,
                 });
                 return listed;
               }),

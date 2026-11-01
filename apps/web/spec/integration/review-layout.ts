@@ -27,7 +27,20 @@ function codeScroller(locator: Locator) {
   return scroller;
 }
 
+function historyScroller(locator: Locator) {
+  const root = locator.element();
+  return (
+    root.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ??
+    root
+  );
+}
+
 export const reviewLayout = {
+  scrollHistoryToEnd(locator: Locator) {
+    const viewport = historyScroller(locator);
+    viewport.scrollTop = viewport.scrollHeight;
+  },
+  historyScrollTop: (locator: Locator) => historyScroller(locator).scrollTop,
   holdDialogExit(locator: Locator) {
     const popup = locator.element();
     const animations = new Set<Animation>();

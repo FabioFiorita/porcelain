@@ -190,18 +190,16 @@ function ScopedPullRequestDocument({
 function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-auto">
-        <CommitGraph
-          scope={scope}
-          connection={context.connection}
-          sideLabel={sideLabel}
-          onSelect={(oid, toSide) =>
-            onOpen({ kind: 'commit', oid }, undefined, {
-              toSide: toSide === true,
-            })
-          }
-        />
-      </div>
+      <CommitGraph
+        scope={scope}
+        connection={context.connection}
+        sideLabel={sideLabel}
+        onSelect={(oid, toSide) =>
+          onOpen({ kind: 'commit', oid }, undefined, {
+            toSide: toSide === true,
+          })
+        }
+      />
     </div>
   );
 }
@@ -225,26 +223,24 @@ function TimelineDocument({
         }
         subtitle="Commits that changed this file"
       />
-      <div className="min-h-0 flex-1 overflow-auto">
-        <FileTimeline
-          scope={scope}
-          connection={context.connection}
-          path={path}
-          sideLabel={sideLabel}
-          onSelect={(commit, toSide) =>
-            onOpen(
-              { kind: 'commit', oid: commit.oid },
-              {
-                kind: 'file',
-                filePath: commit.path,
-                revision: commit.oid,
-                comparison: { kind: 'commit', parent: 1 },
-              },
-              { toSide: toSide === true },
-            )
-          }
-        />
-      </div>
+      <FileTimeline
+        scope={scope}
+        connection={context.connection}
+        path={path}
+        sideLabel={sideLabel}
+        onSelect={(commit, toSide) =>
+          onOpen(
+            { kind: 'commit', oid: commit.oid },
+            {
+              kind: 'file',
+              filePath: commit.path,
+              revision: commit.oid,
+              comparison: { kind: 'commit', parent: 1 },
+            },
+            { toSide: toSide === true },
+          )
+        }
+      />
     </div>
   );
 }

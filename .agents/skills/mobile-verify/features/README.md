@@ -60,3 +60,6 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
 - [reviews.retained-review](reviews.retained-review.md) — Closed reviews that return to Files or History Worktrees.
 - [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.
+ - [history.timeline](history.timeline.md) — file timeline, older commits and return context.
+ - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
+ - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.

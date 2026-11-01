@@ -1,5 +1,57 @@
 import { expect, test } from './fixtures.tsx';
 
+test('a paginated timeline returns from an older commit with its loaded rows, selection and reading position', async ({
+  render,
+  repo,
+  reviewLayout,
+}) => {
+  await repo.write('notes.txt', 'Oldest\n');
+  await repo.commit('Timeline oldest');
+  for (let index = 1; index <= 101; index++) {
+    await repo.write('notes.txt', `Note ${index}\n`);
+    await repo.commit(`Timeline note ${index}`);
+  }
+  const workspace = await render.workspace();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
+    .getByRole('treeitem', { name: 'notes.txt', exact: true })
+    .click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Show timeline', exact: true })
+    .click();
+  const timeline = workspace.getByRole('list', {
+    name: 'Timeline of notes.txt',
+    exact: true,
+  });
+  await expect.element(timeline.getByRole('listitem')).toHaveLength(101);
+  await workspace
+    .getByRole('button', { name: 'Load older commits', exact: true })
+    .click();
+  await expect.element(timeline.getByRole('listitem')).toHaveLength(103);
+  const viewport = workspace.getByRole('region', {
+    name: 'Timeline reading area',
+    exact: true,
+  });
+  reviewLayout.scrollToEnd(viewport);
+  await expect.poll(() => reviewLayout.scrollTop(viewport)).toBeGreaterThan(0);
+  const position = reviewLayout.scrollTop(viewport);
+  await timeline.getByRole('button', { name: /^Timeline oldest/ }).click();
+  await expect
+    .element(
+      workspace.getByRole('heading', { name: 'Timeline oldest', exact: true }),
+    )
+    .toBeVisible();
+  await workspace
+    .getByRole('tab', { name: 'Timeline of notes.txt', exact: true })
+    .click();
+  await expect.element(timeline.getByRole('listitem')).toHaveLength(103);
+  await expect
+    .element(timeline.getByRole('button', { name: /^Timeline oldest/ }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => reviewLayout.scrollTop(viewport)).toBe(position);
+});
+
 test('the timeline of a renamed file lists its commits across the rename and opens the diff of one', async ({
   workspace,
   repo,

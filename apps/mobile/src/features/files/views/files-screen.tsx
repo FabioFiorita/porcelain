@@ -48,9 +48,11 @@ import { pinnedNavigationRows } from '../rules/file-navigation';
 
 export function FilesScreen({
   onOpen,
+  onOpenTimeline,
   sidebar,
 }: {
   onOpen: (path: string, workspace: string) => void;
+  onOpenTimeline: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
 }) {
   return (
@@ -68,6 +70,7 @@ export function FilesScreen({
           key={selected.key}
           selected={selected}
           onOpen={onOpen}
+          onOpenTimeline={onOpenTimeline}
           sidebar={sidebar}
         />
       )}
@@ -78,6 +81,7 @@ export function FilesScreen({
 type FilesNavigationProps = {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
+  onOpenTimeline: (path: string, workspace: string) => void;
   sidebar: LeadingToolbarProps['sidebar'];
   activePath?: string | undefined;
   embedded?: boolean;
@@ -96,6 +100,7 @@ export function FilesNavigation(props: FilesNavigationProps) {
 function FilesNavigationView({
   selected,
   onOpen,
+  onOpenTimeline,
   sidebar,
   activePath,
   embedded = false,
@@ -217,6 +222,9 @@ function FilesNavigationView({
             break;
           case 'open-to-side':
             onOpenToSide?.(path);
+            break;
+          case 'timeline':
+            onOpenTimeline(path, selected.key);
             break;
           case 'rename':
             setAction({ kind: 'move', path });

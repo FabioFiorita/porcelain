@@ -5,12 +5,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { isAncestorOfHead as isAncestorOfHeadEffect } from './is-ancestor.ts';
+import { isHistoryAncestor as isHistoryAncestorEffect } from './is-ancestor.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
-const isAncestorOfHead = (...args: Parameters<typeof isAncestorOfHeadEffect>) =>
+const isHistoryAncestor = (
+  ...args: Parameters<typeof isHistoryAncestorEffect>
+) =>
   Effect.runPromise(
-    isAncestorOfHeadEffect(...args).pipe(Effect.provide(NodeServices.layer)),
+    isHistoryAncestorEffect(...args).pipe(Effect.provide(NodeServices.layer)),
   );
 
 let checkout: string;
@@ -40,24 +42,35 @@ afterAll(() => {
   rmSync(checkout, { recursive: true, force: true });
 });
 
-describe('isAncestorOfHead', () => {
+describe('isHistoryAncestor', () => {
   it('answers yes for a commit HEAD descends from', async () => {
-    expect(await isAncestorOfHead(checkout, first, gitLimits)).toBe(true);
+    expect(await isHistoryAncestor(checkout, first, 'HEAD', gitLimits)).toBe(
+      true,
+    );
   });
 
   it('answers no for a commit on another line of history', async () => {
-    expect(await isAncestorOfHead(checkout, side, gitLimits)).toBe(false);
-  });
-
-  it('answers no for a commit the repository does not have', async () => {
-    expect(await isAncestorOfHead(checkout, '1'.repeat(40), gitLimits)).toBe(
+    expect(await isHistoryAncestor(checkout, side, 'HEAD', gitLimits)).toBe(
       false,
     );
   });
 
+  it('uses the requested descendant rather than the current HEAD', async () => {
+    expect(await isHistoryAncestor(checkout, side, side, gitLimits)).toBe(true);
+    expect(await isHistoryAncestor(checkout, side, first, gitLimits)).toBe(
+      false,
+    );
+  });
+
+  it('answers no for a commit the repository does not have', async () => {
+    expect(
+      await isHistoryAncestor(checkout, '1'.repeat(40), 'HEAD', gitLimits),
+    ).toBe(false);
+  });
+
   it('reports a repository it cannot read as an unavailable snapshot', async () => {
     await expect(
-      isAncestorOfHead(join(checkout, 'missing'), first, gitLimits),
+      isHistoryAncestor(join(checkout, 'missing'), first, 'HEAD', gitLimits),
     ).rejects.toMatchObject({ name: 'HistorySnapshotUnavailableError' });
   });
 });
