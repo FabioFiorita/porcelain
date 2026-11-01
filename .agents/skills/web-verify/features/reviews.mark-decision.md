@@ -1,16 +1,16 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Mark decision reviewed"
-  - "Decision reviewed"
-  - "Code moved"
-  - "Mark "
-  - "Unmark "
-  - "Could not update the decision"
-  - "Mark available files reviewed"
-  - "Could not display"
-  - "Some files cannot be marked reviewed"
+  - 'Review'
+  - 'Mark decision reviewed'
+  - 'Decision reviewed'
+  - 'Code moved'
+  - 'Mark '
+  - 'Unmark '
+  - 'Could not update the decision'
+  - 'Mark available files reviewed'
+  - 'Could not display'
+  - 'Some files cannot be marked reviewed'
 tests:
   - apps/web/spec/integration/reviews-mark-decision.test.tsx
   - apps/web/spec/integration/reviews-mark-decision-refresh.test.tsx
@@ -22,7 +22,6 @@ api:
   - DELETE /api/worktrees/:worktreeId/reviewed
   - PUT /api/worktrees/:worktreeId/reviewed-bulk
   - PUT /api/reviews/:reviewId/marks
-  - DELETE /api/worktrees/:worktreeId/reviewed-layers
 ---
 
 # reviews.mark-decision

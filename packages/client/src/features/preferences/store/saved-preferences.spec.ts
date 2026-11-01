@@ -218,7 +218,7 @@ it('ignores obsolete review-status collapse choices without losing other prefere
         Projects: false,
         'Needs you': true,
         'Waiting on agent': false,
-        'Ready to merge': true,
+        'Decisions reviewed': true,
         'No review': false,
         Closed: true,
       },

@@ -1,52 +1,53 @@
 import { useAtomValue } from '@effect/atom-react';
-import { AsyncResult } from 'effect/reactivity';
+import { AsyncResult, Atom } from 'effect/reactivity';
+import { readReviewMarks } from '@porcelain/client/reviews';
 import {
-  readLayerMarks,
-  readPublishedReview,
-  readReviewedFiles,
-} from '@porcelain/client/reviews';
-import {
-  decisionStates,
+  revisionDecisionStates,
+  revisionReviewItems,
   walkthroughStops,
-  WORKTREE_RANGE,
 } from '@porcelain/client/reviews/rules';
 import type { Workspace } from '../../projects';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { reviewTab } from '../rules/review-tab';
-import { useReviewSnapshot } from './review';
-import { reviewFiles } from '../rules/comparison';
+import { useWorkspaceReview } from './linked-review';
+
+const inactiveMarks = Atom.make<Atom.Type<ReturnType<typeof readReviewMarks>>>(
+  AsyncResult.initial(),
+);
 
 export function useReviewTab(
   workspace: Workspace,
   comparison: ReviewComparison,
 ) {
-  const input = { connection: workspace.connection, scope: workspace.scope };
-  const review = useAtomValue(readPublishedReview(input));
-  const marks = useAtomValue(readLayerMarks(input));
-  const files = useAtomValue(
-    readReviewedFiles({ ...input, range: WORKTREE_RANGE }),
-  );
-  const snapshot = useReviewSnapshot(workspace, { kind: 'worktree' }).result;
+  const {
+    published: review,
+    revision,
+    settled,
+    specsApart,
+  } = useWorkspaceReview(workspace);
   const published = AsyncResult.isSuccess(review) ? review.value : undefined;
+  const marks = useAtomValue(
+    published?.reviewId
+      ? readReviewMarks({
+          connection: workspace.connection,
+          reviewId: published.reviewId,
+        })
+      : inactiveMarks,
+  );
+  const selected = AsyncResult.isSuccess(revision)
+    ? revision.value.revision
+    : undefined;
   return reviewTab(
     published === undefined ? undefined : published !== null,
-    published &&
-      !review.waiting &&
-      AsyncResult.isSuccess(marks) &&
-      !marks.waiting &&
-      AsyncResult.isSuccess(files) &&
-      !files.waiting &&
-      AsyncResult.isSuccess(snapshot) &&
-      !snapshot.waiting &&
-      snapshot.value.kind === 'worktree'
+    selected && settled && AsyncResult.isSuccess(marks) && !marks.waiting
       ? {
           stops: walkthroughStops(
-            published,
-            snapshot.value.answer.changes.map((file) => file.path),
-            { specsApart: true },
+            selected.content,
+            selected.files.map((file) => file.path),
+            { specsApart },
           ),
-          items: reviewFiles(snapshot.value, files.value),
-          decisions: decisionStates(published.layers, marks.value),
+          items: revisionReviewItems(selected, marks.value),
+          decisions: revisionDecisionStates(selected, marks.value),
         }
       : undefined,
     comparison,

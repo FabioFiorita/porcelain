@@ -3,11 +3,14 @@ import { useAtom } from '@effect/atom-react';
 import {
   reviewedCommandFailure,
   reviewedCommands,
+  reviewCommands,
 } from '@porcelain/client/reviews';
 import {
   reviewedControlLabel,
   unavailableReviewText,
   reviewErrorMessage,
+  type ReviewRevision,
+  type ReviewableItem,
 } from '@porcelain/client/reviews/rules';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
@@ -37,6 +40,71 @@ export function ReviewedAction({
   const pending = mark.waiting || unmark.waiting;
   const error = reviewedCommandFailure(mark, unmark);
   return (
+    <ReviewToggle
+      file={file}
+      pending={pending}
+      error={error}
+      onPress={() => {
+        if (!file.fingerprint) return;
+        if (file.reviewStatus === 'reviewed') remove(file.path);
+        else set({ path: file.path, fingerprint: file.fingerprint });
+      }}
+    />
+  );
+}
+
+export function RevisionReviewedAction({
+  workspace,
+  revision,
+  file,
+}: {
+  workspace: Workspace;
+  revision: ReviewRevision;
+  file: ReviewableItem;
+}) {
+  const commands = reviewCommands({
+    connection: workspace.connection,
+    reviewId: revision.reviewId,
+  });
+  const [mark, set] = useAtom(commands.mark);
+  const [unmark, remove] = useAtom(commands.unmark);
+  return (
+    <ReviewToggle
+      file={file}
+      pending={mark.waiting || unmark.waiting}
+      error={reviewedCommandFailure(mark, unmark)}
+      onPress={() => {
+        if (!file.fingerprint) return;
+        if (file.reviewStatus === 'reviewed')
+          remove({
+            kind: 'file',
+            path: file.path,
+            headBlobOid: file.fingerprint,
+          });
+        else
+          set({
+            kind: 'file',
+            revision: revision.revision,
+            path: file.path,
+            headBlobOid: file.fingerprint,
+          });
+      }}
+    />
+  );
+}
+
+function ReviewToggle({
+  file,
+  pending,
+  error,
+  onPress,
+}: {
+  file: Pick<ReviewFile, 'path' | 'fingerprint' | 'reviewStatus'>;
+  pending: boolean;
+  error: unknown;
+  onPress: () => void;
+}) {
+  return (
     <Box gap={2}>
       {file.fingerprint ? (
         <Button
@@ -49,8 +117,7 @@ export function ReviewedAction({
           pending={pending}
           onPress={() => {
             if (pending || !file.fingerprint) return;
-            if (file.reviewStatus === 'reviewed') remove(file.path);
-            else set({ path: file.path, fingerprint: file.fingerprint });
+            onPress();
           }}
         />
       ) : (

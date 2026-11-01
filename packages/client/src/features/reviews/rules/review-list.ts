@@ -6,7 +6,7 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
-type ReviewListGroup = 'Needs you' | 'Waiting on agent' | 'Ready to merge';
+type ReviewListGroup = 'Needs you' | 'Waiting on agent' | 'Decisions reviewed';
 type ReviewListBadge = {
   label: string;
   variant: 'default' | 'secondary' | 'outline' | 'destructive';
@@ -49,9 +49,9 @@ export function reviewListStatus({
   const group: ReviewListGroup =
     notice || replied
       ? 'Needs you'
-      : revision?.verdict.recommendation === 'merge' && complete
-        ? 'Ready to merge'
-        : status === 'reviewed' || complete
+      : complete
+        ? 'Decisions reviewed'
+        : status === 'reviewed'
           ? 'Waiting on agent'
           : 'Needs you';
   const badges: ReviewListBadge[] = [];

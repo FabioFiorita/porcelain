@@ -1,111 +1,107 @@
-import { Effect, type Exit } from 'effect';
-import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
+import {
+  setReviewMarkRequestSchema,
+  removeReviewMarkRequestSchema,
+} from '@porcelain/contracts/reviews';
+import { Effect, Schema, type Exit } from 'effect';
+import { AtomRegistry, AsyncResult } from 'effect/reactivity';
 import { expect, it } from 'vitest';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import type { Transport } from '../../../shared/api/transport.ts';
-import { readLayerMarks } from '../queries/publication.ts';
-import { readReviewedFiles } from '../queries/reviewed.ts';
-import { WORKTREE_RANGE, type ReviewableItem } from '../rules/reviewed.ts';
+import {
+  clientFixtures,
+  readClientAtom,
+} from '../../../../spec/kit/client-fixture.ts';
+import { readReviewMarks } from '../queries/project-reviews.ts';
+import { type ReviewableItem } from '../rules/reviewed.ts';
 import { completeDecision, decisionCompletionBinding } from './decisions.ts';
 
 const create = clientFixtures();
-const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
+const reviewId = '22222222-2222-4222-8222-222222222222';
 const fingerprint = 'b'.repeat(64);
+const blobOid = 'c'.repeat(40);
 const decision = {
   layerId: '11111111-1111-4111-8111-111111111111',
   fingerprint,
   reviewed: false,
 };
-const files = [
-  { path: 'shared.ts', fingerprint, reviewStatus: 'unreviewed' as const },
-  { path: 'owner.ts', fingerprint, reviewStatus: 'stale' as const },
-];
+const files = ['shared.ts', 'owner.ts'].map((path) => ({
+  path,
+  fingerprint: blobOid,
+  reviewStatus: 'unreviewed' as const,
+}));
 const reviewedAt = '2026-10-15T12:00:00.000Z';
-function read<A, E>(
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
-) {
-  return Effect.runPromise(
-    AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
-  );
-}
+const fileWrites = files.map((file) => ({
+  kind: 'file',
+  revision: 2,
+  path: file.path,
+  headBlobOid: blobOid,
+}));
+const markedFiles = files.map((file) => ({
+  path: file.path,
+  fingerprint: blobOid,
+  reviewedAt,
+  stale: false,
+}));
 
 function fixture(
   mode: 'success' | 'partial' | 'files-fail' | 'decision-fail' = 'success',
 ) {
-  const writes: string[] = [];
-  const bodies: unknown[] = [];
-  let fileMarks: Array<{
+  const writes: unknown[] = [];
+  const fileMarks: Array<{
     path: string;
     fingerprint: string;
     reviewedAt: string;
+    stale: boolean;
   }> = [];
   let layerMarks: Array<{
     layerId: string;
     fingerprint: string;
     reviewedAt: string;
-    stale: boolean;
   }> = [];
-  const transport: Transport = async (path, init) => {
-    const layers = path.includes('reviewed-layers');
-    if (init?.method === 'PUT' || init?.method === 'DELETE') {
-      writes.push(`${init.method} ${path}`);
-      bodies.push(init.body ? await new Response(init.body).json() : null);
+  const subject = create(async (path, init) => {
+    if (init?.method === 'PUT' || init?.method === 'POST') {
+      expect(path).toBe(
+        `/api/reviews/${reviewId}/marks${init.method === 'POST' ? '/removal' : ''}`,
+      );
+      const payload = Schema.decodeUnknownSync(
+        init.method === 'POST'
+          ? removeReviewMarkRequestSchema
+          : setReviewMarkRequestSchema,
+      )(await new Response(init.body).json());
+      writes.push(payload);
       if (
-        (layers && mode === 'decision-fail') ||
-        (!layers && mode === 'files-fail')
+        (payload.kind === 'decision' && mode === 'decision-fail') ||
+        (payload.kind === 'file' &&
+          (mode === 'files-fail' ||
+            (mode === 'partial' && payload.path === 'owner.ts')))
       )
-        return Promise.resolve(
-          Response.json(
-            {
-              statusCode: 409,
-              error: 'Conflict',
-              message: 'Changed before write',
-            },
-            { status: 409 },
-          ),
+        return Response.json(
+          {
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'Changed before write',
+          },
+          { status: 409 },
         );
-      if (layers) {
+      if (payload.kind === 'file')
+        fileMarks.push({
+          path: payload.path,
+          fingerprint: payload.headBlobOid,
+          reviewedAt,
+          stale: false,
+        });
+      else
         layerMarks =
-          init.method === 'DELETE'
+          init.method === 'POST'
             ? []
-            : [
-                {
-                  layerId: decision.layerId,
-                  fingerprint,
-                  reviewedAt,
-                  stale: false,
-                },
-              ];
-      } else {
-        fileMarks = (mode === 'partial' ? files.slice(0, 1) : files).map(
-          ({ path, fingerprint }) => ({ path, fingerprint, reviewedAt }),
-        );
-        return Promise.resolve(
-          Response.json({
-            worktreeId: scope.worktreeId,
-            marks: fileMarks,
-            marked: fileMarks.map(({ path }) => path),
-            conflicts:
-              mode === 'partial' ? [{ path: 'owner.ts', reason: 'stale' }] : [],
-          }),
-        );
-      }
+            : [{ layerId: decision.layerId, fingerprint, reviewedAt }];
+      return Response.json({ updated: true });
     }
-    return Promise.resolve(
-      Response.json({
-        worktreeId: scope.worktreeId,
-        marks: layers ? layerMarks : fileMarks,
-      }),
-    );
-  };
-  const subject = create(transport);
-  const input = { connection: subject.connection, scope };
+    expect(path).toBe(`/api/reviews/${reviewId}/marks`);
+    return Response.json({ files: fileMarks, decisions: layerMarks });
+  });
+  const input = { connection: subject.connection, reviewId };
   const command = completeDecision(input);
-  const marks = readReviewedFiles({ ...input, range: WORKTREE_RANGE });
-  const layers = readLayerMarks(input);
+  const marks = readReviewMarks(input);
   subject.registry.mount(marks);
-  subject.registry.mount(layers);
   let pending: Promise<Exit.Exit<void, unknown>> | undefined;
   let continued = 0;
   const notices: string[] = [];
@@ -127,15 +123,13 @@ function fixture(
   );
   return {
     ...subject,
-    command,
-    marks,
-    layers,
     writes,
-    bodies,
+    marks,
     notices,
     binding,
     start: (entries: readonly ReviewableItem[] = files, marked = false) =>
       binding.complete({
+        revision: 2,
         files: entries,
         decision: { ...decision, reviewed: marked },
         onDone: () => {
@@ -144,60 +138,42 @@ function fixture(
       }),
     finish: async () => {
       await pending;
-      await Promise.resolve();
     },
     continued: () => continued,
+    readMarks: () => readClientAtom(subject.registry, marks),
   };
 }
 
-it('confirms file marks before the separate decision mark and only then continues', async () => {
+it('writes every published blob before its decision and only then continues', async () => {
   const subject = fixture();
   subject.start();
   await subject.finish();
   expect(subject.writes).toEqual([
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-layers`,
-  ]);
-  expect(subject.bodies).toEqual([
-    {
-      files: [
-        { path: 'shared.ts', fingerprint },
-        { path: 'owner.ts', fingerprint },
-      ],
-    },
-    { layerId: decision.layerId, fingerprint, reviewed: true },
+    ...fileWrites,
+    { kind: 'decision', revision: 2, layerId: decision.layerId, fingerprint },
   ]);
   expect(subject.continued()).toBe(1);
   expect(subject.notices).toEqual([]);
-  expect(await read(subject.registry, subject.marks)).toEqual({
-    worktreeId: scope.worktreeId,
-    marks: [
-      { path: 'shared.ts', fingerprint, reviewedAt },
-      { path: 'owner.ts', fingerprint, reviewedAt },
-    ],
-  });
-  expect(await read(subject.registry, subject.layers)).toEqual({
-    worktreeId: scope.worktreeId,
-    marks: [
-      { layerId: decision.layerId, fingerprint, reviewedAt, stale: false },
-    ],
+  expect(await subject.readMarks()).toEqual({
+    files: markedFiles,
+    decisions: [{ layerId: decision.layerId, fingerprint, reviewedAt }],
   });
 });
 
-it('retains successful files after a partial refusal without recording the decision or continuing', async () => {
+it('retains successful published file marks after a refusal without recording a decision or continuing', async () => {
   const subject = fixture('partial');
   subject.start();
   await subject.finish();
-  expect(subject.writes).toEqual([
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
-  ]);
+  expect(subject.writes).toEqual(fileWrites);
   expect(subject.continued()).toBe(0);
   expect(subject.notices).toEqual([
-    'Some files changed before they were marked: Marked 1 file. 1 failed.',
+    'Could not mark the files reviewed: This review surface could not be loaded. Try again.',
   ]);
-  expect(await read(subject.registry, subject.marks)).toEqual({
-    worktreeId: scope.worktreeId,
-    marks: [{ path: 'shared.ts', fingerprint, reviewedAt }],
+  expect(await subject.readMarks()).toEqual({
+    files: [
+      { path: 'shared.ts', fingerprint: blobOid, reviewedAt, stale: false },
+    ],
+    decisions: [],
   });
 });
 
@@ -213,41 +189,39 @@ it.each(['files-fail', 'decision-fail'] as const)(
         ? 'Could not mark the files reviewed: This review surface could not be loaded. Try again.'
         : 'Could not update the decision: This review surface could not be loaded. Try again.',
     ]);
-    expect(subject.writes).toHaveLength(mode === 'files-fail' ? 1 : 2);
+    expect(subject.writes).toHaveLength(mode === 'files-fail' ? 1 : 3);
   },
 );
 
-it('records a decision with no owned files, including a stop whose shared file belongs elsewhere', async () => {
+it('records a fileless decision without inventing current-worktree files', async () => {
   const subject = fixture();
   subject.start([]);
   await subject.finish();
   expect(subject.writes).toEqual([
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-layers`,
+    { kind: 'decision', revision: 2, layerId: decision.layerId, fingerprint },
   ]);
   expect(subject.continued()).toBe(1);
 });
 
-it('fills missing file marks without rewriting an existing decision mark', async () => {
+it('fills missing file marks without rewriting an existing decision', async () => {
   const subject = fixture();
   subject.start(files, true);
   await subject.finish();
-  expect(subject.writes).toEqual([
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
-  ]);
+  expect(subject.writes).toEqual(fileWrites);
   expect(subject.continued()).toBe(1);
 });
 
-it('reopens only the decision, leaving individually reviewed files alone', async () => {
+it('reopens only the decision, retaining its independently reviewed files', async () => {
   const subject = fixture();
   subject.binding.reopen(decision);
   await subject.finish();
   expect(subject.writes).toEqual([
-    `DELETE /api/worktrees/${scope.worktreeId}/reviewed-layers?layerId=${decision.layerId}`,
+    { kind: 'decision', layerId: decision.layerId, fingerprint },
   ]);
   expect(subject.continued()).toBe(0);
 });
 
-it('refuses unavailable file fingerprints without recording the decision or continuing', async () => {
+it('refuses unavailable blobs without recording a decision or continuing', async () => {
   const subject = fixture();
   subject.start([
     {
@@ -264,10 +238,10 @@ it('refuses unavailable file fingerprints without recording the decision or cont
   ]);
 });
 
-it('retains readable marks and names only the unavailable file on repeated completion attempts', async () => {
+it('keeps readable marks without advancing while another published blob is unavailable', async () => {
   const subject = fixture();
   const unavailable = {
-    path: 'scripts/large-sample.txt',
+    path: 'large.txt',
     fingerprint: undefined,
     reviewStatus: 'unreviewed' as const,
   };
@@ -278,16 +252,14 @@ it('retains readable marks and names only the unavailable file on repeated compl
     unavailable,
   ]);
   await subject.finish();
-  expect(subject.writes).toEqual([
-    `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
-  ]);
+  expect(subject.writes).toEqual(fileWrites);
   expect(subject.continued()).toBe(0);
-  expect((await read(subject.registry, subject.marks)).marks).toEqual(
-    files.map(({ path, fingerprint }) => ({ path, fingerprint, reviewedAt })),
-  );
-  expect((await read(subject.registry, subject.layers)).marks).toEqual([]);
+  expect(await subject.readMarks()).toEqual({
+    files: markedFiles,
+    decisions: [],
+  });
   expect(subject.notices).toEqual([
-    'Some files cannot be marked reviewed: Marked 2 files. Skipped 1. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
-    'Some files cannot be marked reviewed: No files marked. Skipped 1. 2 already reviewed. scripts/large-sample.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+    'Some files cannot be marked reviewed: Marked 2 files. Skipped 1. large.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
+    'Some files cannot be marked reviewed: No files marked. Skipped 1. 2 already reviewed. large.txt cannot be marked reviewed because its fingerprint is unavailable (too large or unreadable). This stop stays open until every file can be marked reviewed.',
   ]);
 });

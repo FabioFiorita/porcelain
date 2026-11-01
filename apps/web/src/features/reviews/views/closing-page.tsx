@@ -5,7 +5,6 @@ import {
   ChevronRightIcon,
   CircleIcon,
   ExternalLinkIcon,
-  LoaderCircleIcon,
   MessageSquareIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import {
   stopTitle,
   threadCounts,
   verdictSections,
+  proofStatus,
   type CommentThread,
   type DurableReviewRead,
   type ReviewChangeItem,
@@ -42,7 +42,6 @@ type CompletionStatus = Pick<
   ReturnType<typeof reviewListStatus>,
   'reviewed' | 'total'
 > & { group: ReturnType<typeof reviewListStatus>['group'] | 'Closed' };
-type CompletionGroup = CompletionStatus['group'];
 type LinkedPullRequest = { number: number; url: string; state: string };
 
 type CompletionProps = {
@@ -264,9 +263,7 @@ function CompletionCard({
 }: CompletionProps) {
   const [asking, setAsking] = useState(false);
   const [askButton, setAskButton] = useState<HTMLButtonElement | null>(null);
-  const { group } = status;
   const allDecisions = status.total > 0 && status.reviewed === status.total;
-  const merge = revision.verdict.recommendation === 'merge';
   const files = filesReviewed(
     stops.flatMap((stop) => stop.paths),
     items,
@@ -275,6 +272,7 @@ function CompletionCard({
   const specs = stops.find((stop) => stop.kind === 'specs');
   const openComments = threadCounts(threads).open;
   const notProven = verdictSections(revision).notProven.length;
+  const checks = proofStatus(revision.content.proof);
   return (
     <section
       aria-label="Review completion"
@@ -289,47 +287,40 @@ function CompletionCard({
           <CircleIcon className="size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-card-title font-semibold">
-            {allDecisions
-              ? 'Every decision is reviewed'
-              : `${status.reviewed} of ${counted(status.total, 'decision')} reviewed`}
-          </h3>
+          <h3 className="text-card-title font-semibold">Decisions reviewed</h3>
+          <p className="text-muted-foreground tabular-nums">
+            {status.reviewed} of {counted(status.total, 'decision')}
+          </p>
           <p className="text-muted-foreground tabular-nums">
             {files.reviewed} of {counted(files.total, 'file')} reviewed
           </p>
         </div>
       </header>
       <section
-        aria-label="Ready to merge needs"
+        aria-label="Agent recommendation"
         className="flex flex-col gap-1.25 border-t pt-3"
       >
-        <h4 className="mb-0.25 font-medium text-muted-foreground">
-          Ready to merge needs
+        <h4 className="font-medium text-muted-foreground">
+          Agent recommendation
         </h4>
-        <Need met={allDecisions}>Every decision reviewed</Need>
-        <Need met={merge}>
-          The agent recommends Merge
-          {!merge && (
-            <span className="text-muted-foreground">
-              {' '}
-              · r{revision.revision} says Hold
-            </span>
-          )}
-        </Need>
-        <p
-          role="status"
-          className={cn(
-            'mt-0.75 flex items-center gap-1.5',
-            group === 'Ready to merge'
-              ? 'font-medium text-brand'
-              : 'text-muted-foreground',
-          )}
-        >
-          {group === 'Waiting on agent' && (
-            <LoaderCircleIcon className="size-3 shrink-0" />
-          )}
-          {groupLabel(group)}
+        <p className="font-medium">
+          {revision.verdict.recommendation === 'merge' ? 'Merge' : 'Hold'} · r
+          {revision.revision}
         </p>
+      </section>
+      <section
+        aria-label="Published proof"
+        className="flex flex-col gap-0.5 border-t pt-3"
+      >
+        <h4 className="mb-1 font-medium text-muted-foreground">
+          Published proof
+        </h4>
+        <OpenRow label="Checks">
+          {checks.passing + checks.failing === 0
+            ? 'None published'
+            : `${checks.passing} passed · ${checks.failing} failed`}
+        </OpenRow>
+        <OpenRow label="Not proven">{notProven}</OpenRow>
       </section>
       <section
         aria-label="Still open"
@@ -345,7 +336,7 @@ function CompletionCard({
         <OpenRow label="Comments">
           {openComments === 0 ? 'None open' : `${openComments} open`}
         </OpenRow>
-        <OpenRow label="Not proven">{notProven}</OpenRow>
+        <OpenRow label="Files left">{files.total - files.reviewed}</OpenRow>
       </section>
       <div className="flex flex-col gap-1.5 border-t pt-3">
         <Button
@@ -401,33 +392,6 @@ function CompletionCard({
         )}
       </div>
     </section>
-  );
-}
-
-function groupLabel(group: CompletionGroup) {
-  if (group === 'Ready to merge') return 'Ready to merge';
-  if (group === 'Waiting on agent') return 'Waiting on the agent';
-  if (group === 'Closed') return 'Closed';
-  return 'Still needs you';
-}
-
-function Need({ met, children }: { met: boolean; children: ReactNode }) {
-  return (
-    <p className="flex items-start gap-1.75 text-ui leading-4.5">
-      {met ? (
-        <CheckIcon
-          aria-label="Met"
-          className="mt-0.5 size-3.5 shrink-0 text-add-fg"
-          strokeWidth={2.25}
-        />
-      ) : (
-        <CircleIcon
-          aria-label="Not met"
-          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-        />
-      )}
-      <span className="min-w-0">{children}</span>
-    </p>
   );
 }
 

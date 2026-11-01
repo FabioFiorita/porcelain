@@ -18,13 +18,13 @@ tests:
   - apps/web/spec/integration/reviews-sidebar-actions.test.tsx
   - apps/web/spec/e2e/reviews-comment-width.e2e.ts
 api:
+  - GET /api/reviews/:reviewId/marks
+  - PUT /api/reviews/:reviewId/marks
+  - POST /api/reviews/:reviewId/marks/removal
   - GET /api/worktrees/:worktreeId/reviewed
   - PUT /api/worktrees/:worktreeId/reviewed
   - DELETE /api/worktrees/:worktreeId/reviewed
   - PUT /api/worktrees/:worktreeId/reviewed-bulk
-  - GET /api/worktrees/:worktreeId/reviewed-layers
-  - PUT /api/worktrees/:worktreeId/reviewed-layers
-  - DELETE /api/worktrees/:worktreeId/reviewed-layers
   - GET /api/worktrees/:worktreeId/comments
   - PUT /api/worktrees/:worktreeId/comments/:threadId/resolution
   - POST /api/worktrees/:worktreeId/comments/:threadId/replies

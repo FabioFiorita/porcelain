@@ -107,7 +107,7 @@ test('a decision connected to a question pins it beside the decision, and its an
     ]);
 });
 
-test('the closing page keeps Ready to merge behind every decision and the agent recommending Merge, and marks the files it can from the dock', async ({
+test('the closing page separates reviewed decisions, agent recommendation, proof and remaining files, and marks files from the dock', async ({
   agent,
   render,
   server,
@@ -126,17 +126,31 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
   });
   await expect
     .element(completion.getByRole('heading', { level: 3 }))
-    .toHaveTextContent('2 of 9 decisions reviewed');
+    .toHaveTextContent('Decisions reviewed');
+  await expect
+    .element(completion.getByText('2 of 9 decisions', { exact: true }))
+    .toBeVisible();
   await expect
     .element(
       completion.getByRole('region', {
-        name: 'Ready to merge needs',
+        name: 'Agent recommendation',
         exact: true,
       }),
     )
-    .toHaveTextContent(
-      'Ready to merge needsEvery decision reviewedThe agent recommends Merge · r1 says HoldStill needs you',
-    );
+    .toHaveTextContent('Agent recommendationHold · r1');
+  await expect
+    .element(
+      completion.getByRole('region', { name: 'Published proof', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      completion.getByRole('region', { name: 'Still open', exact: true }),
+    )
+    .toMatchTextContent('Files left');
+  await expect
+    .element(completion.getByText('Ready to merge', { exact: true }))
+    .not.toBeInTheDocument();
   const dock = app.page.getByRole('navigation', {
     name: 'Walkthrough dock',
     exact: true,
@@ -176,6 +190,74 @@ test('the closing page keeps Ready to merge behind every decision and the agent 
         { path: 'docs/architecture.md' },
         { path: 'packages/workspace/src/legacy-write.ts' },
       ],
+    });
+});
+
+test('reviewed decisions and a Merge recommendation do not hide failed proof or remaining files', async ({
+  repo,
+  render,
+  server,
+}) => {
+  await repo.review('Keep the publication owner');
+  const fixture = await repo.review('Keep the publication owner');
+  const app = await render.route(
+    `/reviews/${fixture.reviewId}/2/decisions/${fixture.layerId}`,
+  );
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await review
+    .getByRole('button', { name: 'Mark decision reviewed', exact: true })
+    .click();
+  await expect
+    .element(
+      review.getByRole('button', { name: 'Decision reviewed', exact: true }),
+    )
+    .toHaveAttribute('aria-pressed', 'true');
+  await app.navigate(`/reviews/${fixture.reviewId}/2`);
+  await review
+    .getByRole('button', { name: 'Not explained', exact: true })
+    .click();
+  const completion = review.getByRole('region', {
+    name: 'Review completion',
+    exact: true,
+  });
+  await expect
+    .element(completion.getByRole('heading', { level: 3 }))
+    .toHaveTextContent('Decisions reviewed');
+  await expect
+    .element(completion.getByText('1 of 1 decision', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(completion.getByText('1 of 2 files reviewed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      completion.getByRole('region', {
+        name: 'Agent recommendation',
+        exact: true,
+      }),
+    )
+    .toHaveTextContent('Agent recommendationMerge · r2');
+  await expect
+    .element(
+      completion.getByRole('region', { name: 'Published proof', exact: true }),
+    )
+    .toMatchTextContent('1 passed · 1 failed');
+  await expect
+    .element(
+      completion.getByRole('region', { name: 'Still open', exact: true }),
+    )
+    .toMatchTextContent('Not explained1 file');
+  await expect
+    .element(completion.getByText('Ready to merge', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .poll(() => server.reviewMarks(fixture.reviewId))
+    .toMatchObject({
+      files: [{ path: 'review-page.ts' }],
+      decisions: [{ layerId: fixture.layerId }],
     });
 });
 

@@ -7,6 +7,7 @@ import {
   readReviewRevisionProof,
   readReviewComments,
   reviewCommands,
+  completeDecision,
 } from '@porcelain/client/reviews';
 import { text } from '@porcelain/server/kit/session';
 import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
@@ -20,7 +21,7 @@ import {
 } from '@porcelain/server/kit/requests';
 import { readPublishedReview } from '@porcelain/client/reviews';
 import { readCommentThreads } from '@porcelain/client/reviews';
-import { readReviewedFiles, readLayerMarks } from '@porcelain/client/reviews';
+import { readReviewedFiles } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
 import { readChangeDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
@@ -77,12 +78,16 @@ test('read an unpublished review, then its published layers and discussion', asy
   expect(
     await nativeRead(readReviewedFiles({ scope, connection: connected })),
   ).toMatchObject({ worktreeId: scope.worktreeId, marks: [] });
+  if (!review?.reviewId)
+    throw new Error('The published review has no durable identity');
   expect(
-    await nativeRead(readLayerMarks({ scope, connection: connected })),
-  ).toEqual({
-    worktreeId: scope.worktreeId,
-    marks: [],
-  });
+    await nativeRead(
+      readReviewMarks({
+        reviewId: review.reviewId,
+        connection: connected,
+      }),
+    ),
+  ).toEqual({ files: [], decisions: [] });
 });
 
 test('read changes and the exact Git patch, and refuse a stale diff snapshot', async ({
@@ -264,6 +269,7 @@ test('durable review clients read revisions, proof, code and comments and apply 
     read: readAtom,
     execute,
     registry,
+    scope,
   } = await connection(server, session);
   const input = { connection: connectionValue, reviewId };
   const latest = readReview(input);
@@ -331,19 +337,31 @@ test('durable review clients read revisions, proof, code and comments and apply 
   );
   if (headFile.kind !== 'text')
     throw new Error('Expected text at the review head');
-  await execute(commands.mark, {
-    kind: 'file',
-    revision: 2,
-    path: session.fixture.readme.path,
-    headBlobOid: headFile.blobOid,
-  });
   const layer = current.revision?.content.layers[0];
   if (layer === undefined) throw new Error('Expected the stored decision');
-  await execute(commands.mark, {
-    kind: 'decision',
+  await session.writeFile('unrelated.ts', 'export const unrelated = true;\n');
+  const live = await readAtom(
+    readChanges({ scope, connection: connectionValue }),
+  );
+  expect(live.changes.map((file) => file.path)).toContain('unrelated.ts');
+  expect(live.changes.map((file) => file.path)).not.toContain(
+    session.fixture.readme.path,
+  );
+  await execute(completeDecision(input), {
+    kind: 'complete',
     revision: 2,
-    layerId: layer.id,
-    fingerprint: layer.fingerprint,
+    files: [
+      {
+        path: session.fixture.readme.path,
+        fingerprint: headFile.blobOid,
+        reviewStatus: 'unreviewed',
+      },
+    ],
+    decision: {
+      layerId: layer.id,
+      fingerprint: layer.fingerprint,
+      reviewed: false,
+    },
   });
   const marks = readReviewMarks(input);
   registry.mount(marks);

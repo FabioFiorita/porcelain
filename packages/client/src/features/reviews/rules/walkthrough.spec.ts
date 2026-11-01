@@ -1,3 +1,4 @@
+import { revisionDecisionStates } from './revision.ts';
 import { describe, expect, it } from 'vitest';
 import type { ReviewLayer, ReviewResponse } from './review.ts';
 import {
@@ -7,7 +8,6 @@ import {
   decisionLinks,
   decisionQuestions,
   decisionRoute,
-  decisionStates,
   filesReviewed,
   neighbourStop,
   reviewStepLines,
@@ -260,16 +260,20 @@ describe('progress', () => {
       stale,
       reviewedAt: '2026-10-09T00:00:00Z',
     });
-    const states = decisionStates(
-      [
-        layer('invite', [step('a.ts')]),
-        { ...layer('revoke', [step('b.ts')]), codeMoved: true },
-        { ...layer('reconnect', [step('c.ts')]), codeMoved: true },
-        layer('export', [step('d.ts')]),
-      ],
+    const states = revisionDecisionStates(
       {
-        worktreeId: 'worktree',
-        marks: [
+        content: {
+          layers: [
+            layer('invite', [step('a.ts')]),
+            { ...layer('revoke', [step('b.ts')]), codeMoved: true },
+            { ...layer('reconnect', [step('c.ts')]), codeMoved: true },
+            layer('export', [step('d.ts')]),
+          ],
+        },
+      },
+      {
+        files: [],
+        decisions: [
           mark('invite', false),
           mark('revoke', true),
           mark('reconnect', false),
