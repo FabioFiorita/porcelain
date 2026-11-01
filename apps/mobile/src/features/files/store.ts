@@ -68,27 +68,3 @@ export function useFileNavigation(workspace: string) {
       })),
   };
 }
-
-export const fileReadingLine = Atom.family(
-  (_: { workspace: string; path: string }) => Atom.make(1).pipe(Atom.keepAlive),
-);
-
-export const fileReadingStart = Atom.family(
-  ({ workspace, path }: { workspace: string; path: string; source: string }) =>
-    Atom.make((get) => get.once(fileReadingLine({ workspace, path }))).pipe(
-      Atom.setIdleTTL(0),
-    ),
-);
-
-export function useFileReadingLine(
-  workspace: string,
-  path: string,
-  source: string,
-) {
-  const line = fileReadingLine({ workspace, path });
-  const setLine = useAtomSet(line);
-  return {
-    initialLine: useAtomValue(fileReadingStart({ workspace, path, source })),
-    onReadingLine: setLine,
-  };
-}

@@ -74,7 +74,7 @@ test.for([1440, 414])(
       await expect
         .element(
           panel.getByRole('button', {
-            name: 'Not reviewed retired.ts',
+            name: 'Deleted · Not reviewed retired.ts',
             exact: true,
           }),
         )

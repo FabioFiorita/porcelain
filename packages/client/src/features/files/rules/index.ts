@@ -21,9 +21,11 @@ export { quickOpenMatches, quickOpenPath } from './quick-open.ts';
 export { isImagePath } from './image-path.ts';
 export {
   branchChangeMarks,
+  branchChangeStatus,
   changeStatus,
   changeStatusMarks,
   worktreeChangeMarks,
+  type ChangeStatus,
   type FileChangeMarks,
 } from './change-marks.ts';
 

@@ -30,6 +30,12 @@ selectors:
   - 'Read more files'
   - 'Pull request'
   - 'Read pull request again'
+  - 'Uncommitted'
+  - 'Reading branches…'
+  - 'Refreshing branches…'
+  - 'Base branches could not be read.'
+  - 'No base branches available.'
+  - 'Read branches again'
   - 'Open pull request'
   - 'Unlink pull request'
 tests:
@@ -40,6 +46,8 @@ tests:
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
   - apps/mobile/src/features/reviews/rules/briefing.spec.ts
   - apps/mobile/src/features/reviews/rules/thread-folds.spec.ts
+  - apps/mobile/src/features/reviews/reading-place.spec.ts
+  - apps/mobile/src/shared/application/document-reading.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - GET /api/inventory
@@ -72,8 +80,10 @@ Review shows the selected worktree’s changes, reviewed status, published decis
 Preconditions: [surface baseline](README.md).
 
 1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; panel switches and Comments → Done retain central tabs/selection.
-2. Choose Branch and a base from Uncommitted. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes.
-3. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again in the phone toolbar/iPad navigator. Switch Files/back and cold-launch through Metro: selected workspace stays.
+2. Expect a visible, naturally sized Uncommitted button above the document. An ordinary tap opens the menu on Android and iOS; dismiss with Back/outside and reopen. Choose Branch, an explicit local/remote base, then Uncommitted: every choice closes the menu, the Branch trigger names its actual base, and the file set matches that comparison. Long base names/many choices and larger text must remain reachable without horizontal page overflow. Check iPad landscape first, then portrait. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode.
+3. A cold base read says Reading branches; an in-flight refresh says Refreshing branches while retaining available choices. Uncommitted and default Branch remain available. A successful empty list says No base branches available; a refused read says Base branches could not be read and offers Read branches again. For refusal proof, keep the workspace selected and refuse only GET /api/worktrees/:worktreeId/branch-bases in the disposable transport; record the injection used. Restore that read and select Read branches again: the choices recover. Moving .git tests workspace availability instead and does not prove this isolated retry. Do not interpret an error as an empty list.
+4. Scroll a many-file list, open a diff and return: same comparison and list offset. Switch Files/History and back, then another worktree and back. Added/untracked dots are green, modified amber, deleted red, renamed blue; accessible rows are named `Review <full path>, <change type>, <comparison note>, <review state>`. Reviewed names have strikethrough; unreviewed/changed-since-review names remain normal. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes. Closed/hidden navigators release their live reads; returning performs a fresh read without losing comparison/place.
+5. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again in the phone toolbar/iPad navigator. Switch Files/back and cold-launch through Metro: selected workspace stays.
 
 ### Overview and walkthrough
 

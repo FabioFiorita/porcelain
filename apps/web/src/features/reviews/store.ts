@@ -1,7 +1,9 @@
 import { useId } from 'react';
 import type { CodeViewHandle } from '@pierre/diffs/react';
 import type { CodeViewLineSelection } from '@pierre/diffs';
+import type { FileCommentAnchor } from '@porcelain/client/reviews/rules';
 import { atomRegistry } from '@/shared/store';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import { Option, Schema, SchemaGetter } from 'effect';
@@ -120,30 +122,43 @@ export function useWalkthroughPlace(worktreeId: string) {
 }
 
 type CodeScroll = Pick<CodeViewHandle<undefined, undefined>, 'scrollTo'>;
+export const branchFilesShown = Atom.family((_comparison: string) =>
+  Atom.make(DIFF_WINDOW_FILES).pipe(Atom.keepAlive),
+);
 const codeViewScroll = Atom.family((_owner: string) =>
   Atom.make<CodeScroll | null>(null),
 );
+type CodeSelection = {
+  lines: CodeViewLineSelection;
+  anchor: FileCommentAnchor | null;
+} | null;
 const codePlaces = Atom.family((_owner: string) =>
-  Atom.make<{ scrollTop: number; selection: CodeViewLineSelection | null }>({
+  Atom.make<{
+    scrollTop: number;
+    selection: CodeSelection;
+    focused: string | undefined;
+  }>({
     scrollTop: 0,
     selection: null,
+    focused: undefined,
   }).pipe(Atom.keepAlive),
 );
-export function useCodeViewScroll(owner?: string) {
+export function useCodeViewScroll(owner: string) {
   const atom = codeViewScroll(useId());
   useAtomMount(atom);
   const registry = useAtomValue(atomRegistry);
-  const place = owner === undefined ? undefined : codePlaces(owner);
+  const place = codePlaces(owner);
   return {
-    position: place === undefined ? undefined : registry.get(place).scrollTop,
-    selection: place === undefined ? null : registry.get(place).selection,
+    position: () => registry.get(place).scrollTop,
+    selection: () => registry.get(place).selection,
+    focused: () => registry.get(place).focused,
+    rememberFocus: (focused: string | undefined) =>
+      registry.set(place, { ...registry.get(place), focused }),
     rememberPosition: (scrollTop: number) => {
-      if (place !== undefined)
-        registry.set(place, { ...registry.get(place), scrollTop });
+      registry.set(place, { ...registry.get(place), scrollTop });
     },
-    rememberSelection: (selection: CodeViewLineSelection | null) => {
-      if (place !== undefined)
-        registry.set(place, { ...registry.get(place), selection });
+    rememberSelection: (selection: CodeSelection) => {
+      registry.set(place, { ...registry.get(place), selection });
     },
     scrollTo: (request: Parameters<CodeScroll['scrollTo']>[0]) =>
       registry.get(atom)?.scrollTo(request),

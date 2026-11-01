@@ -65,6 +65,7 @@ export function DiffContent({
       workspace={selection}
       leaveScope={leaveScope}
       path={path}
+      document={JSON.stringify(['commit-diff', oid, parent, path])}
       target={commitCommentTarget(path, oid, parent)}
       renderToolbar={(actions) => (
         <FileHeader

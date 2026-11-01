@@ -10,6 +10,8 @@ selectors:
   - 'reviewed'
 tests:
   - apps/web/spec/integration/reviews-all-changes.test.tsx
+  - apps/web/spec/integration/changes-many-diffs.test.tsx
+  - apps/web/spec/integration/changes-return.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/changes
   - GET /api/worktrees/:worktreeId/reviewed
@@ -52,7 +54,9 @@ It includes unexplained files, deleted files and specs. With a review published,
 
 Read independent server marks after each bulk action; Specs-document marking must exclude ordinary files.
 
-Automated coverage: `reviews-all-changes.test.tsx`.
+With more than 200 tracked changes, use the file rows above the diffs to open the first and last files. Each jump must reveal that file's actual changed lines, including files beyond the first request batch. A queued reading-position restore must preserve the latest navigation destination. Return through the Changes and file tabs and refresh unrelated content: the document keeps its reading place and focused file.
+
+Automated coverage: `reviews-all-changes.test.tsx`, `changes-many-diffs.test.tsx`, `changes-return.test.tsx`.
 
 ### Clean worktree
 

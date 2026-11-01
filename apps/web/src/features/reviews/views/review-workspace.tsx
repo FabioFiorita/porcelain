@@ -66,6 +66,7 @@ import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { HandoffDocument } from './branch-review-page';
 import { ChangeScopeSwitch } from './change-scope-switch';
+import { BranchBasePicker } from './branch-base-picker';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
 import { SideRail } from './side-rail';
@@ -221,6 +222,7 @@ function ReviewWorkspaceContent({
     scope: search.scope ?? 'uncommitted',
     onScope: (next) =>
       onSearch({ scope: next === 'branch' ? next : undefined }),
+    onBase: (next) => onSearch({ base: next }),
   };
   const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
   const sidebar = (layout: 'docked' | 'sheet') => (
@@ -393,7 +395,11 @@ type PaneContext = {
   scope: { projectId: string; worktreeId: string };
   context: ConnectionContext;
   base: string | undefined;
-  changes: { scope: ChangeScope; onScope: (scope: ChangeScope) => void };
+  changes: {
+    scope: ChangeScope;
+    onScope: (scope: ChangeScope) => void;
+    onBase: (base: string | undefined) => void;
+  };
   onOpen: OpenDocument;
   onBrowse: (
     surface: 'changes' | 'files' | 'history',
@@ -648,11 +654,39 @@ function PaneView({
                   onValueChange={changes.onScope}
                 />
               )}
+              {(activeDocument?.kind === 'branch' ||
+                (activeDocument?.kind === 'handoff' &&
+                  !review &&
+                  changes.scope === 'branch')) && (
+                <BranchBasePicker
+                  scope={scope}
+                  connection={context.connection}
+                  base={base}
+                  onBase={changes.onBase}
+                  compact
+                />
+              )}
             </div>
             {(!split || index === 1) && tabControls(index)}
           </>
         }
       />
+      {activeDocument?.kind === 'branch-file' && (
+        <div
+          role="group"
+          aria-label="Branch comparison"
+          className="flex items-center gap-2 border-b px-3.5 py-2 text-xs text-muted-foreground"
+        >
+          <span>Branch comparison</span>
+          <BranchBasePicker
+            scope={scope}
+            connection={context.connection}
+            base={base}
+            onBase={changes.onBase}
+            compact
+          />
+        </div>
+      )}
       {pane.tabs
         .filter(
           (key) =>

@@ -1,15 +1,15 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Branch"
-  - "Compare against "
-  - "the default branch"
-  - "Find a base branch"
-  - "Document controls"
-  - "Comment"
-  - "Comments"
-  - "Whole file"
+  - 'Review'
+  - 'Branch'
+  - 'Compare against '
+  - 'the default branch'
+  - 'Find a base branch'
+  - 'Document controls'
+  - 'Comment'
+  - 'Comments'
+  - 'Whole file'
 tests:
   - apps/web/spec/integration/changes-branch-comment-reveal.test.tsx
 api:
@@ -48,8 +48,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 2. Click button `Review`, then click tab `Changes`
    Expect: tabs "Uncommitted" and "Branch".
 3. Click tab `Branch`
-   Expect: text "1 commit on feature since main"; button "Compare against the default branch".
-4. Click button `Compare against the default branch`
+   Expect: text "1 commit on feature since main"; button "Compare against main".
+4. Click button `Compare against main`
    Expect: listbox "Suggestions" with option "checkpoint".
 5. Click option named `checkpoint`
    Expect: text "1 commit on feature since checkpoint"; the URL contains `base=refs%2Fheads%2Fcheckpoint`.

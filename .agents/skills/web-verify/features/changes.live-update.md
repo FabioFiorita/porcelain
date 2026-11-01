@@ -9,6 +9,7 @@ selectors:
 tests:
   - apps/web/spec/integration/changes-live-update.test.tsx
   - apps/web/spec/integration/files-disk-refresh.test.tsx
+  - apps/web/spec/integration/changes-return.test.tsx
 api:
   - GET /api/live
   - GET /api/worktrees/:worktreeId/changes
@@ -91,3 +92,13 @@ Automated coverage: `changes-live-update.test.tsx`, `files-disk-refresh.test.tsx
 
 - Wait for changed content/tree after each write. A changed README click opens its diff; context menu Open file opens text.
 - Match the exact Changes tab, distinct from Changes. Restore rewritten README; live-note.md is removed in the recipe.
+
+## Diff reading place
+
+Open a long tracked diff in Changes or as a single-file diff tab. Scroll to a known line and select a range. Switch to Changes/another document and return: the reading line, selection and comparison remain. This is a read; independent reviewed-files readback stays unchanged.
+
+While reading All changes, rewrite an already-changed unrelated file externally; keep the selected file current and its reading place when new patches arrive. While reading a single-file diff, an unrelated write need not request that diff again. Rewrite that file below the visible range to exercise a relevant refresh: remain on the same tab and line. Use the existing fetch gate to hold the real diff request, then release it; do not add a sleep or increase a deadline. Cold/recovery reads must still occur and inactive document reads must release their subscriptions.
+
+The viewport position, selection and focused file are stored by environment/worktree/document/comparison. The adapter restores the viewport through Pierre's supported content-coordinate scroll API, including its sticky-header metric when converting the offset. A restored file remains the target for Comment/Reviewed and next/previous shortcuts. A selection whose original content changed is cleared from the code and reports that the lines must be selected again; it cannot silently target a new fingerprint.
+
+Automated coverage: changes-return.test.tsx, files-return.test.tsx.

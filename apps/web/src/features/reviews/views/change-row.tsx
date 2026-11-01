@@ -1,5 +1,9 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
+import { MessageSquareIcon } from 'lucide-react';
+import {
+  changeStatusMarks,
+  type ChangeStatus,
+} from '@porcelain/client/files/rules';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTreeIcon } from '@/features/files/index';
@@ -20,6 +24,7 @@ export function ChangeRow({
   document,
   note,
   scopes,
+  changeStatus,
   reviewStatus,
   commentCount,
   active,
@@ -34,6 +39,7 @@ export function ChangeRow({
   document: DocumentRef;
   note: string | undefined;
   scopes: readonly string[];
+  changeStatus: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
   commentCount: number;
   active: boolean;
@@ -91,6 +97,7 @@ export function ChangeRow({
             type="button"
             aria-pressed={active}
             aria-label={label}
+            aria-description={changeDescription(changeStatus, reviewStatus)}
             title={
               note === null || note === undefined ? path : `${path}\n${note}`
             }
@@ -104,7 +111,10 @@ export function ChangeRow({
               onOpen(document, undefined, { toSide: event.altKey })
             }
           >
-            <ReviewStatusIcon status={reviewStatus} />
+            <ChangeStatusIcon
+              status={changeStatus}
+              reviewStatus={reviewStatus}
+            />
             <FileTreeIcon path={path} className="size-3.5 shrink-0" />
             <TruncatedText
               className={cn(
@@ -128,32 +138,47 @@ export function ChangeRow({
   );
 }
 
-export function ReviewStatusIcon({
+export function ChangeStatusIcon({
   status,
+  reviewStatus,
 }: {
-  status: ReviewStatus | undefined;
+  status: ChangeStatus | undefined;
+  reviewStatus: ReviewStatus | undefined;
 }) {
-  const normalized = status ?? 'unreviewed';
-  const label = reviewStatusLabel(status);
+  const normalized = reviewStatus ?? 'unreviewed';
+  const label = changeDescription(status, reviewStatus);
   return (
     <span
       role="img"
       aria-label={label}
       className="grid w-3.5 shrink-0 place-items-center"
       data-review-state={normalized}
+      data-change-status={status}
       title={label}
     >
-      <ReviewStatusMark status={normalized} />
+      <span
+        className={cn(
+          'size-1.5 rounded-full',
+          status === undefined && 'bg-muted-foreground/60',
+          (status === 'added' || status === 'untracked') && 'bg-graph-2',
+          status === 'modified' && 'bg-graph-4',
+          status === 'deleted' && 'bg-destructive',
+          status === 'renamed' && 'bg-graph-1',
+        )}
+      />
     </span>
   );
 }
 
-function ReviewStatusMark({ status }: { status: ReviewStatus }) {
-  if (status === 'reviewed')
-    return <CheckIcon className="size-3.5 text-graph-2" />;
-  if (status === 'stale')
-    return <RotateCcwIcon className="size-3 text-graph-4" />;
-  return <span className="size-1.5 rounded-full bg-muted-foreground/60" />;
+function changeDescription(
+  status: ChangeStatus | undefined,
+  reviewStatus: ReviewStatus | undefined,
+) {
+  const changeLabel =
+    status === undefined
+      ? 'Change type unavailable'
+      : changeStatusMarks[status].label;
+  return `${changeLabel} · ${reviewStatusLabel(reviewStatus)}`;
 }
 
 function reviewStatusLabel(status: ReviewStatus | undefined) {

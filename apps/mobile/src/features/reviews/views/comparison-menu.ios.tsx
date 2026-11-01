@@ -4,13 +4,14 @@ import type { ComparisonMenuProps } from './comparison-menu-props';
 
 export function ComparisonMenu({
   comparison,
+  label,
+  maximumWidth,
+  base: selectedBase,
   bases,
   onComparison,
 }: ComparisonMenuProps) {
   return (
-    <ContentMenu
-      label={comparison.kind === 'worktree' ? 'Uncommitted' : 'Branch'}
-    >
+    <ContentMenu label={label} maximumWidth={maximumWidth} size="sm">
       <Toggle
         label="Uncommitted"
         isOn={comparison.kind === 'worktree'}
@@ -31,7 +32,7 @@ export function ComparisonMenu({
             <Toggle
               key={base.ref}
               label={base.name}
-              isOn={comparison.base === base.ref}
+              isOn={selectedBase === base.ref}
               onIsOnChange={() =>
                 onComparison({ kind: 'branch', base: base.ref })
               }

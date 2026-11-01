@@ -47,12 +47,14 @@ type TextProps = Omit<NativeTextProps, 'style'> & {
   variant?: keyof typeof variants;
   tone?: keyof typeof tones;
   weight?: keyof typeof weights;
+  decoration?: 'line-through' | undefined;
 };
 
 export function Text({
   variant = 'body',
   tone = 'default',
   weight,
+  decoration,
   className,
   accessibilityRole,
   ...props
@@ -73,6 +75,7 @@ export function Text({
         variants[variant],
         tones[tone],
         weights[weight ?? defaultWeight],
+        decoration === 'line-through' ? 'line-through' : '',
         className,
       ]
         .filter(Boolean)

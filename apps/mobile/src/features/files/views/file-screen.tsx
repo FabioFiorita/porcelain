@@ -1,4 +1,4 @@
-import { useFileReadingLine } from '../store';
+import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
@@ -149,6 +149,7 @@ function FilePreview({
         workspace={selected}
         leaveScope={leaveScope}
         path={path}
+        document={JSON.stringify(['file', path])}
         target={savedFileCommentTarget(path, file.contentFingerprint)}
         renderToolbar={(actions) => (
           <FileHeader path={path} documentToolbar actions={actions} />
@@ -258,7 +259,11 @@ function FileCode({
   onSelect: ((range: ReviewRange) => void) | undefined;
   wrap: boolean;
 }) {
-  const reading = useFileReadingLine(workspace, path, text);
+  const reading = useDocumentReadingLine(
+    workspace,
+    JSON.stringify(['file', path]),
+    text,
+  );
   const language = sourceLanguage(path);
   return (
     <CodeView

@@ -2,11 +2,10 @@ import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { diffSelection } from '@porcelain/client/changes/rules';
 import { commitPaths } from '@porcelain/client/history/rules';
 import { Box } from '../../../components/ui/box';
-import { useState } from 'react';
 import { usePreferences } from '../../preferences';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { View } from 'react-native';
-import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import {
   readChangeDiffWindow,
@@ -17,6 +16,8 @@ import { selectionKey, type Change } from '@porcelain/client/changes/rules';
 import {
   type CommentAnchor,
   type CommentTarget,
+  commentIsStale,
+  matchesCommentTarget,
 } from '@porcelain/client/reviews/rules';
 import {
   DocumentComments,
@@ -29,7 +30,7 @@ import { Button } from '../../../components/ui/button';
 import { DiffView } from '../../../components/ui/diff-view';
 import { CodeView } from '../../../components/ui/code-view';
 import { FileHeader } from '../../../components/ui/file-header';
-import { ItemMenu } from '../../../components/ui/item-menu';
+import { ChangeComparisonMenu } from './change-comparison-menu';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
@@ -45,6 +46,9 @@ import { diffPresentation } from '../rules/diff-presentation';
 import { ReviewReadState } from './read-state';
 import { ReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
+import { useDocumentReadingLine } from '../../../shared/application/document-reading';
+import { documentTab } from '../../../shared/rules/workspace-documents';
+import { documentSelectionState, reviewFileScope } from '../store';
 
 export function ReviewFileScreen({
   workspaceKey,
@@ -88,21 +92,35 @@ export function ReviewFileScreen({
   );
 }
 
-export function ReviewFileContent({
-  workspace,
-  path,
-  comparison,
-  inlineComments = false,
-  leaveScope,
-}: {
+type ReviewFileContentProps = {
   workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
   inlineComments?: boolean | undefined;
   leaveScope?: string | undefined;
-}) {
+};
+
+export function ReviewFileContent(props: ReviewFileContentProps) {
+  const focused = useIsFocused();
+  return focused ? <FocusedReviewFileContent {...props} /> : null;
+}
+
+function FocusedReviewFileContent({
+  workspace,
+  path,
+  comparison,
+  inlineComments = false,
+  leaveScope,
+}: ReviewFileContentProps) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
-  const [comparisonScope, setComparisonScope] = useState<string>();
+  const [comparisonScope, setComparisonScope] = useAtom(
+    reviewFileScope(
+      JSON.stringify([
+        workspace.key,
+        documentTab({ kind: 'review-file', path, comparison }).key,
+      ]),
+    ),
+  );
   const target = documentReviewTarget(
     AsyncResult.isSuccess(result) ? result.value : undefined,
     path,
@@ -130,6 +148,7 @@ export function ReviewFileContent({
     <DocumentComments
       workspace={workspace}
       path={path}
+      document={documentTab({ kind: 'review-file', path, comparison }).key}
       target={target}
       leaveScope={leaveScope}
     >
@@ -189,11 +208,6 @@ function ReviewedFile({
       />
       {snapshot.kind === 'worktree' ? (
         <WorktreeFile
-          key={
-            inlineComments
-              ? 'document'
-              : `${file.fingerprint}:${snapshot.answer.statusToken}`
-          }
           workspace={workspace}
           snapshot={snapshot}
           file={file}
@@ -205,11 +219,6 @@ function ReviewedFile({
         />
       ) : (
         <BranchFile
-          key={
-            inlineComments
-              ? 'document'
-              : `${file.fingerprint}:${snapshot.answer.head.oid}:${snapshot.answer.mergeBaseOid}`
-          }
           workspace={workspace}
           snapshot={snapshot}
           file={file}
@@ -243,24 +252,16 @@ function WorktreeFile(
   const changes =
     props.snapshot.answer.changes.find((file) => file.path === props.file.path)
       ?.comparisons ?? [];
-  const [index, setIndex] = useState(0);
-  const change = props.inlineComments
-    ? (changes.find((entry) => entry.scope === props.comparisonScope) ??
-      changes[0])
-    : (changes[index] ?? changes[0]);
+  const change =
+    changes.find((entry) => entry.scope === props.comparisonScope) ??
+    changes[0];
   return (
     <View className="flex-1">
       {changes.length > 1 ? (
-        <ItemMenu
-          title={`Comparison: ${change?.scope}`}
-          actions={changes.map((entry, at) => ({
-            id: String(at),
-            label: entry.scope,
-            onPress: () =>
-              props.inlineComments
-                ? props.onComparisonScopeChange?.(entry.scope)
-                : setIndex(at),
-          }))}
+        <ChangeComparisonMenu
+          current={change?.scope}
+          scopes={changes.map((entry) => entry.scope)}
+          onScope={(scope) => props.onComparisonScopeChange?.(scope)}
         />
       ) : null}
       {change ? (
@@ -327,6 +328,7 @@ function WorktreeDiff({
   return content ? (
     <DiffContentView
       content={content}
+      path={file.path}
       workspace={workspace}
       comparison={comparison}
       inlineComments={inlineComments}
@@ -398,6 +400,7 @@ function BranchDiff({
   return content ? (
     <DiffContentView
       content={content}
+      path={file.path}
       workspace={workspace}
       comparison={comparison}
       inlineComments={inlineComments}
@@ -443,7 +446,7 @@ function UntrackedFile({
     );
   return (
     <SelectableContent
-      key={inlineComments ? 'document' : result.value.contentFingerprint}
+      path={file.path}
       workspace={workspace}
       comparison={comparison}
       inlineComments={inlineComments}
@@ -459,6 +462,7 @@ function DiffContentView({
   ...props
 }: {
   content: DiffContent;
+  path: string;
   workspace: Workspace;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
@@ -502,8 +506,10 @@ function SelectableContent({
   lines,
   inlineComments,
   codeSelection,
+  path,
 }: {
   workspace: Workspace;
+  path: string;
   comparison: ReviewComparison;
   target?: CommentTarget | undefined;
   source?: string;
@@ -512,17 +518,40 @@ function SelectableContent({
   codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const { preferences } = usePreferences();
-  const [selection, setSelection] = useState<ReviewRange>();
-  const anchor = documentCommentAnchor(target, selection);
+  const document = documentTab({ kind: 'review-file', path, comparison }).key;
+  const reading = useDocumentReadingLine(
+    workspace.key,
+    JSON.stringify([document, target?.comparison]),
+    target?.contentFingerprint ?? source ?? '',
+  );
+  const [selected, setSelected] = useAtom(
+    documentSelectionState({
+      environmentId: workspace.connection.environmentId,
+      ...workspace.scope,
+      document,
+      comparison: target?.comparison,
+    }),
+  );
+  const selection = selected?.range;
+  const select = target
+    ? (range: ReviewRange) => setSelected({ range, target })
+    : undefined;
+  const anchor = documentCommentAnchor(selected?.target ?? target, selection);
+  const stale =
+    anchor &&
+    target &&
+    (commentIsStale(anchor, target) || !matchesCommentTarget(anchor, target));
   if (inlineComments)
     return lines ? (
       <DiffView
+        {...reading}
         lines={lines}
         wrap={preferences.lineOverflow === 'wrap'}
         {...codeSelection}
       />
     ) : (
       <CodeView
+        {...reading}
         source={source ?? ''}
         wrap={preferences.lineOverflow === 'wrap'}
         {...codeSelection}
@@ -541,23 +570,33 @@ function SelectableContent({
           <Button
             label="Clear selection"
             variant="ghost"
-            onPress={() => setSelection(undefined)}
+            onPress={() => setSelected(undefined)}
           />
         ) : null}
       </Box>
+      {stale ? (
+        <Box paddingX={4} paddingY={2}>
+          <Text variant="caption" tone="muted">
+            Code changed since selection. Clear it and select the current saved
+            code to update the target.
+          </Text>
+        </Box>
+      ) : null}
       {lines ? (
         <DiffView
+          {...reading}
           lines={lines}
           wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
-          onSelect={target ? setSelection : undefined}
+          onSelect={select}
         />
       ) : (
         <CodeView
+          {...reading}
           source={source ?? ''}
           wrap={preferences.lineOverflow === 'wrap'}
           selection={selection}
-          onSelect={target ? setSelection : undefined}
+          onSelect={select}
         />
       )}
     </View>

@@ -1,13 +1,13 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Branch"
-  - "All branch changes"
-  - "Read "
-  - " more of "
-  - "Reading…"
-  - "Some patches could not be read."
+  - 'Review'
+  - 'Branch'
+  - 'All branch changes'
+  - 'Read '
+  - ' more of '
+  - 'Reading…'
+  - 'Some patches could not be read.'
 tests:
   - apps/web/spec/integration/changes-branch-read-more.test.tsx
 api:
@@ -54,6 +54,8 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 ### Observable proof
 
 Record request bodies: first diff window has 25 files, next only two, both 200. Existing README diff stays visible during the held read.
+
+After reading the last window, select a late file, switch to another document and return. The expanded window, reading place and focused file survive; Comment/Reviewed and next/previous shortcuts still address that file. Commit one more file while reading. Hold the new range's diff read before release: unchanged fingerprints keep their already-read patches visible, and completion preserves the window and viewport. Scroll onward to the newly added last diff. A different comparison/base has its own window. Retained patches keep no subscriptions and never stand in for a different fingerprint.
 
 Automated coverage: `changes-branch-read-more.test.tsx`.
 

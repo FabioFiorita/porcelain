@@ -17,7 +17,9 @@ import {
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { ReviewStatusIcon } from './change-row';
+import { ChangeStatusIcon } from './change-row';
+import { branchChangeStatus } from '@porcelain/client/files/rules';
+import { cn } from '@/shared/lib/utils';
 import {
   ChangeComment,
   CommentsView,
@@ -62,6 +64,9 @@ export function RevisionPanel({
   const [expanded, setExpanded] = useState(false);
   const [composing, setComposing] = useState(false);
   const items = revisionReviewItems(revision, marks);
+  const changeStatuses = new Map(
+    revision.files.map((file) => [file.path, branchChangeStatus(file)]),
+  );
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PullRequestBlock
@@ -124,13 +129,20 @@ export function RevisionPanel({
                   active={file === item.path}
                   onOpen={() => onChange(item.path)}
                 >
-                  <ReviewStatusIcon status={item.reviewStatus} />
+                  <ChangeStatusIcon
+                    status={changeStatuses.get(item.path)}
+                    reviewStatus={item.reviewStatus}
+                  />
                   <FileTreeIcon
                     path={item.path}
                     className="size-3.5 shrink-0"
                   />
                   <TruncatedText
-                    className="min-w-0 flex-1 "
+                    className={cn(
+                      'min-w-0 flex-1',
+                      item.reviewStatus === 'reviewed' &&
+                        'line-through decoration-muted-foreground/40',
+                    )}
                     text={basename(item.path)}
                   />
                 </SidebarDocumentRow>

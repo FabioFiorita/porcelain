@@ -32,7 +32,9 @@ export function changeStatus(change: Change): ChangeStatus {
   return change.kind;
 }
 
-function branchChangeStatus(file: BranchFile): ChangeStatus {
+export function branchChangeStatus(
+  file: Pick<BranchFile, 'status'>,
+): ChangeStatus {
   return file.status === 'type-changed' ? 'modified' : file.status;
 }
 

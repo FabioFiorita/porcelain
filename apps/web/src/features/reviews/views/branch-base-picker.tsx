@@ -18,7 +18,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { refLabel } from '@porcelain/client/history/rules';
-import { useBranchBases } from '@/features/changes/index';
+import { useBranchBases, useBranchChanges } from '@/features/changes/index';
+import { cn } from '@/shared/lib/utils';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -27,17 +28,22 @@ export function BranchBasePicker({
   connection,
   base,
   onBase,
+  compact = false,
 }: {
   scope: ReviewScope;
   connection: ConnectionContext['connection'];
   base: string | undefined;
   onBase: (base: string | undefined) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const bases = useBranchBases(scope, connection, open);
+  const comparison = useBranchChanges(scope, connection, base);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
+  const compared = Option.getOrUndefined(AsyncResult.value(comparison.result));
+  const currentBase = base ?? compared?.base?.ref;
   const label =
-    base === null || base === undefined ? 'the default branch' : refLabel(base);
+    currentBase === undefined ? 'the default branch' : refLabel(currentBase);
   const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
   const groups = [
@@ -62,16 +68,31 @@ export function BranchBasePicker({
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-between"
+            className={cn(
+              'justify-between',
+              compact ? 'max-w-24 @min-3xl/pane:max-w-40' : 'w-full',
+            )}
             aria-label={`Compare against ${label}`}
             title="Choose the branch this one is compared against"
           />
         }
       >
         <span className="flex min-w-0 items-center gap-1.5">
-          <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <GitBranchIcon
+            className={cn(
+              'size-3.5 shrink-0 text-muted-foreground',
+              compact && 'hidden @min-3xl/pane:block',
+            )}
+          />
           <TruncatedText text={`Against ${label}`}>
-            <span className="text-muted-foreground">Against </span>
+            <span
+              className={cn(
+                'text-muted-foreground',
+                compact && 'hidden @min-3xl/pane:inline',
+              )}
+            >
+              Against{' '}
+            </span>
             {label}
           </TruncatedText>
         </span>

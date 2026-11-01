@@ -5,6 +5,7 @@ import { BarAction } from '@/shared/workspace/bar-action';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { commitPaths, refLabel } from '@porcelain/client/history/rules';
 import { AsyncResult } from 'effect/reactivity';
+import { useAtom } from '@effect/atom-react';
 import { Option } from 'effect';
 import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { StateNotice } from '@/shared/views/state-notice';
+import { branchFilesShown } from '../store';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -164,12 +166,17 @@ function BranchDiffs({
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
-  const [window, setWindow] = useState({
-    of: branch.head.oid,
-    shown: DIFF_WINDOW_FILES,
-  });
-  const shown =
-    window.of === branch.head.oid ? window.shown : DIFF_WINDOW_FILES;
+  const comparisonKey = JSON.stringify([branch.base, branch.head.branch]);
+  const [shown, setShown] = useAtom(
+    branchFilesShown(
+      JSON.stringify([
+        connection.environmentId,
+        scope.projectId,
+        scope.worktreeId,
+        comparisonKey,
+      ]),
+    ),
+  );
   const reached = items.slice(0, shown);
   const diffs = useBranchDiffs(
     scope,
@@ -177,8 +184,31 @@ function BranchDiffs({
     branch.diffRange,
     reached.map(commitPaths),
   );
+  const patchVersion = JSON.stringify([
+    branch.diffRange,
+    reached.map((file) => file.fingerprint),
+  ]);
+  const [previous, setPrevious] = useState<{
+    version: string;
+    comparison: string;
+    patches: typeof diffs.patches;
+  }>({ version: '', comparison: comparisonKey, patches: new Map() });
+  if (!diffs.pending && !diffs.failed && previous.version !== patchVersion)
+    setPrevious({
+      version: patchVersion,
+      comparison: comparisonKey,
+      patches: new Map(
+        reached.flatMap((file) => {
+          const patch = diffs.patches.get(commitPaths(file).join('\0'));
+          return patch ? [[file.fingerprint, patch]] : [];
+        }),
+      ),
+    });
   const patchOf = (file: BranchFile) =>
-    diffs.patches.get(commitPaths(file).join('\0'));
+    diffs.patches.get(commitPaths(file).join('\0')) ??
+    (previous.comparison === comparisonKey
+      ? previous.patches.get(file.fingerprint)
+      : undefined);
   const control = (item: BranchChangeItem, compact: boolean) => (
     <ReviewedControl
       key={`review:${item.path}`}
@@ -284,12 +314,7 @@ function BranchDiffs({
       <ReadMoreFiles
         more={more}
         pending={diffs.pending}
-        onReadMore={() =>
-          setWindow({
-            of: branch.head.oid,
-            shown: shown + DIFF_WINDOW_FILES,
-          })
-        }
+        onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
       />
     </div>
   );

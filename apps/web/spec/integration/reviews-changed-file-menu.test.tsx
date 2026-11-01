@@ -17,12 +17,16 @@ test('right-clicking a changed file marks it reviewed, starts a comment on it an
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${readme.replace('.', '\\.')}( · .+)?$`),
   });
+  await expect
+    .element(row)
+    .toHaveAccessibleDescription('Modified · Not reviewed');
 
   await row.click({ button: 'right' });
   await workspace
     .getByRole('menuitem', { name: 'Mark as reviewed', exact: true })
     .click();
   await expect.poll(marked).toContain(readme);
+  await expect.element(row).toHaveAccessibleDescription('Modified · Reviewed');
   await row.click({ button: 'right' });
   await expect
     .element(

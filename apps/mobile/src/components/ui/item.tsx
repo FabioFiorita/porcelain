@@ -16,6 +16,7 @@ export type ItemProps = {
   title: string;
   description?: string;
   titleNumberOfLines?: number;
+  titleDecoration?: 'line-through' | undefined;
   descriptionNumberOfLines?: number;
   titleTrailing?: ReactNode;
   detail?: string;
@@ -36,6 +37,7 @@ export function Item({
   title,
   description,
   titleNumberOfLines,
+  titleDecoration,
   descriptionNumberOfLines,
   titleTrailing,
   detail,
@@ -73,6 +75,7 @@ export function Item({
               weight="medium"
               numberOfLines={titleNumberOfLines}
               className="w-0 min-w-0 flex-1"
+              decoration={titleDecoration}
             >
               {title}
             </Text>
@@ -90,7 +93,12 @@ export function Item({
             {titleTrailing}
           </View>
         ) : (
-          <Text variant="ui" weight="medium" numberOfLines={titleNumberOfLines}>
+          <Text
+            variant="ui"
+            weight="medium"
+            numberOfLines={titleNumberOfLines}
+            decoration={titleDecoration}
+          >
             {title}
           </Text>
         )}

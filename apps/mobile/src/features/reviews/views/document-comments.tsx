@@ -1,5 +1,6 @@
 import { Separator } from '../../../components/ui/separator';
 import { useState, type ReactNode } from 'react';
+import { useAtom } from '@effect/atom-react';
 import { View } from 'react-native';
 import {
   commentIsStale,
@@ -14,6 +15,7 @@ import { Text } from '../../../components/ui/text';
 import { documentCommentAnchor } from '../rules/document-comment';
 import { CommentThreads } from './review-comments-screen';
 import type { CommentWorkspace } from './comment-draft';
+import { documentSelectionState } from '../store';
 
 export type DocumentCodeSelection = {
   selection: ReviewRange | undefined;
@@ -23,6 +25,7 @@ export type DocumentCodeSelection = {
 export function DocumentComments({
   workspace,
   path,
+  document,
   target,
   renderToolbar,
   children,
@@ -31,16 +34,21 @@ export function DocumentComments({
 }: {
   workspace: CommentWorkspace;
   path: string;
+  document: string;
   target?: CommentTarget | undefined;
   selectable?: boolean;
   leaveScope?: string | undefined;
   renderToolbar?: ((actions: ReactNode) => ReactNode) | undefined;
   children: (props: DocumentCodeSelection) => ReactNode;
 }) {
-  const [selected, setSelected] = useState<{
-    range: ReviewRange;
-    target: CommentTarget;
-  }>();
+  const [selected, setSelected] = useAtom(
+    documentSelectionState({
+      environmentId: workspace.connection.environmentId,
+      ...workspace.scope,
+      document,
+      comparison: target?.comparison,
+    }),
+  );
   const [composing, setComposing] = useState<CommentAnchor>();
   const selection: ReviewRange | undefined =
     composing?.kind === 'codeRange'
@@ -50,7 +58,7 @@ export function DocumentComments({
           ...(composing.side ? { side: composing.side } : {}),
         }
       : selected?.range;
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(selected !== undefined);
   const anchor = documentCommentAnchor(selected?.target ?? target, selection);
   const actions = (
     <>
