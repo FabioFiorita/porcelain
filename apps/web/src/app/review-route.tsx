@@ -166,7 +166,7 @@ export function ReviewRoute({
                 params: { reviewId },
                 search: {
                   environment,
-                  entry: 'handoff',
+                  entry: undefined,
                   side,
                   decision: layerId,
                 },
@@ -177,7 +177,7 @@ export function ReviewRoute({
                 params: { reviewId, revision: String(number) },
                 search: {
                   environment,
-                  entry: 'handoff',
+                  entry: undefined,
                   side,
                   decision: undefined,
                 },
@@ -188,7 +188,7 @@ export function ReviewRoute({
                 params: { reviewId, revision: String(number), layerId },
                 search: {
                   environment,
-                  entry: 'handoff',
+                  entry: undefined,
                   side,
                   decision: undefined,
                 },
