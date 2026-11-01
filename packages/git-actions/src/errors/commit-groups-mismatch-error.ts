@@ -5,6 +5,6 @@ export class CommitGroupsMismatchError extends Schema.TaggedError<CommitGroupsMi
   {},
 ) {
   override get message() {
-    return 'The generated groups did not cover the selected files. Generate again or write the message manually.';
+    return 'The generated draft did not cover the selected files. Generate again or write the message manually.';
   }
 }

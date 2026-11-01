@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 import type { GitNotice } from '../rules/index.ts';
 import { runNetworkAction, type GitMenuControls } from './git-menu.ts';
 
-it('refuses Pull with the computer’s settings reason before reading Git or running anything', async () => {
+it('refuses Pull when the computer’s settings cannot be read before reading Git or running anything', async () => {
   const notices: GitNotice[] = [];
   const calls: string[] = [];
   const menu: GitMenuControls = {
@@ -20,7 +20,7 @@ it('refuses Pull with the computer’s settings reason before reading Git or run
     pull: {
       kind: 'blocked',
       reason:
-        'Choose Reviews & Git settings for this computer in Settings first.',
+        'Reviews & Git settings could not be read. The computer is offline.',
     },
     notify: (notice) => notices.push(notice),
     onProgress: () => calls.push('progress'),
@@ -47,7 +47,7 @@ it('refuses Pull with the computer’s settings reason before reading Git or run
     {
       title: 'Pull did not run',
       description:
-        'Choose Reviews & Git settings for this computer in Settings first.',
+        'Reviews & Git settings could not be read. The computer is offline.',
       type: 'error',
     },
   ]);

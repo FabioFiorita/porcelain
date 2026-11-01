@@ -7,13 +7,13 @@ import type { ActionInput } from '../rules/git-action.ts';
 import type { GitNotice } from '../rules/feedback.ts';
 import type { GitActionStatus } from '../rules/status.ts';
 import type { NetworkAction } from '../rules/network.ts';
+import { expectationFor, gitErrorMessage } from '../rules/feedback.ts';
 import {
-  expectationFor,
-  gitErrorMessage,
-  receiptFailed,
-  receiptWords,
-} from '../rules/feedback.ts';
-import { networkTitle, networkTarget, networkInput } from '../rules/network.ts';
+  networkTitle,
+  networkTarget,
+  networkInput,
+  networkNotice,
+} from '../rules/network.ts';
 import { restoreStash } from './restore-stash.ts';
 export type DiscardedItem = {
   oid: string;
@@ -88,18 +88,37 @@ export const runNetworkAction = Effect.fn('GitMenu.runNetwork')(
         ),
       () => Effect.sync(() => menu.onProgress(false)),
     );
-    notify({
-      title: receiptFailed(receipt) ? `${label} did not run` : label,
-      description: receiptWords(receipt),
-      type: receiptFailed(receipt) ? 'error' : 'success',
-    });
+    notify(networkNotice(next, receipt));
   },
   (effect, menu, _runner, next) =>
     effect.pipe(
       Effect.catch((error) =>
         Effect.sync(() =>
           menu.onResult({
-            title: `${networkTitle(next)} did not run`,
+            title: `${networkTitle(next)} outcome not confirmed`,
+            description: gitErrorMessage(error),
+            type: 'error',
+          }),
+        ),
+      ),
+    ),
+);
+
+export const recoverNetworkAction = Effect.fn('GitMenu.recoverNetwork')(
+  function* (
+    menu: GitMenuControls,
+    runner: Pick<ReturnType<typeof gitActionCommands>, 'recover'>,
+    action: NetworkAction,
+  ) {
+    const receipt = yield* runner.recover();
+    menu.onResult(networkNotice(action, receipt));
+  },
+  (effect, menu, _runner, action) =>
+    effect.pipe(
+      Effect.catch((error) =>
+        Effect.sync(() =>
+          menu.onResult({
+            title: `${networkTitle(action)} outcome not confirmed`,
             description: gitErrorMessage(error),
             type: 'error',
           }),

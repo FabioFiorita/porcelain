@@ -43,7 +43,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { useReviewGitSettings } from '@/features/preferences/index';
 import {
-  confirmedReviewGitSettings,
+  reviewGitPullStrategy,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
 import { useGitMenu } from '../commands/git-menu';
@@ -107,8 +107,8 @@ export function GitButton({
   );
   const refreshLook = useRefreshGitLook(scope, connection);
   const settings = useReviewGitSettings(connection);
-  const ready = confirmedReviewGitSettings(settings);
-  const pullBlock = reviewGitSettingsBlock(settings);
+  const pullStrategy = reviewGitPullStrategy(settings);
+  const pullBlock = pullStrategy ? undefined : reviewGitSettingsBlock(settings);
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
   const [result, setResult] = useState<GitNotice | null>(null);
@@ -119,8 +119,8 @@ export function GitButton({
   const menu = useGitMenu(scope, context, {
     details,
     enableDetails: () => setDetailsEnabled(true),
-    pull: ready
-      ? { kind: 'ready', strategy: ready.pullStrategy }
+    pull: pullStrategy
+      ? { kind: 'ready', strategy: pullStrategy }
       : {
           kind: 'blocked',
           reason:
@@ -155,7 +155,7 @@ export function GitButton({
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
   const primaryBlocked =
-    primary.kind === 'run' && primary.action === 'pull' && !ready;
+    primary.kind === 'run' && primary.action === 'pull' && !pullStrategy;
   const primaryTip =
     primaryBlocked && pullBlock ? pullBlock : primaryTooltip(primary, status);
   const count = suggestedCount(primary, status);
@@ -273,6 +273,18 @@ export function GitButton({
                       </li>
                     )}
                   </ol>
+                  {running && result?.description && (
+                    <GitActionError text={result.description} />
+                  )}
+                  {running && (
+                    <Button
+                      variant="outline"
+                      disabled={running.checking}
+                      onClick={menu.checkOutcome}
+                    >
+                      {running.checking ? 'Checking…' : 'Check outcome'}
+                    </Button>
+                  )}
                 </>
               )}
             </PopoverContent>
@@ -330,7 +342,7 @@ export function GitButton({
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
                     const blocker =
-                      candidate.id === 'pull' && !ready
+                      candidate.id === 'pull' && !pullStrategy
                         ? pullBlock
                         : gitActionBlocker(candidate.id, status);
                     const reason =

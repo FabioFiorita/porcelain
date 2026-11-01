@@ -29,7 +29,8 @@ Preconditions: [surface baseline](README.md).
 
 Preconditions: fresh README.md is modified/unstaged; no fixture commit is needed. This flow works at desktop or phone width.
 
-1. Open `/` → Git controls → Commit. Expect Commit changes, branch main, Single commit selected, Amend last and Use groups present (Use groups is disabled without a coding CLI), README.md (1 of 1), empty Message and disabled Commit selected files.
+1. Open `/` → Git controls → Commit. Expect Commit changes over the stock dimmed backdrop, branch main, Single commit selected, Amend last and Use groups present (Use groups is disabled without a coding CLI), README.md (1 of 1), empty Message and disabled Commit selected files. A closed mobile sidebar must not suppress this backdrop; Escape returns to the original workspace control.
+   Click Edit to choose files with the stock checkbox. Excluded files must remain uncommitted; the checkbox row and Space toggle the same selection.
 2. Fill Message with `Browser commit`: submit enables. Click Commit selected files and wait for succeeded. Independently read `git -C "$REPO" log -1 --format=%s` → Browser commit and `git -C "$REPO" status --porcelain` → empty.
 3. Escape closes the dialog; Changes no longer lists README. Repeat with another disk change through Git actions → /^Commit…/ and submit with ControlOrMeta+Enter in the form.
 4. Record action POST/202 and terminal receipt. After both entries, compare the final subject/clean tree independently.

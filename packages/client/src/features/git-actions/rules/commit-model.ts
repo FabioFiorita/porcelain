@@ -20,7 +20,7 @@ export function resolveCommitModel(
     explicit?.find((model) => model.id === preferred)?.id ??
     explicit?.find((model) => /^codex:(?:.*-)?luna(?:-|$)/.test(model.id))
       ?.id ??
-    explicit?.find((model) => model.id === 'claude:sonnet')?.id ??
-    explicit?.find((model) => model.id === 'claude:haiku')?.id
+    explicit?.find((model) => model.id === 'claude:haiku')?.id ??
+    explicit?.find((model) => model.id === 'claude:sonnet')?.id
   );
 }

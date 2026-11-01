@@ -1,4 +1,5 @@
 import { appearanceSchema } from '../rules/preferences.ts';
+import { defaultReviewGitSettings } from '../rules/review-git-settings.ts';
 import * as Option from 'effect/Option';
 import * as Schema from 'effect/Schema';
 import * as SchemaTransformation from 'effect/SchemaTransformation';
@@ -19,13 +20,6 @@ export type Preferences = typeof fields.Type;
 export type PreferenceChange = Partial<
   Omit<Preferences, 'reviewGitSettingsImportCandidate'>
 >;
-export const defaultReviewGitSettings: ReviewGitSettings = {
-  pullStrategy: 'merge',
-  collapseSpecs: false,
-  archiveDeleteWorktree: true,
-  archiveDeleteLocalBranch: true,
-  archiveDeleteRemoteBranch: true,
-};
 export const defaultPreferences: Preferences = {
   commitModel: '',
   appearance: 'system',

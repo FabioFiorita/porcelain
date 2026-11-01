@@ -47,7 +47,6 @@
   "packages/client/src/features/files/rules/image-path.ts#isImagePath",
   "packages/client/src/features/git-actions/rules/commit-form.ts#commitFormDefaults",
   "packages/client/src/features/git-actions/rules/commit-model.ts#groupedCommitModels",
-  "packages/client/src/features/git-actions/rules/commit-model.ts#resolveCommitModel",
   "packages/client/src/features/git-actions/rules/feedback.ts#changedSinceLooked",
   "packages/client/src/features/git-actions/rules/feedback.ts#expectationFor",
   "packages/client/src/features/git-actions/rules/feedback.ts#gitErrorMessage",

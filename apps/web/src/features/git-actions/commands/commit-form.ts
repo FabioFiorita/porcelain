@@ -140,7 +140,7 @@ function useCommitFormState(
   const currentMessage = commitAction === 'amend' ? amendMessage : message;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
-  const working = busy || generator.result.waiting;
+  const working = busy || generator.result.waiting || git.recovered.waiting;
 
   const activeDraft = groups ? drafted.groups : drafted.message;
   const staleDraft =

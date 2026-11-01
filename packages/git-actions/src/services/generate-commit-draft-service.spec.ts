@@ -5,7 +5,6 @@ import {
 import { Effect } from 'effect';
 import {
   CommitGenerationFailedError,
-  CommitGroupsMismatchError,
   CommitToolFailedError,
   CommitToolMissingError,
   UnsupportedCommitModelError,
@@ -65,7 +64,9 @@ describe('GenerateCommitDraftService', () => {
           groups: [{ message: 'Other', paths: ['GUIDE.md'] }],
         },
       }),
-    ).rejects.toThrow(CommitGroupsMismatchError);
+    ).rejects.toThrow(
+      'The generated draft did not cover the selected files. Generate again or write the message manually.',
+    );
   });
 
   it.each([

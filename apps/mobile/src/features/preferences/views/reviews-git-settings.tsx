@@ -24,7 +24,6 @@ import {
 import { useReviewGitSettingsCommands } from '../commands/review-git-settings';
 import { PreferencesPage } from './preferences-page';
 import { PreferenceChoice } from './preference-choice';
-import { CommitModelSetting } from './commit-model-setting';
 
 function ComputerReviewGitSettings({
   connection,
@@ -188,10 +187,6 @@ export function ReviewsGitSettings() {
               candidateReady={!disabled}
             />
           ) : null}
-          <Box gap={3}>
-            <Text variant="subheading">On this device</Text>
-            <CommitModelSetting />
-          </Box>
         </>
       )}
     </PreferencesPage>

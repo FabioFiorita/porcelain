@@ -3,6 +3,8 @@ import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import {
   confirmedReviewGitSettings,
+  defaultReviewGitSettings,
+  reviewGitPullStrategy,
   reviewGitSettingsBlock,
   reviewGitSettingsImportKept,
   reviewGitSettingsKeptMessage,
@@ -36,6 +38,21 @@ const missingRoute = new RequestError({
 });
 const unreadable =
   'Reviews & Git settings could not be read. The computer is offline.';
+
+it('allows first-use Pull with merge and honors a configured strategy only while readable', () => {
+  expect(defaultReviewGitSettings).toEqual({
+    pullStrategy: 'merge',
+    collapseSpecs: false,
+    archiveDeleteWorktree: true,
+    archiveDeleteLocalBranch: true,
+    archiveDeleteRemoteBranch: true,
+  });
+  expect({
+    firstUse: reviewGitPullStrategy({ kind: 'unconfigured' }),
+    configured: reviewGitPullStrategy({ ...configured, unreadable: undefined }),
+    offline: reviewGitPullStrategy({ ...configured, unreadable }),
+  }).toEqual({ firstUse: 'merge', configured: 'rebase', offline: undefined });
+});
 
 it.each([
   {

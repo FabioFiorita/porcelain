@@ -204,10 +204,12 @@ export const lookAgainCommitForm = Effect.fn('CommitForm.lookAgain')(
 
 export const recoverCommitForm = Effect.fn('CommitForm.recover')(
   function* (controls: CommitControls) {
-    const { setError, git, activeGroup, setDone, setActiveGroup } = controls;
+    const { setError, git, activeGroup, setDone, setActiveGroup, setOwnHead } =
+      controls;
     setError(null);
     const receipt = yield* git.recover();
     if (activeGroup && ['succeeded', 'no-change'].includes(receipt.state)) {
+      if (receipt.result?.headOid) setOwnHead(receipt.result.headOid);
       setDone((current) => new Set([...current, activeGroup]));
       setActiveGroup(null);
     }

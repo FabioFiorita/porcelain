@@ -29,7 +29,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
@@ -252,24 +251,23 @@ function ReviewWorkspaceContent({
       <Tooltip>
         <TooltipTrigger
           render={
-            <SheetTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  ref={(element) => mobileTrigger.attach(element)}
-                  className="xl:hidden"
-                  aria-label="Review"
-                  aria-keyshortcuts={SHORTCUTS.toggleSidebar}
-                  onClick={() => {
-                    browseTrigger.attach(null);
-                    layout.selectPane(pane);
-                  }}
-                />
-              }
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              ref={(element) => mobileTrigger.attach(element)}
+              className="xl:hidden"
+              aria-label="Review"
+              aria-haspopup="dialog"
+              aria-expanded={mobileOpen && !desktop}
+              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+              onClick={() => {
+                browseTrigger.attach(null);
+                layout.selectPane(pane);
+                setMobileOpen(true);
+              }}
             >
               <PanelRightIcon />
-            </SheetTrigger>
+            </Button>
           }
         />
         <TooltipContent role="tooltip" className="break-all">
@@ -280,13 +278,7 @@ function ReviewWorkspaceContent({
   );
 
   return (
-    <Sheet
-      open={mobileOpen && !desktop}
-      onOpenChange={setMobileOpen}
-      onOpenChangeComplete={(open) => {
-        if (!open) layout.focusDestination();
-      }}
-    >
+    <>
       <FilesQuickOpen
         bindPopup={layout.bindQuickOpen}
         openFiles={layout.recentFiles}
@@ -361,33 +353,41 @@ function ReviewWorkspaceContent({
           />
         )}
       </div>
-      <SheetContent
-        ref={(element) => {
-          mobileSheet.attach(element);
-          if (element === null) layout.focusDestination();
+      <Sheet
+        open={mobileOpen && !desktop}
+        onOpenChange={setMobileOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) layout.focusDestination();
         }}
-        finalFocus={() => {
-          if (layout.hasDestinationFocus()) return false;
-          const active = document.activeElement;
-          const stayed =
-            active === document.body || mobileSheet.element?.contains(active);
-          if (!stayed) return false;
-          return browseTrigger.element?.isConnected
-            ? browseTrigger.element
-            : mobileTrigger.element;
-        }}
-        className="w-[min(90vw,22rem)]!"
-        showCloseButton={false}
       >
-        <SheetHeader className="sr-only">
-          <SheetTitle>Worktree review</SheetTitle>
-          <SheetDescription>
-            Choose a review surface and open a document.
-          </SheetDescription>
-        </SheetHeader>
-        {!desktop && sidebar('sheet')}
-      </SheetContent>
-    </Sheet>
+        <SheetContent
+          ref={(element) => {
+            mobileSheet.attach(element);
+            if (element === null) layout.focusDestination();
+          }}
+          finalFocus={() => {
+            if (layout.hasDestinationFocus()) return false;
+            const active = document.activeElement;
+            const stayed =
+              active === document.body || mobileSheet.element?.contains(active);
+            if (!stayed) return false;
+            return browseTrigger.element?.isConnected
+              ? browseTrigger.element
+              : mobileTrigger.element;
+          }}
+          className="w-[min(90vw,22rem)]!"
+          showCloseButton={false}
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Worktree review</SheetTitle>
+            <SheetDescription>
+              Choose a review surface and open a document.
+            </SheetDescription>
+          </SheetHeader>
+          {!desktop && sidebar('sheet')}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 

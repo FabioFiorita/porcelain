@@ -2,12 +2,14 @@
 route: /
 selectors:
   - "Commit"
+  - "Pull"
   - "Apply stash"
   - "Git actions"
   - "Stash changes"
   - "Git controls"
 tests:
   - apps/web/spec/integration/git-actions-suggested-step.test.tsx
+  - packages/client/src/features/preferences/rules/review-git-settings.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/git/status
   - POST /api/worktrees/:worktreeId/git/actions
@@ -16,6 +18,8 @@ api:
 # git-actions.suggested-step
 
 The Git button (group "Git controls", left of Git actions) suggests the next step: Commit while anything changed, then Pull, then Push, and, once nothing is left to commit, pull or push, Apply stash for a waiting stash; following it brings the stashed changes back and keeps the stash.
+
+Pull works before the user visits Settings: an unconfigured computer uses merge, the existing default. A confirmed rebase preference is honored. Unreadable settings still show their read failure; no upstream, dirty worktree, detached HEAD and in-progress operations retain their Git-specific reasons.
 
 ## How to get to it (user POV)
 
@@ -48,6 +52,16 @@ Preconditions: [surface baseline](README.md).
 Read README ending A change to review. and retained `stash@{0}: On main: Porcelain review`; Apply keeps the stash.
 
 Automated coverage: `git-actions-suggested-step.test.tsx`.
+
+### First-use Pull
+
+On the disposable fixture only, commit its sample changes and clone it to a bare remote. Configure that absolute local remote as origin and its main branch as upstream. From an independent clone, commit and push a new file. Keep `GET /api/review-git-settings` at `{"kind":"unconfigured"}` throughout; do not initialize settings as setup.
+
+1. Git actions → Fetch. Expect success; independently confirm origin/main advanced while HEAD and worktree stayed unchanged.
+2. The primary button now reads Pull. Click it. Expect success without a Settings visit; independently compare HEAD with the bare remote ref and read the new file on disk.
+3. Confirm `GET /api/review-git-settings` still answers unconfigured. The strategy default did not enable archive/delete settings or persist a new preference.
+
+The shared strategy rule is covered by `packages/client/src/features/preferences/rules/review-git-settings.spec.ts`; the complete remote journey requires the independent live readbacks above.
 
 ## Gotchas
 

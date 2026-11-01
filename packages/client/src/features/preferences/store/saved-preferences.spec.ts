@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
+import { defaultReviewGitSettings } from '../rules/review-git-settings.ts';
 import { Effect, Option, Schema } from 'effect';
 import { KeyValueStore } from 'effect/persistence';
 import { COMMIT_MODEL_LENGTH } from '@porcelain/contracts/shared';
 import {
   defaultPreferences,
-  defaultReviewGitSettings,
   readPreferences,
   preferencesSchema,
 } from './saved-preferences.ts';
