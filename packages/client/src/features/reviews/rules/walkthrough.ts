@@ -1,4 +1,3 @@
-import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import type {
   DiagramBox,
   ReviewLayer,
@@ -7,7 +6,6 @@ import type {
   ReviewStep,
 } from './review.ts';
 import { counted } from './counted.ts';
-import { decisionMarked } from './review-list.ts';
 import { isSpecPath } from './spec-paths.ts';
 
 type Gap = ReviewResponse['notExplained'][number];
@@ -174,21 +172,6 @@ export function stopDone(
   if (stop.kind === 'decision')
     return decisions.get(stop.layer.id)?.reviewed === true;
   return filesReviewed(stop.paths, items).done;
-}
-
-export function decisionStates(
-  layers: readonly ReviewLayer[],
-  marks: ListReviewedLayersResponse | undefined,
-): Map<string, DecisionState> {
-  return new Map(
-    layers.map((layer) => [
-      layer.id,
-      {
-        stale: decisionCodeMoved(layer),
-        reviewed: decisionMarked(marks?.marks, layer),
-      },
-    ]),
-  );
 }
 
 export function decisionCodeMoved(

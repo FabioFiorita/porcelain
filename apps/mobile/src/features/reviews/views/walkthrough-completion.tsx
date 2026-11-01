@@ -16,13 +16,20 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects';
-import type { ReviewSnapshot } from '../rules/comparison';
 import type { useWalkthroughProgress } from '../queries/walkthrough';
-import { ReviewedAction } from './review-actions';
+import { RevisionReviewedAction } from './review-actions';
 import { ReviewReadState } from './read-state';
 import { reviewContinuation } from '../store';
 
 type Progress = ReturnType<typeof useWalkthroughProgress>;
+type StopCompletionProps = {
+  workspace: Workspace;
+  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
+  progress: Progress;
+  next: WalkthroughStop | undefined;
+  go: (key: WalkthroughKey) => void;
+  unavailable: boolean;
+};
 
 export function WalkthroughProgress({
   stops,
@@ -43,17 +50,8 @@ export function WalkthroughProgress({
           ? `${decisions.filter(progress.done).length} of ${decisions.length} decisions reviewed · ${files.reviewed} of ${files.total} files reviewed`
           : 'Review progress is unavailable.'}
       </Text>
-      {progress.files._tag !== 'Success' ? (
-        <ReviewReadState
-          result={progress.files}
-          refresh={progress.refreshFiles}
-        />
-      ) : null}
-      {progress.decisions._tag !== 'Success' ? (
-        <ReviewReadState
-          result={progress.decisions}
-          refresh={progress.refreshDecisions}
-        />
+      {progress.marks._tag !== 'Success' ? (
+        <ReviewReadState result={progress.marks} refresh={progress.refresh} />
       ) : null}
     </Box>
   );
@@ -66,21 +64,14 @@ export function useStopCompletion({
   next,
   go,
   unavailable,
-}: {
-  workspace: Workspace;
-  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
-  progress: Progress;
-  next: WalkthroughStop | undefined;
-  go: (key: WalkthroughKey) => void;
-  unavailable: boolean;
-}) {
+}: StopCompletionProps) {
   const [notice, setNotice] = useState<ReviewNotice>();
   const continueIfActive = useAtomValue(reviewContinuation(useId()));
   const completion = decisionCompletionBinding(
     useAtom(
       completeDecision({
         connection: workspace.connection,
-        scope: workspace.scope,
+        reviewId: progress.revision.reviewId,
       }),
       { mode: 'promiseExit' },
     ),
@@ -92,12 +83,16 @@ export function useStopCompletion({
     .map((item) => ({ ...item, fingerprint: item.fingerprint ?? undefined }));
   const plan = completionPlan(files);
   const layer = stop.kind === 'decision' ? stop.layer : undefined;
+  const target = layer
+    ? `decision ${stopTitle(stop)}`
+    : `files in ${stopTitle(stop)}`;
   const disabled =
     !progress.settled || unavailable || completion.pending || plan.blocked;
   const complete = (onDone?: () => void) => {
     if (disabled) return;
     setNotice(undefined);
     completion.complete({
+      revision: progress.revision.revision,
       files,
       ...(layer
         ? {
@@ -128,7 +123,7 @@ export function useStopCompletion({
     advance: () => go(next?.key ?? 'briefing'),
     markLabel: plan.action
       ? `${plan.action} for ${stopTitle(stop)}`
-      : `Mark decision ${stopTitle(stop)} as reviewed`,
+      : `Mark ${target} as reviewed`,
   };
 }
 
@@ -149,25 +144,8 @@ export function CompletionNotice({
   ) : null;
 }
 
-export function WalkthroughCompletion({
-  workspace,
-  snapshot,
-  stop,
-  progress,
-  next,
-  go,
-  onFile,
-  unavailable,
-}: {
-  workspace: Workspace;
-  snapshot: ReviewSnapshot | undefined;
-  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
-  progress: Progress;
-  next: WalkthroughStop | undefined;
-  go: (key: WalkthroughKey) => void;
-  onFile: (path: string) => void;
-  unavailable: boolean;
-}) {
+export function WalkthroughCompletion(props: StopCompletionProps) {
+  const { workspace, stop, progress, unavailable } = props;
   const {
     finished,
     plan,
@@ -178,7 +156,7 @@ export function WalkthroughCompletion({
     reopen,
     advance,
     markLabel,
-  } = useStopCompletion({ workspace, stop, progress, next, go, unavailable });
+  } = useStopCompletion(props);
   const tally = filesReviewed(stop.paths, progress.items);
   const continueLabel = plan.action
     ? `${plan.action} for ${stopTitle(stop)} and stay here`
@@ -200,16 +178,13 @@ export function WalkthroughCompletion({
         const file = progress.items.find((item) => item.path === path);
         return (
           <Box key={path} gap={2}>
-            <Button
-              label={path}
-              accessibilityLabel={`Open changed-file diff for ${path}`}
-              variant="link"
-              onPress={() => onFile(path)}
-            />
-            {snapshot && file && progress.settled && !unavailable ? (
-              <ReviewedAction
+            <Text variant="code" selectable>
+              {path}
+            </Text>
+            {file && progress.settled && !unavailable ? (
+              <RevisionReviewedAction
                 workspace={workspace}
-                snapshot={snapshot}
+                revision={progress.revision}
                 file={file}
               />
             ) : null}

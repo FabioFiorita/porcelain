@@ -128,7 +128,6 @@ type Props = {
   column?: boolean;
   framed?: boolean;
   commentLabel?: string;
-  collapseInHeader?: boolean;
 };
 export type CodeHeaderControls = {
   collapse: ReactNode;
@@ -186,7 +185,6 @@ function CodeSurface({
   column = false,
   framed = false,
   commentLabel,
-  collapseInHeader = false,
   range,
   onToggleReviewed,
 }: Props & {
@@ -465,19 +463,10 @@ function CodeSurface({
   ) : (
     <ChevronsDownUpIcon aria-hidden="true" data-icon="inline-start" />
   );
-  const collapseLabel = allCollapsed ? 'Expand all' : 'Collapse all';
-  const collapseButton = collapseInHeader ? (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      aria-label={collapseLabel}
-      onClick={() => setAllCollapsed(!allCollapsed)}
-    >
-      {collapseIcon}
-      <span className="max-narrow:sr-only">{collapseLabel}</span>
-    </Button>
-  ) : (
+  const collapseLabel = allCollapsed
+    ? 'Expand all files'
+    : 'Collapse all files';
+  const collapseButton = (
     <Button
       size="sm"
       variant="ghost"
@@ -610,7 +599,6 @@ function CodeSurface({
       {toolbar
         ? toolbar(collapseControl)
         : !column &&
-          !collapseInHeader &&
           collapseControl && (
             <div className="flex shrink-0 justify-end px-3">
               {collapseControl}
@@ -920,8 +908,6 @@ function CodeSurface({
             const first = item.id === entries[0]?.id;
             const index = entries.findIndex((entry) => entry.id === item.id);
             const actions = !paneFile && first ? headerActions : null;
-            const collapseAll =
-              collapseInHeader && first ? collapseControl : null;
             const steps =
               decision && entries.length > 1 ? (
                 <>
@@ -1020,14 +1006,7 @@ function CodeSurface({
                   </span>
                 </span>
               );
-            if (
-              !stale &&
-              !leading &&
-              !actions &&
-              !comment &&
-              !steps &&
-              !collapseAll
-            )
+            if (!stale && !leading && !actions && !comment && !steps)
               return null;
             return (
               <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
@@ -1046,7 +1025,6 @@ function CodeSurface({
                     </ButtonGroup>
                   )
                 )}
-                {collapseAll}
                 {steps && (
                   <span className="flex items-center max-narrow:hidden">
                     {steps}

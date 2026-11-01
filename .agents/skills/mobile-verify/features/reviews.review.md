@@ -43,6 +43,9 @@ tests:
   - apps/mobile/src/features/reviews/rules/pointer-source.spec.ts
   - packages/client/src/features/reviews/queries/publication.spec.ts
   - packages/client/src/features/reviews/commands/decisions.spec.ts
+  - packages/client/src/features/reviews/commands/project-reviews.spec.ts
+  - apps/mobile/src/features/reviews/store.spec.ts
+  - packages/client/src/features/reviews/rules/revision.spec.ts
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
   - apps/mobile/src/features/reviews/rules/briefing.spec.ts
   - apps/mobile/src/features/reviews/rules/thread-folds.spec.ts
@@ -55,9 +58,10 @@ api:
   - GET /api/worktrees/:worktreeId/branch-changes
   - GET /api/worktrees/:worktreeId/branch-bases
   - GET /api/worktrees/:worktreeId/review
-  - GET /api/worktrees/:worktreeId/reviewed-layers
-  - PUT /api/worktrees/:worktreeId/reviewed-layers
-  - DELETE /api/worktrees/:worktreeId/reviewed-layers
+  - GET /api/reviews/:reviewId
+  - GET /api/reviews/:reviewId/marks
+  - PUT /api/reviews/:reviewId/marks
+  - POST /api/reviews/:reviewId/marks/removal
   - PUT /api/worktrees/:worktreeId/reviewed-bulk
   - GET /api/worktrees/:worktreeId/reviewed
   - GET /api/worktrees/:worktreeId/comments
@@ -112,10 +116,10 @@ Precondition: `--fixture development`. Expect decisions in publication order: Ke
 
 Precondition: publish multiple decisions, one shared file, a fileless decision and an unexplained file.
 
-1. Shared files appear once under their owning stop; Open owning stop returns there. A completed decision requires all owned files and its decision mark. Mark, then read reviewed-files/reviewed-layers independently. Unmark a file: badge/count clears but decision mark stays. Mark decision reviewed fills missing file marks; Unmark decision reviewed removes only its decision mark.
+1. Shared files appear once under their owning stop; Open owning stop returns there. Decision completion records its owned immutable files before its decision mark. Read GET /api/reviews/:reviewId/marks independently. Unmark a file: file progress changes while its decision mark stays; decision counts follow the retained decision fingerprint. Mark decision reviewed fills missing file marks; Unmark decision reviewed removes only its decision mark.
 2. Mark remaining files and continue writes files before the decision and advances (overview at end). Opening code/diffs writes no marks; individual file controls remain available.
-3. Refuse one bulk write with a stale fingerprint: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
-4. Use an unavailable fingerprint (e.g. 66 MiB file): name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Make the file readable: ordinary completion returns.
+3. Refuse one immutable file-mark write: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
+4. For a retained file without a blob identity, exercise the completion plan with unavailable metadata: name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Restore the retained blob identity: ordinary completion returns. Large file size alone does not make an existing retained Git blob identity unavailable.
 5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and iPad landscape/portrait.
 
 ### Linked pull request
@@ -133,3 +137,7 @@ Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `pu
 - A wide phone/Android retains compact routes; iPad pane width excludes its sidebar. Resize across the threshold without changing central tabs.
 - The development fixture commits before publication and requires a verdict; optional proof uses pass/fail. Signed summary HTML is outside the `/api/` frontmatter format.
 - Shared inventory recovery is in [Worktrees](projects.workspace-picker.md#driving-it-with-agent-device).
+
+### Published progress versus live comparisons
+
+Publish a committed eight-file review with one unrelated uncommitted file. The workspace walkthrough, bottom Continue/decision bar and Review tab progress must use the same selected revision files and durable marks, including removed files. Mark its first decision and independently read every owned published blob mark followed by its decision mark; no worktree reviewed-file write occurs. Commit or dirty the checkout without republishing: publication progress stays the same. Publish changed excerpt bytes: changed decision becomes unfinished, unchanged marks remain readable. Not explained and Specs render the selected revision diffs and durable file controls; live Uncommitted/Branch changed-file lists retain their separate comparison controls and marks. Respect the computer's Spec files setting for ownership allocation. Failed/pending reads never appear complete; a partial refused write retains successful marks without advancing. Leave the view before a delayed successful write: persistence completes but navigation stays where the reader went. Retained linked screens remain read-only.

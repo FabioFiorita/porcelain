@@ -118,10 +118,10 @@ it('counts current decision marks once, ignoring file marks, stale and unrelated
     ],
   });
 });
-it('waits for the agent after review and requires both merge recommendation and every current decision to be ready', () => {
+it('groups reviewed decisions independently of the agent recommendation, proof and unexplained files', () => {
   expect(
     reviewListStatus({ revision, marks: allMarks, status: undefined }).group,
-  ).toBe('Waiting on agent');
+  ).toBe('Decisions reviewed');
   const merge = {
     ...revision,
     verdict: { ...revision.verdict, recommendation: 'merge' as const },
@@ -136,7 +136,7 @@ it('waits for the agent after review and requires both merge recommendation and 
   expect(
     reviewListStatus({ revision: merge, marks: allMarks, status: 'reviewed' }),
   ).toMatchObject({
-    group: 'Ready to merge',
+    group: 'Decisions reviewed',
     reviewed: 2,
     total: 2,
   });
@@ -260,7 +260,7 @@ it.each([
   [
     'open',
     { kind: 'available', pullRequest: { state: 'open' } },
-    'Ready to merge',
+    'Decisions reviewed',
     false,
   ],
   [
@@ -271,7 +271,7 @@ it.each([
   ],
   ['failed', { kind: 'failed' }, 'Needs you', false],
   ['loading', { kind: 'loading' }, 'Needs you', false],
-  ['none', { kind: 'not-linked' }, 'Ready to merge', false],
+  ['none', { kind: 'not-linked' }, 'Decisions reviewed', false],
 ] as const)(
   'keeps %s PR grouping and Archive honest',
   (_, pull, expected, archivable) => {

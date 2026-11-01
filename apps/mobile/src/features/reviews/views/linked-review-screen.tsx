@@ -22,6 +22,8 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { readReviewMarks } from '@porcelain/client/reviews';
+import { specsApart } from '@porcelain/client/preferences/rules';
+import { useReviewGitSettings } from '../../preferences';
 import type { LinkedRevision } from '../queries/linked-review';
 import {
   openReview,
@@ -259,10 +261,11 @@ function LinkedReviewContent({
   const [place, setPlace] = useState<WalkthroughKey>(
     destination.decision ? `decision:${destination.decision}` : 'briefing',
   );
+  const settings = useReviewGitSettings(connection);
   const stops = walkthroughStops(
     revision.content,
     revision.files.map((file) => file.path),
-    { specsApart: true },
+    { specsApart: specsApart(settings) },
   );
   const stop = currentStop(stops, place);
   const selected = stop.kind === 'decision' ? stop.layer : undefined;

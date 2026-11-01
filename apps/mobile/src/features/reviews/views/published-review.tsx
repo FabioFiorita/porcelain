@@ -5,12 +5,9 @@ import { briefingContinuation } from '../rules/briefing';
 import { useState, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
-import {
-  readPublishedReview,
-  readReviewSummary,
-} from '@porcelain/client/reviews';
+import { readReviewSummary } from '@porcelain/client/reviews';
 import {
   changeAnchor,
   currentStop,
@@ -19,6 +16,7 @@ import {
   stopTitle,
   walkthroughStops,
   type ReviewResponse,
+  type CommentThread,
   type ReviewRevision,
   type WalkthroughKey,
   type WalkthroughStop,
@@ -38,14 +36,14 @@ import { ReviewReadState } from './read-state';
 import { ReviewPointer } from './review-pointer';
 import { useReviewPlace } from '../store';
 import { useWalkthroughProgress } from '../queries/walkthrough';
-import { useLinkedReview } from '../queries/linked-review';
+import { useWorkspaceReview } from '../queries/linked-review';
 import type { ReviewSnapshot } from '../rules/comparison';
 import {
   WalkthroughCompletion,
   WalkthroughProgress,
   useStopCompletion,
 } from './walkthrough-completion';
-import { DecisionPage } from './decision-page';
+import { DecisionPage, RevisionDiffs } from './decision-page';
 import { DecisionBar } from './decision-bar';
 import { Badge } from '../../../components/ui/badge';
 import { commentReviewParams, reviewParams } from '../rules/navigation';
@@ -62,31 +60,52 @@ export function PublishedReview({
   snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
   docked?: boolean;
 }) {
-  const query = readPublishedReview({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
-  const result = useAtomValue(query);
-  const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  if (!result.value)
+  const result = useWorkspaceReview(workspace);
+  if (!AsyncResult.isSuccess(result.published))
+    return (
+      <ReviewReadState
+        result={result.published}
+        refresh={result.refreshPublished}
+      />
+    );
+  const review = result.published.value;
+  if (!review)
     return (
       <Empty
         title="No agent review"
         description="Choose a changed file to review its diff. Published agent explanations will appear here."
       />
     );
+  if (!review.reviewId)
+    return (
+      <ErrorState message="This publication has no saved revision. Ask the agent to publish it again." />
+    );
+  if (!AsyncResult.isSuccess(result.revision))
+    return (
+      <ReviewReadState
+        result={result.revision}
+        refresh={result.refreshRevision}
+      />
+    );
+  if (!result.revision.value.revision)
+    return (
+      <ErrorState
+        message="This review revision could not be found."
+        retry={{ label: 'Read again', onPress: result.refreshRevision }}
+      />
+    );
   return (
-    <Publication
-      key={`${workspace.key}:${result.value.publishedAt}:${result.value.revision}`}
+    <PublishedContent
+      key={`${workspace.key}:${review.publishedAt}:${review.revision}`}
       workspace={workspace}
-      review={result.value}
+      review={review}
       snapshot={snapshot}
-      publicationSettled={!result.waiting}
+      publicationSettled={result.settled}
       onFile={onFile}
-      onRefresh={refresh}
+      onRefresh={result.refreshPublished}
       docked={docked}
+      specsApart={result.specsApart}
+      revision={result.revision.value.revision}
     />
   );
 }
@@ -99,33 +118,8 @@ type PublicationProps = {
   onRefresh: () => void;
   publicationSettled: boolean;
   docked: boolean;
+  specsApart: boolean;
 };
-
-function Publication(props: PublicationProps) {
-  return props.review.reviewId ? (
-    <PublicationRevision {...props} reviewId={props.review.reviewId} />
-  ) : (
-    <PublishedContent {...props} revision={undefined} />
-  );
-}
-
-function PublicationRevision(props: PublicationProps & { reviewId: string }) {
-  const { result, refresh } = useLinkedReview({
-    connection: props.workspace.connection,
-    reviewId: props.reviewId,
-    revision: props.review.revision,
-  });
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  if (!result.value.revision)
-    return (
-      <ErrorState
-        message="This review revision could not be found."
-        retry={{ label: 'Read again', onPress: refresh }}
-      />
-    );
-  return <PublishedContent {...props} revision={result.value.revision} />;
-}
 
 function PublishedContent({
   workspace,
@@ -136,25 +130,23 @@ function PublishedContent({
   publicationSettled,
   revision,
   docked,
-}: PublicationProps & { revision: ReviewRevision | undefined }) {
+  specsApart,
+}: PublicationProps & { revision: ReviewRevision }) {
   const router = useRouter();
   const [place, setPlace] = useReviewPlace(
     JSON.stringify([workspace.key, review.publishedAt, review.revision]),
   );
   const [previousSummary, setPreviousSummary] =
     useState<ReviewResponse['summary']>();
-  const changedPaths =
-    snapshot?.kind === 'worktree'
-      ? snapshot.answer.changes.map((file) => file.path)
-      : undefined;
+  const changedPaths = snapshot?.answer.changes.map((file) => file.path) ?? [];
+  const publishedPaths = revision.files.map((file) => file.path);
   const progress = useWalkthroughProgress(
     workspace,
-    review,
-    snapshot,
+    revision,
     publicationSettled,
   );
-  const stops = walkthroughStops(review, changedPaths ?? [], {
-    specsApart: true,
+  const stops = walkthroughStops(review, publishedPaths, {
+    specsApart,
   });
   const stop = currentStop(stops, place.stop);
   const pointer =
@@ -255,11 +247,15 @@ function PublishedContent({
             revision={revision}
             stop={stop}
             stops={stops}
+            progress={progress}
             pointer={pointer}
             changedPaths={changedPaths}
             onFile={onFile}
             go={go}
             done={progress.done}
+            onThread={(thread) =>
+              openComments(router, workspace, { thread: thread.id })
+            }
             decision={(entry) => (
               <DecisionPage
                 key={entry.key}
@@ -292,12 +288,10 @@ function PublishedContent({
             <WalkthroughCompletion
               key={stop.key}
               workspace={workspace}
-              snapshot={snapshot}
               stop={stop}
               progress={progress}
               next={next}
               go={go}
-              onFile={onFile}
               unavailable={review.diagnostics === 'unavailable'}
             />
           ) : null}
@@ -337,11 +331,13 @@ function ReviewPage({
   revision,
   stop,
   stops,
+  progress,
   pointer,
   changedPaths,
   onFile,
   go,
   done,
+  onThread,
   decision,
 }: {
   workspace: Workspace;
@@ -350,11 +346,13 @@ function ReviewPage({
   stop: WalkthroughStop;
   decision: (stop: Extract<WalkthroughStop, { kind: 'decision' }>) => ReactNode;
   stops: readonly WalkthroughStop[];
+  progress: ReturnType<typeof useWalkthroughProgress>;
   pointer: ReviewStep | undefined;
   changedPaths: readonly string[] | undefined;
   onFile: (path: string) => void;
   go: (key: WalkthroughKey) => void;
   done: (stop: WalkthroughStop) => boolean;
+  onThread: (thread: CommentThread) => void;
 }) {
   if (pointer)
     return (
@@ -441,18 +439,18 @@ function ReviewPage({
                 .join(', ')}
         </Text>
       ))}
-      {stop.paths.map((path) => (
-        <Item
-          key={path}
-          title={path}
-          accessibilityLabel={
-            stop.kind === 'specs'
-              ? `Review spec ${path}`
-              : `Review unexplained ${path}`
-          }
-          onPress={() => onFile(path)}
+      {revision ? (
+        <RevisionDiffs
+          key={stop.key}
+          workspace={workspace}
+          revision={revision}
+          stop={stop}
+          progress={progress}
+          changedPaths={changedPaths ?? []}
+          onFile={onFile}
+          onThread={onThread}
         />
-      ))}
+      ) : null}
     </>
   );
 }
@@ -500,43 +498,45 @@ function AgentSummary({
 
 export function PublishedReviewContinue({
   workspace,
-  snapshot,
   onContinue,
 }: {
   workspace: Workspace;
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
   onContinue: () => void;
 }) {
-  const result = useAtomValue(
-    readPublishedReview({
-      connection: workspace.connection,
-      scope: workspace.scope,
-    }),
-  );
-  if (!AsyncResult.isSuccess(result) || !result.value) return null;
+  const result = useWorkspaceReview(workspace);
+  if (
+    !AsyncResult.isSuccess(result.published) ||
+    !result.published.value ||
+    !AsyncResult.isSuccess(result.revision) ||
+    !result.revision.value.revision
+  )
+    return null;
   return (
-    <PublishedContinue
-      key={`${workspace.key}:${result.value.publishedAt}:${result.value.revision}`}
+    <PublishedContinueContent
+      key={`${workspace.key}:${result.published.value.publishedAt}:${result.published.value.revision}`}
       workspace={workspace}
-      review={result.value}
-      snapshot={snapshot}
-      publicationSettled={!result.waiting}
+      review={result.published.value}
+      revision={result.revision.value.revision}
+      publicationSettled={result.settled}
+      specsApart={result.specsApart}
       onContinue={onContinue}
     />
   );
 }
 
-function PublishedContinue({
+function PublishedContinueContent({
   workspace,
   review,
-  snapshot,
+  revision,
   publicationSettled,
+  specsApart,
   onContinue,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
+  revision: ReviewRevision;
   publicationSettled: boolean;
+  specsApart: boolean;
   onContinue: () => void;
 }) {
   const [place, setPlace] = useReviewPlace(
@@ -544,14 +544,13 @@ function PublishedContinue({
   );
   const progress = useWalkthroughProgress(
     workspace,
-    review,
-    snapshot,
+    revision,
     publicationSettled,
   );
   const stops = walkthroughStops(
     review,
-    snapshot?.answer.changes.map((file) => file.path) ?? [],
-    { specsApart: true },
+    revision.files.map((file) => file.path),
+    { specsApart },
   );
   const stop = currentStop(stops, place.stop);
   const go = (key: WalkthroughKey) => {
@@ -622,25 +621,26 @@ function StopBar({
   );
 }
 
-export function usePublishedStop(
-  workspace: Workspace,
-  changedPaths: readonly string[],
-) {
-  const result = useAtomValue(
-    readPublishedReview({
-      connection: workspace.connection,
-      scope: workspace.scope,
-    }),
-  );
-  const review = AsyncResult.isSuccess(result) ? result.value : undefined;
+export function usePublishedStop(workspace: Workspace) {
+  const result = useWorkspaceReview(workspace);
+  const review = AsyncResult.isSuccess(result.published)
+    ? result.published.value
+    : undefined;
+  const revision = AsyncResult.isSuccess(result.revision)
+    ? result.revision.value.revision
+    : undefined;
   const [place] = useReviewPlace(
     review
       ? JSON.stringify([workspace.key, review.publishedAt, review.revision])
       : '',
   );
-  if (!review || place.summary) return undefined;
+  if (!review || !revision || place.summary) return undefined;
   return currentStop(
-    walkthroughStops(review, changedPaths, { specsApart: true }),
+    walkthroughStops(
+      review,
+      revision.files.map((file) => file.path),
+      { specsApart: result.specsApart },
+    ),
     place.stop,
   ).kind;
 }

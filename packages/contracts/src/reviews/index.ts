@@ -77,6 +77,8 @@ export { readReviewFileResponseSchema } from './review.ts';
 
 export {
   type ReviewMarksResponse,
+  setReviewMarkRequestSchema,
+  removeReviewMarkRequestSchema,
   type SetReviewMarkRequest,
   type RemoveReviewMarkRequest,
 } from './review.ts';

@@ -13,12 +13,14 @@ import type {
   ReviewRevision,
   ReviewScope,
   ReviewStep,
+  WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -35,6 +37,7 @@ import { retainedCommentTarget } from '../rules/retained-comments';
 
 export function RevisionCode({
   revision,
+  place,
   paths,
   scope,
   context,
@@ -44,9 +47,11 @@ export function RevisionCode({
   decision = false,
   card = decision,
   gaps = true,
+  explanations = true,
   commentLabel,
 }: {
   revision: ReviewRevision;
+  place: WalkthroughKey | 'changes';
   paths: readonly string[];
   scope: ReviewScope;
   context: ConnectionContext;
@@ -56,6 +61,7 @@ export function RevisionCode({
   decision?: boolean;
   card?: boolean;
   gaps?: boolean;
+  explanations?: boolean;
   commentLabel?: string | undefined;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
@@ -67,6 +73,7 @@ export function RevisionCode({
     <div className="flex shrink-0 flex-col">
       {reached.length > 0 && (
         <RevisionDiffs
+          entry={JSON.stringify(['revision', revision.revision, place])}
           revision={revision}
           files={reached}
           scope={scope}
@@ -77,6 +84,7 @@ export function RevisionCode({
           decision={decision}
           card={card}
           gaps={gaps}
+          explanations={explanations}
           commentLabel={commentLabel}
         />
       )}
@@ -119,6 +127,7 @@ export function RevisionCode({
 }
 
 function RevisionDiffs({
+  entry,
   revision,
   files,
   scope,
@@ -129,8 +138,10 @@ function RevisionDiffs({
   decision,
   card,
   gaps,
+  explanations,
   commentLabel,
 }: {
+  entry: string;
   revision: ReviewRevision;
   files: ReviewRevision['files'];
   scope: ReviewScope;
@@ -141,6 +152,7 @@ function RevisionDiffs({
   decision: boolean;
   card: boolean;
   gaps: boolean;
+  explanations: boolean;
   commentLabel: string | undefined;
 }) {
   const result = useAtomValue(
@@ -153,7 +165,7 @@ function RevisionDiffs({
   );
   const diffs = Option.getOrUndefined(AsyncResult.value(result));
   const notes = mergeNotes(
-    ...revision.content.layers.map((layer, index) =>
+    ...(explanations ? revision.content.layers : []).map((layer, index) =>
       decisionNotes(layer, index + 1),
     ),
     gaps ? gapNotes(revision.content.notExplained) : {},
@@ -198,6 +210,7 @@ function RevisionDiffs({
                 <TooltipTrigger
                   render={
                     <Checkbox
+                      className="cursor-pointer"
                       checked={reviewed}
                       aria-label={reviewedControlLabel(
                         file.path,
@@ -251,9 +264,11 @@ function RevisionDiffs({
   return (
     <>
       {AsyncResult.isInitial(result) && (
-        <p role="status" className="p-4">
-          Loading revision code…
-        </p>
+        <div role="status" className="flex min-h-64 flex-col gap-3 p-4">
+          <span>Loading revision code…</span>
+          <Skeleton className="h-7 w-full" />
+          <Skeleton className="h-44 w-full" />
+        </div>
       )}
       {AsyncResult.isFailure(result) && (
         <p role="alert" className="p-4 text-destructive">
@@ -274,13 +289,12 @@ function RevisionDiffs({
           interaction={{
             active,
             worktreeId: revision.reviewId,
-            entry: `revision:${revision.revision}`,
+            entry,
           }}
           entries={entries}
           fullHeight
           threadMargin={decision}
           decision={card}
-          collapseInHeader
           {...(commentLabel ? { commentLabel } : {})}
           onReview={(entry) => {
             const target = entry.review;

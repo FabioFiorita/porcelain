@@ -1,21 +1,18 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { Atom, type AsyncResult } from 'effect/reactivity';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import {
   completionRefusal,
-  WORKTREE_RANGE,
+  bulkMarkPlan,
   type ReviewableItem,
   type ReviewNotice,
 } from '../rules/reviewed.ts';
 import { reviewErrorMessage } from '../rules/review.ts';
-import { reviewedCommands } from './reviewed.ts';
-import { setLayerMark, type SetLayerMarkInput } from './layer-marks.ts';
+import { reviewCommands } from './project-reviews.ts';
 
-type Decision = Omit<SetLayerMarkInput, 'kind'>;
+type Decision = { layerId: string; fingerprint: string };
 type Complete = {
+  revision: number;
   files: readonly ReviewableItem[];
   decision?: Decision & { reviewed: boolean };
 };
@@ -24,15 +21,21 @@ type Input =
   | { kind: 'reopen'; decision: Decision };
 
 export const completeDecision = Atom.family(
-  (input: { connection: RuntimeConnection; scope: WorktreeScope }) => {
-    const files = reviewedCommands({ ...input, range: WORKTREE_RANGE }).bulk;
-    const decision = setLayerMark(input);
+  (input: { connection: RuntimeConnection; reviewId: string }) => {
+    const commands = reviewCommands(input);
     return Atom.fn((action: Input, get) =>
       Effect.gen(function* () {
         const target = action.decision;
         if (action.kind === 'complete') {
-          const result = yield* get
-            .setResult(files, { kind: 'mark', entries: action.files })
+          const plan = bulkMarkPlan(action.files);
+          yield* get
+            .setResult(commands.markFiles, {
+              revision: action.revision,
+              files: plan.files.map((file) => ({
+                path: file.path,
+                headBlobOid: file.fingerprint,
+              })),
+            })
             .pipe(
               Effect.mapError((error): ReviewNotice => ({
                 title: 'Could not mark the files reviewed',
@@ -40,26 +43,34 @@ export const completeDecision = Atom.family(
                 type: 'error',
               })),
             );
-          const refusal =
-            result.kind === 'mark'
-              ? completionRefusal(result.report)
-              : undefined;
+          const refusal = completionRefusal({
+            ...plan.report,
+            marked: plan.files.map((file) => file.path),
+          });
           if (refusal) return yield* Effect.fail(refusal);
           if (!action.decision || action.decision.reviewed) return;
         }
         if (!target) return;
-        yield* get
-          .setResult(decision, {
-            ...target,
-            kind: action.kind === 'reopen' ? 'unmark' : 'mark',
-          })
-          .pipe(
-            Effect.mapError((error): ReviewNotice => ({
-              title: 'Could not update the decision',
-              description: reviewErrorMessage(error),
-              type: 'error',
-            })),
-          );
+        yield* (
+          action.kind === 'reopen'
+            ? get.setResult(commands.unmark, {
+                kind: 'decision',
+                layerId: target.layerId,
+                fingerprint: target.fingerprint,
+              })
+            : get.setResult(commands.mark, {
+                kind: 'decision',
+                revision: action.revision,
+                layerId: target.layerId,
+                fingerprint: target.fingerprint,
+              })
+        ).pipe(
+          Effect.mapError((error): ReviewNotice => ({
+            title: 'Could not update the decision',
+            description: reviewErrorMessage(error),
+            type: 'error',
+          })),
+        );
       }),
     );
   },

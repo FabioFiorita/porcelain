@@ -4,7 +4,6 @@ export {
 } from './commands/decisions.ts';
 export { readReviewedFiles } from './queries/reviewed.ts';
 export {
-  readLayerMarks,
   readPublishedReview,
   readReviewSummary,
   readProofFile,
@@ -19,7 +18,6 @@ export {
   reviewedCommandFailure,
   reviewedCommands,
 } from './commands/reviewed.ts';
-export { setLayerMark } from './commands/layer-marks.ts';
 
 export { commentWriteBinding } from './commands/comment-write-binding.ts';
 

@@ -1,4 +1,6 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import {
@@ -20,6 +22,14 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ReviewLayer, ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 type Target = { layerId?: string | undefined; stepId?: string | undefined };
 
@@ -226,6 +236,7 @@ function ProofMedia({
   title: string;
   video: boolean;
 }) {
+  const [originalSize, setOriginalSize] = useState(false);
   const file = useProofFile(scope, context, id);
   const url = useProofFileUrl(Option.getOrUndefined(AsyncResult.value(file)));
   if (AsyncResult.isFailure(file))
@@ -248,10 +259,48 @@ function ProofMedia({
       className="max-h-80 w-full rounded-md bg-muted"
     />
   ) : (
-    <img
-      src={url}
-      alt={title}
-      className="max-h-80 w-full rounded-md bg-muted object-contain"
-    />
+    <Dialog onOpenChange={(open) => !open && setOriginalSize(false)}>
+      <DialogTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`Enlarge ${title}`}
+            className="block w-full cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        }
+      >
+        <img
+          src={url}
+          alt={title}
+          className="max-h-80 w-full rounded-md bg-muted object-contain"
+        />
+      </DialogTrigger>
+      <DialogContent className="max-h-[92svh] overflow-auto sm:max-w-[min(92vw,90rem)]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Published image attached to this review.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[75svh] min-w-0 overflow-auto">
+          <img
+            src={url}
+            alt={title}
+            className={
+              originalSize
+                ? 'max-w-none'
+                : 'max-h-[75svh] w-full object-contain'
+            }
+          />
+        </div>
+        <Button
+          variant="outline"
+          className="w-fit"
+          onClick={() => setOriginalSize(!originalSize)}
+        >
+          {originalSize ? 'Fit image' : 'View original size'}
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }

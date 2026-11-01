@@ -1,4 +1,5 @@
-import { Effect, Layer } from 'effect';
+import { setReviewMarkRequestSchema } from '@porcelain/contracts/reviews';
+import { Effect, Layer, Schema } from 'effect';
 import { AtomRegistry, AsyncResult } from 'effect/reactivity';
 import {
   completeDecision,
@@ -32,8 +33,9 @@ it.each([
     const leave = views.mount(atom);
     const continueIfActive = views.get(atom);
     const registry = AtomRegistry.make();
-    const scope = { projectId: 'project', worktreeId: 'a'.repeat(32) };
+    const reviewId = '22222222-2222-4222-8222-222222222222';
     const fingerprint = 'b'.repeat(64);
+    const blobOid = 'c'.repeat(40);
     const layerId = '11111111-1111-4111-8111-111111111111';
     const reviewedAt = '2026-10-15T12:00:00.000Z';
     const writes: string[] = [];
@@ -54,30 +56,34 @@ it.each([
         transport: async (path, init) => {
           if (init?.method === 'PUT') {
             writes.push(`${init.method} ${path}`);
-            if (path.endsWith('reviewed-bulk')) {
+            const payload = Schema.decodeUnknownSync(
+              setReviewMarkRequestSchema,
+            )(await new Response(init.body).json());
+            if (payload.kind === 'file') {
               started();
               await delayed;
-              marks = [{ path: 'owner.ts', fingerprint, reviewedAt }];
-              return Response.json({
-                worktreeId: scope.worktreeId,
-                marks,
-                marked: ['owner.ts'],
-                conflicts: [],
-              });
-            }
-            layers = [{ layerId, fingerprint, reviewedAt, stale: false }];
+              marks = [
+                {
+                  path: 'owner.ts',
+                  fingerprint: blobOid,
+                  reviewedAt,
+                  stale: false,
+                },
+              ];
+            } else layers = [{ layerId, fingerprint, reviewedAt }];
+            return Response.json({ updated: true });
           }
-          return Response.json({
-            worktreeId: scope.worktreeId,
-            marks: path.endsWith('reviewed-layers') ? layers : marks,
-          });
+          return Response.json({ files: marks, decisions: layers });
         },
       },
       undefined,
       Layer.empty,
     );
     let place = { scope: 'original', stop: 'decision-1' };
-    const command = completeDecision({ connection: client.connection, scope });
+    const command = completeDecision({
+      connection: client.connection,
+      reviewId,
+    });
     let pending: Promise<unknown> | undefined;
     const notices: unknown[] = [];
     const completion = decisionCompletionBinding(
@@ -98,7 +104,14 @@ it.each([
     );
     try {
       completion.complete({
-        files: [{ path: 'owner.ts', fingerprint, reviewStatus: 'unreviewed' }],
+        revision: 2,
+        files: [
+          {
+            path: 'owner.ts',
+            fingerprint: blobOid,
+            reviewStatus: 'unreviewed',
+          },
+        ],
         decision: { layerId, fingerprint, reviewed: false },
         onDone: () =>
           continueIfActive(() => {
@@ -115,13 +128,13 @@ it.each([
       await pending;
       expect(place).toEqual({ scope: viewScope, stop: destination });
       expect(writes).toEqual([
-        `PUT /api/worktrees/${scope.worktreeId}/reviewed-bulk`,
-        `PUT /api/worktrees/${scope.worktreeId}/reviewed-layers`,
+        `PUT /api/reviews/${reviewId}/marks`,
+        `PUT /api/reviews/${reviewId}/marks`,
       ]);
-      expect(marks).toEqual([{ path: 'owner.ts', fingerprint, reviewedAt }]);
-      expect(layers).toEqual([
-        { layerId, fingerprint, reviewedAt, stale: false },
+      expect(marks).toEqual([
+        { path: 'owner.ts', fingerprint: blobOid, reviewedAt, stale: false },
       ]);
+      expect(layers).toEqual([{ layerId, fingerprint, reviewedAt }]);
       expect(notices).toEqual([]);
     } finally {
       views.dispose();

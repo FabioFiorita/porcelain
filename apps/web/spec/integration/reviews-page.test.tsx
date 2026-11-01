@@ -4,6 +4,66 @@ import { expect, test } from './fixtures.tsx';
 const title =
   'Keep every committed revision readable after the publishing worktree has been removed';
 
+test('all changes stays on the selected publication after checkout removal and returns to the same decision', async ({
+  repo,
+  render,
+  reviewLayout,
+}) => {
+  const decision = `${title}: ${title}`;
+  const first = await repo.review(decision, undefined, {
+    path: 'review-page.spec.ts',
+    lane: 'Client',
+  });
+  await repo.review(`${title} again`, undefined, {
+    path: 'review-page.spec.ts',
+    lane: 'Client',
+  });
+  await repo.removeReviewWorktree();
+  const route = `/reviews/${first.reviewId}/1/decisions/${first.layerId}`;
+  const app = await render.route(route);
+  const review = app.page.getByRole('region', {
+    name: 'Review walkthrough',
+    exact: true,
+  });
+  await expect
+    .element(review.getByText('export const revision = 1;', { exact: true }))
+    .toBeVisible();
+  reviewLayout.scrollToEnd(review);
+  const before = reviewLayout.scrollTop(review);
+  await expect.poll(() => reviewLayout.scrollTop(review)).toBeGreaterThan(100);
+  await app.page.getByRole('tab', { name: 'All changes', exact: true }).click();
+  const changes = app.page.getByRole('region', {
+    name: 'All changes in this revision',
+    exact: true,
+  });
+  await expect
+    .element(changes.getByText('export const revision = 1;', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(changes.getByText('export const revision = 2;', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(changes.getByText('review-page.spec.ts', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(changes.getByText('export const retired = true;', { exact: true }))
+    .toBeVisible();
+  await changes
+    .getByRole('button', { name: 'Collapse all files', exact: true })
+    .click();
+  await changes
+    .getByRole('button', { name: 'Back to the walkthrough', exact: true })
+    .click();
+  await expect
+    .element(review.getByRole('heading', { name: decision, exact: true }))
+    .toBeVisible();
+  await expect
+    .element(review.getByText('export const revision = 1;', { exact: true }))
+    .toBeVisible();
+  await expect.poll(() => app.location()).toBe(route);
+  await expect.poll(() => reviewLayout.scrollTop(review)).toBe(before);
+});
+
 test.for([
   'missing revision',
   'malformed revision',

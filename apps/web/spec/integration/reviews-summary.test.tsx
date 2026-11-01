@@ -24,7 +24,12 @@ test('omitting summary HTML keeps the Agent summary tab hidden on a retained rev
       ),
     )
     .toBe(true);
-  await expect.element(tabs).not.toBeInTheDocument();
+  await expect
+    .element(tabs.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(tabs.getByRole('tab', { name: 'All changes', exact: true }))
+    .toBeVisible();
   await expect
     .element(app.page.getByRole('tab', { name: 'Agent summary', exact: true }))
     .not.toBeInTheDocument();
@@ -71,7 +76,12 @@ for (const summary of [
       await tab.click();
       await expect.element(tab).toHaveAttribute('aria-selected', 'true');
     } else {
-      await expect.element(tabs).not.toBeInTheDocument();
+      await expect
+        .element(tabs.getByRole('tab', { name: 'Walkthrough', exact: true }))
+        .toBeVisible();
+      await expect
+        .element(tabs.getByRole('tab', { name: 'All changes', exact: true }))
+        .toBeVisible();
       await expect.element(tab).not.toBeInTheDocument();
     }
   });

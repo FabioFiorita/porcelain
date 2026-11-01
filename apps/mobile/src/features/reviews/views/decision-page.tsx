@@ -13,7 +13,6 @@ import {
   decisionRoute,
   filesReviewed,
   questionAnswer,
-  walkthroughStops,
   type CommentThread,
   type ReviewResponse,
   type ReviewRevision,
@@ -42,6 +41,7 @@ import {
 } from '../rules/thread-folds';
 import { IconButton } from '../../../components/ui/icon-button';
 import { ReviewReadState } from './read-state';
+import { RevisionReviewedAction } from './review-actions';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
 type Progress = ReturnType<typeof useWalkthroughProgress>;
@@ -210,9 +210,9 @@ export function DecisionPage({
         </Box>
       ) : null}
       {revision ? (
-        <DecisionDiffs
+        <RevisionDiffs
           workspace={workspace}
-          review={review}
+          progress={progress}
           revision={revision}
           stop={stop}
           changedPaths={changedPaths}
@@ -241,9 +241,9 @@ function elsewhereLabel(review: ReviewResponse, key: WalkthroughKey) {
   return index < 0 ? 'another stop' : `decision ${index + 1}`;
 }
 
-function DecisionDiffs({
+export function RevisionDiffs({
   workspace,
-  review,
+  progress,
   revision,
   stop,
   changedPaths,
@@ -251,9 +251,9 @@ function DecisionDiffs({
   onThread,
 }: {
   workspace: Workspace;
-  review: ReviewResponse;
+  progress: Progress;
   revision: ReviewRevision;
-  stop: DecisionStop;
+  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
   changedPaths: readonly string[];
   onFile: (path: string) => void;
   onThread: (thread: CommentThread) => void;
@@ -265,13 +265,7 @@ function DecisionDiffs({
       scope: workspace.scope,
     }),
   );
-  const paths =
-    walkthroughStops(
-      review,
-      revision.files.map((file) => file.path),
-      { specsApart: true },
-    ).find((entry) => entry.key === stop.key)?.paths ?? [];
-  const files = revision.files.filter((file) => paths.includes(file.path));
+  const files = revision.files.filter((file) => stop.paths.includes(file.path));
   if (files.length === 0) return null;
   return (
     <Box gap={3}>
@@ -281,6 +275,11 @@ function DecisionDiffs({
           workspace={workspace}
           revision={revision}
           file={file}
+          reviewed={
+            progress.settled
+              ? progress.items.find((item) => item.path === file.path)
+              : undefined
+          }
           threads={
             AsyncResult.isSuccess(threads)
               ? threads.value.filter(
@@ -309,6 +308,7 @@ function FileDiff({
   workspace,
   revision,
   file,
+  reviewed,
   threads,
   onOpen,
   onThread,
@@ -316,6 +316,7 @@ function FileDiff({
   workspace: Workspace;
   revision: ReviewRevision;
   file: ReviewRevision['files'][number];
+  reviewed: Progress['items'][number] | undefined;
   threads: readonly CommentThread[];
   onOpen?: () => void;
   onThread: (thread: CommentThread) => void;
@@ -401,6 +402,15 @@ function FileDiff({
         ) : null}
       </Box>
       {body}
+      {reviewed ? (
+        <Box paddingX={4} paddingY={2}>
+          <RevisionReviewedAction
+            workspace={workspace}
+            revision={revision}
+            file={reviewed}
+          />
+        </Box>
+      ) : null}
       {folded.unplaced.map((thread) => (
         <Item
           key={thread.id}

@@ -1,3 +1,4 @@
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('the proof an agent published shows its checks and screenshot, with the failing check first', async ({
@@ -41,4 +42,25 @@ test('the proof an agent published shows its checks and screenshot, with the fai
   await expect
     .element(proof.getByRole('img', { name: 'Saved notice', exact: true }))
     .toBeVisible();
+  const enlarge = proof.getByRole('button', {
+    name: 'Enlarge Saved notice',
+    exact: true,
+  });
+  await enlarge.click();
+  const image = page.getByRole('dialog', { name: 'Saved notice', exact: true });
+  await expect
+    .element(image.getByRole('img', { name: 'Saved notice', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      image.getByRole('button', { name: 'View original size', exact: true }),
+    )
+    .toBeVisible();
+  await image
+    .getByRole('button', { name: 'View original size', exact: true })
+    .click();
+  await image.getByRole('button', { name: 'Fit image', exact: true }).click();
+  await userEvent.keyboard('{Escape}');
+  await expect.element(image).not.toBeInTheDocument();
+  await expect.element(enlarge).toHaveFocus();
 });

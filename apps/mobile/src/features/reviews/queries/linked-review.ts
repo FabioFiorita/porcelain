@@ -4,12 +4,19 @@ import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Cause, Effect, Predicate } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { ProjectSelectionCommands } from '@porcelain/client/projects';
-import { readReview, reviewCommands } from '@porcelain/client/reviews';
+import {
+  readReview,
+  reviewCommands,
+  readPublishedReview,
+} from '@porcelain/client/reviews';
 import {
   RequestError,
   type RuntimeConnection,
 } from '@porcelain/client/transport';
 import { clientRuntime } from '../../../shared/application/store';
+import type { Workspace } from '../../projects';
+import { useReviewGitSettings } from '../../preferences';
+import { specsApart } from '@porcelain/client/preferences/rules';
 
 export const selectReviewEnvironment = Atom.family(
   ({
@@ -66,5 +73,35 @@ export function useLinkedReview(input: Parameters<typeof readReview>[0]) {
     missing:
       (error instanceof RequestError && error.status === 404) ||
       Predicate.isTagged(error, 'ReviewNotFoundError'),
+  };
+}
+
+const inactiveReview = Atom.make<Atom.Type<ReturnType<typeof readReview>>>(
+  AsyncResult.initial(),
+);
+
+export function useWorkspaceReview(workspace: Workspace) {
+  const settings = useReviewGitSettings(workspace.connection);
+  const publishedQuery = readPublishedReview({
+    connection: workspace.connection,
+    scope: workspace.scope,
+  });
+  const published = useAtomValue(publishedQuery);
+  const review = AsyncResult.isSuccess(published) ? published.value : undefined;
+  const revisionQuery = review?.reviewId
+    ? readReview({
+        connection: workspace.connection,
+        reviewId: review.reviewId,
+        revision: review.revision,
+      })
+    : inactiveReview;
+  const revision = useAtomValue(revisionQuery);
+  return {
+    published,
+    revision,
+    specsApart: specsApart(settings),
+    refreshPublished: useAtomRefresh(publishedQuery),
+    refreshRevision: useAtomRefresh(revisionQuery),
+    settled: !published.waiting && !revision.waiting,
   };
 }

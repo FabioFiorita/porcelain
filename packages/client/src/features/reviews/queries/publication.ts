@@ -10,9 +10,7 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { readSummaryHtml, type SummaryDelivery } from '../api.ts';
-import { worktreeResource } from '../../../shared/api/worktree-read.ts';
 import type { ReviewResponse } from '../rules/review.ts';
-import { LayerMarksState, layerMarksRuntime } from '../store/layer-marks.ts';
 
 const summaryPages = Atom.family(
   (_identity: {
@@ -116,15 +114,5 @@ export const readProofFile = Atom.family(
         return file;
       }),
       clientRuntime(connection),
-    ),
-);
-
-export const readLayerMarks = Atom.family(
-  (input: { connection: RuntimeConnection; scope: WorktreeScope }) =>
-    worktreeResource(
-      input.scope,
-      'reviewed-layers',
-      LayerMarksState,
-      layerMarksRuntime(input),
     ),
 );
