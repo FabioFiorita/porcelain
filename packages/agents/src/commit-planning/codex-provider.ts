@@ -9,7 +9,7 @@ import {
   Schema,
 } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
-import { findExecutable } from './commands/find-executable.ts';
+import { findExecutable } from '../shared/commands/find-executable.ts';
 import { codingModel } from './commands/coding-model.ts';
 import { runProvider } from './commands/run-provider.ts';
 import { readBoundedText } from './commands/read-bounded-text.ts';

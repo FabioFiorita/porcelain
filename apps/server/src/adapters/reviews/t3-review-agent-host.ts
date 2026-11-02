@@ -9,14 +9,14 @@ const targetSchema = Schema.Struct({
     threadId: Schema.String,
     worktreePath: Schema.NullOr(Schema.String),
     archived: Schema.Boolean,
-    pendingRequestCount: Schema.Int,
+    pendingRequestCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   }),
 });
 
 const receiptSchema = Schema.Struct({
   threadId: Schema.String,
-  runId: Schema.String,
-  messageId: Schema.String,
+  runId: Schema.NonEmptyString,
+  messageId: Schema.NonEmptyString,
   delivery: Schema.Literals(['started', 'queued']),
 });
 

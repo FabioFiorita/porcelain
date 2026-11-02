@@ -1,6 +1,6 @@
 import { NodeServices } from '@effect/platform-node';
 import { ReviewAgentHost } from '@porcelain/reviews/ports';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { ConfigProvider, Effect, Layer, ManagedRuntime } from 'effect';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,12 +31,12 @@ const receipt = {
   delivery: 'queued',
 };
 let directory: string;
-const previousPath = process.env.PATH;
-if (previousPath === undefined)
-  throw new Error('The host fixture requires PATH');
-const makeRuntime = () =>
+const makeRuntime = (directory: string) =>
   ManagedRuntime.make(
-    t3ReviewAgentHostLayer(LIMITS.git).pipe(Layer.provide(NodeServices.layer)),
+    Layer.mergeAll(
+      t3ReviewAgentHostLayer(LIMITS.git),
+      ConfigProvider.layer(ConfigProvider.fromUnknown({ PATH: directory })),
+    ).pipe(Layer.provide(NodeServices.layer)),
   );
 let runtime: ReturnType<typeof makeRuntime>;
 async function configure(thread = target.thread, response: unknown = receipt) {
@@ -60,13 +60,11 @@ beforeEach(async () => {
     `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const dir=path.dirname(process.argv[1]);const config=JSON.parse(fs.readFileSync(path.join(dir,'response.json'),'utf8'));const args=process.argv.slice(2);if(args[0]!=='thread')process.exit(2);if(args[1]==='show'){console.log(JSON.stringify({thread:config.thread}));}else if(args[1]==='send'){const message=fs.readFileSync(0,'utf8');fs.writeFileSync(path.join(dir,'outbox.json'),JSON.stringify({args,message}));console.log(JSON.stringify(config.response));}else process.exit(2);`,
     { mode: 0o700 },
   );
-  process.env.PATH = directory;
   await configure();
-  runtime = makeRuntime();
+  runtime = makeRuntime(directory);
 });
 afterEach(async () => {
   await runtime.dispose();
-  process.env.PATH = previousPath;
   await rm(directory, { recursive: true, force: true });
 });
 
@@ -102,6 +100,11 @@ it.each([
     reason: 'recipient-unavailable',
   },
   {
+    name: 'invalid pending-input count',
+    changes: { pendingRequestCount: -1 },
+    reason: 'recipient-unavailable',
+  },
+  {
     name: 'pending user input',
     changes: { pendingRequestCount: 1 },
     reason: 'recipient-unavailable',
@@ -128,16 +131,52 @@ it('does not confirm a successful command whose returned recipient differs', asy
   ).toMatchObject({ message: input.message });
 });
 
-it('does not confirm an invalid receipt even if the external command executed', async () => {
-  await configure(target.thread, {
-    threadId: 'owned-thread',
-    delivery: 'queued',
+it.each([
+  {
+    name: 'missing identifiers',
+    response: { threadId: 'owned-thread', delivery: 'queued' },
+  },
+  { name: 'empty run identifier', response: { ...receipt, runId: '' } },
+  { name: 'empty message identifier', response: { ...receipt, messageId: '' } },
+])(
+  'does not confirm $name even if the external command executed',
+  async ({ response }) => {
+    await configure(target.thread, response);
+    expect(await outcome()).toMatchObject({
+      _tag: 'AgentFeedbackConflictError',
+      reason: 'recipient-unavailable',
+    });
+    expect(
+      JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
+    ).toMatchObject({ message: input.message });
+  },
+);
+
+it('does not launch ambient T3 when the fixture explicitly disables agent lookup', async () => {
+  const result = await runtime.runPromise(
+    Effect.gen(function* () {
+      const host = yield* ReviewAgentHost;
+      return yield* host.execute(input);
+    }).pipe(
+      Effect.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromUnknown({
+            PATH: directory,
+            PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
+          }),
+        ),
+      ),
+      Effect.result,
+    ),
+  );
+  expect(result).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      _tag: 'AgentFeedbackConflictError',
+      reason: 'recipient-unavailable',
+    },
   });
-  expect(await outcome()).toMatchObject({
-    _tag: 'AgentFeedbackConflictError',
-    reason: 'recipient-unavailable',
-  });
-  expect(
-    JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
-  ).toMatchObject({ message: input.message });
+  await expect(
+    readFile(join(directory, 'outbox.json'), 'utf8'),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
 });

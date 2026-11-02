@@ -1,4 +1,5 @@
-import { Effect, Schema } from 'effect';
+import { findExecutable } from '../shared/commands/find-executable.ts';
+import { Effect, FileSystem, Path, Schema } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
 import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 
@@ -9,6 +10,8 @@ class T3SessionCommandError extends Schema.TaggedError<T3SessionCommandError>()(
 
 export const captureT3Session = Effect.fn('T3Session.capture')(function* () {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
   return Effect.fn('T3Session.run')(function* (input: {
     threadId: string;
     operation: { kind: 'read' } | { kind: 'send'; message: string };
@@ -16,9 +19,14 @@ export const captureT3Session = Effect.fn('T3Session.capture')(function* () {
     maxBytes: number;
     processGroup: ProcessGroupLimits;
   }) {
+    const command = yield* findExecutable('t3').pipe(
+      Effect.provideService(FileSystem.FileSystem, fs),
+      Effect.provideService(Path.Path, path),
+    );
+    if (command === undefined) return yield* new T3SessionCommandError();
     const output = yield* Effect.scoped(
       runCommand({
-        command: 't3',
+        command,
         args:
           input.operation.kind === 'read'
             ? ['thread', 'show', input.threadId, '--messages', '0', '--json']
