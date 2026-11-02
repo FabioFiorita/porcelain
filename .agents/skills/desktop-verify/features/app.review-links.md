@@ -20,7 +20,7 @@ Open a published link, then choose Open in Porcelain for Mac. A newly built inst
 Preconditions: [surface baseline](README.md).
 
 1. Build marketing and serve its static output through local Pages preview. With a valid link, inspect both destinations. Invalid links expose neither action.
-2. With disposable Porcelain Dev, deliver the custom URL through `app.emit('open-url', event, url)` in the Electron main process. Confirm review, revision, decision and environment in the renderer destination. A matching local environment must not be treated as remote.
+2. With disposable Porcelain Dev, deliver the custom URL through `app.emit('open-url', event, url)` in the Electron main process. Confirm review, revision, decision and environment in the renderer destination. For the matching-local journey, register the disposable repository and publish a real review first. Build the link from its returned review ID and revision plus the published decision ID. Assert the rendered decision and read back that revision from the server before checking the strict unexpected-error list. A matching local environment must not be treated as remote.
 3. Launch a fresh disposable app with the URL argument to prove startup retention; launch a second process with the same profile and URL to prove single-instance delivery. An unpaired environment must show Computer not paired; Back to workspace returns home.
 4. Repeat with a saved paired remote and a published review; confirm that computer's actual review content. Reject unsafe hosts, credentials, fragments and duplicate known query keys before navigation.
 
