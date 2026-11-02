@@ -72,7 +72,9 @@ it.each([
   '&revision=9007199254740992',
   '&decision=../settings',
   '&host=second.com',
-  '&token=secret',
+  '&environment=second',
+  '&revision=3&revision=4',
+  `&decision=${decision}&decision=${decision}`,
   '#fragment',
 ])('rejects an ambiguous or invalid destination %s', (query) => {
   expect(parseReviewAppLink(`${link}${query}`)).toBeUndefined();
@@ -133,4 +135,32 @@ it.each([
       `${path}?environment=computer&host=${encodeURIComponent(host)}&protocol=http`,
     ),
   ).toBeUndefined();
+});
+
+it.each(['&future=value', '&future=one&future=two', '&token=secret'])(
+  'ignores unknown query keys %s',
+  (query) => {
+    expect(parseReviewAppLink(`${link}&revision=3${query}`)).toEqual({
+      reviewId,
+      environmentId: 'computer',
+      host: 'computer.example.com:8443',
+      revision: 3,
+      webUrl: `https://computer.example.com:8443/reviews/${reviewId}/3`,
+    });
+  },
+);
+it('reads the current server publication link', () => {
+  expect(
+    parseReviewAppLink(
+      'https://porcelain.fabiofiorita.com/open/reviews/b50dcb25-8d72-4c8b-8984-1f74c9423a77?environment=1bc3e6b1-f849-4176-93b2-850147d4ebb3&host=porcelain-beelink.fabiofiorita.com&protocol=https&revision=3',
+    ),
+  ).toEqual({
+    reviewId: 'b50dcb25-8d72-4c8b-8984-1f74c9423a77',
+    environmentId: '1bc3e6b1-f849-4176-93b2-850147d4ebb3',
+    host: 'porcelain-beelink.fabiofiorita.com',
+    protocol: 'https',
+    revision: 3,
+    webUrl:
+      'https://porcelain-beelink.fabiofiorita.com/reviews/b50dcb25-8d72-4c8b-8984-1f74c9423a77/3',
+  });
 });

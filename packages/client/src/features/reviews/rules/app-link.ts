@@ -28,7 +28,7 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
       !/^\/open\/reviews\/[^/]+$/.test(url.pathname)
     )
       return undefined;
-    const allowed = new Set([
+    const known = new Set([
       'environment',
       'host',
       'protocol',
@@ -36,7 +36,7 @@ export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
       'decision',
     ]);
     for (const key of url.searchParams.keys()) {
-      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1)
+      if (known.has(key) && url.searchParams.getAll(key).length !== 1)
         return undefined;
     }
     const revision = url.searchParams.get('revision');
