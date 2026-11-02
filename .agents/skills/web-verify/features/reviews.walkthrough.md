@@ -23,6 +23,7 @@ selectors:
   - 'Expand all files'
   - 'Collapse all files'
 tests:
+  - apps/web/spec/e2e/reviews-header-alignment.e2e.ts
   - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-code-moved.test.tsx
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
@@ -75,7 +76,7 @@ The presentation tabs always offer Walkthrough and All changes; Agent summary ap
 1. Open an older revision, enter a decision and scroll its code. Choose tab All changes, or open the standalone Review panel and use Open all changes.
 2. Expect region All changes in this revision with the selected revision number/head, every published file including specs/deletions (Read more files pages the list), retained file marks and comments. Decision explanations are omitted. Later worktree edits and newer publications must not replace these diffs. Repeat after removing the disposable publishing checkout.
 3. Use Back to the walkthrough or tab Walkthrough. The same decision and scroll position return. A retained file tab still returns by its banner, Review tab, Alt+Left or closing the file. Flat view keyboard shortcuts act on its visible diff only.
-4. Expand all files / Collapse all files sits above the document, outside any individual file header. Per-file comments and reviewed checkboxes remain reachable. Decision changes have a brief opacity entry transition; prefers-reduced-motion disables it. Cold code reads show a labelled placeholder without hiding the decision title.
+4. Per-file Comment, change counts and previous/next file buttons share the path’s vertical center without wrapping at desktop widths. Long paths truncate; below 720px the Comment label and file chevrons hide while the comment icon stays available. Check a multi-file decision at 800px as well as 1440, 1080 and 414. Expand all files / Collapse all files sits above the document, outside any individual file header. Per-file comments and reviewed checkboxes remain reachable. Decision changes have a brief opacity entry transition; prefers-reduced-motion disables it. Cold code reads show a labelled placeholder without hiding the decision title.
 5. At desktop width, standalone reviews use the right rail for Review; the duplicate pane-bar toggle is absent. At phone width the pane-bar Review button opens the sheet. Check Escape/focus return and all tabs at 414 in light/dark.
 
 ## Gotchas
