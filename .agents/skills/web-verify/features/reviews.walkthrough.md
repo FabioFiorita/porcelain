@@ -85,3 +85,9 @@ The presentation tabs always offer Walkthrough and All changes; Agent summary ap
 ### Independent completion meanings
 
 Finish every decision in a publication whose agent recommends Merge but has a failed check and an unexplained file. The completion header says Decisions reviewed and the review list group says Decisions reviewed; the Agent recommendation section says Merge, Published proof retains the failure, and Still open retains the remaining file. No Ready to merge label appears. Repeat Hold, missing proof and a changed revision; none becomes an approval. GitHub checks in the PR document remain separate from agent-published proof.
+
+## Closing page layout
+
+Publish a review with long explained paths and short and long lists of uncovered ranges. In Not explained, each path in Unexplained lines in explained files stays on one line, truncates with an ellipsis when needed, and retains its complete title. Ranges and Read in links occupy subsequent rows. Drive 1440, 1080, 768 and 414 widths; follow Read in to its decision and return. Scroll to the end: the final file control and completion actions must clear the Walkthrough dock and remain clickable. The sibling unexplained-files and Specs code lists retain their own file headers and controls.
+
+Automated coverage: `apps/web/spec/e2e/reviews-closing-layout.e2e.ts`.

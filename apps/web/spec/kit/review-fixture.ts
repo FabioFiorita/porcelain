@@ -190,3 +190,74 @@ export async function durableReviewFixture(
     worktree,
   });
 }
+
+export async function closingPlacesFixture(session: Session) {
+  await session.git('branch', 'closing-layout-base', 'HEAD');
+  const paths = Array.from(
+    { length: 15 },
+    (_, index) =>
+      `apps/server/spec/integration/reviews-agent-feedback-${String(index + 1).padStart(2, '0')}.integration.ts`,
+  );
+  for (const path of paths) {
+    await mkdir(join(session.repository, path, '..'), { recursive: true });
+    await writeFile(
+      join(session.repository, path),
+      Array.from(
+        { length: 60 },
+        (_, index) => `export const value${index} = ${index};`,
+      ).join('\n') + '\n',
+    );
+  }
+  await session.git('add', '--all');
+  await session.git(
+    'commit',
+    '--allow-empty',
+    '-m',
+    'Add closing page layout fixture',
+  );
+  const response = await session.send({
+    ...toolCall(session, 1, 'publish_review', {
+      expectedRevision: 0,
+      base: 'refs/heads/closing-layout-base',
+      verdict: {
+        asked: { text: 'Keep uncovered review paths readable' },
+        recommendation: 'hold',
+        reasons: ['Some changed lines need explanation'],
+        notProven: [],
+        removed: [],
+      },
+      layers: [
+        {
+          id: layerId,
+          title: 'Explain the integration fixtures',
+          summary:
+            'Leave short and long uncovered range labels for layout verification.',
+          lanes: ['Specs'],
+          steps: paths.flatMap((path, index) =>
+            (index === 0
+              ? [1]
+              : Array.from({ length: 8 }, (_, line) => line * 7 + 1)
+            ).map((line) => ({
+              id: crypto.randomUUID(),
+              lane: 0,
+              kind: 'changed',
+              title: 'Read the fixture value',
+              text: 'This value is explained; the following lines remain uncovered.',
+              pointer: { path, startLine: line, endLine: line },
+            })),
+          ),
+        },
+      ],
+    }),
+    headers: {
+      ...toolCall(session, 1, 'publish_review', {}).headers,
+      ...kitHeaders,
+    },
+  });
+  if (response.status !== 200)
+    throw new Error('Closing places publication failed');
+  const published = Schema.decodeUnknownSync(publishReviewResponseSchema)(
+    JSON.parse(toolText(response.body)),
+  );
+  return published.reviewId;
+}
