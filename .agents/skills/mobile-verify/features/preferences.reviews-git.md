@@ -10,6 +10,7 @@ selectors:
   - 'pull-rebase'
   - 'Read settings again'
 tests:
+  - packages/client/src/features/preferences/queries/review-git-settings.spec.ts
   - packages/client/src/features/preferences/store.spec.ts
   - packages/client/src/features/preferences/rules/review-git-settings.spec.ts
   - packages/client/src/features/projects/queries/folders.spec.ts
@@ -34,11 +35,12 @@ Preconditions: [surface baseline](README.md).
 1. Open Reviews & Git against a fresh disposable computer. The switches and Pull strategy are disabled and show this app's earlier values; choose Use these settings for <computer name>. They enable; GET `/api/review-git-settings` answers `configured` with those values.
 2. Toggle an archive deletion and choose Rebase. Read the setting from a browser on the same computer: it changed there too. Change a different setting from the browser and reopen the page: both changes stay.
 3. Pair a second disposable computer: the Computer choice lists both and each keeps its own values.
+   After confirming both computers' settings, switch between them again: each computer's last confirmed values stay visible while its fresh read completes. Configured settings do not start a service-update permission check for this form. Unconfigured settings still require confirmed trust; Check again explicitly refreshes that confirmation.
 4. Stop the server while the page is open and reopen it: the error offers Read settings again and the controls show no values (switches off, no Pull strategy selected) rather than this app's earlier values; after restarting, it restores the controls.
 5. Confirm there is no Commit model setting: model choice belongs to the web/desktop commit dialog. Mobile has no commit action.
 6. Preview archive through [Worktrees](projects.workspace-picker.md): deletion choices agree with the computer's settings, and Archive is disabled with the reason until they are confirmed.
 
-Automated coverage: `review-git-settings.spec.ts`, `store.spec.ts`, `folders.spec.ts`.
+Automated coverage: `preferences/queries/review-git-settings.spec.ts` (retention, isolation and trust), `preferences/rules/review-git-settings.spec.ts` (view states), `store.spec.ts`, `folders.spec.ts`.
 
 ## Gotchas
 

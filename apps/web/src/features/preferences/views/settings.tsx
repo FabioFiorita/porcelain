@@ -44,7 +44,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { Separator } from '@/components/ui/separator';
-import { Fragment, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsHeading } from '@/shared/views/settings-heading';
@@ -320,16 +320,14 @@ function ReviewGitSettingsForm({
         <FieldLegend variant="label">When archiving a review</FieldLegend>
         <ItemGroup>
           {archiveSettings.map(({ key, label }) => (
-            <Fragment key={key}>
-              <SwitchItem
-                label={label}
-                description={archiveDescriptions[key]}
-                checked={settings?.[key] ?? false}
-                disabled={!editable}
-                onChange={(checked) => change({ [key]: checked })}
-              />
-              {key !== archiveSettings.at(-1)?.key && <Separator />}
-            </Fragment>
+            <SwitchItem
+              key={key}
+              label={label}
+              description={archiveDescriptions[key]}
+              checked={settings?.[key] ?? false}
+              disabled={!editable}
+              onChange={(checked) => change({ [key]: checked })}
+            />
           ))}
         </ItemGroup>
       </FieldSet>

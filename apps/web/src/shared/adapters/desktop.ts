@@ -7,6 +7,7 @@ import type {
   DesktopAppearance,
   DesktopBridge,
   DesktopAppUpdateState,
+  DesktopPowerState,
 } from '@porcelain/contracts/desktop';
 import { desktopShell } from '@/shared/shell';
 
@@ -18,6 +19,14 @@ declare global {
 
 export function desktopLiveAddress(): string | undefined {
   return desktopShell ? window.porcelainDesktop?.liveAddress() : undefined;
+}
+
+export function onDesktopPowerState(
+  receive: (state: DesktopPowerState) => void,
+): () => void {
+  return desktopShell
+    ? (window.porcelainDesktop?.onPowerState(receive) ?? (() => undefined))
+    : () => undefined;
 }
 
 function onDesktopAction(receive: (action: DesktopAction) => void): () => void {

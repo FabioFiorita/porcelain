@@ -149,7 +149,7 @@ test('PR actions on two computers keep the same PR number scoped to its review w
     throw new Error('Missing fixture main checkout');
   const localFixture = await archiveFixture(localMain);
   const remoteFixture = await archiveFixture(remoteMain, { codeComment: true });
-  localFixture.pullRequestUnavailable(true);
+  localFixture.setGitHubFailure('rate-limited');
   try {
     await page.setViewportSize({ width: 1440, height: 896 });
     await app.reload();
@@ -240,6 +240,6 @@ test('PR actions on two computers keep the same PR number scoped to its review w
       .poll(() => new URL(page.url()).searchParams.get('environment'))
       .toBe((await remote.server.inventory()).environmentId);
   } finally {
-    localFixture.pullRequestUnavailable(false);
+    localFixture.setGitHubFailure(undefined);
   }
 });

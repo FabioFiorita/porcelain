@@ -93,13 +93,14 @@ it.each([
   ['rate-limited', 'retry', 'Try again'],
   ['offline', 'retry', 'Try again'],
   ['invalid-response', 'retry', 'Try again'],
+  ['pull-request-not-found', 'retry', 'Try again'],
 ] as const)('offers the way out of %s', (reason, kind, label) => {
   expect(githubUnavailable(reason).action).toMatchObject({ kind, label });
 });
 
 it('sends a missing account to Settings by name', () => {
   expect(githubUnavailable('no-access').description).toBe(
-    'No signed-in account can open this repository. Choose one in Settings › Reviews & Git.',
+    'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
   );
 });
 

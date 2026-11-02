@@ -12,6 +12,7 @@ export {
 export type { ReviewGitSettings } from '@porcelain/contracts/access';
 export {
   refreshReviewGitSettings,
+  refreshReviewGitSettingsTrust,
   reviewGitSettingsSaving,
   saveReviewGitSettings,
 } from './commands/review-git-settings.ts';

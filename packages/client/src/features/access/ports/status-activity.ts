@@ -1,4 +1,6 @@
 export type StatusActivity = {
   readonly isActive: () => boolean;
-  readonly subscribe: (changed: () => void) => () => void;
+  readonly subscribe: (
+    changed: (event?: 'suspend' | 'resume') => void,
+  ) => () => void;
 };

@@ -11,6 +11,7 @@ selectors:
 tests:
   - apps/web/spec/integration/reviews-side-panel.test.tsx
   - apps/web/spec/integration/history-list.test.tsx
+  - apps/web/spec/e2e/projects-pr-state.e2e.ts
 api:
   - GET /api/worktrees/:worktreeId/changes
   - GET /api/worktrees/:worktreeId/commits
@@ -46,3 +47,9 @@ Preconditions: [surface baseline](README.md).
 - Clicking the pressed rail button closes the panel; select a different view, or use `Alt+1`/`Alt+2`/`Alt+3`, when a journey needs the panel open.
 - The selected view is the `surface` search parameter; it survives a reload, the panel's visibility does not: every load starts with the panel hidden.
 - Widening past 1280px while the phone sheet is open docks the panel on the same view.
+
+## Linked pull request recovery
+
+Open a linked PR from its sidebar action or Review panel, then make GitHub return a missing-PR error or null response. The PR document explains that GitHub could not find it, retains Back to the review and Try again, and does not report a network failure or unlink/close the review. Restore GitHub and retry: the same PR opens without changing the workspace or review. Repeat at 1440 and 414. GitHub checks remain separate from the published review's proof.
+
+Discovery lists use only the authoritative GitHub check rollup; individual check details are fetched on PR opening. At up to50open+50recent PRs, listing must not request nested check contexts.

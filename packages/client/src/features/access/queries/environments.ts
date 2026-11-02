@@ -128,12 +128,15 @@ const statusAtoms = Atom.family(
       .atom(() => {
         let pending = false;
         let wasActive = false;
+        let suspended = false;
         let previous: RemoteAnswer | undefined;
         const activity = Stream.callback<boolean>(
           (events) =>
             Effect.gen(function* () {
-              const changed = () => {
-                const active = statusActivity?.isActive() ?? true;
+              const changed = (event?: 'suspend' | 'resume') => {
+                if (event) suspended = event === 'suspend';
+                const active =
+                  !suspended && (statusActivity?.isActive() ?? true);
                 const resumed = active && !wasActive;
                 wasActive = active;
                 if (!active || resumed || !pending)

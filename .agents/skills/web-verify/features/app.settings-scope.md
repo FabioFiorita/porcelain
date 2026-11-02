@@ -8,7 +8,6 @@ selectors:
   - 'Reviews & Git'
   - 'Computers'
   - 'Documents open as'
-  - 'Agent'
   - 'Pair a device'
   - 'Open This computer:'
   - 'Ways in'

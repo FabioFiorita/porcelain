@@ -44,4 +44,10 @@ With a paired, live remote, fail only its HTTP status request in the browser and
 
 Drop the actual live socket, restore transport and verify a replacement session receives the current subscription and fresh file data without a reload. A silent socket and an initial ready handshake that never arrives must also recover within their bounded setup/probe deadlines. Confirmed revocation ends retries; an unreachable alternative does not count as revoked. Forget stops that computer's session while other computers remain available. Retain socket open/close counts, frames, route identity, status-probe failures and independent file readbacks.
 
+### Isolation and silent transport
+
+With a healthy local workspace and a paired remote, interrupt only the remote HTTP/WebSocket transport. The healthy workspace remains usable, retains its draft and selection, and still receives independent file changes. Restoring the remote recovers its selected workspace without re-pairing. Record the fixture scale and per-host requests/socket counts. Repeat foreground with a healthy fallback and fail only diagnostic HTTP reads: neither hint replaces its session. Effect RPC's existing Ping/Pong detects a silent peer without a focus event; prove that separately from an explicit close. Browser injection and loopback do not establish native sleep or physical LAN/Tailscale behavior.
+
+### Computer updates
+
 Check for updates sits beside Update all in the Computers header and refreshes all applicable computer statuses. Current versions have no Mac app/Porcelain prefix; normal no-update status says Up to date. Progress, errors, permission refusal and offline/unavailable states retain their distinct meanings. The Mac app still installs through its bridge, never the service update endpoint.

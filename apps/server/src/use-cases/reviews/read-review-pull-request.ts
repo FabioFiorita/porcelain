@@ -49,7 +49,7 @@ export class ReadReviewPullRequestUseCase extends Context.Service<
                 kind: 'unavailable',
                 reason:
                   result.failure._tag === 'GitHubPullRequestNotFoundError'
-                    ? 'offline'
+                    ? 'pull-request-not-found'
                     : result.failure.reason,
               };
             const observed = yield* lanes.run(

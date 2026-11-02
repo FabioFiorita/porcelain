@@ -24,7 +24,10 @@ import {
   accessSession,
   applicationRuntime,
 } from '@/features/access/index';
-import { ThemeProvider } from '@/features/preferences/index';
+import {
+  ReviewsGitSettings,
+  ThemeProvider,
+} from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
 import type { RemoteConnection } from '@porcelain/client/access';
@@ -56,6 +59,7 @@ export { replaceEditorContent } from './commands.ts';
 export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
+  preferences: () => Promise<typeof page>;
   workspace: () => Promise<typeof page>;
   selection: () => Promise<typeof page>;
   route: (
@@ -168,6 +172,18 @@ function Workspace({ connection }: { connection: Connection }) {
         }
         navigationTrigger={trigger}
       />
+    </div>
+  );
+}
+
+function Preferences() {
+  const [visible, setVisible] = useState(true);
+  return (
+    <div className="flex w-full min-w-0 flex-col">
+      <button type="button" onClick={() => setVisible(!visible)}>
+        {visible ? 'Hide preferences' : 'Show preferences'}
+      </button>
+      {visible && <ReviewsGitSettings />}
     </div>
   );
 }
@@ -431,6 +447,10 @@ export const test = base
       unmount = mounted.unmount;
     };
     const render: Render = {
+      async preferences() {
+        await show(() => <Preferences />);
+        return page;
+      },
       async selection() {
         await show(() => <ConnectedWorkspace />);
         return page;
