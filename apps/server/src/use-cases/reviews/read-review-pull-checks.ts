@@ -40,7 +40,7 @@ export class ReadReviewPullChecksUseCase extends Context.Service<
                 kind: 'unavailable',
                 reason:
                   result.failure._tag === 'GitHubPullRequestNotFoundError'
-                    ? 'offline'
+                    ? 'pull-request-not-found'
                     : result.failure.reason,
               };
             return { kind: 'available', ...result.success };

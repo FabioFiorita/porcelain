@@ -140,7 +140,7 @@ export function githubUnavailable(reason: GitHubUnavailableReason): {
     case 'no-access':
       return {
         description:
-          'No signed-in account can open this repository. Choose one in Settings › Reviews & Git.',
+          'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
         action: { kind: 'settings', label: 'Choose an account' },
       };
     case 'gh-not-installed':
@@ -175,6 +175,12 @@ export function githubUnavailable(reason: GitHubUnavailableReason): {
     case 'invalid-response':
       return {
         description: 'GitHub’s answer was unreadable.',
+        action: { kind: 'retry', label: 'Try again' },
+      };
+    case 'pull-request-not-found':
+      return {
+        description:
+          'GitHub could not find this pull request. It may have been removed or become unavailable to this account. The review stays linked and readable.',
         action: { kind: 'retry', label: 'Try again' },
       };
     case 'not-github':

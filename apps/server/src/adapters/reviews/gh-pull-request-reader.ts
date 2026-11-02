@@ -17,13 +17,14 @@ import {
 import type { Limits } from '../../config/limits.ts';
 
 const PAGE = 'pageInfo { hasNextPage }';
-const summaryFields = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName updatedAt
-  commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
+const SUMMARY_FIELDS = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName updatedAt`;
+const ROLLUP_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }`;
+const CHECK_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
     nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
-    ${summaryFields} body createdAt baseRefName headRefOid mergeable
+    ${SUMMARY_FIELDS} ${CHECK_FIELDS} body createdAt baseRefName headRefOid mergeable
     labels(first: 50) { nodes { name color } ${PAGE} }
     comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url } ${PAGE} }
     reviews(first: 50) { nodes { id author { login avatarUrl(size: 48) } submittedAt createdAt body url state
@@ -38,13 +39,15 @@ const CHECKS_QUERY = `query PullRequestChecks($owner: String!, $repo: String!, $
 }`;
 const checksSchema = Schema.Struct({
   data: Schema.Struct({
-    repository: Schema.Struct({ pullRequest: githubPullChecksSchema }),
+    repository: Schema.Struct({
+      pullRequest: Schema.NullOr(githubPullChecksSchema),
+    }),
   }),
 });
 const listQuery = `query PullRequestList($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
-    open: pullRequests(first: 50, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${summaryFields} } ${PAGE} }
-    recent: pullRequests(first: 50, states: [CLOSED, MERGED], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${summaryFields} } ${PAGE} }
+    open: pullRequests(first: 50, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } ${PAGE} }
+    recent: pullRequests(first: 50, states: [CLOSED, MERGED], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } ${PAGE} }
   }
 }`;
 const listPage = Schema.Struct({
@@ -58,7 +61,9 @@ const listSchema = Schema.Struct({
 });
 const detailSchema = Schema.Struct({
   data: Schema.Struct({
-    repository: Schema.Struct({ pullRequest: githubPullRequestSchema }),
+    repository: Schema.Struct({
+      pullRequest: Schema.NullOr(githubPullRequestSchema),
+    }),
   }),
 });
 
@@ -121,7 +126,10 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               () => new GitHubReadError({ reason: 'invalid-response' }),
             ),
           );
-          return decoded.data.repository.pullRequest;
+          const pullRequest = decoded.data.repository.pullRequest;
+          if (pullRequest === null)
+            return yield* new GitHubPullRequestNotFoundError();
+          return pullRequest;
         }),
         checks: Effect.fn('GitHubReader.checks')(function* (input) {
           const json = yield* api({
@@ -133,7 +141,13 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               repo: input.repo,
               number: input.number,
             },
-          }).pipe(Effect.mapError(unavailable));
+          }).pipe(
+            Effect.mapError((error) =>
+              error.reason === 'not-found'
+                ? new GitHubPullRequestNotFoundError()
+                : unavailable(error),
+            ),
+          );
           const decoded = yield* Schema.decodeEffect(
             Schema.fromJsonString(checksSchema),
           )(json).pipe(
@@ -141,7 +155,10 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               () => new GitHubReadError({ reason: 'invalid-response' }),
             ),
           );
-          return decoded.data.repository.pullRequest;
+          const pullRequest = decoded.data.repository.pullRequest;
+          if (pullRequest === null)
+            return yield* new GitHubPullRequestNotFoundError();
+          return pullRequest;
         }),
         list: Effect.fn('GitHubReader.list')(function* (input) {
           const json = yield* api({
