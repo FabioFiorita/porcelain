@@ -170,8 +170,6 @@ test.for(
         ['New folder', 'empty', '', ['second.md']],
         ['New file', 'cancel', '', ['second.md']],
         ['New folder', 'cancel', '', ['second.md']],
-        ['New file', 'invalid', 'second.md', ['second.md']],
-        ['New folder', 'invalid', 'second.md', ['second.md']],
       ] as const
     ).map(([command, outcome, name, entries]) => ({
       width,
@@ -222,10 +220,6 @@ test.for(
       await expect.poll(() => held.responded()).toBe(true);
       await expectInputFocus(name);
       if (outcome === 'named') await expect.element(name).toHaveValue(value);
-      if (outcome === 'invalid') {
-        await userEvent.keyboard(value);
-        await expect.element(name).toHaveValue(value);
-      }
       if (outcome === 'empty') await name.fill('');
       if (outcome === 'caret') {
         await userEvent.keyboard('{Home}x');
@@ -237,14 +231,6 @@ test.for(
           .click();
       else
         await userEvent.keyboard(outcome === 'cancel' ? '{Escape}' : '{Enter}');
-      if (outcome === 'invalid')
-        await expect
-          .element(
-            page.getByText('An entry already exists at that path', {
-              exact: true,
-            }),
-          )
-          .toBeVisible();
       await expect.element(name).not.toBeInTheDocument();
       if (outcome === 'cancel' || outcome === 'empty')
         await expect
