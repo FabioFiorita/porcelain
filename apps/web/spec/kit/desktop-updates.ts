@@ -100,6 +100,7 @@ export async function updateFeed(
       liveAddress: () => liveAddress,
       isFullscreen: () => false,
       onFullscreen: () => () => undefined,
+      onPowerState: () => () => undefined,
       onAction: () => () => undefined,
       setAppearance: () => undefined,
     };

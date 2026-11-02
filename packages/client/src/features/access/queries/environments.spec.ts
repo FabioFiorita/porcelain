@@ -350,7 +350,7 @@ async function lifecycleFixture(
   testRuntimes.push(runtime);
   const clock = await runtime.runPromise(Clock.Clock);
   let active = true;
-  const listeners = new Set<() => void>();
+  const listeners = new Set<(event?: 'suspend' | 'resume') => void>();
   let answer = initial.answer ?? environment;
   let outage = initial.outage ?? false;
   let hold: Promise<void> | undefined = initial.hold;
@@ -407,6 +407,9 @@ async function lifecycleFixture(
     listeners,
     stop,
     status: () => remoteStatusResult(remote, registry.get(atom)),
+    power: (event: 'suspend' | 'resume') => {
+      for (const changed of listeners) changed(event);
+    },
     activity: (value: boolean) => {
       active = value;
       for (const changed of listeners) changed();
@@ -472,6 +475,26 @@ it('pauses in background and revalidates on foreground without overlapping event
   expect(subject.status()).toEqual({
     kind: 'online',
     name: 'Foreground name',
+    version: '1.0.0',
+  });
+  expect(subject.requests).toHaveLength(6);
+});
+
+it('native suspension pauses status probes even before document visibility changes, and resume refreshes them', async () => {
+  const subject = await lifecycleFixture();
+  await subject.flush();
+  subject.power('suspend');
+  await subject.flush();
+  revalidateRemoteStatus(subject.platform, remote);
+  await subject.flush();
+  await subject.advance(90000);
+  expect(subject.requests).toHaveLength(3);
+  subject.answer({ ...environment, name: 'Resumed computer' });
+  subject.power('resume');
+  await subject.flush();
+  expect(subject.status()).toEqual({
+    kind: 'online',
+    name: 'Resumed computer',
     version: '1.0.0',
   });
   expect(subject.requests).toHaveLength(6);

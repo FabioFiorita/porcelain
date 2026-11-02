@@ -25,7 +25,7 @@ The Mac app saves paired computers securely, preserves unreadable credentials wi
 ## How to get to it (user POV)
 
 - Settings › Computers › paste a pairing link › Add
-- the sidebar group of a paired computer, then its worktree's Review → Agent summary
+- a project card belonging to a paired computer in the sidebar, then its worktree's Review → Agent summary
 
 ## Driving it with Electron
 
@@ -38,6 +38,8 @@ Preconditions: [surface baseline](README.md).
 5. Publish authored summaries on local and paired remote fixtures. Walkthrough is initial; Agent summary opens HTML, and its #layer-N links open decision N. Return through the Review document tab, then Agent summary. Open both through the app: theme and decision links work, content stays sandboxed, and no remote website, Node or bridge access is available.
 
 Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
+
+6. With an already open remote file/review, capture socket identity and independently change fixture data while the app is suspended. Resume without assuming a browser focus/visibility transition; accepted live subscription refreshes active reads and pending Git receipts, keeping a healthy socket. If the window remains unfocused, that refresh is retained until it becomes active. Computers diagnostic reads pause during native suspension. Keep another computer usable throughout. Run the native suspend/resume bridge regression separately from actual OS sleep/wake; emitted test events do not prove physical sleep. Repeat after closing/reopening the window and confirm power listeners are released.
 
 ## Gotchas
 

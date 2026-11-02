@@ -9,6 +9,7 @@ export const desktopAppearanceSchema = Schema.Literals([
   'light',
   'dark',
 ]);
+export const desktopPowerStateSchema = Schema.Literals(['suspend', 'resume']);
 export const desktopAppUpdateStateSchema = Schema.Union([
   Schema.Struct({ status: Schema.Literal('idle') }),
   Schema.Struct({ status: Schema.Literal('checking') }),
@@ -52,6 +53,7 @@ export const desktopMcpConfigurationSchema = Schema.Struct({
 export type DesktopMcpConfiguration = typeof desktopMcpConfigurationSchema.Type;
 export type DesktopAction = typeof desktopActionSchema.Type;
 export type DesktopAppearance = typeof desktopAppearanceSchema.Type;
+export type DesktopPowerState = typeof desktopPowerStateSchema.Type;
 export type DesktopWindowState = typeof desktopWindowStateSchema.Type;
 export type DesktopCredentials = typeof desktopCredentialsSchema.Type;
 export type DesktopAppUpdateState = typeof desktopAppUpdateStateSchema.Type;
@@ -73,6 +75,7 @@ export type DesktopBridge = {
   liveAddress: () => string;
   isFullscreen: () => boolean;
   onFullscreen: (receive: (fullscreen: boolean) => void) => () => void;
+  onPowerState: (receive: (state: DesktopPowerState) => void) => () => void;
   onAction: (receive: (action: DesktopAction) => void) => () => void;
   setAppearance: (appearance: DesktopAppearance) => void;
 };

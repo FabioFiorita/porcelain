@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   desktopMcpConfigurationSchema,
   desktopActionSchema,
+  desktopPowerStateSchema,
   desktopAppUpdateStateSchema,
   desktopCredentialsSchema,
   type DesktopAppUpdateState,
@@ -97,6 +98,14 @@ const bridge: DesktopBridge = {
     };
     ipcRenderer.on('porcelain:fullscreen', listener);
     return () => ipcRenderer.removeListener('porcelain:fullscreen', listener);
+  },
+  onPowerState: (receive) => {
+    const listener = (_event: IpcRendererEvent, value: unknown) => {
+      const parsed = Schema.decodeUnknownResult(desktopPowerStateSchema)(value);
+      if (Result.isSuccess(parsed)) receive(parsed.success);
+    };
+    ipcRenderer.on('porcelain:power-state', listener);
+    return () => ipcRenderer.removeListener('porcelain:power-state', listener);
   },
   onAction: (receive) => {
     const listener = (_event: IpcRendererEvent, value: unknown) => {

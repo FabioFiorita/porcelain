@@ -10,6 +10,62 @@ import {
 
 declare const porcelainDesktop: DesktopBridge;
 
+declare const powerProof: {
+  events: string[];
+  unsubscribe: () => void;
+  delivered: Promise<void>;
+};
+
+test('native suspend and resume reach the renderer through removable validated subscriptions', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  await page.evaluate(() => {
+    const events: string[] = [];
+    const unsubscribe = porcelainDesktop.onPowerState((state) =>
+      events.push(state),
+    );
+    Reflect.set(globalThis, 'powerProof', {
+      events,
+      unsubscribe,
+      delivered: Promise.resolve(),
+    });
+  });
+  await app.electron.evaluate(({ BrowserWindow, powerMonitor }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send(
+      'porcelain:power-state',
+      'invalid',
+    );
+    powerMonitor.emit('suspend');
+    powerMonitor.emit('resume');
+  });
+  await expect
+    .poll(() => page.evaluate(() => powerProof.events))
+    .toEqual(['suspend', 'resume']);
+  await page.evaluate(() => {
+    powerProof.unsubscribe();
+    powerProof.delivered = new Promise<void>((resolve) => {
+      const stop = porcelainDesktop.onPowerState((state) => {
+        if (state === 'resume') {
+          stop();
+          resolve();
+        }
+      });
+    });
+  });
+  await app.electron.evaluate(({ powerMonitor }) => {
+    powerMonitor.emit('suspend');
+    powerMonitor.emit('resume');
+  });
+  expect(
+    await page.evaluate(async () => {
+      await powerProof.delivered;
+      return powerProof.events;
+    }),
+  ).toEqual(['suspend', 'resume']);
+});
+
 const saved = JSON.stringify([
   { name: 'Desktop proof', credential: 'test-only-bearer' },
 ]);
