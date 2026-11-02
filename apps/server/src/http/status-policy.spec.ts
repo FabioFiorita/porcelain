@@ -101,6 +101,20 @@ describe('status policy', () => {
     });
   });
 
+  it('answers a sharing-management refusal as forbidden with its actionable reason', () => {
+    expect(
+      toStatusResponse(new accessErrors.SharingManagementRequiredError()),
+    ).toEqual({
+      statusCode: 403,
+      body: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message:
+          'This device cannot manage sharing. Allow it from a device with sharing access.',
+      },
+    });
+  });
+
   it('answers an unknown failure as an unexpected failure', () => {
     expect(toStatusResponse(new Error('boom')).statusCode).toBe(500);
   });
