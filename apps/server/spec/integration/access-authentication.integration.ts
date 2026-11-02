@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 94;
+const PAIRED_ROUTES = 95;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -73,6 +73,7 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
     expect(routes).toHaveLength(PAIRED_ROUTES);
     expect(routes).toEqual(
       expect.arrayContaining([
+        'POST /api/access/management-permission',
         'PUT /api/environment/icon',
         'GET /api/reviews/:reviewId/compare',
         'GET /api/reviews/:reviewId/interdiff',
