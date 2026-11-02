@@ -26,7 +26,23 @@ struct MarkdownContent: View {
     ScrollView {
       LazyVStack(alignment: .leading, spacing: model.tokens.pagePadding) {
         ForEach(model.blocks) { block in
-          if block.kind == "code" {
+          if block.kind == "image" {
+            if let value = block.url, let url = URL(string: value) {
+              AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                  image.resizable().scaledToFit().frame(maxWidth: .infinity)
+                    .accessibilityLabel(block.runs.first?.text ?? "Image")
+                case .failure:
+                  Text("Image unavailable · \(block.runs.first?.text ?? "Image")").foregroundStyle(.secondary)
+                default:
+                  Text("Loading image · \(block.runs.first?.text ?? "Image")").foregroundStyle(.secondary)
+                }
+              }
+            } else {
+              Text("Image unavailable · \(block.runs.first?.text ?? "Image")").foregroundStyle(.secondary)
+            }
+          } else if block.kind == "code" {
             ScrollView(.horizontal) { Text(text(block)).textSelection(.enabled).padding(model.tokens.blockPadding) }
               .background(.secondary.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: model.tokens.radius))
           } else {

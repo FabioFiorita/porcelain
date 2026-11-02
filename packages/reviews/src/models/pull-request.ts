@@ -107,6 +107,7 @@ export const githubPullRequestSchema = Schema.Struct({
     ),
   }),
   body: Schema.String,
+  bodyHTML: Schema.optional(Schema.String),
   createdAt: Schema.optional(Schema.String),
   baseRefName: Schema.String,
   headRefOid: Schema.String,

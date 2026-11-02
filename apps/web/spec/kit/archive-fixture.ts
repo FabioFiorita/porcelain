@@ -13,7 +13,7 @@ import { record, text } from '@porcelain/server/kit/session';
 
 export async function archiveFixture(
   main: string,
-  options: { codeComment?: boolean } = {},
+  options: { codeComment?: boolean; description?: string } = {},
 ) {
   const home = dirname(main);
   const tree = join(home, 'archive-fixture');
@@ -53,7 +53,7 @@ export async function archiveFixture(
     headRefName: 'archive-fixture',
     updatedAt: '2026-10-21T03:00:00Z',
     commits: { nodes: [] },
-    body: 'Finished',
+    body: options.description ?? 'Finished',
     baseRefName: 'main',
     headRefOid: head,
     mergeable: 'UNKNOWN',
