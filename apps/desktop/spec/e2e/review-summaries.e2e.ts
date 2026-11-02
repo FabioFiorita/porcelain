@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { observeSummaryDelivery } from './summary-delivery.ts';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
@@ -238,78 +239,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
         })
         .getByRole('button', { name: 'Open project', exact: true }),
     ).toBeVisible();
-    await app.electron.evaluate(({ BrowserWindow, net }) => {
-      const view = BrowserWindow.getAllWindows()[0];
-      if (view === undefined) throw new Error('The app window is missing');
-      view.webContents.on(
-        'did-fail-load',
-        (_event, code, description, url, mainFrame) => {
-          process.stderr.write(
-            `${JSON.stringify({ summaryLoad: { code, description, path: URL.parse(url)?.pathname, mainFrame } })}\n`,
-          );
-        },
-      );
-      view.webContents.on(
-        'did-frame-finish-load',
-        (_event, mainFrame, processId, routingId) => {
-          process.stderr.write(
-            `${JSON.stringify({ summaryFrameFinished: { mainFrame, processId, routingId } })}\n`,
-          );
-        },
-      );
-      const fetch = net.fetch.bind(net);
-      net.fetch = async (input, init) => {
-        const path = URL.parse(
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url,
-        )?.pathname;
-        const summary = path?.startsWith('/review-summaries/');
-        if (summary) {
-          process.stderr.write(
-            `${JSON.stringify({ summaryFetch: { path } })}\n`,
-          );
-          init?.signal?.addEventListener(
-            'abort',
-            () => {
-              process.stderr.write(
-                `${JSON.stringify({ summaryAborted: { path } })}\n`,
-              );
-            },
-            { once: true },
-          );
-        }
-        const response = await fetch(input, init);
-        if (summary)
-          process.stderr.write(
-            `${JSON.stringify({ summaryResponse: { path, status: response.status } })}\n`,
-          );
-        return response;
-      };
-    });
-    page.on('response', (response) => {
-      const path = new URL(response.url()).pathname;
-      if (path.startsWith('/review-summaries/'))
-        app.output.push(
-          `${JSON.stringify({ summaryBrowserResponse: { path, status: response.status(), navigation: response.request().isNavigationRequest() } })}\n`,
-        );
-    });
-    page.on('requestfailed', (request) => {
-      const path = new URL(request.url()).pathname;
-      if (path.startsWith('/review-summaries/'))
-        app.output.push(
-          `${JSON.stringify({ summaryBrowserFailure: { path, failure: request.failure(), navigation: request.isNavigationRequest() } })}\n`,
-        );
-    });
-    page.on('requestfinished', (request) => {
-      const path = new URL(request.url()).pathname;
-      if (path.startsWith('/review-summaries/'))
-        app.output.push(
-          `${JSON.stringify({ summaryBrowserFinished: { path, navigation: request.isNavigationRequest() } })}\n`,
-        );
-    });
+    const expectHeading = await observeSummaryDelivery(app, page, testInfo);
     const here = await publishSummary(
       page,
       desktop.repository,
@@ -323,45 +253,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     ).toHaveAttribute('aria-selected', 'true');
     await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
     const summary = page.frameLocator('iframe[title="Review summary"]');
-    try {
-      await expect(
-        summary.getByRole('heading', { name: 'Local summary', exact: true }),
-      ).toBeVisible();
-    } catch (error) {
-      try {
-        const native = await app.electron.evaluate(async ({ BrowserWindow }) =>
-          Promise.all(
-            BrowserWindow.getAllWindows().flatMap((view) =>
-              view.webContents.mainFrame.framesInSubtree.map(async (frame) => ({
-                path: URL.parse(frame.url)?.pathname,
-                processId: frame.processId,
-                routingId: frame.routingId,
-                document: frame.url.includes('/review-summaries/')
-                  ? await frame
-                      .executeJavaScript(
-                        '({readyState:document.readyState,bodyLength:document.body?.textContent?.length,headings:document.querySelectorAll("h1").length})',
-                      )
-                      .catch(() => ({ unavailable: true }))
-                  : undefined,
-              })),
-            ),
-          ),
-        );
-        await testInfo.attach('summary-frame-state', {
-          body: JSON.stringify({
-            native,
-            playwright: page.frames().map((frame) => ({
-              path: URL.parse(frame.url())?.pathname,
-              detached: frame.isDetached(),
-            })),
-          }),
-          contentType: 'application/json',
-        });
-      } catch {
-        app.output.push('Summary frame diagnostics were unavailable\n');
-      }
-      throw error;
-    }
+    await expectHeading('Local summary');
     expect(await responsePolicy(page, here.summaryUrl)).toBe(
       `sandbox ${sandbox}`,
     );
@@ -416,6 +308,7 @@ test('a remote computer summary renders through the app from that computer, cann
 }, testInfo) => {
   const app = await desktop.launch();
   const page = await app.window();
+  const expectHeading = await observeSummaryDelivery(app, page, testInfo);
   await expect(
     page
       .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
@@ -501,10 +394,7 @@ test('a remote computer summary renders through the app from that computer, cann
     page.getByRole('tab', { name: 'Walkthrough', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
-  const summary = page.frameLocator('iframe[title="Review summary"]');
-  await expect(
-    summary.getByRole('heading', { name: 'Remote summary', exact: true }),
-  ).toBeVisible();
+  await expectHeading('Remote summary');
   const frame = page
     .frames()
     .find((entry) =>

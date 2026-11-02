@@ -17,7 +17,7 @@ import { launchOptions, sampleRepository } from '../kit/launch.ts';
 import { root } from '../kit/stage.ts';
 
 export { expect };
-export type { Page };
+export type { Page, TestInfo };
 
 declare const porcelainDesktop: DesktopBridge;
 
