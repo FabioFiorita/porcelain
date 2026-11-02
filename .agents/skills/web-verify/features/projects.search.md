@@ -15,12 +15,14 @@ tests:
   - apps/web/spec/e2e/reviews-workspace-return.e2e.ts
   - apps/web/spec/e2e/projects-manage.e2e.ts
   - apps/web/spec/e2e/projects-retry.e2e.ts
+  - apps/web/spec/e2e/worktree-status-warning.e2e.ts
   - apps/web/spec/integration/worktrees-menu.test.tsx
   - apps/web/spec/e2e/review-archive.e2e.ts
   - apps/web/spec/e2e/projects-pr-state.e2e.ts
   - packages/client/src/features/projects/rules/worktree-actions.spec.ts
 api:
   - GET /api/inventory
+  - GET /api/worktrees/:worktreeId/git/status
   - GET /api/worktrees/:worktreeId/summary
   - GET /api/reviews/:reviewId/pull-request/checks
 ---
@@ -56,3 +58,9 @@ Automated coverage: projects-search.e2e.ts, projects-manage.e2e.ts, projects-ret
 ## Returning to a warm review
 
 After visiting main and a linked topic worktree, return to main. Its valid content remains visible without a new initial Loading review state or repeated full review/HTML reads while lightweight Changes/publication reads revalidate. The automated request ledger briefly holds live notices on the already-connected page and drains HTTP before measuring the return, so a late seen-acknowledgement inventory refresh cannot masquerade as navigation work. It releases those notices before publishing a new main revision and confirming the selected main review updates; retaining warm values must not freeze them. Computer and checkout keys remain distinct, and unavailable scopes still follow their existing recovery contracts. Drive `reviews-workspace-return.e2e.ts`; atom tests cover scoped invalidation and the bounded summary lifetime.
+
+## Unavailable worktree status
+
+A failed change-status read uses a quiet dash on the card, with Changes unavailable in its accessible name. One polite, dismissible stock toast per affected computer offers Retry and expandable Details with worktree names and received error text. It uses the stock automatic dismissal and does not reappear on unrelated navigator updates while the same failure persists. At phone width the toast is inside the open sidebar sheet so its controls remain reachable. It does not assert that a checkout is missing, corrupt or still present.
+
+Inject linked-worktree status failures while the main checkout and another computer remain healthy. Check aggregation, long branch/computer/error text, expanded-details scrolling and keyboard access at 1440 and 414 in light/dark. Dismiss, search/filter/collapse/expand, and confirm no repeated notice for the unresolved failure. Retry remains in an affected row’s context menu after dismissal. Restore responses, retry, and verify only the affected computer is reconciled and only surviving failed checkouts are retried, without changing selection. Removing a checkout from fresh inventory removes its warning. A new failure after confirmed recovery may notify again. Run worktree-status-warning.e2e.ts for dismissal and the row-menu recovery path; shared query specs cover exact scope and stale inventory.

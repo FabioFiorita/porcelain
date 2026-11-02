@@ -27,6 +27,7 @@ export {
   navigatorDiffSummary,
   navigatorEntryLabel,
   navigatorEntrySelected,
+  type NavigatorStatusNotice,
   type NavigatorFilter,
   type NavigatorFilterSection,
   type NavigatorEntry,

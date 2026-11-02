@@ -13,6 +13,7 @@ import {
   type NavigatorReview,
   navigatorFilterSections,
   navigatorEntrySelected,
+  reconcileNavigatorStatusNotices,
   navigatorWorktreeOrder,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
@@ -256,7 +257,7 @@ it('keeps selected checkout and retained-review identity scoped to their compute
 it('keeps pending and failed details distinct from no review and a clean checkout in visible and accessible labels', () => {
   expect(navigatorChangesLabel({ state: 'loading' })).toBe('Reading changes…');
   expect(navigatorChangesLabel({ state: 'unavailable' })).toBe(
-    'Working tree unavailable',
+    'Changes unavailable',
   );
   expect(navigatorChangesLabel({ state: 'available', count: 0 })).toBe(
     'Working tree clean',
@@ -371,4 +372,47 @@ it('keeps the main worktree first, then the newest head commit, with undated wor
     'catalog-only',
     'unborn',
   ]);
+});
+
+it('retains dismissed failures across hidden scopes and removes only confirmed recovery or stale checkout identity', () => {
+  const notice = {
+    environmentId: entry.environmentId,
+    environmentName: entry.environmentName,
+    failures: [{ entry, detail: 'Inspection failed' }],
+    dismissed: true,
+  };
+  const hidden = {
+    issues: [],
+    recoveredKeys: [],
+    inventoryKeys: [entry.key],
+    environments: [entry.environmentId],
+  };
+  expect(reconcileNavigatorStatusNotices([notice], hidden)).toEqual([notice]);
+  expect(
+    reconcileNavigatorStatusNotices([notice], {
+      ...hidden,
+      recoveredKeys: [entry.key],
+    }),
+  ).toEqual([]);
+  expect(
+    reconcileNavigatorStatusNotices([notice], { ...hidden, inventoryKeys: [] }),
+  ).toEqual([]);
+  expect(
+    reconcileNavigatorStatusNotices([notice], {
+      ...hidden,
+      environments: [],
+      inventoryKeys: [],
+    }),
+  ).toEqual([notice]);
+  const failure = { entry, detail: 'Access denied' };
+  expect(
+    reconcileNavigatorStatusNotices([notice], {
+      ...hidden,
+      issues: [{ ...notice, failures: [failure] }],
+    }),
+  ).toEqual([{ ...notice, failures: [failure] }]);
+  expect(
+    reconcileNavigatorStatusNotices([], { ...hidden, issues: [notice] })[0]
+      ?.dismissed,
+  ).toBe(false);
 });

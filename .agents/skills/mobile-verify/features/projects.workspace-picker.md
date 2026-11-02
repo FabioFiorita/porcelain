@@ -20,6 +20,7 @@ selectors:
 tests:
   - packages/client/src/features/projects/rules/worktree-navigator.spec.ts
   - packages/client/src/features/projects/store/worktree-navigator.spec.ts
+  - packages/client/src/features/projects/queries/worktree-navigator.spec.ts
   - packages/client/src/features/projects/rules/workspace-choices.spec.ts
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - packages/client/src/features/projects/queries/inventory-state.spec.ts
@@ -36,6 +37,7 @@ api:
   - GET /api/reviews/:reviewId/pull-request
   - GET /api/reviews/:reviewId/comments
   - GET /api/reviews/:reviewId/pull-request/checks
+  - GET /api/worktrees/:worktreeId/git/status
   - GET /api/worktrees/:worktreeId/summary
   - POST /api/inventory/refresh
   - GET /api/inventory
@@ -85,3 +87,7 @@ Precondition: review linked to merged/closed PR. In Settings → Reviews & Git, 
 
 - Selecting or archiving retains document-leave protection. A retained review stays in the Files, Review or History stack that opened it. A PR document uses its own computer/review identity and does not select that computer or checkout.
 - Archive is available inside a successfully read closed/merged PR document; the navigator does not eagerly read PR payloads to decide eligibility. Existing server preview and confirmed per-computer settings own deletion protections.
+
+## Unavailable worktree status
+
+Status failures use a quiet dash in the worktree row and one small floating dismissible notice for an affected computer. Details lists affected worktrees and available error text; Retry reconciles only that computer and rereads surviving failed statuses. Dismissal keeps the current failure quiet while it persists. Worktree actions retain Retry changes after dismissal. Confirm recovery and stale-checkout removal clear the notice without moving the selected workspace or affecting a healthy computer. Drive phone and iPad landscape/portrait, keyboard and screen-reader labels, long names and detail scrolling. This map describes required behavior; a browser screenshot is not native evidence.

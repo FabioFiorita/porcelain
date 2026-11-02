@@ -54,6 +54,14 @@ export async function liveRouter(context: BrowserContext) {
     holdChangesRead: () => network.hold(isChangesRead),
     holdPublishedReviewRead: () => network.hold(isPublishedReviewRead),
     failChangesRead: () => network.fail(isChangesRead, 503),
+    failWorktreeStatusRead: (exceptWorktreeId: string) =>
+      network.fail(
+        (request) =>
+          request.method() === 'GET' &&
+          /^\/api\/worktrees\/[^/]+\/git\/status$/.test(pathOf(request)) &&
+          !pathOf(request).includes(exceptWorktreeId),
+        503,
+      ),
     failPublishedReviewRead: () => network.fail(isPublishedReviewRead, 503),
     failDurableReviewRead: (reviewId: string) =>
       network.fail(

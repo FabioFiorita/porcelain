@@ -1,4 +1,9 @@
-import { ClipboardIcon, Trash2Icon, GitBranchIcon } from 'lucide-react';
+import {
+  ClipboardIcon,
+  Trash2Icon,
+  GitBranchIcon,
+  RefreshCwIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -16,10 +21,12 @@ export function NavigatorRowMenu({
   entry,
   connection,
   children,
+  onRetryChanges,
 }: {
   entry: NavigatorEntry;
   connection: Connection;
   children: ReactNode;
+  onRetryChanges: () => void;
 }) {
   const worktreeId = entry.worktreeId;
   return (
@@ -29,6 +36,14 @@ export function NavigatorRowMenu({
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuGroup>
+          {entry.available &&
+            entry.kind === 'worktree' &&
+            entry.changes.state === 'unavailable' && (
+              <ContextMenuItem onClick={onRetryChanges}>
+                <RefreshCwIcon />
+                Retry changes
+              </ContextMenuItem>
+            )}
           {entry.path && (
             <ContextMenuItem
               className="cursor-pointer"

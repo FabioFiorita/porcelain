@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { BottomSheet, RNHostView } from '@expo/ui';
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomValue, useAtomSet } from '@effect/atom-react';
+import { refreshWorktreeNavigator } from '@porcelain/client/projects';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readBranchBases } from '@porcelain/client/changes';
@@ -114,10 +115,22 @@ function WorktreeMenu({
   onClose: () => void;
   onAction: (kind: 'delete' | 'switch') => void;
 }) {
+  const retry = useAtomSet(refreshWorktreeNavigator([request.connection]));
   const clipboard = useCopyPath();
   const context = `${request.entry.name}, ${request.entry.projectName}, ${request.entry.environmentName}`;
   return (
     <Box gap={2}>
+      {request.entry.available &&
+        request.entry.kind === 'worktree' &&
+        request.entry.changes.state === 'unavailable' && (
+          <Item
+            title="Retry changes"
+            onPress={() => {
+              retry({ environmentId: request.connection.environmentId });
+              onClose();
+            }}
+          />
+        )}
       {request.entry.path && (
         <Item
           title="Copy worktree path"
