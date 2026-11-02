@@ -19,6 +19,7 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  powerMonitor,
   screen,
   safeStorage,
   session,
@@ -30,6 +31,7 @@ import { join } from 'node:path';
 import {
   desktopAppearanceSchema,
   type DesktopAction,
+  type DesktopPowerState,
 } from '@porcelain/contracts/desktop';
 import { openWindowState } from './adapters/window-state.ts';
 import {
@@ -228,8 +230,18 @@ const openWindow = Effect.fn('openWindow')(function* () {
   view.on('enter-full-screen', fullscreen);
   view.on('leave-full-screen', fullscreen);
   view.webContents.on('did-finish-load', fullscreen);
+  const powerState = (state: DesktopPowerState) => {
+    if (!view.isDestroyed() && !view.webContents.isDestroyed())
+      view.webContents.send('porcelain:power-state', state);
+  };
+  const suspend = () => powerState('suspend');
+  const resume = () => powerState('resume');
+  powerMonitor.on('suspend', suspend);
+  powerMonitor.on('resume', resume);
   if (restored?.maximized) view.maximize();
   view.once('closed', () => {
+    powerMonitor.removeListener('suspend', suspend);
+    powerMonitor.removeListener('resume', resume);
     view.removeAllListeners();
     window = undefined;
     actionsReady = false;

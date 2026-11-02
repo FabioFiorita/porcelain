@@ -274,11 +274,11 @@ function revocationCallbacks(revoked: Queue.Queue<void>) {
 
 function activityFixture() {
   let active = true;
-  let changed: (() => void) | undefined;
+  let changed: ((event?: 'suspend' | 'resume') => void) | undefined;
   return {
     port: {
       isActive: () => active,
-      subscribe: (listener: () => void) => {
+      subscribe: (listener: (event?: 'suspend' | 'resume') => void) => {
         changed = listener;
         return () => {
           changed = undefined;
@@ -288,6 +288,12 @@ function activityFixture() {
     setActive(value: boolean) {
       active = value;
       changed?.();
+    },
+    resume() {
+      changed?.('resume');
+    },
+    suspend() {
+      changed?.('suspend');
     },
     subscribed: () => changed !== undefined,
   };
@@ -695,6 +701,59 @@ const connectedSession = Effect.gen(function* () {
   yield* Queue.take(first.followed);
   return { ...subject, first };
 });
+
+it.effect(
+  'an operating system resume refreshes active reads without a focus transition or replacing a healthy socket',
+  () =>
+    Effect.gen(function* () {
+      const subject = yield* connectedSession;
+      subject.activity.resume();
+      yield* Queue.take(subject.first.followed);
+      yield* TestClock.adjust(1);
+      expect(subject.refreshes()).toBe(1);
+      expect(subject.attempts()).toBe(1);
+      expect(subject.port.state.value).toBe('connected');
+      expect(yield* Queue.size(subject.first.closed)).toBe(0);
+      yield* Scope.close(subject.scope, Exit.void);
+    }),
+);
+
+it.effect(
+  'retains an operating system resume until the unfocused app becomes active',
+  () =>
+    Effect.gen(function* () {
+      const subject = yield* connectedSession;
+      subject.activity.setActive(false);
+      subject.activity.resume();
+      yield* TestClock.adjust(1);
+      expect(subject.refreshes()).toBe(0);
+      subject.activity.setActive(true);
+      yield* Queue.take(subject.first.followed);
+      yield* TestClock.adjust(1);
+      expect({
+        refreshes: subject.refreshes(),
+        attempts: subject.attempts(),
+      }).toEqual({ refreshes: 1, attempts: 1 });
+      yield* Scope.close(subject.scope, Exit.void);
+    }),
+);
+
+it.effect(
+  'native suspension ignores ordinary activity hints until resume',
+  () =>
+    Effect.gen(function* () {
+      const subject = yield* connectedSession;
+      subject.activity.suspend();
+      subject.activity.setActive(true);
+      yield* TestClock.adjust(1);
+      expect(yield* Queue.size(subject.first.followed)).toBe(0);
+      subject.activity.resume();
+      yield* Queue.take(subject.first.followed);
+      yield* Queue.take(subject.refreshed);
+      expect(subject.attempts()).toBe(1);
+      yield* Scope.close(subject.scope, Exit.void);
+    }),
+);
 
 it.effect(
   'refreshes after a long suspension while retaining a healthy session',

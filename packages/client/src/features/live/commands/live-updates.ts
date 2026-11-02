@@ -70,13 +70,16 @@ export function createLiveUpdates<E>(
       if (options?.activity) {
         const activity = options.activity;
         let wasActive = activity.isActive();
+        let suspended = false;
         let inactiveAt = clock.monotonicTimeNanosUnsafe();
         yield* Effect.acquireRelease(
           Effect.sync(() =>
-            activity.subscribe(() => {
-              const active = activity.isActive();
+            activity.subscribe((event) => {
+              if (event) suspended = event === 'suspend';
+              const active = !suspended && activity.isActive();
               const now = clock.monotonicTimeNanosUnsafe();
               if (!active && wasActive) inactiveAt = now;
+              refreshOnForeground ||= event === 'resume';
               if (active) {
                 refreshOnForeground ||=
                   !wasActive &&
