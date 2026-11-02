@@ -47,10 +47,10 @@ export function PierreFileTree(props: PierreFileTreeInput) {
     menuTarget?.pathsKey === props.paths.join('\0') &&
     menuTarget.filter === props.filter;
   if (menuOpen && !current) setMenuOpen(false);
-  const attach = (host: HTMLDivElement | null) => {
+  const [attach] = useState(() => (host: HTMLDivElement | null) => {
     if (!host) return;
     return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
-  };
+  });
   return (
     <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
       <ContextMenuTrigger
@@ -102,15 +102,20 @@ function mountTree(
   const place = fileTreePlaces(read().owner);
   const saved = registry.get(place);
   const restoring = new Set(saved.expanded);
-  let restorePosition = saved.document === read().selected;
+  let restorePosition =
+    !read().filter &&
+    saved.document === read().selected &&
+    !(document.activeElement instanceof HTMLInputElement);
   let active = true;
   let syncing = false;
+  let applyingRename = false;
   let reveal = {
     selected: saved.document,
     complete: saved.document === read().selected,
   };
   let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
   let handledCreate: number | undefined;
+  let handledRename: number | undefined;
   const frames = new Set<number>();
   function frame(run: () => void) {
     const id = requestAnimationFrame(() => {
@@ -123,15 +128,12 @@ function mountTree(
     paths: read().paths,
     density: 'default',
     flattenEmptyDirectories: true,
-    initialExpansion: 'closed',
+    initialExpansion: read().filter ? 'open' : 'closed',
     icons: treeIconsFor(read().links),
     unsafeCSS:
       ':not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus: read().gitStatus,
     search: false,
-    onSearchChange: (value) => {
-      if (value === null || value === undefined) read().onFilterChange('');
-    },
     renaming: {
       onError: (error) => {
         pendingCreate = null;
@@ -141,6 +143,7 @@ function mountTree(
         });
       },
       onRename: (event) => {
+        applyingRename = true;
         const pending = pendingCreate;
         pendingCreate = null;
         const operation =
@@ -193,6 +196,7 @@ function mountTree(
     onSelectionChange: ([path]) => {
       if (
         !syncing &&
+        !applyingRename &&
         path &&
         pendingCreate?.path.replace(/\/$/, '') !== path.replace(/\/$/, '') &&
         path !== read().selected
@@ -207,16 +211,34 @@ function mountTree(
       restoring.clear();
       restorePosition = false;
       reveal = { selected: read().selected, complete: true };
-      model.setSearch(null);
+      const normalPlace = fileTreePlaces(read().owner.replace(/:search$/, ''));
+      registry.set(normalPlace, {
+        ...registry.get(normalPlace),
+        expanded: [],
+        document: read().selected,
+        focused: null,
+        anchor: null,
+      });
+      read().onFilterChange('');
       model.resetPaths(read().paths, { initialExpandedPaths: [] });
       syncing = false;
     });
-    read().bindRename((path) => {
-      frame(() => {
-        syncing = true;
-        model.startRenaming(path);
-        syncing = false;
-      });
+    read().bindRename((path) => read().onRequestRename(path));
+  }
+  function rename() {
+    const request = read().renameRequest;
+    if (
+      !request ||
+      read().filter ||
+      handledRename === request.nonce ||
+      model.getItem(request.path) === null
+    )
+      return;
+    handledRename = request.nonce;
+    frame(() => {
+      syncing = true;
+      if (model.startRenaming(request.path)) request.onStart();
+      syncing = false;
     });
   }
   function create() {
@@ -243,7 +265,7 @@ function mountTree(
     const expanded = expandedDirectories(model, read().paths).map((path) =>
       path.replace(/\/$/, ''),
     );
-    if (expanded.length) read().onExpand(expanded);
+    if (expanded.length && !read().filter) read().onExpand(expanded);
   }
 
   function reportHeight() {
@@ -269,7 +291,9 @@ function mountTree(
     {
       const revealPaths = reveal.complete ? [] : selectedDirectories(selected);
       model.resetPaths(shown, {
-        initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
+        initialExpandedPaths: read().filter
+          ? directoryPaths(shown)
+          : [...new Set([...expanded, ...revealPaths])],
       });
       for (const path of restoring) {
         if (model.getItem(path) !== null) restoring.delete(path);
@@ -298,10 +322,6 @@ function mountTree(
   function sync() {
     const current = read();
     bindControls();
-    syncing = true;
-    if (!previous || previous.filter !== current.filter)
-      model.setSearch(current.filter === '' ? null : current.filter);
-    syncing = false;
     if (
       !previous ||
       previous.paths.join('\0') !== current.paths.join('\0') ||
@@ -314,8 +334,12 @@ function mountTree(
       model.setIcons(treeIconsFor(current.links));
     previous = current;
     create();
+    rename();
     reportHeight();
   }
+  const unsubscribeRename = model.onMutation('move', () => {
+    applyingRename = false;
+  });
   const unsubscribeInput = registry.subscribe(input, sync);
   const unsubscribeModel = model.subscribe(() => {
     reportHeight();
@@ -372,13 +396,7 @@ function mountTree(
         focus.restore = restoreFocus;
         setMenuOpen(false);
       },
-      rename: () => {
-        frame(() => {
-          syncing = true;
-          model.startRenaming(path);
-          syncing = false;
-        });
-      },
+      rename: () => read().onRequestRename(path),
       item: {
         path,
         name: entryName(path),
@@ -389,6 +407,14 @@ function mountTree(
   }
 
   function keyDown(event: KeyboardEvent) {
+    if (event.key === 'F2' && !pendingCreate) {
+      const path = model.getFocusedPath();
+      if (path) {
+        event.preventDefault();
+        event.stopPropagation();
+        read().onRequestRename(path);
+      }
+    }
     if (event.key === 'Enter') acceptDefaultName(event);
     if (event.key === 'Escape' && pendingCreate) {
       pendingCreate = null;
@@ -457,6 +483,7 @@ function mountTree(
     for (const id of frames) cancelAnimationFrame(id);
     unsubscribeInput();
     unsubscribeModel();
+    unsubscribeRename();
     read().bindRename(() => undefined);
     read().bindCollapseAll(() => undefined);
     host.removeEventListener('keydown', keyDown, true);

@@ -1,16 +1,17 @@
 ---
 route: /
 selectors:
-  - "All files"
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Create file or folder"
-  - "New file"
-  - "New folder"
-  - "Rename"
+  - 'All files'
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'Create file or folder'
+  - 'New file'
+  - 'New folder'
+  - 'Rename'
 tests:
   - apps/web/spec/integration/files-create.test.tsx
+  - apps/web/spec/integration/files-context-menu.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/directory
   - POST /api/worktrees/:worktreeId/files
@@ -39,7 +40,9 @@ Preconditions: phone width. Remove prior `phone-created.md`/`phone-folder` fixtu
 5. Drive both New file/New folder from a folder row context menu: entries are created inside that folder. A nested file heading uses its full relative path; the browser title uses its basename. Cancel an inline name with Escape: no entry remains. Check invalid/duplicate names using Gotchas.
 6. Inspect 2xx file-creation POSTs, reload `/` and reopen Files: created entries persist on disk/tree.
 
-Automated coverage: `files-create.test.tsx`.
+Automated coverage: `files-create.test.tsx`, `files-context-menu.test.tsx`.
+
+When creating a name that already exists in a lazily loaded folder, hold the file POST before sending it. Submitting the name must not open the existing file or close the Files sheet while the request is pending. Release it: the duplicate-path error appears and the existing content is unchanged. Pierre model rename/move selection is not a user open action.
 
 ## Gotchas
 
