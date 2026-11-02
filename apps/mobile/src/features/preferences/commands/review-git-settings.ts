@@ -1,7 +1,7 @@
-import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
-import { readServiceUpdate } from '@porcelain/client/access';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import {
   refreshReviewGitSettings,
+  refreshReviewGitSettingsTrust,
   reviewGitSettingsSaving,
   saveReviewGitSettings,
 } from '@porcelain/client/preferences';
@@ -13,13 +13,13 @@ export function useReviewGitSettingsCommands(connection: RuntimeConnection) {
   );
   const save = useAtomSet(saveReviewGitSettings(connection));
   const readAgain = useAtomSet(refreshReviewGitSettings(connection));
-  const checkTrustAgain = useAtomRefresh(readServiceUpdate(connection));
+  const checkTrustAgain = useAtomSet(refreshReviewGitSettingsTrust(connection));
   return {
     saving,
     failure,
     kept,
     save,
     readAgain: () => readAgain(undefined),
-    checkTrustAgain,
+    checkTrustAgain: () => checkTrustAgain(undefined),
   };
 }
