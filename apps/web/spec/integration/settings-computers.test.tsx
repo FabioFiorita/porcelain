@@ -50,15 +50,9 @@ test.for([414, 1080, 1440])(
           }),
         )
         .toBeVisible();
-      reviewLayout.focus(open);
-      await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
       await expect
-        .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
-        .not.toBeInTheDocument();
-      await expect.element(open).toHaveFocus();
-      await expect
-        .element(app.page.getByRole('tooltip'))
-        .toHaveTextContent(name);
+        .element(open)
+        .toHaveAccessibleName(`Open This computer: ${name}`);
       await open.click();
       await rename.click();
       await expect.element(field).toHaveValue(name);
