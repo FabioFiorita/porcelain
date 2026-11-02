@@ -1,3 +1,20 @@
+import {
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastContent,
+  ToastDescription,
+  ToastTitle,
+  ToastPortal,
+  ToastProvider,
+  ToastViewport,
+  useToastManager,
+} from '@/components/ui/toast';
+import {
+  worktreeStatusNotices,
+  worktreeStatusToast,
+  type WorktreeStatusIssue,
+} from '../commands/worktree-status-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -88,6 +105,62 @@ import { ProjectHeading } from './project-heading';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
 
+function StatusToasts({ container }: { container: HTMLElement | null }) {
+  const { toasts } = useToastManager();
+  if (!container) return null;
+  return (
+    <ToastPortal container={container}>
+      <ToastViewport>
+        {toasts.map((notice) => (
+          <Toast key={notice.id} toast={notice}>
+            <ToastContent>
+              <div className="flex min-w-0 flex-1 flex-col gap-1 wrap-anywhere">
+                <ToastTitle />
+                <ToastDescription />
+              </div>
+              <ToastAction />
+              <ToastClose />
+            </ToastContent>
+          </Toast>
+        ))}
+      </ToastViewport>
+    </ToastPortal>
+  );
+}
+
+function statusDescription(issue: WorktreeStatusIssue) {
+  return (
+    <Collapsible render={<span className="block" />}>
+      <span className="block">
+        {issue.failures.length}{' '}
+        {issue.failures.length === 1 ? 'worktree' : 'worktrees'} ·{' '}
+        <CollapsibleTrigger render={<Button variant="link" size="sm" />}>
+          Details
+        </CollapsibleTrigger>
+      </span>
+      <CollapsibleContent render={<span className="block" />}>
+        <span
+          role="list"
+          tabIndex={0}
+          aria-label="Affected worktrees"
+          className="mt-2 block max-h-48 space-y-2 overflow-y-auto"
+        >
+          {issue.failures.map(({ entry, detail }) => (
+            <span
+              role="listitem"
+              key={entry.key}
+              className="block wrap-anywhere"
+            >
+              <span className="block font-medium">{entry.name}</span>
+              {detail && <span className="block">{detail}</span>}
+            </span>
+          ))}
+        </span>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 const checkTones = {
   passed: 'text-add-fg group-hover/button:text-add-fg/70',
   running: 'text-warn group-hover/button:text-warn/70',
@@ -119,6 +192,9 @@ export function ProjectNavigator({
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
+  const [toastContainer, setToastContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   const settingsButton = useElement<HTMLButtonElement>();
   const firstEntry = useElement<HTMLElement>();
   const lastEntry = useElement<HTMLElement>();
@@ -134,6 +210,9 @@ export function ProjectNavigator({
   const { query, filter } = state;
   useAtomMount(refreshInventories(connections));
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
+  useAtomMount(
+    worktreeStatusNotices({ connections, description: statusDescription }),
+  );
   const location = useLocation();
   const [menu, setMenu] = useState({ href: location.href, open: false });
   const menuOpen = menu.href === location.href && menu.open;
@@ -385,6 +464,8 @@ export function ProjectNavigator({
                       const changes = retained
                         ? ''
                         : navigatorCardChangesLabel(entry.changes);
+                      const compactChanges =
+                        entry.changes.state === 'unavailable' ? '—' : changes;
                       const openRetained =
                         retained || (!entry.available && review !== undefined);
                       let attach =
@@ -394,6 +475,9 @@ export function ProjectNavigator({
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
+                            onRetryChanges={() =>
+                              retry({ environmentId: entry.environmentId })
+                            }
                             entry={entry}
                             connection={
                               connections.find(
@@ -520,7 +604,7 @@ export function ProjectNavigator({
                                                     ` · ${summary.binaryFiles} binary`}
                                                 </>
                                               ) : (
-                                                changes
+                                                compactChanges
                                               )}
                                             </span>
                                           )}
@@ -580,6 +664,11 @@ export function ProjectNavigator({
             </Button>
           )}
         </SidebarContent>
+        <div ref={setToastContainer}>
+          <ToastProvider toastManager={worktreeStatusToast}>
+            <StatusToasts container={toastContainer} />
+          </ToastProvider>
+        </div>
         <footer
           role="group"
           aria-label="Navigator controls"

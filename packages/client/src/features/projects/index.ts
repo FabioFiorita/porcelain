@@ -41,3 +41,5 @@ export type {
   WorktreeCleanupPlan,
   WorktreeCleanupRequest,
 } from '@porcelain/contracts/projects';
+
+export { worktreeStatusNotices } from './store/worktree-navigator.ts';

@@ -1,4 +1,4 @@
-import { Option } from 'effect';
+import { Cause, Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import {
@@ -19,18 +19,27 @@ import { pullRequestNumber } from '../../reviews/rules/pull-request.ts';
 import type { ReviewRecord } from '../../reviews/rules/review.ts';
 import {
   navigatorEntryMatches,
+  reconcileNavigatorStatusNotices,
   navigatorFilterSections,
   navigatorWorktreeOrder,
   type NavigatorEntry,
   type NavigatorReview,
 } from '../rules/worktree-navigator.ts';
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
-import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
+import {
+  worktreeNavigatorState,
+  worktreeStatusNotices,
+} from '../store/worktree-navigator.ts';
 import { readInventory } from './inventory.ts';
 import {
   environmentIcon,
   type EnvironmentIcon,
 } from '../../access/rules/environment-icon.ts';
+
+type StatusFailure = {
+  entry: NavigatorEntry;
+  detail: string | undefined;
+};
 
 type NavigatorProject = {
   key: string;
@@ -103,7 +112,8 @@ const readNavigatorProject = Atom.family(
       const savedProject = inventory?.projects.find(
         (project) => project.id === input.projectId,
       );
-      if (!inventory || !savedProject) return { entries: [], messages: [] };
+      if (!inventory || !savedProject)
+        return { entries: [], messages: [], statusFailures: [] };
       const project: Project = AsyncResult.isFailure(inventoryResult)
         ? { ...savedProject, available: false }
         : savedProject;
@@ -117,6 +127,7 @@ const readNavigatorProject = Atom.family(
       );
       const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
       const messages: string[] = [];
+      const statusFailures: StatusFailure[] = [];
       const active = (records ?? []).filter(
         (record) => record.state === 'open' && !record.archived,
       );
@@ -175,9 +186,11 @@ const readNavigatorProject = Atom.family(
           );
           const answer = Option.getOrUndefined(AsyncResult.value(status));
           if (AsyncResult.isFailure(status))
-            messages.push(
-              `Working tree status for ${entry.name} on ${environmentName} could not be read.`,
-            );
+            statusFailures.push({
+              entry,
+              detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
+                ?.message,
+            });
           entry.changes = AsyncResult.isFailure(status)
             ? { state: 'unavailable' }
             : answer
@@ -267,7 +280,7 @@ const readNavigatorProject = Atom.family(
           });
         }
       }
-      return { entries, messages };
+      return { entries, messages, statusFailures };
     }).pipe(Atom.setIdleTTL(0)),
 );
 export const readWorktreeNavigator = Atom.family(
@@ -275,11 +288,20 @@ export const readWorktreeNavigator = Atom.family(
     Atom.readable((get) => {
       const state = get(worktreeNavigatorState);
       const all: NavigatorProject[] = [];
+      const observedEntries: NavigatorEntry[] = [];
+      const readEnvironments: string[] = [];
+      const statusIssues: {
+        connection: RuntimeConnection;
+        environmentName: string;
+        failures: StatusFailure[];
+      }[] = [];
       const messages: string[] = [];
       let loading = false;
       for (const connection of connections) {
         const result = get(readInventory(connection));
         const inventory = Option.getOrUndefined(AsyncResult.value(result));
+        if (AsyncResult.isSuccess(result))
+          readEnvironments.push(connection.environmentId);
         if (AsyncResult.isInitial(result)) loading = true;
         if (AsyncResult.isFailure(result))
           messages.push(
@@ -342,7 +364,22 @@ export const readWorktreeNavigator = Atom.family(
             older: state.filter.older,
           }),
         );
+        observedEntries.push(...answer.entries);
         messages.push(...answer.messages);
+        if (answer.statusFailures.length > 0) {
+          const issue = statusIssues.find(
+            (issue) =>
+              issue.connection.environmentId ===
+              source.connection.environmentId,
+          );
+          if (issue) issue.failures.push(...answer.statusFailures);
+          else
+            statusIssues.push({
+              connection: source.connection,
+              environmentName: source.environmentName,
+              failures: [...answer.statusFailures],
+            });
+        }
         const entries = answer.entries
           .filter((entry) =>
             navigatorEntryMatches(entry, state.query, state.filter),
@@ -417,9 +454,31 @@ export const readWorktreeNavigator = Atom.family(
           continue;
         projects.push({ ...source, entries });
       }
+      const previousNotices = get.once(worktreeStatusNotices);
+      const notices = reconcileNavigatorStatusNotices(previousNotices, {
+        issues: statusIssues.map(
+          ({ connection, environmentName, failures }) => ({
+            environmentId: connection.environmentId,
+            environmentName,
+            failures,
+          }),
+        ),
+        recoveredKeys: observedEntries
+          .filter((entry) => entry.changes.state === 'available')
+          .map((entry) => entry.key),
+        inventoryKeys: all.flatMap((source) =>
+          source.project.worktrees.map(
+            (worktree) =>
+              `${source.connection.environmentId}/${source.project.id}/${worktree.id}`,
+          ),
+        ),
+        environments: readEnvironments,
+      });
+      if (notices !== previousNotices) get.set(worktreeStatusNotices, notices);
       return {
         projects,
         allProjects: all,
+        statusIssues: get(worktreeStatusNotices),
         filters,
         loading,
         messages: [...new Set(messages)],

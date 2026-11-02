@@ -13,6 +13,7 @@ import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigator,
   refreshWorktreeNavigator,
+  worktreeStatusNotices,
 } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
@@ -25,6 +26,7 @@ import { remoteConnectionState } from '../../../shared/application/store';
 import { IconButton } from '../../../components/ui/icon-button';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
+import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -78,6 +80,10 @@ export function WorktreeNavigator({
     readWorktreeNavigator(connections),
   );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
+  const retryResult = useAtomValue(refreshWorktreeNavigator(connections));
+  const notices = useAtomValue(worktreeStatusNotices);
+  const setNotices = useAtomSet(worktreeStatusNotices);
+  const [details, setDetails] = useState(false);
   const clipboard = useCopyPath();
   const [action, setAction] = useState<WorktreeActionRequest>();
   const { query, setQuery, filter, setFilter, setExpanded } =
@@ -390,7 +396,9 @@ export function WorktreeNavigator({
                                     tone="muted"
                                     className="ml-auto"
                                   >
-                                    {row.changes}
+                                    {entry.changes.state === 'unavailable'
+                                      ? '—'
+                                      : row.changes}
                                   </Text>
                                 ))}
                             </Box>
@@ -436,6 +444,80 @@ export function WorktreeNavigator({
           />
         ) : null}
       </ScrollView>
+      {notices
+        .filter(
+          (issue) =>
+            !issue.dismissed &&
+            connections.some(
+              (connection) => connection.environmentId === issue.environmentId,
+            ),
+        )
+        .slice(0, 1)
+        .map((issue) => (
+          <Box
+            key={issue.environmentId}
+            className="absolute inset-x-4 bottom-4"
+          >
+            <Card padding={4} gap={2}>
+              <Box className="flex-row items-center" gap={2}>
+                <Box className="flex-1">
+                  <Text
+                    variant="caption"
+                    weight="medium"
+                    accessibilityLiveRegion="polite"
+                  >
+                    Couldn’t check changes on {issue.environmentName}
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    {issue.failures.length}{' '}
+                    {issue.failures.length === 1 ? 'worktree' : 'worktrees'}
+                  </Text>
+                </Box>
+                <IconButton
+                  icon="close"
+                  size="sm"
+                  accessibilityLabel="Dismiss changes notice"
+                  onPress={() =>
+                    setNotices((current) =>
+                      current.map((notice) =>
+                        notice.environmentId === issue.environmentId
+                          ? { ...notice, dismissed: true }
+                          : notice,
+                      ),
+                    )
+                  }
+                />
+              </Box>
+              <Box className="flex-row" gap={2}>
+                <Button
+                  label="Retry"
+                  variant="outline"
+                  pending={retryResult.waiting}
+                  onPress={() => retry({ environmentId: issue.environmentId })}
+                />
+                <Button
+                  label={details ? 'Hide details' : 'Details'}
+                  variant="ghost"
+                  onPress={() => setDetails((current) => !current)}
+                />
+              </Box>
+              {details && (
+                <ScrollView className="max-h-48">
+                  {issue.failures.map(({ entry, detail }) => (
+                    <Box key={entry.key} gap={1}>
+                      <Text variant="caption">{entry.name}</Text>
+                      {detail && (
+                        <Text variant="caption" tone="muted">
+                          {detail}
+                        </Text>
+                      )}
+                    </Box>
+                  ))}
+                </ScrollView>
+              )}
+            </Card>
+          </Box>
+        ))}
       {AsyncResult.isFailure(clipboard.result) && (
         <ErrorState
           message={connectionErrorMessage(Cause.squash(clipboard.result.cause))}
