@@ -1,4 +1,5 @@
 import {
+  closingPlacesFixture,
   detachWorktreeFixture,
   durableReviewFixture,
 } from './review-fixture.ts';
@@ -142,6 +143,8 @@ export class World {
         throw new Error('The computer name fixture could not be saved');
       return '';
     }
+    if (step.kind === 'closing-places-fixture')
+      return closingPlacesFixture(repository);
     if (step.kind === 'review-fixture')
       return durableReviewFixture(
         repository,

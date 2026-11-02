@@ -1,3 +1,4 @@
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   ArchiveIcon,
@@ -133,16 +134,15 @@ export function ClosingPage({
                   {unexplained.partial.map((gap) => (
                     <li
                       key={gap.path}
-                      className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 py-1 pr-1.5 pl-0.5"
+                      className="grid min-h-7.5 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1 py-1 pr-1.5 pl-0.5"
                     >
                       <TriangleAlertIcon className="size-3.5 shrink-0 text-warn" />
-                      <span
-                        className="min-w-0 flex-1 font-mono text-caption leading-4 break-all"
-                        title={gap.path}
-                      >
-                        {gap.path}
-                      </span>
-                      <span className="text-xs leading-4 text-muted-foreground tabular-nums">
+                      <TruncatedText
+                        text={gap.path}
+                        className="font-mono text-caption leading-4"
+                        render={<span title={gap.path} />}
+                      />
+                      <span className="col-start-2 min-w-0 text-xs leading-4 text-muted-foreground tabular-nums">
                         {gap.ranges.length > 0
                           ? spansLabel(gap.ranges)
                           : 'whole file'}
@@ -151,6 +151,7 @@ export function ClosingPage({
                         type="button"
                         variant="link"
                         size="sm"
+                        className="col-start-2 justify-self-start"
                         onClick={() => onGo(gap.stop)}
                       >
                         Read in {placeName(stops, gap.stop)}
