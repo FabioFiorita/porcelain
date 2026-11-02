@@ -91,7 +91,7 @@ Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, re
 
 Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
 
-With a long unchanged dependency under “Existing code it relies on”, scroll its compact card to the final line. The scroll viewport owns the rounded border; its scrollbar stays inside the card. Full-height file views and changed diffs retain their own scroll behavior.
+With a long unchanged dependency under “Existing code it relies on”, scroll its compact card to the final line. The filename and Comment header stay visible above the code viewport; its scrollbar starts below the header and stays inside the rounded card. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 

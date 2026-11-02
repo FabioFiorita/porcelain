@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('compact retained code scrolls to the last line inside its rounded card', async ({
+test('compact retained code keeps its header above scrolling code inside its rounded card', async ({
   agent,
   repo,
   server,
@@ -23,6 +23,9 @@ test('compact retained code scrolls to the last line inside its rounded card', a
     .getByRole('region', { name: 'Existing code it relies on', exact: true })
     .getByRole('region', { name: 'Code content', exact: true });
   await expect
+    .poll(() => reviewLayout.codeHeaderOutsideScroll(code))
+    .toBe(true);
+  await expect
     .poll(() => reviewLayout.compactCodeFrame(code))
     .toEqual({
       border: '1px',
@@ -34,6 +37,9 @@ test('compact retained code scrolls to the last line inside its rounded card', a
   await expect
     .poll(() => reviewLayout.codeScrollTop(code))
     .toBeGreaterThan(1000);
+  await expect
+    .poll(() => reviewLayout.codeHeaderOutsideScroll(code))
+    .toBe(true);
   await expect
     .poll(() => reviewLayout.codeLineInsideFrame(code, 80))
     .toBe(true);

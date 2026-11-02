@@ -419,7 +419,7 @@ function CodeSurface({
     diffIndicators: 'classic',
     hunkSeparators: 'line-info',
     stickyHeaders: !disableFileHeader && !fullHeight,
-    disableFileHeader,
+    disableFileHeader: disableFileHeader || compactHeight,
     enableLineSelection: true,
     enableGutterUtility: true,
     onLineClick: (_, context) => setFocusedId(context.item.id),
@@ -437,11 +437,13 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
     ...(column
       ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
       : {}),
-    ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
+    ...(disableFileHeader || compactHeight
+      ? { itemMetrics: { paddingTop: 0 } }
+      : {}),
     layout: {
       paddingTop: disableFileHeader || compactHeight ? 0 : 12,
       paddingBottom: compactHeight ? 0 : paddingBottom,
@@ -539,6 +541,7 @@ function CodeSurface({
         (decision || column || compactThreads || framed) && 'decision-code',
         compactThreads && 'file-code',
         framed && 'commit-code',
+        compactHeight && 'overflow-hidden rounded-lg border',
       )}
     >
       {interaction.toolbarTarget &&
@@ -627,6 +630,23 @@ function CodeSurface({
               <ButtonGroup>{headerActions}</ButtonGroup>
             </div>
           )}
+        </div>
+      )}
+      {compactHeight && entries[0] && (
+        <div className="flex min-h-10 shrink-0 items-center gap-2 border-b bg-muted px-2 py-1">
+          <TruncatedText
+            className="min-w-0 flex-1 font-mono text-caption font-medium"
+            text={entries[0].path}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Comment on ${entries[0].path} (file)`}
+            onClick={() => openFileComment(entries[0])}
+          >
+            <MessageSquareIcon />
+            <span className="max-narrow:sr-only">Comment</span>
+          </Button>
         </div>
       )}
       {entries.length > 0 && (
@@ -1042,8 +1062,7 @@ function CodeSurface({
             ? { style: { paddingBottom: margin.reserve } }
             : {})}
           className={cn(
-            compactHeight &&
-              'max-h-48 flex-none overflow-auto rounded-lg border',
+            compactHeight && 'max-h-48 flex-none overflow-auto',
             !compactHeight && fullHeight && 'flex-none overflow-visible',
             !compactHeight && !fullHeight && 'min-h-0 flex-1 overflow-auto',
             column && COLUMN_GUTTERS,
