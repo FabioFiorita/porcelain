@@ -3,6 +3,7 @@ import { AsyncResult, Atom } from 'effect/reactivity';
 import type { SaveReviewGitSettingsRequest } from '@porcelain/contracts/access';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
+import { readServiceUpdate } from '../../access/queries/share.ts';
 import {
   reviewGitSettingsImportKept,
   reviewGitSettingsSaveMessage,
@@ -11,6 +12,11 @@ import {
   ReviewGitSettingsState,
   reviewGitSettingsRuntime,
 } from '../store/review-git-settings.ts';
+
+export const refreshReviewGitSettingsTrust = Atom.family(
+  (connection: RuntimeConnection) =>
+    Atom.fnSync((_: void, get) => get.refresh(readServiceUpdate(connection))),
+);
 
 export const saveReviewGitSettings = Atom.family(
   (connection: RuntimeConnection) =>

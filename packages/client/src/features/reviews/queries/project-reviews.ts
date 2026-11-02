@@ -372,7 +372,7 @@ export const readProjectGitHubAccount = Atom.family(
       api.reviews.readProjectGitHubAccount({
         params: { projectId: input.projectId },
       }),
-    ),
+    ).pipe(retainRead),
 );
 export const observeReviewSeen = Atom.family((input: RevisionInput) =>
   clientRuntime(input.connection)

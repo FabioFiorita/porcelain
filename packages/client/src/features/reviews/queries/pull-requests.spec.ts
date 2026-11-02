@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { Effect, Layer, Schema } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import { createWorktreeConnection } from '@porcelain/client/transport';
 import {
   readReviewPullRequest,
@@ -11,9 +11,54 @@ import { setProjectGitHubAccount } from '../index.ts';
 import {
   clientFixtures,
   readClientAtom,
+  visitClientRead,
 } from '../../../../spec/kit/client-fixture.ts';
 
 const create = clientFixtures();
+
+it('keeps a confirmed project account visible while reopening refreshes it', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const saved = {
+    accounts: ['personal', 'work'],
+    choice: { account: 'work', source: 'overridden' },
+    override: 'work',
+  };
+  let reads = 0;
+  const subject = create(() => {
+    if (++reads === 1) return Promise.resolve(Response.json(saved));
+    started.resolve();
+    return held.promise;
+  });
+  const state = readProjectGitHubAccount({
+    connection: subject.connection,
+    projectId: 'project',
+  });
+  expect(await visitClientRead(subject.registry, state)).toEqual(saved);
+  const stop = subject.registry.mount(state);
+  try {
+    await started.promise;
+    expect(subject.registry.get(state)).toMatchObject({
+      _tag: 'Success',
+      value: saved,
+      waiting: true,
+    });
+    held.resolve(
+      Response.json({
+        accounts: ['personal'],
+        choice: { account: 'personal', source: 'detected' },
+      }),
+    );
+    expect((await readClientAtom(subject.registry, state)).choice).toEqual({
+      account: 'personal',
+      source: 'detected',
+    });
+    expect(AsyncResult.isSuccess(subject.registry.get(state))).toBe(true);
+  } finally {
+    held.resolve(Response.json(saved));
+    stop();
+  }
+});
 
 it('updates the mounted account picker after choosing and resetting without changing another computer', async () => {
   const accountAnswer = (override: string | undefined) => ({

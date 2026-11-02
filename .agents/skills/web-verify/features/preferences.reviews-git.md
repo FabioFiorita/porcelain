@@ -13,9 +13,11 @@ selectors:
   - 'GitHub account for'
   - 'Use the detected account for'
 tests:
+  - apps/web/spec/integration/settings-preferences.test.tsx
   - apps/web/spec/e2e/reviews-spec-files.e2e.ts
   - apps/server/spec/integration/access-review-git-settings.integration.ts
   - packages/client/src/features/preferences/rules/review-git-settings.spec.ts
+  - packages/client/src/features/preferences/queries/review-git-settings.spec.ts
   - packages/client/src/features/reviews/queries/pull-requests.spec.ts
 api:
   - GET /api/review-git-settings
@@ -43,6 +45,7 @@ Preconditions: [surface baseline](README.md).
 4. Pair a second device through the server CLI without trust and PATCH a change with its bearer from another origin: 403 "An owner must trust this device…". The browser on this computer can still change settings.
 5. Stop the server while Settings is open: controls disable and the destructive notice offers Read settings again; Pull and Archive stay disabled. Restart and Read settings again restores them.
 6. Pair a remote computer and reopen Reviews & Git: the Computer picker names This computer and the remote. Its settings are separate; switching computers never shows the other computer's values. With the remote chosen, the notice and button name it (Use these settings for <remote name>).
+   After both computers have confirmed settings, switch between them again. The last confirmed settings and project account choices stay visible while a fresh read completes; configured settings do not start a service-update permission check just for this form. First-use import still requires confirmed trust. Archive deletion choices use the same outlined card treatment as the other preference rows, without separators between cards.
 7. With the remote chosen from a device the remote does not trust, the import button is disabled and the notice says an owner must trust this device. Refuse only GET /api/service/update with 503, then choose Check again: import stays disabled, the notice says device trust could not be confirmed, and Check again remains available. Restore the read: Check again restores the untrusted reason; after the owner trusts this device, Check again enables import. An initial pending or failed trust read also disables import.
 8. Name the remote Studio Mac development and release verification workstation. At 1440 and 414, light and dark, the notice title, explanation and import button wrap within the pane with the full name readable. Repeat with a 64-character name without spaces.
 9. Open the preview, then import different values from a second device with `$C server` PATCH before the page hears the live notice, and choose Use these settings for this computer: the page shows the computer's values and says This computer already had settings; yours weren’t used.
@@ -52,7 +55,7 @@ Preconditions: [surface baseline](README.md).
 12. In GitHub account for pull requests, each GitHub project shows its repository and the account detected by `gh`. Choose another signed-in account: the badge becomes Chosen. Use the detected account for the project clears the override and restores Detected. The choice is saved on the project's computer, for every device. Non-GitHub projects have no row. If every project lacks a GitHub remote, the section explains this and says to add a GitHub origin; with no projects it says to add a project. Loading and failures keep their own messages.
 13. A project no signed-in account can read shows No signed-in account can open it. A missing `gh` offers How to install, no signed-in accounts offers Copy gh auth login, and transient GitHub failures offer Try again. Request failures show Could not display the GitHub account with Try again. Check long project names, repository names and accounts at phone width in light and dark.
 
-Automated coverage: `reviews-spec-files.e2e.ts` (import then change), `access-review-git-settings.integration.ts` (contract, trust, merge), `review-git-settings.spec.ts` (view states).
+Automated coverage: `settings-preferences.test.tsx` (actual form remount, retained selection and no configured permission read), `reviews-spec-files.e2e.ts` (import then change), `access-review-git-settings.integration.ts` (contract, trust, merge), `review-git-settings.spec.ts` (view states and per-computer retention), `pull-requests.spec.ts` (account retention).
 
 ## Gotchas
 
