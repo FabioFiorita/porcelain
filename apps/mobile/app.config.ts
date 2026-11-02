@@ -51,6 +51,7 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    'expo-sqlite',
     [
       'expo-font',
       {
@@ -112,7 +113,10 @@ const config: ExpoConfig = {
         },
       },
     ],
-    ['expo-build-properties', { ios: { deploymentTarget: '26.0' } }],
+    [
+      'expo-build-properties',
+      { ios: { deploymentTarget: '26.0', usePrecompiledModules: false } },
+    ],
   ],
   experiments: { reactCompiler: true },
   runtimeVersion: { policy: 'fingerprint' },

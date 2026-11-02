@@ -29,4 +29,6 @@ Keep one instance per surface while iterating; Metro reloads JavaScript edits. N
 
 Starts clear development app data and the iOS keychain. Matching native fingerprints are required; Android also compares the installed APK digest. Physical Android devices are refused. Report the platform and connection actually proved; emulator loopback does not prove physical-device LAN permission or another platform.
 
+An iOS Preview startup repair requires a fresh Release artifact with embedded JavaScript, built from the changed native inputs. Retain its build ID, source commit, runtime fingerprint, bundle identifier and version/build number. Cold-launch that exact artifact without Metro on the intended physical iPhone and iPad; retain launch logs and confirm the app reaches its first usable screen without a native loader failure. Development-client, simulator, export and build success do not establish physical Preview launch proof. An SDK or native configuration change invalidates older native artifacts; do not reuse their proof or overwrite shared development caches to qualify Preview.
+
 Finally, run the card's logs and stop commands. Stop releases the claim and removes runtime data while retaining evidence. Pooled iOS simulators shut down; borrowed devices stay booted. Failed cleanup retains private state: inspect and retry by instance ID.
