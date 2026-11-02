@@ -90,3 +90,9 @@ Finish every decision in a publication whose agent recommends Merge but has a fa
 ## Diff height before existing code
 
 With Unified and Wrap selected in General settings, open a multi-file decision with long paths, a wrapped changed line, an inline agent note and trailing context. Scroll to Existing code it relies on: every diff row, inline note and open comment thread must end above that section, including after resizing and collapsing or reopening files. Header actions stay on one row so Pierre can reserve the full card height.
+
+## Closing page layout
+
+Publish a review with long explained paths and short and long lists of uncovered ranges. In Not explained, each path in Unexplained lines in explained files stays on one line, truncates with an ellipsis when needed, and retains its complete title. Ranges and Read in links occupy subsequent rows. Drive 1440, 1080, 768 and 414 widths; follow Read in to its decision and return. Scroll to the end: the final file control and completion actions must clear the Walkthrough dock and remain clickable. The sibling unexplained-files and Specs code lists retain their own file headers and controls.
+
+Automated coverage: `apps/web/spec/e2e/reviews-closing-layout.e2e.ts`.
