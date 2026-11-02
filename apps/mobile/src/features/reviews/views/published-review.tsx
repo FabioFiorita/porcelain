@@ -48,6 +48,7 @@ import { DecisionBar } from './decision-bar';
 import { Badge } from '../../../components/ui/badge';
 import { commentReviewParams, reviewParams } from '../rules/navigation';
 import type { Workspace } from '../../projects';
+import { AgentFeedback } from './agent-feedback';
 
 export function PublishedReview({
   workspace,
@@ -175,6 +176,14 @@ function PublishedContent({
       <Text variant="caption" tone="muted">
         Revision {review.revision}
       </Text>
+      {review.reviewId ? (
+        <AgentFeedback
+          connection={workspace.connection}
+          reviewId={review.reviewId}
+          reviewRevision={review.revision}
+          writable
+        />
+      ) : null}
       {review.reviewId && (
         <PullRequestState
           connection={workspace.connection}
@@ -707,6 +716,7 @@ function openComments(
             anchor: JSON.stringify(changeAnchor(undefined)),
             compose: 'true',
             body: input.body,
+            feedbackWritable: 'true',
             ...commentReviewParams(input.review),
           }),
     },

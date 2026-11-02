@@ -1,6 +1,6 @@
 import type { Effect } from 'effect';
 import { Context } from 'effect';
-import { type WorktreeKey, type WorktreeKeys } from '@porcelain/kernel/models';
+import { type WorktreeKeys } from '@porcelain/kernel/models';
 import {
   type CommentOwner,
   type AgentReply,
@@ -23,7 +23,7 @@ export interface CommentStore {
     input: CommentMessageKey,
   ): Effect.Effect<PostedCommentMessage | undefined>;
   usage(input: CommentOwner): Effect.Effect<CommentUsage>;
-  lastRevision(input: WorktreeKey): Effect.Effect<number>;
+  lastRevision(input: CommentOwner): Effect.Effect<number>;
   listAgentReplies(input: WorktreeKeys): Effect.Effect<AgentReply[]>;
   insert(input: NewCommentThread): Effect.Effect<CommentThread>;
   append(input: CommentReply): Effect.Effect<CommentThread>;

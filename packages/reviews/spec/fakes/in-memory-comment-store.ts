@@ -1,6 +1,8 @@
+import { commentOwner } from '../../src/rules/comment-threads.ts';
 import { Effect } from 'effect';
 import type {
   AgentReply,
+  CommentOwner,
   CommentEdit,
   CommentRemoval,
   CommentReply,
@@ -34,10 +36,13 @@ export class InMemoryCommentStore implements CommentStore {
   >();
   private readonly removedMessages = new Set<string>();
 
-  list(input: { worktreeId: string }): Effect.Effect<CommentThread[]> {
+  list(input: CommentOwner): Effect.Effect<CommentThread[]> {
     return Effect.sync(() => {
       return this.stored()
-        .filter((row) => row.thread.worktreeId === input.worktreeId)
+        .filter(
+          (row) =>
+            JSON.stringify(commentOwner(row.thread)) === JSON.stringify(input),
+        )
         .map((row) => structuredClone(row.thread));
     });
   }
@@ -67,10 +72,11 @@ export class InMemoryCommentStore implements CommentStore {
     });
   }
 
-  usage(input: { worktreeId: string }): Effect.Effect<CommentUsage> {
+  usage(input: CommentOwner): Effect.Effect<CommentUsage> {
     return Effect.sync(() => {
       const rows = this.stored().filter(
-        (row) => row.thread.worktreeId === input.worktreeId,
+        (row) =>
+          JSON.stringify(commentOwner(row.thread)) === JSON.stringify(input),
       );
       return {
         threads: rows.length,
@@ -79,13 +85,18 @@ export class InMemoryCommentStore implements CommentStore {
     });
   }
 
-  lastRevision(input: { worktreeId: string }): Effect.Effect<number> {
-    return Effect.gen({ self: this }, function* () {
-      return Math.max(
+  lastRevision(input: CommentOwner): Effect.Effect<number> {
+    return Effect.sync(() =>
+      Math.max(
         0,
-        ...(yield* this.list(input)).map((thread) => thread.revision),
-      );
-    });
+        ...this.stored()
+          .filter(
+            ({ thread }) =>
+              JSON.stringify(commentOwner(thread)) === JSON.stringify(input),
+          )
+          .map(({ thread }) => thread.revision),
+      ),
+    );
   }
 
   listAgentReplies(input: {

@@ -1,3 +1,4 @@
+import { AgentFeedbackConflictError } from '@porcelain/reviews/errors';
 import { STATUS_CODES } from 'node:http';
 import { HttpApiError } from 'effect/http-api';
 import { HttpServerError } from 'effect/http';
@@ -179,6 +180,10 @@ const rules: readonly StatusRule[] = [
     statusCode: 409,
   },
   { errors: [ReviewNotFoundError], statusCode: 404 },
+  {
+    errors: [AgentFeedbackConflictError],
+    statusCode: 409,
+  },
   {
     errors: [GitHubPullRequestNotFoundError],
     statusCode: 404,

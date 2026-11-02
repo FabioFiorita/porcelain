@@ -6,6 +6,7 @@ import type {
   CommentAuthorRole,
   CommentMessage,
   CommentThread,
+  ReviewThreadOrigin,
 } from '../../src/models/comment-thread.ts';
 import type { CommentStore } from '../../src/ports/comment-store.ts';
 
@@ -14,10 +15,16 @@ export type CommentStoreSubject = {
   close: () => Promise<void> | void;
 };
 
-type Write = { author?: CommentAuthorRole; sizeBytes?: number };
+type Write = {
+  author?: CommentAuthorRole;
+  sizeBytes?: number;
+  review?: ReviewThreadOrigin;
+};
 
 const first = 'a'.repeat(64);
 const second = 'b'.repeat(64);
+const firstReview = '10000000-0000-4000-8000-000000000001';
+const secondReview = '10000000-0000-4000-8000-000000000002';
 const createdAt = '2026-09-24T10:00:00.000Z';
 
 function message(
@@ -39,6 +46,7 @@ async function open(
       content: {
         id,
         worktreeId,
+        review: write.review,
         anchor: { kind: 'file', filePath: 'README.md' },
         messages: [message(`${id}-opening`, author)],
       },
@@ -75,6 +83,7 @@ export function commentStoreContract(
   subject: string,
   openSubject: (
     worktreeIds: readonly string[],
+    reviewIds: readonly string[],
   ) => CommentStoreSubject | Promise<CommentStoreSubject>,
 ): void {
   describe(subject, () => {
@@ -82,7 +91,7 @@ export function commentStoreContract(
     let store: CommentStore;
 
     beforeEach(async () => {
-      opened = await openSubject([first, second]);
+      opened = await openSubject([first, second], [firstReview, secondReview]);
       store = opened.store;
     });
 
@@ -335,6 +344,50 @@ export function commentStoreContract(
       expect(
         await Effect.runPromise(store.lastRevision({ worktreeId: second })),
       ).toBe(4);
+    });
+
+    it('advances a review cursor only for its own writes while other reviews and worktrees change', async () => {
+      expect(
+        await Effect.runPromise(store.lastRevision({ reviewId: firstReview })),
+      ).toBe(0);
+      const own = await open(store, 'own-review', first, {
+        review: { reviewId: firstReview, revision: 1, headOid: 'a'.repeat(40) },
+      });
+      await open(store, 'another-review', first, {
+        review: {
+          reviewId: secondReview,
+          revision: 1,
+          headOid: 'b'.repeat(40),
+        },
+      });
+      expect(
+        await Effect.runPromise(store.lastRevision({ worktreeId: first })),
+      ).toBe(0);
+      await open(store, 'same-worktree', first);
+      await open(store, 'other-worktree', second);
+      expect(
+        await Effect.runPromise(store.lastRevision({ reviewId: firstReview })),
+      ).toBe(1);
+      expect(
+        await Effect.runPromise(store.lastRevision({ reviewId: secondReview })),
+      ).toBe(2);
+      expect(
+        await Effect.runPromise(store.lastRevision({ worktreeId: first })),
+      ).toBe(3);
+      await reply(store, own, 'own-reply');
+      expect(
+        await Effect.runPromise(store.lastRevision({ worktreeId: first })),
+      ).toBe(3);
+      await open(store, 'newer-worktree-write', second);
+      expect(
+        await Effect.runPromise(store.lastRevision({ reviewId: firstReview })),
+      ).toBe(5);
+      expect(
+        await Effect.runPromise(store.lastRevision({ reviewId: secondReview })),
+      ).toBe(2);
+      expect(
+        await Effect.runPromise(store.lastRevision({ worktreeId: second })),
+      ).toBe(6);
     });
 
     it('reports no agent replies when no worktree is asked', async () => {

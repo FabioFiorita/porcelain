@@ -1,3 +1,8 @@
+import {
+  reviewAgentFeedbackResponseSchema,
+  connectReviewAgentRequestSchema,
+  acknowledgeFeedbackRequestSchema,
+} from './agent-feedback-api.ts';
 import { Schema } from 'effect';
 
 import { Tool, Toolkit } from 'effect/ai';
@@ -97,7 +102,33 @@ const resolve_comment = Tool.make('resolve_comment', {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+const connect_review_agent = Tool.make('connect_review_agent', {
+  parameters: connectReviewAgentRequestSchema,
+  success: reviewAgentFeedbackResponseSchema,
+  failure: apiErrorSchema,
+  failureMode: 'return',
+  description:
+    'Associate this published review with your existing local T3 Code thread. Supply its exact threadId, never guess from a branch or title. The server verifies that the thread belongs to the published worktree. Owner feedback can then queue a notification in this session.',
+})
+  .annotate(Tool.Strict, true)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(Tool.Destructive, false);
+
+const acknowledge_feedback = Tool.make('acknowledge_feedback', {
+  parameters: acknowledgeFeedbackRequestSchema,
+  success: reviewAgentFeedbackResponseSchema,
+  failure: apiErrorSchema,
+  failureMode: 'return',
+  description:
+    'Acknowledge receipt of the exact Porcelain feedback delivery before handling it. Only handle the batch if acknowledgementAccepted is true; false means it was already acknowledged. This is receipt, not resolution or implementation/merge authorization. Read the named revision and comments, then reply with stable message IDs.',
+})
+  .annotate(Tool.Strict, true)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(Tool.Destructive, false);
+
 export const ReviewToolkit = Toolkit.make(
+  connect_review_agent,
+  acknowledge_feedback,
   publish_review,
   read_review,
   list_comments,

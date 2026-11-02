@@ -36,6 +36,14 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '008_review_agent_feedback': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE review_agent_feedback (
+      review_id TEXT PRIMARY KEY NOT NULL REFERENCES reviews(review_id) ON DELETE CASCADE,
+      session TEXT NOT NULL CHECK(json_valid(session)),
+      delivery TEXT CHECK(delivery IS NULL OR json_valid(delivery))
+    )`;
+  }),
   '001_adopt_legacy_schema': Effect.void,
   '002_project_review_revisions': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

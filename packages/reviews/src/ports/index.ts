@@ -21,3 +21,9 @@ export { ReviewCodeReader } from './review-code-reader.ts';
 export { GitHubReader } from './github-reader.ts';
 export { GitHubAccountStore } from './github-account-store.ts';
 export { ReviewArchiver } from './review-archiver.ts';
+export { AgentFeedbackStore } from './agent-feedback-store.ts';
+
+export {
+  ReviewAgentHost,
+  type ReviewAgentHostRequest,
+} from './review-agent-host.ts';

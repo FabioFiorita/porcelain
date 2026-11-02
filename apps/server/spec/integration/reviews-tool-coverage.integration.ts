@@ -109,6 +109,11 @@ test('the production integration teardown judges recorded MCP handlers only for 
 }) => {
   const threadId = randomUUID();
   const inputs = {
+    connect_review_agent: {
+      reviewId: randomUUID(),
+      session: { kind: 't3', threadId: 'missing-feedback-thread' },
+    },
+    acknowledge_feedback: { reviewId: randomUUID(), deliveryId: randomUUID() },
     publish_review: sampleReview(session, 0, randomUUID(), randomUUID()),
     read_review: {},
     list_comments: {},
@@ -122,7 +127,14 @@ test('the production integration teardown judges recorded MCP handlers only for 
   for (const [name, input] of Object.entries(inputs)) {
     if (name === 'resolve_comment') continue;
     const response = await session.send(
-      toolCall(session, 40, name, { ...input, cwd: session.projectHome }),
+      toolCall(
+        session,
+        40,
+        name,
+        name === 'connect_review_agent' || name === 'acknowledge_feedback'
+          ? input
+          : { ...input, cwd: session.projectHome },
+      ),
     );
     expect(response.status).toBe(200);
     expect(toolResult(response.body).isError).toBe(true);
@@ -130,7 +142,9 @@ test('the production integration teardown judges recorded MCP handlers only for 
       apiError(
         404,
         'Not Found',
-        'No registered Porcelain worktree contains this path',
+        name === 'connect_review_agent' || name === 'acknowledge_feedback'
+          ? 'Review or revision not found'
+          : 'No registered Porcelain worktree contains this path',
       ),
     );
   }

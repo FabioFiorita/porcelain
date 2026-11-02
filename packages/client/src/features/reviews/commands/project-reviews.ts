@@ -25,6 +25,25 @@ export const reviewCommands = Atom.family(
       queryKeys.durableReview(input.connection.environmentId, input.reviewId),
     ]);
     return {
+      sendAgentFeedback: runtime.fn(
+        Effect.fn('Reviews.sendAgentFeedback')(function* (
+          reviewRevision: number,
+        ) {
+          return yield* requestApi(input.connection, (api) =>
+            api.reviews.sendReviewAgentFeedback({
+              params,
+              payload: { reviewRevision },
+            }),
+          ).pipe(Effect.ensuring(invalidate));
+        }),
+      ),
+      disconnectAgentSession: runtime.fn(
+        Effect.fn('Reviews.disconnectAgentSession')(function* () {
+          return yield* requestApi(input.connection, (api) =>
+            api.reviews.disconnectReviewAgentSession({ params }),
+          ).pipe(Effect.ensuring(invalidate));
+        }),
+      ),
       setPullRequest: runtime.fn(
         Effect.fn('Reviews.setPullRequest')(function* (
           payload: SetReviewPullRequestRequest,

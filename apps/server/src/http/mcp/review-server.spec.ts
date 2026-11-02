@@ -33,6 +33,7 @@ function useCases(calls: unknown[]): ReviewMcpUseCases {
         },
       },
       listCommentThreads: { execute: () => Effect.succeed([]) },
+      agentFeedback: unused,
       publishReview: unused,
       readReview: unused,
       createCommentThread: unused,

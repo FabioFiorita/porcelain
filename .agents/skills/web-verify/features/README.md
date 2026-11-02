@@ -141,3 +141,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.
 - [reviews.document-navigation](reviews.document-navigation.md) — Durable document URLs, browser Back and readable tab transitions.
 - [reviews.walkthrough](reviews.walkthrough.md) — Briefing, decision navigation and completion.
+
+- [Review agent feedback](reviews.agent-feedback.md)

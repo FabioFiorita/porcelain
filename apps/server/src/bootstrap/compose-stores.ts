@@ -18,6 +18,7 @@ import {
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import {
+  AgentFeedbackStore,
   CommentSeenStore,
   CommentStore,
   ReviewedFileStore,
@@ -56,6 +57,7 @@ export const composeStores = Effect.fn('Server.composeStores')(function* () {
     remoteAccess: yield* RemoteAccessStore,
     routeStates: Context.get(memory, RouteStateStore),
     gitActions: yield* GitActionReceiptStore,
+    agentFeedback: yield* AgentFeedbackStore,
     reviews: yield* ReviewStore,
     githubAccounts: yield* GitHubAccountStore,
     reviewedFiles: yield* ReviewedFileStore,

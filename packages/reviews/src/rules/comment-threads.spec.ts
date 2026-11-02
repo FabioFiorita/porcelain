@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { commentHasOwner } from './comment-threads.ts';
+import { commentHasOwner, commentOwner } from './comment-threads.ts';
 const thread = {
   id: 'thread',
   worktreeId: 'worktree',
@@ -25,4 +25,20 @@ it('keeps a thread with exactly its worktree or review owner even after the publ
   expect(
     commentHasOwner(owned, { worktreeId: 'worktree', reviewId: 'other' }),
   ).toBe(false);
+});
+
+it('selects the durable review owner instead of the publishing worktree for saved review comments', () => {
+  expect(
+    commentOwner({
+      worktreeId: 'publishing-worktree',
+      review: {
+        reviewId: 'saved-review',
+        revision: 2,
+        headOid: 'a'.repeat(40),
+      },
+    }),
+  ).toEqual({ reviewId: 'saved-review' });
+  expect(commentOwner({ worktreeId: 'publishing-worktree' })).toEqual({
+    worktreeId: 'publishing-worktree',
+  });
 });

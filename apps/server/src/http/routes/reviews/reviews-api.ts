@@ -1,3 +1,4 @@
+import type { AgentFeedbackUseCase } from '../../../use-cases/reviews/agent-feedback.ts';
 import type { ArchiveReviewUseCase } from '../../../use-cases/reviews/archive-review.ts';
 import type { CompareReviewUseCase } from '../../../use-cases/reviews/compare-review.ts';
 import type { ReadReviewInterdiffUseCase } from '../../../use-cases/reviews/read-review-interdiff.ts';
@@ -43,6 +44,7 @@ import { type SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-rev
 import { type UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 
 type ReviewsUseCases = {
+  agentFeedback: Context.Service.Shape<typeof AgentFeedbackUseCase>;
   readReviewPullChecks: Context.Service.Shape<
     typeof ReadReviewPullChecksUseCase
   >;
@@ -235,6 +237,15 @@ export function reviewsRoutes(
       )
       .handle('updateReviewCommentThread', ({ params, payload }) =>
         useCases.updateCommentThread.execute({ ...payload, ...params }),
+      )
+      .handle('readReviewAgentFeedback', ({ params }) =>
+        useCases.agentFeedback.execute({ kind: 'read', ...params }),
+      )
+      .handle('sendReviewAgentFeedback', ({ params, payload }) =>
+        useCases.agentFeedback.execute({ kind: 'send', ...params, ...payload }),
+      )
+      .handle('disconnectReviewAgentSession', ({ params }) =>
+        useCases.agentFeedback.execute({ kind: 'disconnect', ...params }),
       )
       .handle('readReview', ({ params }) => useCases.readReview.execute(params))
       .handle('readReviewRevision', ({ params }) =>

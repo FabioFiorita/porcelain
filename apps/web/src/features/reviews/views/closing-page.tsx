@@ -33,6 +33,7 @@ import type { ConnectionContext } from '@/shared/workspace/connection';
 import { InlineComposer } from './inline-composer';
 import { MarginRow } from './margin-row';
 import type { WalkthroughProps } from './walkthrough-props';
+import { AgentFeedback } from './agent-feedback';
 
 type ClosingStop = Extract<
   WalkthroughStop,
@@ -339,6 +340,12 @@ function CompletionCard({
         <OpenRow label="Files left">{files.total - files.reviewed}</OpenRow>
       </section>
       <div className="flex flex-col gap-1.5 border-t pt-3">
+        <AgentFeedback
+          connection={context.connection}
+          reviewId={revision.reviewId}
+          reviewRevision={revision.revision}
+          writable
+        />
         <Button
           ref={setAskButton}
           type="button"

@@ -1,0 +1,143 @@
+import { NodeServices } from '@effect/platform-node';
+import { ReviewAgentHost } from '@porcelain/reviews/ports';
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { LIMITS } from '../../config/limits.ts';
+import { t3ReviewAgentHostLayer } from './t3-review-agent-host.ts';
+
+const input = {
+  reviewId: 'review',
+  session: { kind: 't3', threadId: 'owned-thread' },
+  worktreePath: '/owned/worktree',
+  kind: 'send',
+  message: 'Exact notification: $(never a shell command)',
+} as const;
+const target = {
+  thread: {
+    threadId: 'owned-thread',
+    worktreePath: '/owned/worktree',
+    archived: false,
+    pendingRequestCount: 0,
+    status: 'working',
+  },
+};
+const receipt = {
+  threadId: 'owned-thread',
+  runId: 'queued-run',
+  messageId: 'queued-message',
+  delivery: 'queued',
+};
+let directory: string;
+const previousPath = process.env.PATH;
+if (previousPath === undefined)
+  throw new Error('The host fixture requires PATH');
+const makeRuntime = () =>
+  ManagedRuntime.make(
+    t3ReviewAgentHostLayer(LIMITS.git).pipe(Layer.provide(NodeServices.layer)),
+  );
+let runtime: ReturnType<typeof makeRuntime>;
+async function configure(thread = target.thread, response: unknown = receipt) {
+  await writeFile(
+    join(directory, 'response.json'),
+    JSON.stringify({ thread, response }),
+  );
+}
+async function outcome() {
+  return runtime.runPromise(
+    Effect.gen(function* () {
+      const host = yield* ReviewAgentHost;
+      return yield* host.execute(input);
+    }).pipe(Effect.flip),
+  );
+}
+beforeEach(async () => {
+  directory = await mkdtemp(join(tmpdir(), 'porcelain-t3-host-'));
+  await writeFile(
+    join(directory, 't3'),
+    `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const dir=path.dirname(process.argv[1]);const config=JSON.parse(fs.readFileSync(path.join(dir,'response.json'),'utf8'));const args=process.argv.slice(2);if(args[0]!=='thread')process.exit(2);if(args[1]==='show'){console.log(JSON.stringify({thread:config.thread}));}else if(args[1]==='send'){const message=fs.readFileSync(0,'utf8');fs.writeFileSync(path.join(dir,'outbox.json'),JSON.stringify({args,message}));console.log(JSON.stringify(config.response));}else process.exit(2);`,
+    { mode: 0o700 },
+  );
+  process.env.PATH = directory;
+  await configure();
+  runtime = makeRuntime();
+});
+afterEach(async () => {
+  await runtime.dispose();
+  process.env.PATH = previousPath;
+  await rm(directory, { recursive: true, force: true });
+});
+
+it('queues the literal notification through stdin for the exact busy session and validates its receipt', async () => {
+  await runtime.runPromise(
+    Effect.gen(function* () {
+      const host = yield* ReviewAgentHost;
+      yield* host.execute(input);
+    }),
+  );
+  expect(
+    JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
+  ).toEqual({
+    args: ['thread', 'send', 'owned-thread', '-', '--json'],
+    message: 'Exact notification: $(never a shell command)',
+  });
+});
+
+it.each([
+  {
+    name: 'wrong thread',
+    changes: { threadId: 'another-thread' },
+    reason: 'recipient-mismatch',
+  },
+  {
+    name: 'wrong worktree',
+    changes: { worktreePath: '/different/worktree' },
+    reason: 'recipient-mismatch',
+  },
+  {
+    name: 'archived session',
+    changes: { archived: true },
+    reason: 'recipient-unavailable',
+  },
+  {
+    name: 'pending user input',
+    changes: { pendingRequestCount: 1 },
+    reason: 'recipient-unavailable',
+  },
+])('refuses $name before sending any input', async ({ changes, reason }) => {
+  await configure({ ...target.thread, ...changes });
+  expect(await outcome()).toMatchObject({
+    _tag: 'AgentFeedbackConflictError',
+    reason,
+  });
+  await expect(
+    readFile(join(directory, 'outbox.json'), 'utf8'),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('does not confirm a successful command whose returned recipient differs', async () => {
+  await configure(target.thread, { ...receipt, threadId: 'another-thread' });
+  expect(await outcome()).toMatchObject({
+    _tag: 'AgentFeedbackConflictError',
+    reason: 'recipient-mismatch',
+  });
+  expect(
+    JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
+  ).toMatchObject({ message: input.message });
+});
+
+it('does not confirm an invalid receipt even if the external command executed', async () => {
+  await configure(target.thread, {
+    threadId: 'owned-thread',
+    delivery: 'queued',
+  });
+  expect(await outcome()).toMatchObject({
+    _tag: 'AgentFeedbackConflictError',
+    reason: 'recipient-unavailable',
+  });
+  expect(
+    JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
+  ).toMatchObject({ message: input.message });
+});

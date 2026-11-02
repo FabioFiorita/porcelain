@@ -17,6 +17,7 @@ import {
 import { CommentStore } from '../ports/comment-store.ts';
 import {
   commentAnchorProblem,
+  commentOwner,
   commentAuthor,
   commentStorageSize,
   repeatsCreation,
@@ -121,11 +122,7 @@ export class CreateCommentThreadService extends Context.Service<
             ],
           };
           const sizeBytes = commentStorageSize(content);
-          const usage = yield* commentsCapability.usage(
-            input.review === undefined
-              ? { worktreeId: input.worktreeId }
-              : { reviewId: input.review.reviewId },
-          );
+          const usage = yield* commentsCapability.usage(commentOwner(content));
           if (!threadFits(usage, sizeBytes, optionsCapability))
             return yield* Effect.fail(new CommentLimitExceededError());
           return yield* commentsCapability.insert({

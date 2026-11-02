@@ -98,10 +98,12 @@ export const sqliteCommentStoreLayer = Layer.effect(
           : sql`SELECT COUNT(*) AS threads, COALESCE(SUM(size_bytes), 0) AS bytes FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
     });
     const lastRevision = SqlSchema.findOne({
-      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Request: owner,
       Result: Schema.Struct({ revision: Schema.Int }),
       execute: (input) =>
-        sql`SELECT COALESCE(MAX(revision), 0) AS revision FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
+        'reviewId' in input
+          ? sql`SELECT COALESCE(MAX(revision), 0) AS revision FROM comment_threads WHERE review_id = ${input.reviewId}`
+          : sql`SELECT COALESCE(MAX(revision), 0) AS revision FROM comment_threads WHERE worktree_id = ${input.worktreeId}`,
     });
     const agentReplies = SqlSchema.findAll({
       Request: Schema.Struct({ worktreeIds: Schema.Array(Schema.String) }),

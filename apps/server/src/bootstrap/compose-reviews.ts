@@ -1,3 +1,7 @@
+import { AgentFeedbackUseCase } from '../use-cases/reviews/agent-feedback.ts';
+import { AgentFeedbackService } from '@porcelain/reviews/services';
+import { AgentFeedbackStore } from '@porcelain/reviews/ports';
+import { t3ReviewAgentHostLayer } from '../adapters/reviews/t3-review-agent-host.ts';
 import { ReadReviewGitHubTargetUseCasePort } from '../ports/read-review-github-target-use-case-port.ts';
 import { ArchiveReviewService } from '@porcelain/reviews/services';
 import { ReadReviewPullRequestUseCasePort } from '../ports/read-review-pull-request-use-case-port.ts';
@@ -194,6 +198,8 @@ export function composeReviews(
     Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
   );
   const ports = Layer.mergeAll(
+    Layer.succeed(AgentFeedbackStore, stores.agentFeedback),
+    t3ReviewAgentHostLayer(context.settings.limits.git),
     gitReviewArchiverLayer(context.settings.limits.git),
     ghPullRequestReaderLayer(context.settings.limits.git),
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
@@ -319,6 +325,7 @@ export function composeReviews(
     ReadReviewGitHubTargetUseCase,
   ).pipe(Layer.provideMerge(githubTargets));
   const operations = Layer.mergeAll(
+    AgentFeedbackUseCase.layer.pipe(Layer.provide(AgentFeedbackService.layer)),
     CompareReviewUseCase.layer,
     ReadReviewInterdiffUseCase.layer,
     ReadProjectGitHubAccountUseCase.layer,
@@ -377,6 +384,7 @@ export function composeReviews(
     const runtime = yield* Layer.build(application);
     return yield* Effect.gen(function* () {
       const useCases = {
+        agentFeedback: yield* AgentFeedbackUseCase,
         archiveReview: yield* ArchiveReviewUseCase,
         compareReview: yield* CompareReviewUseCase,
         readReviewInterdiff: yield* ReadReviewInterdiffUseCase,

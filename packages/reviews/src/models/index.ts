@@ -66,3 +66,10 @@ export {
   githubPullChecksSchema,
   pullChecksResultSchema,
 } from './pull-request.ts';
+export {
+  reviewAgentSessionSchema,
+  reviewAgentFeedbackDeliverySchema,
+  reviewAgentFeedbackStateSchema,
+  type ReviewAgentFeedbackOperation,
+  type ReviewAgentFeedbackState,
+} from './agent-feedback.ts';
