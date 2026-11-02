@@ -108,6 +108,7 @@ function mountTree(
     !(document.activeElement instanceof HTMLInputElement);
   let active = true;
   let syncing = false;
+  let applyingRename = false;
   let reveal = {
     selected: saved.document,
     complete: saved.document === read().selected,
@@ -142,6 +143,7 @@ function mountTree(
         });
       },
       onRename: (event) => {
+        applyingRename = true;
         const pending = pendingCreate;
         pendingCreate = null;
         const operation =
@@ -194,6 +196,7 @@ function mountTree(
     onSelectionChange: ([path]) => {
       if (
         !syncing &&
+        !applyingRename &&
         path &&
         pendingCreate?.path.replace(/\/$/, '') !== path.replace(/\/$/, '') &&
         path !== read().selected
@@ -334,6 +337,9 @@ function mountTree(
     rename();
     reportHeight();
   }
+  const unsubscribeRename = model.onMutation('move', () => {
+    applyingRename = false;
+  });
   const unsubscribeInput = registry.subscribe(input, sync);
   const unsubscribeModel = model.subscribe(() => {
     reportHeight();
@@ -477,6 +483,7 @@ function mountTree(
     for (const id of frames) cancelAnimationFrame(id);
     unsubscribeInput();
     unsubscribeModel();
+    unsubscribeRename();
     read().bindRename(() => undefined);
     read().bindCollapseAll(() => undefined);
     host.removeEventListener('keydown', keyDown, true);
