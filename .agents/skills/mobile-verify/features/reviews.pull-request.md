@@ -7,6 +7,7 @@ selectors:
   - 'Reading pull request…'
   - 'Archive'
 tests:
+  - apps/mobile/src/shared/rules/markdown.spec.ts
   - apps/mobile/src/features/reviews/rules/pull-request-document.spec.ts
   - apps/mobile/src/shared/rules/workspace-documents.spec.ts
   - apps/mobile/src/features/projects/rules/retained-review-route.spec.ts
@@ -39,3 +40,20 @@ Preconditions: [surface baseline](README.md), with a review linked to a disposab
 
 - PR payload reads start on document opening; sidebar inventory and project expansion do not fetch them. Changing route/document never selects a checkout or computer.
 - iPad landscape and portrait need their own captures. Android/iPhone proof does not establish either iPad layout.
+
+## Description evidence
+
+Seed the disposable GitHub fixture's PR description with an Evidence heading, a
+`details` block whose `summary` says Screenshots, an HTML `img` and a Markdown
+image using GitHub user-attachment URLs. Include one unreachable image with a
+meaningful alt label and one image with an unsafe URL scheme.
+
+Open the linked PR document and scroll to Description. Mobile presents disclosure
+contents expanded with their summary as readable text. Neither details/summary
+nor unsupported HTML tags appear as raw text. Both image syntaxes fit the content
+width and preserve aspect ratio. An unavailable or rejected image shows compact
+Image unavailable text with its alt label. Switch to Show source to inspect the
+original body and back to Show rendered, then return to the review. Repeat with
+light and dark appearance. Capture the same Description view before and after the
+fix on a matching native build; JavaScript-only refresh cannot qualify changes to
+the native image renderer. iOS and Android require separate runtime evidence.

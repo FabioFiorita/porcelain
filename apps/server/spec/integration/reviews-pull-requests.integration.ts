@@ -29,6 +29,8 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
   const secret = 'github-test-token-never-return-this';
   const state = {
     mode: 'ok',
+    description: '# Description',
+    descriptionHTML: '',
     checkState: '',
     state: 'OPEN',
     headBranch: (await session.git('branch', '--show-current')).trim(),
@@ -72,7 +74,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
  const avatarUrl = detailQuery.includes('avatarUrl') ? 'https://avatars.githubusercontent.com/u/1' : undefined;
  const diffHunk = detailQuery.includes('diffHunk') ? '@@ -1 +1 @@\\n-old\\n+new' : undefined;
  const pr = { number: 423, title: 'Fixture PR', url: 'https://github.com/FabioFiorita/porcelain/pull/423', state: fixture.state, isDraft: false,
- author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: fixture.checkState ? [{ commit: { statusCheckRollup: {state: fixture.checkState, contexts:{nodes:[],pageInfo} } } }] : [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
+ author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: fixture.checkState ? [{ commit: { statusCheckRollup: {state: fixture.checkState, contexts:{nodes:[],pageInfo} } } }] : [] }, body: fixture.description, bodyHTML: detailQuery.includes('bodyHTML') ? fixture.descriptionHTML : undefined, baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
  comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [{ id: 'review', author: { login: 'reviewer', avatarUrl }, submittedAt: '2026-10-19T12:00:00Z', body: 'A review', url: 'https://github.com/review', state: 'COMMENTED', comments: { nodes: [{ id: 'inline', author: { login: 'reviewer', avatarUrl }, createdAt: '2026-10-19T10:00:00Z', body: 'Inline comment', url: 'https://github.com/inline', path: 'README.md', line: 1, originalLine: 1, diffHunk }], pageInfo } }], pageInfo } };
  if (listQuery && !listQuery.includes('contexts')) for (const node of pr.commits.nodes) delete node.commit.statusCheckRollup.contexts;
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
@@ -317,6 +319,15 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
           },
         ],
       },
+    });
+    const asset = '78eec28e-0341-411a-b9b2-7ce767b53f3f';
+    const signedImage = `https://private-user-images.githubusercontent.com/1/2-${asset}.png?jwt=fixture`;
+    state.description = `![Receipt](https://github.com/user-attachments/assets/${asset})`;
+    state.descriptionHTML = `<img src="${signedImage}" alt="Receipt">`;
+    await save();
+    expect(await request(`${review}/pull-request`)).toMatchObject({
+      kind: 'available',
+      pullRequest: { description: `![Receipt](${signedImage})` },
     });
     expect(
       await setPull('https://github.com/FabioFiorita/porcelain/pull/999', 409),

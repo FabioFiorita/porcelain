@@ -1,4 +1,5 @@
 import { DateTime, Option } from 'effect';
+import { githubDescription } from './github-description.ts';
 import type {
   GitHubPullRequest,
   GitHubPullSummary,
@@ -112,7 +113,7 @@ export function mapPullRequest(
   );
   return {
     ...mapPullRequestSummary(raw),
-    description: raw.body,
+    description: githubDescription(raw.body, raw.bodyHTML),
     createdAt: raw.createdAt,
     authorAvatarUrl: raw.author?.avatarUrl ?? undefined,
     baseBranch: raw.baseRefName,
