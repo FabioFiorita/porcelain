@@ -127,3 +127,8 @@ export type {
 export { ReviewPullRequestRefusedError } from '@porcelain/reviews/errors';
 
 export { type ReadPullChecksResponse } from './pull-requests.ts';
+
+export type {
+  ReviewAgentFeedbackResponse,
+  ReviewAgentFeedbackOperation,
+} from './agent-feedback-api.ts';

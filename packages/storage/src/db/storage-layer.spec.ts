@@ -187,6 +187,7 @@ describe('Native storage adoption', () => {
         { migration_id: 5, name: 'review_git_settings' },
         { migration_id: 6, name: 'environment_icon' },
         { migration_id: 7, name: 'sharing_management' },
+        { migration_id: 8, name: 'review_agent_feedback' },
       ]);
     } finally {
       database.close();
@@ -568,6 +569,7 @@ describe('Native storage adoption', () => {
         { migration_id: 5, name: 'review_git_settings' },
         { migration_id: 6, name: 'environment_icon' },
         { migration_id: 7, name: 'sharing_management' },
+        { migration_id: 8, name: 'review_agent_feedback' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -624,6 +626,7 @@ describe('Native storage adoption', () => {
           { migration_id: 5, name: 'review_git_settings' },
           { migration_id: 6, name: 'environment_icon' },
           { migration_id: 7, name: 'sharing_management' },
+          { migration_id: 8, name: 'review_agent_feedback' },
         ]);
         expect(
           stored

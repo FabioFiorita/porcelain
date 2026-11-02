@@ -42,6 +42,7 @@ import {
 import { useReviewSnapshot } from '../queries/review';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import type { CommentReview } from '../rules/navigation';
+import { AgentFeedback } from './agent-feedback';
 
 export function ReviewCommentsScreen({
   workspaceKey,
@@ -52,6 +53,7 @@ export function ReviewCommentsScreen({
   thread,
   body,
   review,
+  feedbackWritable = false,
 }: {
   workspaceKey?: string | undefined;
   path?: string | undefined;
@@ -61,6 +63,7 @@ export function ReviewCommentsScreen({
   thread?: string | undefined;
   body?: string | undefined;
   review?: CommentReview | undefined;
+  feedbackWritable?: boolean | undefined;
 }) {
   const router = useRouter();
   return (
@@ -109,6 +112,7 @@ export function ReviewCommentsScreen({
               comparison={comparison}
               initialBody={body}
               review={review}
+              feedbackWritable={feedbackWritable}
             />
           )
         }
@@ -128,6 +132,7 @@ export function CommentThreads({
   leaveScope,
   initialBody = '',
   review,
+  feedbackWritable = false,
 }: {
   workspace: CommentWorkspace;
   path?: string | undefined;
@@ -139,6 +144,7 @@ export function CommentThreads({
   leaveScope?: string | undefined;
   onComposerChange?: ((anchor: CommentAnchor | undefined) => void) | undefined;
   review?: CommentReview | undefined;
+  feedbackWritable?: boolean | undefined;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -198,6 +204,14 @@ export function CommentThreads({
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="gap-4 p-4"
       >
+        {!path && review ? (
+          <AgentFeedback
+            connection={workspace.connection}
+            reviewId={review.reviewId}
+            reviewRevision={review.reviewRevision}
+            writable={feedbackWritable}
+          />
+        ) : null}
         {path ? (
           <Text variant="caption" tone="muted" selectable>
             {path}

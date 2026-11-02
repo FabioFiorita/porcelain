@@ -1,3 +1,4 @@
+import type { AgentFeedbackUseCase } from '../../use-cases/reviews/agent-feedback.ts';
 import { type AtReviewScopeUseCase } from '../../use-cases/reviews/at-review-scope.ts';
 import { type Context, Effect, Layer } from 'effect';
 import { McpServer } from 'effect/ai';
@@ -16,6 +17,7 @@ import { httpEvent, toolAudit } from '../diagnostics.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 export type ReviewMcpUseCases = {
   reviewTools: {
+    agentFeedback: Context.Service.Shape<typeof AgentFeedbackUseCase>;
     atReviewScope: Context.Service.Shape<typeof AtReviewScopeUseCase>;
     atWorktreePath: Context.Service.Shape<typeof AtWorktreePathUseCase>;
     createCommentThread: Context.Service.Shape<
@@ -82,6 +84,20 @@ export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
       ),
       Layer.provide(
         ReviewToolkit.toLayer({
+          connect_review_agent: (input) =>
+            invocation('connect_review_agent', () =>
+              useCases.reviewTools.agentFeedback.execute({
+                kind: 'connect',
+                ...input,
+              }),
+            ),
+          acknowledge_feedback: (input) =>
+            invocation('acknowledge_feedback', () =>
+              useCases.reviewTools.agentFeedback.execute({
+                kind: 'acknowledge',
+                ...input,
+              }),
+            ),
           publish_review: ({ cwd, ...review }) =>
             invocation('publish_review', (defaultCwd) =>
               Effect.gen(function* () {

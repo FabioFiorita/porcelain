@@ -6650,6 +6650,19 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   }),
   {
     rule: 'lane-per-table',
+    name: 'agent feedback persistence has a declared table owner',
+    valid: {
+      'packages/reviews/src/ports/agent-feedback-store.ts':
+        'export interface AgentFeedbackStore { read(): string; begin(): boolean; acknowledge(): void; }',
+    },
+    invalid: {
+      'packages/reviews/src/ports/unowned-agent-feedback-store.ts':
+        'export interface UnownedAgentFeedbackStore { read(): string; begin(): boolean; acknowledge(): void; }',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
     valid: {
       'packages/reviews/src/ports/github-account-store.ts':
         'export interface GitHubAccountStore { read(): string; detect(): void; override(): void; }',

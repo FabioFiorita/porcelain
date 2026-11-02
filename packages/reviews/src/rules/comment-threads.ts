@@ -4,6 +4,7 @@ import type {
   CommentAnchorProblem,
   CommentAuthorRole,
   CommentContent,
+  CommentOwner,
   CommentLimits,
   CommentThread,
   CommentUsage,
@@ -187,4 +188,12 @@ export function commentHasOwner(
   return thread.review === undefined
     ? input.reviewId === undefined && thread.worktreeId === input.worktreeId
     : thread.review.reviewId === input.reviewId;
+}
+
+export function commentOwner(
+  content: Pick<CommentContent, 'review' | 'worktreeId'>,
+): CommentOwner {
+  return content.review === undefined
+    ? { worktreeId: content.worktreeId }
+    : { reviewId: content.review.reviewId };
 }

@@ -49,6 +49,7 @@ import { BriefingVerdict } from './review-briefing';
 import { BriefingContinue } from './briefing-continue';
 import { briefingContinuation } from '../rules/briefing';
 import { ReviewReadState } from './read-state';
+import { AgentFeedback } from './agent-feedback';
 
 type Revision = LinkedRevision;
 type DecisionNavigation = {
@@ -308,6 +309,12 @@ function LinkedReviewContent({
             <Text variant="caption" tone="muted">
               {revision.branch} · Revision {revision.revision}
             </Text>
+            <AgentFeedback
+              connection={connection}
+              reviewId={revision.reviewId}
+              reviewRevision={revision.revision}
+              writable={false}
+            />
             <PullRequestState
               connection={connection}
               reviewId={revision.reviewId}

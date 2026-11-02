@@ -47,7 +47,9 @@ const cases = [
 ] as const;
 
 it.each(
-  ['codex', 'claude'].flatMap((name) => cases.map((row) => ({ name, ...row }))),
+  ['codex', 'claude', 't3'].flatMap((name) =>
+    cases.map((row) => ({ name, ...row })),
+  ),
 )('$name: $state', async ({ name, directory, expected }) => {
   await Effect.runPromise(
     Effect.gen(function* () {

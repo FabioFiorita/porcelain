@@ -18,6 +18,7 @@ function ReviewCommentsRoute() {
     body?: string;
     review?: string;
     revision?: string;
+    feedbackWritable?: string;
   }>();
   return (
     <ReviewCommentsScreen
@@ -29,6 +30,7 @@ function ReviewCommentsRoute() {
       thread={params.thread}
       body={params.body}
       review={decodeCommentReview(params.review, params.revision)}
+      feedbackWritable={params.feedbackWritable === 'true'}
     />
   );
 }

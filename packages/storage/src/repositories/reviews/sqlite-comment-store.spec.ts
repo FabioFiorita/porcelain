@@ -4,7 +4,7 @@ import {
   WorktreePresenceStore,
   InventoryStore,
 } from '@porcelain/projects/ports';
-import { CommentStore } from '@porcelain/reviews/ports';
+import { CommentStore, ReviewStore } from '@porcelain/reviews/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,7 +12,11 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RegisteredProject } from '@porcelain/projects/models';
 import type { CommentThread } from '@porcelain/reviews/models';
-import { commentStoreContract } from '@porcelain/reviews/store-contracts';
+import {
+  commentStoreContract,
+  reviewFixture,
+  reviewSave,
+} from '@porcelain/reviews/store-contracts';
 
 const project: RegisteredProject = {
   id: 'project',
@@ -42,7 +46,7 @@ async function present(
   );
 }
 
-commentStoreContract('SqliteCommentStore', async (worktreeIds) => {
+commentStoreContract('SqliteCommentStore', async (worktreeIds, reviewIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
   const session = ManagedRuntime.make(
     storageLayer(dataDirectory, {
@@ -54,6 +58,21 @@ commentStoreContract('SqliteCommentStore', async (worktreeIds) => {
     (await session.runPromise(InventoryStore)).save(project),
   );
   await present(session, worktreeIds);
+  const reviews = await session.runPromise(ReviewStore);
+  for (const reviewId of reviewIds) {
+    await Effect.runPromise(
+      reviews.save(
+        reviewSave(
+          reviewFixture({
+            reviewId,
+            branch: reviewId,
+            summaryToken: reviewId,
+          }),
+        ),
+      ),
+    );
+  }
+
   return {
     store: await session.runPromise(CommentStore),
     close: async () => {

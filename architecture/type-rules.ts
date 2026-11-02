@@ -45,6 +45,7 @@ const tableLanes: Readonly<
 > = {
   GitActionReceiptStore: { any: ['receipts', 'repository'] },
   ReviewStore: { any: repositoryTables },
+  AgentFeedbackStore: { any: repositoryTables },
   ReviewedFileStore: { any: repositoryTables },
   ReviewedLayerStore: { any: repositoryTables },
   CommentStore: { any: repositoryTables },

@@ -140,9 +140,10 @@ describe('CreateCommentThreadService', () => {
         first,
       );
       expect(first.review).toEqual(firstReview);
-      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
-        first,
-      ]);
+      expect(
+        await Effect.runPromise(store.list({ reviewId: 'review-1' })),
+      ).toEqual([first]);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
     },
   );
 
@@ -176,9 +177,10 @@ describe('CreateCommentThreadService', () => {
           service.execute({ ...request, review: secondReview, ...changes }),
         ),
       ).toThrow(CommentIdentityConflictError);
-      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
-        first,
-      ]);
+      expect(
+        await Effect.runPromise(store.list({ reviewId: 'review-1' })),
+      ).toEqual([first]);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
     },
   );
 
@@ -191,7 +193,9 @@ describe('CreateCommentThreadService', () => {
         ),
       ),
     ).toThrow(CommentRevisionMismatchError);
-    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
+    expect(
+      await Effect.runPromise(store.list({ reviewId: 'review-1' })),
+    ).toEqual([]);
     const current = Effect.runSync(
       service.execute(
         input({
@@ -205,10 +209,10 @@ describe('CreateCommentThreadService', () => {
     );
     expect(current.review).toEqual(secondReview);
     expect(historical.review).toEqual(firstReview);
-    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
-      current,
-      historical,
-    ]);
+    expect(
+      await Effect.runPromise(store.list({ reviewId: 'review-1' })),
+    ).toEqual([current, historical]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
   it.each([

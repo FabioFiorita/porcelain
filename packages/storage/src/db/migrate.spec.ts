@@ -96,6 +96,7 @@ it.each([false, true])(
               { migrationId: 5 },
               { migrationId: 6 },
               { migrationId: 7 },
+              { migrationId: 8 },
             ],
           });
           await expect(

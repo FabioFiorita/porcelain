@@ -32,3 +32,4 @@ export { GitHubPullRequestNotFoundError } from './github-pull-request-not-found-
 export { ReviewArchiveRefusedError } from './review-archive-refused-error.ts';
 
 export { ReviewPullRequestRefusedError } from './review-pull-request-refused-error.ts';
+export { AgentFeedbackConflictError } from './agent-feedback-conflict-error.ts';

@@ -27,6 +27,7 @@ import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { SegmentedTabs } from './segmented-tabs';
 import { ThreadCard } from './thread-card';
+import { AgentFeedback } from './agent-feedback';
 
 export function ReviewViews({
   view,
@@ -166,6 +167,16 @@ export function CommentsView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {scope.review ? (
+        <div className="shrink-0 border-b p-3">
+          <AgentFeedback
+            connection={context.connection}
+            reviewId={scope.review.reviewId}
+            reviewRevision={scope.review.revision}
+            writable
+          />
+        </div>
+      ) : null}
       {composer}
       <div className="flex shrink-0 gap-1 px-2 pt-2 pb-2">
         {(['open', 'resolved'] as const).map((value) => (

@@ -1,3 +1,4 @@
+import { sqliteAgentFeedbackStoreLayer } from '../repositories/reviews/sqlite-agent-feedback-store.ts';
 import { sqliteGitHubAccountStoreLayer } from '../repositories/reviews/sqlite-github-account-store.ts';
 import { Layer } from 'effect';
 import { databaseLayer } from './connection.ts';
@@ -22,6 +23,7 @@ export function storageLayer(
   options: { worktreeIdLength: number; busyTimeoutMs: number },
 ) {
   return Layer.mergeAll(
+    sqliteAgentFeedbackStoreLayer,
     sqliteGitHubAccountStoreLayer,
     sqliteDeviceStoreLayer,
     sqliteEnvironmentIdentityReaderLayer,

@@ -1,3 +1,8 @@
+import { AgentFeedbackConflictError } from '@porcelain/reviews/errors';
+import {
+  reviewAgentFeedbackResponseSchema,
+  sendReviewAgentFeedbackRequestSchema,
+} from './agent-feedback-api.ts';
 import {
   archiveReviewRequestSchema,
   archiveReviewResponseSchema,
@@ -129,6 +134,52 @@ import {
 export class ReviewsApi extends porcelainApi.add(
   HttpApiGroup.make('reviews')
     .add(
+      HttpApiEndpoint.get(
+        'readReviewAgentFeedback',
+        '/api/reviews/:reviewId/agent-feedback',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          success: reviewAgentFeedbackResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(AgentFeedbackConflictError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'sendReviewAgentFeedback',
+        '/api/reviews/:reviewId/agent-feedback',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          payload: sendReviewAgentFeedbackRequestSchema,
+          success: reviewAgentFeedbackResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(AgentFeedbackConflictError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.delete(
+        'disconnectReviewAgentSession',
+        '/api/reviews/:reviewId/agent-session',
+        {
+          disableCodecs: true,
+          params: reviewParamsSchema,
+          success: reviewAgentFeedbackResponseSchema,
+          error: [
+            httpFailure(ReviewNotFoundError, 'NotFound'),
+            httpFailure(AgentFeedbackConflictError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
       HttpApiEndpoint.post('archiveReview', '/api/reviews/:reviewId/archive', {
         disableCodecs: true,
         params: reviewParamsSchema,

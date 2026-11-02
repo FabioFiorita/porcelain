@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./commit-planning": "./src/commit-planning/index.ts"
+    "./commit-planning": "./src/commit-planning/index.ts",
+    "./feedback": "./src/feedback/t3-session.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

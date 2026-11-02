@@ -41,3 +41,8 @@ export {
 } from './queries/project-reviews.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
 export { observeReviewSeen } from './queries/project-reviews.ts';
+
+export {
+  agentFeedbackControls,
+  type AgentFeedbackInput,
+} from './queries/agent-feedback-controls.ts';

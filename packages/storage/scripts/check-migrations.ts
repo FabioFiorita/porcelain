@@ -1,3 +1,4 @@
+import { ReviewAgentFeedbackRow } from '../src/db/models/review-agent-feedback.ts';
 import { GitHubAccountRow } from '../src/db/models/github-accounts.ts';
 import { fileURLToPath } from 'node:url';
 import { Data, Effect, FileSystem, Schema, Stream, String } from 'effect';
@@ -38,6 +39,7 @@ class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
 
 const directory = fileURLToPath(new URL('../drizzle/', import.meta.url));
 const models = [
+  ReviewAgentFeedbackRow,
   GitHubAccountRow,
   CommentSeenRow,
   CommentRevisionRow,
