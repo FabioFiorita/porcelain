@@ -23,6 +23,7 @@ selectors:
   - 'Expand all files'
   - 'Collapse all files'
 tests:
+  - apps/web/spec/e2e/reviews-diff-section-layout.e2e.ts
   - apps/web/spec/integration/reviews-page.test.tsx
   - apps/web/spec/integration/reviews-code-moved.test.tsx
   - apps/web/spec/integration/reviews-walkthrough.test.tsx
@@ -85,3 +86,7 @@ The presentation tabs always offer Walkthrough and All changes; Agent summary ap
 ### Independent completion meanings
 
 Finish every decision in a publication whose agent recommends Merge but has a failed check and an unexplained file. The completion header says Decisions reviewed and the review list group says Decisions reviewed; the Agent recommendation section says Merge, Published proof retains the failure, and Still open retains the remaining file. No Ready to merge label appears. Repeat Hold, missing proof and a changed revision; none becomes an approval. GitHub checks in the PR document remain separate from agent-published proof.
+
+## Diff height before existing code
+
+With Unified and Wrap selected in General settings, open a multi-file decision with long paths, a wrapped changed line, an inline agent note and trailing context. Scroll to Existing code it relies on: every diff row, inline note and open comment thread must end above that section, including after resizing and collapsing or reopening files. Header actions stay on one row so Pierre can reserve the full card height.

@@ -1009,7 +1009,12 @@ function CodeSurface({
             if (!stale && !leading && !actions && !comment && !steps)
               return null;
             return (
-              <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
+              <div
+                className={cn(
+                  'flex max-w-full items-center justify-end gap-1.5',
+                  !decision && 'flex-wrap',
+                )}
+              >
                 {stale}
                 {leading}
                 {decision ? (
