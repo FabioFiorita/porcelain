@@ -10,17 +10,23 @@ import {
   recognizeLocalRequest,
   type LocalDeviceOptions,
 } from '../hooks/local-device.ts';
+import {
+  requireSharingManagement,
+  type SharingManagementOptions,
+} from '../hooks/sharing-management.ts';
 import { requestPolicy } from '../hooks/request-policy.ts';
 
 export type PairedUseCases = {
-  access: LocalDeviceOptions['access'] & {
-    routes: {
-      session: HttpApplication;
-      updates: HttpApplication;
-      remoteAccess: HttpApplication;
-      reviewGitSettings: HttpApplication;
+  access: LocalDeviceOptions['access'] &
+    SharingManagementOptions['access'] & {
+      routes: {
+        sharing: HttpApplication;
+        session: HttpApplication;
+        updates: HttpApplication;
+        remoteAccess: HttpApplication;
+        reviewGitSettings: HttpApplication;
+      };
     };
-  };
   projects: HttpApplication;
   files: HttpApplication;
   changes: HttpApplication;
@@ -37,6 +43,16 @@ export function pairedScope(options: {
     cookieMaxAgeSeconds: limits.access.device.cookieMaxAgeSeconds,
   });
   return Layer.mergeAll(
+    application.access.routes.sharing.pipe(
+      Layer.provide(
+        requestPolicy(
+          authenticated.pipe(
+            Effect.andThen(recognizeLocalRequest(application)),
+            Effect.andThen(requireSharingManagement(application)),
+          ),
+        ).combine(options.boundary).layer,
+      ),
+    ),
     Layer.mergeAll(
       application.access.routes.updates,
       application.access.routes.remoteAccess,

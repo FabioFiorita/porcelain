@@ -85,6 +85,7 @@ function makeAccessCommands(connection: RuntimeConnection) {
         label: string;
         addresses: string[];
         trusted: boolean;
+        canManageSharing?: boolean;
       }) =>
         run(
           'paired-access',
@@ -95,6 +96,7 @@ function makeAccessCommands(connection: RuntimeConnection) {
                   labels: [input.label],
                   addresses: input.addresses,
                   ...(input.trusted ? { trusted: true } : {}),
+                  canManageSharing: input.canManageSharing === true,
                 },
               }),
             )
@@ -115,6 +117,15 @@ function makeAccessCommands(connection: RuntimeConnection) {
           client
             .request((api) =>
               api.administration.setDeviceTrust({ payload: input }),
+            )
+            .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
+        ),
+      allowManagement: (input: { id: string; allowed: boolean }) =>
+        run(
+          'paired-access',
+          client
+            .request((api) =>
+              api.administration.setManagementPermission({ payload: input }),
             )
             .pipe(Effect.ensuring(refresh(readPairedAccess(connection)))),
         ),
@@ -183,7 +194,12 @@ const accessCommandRuntime = Atom.family((connection: RuntimeConnection) =>
 
 export const issuePairing = Atom.family((connection: RuntimeConnection) =>
   accessCommandRuntime(connection).fn(
-    (input: { label: string; addresses: string[]; trusted: boolean }) =>
+    (input: {
+      label: string;
+      addresses: string[];
+      trusted: boolean;
+      canManageSharing?: boolean;
+    }) =>
       AccessCommands.use((commands) => commands.issue(input)).pipe(
         Effect.map(issuedLink),
       ),
@@ -226,4 +242,15 @@ export const startServiceUpdate = Atom.family((connection: RuntimeConnection) =>
       AccessCommands.use((commands) => commands.startUpdate(version)),
     { concurrent: true },
   ),
+);
+
+export const setManagementPermission = Atom.family(
+  ({ connection, id }: { connection: RuntimeConnection; id: string }) =>
+    accessCommandRuntime(connection).fn(
+      (allowed: boolean) =>
+        AccessCommands.use((commands) =>
+          commands.allowManagement({ id, allowed }),
+        ),
+      { concurrent: true },
+    ),
 );

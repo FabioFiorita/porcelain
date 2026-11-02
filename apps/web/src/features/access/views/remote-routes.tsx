@@ -262,7 +262,9 @@ function LocalNetworkSettings({
       )}
       {lan.status.kind !== 'on' && (
         <p className="text-xs leading-4.5 text-muted-foreground">
-          {localNetworkNote(remote)}
+          {paused || !here
+            ? localNetworkNote(remote)
+            : `Uses ${networkName(here)}.`}
         </p>
       )}
       <div className="settings-margin-note lg:absolute lg:top-0 lg:left-full lg:ml-8 lg:w-62">
@@ -279,7 +281,18 @@ function LocalNetworkSettings({
             <ShieldAlertIcon aria-hidden />
             Not encrypted
           </AlertTitle>
-          <AlertDescription>{LOCAL_NETWORK_WARNING}</AlertDescription>
+          <AlertDescription>
+            <p>Devices on this network can read the connection.</p>
+            <Collapsible>
+              <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+                Details
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <p>{localNetworkNote(remote)}</p>
+                <p>{LOCAL_NETWORK_WARNING}</p>
+              </CollapsibleContent>
+            </Collapsible>
+          </AlertDescription>
         </Alert>
       </div>
     </>

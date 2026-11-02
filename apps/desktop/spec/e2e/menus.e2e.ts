@@ -19,9 +19,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
     .click();
   await settings.getByRole('button', { name: /^Open This computer:/u }).click();
   const version = await app.electron.evaluate(({ app }) => app.getVersion());
-  await expect(
-    settings.getByText(`Mac app ${version}`, { exact: true }),
-  ).toBeVisible();
+  await expect(settings.getByText(version, { exact: true })).toBeVisible();
   await expect(
     settings.getByText(
       'This build updates by reinstalling; there is no update feed yet.',

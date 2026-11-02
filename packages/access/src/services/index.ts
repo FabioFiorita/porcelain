@@ -30,3 +30,6 @@ export { AuthorizeWaysInService } from './authorize-ways-in-service.ts';
 export { SetWaysInPermissionService } from './set-ways-in-permission-service.ts';
 export { ReadReviewGitSettingsService } from './read-review-git-settings-service.ts';
 export { SaveReviewGitSettingsService } from './save-review-git-settings-service.ts';
+
+export { AuthorizeSharingService } from './authorize-sharing-service.ts';
+export { SetManagementPermissionService } from './set-management-permission-service.ts';

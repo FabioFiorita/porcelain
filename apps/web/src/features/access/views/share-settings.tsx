@@ -33,31 +33,34 @@ import { PairedDevices } from './paired-devices';
 import { WaysIn, WaysInGate } from './ways-in';
 import { type Connection } from '@/shared/workspace/connection';
 
-function HostGate({
+function SharingGate({
   connection,
   children,
 }: {
   connection: Connection;
-  children: (access: PairedAccess) => ReactNode;
+  children: (access: PairedAccess, failure?: string) => ReactNode;
 }) {
   const access = usePairedAccess(connection);
   const answer = Option.getOrUndefined(AsyncResult.value(access));
   if (answer === null)
     return (
       <p className="text-xs text-muted-foreground">
-        Sharing is managed from a browser on the computer that runs Porcelain.
+        This device cannot manage sharing. Allow it from a device with sharing
+        access.
       </p>
     );
-  if (AsyncResult.isFailure(access))
-    return (
+  const failure = AsyncResult.isFailure(access)
+    ? connectionErrorMessage(Cause.squash(access.cause))
+    : undefined;
+  if (!answer)
+    return failure ? (
       <Alert variant="destructive">
-        <AlertDescription>
-          {connectionErrorMessage(Cause.squash(access.cause))}
-        </AlertDescription>
+        <AlertDescription>{failure}</AlertDescription>
       </Alert>
+    ) : (
+      <Spinner />
     );
-  if (!answer) return <Spinner />;
-  return children(answer);
+  return children(answer, failure);
 }
 
 export function ComputerUpdate({ prominent = false }: { prominent?: boolean }) {
@@ -79,6 +82,7 @@ export function ComputerSettings({
   const access = Option.getOrUndefined(
     AsyncResult.value(usePairedAccess(connection)),
   );
+  const canEditIdentity = access?.canEditIdentity === true;
   const named = `${environment.custom}:${environment.name}`;
   const [renamingFrom, setRenamingFrom] = useState<string | null>(null);
   const [returning, setReturning] = useState(false);
@@ -92,7 +96,7 @@ export function ComputerSettings({
       <SettingsHeading
         section="Computers"
         title={environment.name}
-        lead="Devices pair with this computer here, and your agents reach Porcelain through it."
+        lead="Manage connections and device access."
         status={
           <>
             <span
@@ -118,7 +122,7 @@ export function ComputerSettings({
           </>
         }
         action={
-          access &&
+          canEditIdentity &&
           !renaming && (
             <span className="mt-1 flex items-center gap-1 text-muted-foreground">
               <EnvironmentIconPicker
@@ -150,14 +154,14 @@ export function ComputerSettings({
           )
         }
       >
-        {access && AsyncResult.isFailure(iconChange) && (
+        {canEditIdentity && AsyncResult.isFailure(iconChange) && (
           <Alert variant="destructive" className="mt-4 max-w-160">
             <AlertDescription>
               {connectionErrorMessage(Cause.squash(iconChange.cause))}
             </AlertDescription>
           </Alert>
         )}
-        {access && renaming && (
+        {canEditIdentity && renaming && (
           <div className="mt-4">
             <EnvironmentName
               connection={connection}
@@ -176,7 +180,7 @@ export function ComputerSettings({
           </Item>
         </ItemGroup>
         <WaysIn connection={connection} />
-        <DevicesSettings />
+        <DevicesSettings connection={connection} />
         <AgentsSetting />
         {!desktopShell && (
           <FieldSet>
@@ -200,18 +204,21 @@ export function ComputerSettings({
   );
 }
 
-function DevicesSettings() {
-  const { connection } = useConnectedContext();
+export function DevicesSettings({ connection }: { connection: Connection }) {
   const paired = Option.getOrUndefined(
     AsyncResult.value(usePairedAccess(connection)),
   );
   return (
-    <HostGate connection={connection}>
-      {(access) => (
+    <SharingGate connection={connection}>
+      {(access, failure) => (
         <WaysInGate connection={connection}>
           {(remote) => (
             <>
-              <FieldSet id="devices" className="min-w-0">
+              <FieldSet
+                id="devices"
+                className="min-w-0"
+                disabled={failure !== undefined}
+              >
                 <FieldLegend variant="label">
                   <span className="flex items-center gap-1">
                     Devices
@@ -222,7 +229,16 @@ function DevicesSettings() {
                     )}
                   </span>
                 </FieldLegend>
-                <PairedDevices connection={connection} access={access} />
+                {failure && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{failure}</AlertDescription>
+                  </Alert>
+                )}
+                <PairedDevices
+                  connection={connection}
+                  access={access}
+                  disabled={failure !== undefined}
+                />
               </FieldSet>
               <aside
                 aria-label="Pair a device"
@@ -236,12 +252,18 @@ function DevicesSettings() {
                     A link works once, for a few minutes.
                   </p>
                 </div>
-                <PairDevice connection={connection} remote={remote} />
+                <FieldSet className="contents" disabled={failure !== undefined}>
+                  <PairDevice
+                    connection={connection}
+                    remote={remote}
+                    disabled={failure !== undefined}
+                  />
+                </FieldSet>
               </aside>
             </>
           )}
         </WaysInGate>
       )}
-    </HostGate>
+    </SharingGate>
   );
 }

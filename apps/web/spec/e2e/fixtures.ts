@@ -22,6 +22,7 @@ import { serverBuild } from './global-setup.ts';
 import {
   capturePreviewRequests,
   failInventory,
+  failSharingRead,
   failRemoteStatus,
   waitForRemoteStatusFailure,
   failChangesRead,
@@ -231,6 +232,7 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
     failReviewRead: () => failChangesRead(page.context()),
+    failSharingRead: () => failSharingRead(page.context()),
     foreground: () =>
       page.evaluate(() => {
         const original = Object.getOwnPropertyDescriptor(document, 'hasFocus');

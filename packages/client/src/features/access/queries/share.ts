@@ -14,9 +14,9 @@ import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   REMOTE_ACCESS_SETTLING_POLL_MS,
   SERVICE_UPDATE_POLL_MS,
+  SHARING_REFRESH_MS,
 } from '../../../config/limits.ts';
 import { requestApi } from '../../../shared/api/client.ts';
-import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
@@ -42,6 +42,11 @@ function observe<A, E, R>(
       return yield* Effect.interrupt;
     if (Exit.isSuccess(answer))
       yield* Ref.set(snapshot, Option.some(answer.value));
+    else {
+      const error = Option.getOrUndefined(Cause.findErrorOption(answer.cause));
+      if (error instanceof RequestError && error.status === 401)
+        yield* Ref.set(snapshot, Option.none());
+    }
     return AsyncResult.fromExitWithPrevious(
       answer,
       Option.map(yield* Ref.get(snapshot), AsyncResult.success),
@@ -104,20 +109,26 @@ function deniedAsNull<A, E, R>(request: Effect.Effect<A, E, R>) {
   return request.pipe(
     Effect.catch((error) =>
       (error instanceof RequestError && error.status === 403) ||
-      Predicate.isTagged(error, 'WaysInPermissionRequiredError')
+      Predicate.isTagged(error, 'WaysInPermissionRequiredError') ||
+      Predicate.isTagged(error, 'SharingManagementRequiredError')
         ? Effect.succeed(null)
         : Effect.fail(error),
     ),
   );
 }
 export const readPairedAccess = Atom.family((connection: RuntimeConnection) =>
-  clientRuntime(connection)
-    .atom(
+  pollWhile(
+    accessRuntime(connection),
+    accessObservation(
+      connection,
+      (snapshots) => snapshots.sharing,
       deniedAsNull(
         requestApi(connection, (api) => api.administration.listAccess()),
       ),
-    )
-    .pipe(Atom.setIdleTTL(0)),
+    ),
+    SHARING_REFRESH_MS,
+    Effect.succeed(() => true),
+  ),
 );
 export const readRemoteAccess = Atom.family((connection: RuntimeConnection) =>
   pollWhile(

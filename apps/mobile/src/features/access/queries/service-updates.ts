@@ -1,4 +1,4 @@
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomValue, useAtomSet } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import {
   readServiceUpdate,
@@ -33,10 +33,20 @@ const serviceUpdates = Atom.make((get) => {
   });
 });
 
+const refreshServiceUpdates = Atom.fnSync((_: void, get) => {
+  for (const { connection } of remoteConnectionState.value) {
+    const update = readServiceUpdate(connection);
+    if (!get(update).waiting) get.refresh(update);
+  }
+});
+
 export function useServiceUpdates() {
   const rows = useAtomValue(serviceUpdates);
+  const refresh = useAtomSet(refreshServiceUpdates);
   return {
     rows,
+    checking: rows.some((row) => row.result.waiting),
+    refresh: () => refresh(undefined),
     targets: rows.flatMap((row) => (row.target ? [row.target] : [])),
   };
 }

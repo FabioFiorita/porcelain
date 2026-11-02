@@ -1,4 +1,5 @@
 import type {
+  ListAccessResponse,
   ReadRemoteAccessResponse,
   ReadServiceUpdateResponse,
 } from '@porcelain/contracts/access';
@@ -10,6 +11,7 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 export class AccessSnapshots extends Context.Service<
   AccessSnapshots,
   {
+    readonly sharing: Ref.Ref<Option.Option<ListAccessResponse | null>>;
     readonly remote: Ref.Ref<Option.Option<ReadRemoteAccessResponse | null>>;
     readonly update: Ref.Ref<Option.Option<ReadServiceUpdateResponse>>;
   }
@@ -18,6 +20,7 @@ export class AccessSnapshots extends Context.Service<
     AccessSnapshots,
     Effect.gen(function* () {
       return {
+        sharing: yield* Ref.make(Option.none<ListAccessResponse | null>()),
         remote: yield* Ref.make(Option.none<ReadRemoteAccessResponse | null>()),
         update: yield* Ref.make(Option.none<ReadServiceUpdateResponse>()),
       };

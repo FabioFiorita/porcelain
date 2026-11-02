@@ -7,6 +7,7 @@ export type PairingGrant = {
   createdAt: string;
   expiresAt: string;
   trusted?: boolean | undefined;
+  canManageSharing?: boolean | undefined;
 };
 
 export type StoredPairingGrant = PairingGrant & {

@@ -31,13 +31,6 @@ import { useAppUpdateState } from '../queries/app-update';
 import { useLocalConnection } from '../store';
 import { appUpdateProgress } from '../rules/app-update';
 
-const updateNotes = {
-  'mac-app':
-    'The Mac app updates itself, then restarts. Update in the sidebar does this too.',
-  service:
-    'Porcelain updates from npm, then restarts. Update in the sidebar does this too.',
-};
-
 export function SettingsUpdateRow({
   row,
   showName = false,
@@ -66,8 +59,6 @@ export function SettingsUpdateRow({
     target.kind === 'service' ? serviceUpdateOutcome(target.state) : undefined;
   const latest =
     target.kind === 'service' ? target.state.latest : target.latest;
-  const sidebarUpdates =
-    target.kind === 'mac-app' || (target.state.managed && trust === undefined);
   const pending =
     batch.running &&
     (entry?.status === 'updating' || entry?.status === 'queued');
@@ -133,17 +124,9 @@ export function SettingsUpdateRow({
                   : 'text-xs leading-4 text-muted-foreground',
               )}
             >
-              <span>
-                {target.kind === 'mac-app' ? 'Mac app' : 'Porcelain'}{' '}
-                {current ?? 'development build'}
-              </span>
+              <span>{current ?? 'Development build'}</span>
               {settingsUpdateAvailable(target) && latest && <> → {latest}</>}
             </p>
-            {prominent && sidebarUpdates && (
-              <p className="mt-0.5 text-ui leading-4.5 text-muted-foreground">
-                {updateNotes[target.kind]}
-              </p>
-            )}
           </div>
           {action}
         </div>

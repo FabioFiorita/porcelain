@@ -1,4 +1,4 @@
-import { closeSettings, openThisComputer } from '../kit/settings.ts';
+import { closeSettings } from '../kit/settings.ts';
 import { expect, test, type Page } from './fixtures.ts';
 import {
   updateFeed,
@@ -13,7 +13,10 @@ async function openUpdates(page: Page) {
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
-  await openThisComputer(page);
+  await settings
+    .getByRole('navigation', { name: 'Settings sections', exact: true })
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
   return settings;
 }
 
@@ -36,7 +39,7 @@ test('the release app checks on demand, shows each result and installs the offer
   await expect(check).toBeDisabled();
   await page.evaluate(() => window.updateFixture.finish({ status: 'idle' }));
   await expect(
-    settings.getByText('This is the newest version of the app.', {
+    settings.getByText('Up to date', {
       exact: true,
     }),
   ).toBeVisible();
@@ -48,7 +51,7 @@ test('the release app checks on demand, shows each result and installs the offer
     settings.getByText('Could not check for an app update.', { exact: true }),
   ).toBeVisible();
   await expect(
-    settings.getByText('This is the newest version of the app.', {
+    settings.getByText('Up to date', {
       exact: true,
     }),
   ).not.toBeAttached();
@@ -74,7 +77,7 @@ test('the release app checks on demand, shows each result and installs the offer
     settings.getByText('Could not check for an app update.', { exact: true }),
   ).not.toBeAttached();
   await expect(
-    settings.getByText('This is the newest version of the app.', {
+    settings.getByText('Up to date', {
       exact: true,
     }),
   ).not.toBeAttached();
@@ -88,7 +91,7 @@ test('the release app checks on demand, shows each result and installs the offer
     settings.getByText('Release feed is offline', { exact: true }),
   ).not.toBeAttached();
   await expect(
-    settings.getByText('Mac app 0.65.4 → 0.66.0', { exact: true }),
+    settings.getByText('0.65.4 → 0.66.0', { exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath('app-update-available.png'),
@@ -118,7 +121,7 @@ test('the release app checks on demand, shows each result and installs the offer
   });
   await expect(newer).not.toBeAttached();
   await expect(
-    settings.getByText('This is the newest version of the app.', {
+    settings.getByText('Up to date', {
       exact: true,
     }),
   ).not.toBeAttached();
@@ -130,7 +133,6 @@ test('the release app checks on demand, shows each result and installs the offer
   ).toBeVisible();
   await expect(check).toBeDisabled();
   await expect(newer).not.toBeAttached();
-  await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect(settings).not.toBeAttached();
 });
@@ -221,16 +223,14 @@ for (const width of [1440, 414]) {
   }
 }
 
-test('a desktop build with updates disabled hides the check control', async ({
+test('a desktop build without app updates keeps the global computer check available', async ({
   page,
   app,
 }) => {
   await updateFeed(page, false);
   await app.open(await app.link('this'));
   const settings = await openUpdates(page);
-  await expect(
-    settings.getByText('Mac app 0.65.4', { exact: true }),
-  ).toBeVisible();
+  await expect(settings.getByText('0.65.4', { exact: true })).toBeVisible();
   await expect(
     settings.getByText(
       'This build updates by reinstalling; there is no update feed yet.',
@@ -239,7 +239,7 @@ test('a desktop build with updates disabled hides the check control', async ({
   ).toBeVisible();
   await expect(
     settings.getByRole('button', { name: 'Check for updates', exact: true }),
-  ).not.toBeAttached();
+  ).toBeEnabled();
 });
 
 for (const recovery of ['available', 'idle'] as const) {
@@ -315,7 +315,7 @@ for (const recovery of ['available', 'idle'] as const) {
     await expect(retry).not.toBeAttached();
     if (recovery === 'available') {
       await expect(
-        updates.getByText('Mac app 0.65.4 → 0.67.0', { exact: true }),
+        updates.getByText('0.65.4 → 0.67.0', { exact: true }),
       ).toBeVisible();
       await expect(
         updates.getByRole('button', { name: 'Update all (1)', exact: true }),
@@ -409,7 +409,7 @@ test('the footer Update badge offers the Mac app through its bridge without post
   await expect(updates).toBeVisible();
   await expect(updates).toHaveAttribute('data-side', 'top');
   await expect(
-    updates.getByText('Mac app 0.65.4 → 0.66.0', { exact: true }),
+    updates.getByText('0.65.4 → 0.66.0', { exact: true }),
   ).toBeVisible();
   await expect(
     updates.getByRole('button', { name: 'Update all (1)', exact: true }),

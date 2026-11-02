@@ -9,6 +9,7 @@ export class InMemoryDeviceStore implements DeviceStore {
   private readonly revocations = new Map<string, string>();
   private readonly sightings = new Map<string, Sighting>();
   private readonly trust = new Map<string, true | undefined>();
+  private readonly management = new Map<string, true | undefined>();
   private readonly waysIn = new Map<string, true | undefined>();
 
   add(device: StoredDevice): void {
@@ -16,6 +17,7 @@ export class InMemoryDeviceStore implements DeviceStore {
     this.revocations.delete(device.id);
     this.sightings.delete(device.id);
     this.trust.set(device.id, device.trusted || undefined);
+    this.management.set(device.id, device.canManageSharing || undefined);
     this.waysIn.set(device.id, device.canEditWaysIn || undefined);
   }
 
@@ -61,6 +63,15 @@ export class InMemoryDeviceStore implements DeviceStore {
     });
   }
 
+  recordManagementPermission(input: {
+    device: StoredDevice;
+    allowed: boolean;
+  }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.management.set(input.device.id, input.allowed || undefined);
+    });
+  }
+
   recordWaysInPermission(input: {
     device: StoredDevice;
     allowed: boolean;
@@ -76,6 +87,7 @@ export class InMemoryDeviceStore implements DeviceStore {
       ...this.sightings.get(device.id),
       trusted: this.trust.get(device.id),
       canEditWaysIn: this.waysIn.get(device.id),
+      canManageSharing: this.management.get(device.id),
       revokedAt: this.revocations.get(device.id) ?? device.revokedAt,
     };
   }

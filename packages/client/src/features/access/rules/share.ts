@@ -36,11 +36,9 @@ export const remoteRouteTitles: Record<RemoteRouteName, string> = {
 };
 
 export const remoteRouteDescriptions: Record<RemoteRouteName, string> = {
-  lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
-  tailnet:
-    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. You set up tailscale serve once; Porcelain checks that it reaches here.',
-  cloudflare:
-    'Your own Cloudflare tunnel and hostname, over HTTPS from anywhere.',
+  lan: 'Devices on this network.',
+  tailnet: 'Encrypted access through your Tailscale network.',
+  cloudflare: 'HTTPS through your existing tunnel.',
 };
 
 export const deviceRouteTitles: Record<DeviceRoute, string> = {
@@ -87,8 +85,8 @@ export function waysInRefusal(
   ownAliases: readonly string[] = [],
 ): string {
   return reachesOwnAddress(address, ownAliases)
-    ? 'Ways in cannot be seen or changed over this connection, because it reaches the computer that runs Porcelain through that computer’s own address. Change them on that computer, or pair this device through the local network, Tailscale or a Cloudflare tunnel.'
-    : 'This device cannot see or change ways in. An owner can let it in Devices, under Settings → Computers → This computer, in a browser on the computer that runs Porcelain.';
+    ? 'Use the computer running Porcelain to manage ways in, or pair over the local network or an existing encrypted route.'
+    : 'Turn on Manage sharing for this device in Computers → Devices, from a computer with sharing access.';
 }
 
 type Network = NonNullable<RemoteAccess['localNetwork']>;

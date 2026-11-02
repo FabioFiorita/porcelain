@@ -42,7 +42,7 @@ export function EnvironmentRow({
         title={status.kind === 'online' ? status.name : remote.name}
         description={
           status.kind === 'online' && status.version
-            ? `${remote.address} · Porcelain ${status.version}`
+            ? `${remote.address} · ${status.version}`
             : remote.address
         }
         trailing={
@@ -51,7 +51,7 @@ export function EnvironmentRow({
               <IconButton
                 icon="trash"
                 variant="destructive"
-                accessibilityLabel="Forget computer"
+                accessibilityLabel={`Forget ${remote.name}`}
                 disabled={disabled || adding}
                 pending={command.result.waiting}
                 onPress={() => command.forget()}

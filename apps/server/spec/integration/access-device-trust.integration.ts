@@ -13,16 +13,12 @@ import { list, record, text, type HttpRequest } from '../kit/session.ts';
 const TUNNEL_HOST = 'porcelain.example.com';
 const throughTunnel = { host: TUNNEL_HOST, origin: `https://${TUNNEL_HOST}` };
 const APP = 'http://app.example';
-const notOnThisComputer = apiError(
+const managementRequired = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'This device cannot manage sharing. Allow it from a device with sharing access.',
 );
-const refusedFromApp = apiError(
-  403,
-  'Forbidden',
-  `The origin ${APP} cannot write here`,
-);
+
 const notFound = apiError(404, 'Not Found', 'Device not found');
 const accessRead = { method: 'GET', path: '/api/access' } as const;
 const ownerAccess = {
@@ -179,12 +175,12 @@ test('a relayed request, a trusted device through the tunnel and a bearer client
   );
 
   expect(relayed.status).toBe(403);
-  expect(relayed.body).toStrictEqual(notOnThisComputer);
+  expect(relayed.body).toStrictEqual(managementRequired);
   expect(tunnel.status).toBe(403);
-  expect(tunnel.body).toStrictEqual(notOnThisComputer);
+  expect(tunnel.body).toStrictEqual(managementRequired);
   expect(tunnelListing.status).toBe(403);
-  expect(tunnelListing.body).toStrictEqual(notOnThisComputer);
+  expect(tunnelListing.body).toStrictEqual(managementRequired);
   expect(crossOrigin.status).toBe(403);
-  expect(crossOrigin.body).toStrictEqual(refusedFromApp);
+  expect(crossOrigin.body).toStrictEqual(managementRequired);
   expect(await read(session, ownerAccess)).toStrictEqual(before);
 });

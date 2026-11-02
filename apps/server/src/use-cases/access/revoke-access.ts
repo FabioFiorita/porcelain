@@ -1,10 +1,12 @@
+import { type SharingManagementRequiredError } from '@porcelain/access/errors';
 import { Context, Effect, Layer } from 'effect';
 import {
+  AuthorizeSharingService,
   RevokeDeviceService,
   RevokePairingGrantService,
 } from '@porcelain/access/services';
 import {
-  type RevokeAccessRequest,
+  type RevokeAccessInput,
   type RevokeAccessResponse,
 } from '@porcelain/contracts/access';
 import { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
@@ -15,13 +17,14 @@ export class RevokeAccessUseCase extends Context.Service<
   RevokeAccessUseCase,
   {
     readonly execute: (
-      input: RevokeAccessRequest,
-    ) => Effect.Effect<RevokeAccessResponse, never>;
+      input: RevokeAccessInput,
+    ) => Effect.Effect<RevokeAccessResponse, SharingManagementRequiredError>;
   }
 >()('@porcelain/server/RevokeAccessUseCase') {
   static readonly layer = Layer.effect(
     RevokeAccessUseCase,
     Effect.gen(function* () {
+      const authorizeSharing = yield* AuthorizeSharingService;
       const revokePairingGrantCapability = yield* RevokePairingGrantService;
       const revokeDeviceCapability = yield* RevokeDeviceService;
       const deviceConnectionsCapability = yield* DeviceConnectionStore;
@@ -30,13 +33,17 @@ export class RevokeAccessUseCase extends Context.Service<
 
       return {
         execute: Effect.fn('RevokeAccessUseCase.execute')(function* (
-          input: RevokeAccessRequest,
-        ): Effect.fn.Return<RevokeAccessResponse, never> {
+          input: RevokeAccessInput,
+        ): Effect.fn.Return<
+          RevokeAccessResponse,
+          SharingManagementRequiredError
+        > {
           return yield* lanesCapability.run(
             laneKeysCapability.access(),
             'write',
             () =>
               Effect.gen(function* () {
+                yield* authorizeSharing.execute(input);
                 if (
                   (yield* revokePairingGrantCapability.execute(input)).kind ===
                   'revoked'
@@ -46,7 +53,9 @@ export class RevokeAccessUseCase extends Context.Service<
                   (yield* revokeDeviceCapability.execute(input)).kind ===
                   'revoked'
                 ) {
-                  deviceConnectionsCapability.remove({ deviceId: input.id });
+                  deviceConnectionsCapability.remove({
+                    deviceId: input.id,
+                  });
                   return { revoked: true, kind: 'device' as const };
                 }
                 return { revoked: false };

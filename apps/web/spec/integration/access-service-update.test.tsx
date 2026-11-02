@@ -19,12 +19,10 @@ test.for([1280, 414])(
       });
 
       await expect
-        .element(settings.getByText(`Porcelain ${from}`, { exact: true }))
+        .element(settings.getByText(`${from}`, { exact: true }))
         .toBeVisible();
       await expect
-        .element(
-          settings.getByText(`Porcelain ${from} → ${to}`, { exact: true }),
-        )
+        .element(settings.getByText(`${from} → ${to}`, { exact: true }))
         .toBeVisible();
 
       const update = settings.getByRole('button', {
@@ -46,7 +44,7 @@ test.for([1280, 414])(
         )
         .toBeVisible();
       await expect
-        .element(settings.getByText(`Porcelain ${from}`, { exact: true }))
+        .element(settings.getByText(`${from}`, { exact: true }))
         .toBeVisible();
 
       await update.click();
@@ -63,7 +61,7 @@ test.for([1280, 414])(
         .element(settings.getByText(`Updated to ${to}.`, { exact: true }))
         .toBeVisible();
       await expect
-        .element(settings.getByText(`Porcelain ${to}`, { exact: true }))
+        .element(settings.getByText(`${to}`, { exact: true }))
         .toBeVisible();
       await expect
         .element(settings.getByText('Up to date', { exact: true }))
@@ -156,7 +154,7 @@ test('Computers refreshes settled service status once and exposes recovery after
     .getByRole('button', { name: 'Try again', exact: true })
     .click();
   await expect
-    .element(settings.getByText('Porcelain 1.0.0 → 1.1.0', { exact: true }))
+    .element(settings.getByText('1.0.0 → 1.1.0', { exact: true }))
     .toBeVisible();
   await expect.poll(() => server.serviceUpdateReads()).toBe(3);
 });

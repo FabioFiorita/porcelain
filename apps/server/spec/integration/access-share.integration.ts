@@ -16,10 +16,10 @@ import { pairDevice, read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
-const notOnThisComputer = apiError(
+const managementRequired = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'This device cannot manage sharing. Allow it from a device with sharing access.',
 );
 
 async function access(session: Session) {
@@ -175,7 +175,7 @@ test('a relayed or remote request to list, issue or revoke access is refused and
 
   for (const response of responses) {
     expect(response.status).toBe(403);
-    expect(response.body).toStrictEqual(notOnThisComputer);
+    expect(response.body).toStrictEqual(managementRequired);
   }
   expect(await access(session)).toStrictEqual(before);
 });

@@ -101,10 +101,9 @@ test('Settings → Computers → This computer creates a one-time pairing link f
   });
   await openThisComputer(pairedPage);
   await expect(
-    settings.getByText(
-      'Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.',
-      { exact: true },
-    ),
+    settings.getByText('Turn on a way in above to pair a device.', {
+      exact: true,
+    }),
   ).toBeVisible();
 
   await openThisComputer(pairedPage);
@@ -117,7 +116,7 @@ test('Settings → Computers → This computer creates a one-time pairing link f
 
   await expect(
     settings.getByText(
-      'The link opens through Local network. The device will work only through the way in it pairs over. To use it through another way in too, pair it again through that one.',
+      'Uses Local network. Pair again to add another way in.',
       { exact: true },
     ),
   ).toBeVisible();
@@ -141,7 +140,7 @@ test('Settings → Computers → This computer creates a one-time pairing link f
   });
   await expect(
     devices.getByRole('listitem', { name: 'Journey browser', exact: true }),
-  ).toHaveText(/This browserThis computer/);
+  ).toHaveText(/This deviceThis computer/);
   await expect
     .poll(async () => (await server.devices()).map((device) => device.route))
     .toEqual(['loopback', 'loopback']);
@@ -197,7 +196,7 @@ for (const trusted of [false, true]) {
       settings.getByText('Scan on Keep this link', { exact: true }),
     ).toBeVisible();
     await name.fill('Cancel this link');
-    if (trusted)
+    if (!trusted)
       await settings
         .getByRole('switch', {
           name: 'The paired device can update Porcelain',
@@ -251,3 +250,66 @@ for (const trusted of [false, true]) {
       .toEqual(['Cancel this link', 'Keep this link']);
   });
 }
+
+test('an automatic Devices read failure preserves the pairing draft and permissions, disables writes, and recovers without reload', async ({
+  pairedPage,
+  world,
+  server,
+  app,
+}) => {
+  await world.changeWaysIn({ lan: true });
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  await openThisComputer(pairedPage);
+  const pair = pairedPage.getByRole('complementary', {
+    name: 'Pair a device',
+    exact: true,
+  });
+  const label = pair.getByRole('textbox', { name: 'Device name', exact: true });
+  await label.fill('Keep my phone');
+  const management = pair.getByRole('switch', {
+    name: 'Can manage sharing',
+    exact: true,
+  });
+  const trusted = pair.getByRole('switch', {
+    name: 'The paired device can update Porcelain',
+    exact: true,
+  });
+  await management.uncheck();
+  await trusted.uncheck();
+  const create = pair.getByRole('button', {
+    name: 'Create pairing link',
+    exact: true,
+  });
+  await expect(create).toBeEnabled();
+  const restore = await app.failSharingRead();
+  await expect(
+    pairedPage.getByText('Request failed (503)', { exact: true }),
+  ).toBeVisible();
+  await expect(label).toHaveValue('Keep my phone');
+  await expect(label).toBeDisabled();
+  await expect(create).toBeDisabled();
+  await expect(management).toBeDisabled();
+  await expect(trusted).toBeDisabled();
+  const deviceManagement = pairedPage.getByRole('switch', {
+    name: 'Journey browser can manage sharing',
+    exact: true,
+  });
+  await expect(deviceManagement).toBeDisabled();
+  await restore();
+  await expect(
+    pairedPage.getByText('Request failed (503)', { exact: true }),
+  ).not.toBeAttached();
+  await expect(create).toBeEnabled();
+  await expect(management).toBeEnabled();
+  await expect(trusted).toBeEnabled();
+  await expect(deviceManagement).toBeEnabled();
+  await expect(label).toHaveValue('Keep my phone');
+  await expect(management).not.toBeChecked();
+  await expect(trusted).not.toBeChecked();
+  await expect.poll(() => server.pendingLinks()).toEqual([]);
+});

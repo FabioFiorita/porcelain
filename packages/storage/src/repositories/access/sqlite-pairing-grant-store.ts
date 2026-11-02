@@ -9,11 +9,13 @@ function storedGrant({
   redeemedAt,
   revokedAt,
   trusted,
+  canManageSharing,
   ...grant
 }: PairingGrantRow): StoredPairingGrant {
   return {
     ...grant,
     ...(trusted ? { trusted } : {}),
+    ...(canManageSharing ? { canManageSharing } : {}),
     ...(redeemedAt === null ? {} : { redeemedAt }),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
@@ -53,6 +55,7 @@ export const sqlitePairingGrantStoreLayer = Layer.effect(
             const row = yield* Schema.encodeEffect(PairingGrantRow.insert)({
               ...grant,
               trusted: grant.trusted === true,
+              canManageSharing: grant.canManageSharing === true,
               redeemedAt: grant.redeemedAt ?? null,
               revokedAt: grant.revokedAt ?? null,
             });
@@ -79,6 +82,7 @@ export const sqlitePairingGrantStoreLayer = Layer.effect(
             routeInferred: device.routeInferred === true,
             trusted: device.trusted === true,
             canEditWaysIn: false,
+            canManageSharing: device.canManageSharing === true,
             revokedAt: device.revokedAt ?? null,
           });
           yield* sql`INSERT INTO devices ${sql.insert(row)}`;

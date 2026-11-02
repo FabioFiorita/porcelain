@@ -78,6 +78,7 @@ describe('ListAccessService', () => {
         createdAt: '2026-09-23T10:00:01.000Z',
         expiresAt: '2026-09-23T10:15:00.000Z',
         trusted: false,
+        canManageSharing: false,
       },
       {
         id: '5',
@@ -86,6 +87,7 @@ describe('ListAccessService', () => {
         createdAt: '2026-09-23T10:00:05.000Z',
         expiresAt: '2026-09-23T10:15:00.000Z',
         trusted: false,
+        canManageSharing: false,
       },
     ]);
   });
@@ -107,6 +109,7 @@ describe('ListAccessService', () => {
         lastSeenAt: '2026-09-23T09:00:00.000Z',
         route: 'lan',
         trusted: false,
+        canManageSharing: false,
         canEditWaysIn: false,
       },
       {
@@ -118,6 +121,7 @@ describe('ListAccessService', () => {
         lastSeenAddress: '100.64.0.9',
         route: 'tailnet',
         trusted: false,
+        canManageSharing: false,
         canEditWaysIn: false,
       },
     ]);

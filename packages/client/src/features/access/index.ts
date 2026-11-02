@@ -68,3 +68,5 @@ export {
   type SettingsUpdateEntry,
   type SettingsUpdateBatch,
 } from './rules/settings-updates.ts';
+
+export { setManagementPermission } from './commands/share.ts';

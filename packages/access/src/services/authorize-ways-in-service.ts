@@ -30,7 +30,7 @@ export class AuthorizeWaysInService extends Context.Service<
           if (
             device === undefined ||
             input.route === 'loopback' ||
-            device.canEditWaysIn !== true
+            (device.canEditWaysIn !== true && device.canManageSharing !== true)
           )
             return yield* Effect.fail(new WaysInPermissionRequiredError());
         }),

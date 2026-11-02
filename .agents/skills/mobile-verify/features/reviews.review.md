@@ -81,7 +81,7 @@ Review shows the selected worktree’s changes, reviewed status, published decis
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md).
+Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), with iPad landscape first then portrait and fresh bounds after rotation.
 
 1. With no worktree expect Select a worktree to continue. Pair/select the focused sample; expect Review README.md. Open it, then phone Back or iPad Overview returns. On iPad open Overview/two files; panel switches and Comments → Done retain central tabs/selection.
 2. Expect a visible, naturally sized Uncommitted button above the document. An ordinary tap opens the menu on Android and iOS; dismiss with Back/outside and reopen. Choose Branch, an explicit local/remote base, then Uncommitted: every choice closes the menu, the Branch trigger names its actual base, and the file set matches that comparison. Long base names/many choices and larger text must remain reachable without horizontal page overflow. Check iPad landscape first, then portrait. Newly opened tabs capture that comparison; old tabs/anchors stay. Switch worktrees/back: each restores tabs/comparison/mode.

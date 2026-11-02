@@ -2,6 +2,7 @@ import type { Effect } from 'effect';
 import { Context } from 'effect';
 import type {
   DeviceKey,
+  DeviceManagementPermission,
   DeviceRevocation,
   DeviceSighting,
   DeviceTrust,
@@ -15,6 +16,9 @@ export interface DeviceStore {
   markRevoked(input: DeviceRevocation): Effect.Effect<void>;
   recordSighting(input: DeviceSighting): Effect.Effect<void>;
   recordTrust(input: DeviceTrust): Effect.Effect<void>;
+  recordManagementPermission(
+    input: DeviceManagementPermission,
+  ): Effect.Effect<void>;
   recordWaysInPermission(input: DeviceWaysInPermission): Effect.Effect<void>;
 }
 

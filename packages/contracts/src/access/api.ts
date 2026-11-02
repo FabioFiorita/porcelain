@@ -1,6 +1,7 @@
 import { environmentUnavailable } from '../shared/environment-failure.ts';
 import {
   DeviceNotFoundError,
+  SharingManagementRequiredError,
   DeviceViewerRequiredError,
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
@@ -47,6 +48,8 @@ import {
   revokeAccessResponseSchema,
   setDeviceTrustRequestSchema,
   setDeviceTrustResponseSchema,
+  setManagementPermissionRequestSchema,
+  setManagementPermissionResponseSchema,
   setWaysInPermissionRequestSchema,
   setWaysInPermissionResponseSchema,
 } from './pairing.ts';
@@ -163,17 +166,23 @@ const reviewGitSettingsGroup = HttpApiGroup.make('reviewGitSettings')
   )
   .middleware(PairedRequest)
   .middleware(ClientRequest);
+const sharingManagementRequired = httpFailure(
+  SharingManagementRequiredError,
+  'Forbidden',
+);
 const administrationGroup = HttpApiGroup.make('administration')
   .add(
     HttpApiEndpoint.get('listAccess', '/access', {
       disableCodecs: true,
       success: listAccessResponseSchema,
+      error: sharingManagementRequired,
     }),
     HttpApiEndpoint.post('issuePairing', '/pairings', {
       disableCodecs: true,
       payload: issuePairingRequestSchema,
       success: issuePairingResponseSchema,
       error: [
+        sharingManagementRequired,
         environmentUnavailable,
         invalidDeviceDetails,
         httpFailure(InvalidPairingAddressError, 'BadRequest'),
@@ -183,21 +192,42 @@ const administrationGroup = HttpApiGroup.make('administration')
       disableCodecs: true,
       payload: revokeAccessRequestSchema,
       success: revokeAccessResponseSchema,
+      error: sharingManagementRequired,
     }),
     HttpApiEndpoint.post('setDeviceTrust', '/access/trust', {
       disableCodecs: true,
       payload: setDeviceTrustRequestSchema,
       success: setDeviceTrustResponseSchema,
-      error: httpFailure(DeviceNotFoundError, 'NotFound'),
+      error: [
+        sharingManagementRequired,
+        httpFailure(DeviceNotFoundError, 'NotFound'),
+      ],
     }),
+    HttpApiEndpoint.post(
+      'setManagementPermission',
+      '/access/management-permission',
+      {
+        disableCodecs: true,
+        payload: setManagementPermissionRequestSchema,
+        success: setManagementPermissionResponseSchema,
+        error: [
+          sharingManagementRequired,
+          httpFailure(DeviceNotFoundError, 'NotFound'),
+        ],
+      },
+    ),
     HttpApiEndpoint.post('setWaysInPermission', '/access/ways-in-permission', {
       disableCodecs: true,
       payload: setWaysInPermissionRequestSchema,
       success: setWaysInPermissionResponseSchema,
-      error: httpFailure(DeviceNotFoundError, 'NotFound'),
+      error: [
+        sharingManagementRequired,
+        httpFailure(DeviceNotFoundError, 'NotFound'),
+      ],
     }),
   )
-  .middleware(PairedRequest);
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
 const waysInPermissionRequired = httpFailure(
   WaysInPermissionRequiredError,
   'Forbidden',
@@ -270,8 +300,11 @@ export class RemoteAccessApi extends porcelainApi
 export class ReviewGitSettingsApi extends porcelainApi
   .add(reviewGitSettingsGroup)
   .prefix('/api') {}
+export class SharingApi extends porcelainApi
+  .add(administrationGroup)
+  .prefix('/api') {}
 export class HostAccessApi extends porcelainApi
-  .add(administrationGroup, environmentLabelGroup)
+  .add(environmentLabelGroup)
   .prefix('/api') {}
 export class OwnerAccessApi extends porcelainApi.add(
   administrationGroup,

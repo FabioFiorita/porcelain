@@ -27,14 +27,12 @@ for (const width of [1280, 414]) {
       .getByRole('button', { name: 'Settings', exact: true })
       .click();
     const settings = await openThisComputer(pairedPage);
-    await expect(
-      settings.getByText('Porcelain 2.0.0', { exact: true }),
-    ).toBeVisible();
+    await expect(settings.getByText('2.0.0', { exact: true })).toBeVisible();
     await expect(
       settings.getByText('Up to date', { exact: true }),
     ).toBeVisible();
     await expect(
-      settings.getByText('Porcelain 2.0.0 → 1.1.0', { exact: true }),
+      settings.getByText('2.0.0 → 1.1.0', { exact: true }),
     ).not.toBeAttached();
   });
 }

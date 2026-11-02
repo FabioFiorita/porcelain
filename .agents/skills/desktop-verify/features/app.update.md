@@ -1,8 +1,7 @@
 ---
 selectors:
   - 'Check for updates'
-  - 'Checking for a new version…'
-  - 'This is the newest version of the app.'
+  - 'Up to date'
   - 'This build updates by reinstalling; there is no update feed yet.'
   - 'Could not check for an app update.'
 tests:
@@ -19,7 +18,7 @@ The release Mac app checks its own update feed from Settings and installs an off
 
 ## How to get to it (user POV)
 
-- Sidebar › Settings › Computers › This computer.
+- Sidebar › Settings › Computers › Check for updates beside Update all. This computer shows the app version and update state.
 - Porcelain › Settings… or ⌘, opens the same Settings page.
 - The sidebar footer Update badge appears when an update exists and opens an upward Updates available popover with the Mac app and eligible computers. Manage computers opens Settings → Computers.
 - Close Settings or Escape returns from computer details to Computers, then to the workspace. There is no separate update shortcut.
@@ -29,7 +28,7 @@ The release Mac app checks its own update feed from Settings and installs an off
 Preconditions: [surface baseline](README.md).
 
 1. In Porcelain Dev use native `open-settings` → Computers → Open This computer: <name>. Expect the app version and reinstall message, with no Check for updates control. Close Settings returns to Computers, then Close Settings/Escape to the workspace.
-2. For enabled controls use `access-app-update.desktop.e2e.ts`'s typed updater-port fixture: hold Check for updates, then answer with idle, error or available, and separately reject the check. Expect checking/disabled, newest-version, release plus Restart to update, or error. Recheck after an error to recover. In the open Update popover, publish an app-feed error and click Try again: the app-check counter must increase, stale install actions stay absent while checking, and the completed check restores either the offer or No updates available. Opening Update or entering Computers must not start another app-feed check.
+2. For enabled controls use `access-app-update.desktop.e2e.ts`'s typed updater-port fixture: hold Check for updates, then answer with idle, error or available, and separately reject the check. Expect checking/disabled, Up to date, release plus Restart to update, or error. Recheck after an error to recover. In the open Update popover, publish an app-feed error and click Try again: the app-check counter must increase, stale install actions stay absent while checking, and the completed check restores either the offer or No updates available. Opening Update or entering Computers must not start another app-feed check.
 3. Offer a release while the check is pending: Install remains disabled until it finishes. Install once; during download Install disappears and Check for updates is disabled. Reload and submit twice; observe one download/restart. A failed check clears the offer; a failed download cannot be installed.
 4. For a signed candidate in release verification, confirm `app-update.yml`, feed capability and Check for updates. Observe a check before download/signature/restart proof.
 5. In the updater-port fixture, publish an error with a long unbroken request identifier, then a long prose diagnostic. At 1440 and 414 in light and dark, the whole popover stays inside the viewport, the entire diagnostic remains readable by scrolling, and Try again and Manage computers remain reachable. Escape after failure returns focus to Settings; Enter opens Settings and closes a phone-width sidebar. Reject a check after an available release: Restart to update must disappear until a successful check restores an offer.

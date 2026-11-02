@@ -41,10 +41,10 @@ const changedSince = apiError(
   'Conflict',
   'The ways in changed since you last looked. Check them again, then save your change.',
 );
-const notOnThisComputer = apiError(
+const managementRequired = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'This device cannot manage sharing. Allow it from a device with sharing access.',
 );
 const notFound = apiError(404, 'Not Found', 'Device not found');
 const ownerWaysIn = {
@@ -279,7 +279,7 @@ test('a revoked device loses the ways in at once, and a removed permission refus
   expect(afterRemoval.body).toStrictEqual(permissionRequired);
 });
 
-test('only the computer that runs Porcelain grants the permission: a device cannot grant itself, and relayed or other-page requests change nothing', async ({
+test('a device without sharing management cannot grant itself permissions, and relayed or other-page requests change nothing', async ({
   session,
 }) => {
   const { deviceId, tunnel } = await pairThroughTunnel(session, 'Phone');
@@ -305,13 +305,11 @@ test('only the computer that runs Porcelain grants the permission: a device cann
   );
 
   expect(selfGrant.status).toBe(403);
-  expect(selfGrant.body).toStrictEqual(notOnThisComputer);
+  expect(selfGrant.body).toStrictEqual(managementRequired);
   expect(relayed.status).toBe(403);
-  expect(relayed.body).toStrictEqual(notOnThisComputer);
+  expect(relayed.body).toStrictEqual(managementRequired);
   expect(crossOrigin.status).toBe(403);
-  expect(crossOrigin.body).toStrictEqual(
-    apiError(403, 'Forbidden', `The origin ${APP} cannot write here`),
-  );
+  expect(crossOrigin.body).toStrictEqual(managementRequired);
   expect(await read(session, ownerAccess)).toStrictEqual(before);
 });
 

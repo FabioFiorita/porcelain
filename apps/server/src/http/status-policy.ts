@@ -26,6 +26,7 @@ import {
   RemoteRouteInUseError,
   WaysInChangedError,
   WaysInPermissionRequiredError,
+  SharingManagementRequiredError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -232,6 +233,7 @@ const rules: readonly StatusRule[] = [
       DeviceViewerRequiredError,
       UntrustedDeviceError,
       WaysInPermissionRequiredError,
+      SharingManagementRequiredError,
       ReviewGitSettingsTrustRequiredError,
     ],
     statusCode: 403,

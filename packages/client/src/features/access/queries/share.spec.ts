@@ -16,6 +16,14 @@ import {
 
 const fixture = clientFixtures('environment');
 
+function pendingUntilAborted(signal: AbortSignal | null | undefined) {
+  return new Promise<Response>((_resolve, reject) =>
+    signal?.addEventListener('abort', () => reject(signal.reason), {
+      once: true,
+    }),
+  );
+}
+
 const off = { enabled: false, status: { kind: 'off' as const } };
 const remote = Schema.decodeUnknownSync(readRemoteAccessResponseSchema)({
   routes: { lan: off, tailnet: off, cloudflare: off },
@@ -174,13 +182,7 @@ it.effect(
         reads += 1;
         if (reads === 1) return Promise.resolve(Response.json(running));
         activeSignal = init?.signal;
-        return new Promise((_resolve, reject) =>
-          init?.signal?.addEventListener(
-            'abort',
-            () => reject(init.signal?.reason),
-            { once: true },
-          ),
-        );
+        return pendingUntilAborted(init?.signal);
       });
       connection.atoms.addGlobalLayer(
         Layer.succeed(Clock.Clock, yield* Clock.Clock),
@@ -433,4 +435,107 @@ it.each([
     expect(AsyncResult.isSuccess(registry.get(atom))).toBe(true);
     expect(reads).toBe(pendingRead);
   },
+);
+
+it.effect(
+  'refreshes paired devices from other clients, clears denied access and recovers without a local command',
+  () =>
+    Effect.gen(function* () {
+      let reads = 0;
+      const device = {
+        id: 'mac',
+        label: 'MacBook',
+        platform: 'macOS',
+        createdAt: '2026-11-01T00:00:00Z',
+        lastSeenAt: '2026-11-01T00:00:00Z',
+        route: 'lan',
+        trusted: true,
+        canEditWaysIn: false,
+        canManageSharing: true,
+      };
+      const phone = {
+        ...device,
+        id: 'phone',
+        label: 'Phone',
+        platform: 'iOS',
+        trusted: false,
+        canManageSharing: false,
+      };
+      const replies = [
+        Response.json({ devices: [device], grants: [] }),
+        Response.json({ devices: [device, phone], grants: [] }),
+        new Response(null, { status: 503 }),
+        new Response(null, { status: 401 }),
+        new Response(null, { status: 403 }),
+        Response.json({ devices: [phone], grants: [] }),
+      ];
+      const { connection, registry } = fixture(() =>
+        Promise.resolve(
+          replies[reads++] ?? Response.json({ devices: [phone], grants: [] }),
+        ),
+      );
+      connection.atoms.addGlobalLayer(
+        Layer.succeed(Clock.Clock, yield* Clock.Clock),
+      );
+      const atom = readPairedAccess(connection);
+      const labels = () =>
+        Option.getOrUndefined(
+          AsyncResult.value(registry.get(atom)),
+        )?.devices.map((device) => device.label);
+      registry.mount(atom);
+      yield* AtomRegistry.getResult(registry, atom);
+      expect(labels()).toEqual(['MacBook']);
+      yield* TestClock.adjust(1000);
+      expect(labels()).toEqual(['MacBook', 'Phone']);
+      yield* TestClock.adjust(1000);
+      expect(AsyncResult.isFailure(registry.get(atom))).toBe(true);
+      expect(labels()).toEqual(['MacBook', 'Phone']);
+      yield* TestClock.adjust(1000);
+      expect(AsyncResult.isFailure(registry.get(atom))).toBe(true);
+      expect(Option.isNone(AsyncResult.value(registry.get(atom)))).toBe(true);
+      yield* TestClock.adjust(1000);
+      expect(
+        Option.getOrUndefined(AsyncResult.value(registry.get(atom))),
+      ).toBeNull();
+      yield* TestClock.adjust(1000);
+      expect(
+        Option.getOrUndefined(AsyncResult.value(registry.get(atom)))?.devices,
+      ).toEqual([phone]);
+      expect(reads).toBe(6);
+    }),
+);
+
+it.effect(
+  'shares one access refresh between subscribers, never overlaps a slow read and stops when the last subscriber leaves',
+  () =>
+    Effect.gen(function* () {
+      let reads = 0;
+      let signal: AbortSignal | null | undefined;
+      const { connection, registry } = fixture((_path, init) => {
+        reads++;
+        if (reads === 1)
+          return Promise.resolve(Response.json({ devices: [], grants: [] }));
+        signal = init?.signal;
+        return pendingUntilAborted(init?.signal);
+      });
+      connection.atoms.addGlobalLayer(
+        Layer.succeed(Clock.Clock, yield* Clock.Clock),
+      );
+      const atom = readPairedAccess(connection);
+      const first = registry.mount(atom);
+      const second = registry.mount(atom);
+      yield* AtomRegistry.getResult(registry, atom);
+      expect(reads).toBe(1);
+      yield* TestClock.adjust(4000);
+      expect(reads).toBe(2);
+      expect(signal?.aborted).toBe(false);
+      first();
+      yield* TestClock.adjust(0);
+      expect(signal?.aborted).toBe(false);
+      second();
+      yield* TestClock.adjust(0);
+      expect(signal?.aborted).toBe(true);
+      yield* TestClock.adjust(3000);
+      expect(reads).toBe(2);
+    }),
 );

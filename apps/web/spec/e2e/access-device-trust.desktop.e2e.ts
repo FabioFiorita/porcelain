@@ -39,12 +39,15 @@ test('on This computer the owner lets a paired device update Porcelain and creat
   await settings
     .getByLabel('Device name', { exact: true })
     .fill('Release laptop');
-  await settings
-    .getByRole('switch', {
+  await expect(
+    settings.getByRole('switch', {
       name: 'The paired device can update Porcelain',
       exact: true,
-    })
-    .click();
+    }),
+  ).toBeChecked();
+  await expect(
+    settings.getByRole('switch', { name: 'Can manage sharing', exact: true }),
+  ).toBeChecked();
   await settings
     .getByRole('button', { name: 'Create pairing link', exact: true })
     .click();

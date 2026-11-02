@@ -35,6 +35,8 @@ import {
   useSettingsUpdates,
   useSettingsUpdatesEntry,
 } from '../queries/settings-updates';
+import { useAppUpdateState } from '../queries/app-update';
+import { appUpdateProgress } from '../rules/app-update';
 import { SettingsUpdateRow } from './settings-update-row';
 import { ComputerUpdate } from './share-settings';
 
@@ -162,18 +164,18 @@ export function RemoteComputers({
   const { remotes, error: unreadable } = useSavedEnvironments();
   const restore = useReadSavedEnvironments();
   useSettingsUpdatesEntry();
-  const { targets, count, batch, run } = useSettingsUpdates();
+  const { targets, count, batch, run, retry, checking } = useSettingsUpdates();
+  const appBusy = appUpdateProgress(useAppUpdateState()) !== undefined;
   return (
     <>
       <SettingsHeading
         section="Settings"
         title="Computers"
-        lead="Every computer this app is paired with. In the Mac app and on iPhone and iPad, their worktrees share one sidebar, and Update updates them all."
+        lead="Manage your paired computers."
       >
         <p className="mt-3.5 flex max-w-160 items-start gap-2 text-ui leading-5 text-muted-foreground">
           <GlobeIcon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
-          In a browser, a tab opens one computer: its sidebar shows that
-          computer’s worktrees, and each other computer opens in its own tab.
+          Browser tabs each connect to one computer.
         </p>
       </SettingsHeading>
       {unreadable !== undefined && (
@@ -206,13 +208,23 @@ export function RemoteComputers({
             Computers
             <span className="tabular-nums">{remotes.length + 1}</span>
           </h2>
-          <Button
-            size="sm"
-            disabled={batch.running || count === 0}
-            onClick={() => run(targets)}
-          >
-            Update all ({count})
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={batch.running || checking || appBusy}
+              onClick={retry}
+            >
+              Check for updates
+            </Button>
+            <Button
+              size="sm"
+              disabled={batch.running || count === 0}
+              onClick={() => run(targets)}
+            >
+              Update all ({count})
+            </Button>
+          </div>
         </div>
         <ItemGroup aria-label="Computers">
           <ComputerRow
@@ -240,9 +252,6 @@ export function RemoteComputers({
               />
             ))}
         </ItemGroup>
-        <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
-          Services update from npm and restart. The Mac app updates itself.
-        </p>
       </section>
       <FieldSet>
         <FieldLegend variant="label">Add computer</FieldLegend>

@@ -11,6 +11,7 @@ export class DeviceRow extends Model.Class<DeviceRow>('DeviceRow')({
   route: Schema.Literals(['loopback', 'lan', 'tailnet', 'tunnel']),
   routeInferred: Schema.BooleanFromBit,
   trusted: Schema.BooleanFromBit,
+  canManageSharing: Schema.BooleanFromBit,
   canEditWaysIn: Schema.BooleanFromBit,
   revokedAt: Schema.NullOr(Schema.String),
 }) {

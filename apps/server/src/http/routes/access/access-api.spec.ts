@@ -70,6 +70,7 @@ async function fixture(owner = false) {
     setDeviceTrust: unused,
     setRemoteAccess: unused,
     setWaysInPermission: unused,
+    setManagementPermission: unused,
     startServiceUpdate: unused,
   });
   const application = owner

@@ -5,11 +5,12 @@ export type ListAccessInput = { viewerDeviceId?: string | undefined };
 
 type ListedDevice = Device & {
   trusted: boolean;
+  canManageSharing: boolean;
   canEditWaysIn: boolean;
   current?: boolean | undefined;
 };
 
 export type ListAccessResult = {
-  grants: (PairingGrant & { trusted: boolean })[];
+  grants: (PairingGrant & { trusted: boolean; canManageSharing: boolean })[];
   devices: ListedDevice[];
 };

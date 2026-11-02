@@ -25,10 +25,10 @@ const refusedFromApp = apiError(
   'Forbidden',
   `The origin ${APP} cannot write here`,
 );
-const notOnThisComputer = apiError(
+const managementRequired = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'This device cannot manage sharing. Allow it from a device with sharing access.',
 );
 const projectPath = (session: Session) => `/api/projects/${session.projectId}`;
 const rename = (
@@ -574,7 +574,7 @@ test('a pairing code is redeemed from another origin without a cookie, bound to 
   ).toMatchObject([{ label: 'Desktop app', route }]);
 });
 
-test('sharing stays with the host browser and a bearer client on another origin changes nothing', async ({
+test('an unmanaged bearer client on another origin cannot administer sharing', async ({
   session,
 }) => {
   const before = await read(session, {
@@ -596,9 +596,9 @@ test('sharing stays with the host browser and a bearer client on another origin 
   });
 
   expect(listed.status).toBe(403);
-  expect(listed.body).toStrictEqual(notOnThisComputer);
+  expect(listed.body).toStrictEqual(managementRequired);
   expect(revoked.status).toBe(403);
-  expect(revoked.body).toStrictEqual(refusedFromApp);
+  expect(revoked.body).toStrictEqual(managementRequired);
   expect(
     await read(session, { method: 'GET', path: '/access', target: 'owner' }),
   ).toStrictEqual(before);

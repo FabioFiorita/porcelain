@@ -25,6 +25,7 @@ import {
   useRevokeAccess,
   useSetDeviceTrust,
   useSetWaysInPermission,
+  useSetManagementPermission,
 } from '../commands/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
@@ -32,6 +33,11 @@ import {
   waysInPermissionShown,
   type PairedAccess,
 } from '@porcelain/client/access/rules';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { type Connection } from '@/shared/workspace/connection';
 
 const deviceIcons: Record<DeviceKind, ReactNode> = {
@@ -43,9 +49,11 @@ const deviceIcons: Record<DeviceKind, ReactNode> = {
 export function PairedDevices({
   connection,
   access,
+  disabled = false,
 }: {
   connection: Connection;
   access: PairedAccess;
+  disabled?: boolean;
 }) {
   const answer = access;
   return (
@@ -66,7 +74,7 @@ export function PairedDevices({
               <ItemTitle className="flex-wrap">
                 {device.label}
                 {device.current && (
-                  <Badge variant="secondary">This browser</Badge>
+                  <Badge variant="secondary">This device</Badge>
                 )}
                 <Badge variant="outline">
                   {deviceRouteTitles[device.route]}
@@ -86,14 +94,23 @@ export function PairedDevices({
             </ItemContent>
             <ItemActions className="flex-wrap">
               <div className="grid grid-cols-[auto_auto] items-center gap-x-2 gap-y-1.5">
+                <DeviceManagementControl
+                  disabled={disabled}
+                  connection={connection}
+                  id={device.id}
+                  label={device.label}
+                  allowed={device.canManageSharing === true}
+                />
                 <DeviceTrustControl
+                  disabled={disabled}
                   connection={connection}
                   id={device.id}
                   label={device.label}
                   trusted={device.trusted}
                 />
-                {waysInPermissionShown(device) && (
+                {!device.canManageSharing && waysInPermissionShown(device) && (
                   <WaysInPermissionControl
+                    disabled={disabled}
                     connection={connection}
                     id={device.id}
                     label={device.label}
@@ -103,6 +120,7 @@ export function PairedDevices({
               </div>
               {!device.current && (
                 <RevokeControl
+                  disabled={disabled}
                   connection={connection}
                   id={device.id}
                   label={device.label}
@@ -135,6 +153,7 @@ export function PairedDevices({
             </ItemContent>
             <ItemActions>
               <RevokeControl
+                disabled={disabled}
                 connection={connection}
                 id={grant.id}
                 label={grant.label}
@@ -145,16 +164,20 @@ export function PairedDevices({
         ))}
       </ItemGroup>
       <p className="text-xs leading-4.5 text-muted-foreground">
-        Each device has its own credential, which works only through the way in
-        it was paired over, so a credential seen on one network cannot be used
-        through another. A phone that uses two ways in is paired once through
-        each. Revoking a device signs it out at once and leaves the others
-        alone. A device that can edit ways in sees and changes the local
-        network, Tailscale and Cloudflare tunnel settings from anywhere it is
-        paired, except the way in it is connected through. A device paired
-        through this computer’s own address has no such switch: it edits ways in
-        only from this computer.
+        Each device has separate access. Revoking signs it out.
       </p>
+      <Collapsible>
+        <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+          About device permissions
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <p className="text-xs leading-4.5 text-muted-foreground">
+            Sharing managers can pair devices, revoke access and configure ways
+            in. Update permission is separate. Each credential works only
+            through the way in it paired over. Pair again to add another way in.
+          </p>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
@@ -164,77 +187,102 @@ function DeviceTrustControl({
   id,
   label,
   trusted,
+  disabled,
 }: {
   connection: Connection;
   id: string;
   label: string;
   trusted: boolean;
+  disabled: boolean;
 }) {
-  const [trust, setTrusted] = useSetDeviceTrust(connection, id);
+  const [result, onChange] = useSetDeviceTrust(connection, id);
   return (
-    <>
-      <span aria-hidden className="text-xs text-muted-foreground">
-        Can update
-      </span>
-      <Switch
-        aria-label={`${label} can update Porcelain`}
-        checked={trusted}
-        disabled={trust.waiting}
-        onCheckedChange={setTrusted}
-      />
-      {AsyncResult.isFailure(trust) && (
-        <Alert variant="destructive" className="col-span-2">
-          <AlertDescription>
-            {connectionErrorMessage(Cause.squash(trust.cause))}
-          </AlertDescription>
-        </Alert>
-      )}
-    </>
+    <PermissionControl
+      caption="Can update"
+      name={`${label} can update Porcelain`}
+      checked={trusted}
+      result={result}
+      disabled={disabled}
+      onChange={onChange}
+    />
   );
 }
+
 function WaysInPermissionControl({
   connection,
   id,
   label,
   allowed,
+  disabled,
 }: {
   connection: Connection;
   id: string;
   label: string;
   allowed: boolean;
+  disabled: boolean;
 }) {
-  const [permission, setAllowed] = useSetWaysInPermission(connection, id);
+  const [result, onChange] = useSetWaysInPermission(connection, id);
+  return (
+    <PermissionControl
+      caption="Can edit ways in"
+      name={`${label} can edit ways in`}
+      checked={allowed}
+      result={result}
+      disabled={disabled}
+      onChange={onChange}
+    />
+  );
+}
+
+function PermissionControl({
+  caption,
+  name,
+  checked,
+  result,
+  disabled,
+  onChange,
+}: {
+  caption: string;
+  name: string;
+  checked: boolean;
+  result: AsyncResult.AsyncResult<unknown, unknown>;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
     <>
       <span aria-hidden className="text-xs text-muted-foreground">
-        Can edit ways in
+        {caption}
       </span>
       <Switch
-        aria-label={`${label} can edit ways in`}
-        checked={allowed}
-        disabled={permission.waiting}
-        onCheckedChange={setAllowed}
+        aria-label={name}
+        checked={checked}
+        disabled={disabled || result.waiting}
+        onCheckedChange={onChange}
       />
-      {AsyncResult.isFailure(permission) && (
+      {AsyncResult.isFailure(result) && (
         <Alert variant="destructive" className="col-span-2">
           <AlertDescription>
-            {connectionErrorMessage(Cause.squash(permission.cause))}
+            {connectionErrorMessage(Cause.squash(result.cause))}
           </AlertDescription>
         </Alert>
       )}
     </>
   );
 }
+
 function RevokeControl({
   connection,
   id,
   label,
   cancelLink,
+  disabled = false,
 }: {
   connection: Connection;
   id: string;
   label: string;
   cancelLink: boolean;
+  disabled?: boolean;
 }) {
   const [revoke, revokeDevice] = useRevokeAccess(connection, id);
   return (
@@ -246,7 +294,7 @@ function RevokeControl({
         aria-label={
           cancelLink ? `Cancel the link for ${label}` : `Revoke ${label}`
         }
-        disabled={revoke.waiting}
+        disabled={disabled || revoke.waiting}
         onClick={() => revokeDevice()}
       >
         {cancelLink ? 'Cancel' : 'Revoke'}
@@ -259,5 +307,31 @@ function RevokeControl({
         </Alert>
       )}
     </>
+  );
+}
+
+function DeviceManagementControl({
+  connection,
+  id,
+  label,
+  allowed,
+  disabled,
+}: {
+  connection: Connection;
+  id: string;
+  label: string;
+  allowed: boolean;
+  disabled: boolean;
+}) {
+  const [result, onChange] = useSetManagementPermission(connection, id);
+  return (
+    <PermissionControl
+      caption="Manage sharing"
+      name={`${label} can manage sharing`}
+      checked={allowed}
+      result={result}
+      disabled={disabled}
+      onChange={onChange}
+    />
   );
 }

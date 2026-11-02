@@ -21,3 +21,5 @@ export { WaysInChangedError } from './ways-in-changed-error.ts';
 export { RemoteRouteInUseError } from './remote-route-in-use-error.ts';
 export { ReviewGitSettingsTrustRequiredError } from './review-git-settings-trust-required-error.ts';
 export { ReviewGitSettingsNotConfiguredError } from './review-git-settings-not-configured-error.ts';
+
+export { SharingManagementRequiredError } from './sharing-management-required-error.ts';

@@ -46,7 +46,7 @@ export class IssuePairingService extends Context.Service<
         },
       );
       function operationIssued(
-        grant: PairingGrant & { trusted: boolean },
+        grant: PairingGrant & { trusted: boolean; canManageSharing: boolean },
         code: Redacted.Redacted<string>,
         environmentId: string,
       ): IssuedPairingGrant {
@@ -91,6 +91,7 @@ export class IssuePairingService extends Context.Service<
               createdAt,
               expiresAt,
               trusted,
+              canManageSharing: input.canManageSharing === true,
             };
             return { grant, code };
           });

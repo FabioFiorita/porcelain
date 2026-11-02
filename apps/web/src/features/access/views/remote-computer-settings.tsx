@@ -23,6 +23,12 @@ import { useRemoteStatus } from '../queries/remotes';
 import { remoteStatusVariant } from '../rules/remotes';
 import { useRemoteConnection, useSavedEnvironments } from '../store';
 import { SavedWaysIn } from './saved-ways-in';
+import { DevicesSettings } from './share-settings';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { WaysIn } from './ways-in';
 import { RemoteServiceUpdate } from './service-update';
 
@@ -72,8 +78,8 @@ function RemoteDetails({
   const name = online ? status.name : remote.name;
   const note = remoteStatusNote(status);
   return (
-    <>
-      <FieldSet>
+    <div className="settings-computer grid min-w-0 items-start gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_--spacing(62)]">
+      <FieldSet className="lg:col-span-2">
         <FieldLegend variant="label">Overview</FieldLegend>
         <ItemGroup>
           <Item variant="outline">
@@ -91,34 +97,47 @@ function RemoteDetails({
                   online.
                 </p>
               )}
-              <dl className="grid gap-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Address</dt>
-                  <dd className="break-all font-mono">{remote.address}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Computer ID</dt>
-                  <dd className="break-all font-mono">
-                    {remote.environmentId}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Porcelain version</dt>
-                  <dd>
-                    {online
-                      ? (status.version ?? 'Not reported')
-                      : 'Unavailable while this computer is not online'}
-                  </dd>
-                </div>
-                {remote.deviceId && (
-                  <div>
-                    <dt className="text-muted-foreground">
-                      This app’s device ID
-                    </dt>
-                    <dd className="break-all font-mono">{remote.deviceId}</dd>
-                  </div>
-                )}
-              </dl>
+              <Collapsible>
+                <CollapsibleTrigger
+                  render={<Button variant="ghost" size="sm" />}
+                >
+                  Details
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <dl className="grid gap-3 text-sm">
+                    <div>
+                      <dt className="text-muted-foreground">Address</dt>
+                      <dd className="break-all font-mono">{remote.address}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Computer ID</dt>
+                      <dd className="break-all font-mono">
+                        {remote.environmentId}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">
+                        Porcelain version
+                      </dt>
+                      <dd>
+                        {online
+                          ? (status.version ?? 'Not reported')
+                          : 'Unavailable while this computer is not online'}
+                      </dd>
+                    </div>
+                    {remote.deviceId && (
+                      <div>
+                        <dt className="text-muted-foreground">
+                          This app’s device ID
+                        </dt>
+                        <dd className="break-all font-mono">
+                          {remote.deviceId}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </CollapsibleContent>
+              </Collapsible>
             </ItemContent>
           </Item>
           {online && entry && (
@@ -130,7 +149,12 @@ function RemoteDetails({
           )}
         </ItemGroup>
       </FieldSet>
-      {online && entry && <WaysIn connection={entry.connection} />}
+      {online && entry && (
+        <>
+          <WaysIn connection={entry.connection} />
+          <DevicesSettings connection={entry.connection} />
+        </>
+      )}
       <SavedWaysIn remote={remote} />
       {!online && (
         <Item variant="outline">
@@ -151,10 +175,8 @@ function RemoteDetails({
               <ItemContent>
                 <ItemTitle>Forget {name}</ItemTitle>
                 <p className="text-sm text-muted-foreground">
-                  Removes this computer and its saved credential from this app.
-                  It does not revoke host credentials or stop sharing on that
-                  computer. Save or discard unsaved file drafts before
-                  forgetting this computer.
+                  Removes this computer from this app. Other devices keep their
+                  access.
                 </p>
                 <Button
                   variant="destructive"
@@ -178,6 +200,6 @@ function RemoteDetails({
           </ItemGroup>
         </div>
       </FieldSet>
-    </>
+    </div>
   );
 }

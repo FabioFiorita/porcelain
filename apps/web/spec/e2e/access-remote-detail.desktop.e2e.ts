@@ -55,7 +55,7 @@ for (const entry of ['list', 'direct']) {
   });
 }
 
-test('direct detail URLs recover a missing computer and explain both ways to clear drafts before Forget', async ({
+test('direct detail URLs recover a missing computer and explain the local effect of Forget', async ({
   pairedPage: page,
   app,
   remote,
@@ -80,7 +80,7 @@ test('direct detail URLs recover a missing computer and explain both ways to cle
   ).toBeVisible();
   await page.setViewportSize({ width: 480, height: 800 });
   const explanation = page.getByText(
-    'Removes this computer and its saved credential from this app. It does not revoke host credentials or stop sharing on that computer. Save or discard unsaved file drafts before forgetting this computer.',
+    'Removes this computer from this app. Other devices keep their access.',
     { exact: true },
   );
   await expect(explanation).toBeVisible();
@@ -155,6 +155,10 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
   await expect(
     page.getByText(inventory.environmentId, { exact: true }),
+  ).not.toBeVisible();
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await expect(
+    page.getByText(inventory.environmentId, { exact: true }),
   ).toBeVisible();
   await closeSettings(page);
   await expect(page).toHaveURL(/\/settings\/computers$/);
@@ -221,6 +225,7 @@ test('Computers and outage links open the exact computer, saved offline details 
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
     await expect(page.getByText('Offline', { exact: true })).toBeVisible();
     await expect(page.getByText(/Saved details · Stale/)).toBeVisible();
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(
       page
         .getByRole('group', { name: 'Overview', exact: true })
@@ -236,7 +241,7 @@ test('Computers and outage links open the exact computer, saved offline details 
     await expect(page).toHaveURL(new RegExp(`${detail}$`));
     await expect(page.getByText('Offline', { exact: true })).toBeVisible();
     await expect(
-      page.getByText(/does not revoke host credentials or stop sharing/),
+      page.getByText(/Other devices keep their access/),
     ).toBeVisible();
     const project = await remote.server.project();
     await app.follow(
