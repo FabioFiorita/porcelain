@@ -226,3 +226,39 @@ describe('pull request evidence', () => {
     ]);
   });
 });
+
+it('keeps all five original screenshot captions as unavailable image blocks for unresolved relative sources', () => {
+  expect(
+    parseMarkdown(`### Evidence
+<details>
+<summary>Screenshots</summary>
+
+![macOS bridge acknowledgement](./desktop-evidence/desktop-feedback-ack.png)
+
+![Android acknowledgement preserves an unsent draft](./android-evidence/android-draft-ack.png)
+
+![iPad landscape receipt](./ipad-evidence/ipad-landscape-ack.png)
+
+![iPad portrait dark receipt](./ipad-evidence/ipad-portrait-dark.png)
+
+![iPhone draft and keyboard during live acknowledgement](./iphone-evidence/iphone-draft-ack.png)
+
+</details>`).map((block) => [
+      block.kind,
+      block.runs.map((run) => run.text).join(''),
+      block.url,
+    ]),
+  ).toEqual([
+    ['heading', 'Evidence', undefined],
+    ['paragraph', 'Screenshots', undefined],
+    ['image', 'macOS bridge acknowledgement', undefined],
+    ['image', 'Android acknowledgement preserves an unsent draft', undefined],
+    ['image', 'iPad landscape receipt', undefined],
+    ['image', 'iPad portrait dark receipt', undefined],
+    [
+      'image',
+      'iPhone draft and keyboard during live acknowledgement',
+      undefined,
+    ],
+  ]);
+});

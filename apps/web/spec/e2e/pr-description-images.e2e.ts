@@ -17,6 +17,11 @@ test('PR evidence discloses safe HTML and loads Markdown and HTML images', async
 <img alt="HTML evidence" src="${image}" onerror="alert(1)" />
 ![Markdown evidence](${image})
 ![Missing evidence](${missing})
+![macOS bridge acknowledgement](./desktop-evidence/desktop-feedback-ack.png)
+![Android acknowledgement preserves an unsent draft](./android-evidence/android-draft-ack.png)
+![iPad landscape receipt](./ipad-evidence/ipad-landscape-ack.png)
+![iPad portrait dark receipt](./ipad-evidence/ipad-portrait-dark.png)
+![iPhone draft and keyboard during live acknowledgement](./iphone-evidence/iphone-draft-ack.png)
 </details>
 <script>window.prUnsafe = true</script>
 <iframe src="https://images.example.test/frame"></iframe>
@@ -52,6 +57,33 @@ test('PR evidence discloses safe HTML and loads Markdown and HTML images', async
     });
   await expect(
     article.getByText('Image unavailable: Missing evidence', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    article.getByText('Image unavailable: macOS bridge acknowledgement', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    article.getByText(
+      'Image unavailable: Android acknowledgement preserves an unsent draft',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    article.getByText('Image unavailable: iPad landscape receipt', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    article.getByText('Image unavailable: iPad portrait dark receipt', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    article.getByText(
+      'Image unavailable: iPhone draft and keyboard during live acknowledgement',
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(article).not.toContainText('<details');
   await article.getByText('Screenshots', { exact: true }).click();
