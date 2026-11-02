@@ -8,6 +8,7 @@ selectors:
 tests:
   - apps/web/spec/integration/files-tree-expansion.test.tsx
   - packages/client/src/features/files/rules/file-tree.spec.ts
+  - apps/web/spec/e2e/files-search.desktop.e2e.ts
 api:
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/paths
@@ -21,7 +22,7 @@ Opening a folder loads its children lazily. A single-child folder chain becomes 
 
 - Review (phone width) → Files → a folder in the tree under region "All files". At desktop width Files is in the review sidebar.
 - A focused folder opens with ArrowRight and closes with ArrowLeft.
-- [Quick open](files.quick-open.md) and opening a [pinned file](files.pin.md) reveal the selected file's ancestor folders. "Search files" filters the loaded tree.
+- [Quick open](files.quick-open.md) and opening a [pinned file](files.pin.md) reveal the selected file's ancestor folders. "Search files" searches the recursive Quick Open path index, including untracked files in unopened folders, with case-insensitive path/name matching.
 
 ## Driving it with browser
 
@@ -43,7 +44,7 @@ printf 'Stay closed\n' > "$REPO/closed/b/x/closed.txt"
 4. Click "c" once. After the reads for `c`, `c/d` and `c/d/e`, "c / d / e" is expanded and "deep.txt" is visible.
 5. To check a close during loading, start from a full page load with cold reads. Hold `GET .../directory?path=a` and arm a separate hold for `path=a/b` before page initialization using browser-context routing. Click "a" to open, wait for the held read to arrive, click again to close, then release the response. Open "w" and wait for "loaded.txt" before checking that "a / b" stays collapsed, the separate `a/b` hold was never requested and its files stay absent. Restore routing in `finally`.
 6. As a separate observational check, click "x" once to load and open "x / nested". Observe the tree's shadow root for childList, subtree and attributes. On every callback look up rows by name again: "visible.txt" must exist and "x / nested" must retain `aria-expanded="true"`. Click "w" (which sorts before "x"): "loaded.txt" appears without a recorded disappearance or collapse. A held sibling read can also check the pending state.
-7. Enter `visible` in textbox "Search files", check its row, then clear the filter. Expanded folders remain open.
+7. With `c` never opened, type `deep` immediately after focusing "Search files". Every character remains in the field; only `deep.txt` and its expanded parent chain appear. Search `no-such-file`: no tree rows remain. Clear the filter: the previous expansion returns. Search `deep` again and choose "Clear search and collapse all": the field clears and normal folders are collapsed. Repeat with a deeply nested untracked filename and search substrings from its start and end.
 8. Repeat the first-click screenshot in dark mode. Repeat at desktop width; repeat native bridge behavior separately in desktop verification. Native Electron bridge behavior is outside this map.
 9. Open "closed" and then its child "x" until "closed.txt" is visible. Collapse "closed / b", then remove the empty fixture directory `closed/b/y` on disk. After the live rebuild, "closed / b / x" stays collapsed and "closed.txt" stays absent.
 

@@ -17,7 +17,11 @@ export {
   visibleFileTreeRows,
   type FileTreeEntry,
 } from './file-tree.ts';
-export { quickOpenMatches, quickOpenPath } from './quick-open.ts';
+export {
+  fileSearchMatches,
+  quickOpenMatches,
+  quickOpenPath,
+} from './quick-open.ts';
 export { isImagePath } from './image-path.ts';
 export {
   branchChangeMarks,

@@ -47,10 +47,10 @@ export function PierreFileTree(props: PierreFileTreeInput) {
     menuTarget?.pathsKey === props.paths.join('\0') &&
     menuTarget.filter === props.filter;
   if (menuOpen && !current) setMenuOpen(false);
-  const attach = (host: HTMLDivElement | null) => {
+  const [attach] = useState(() => (host: HTMLDivElement | null) => {
     if (!host) return;
     return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
-  };
+  });
   return (
     <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
       <ContextMenuTrigger
@@ -102,7 +102,10 @@ function mountTree(
   const place = fileTreePlaces(read().owner);
   const saved = registry.get(place);
   const restoring = new Set(saved.expanded);
-  let restorePosition = saved.document === read().selected;
+  let restorePosition =
+    !read().filter &&
+    saved.document === read().selected &&
+    !(document.activeElement instanceof HTMLInputElement);
   let active = true;
   let syncing = false;
   let reveal = {
@@ -123,15 +126,12 @@ function mountTree(
     paths: read().paths,
     density: 'default',
     flattenEmptyDirectories: true,
-    initialExpansion: 'closed',
+    initialExpansion: read().filter ? 'open' : 'closed',
     icons: treeIconsFor(read().links),
     unsafeCSS:
       ':not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus: read().gitStatus,
     search: false,
-    onSearchChange: (value) => {
-      if (value === null || value === undefined) read().onFilterChange('');
-    },
     renaming: {
       onError: (error) => {
         pendingCreate = null;
@@ -207,7 +207,15 @@ function mountTree(
       restoring.clear();
       restorePosition = false;
       reveal = { selected: read().selected, complete: true };
-      model.setSearch(null);
+      const normalPlace = fileTreePlaces(read().owner.replace(/:search$/, ''));
+      registry.set(normalPlace, {
+        ...registry.get(normalPlace),
+        expanded: [],
+        document: read().selected,
+        focused: null,
+        anchor: null,
+      });
+      read().onFilterChange('');
       model.resetPaths(read().paths, { initialExpandedPaths: [] });
       syncing = false;
     });
@@ -243,7 +251,7 @@ function mountTree(
     const expanded = expandedDirectories(model, read().paths).map((path) =>
       path.replace(/\/$/, ''),
     );
-    if (expanded.length) read().onExpand(expanded);
+    if (expanded.length && !read().filter) read().onExpand(expanded);
   }
 
   function reportHeight() {
@@ -269,7 +277,9 @@ function mountTree(
     {
       const revealPaths = reveal.complete ? [] : selectedDirectories(selected);
       model.resetPaths(shown, {
-        initialExpandedPaths: [...new Set([...expanded, ...revealPaths])],
+        initialExpandedPaths: read().filter
+          ? directoryPaths(shown)
+          : [...new Set([...expanded, ...revealPaths])],
       });
       for (const path of restoring) {
         if (model.getItem(path) !== null) restoring.delete(path);
@@ -298,10 +308,6 @@ function mountTree(
   function sync() {
     const current = read();
     bindControls();
-    syncing = true;
-    if (!previous || previous.filter !== current.filter)
-      model.setSearch(current.filter === '' ? null : current.filter);
-    syncing = false;
     if (
       !previous ||
       previous.paths.join('\0') !== current.paths.join('\0') ||

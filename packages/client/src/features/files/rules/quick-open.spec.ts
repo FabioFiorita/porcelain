@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { quickOpenMatches, quickOpenPath } from './quick-open.ts';
+import {
+  fileSearchMatches,
+  quickOpenMatches,
+  quickOpenPath,
+} from './quick-open.ts';
 
 it('ranks exact basenames before prefixes, contained names and directory matches', () => {
   expect(
@@ -54,4 +58,12 @@ it.each([
   'folder\\file',
 ])('rejects the non-explicit or invalid path %s', (query) => {
   expect(quickOpenPath(query)).toBeNull();
+});
+
+it('tree search retains every match beyond the Quick Open result limit', () => {
+  const paths = Array.from({ length: 60 }, (_, index) => `target/f${index}.ts`);
+  const matches = fileSearchMatches([...paths, 'unrelated.ts'], 'TARGET/');
+  expect(matches).toHaveLength(60);
+  expect(matches).toContain('target/f59.ts');
+  expect(matches).not.toContain('unrelated.ts');
 });
