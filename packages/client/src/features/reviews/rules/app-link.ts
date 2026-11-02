@@ -88,3 +88,37 @@ function reviewAppLinkWebUrl(link: Destination): string {
   }
   return url.toString();
 }
+
+export function reviewDesktopUrl(link: ReviewAppLink): string {
+  const url = new URL(`porcelain-desktop://open/reviews/${link.reviewId}`);
+  url.searchParams.set('environment', link.environmentId);
+  url.searchParams.set('host', link.host);
+  if (link.protocol !== undefined)
+    url.searchParams.set('protocol', link.protocol);
+  if (link.revision !== undefined)
+    url.searchParams.set('revision', String(link.revision));
+  if (link.decision !== undefined)
+    url.searchParams.set('decision', link.decision);
+  return url.toString();
+}
+
+export function parseDesktopReviewLink(
+  value: string,
+): ReviewAppLink | undefined {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== 'porcelain-desktop:' ||
+      url.host !== 'open' ||
+      url.username ||
+      url.password ||
+      url.hash
+    )
+      return undefined;
+    return parseReviewAppLink(
+      `https://porcelain.fabiofiorita.com/open${url.pathname}${url.search}`,
+    );
+  } catch {
+    return undefined;
+  }
+}

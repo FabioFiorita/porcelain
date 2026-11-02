@@ -121,7 +121,12 @@ export {
   revisionDecisionProgress,
 } from './revision.ts';
 
-export { parseReviewAppLink, type ReviewAppLink } from './app-link.ts';
+export {
+  parseReviewAppLink,
+  parseDesktopReviewLink,
+  reviewDesktopUrl,
+  type ReviewAppLink,
+} from './app-link.ts';
 export {
   reviewArchivable,
   reviewClosed,

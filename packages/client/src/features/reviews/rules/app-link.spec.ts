@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { parseReviewAppLink } from './app-link.ts';
+import {
+  parseReviewAppLink,
+  parseDesktopReviewLink,
+  reviewDesktopUrl,
+} from './app-link.ts';
 
 const reviewId = '10000000-0000-4000-8000-000000000001';
 const decision = '20000000-0000-4000-8000-000000000002';
@@ -163,4 +167,44 @@ it('reads the current server publication link', () => {
     webUrl:
       'https://porcelain-beelink.fabiofiorita.com/reviews/b50dcb25-8d72-4c8b-8984-1f74c9423a77/3',
   });
+});
+
+it('round-trips a desktop handoff without losing the host, HTTP, environment, revision or decision', () => {
+  const url = `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=localhost%3A5090&protocol=http&revision=3&decision=${decision}`;
+  const parsed = parseDesktopReviewLink(url);
+  expect(parsed).toEqual({
+    reviewId,
+    environmentId: 'computer',
+    host: 'localhost:5090',
+    protocol: 'http',
+    revision: 3,
+    decision,
+    webUrl: `http://localhost:5090/reviews/${reviewId}/3/decisions/${decision}`,
+  });
+  expect(parsed && reviewDesktopUrl(parsed)).toBe(url);
+});
+it('ignores future desktop handoff parameters without forwarding them', () => {
+  const parsed = parseDesktopReviewLink(
+    `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=computer.example.com&future=one&future=two`,
+  );
+  expect(parsed?.webUrl).toBe(
+    `https://computer.example.com/reviews/${reviewId}`,
+  );
+  expect(parsed && reviewDesktopUrl(parsed)).toBe(
+    `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=computer.example.com`,
+  );
+});
+it.each([
+  `porcelain://open/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://app/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://user:password@open/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://open:443/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host#fragment`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&host=evil.com`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&protocol=ftp`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&revision=0`,
+  `porcelain-desktop://open/settings?environment=x&host=host`,
+  `https://open/reviews/${reviewId}?environment=x&host=host`,
+])('rejects an invalid desktop handoff %s', (url) => {
+  expect(parseDesktopReviewLink(url)).toBeUndefined();
 });

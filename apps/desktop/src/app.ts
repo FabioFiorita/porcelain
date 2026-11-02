@@ -1,3 +1,7 @@
+import {
+  parseDesktopReviewLink,
+  reviewDesktopUrl,
+} from '@porcelain/client/reviews/rules';
 import { externalLink } from '@porcelain/client/links/rules';
 import { NodeServices } from '@effect/platform-node';
 import {
@@ -70,6 +74,7 @@ let window: BrowserWindow | undefined;
 let quitting = false;
 let closed = false;
 let actionsReady = false;
+let started = false;
 let pendingAction: DesktopAction | undefined;
 let stopServing: (() => void) | undefined;
 const runtime = ManagedRuntime.make(NodeServices.layer);
@@ -298,7 +303,21 @@ app.on('activate', () => {
     ),
   );
 });
-app.on('second-instance', () => {
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  const link = parseDesktopReviewLink(url);
+  if (link)
+    runtime.runFork(
+      dispatch({ kind: 'open-review', url: reviewDesktopUrl(link) }),
+    );
+});
+
+app.on('second-instance', (_event, argv) => {
+  const url = argv.find((value) => parseDesktopReviewLink(value) !== undefined);
+  if (url !== undefined) {
+    runtime.runFork(dispatch({ kind: 'open-review', url }));
+    return;
+  }
   runtime.runFork(
     openWindow().pipe(
       Effect.catch((error) => Effect.sync(() => failure(error))),
@@ -321,6 +340,10 @@ app.on('before-quit', (event) => {
 
 const dispatch = Effect.fn('dispatch')(
   function* (action: DesktopAction) {
+    if (!started) {
+      pendingAction = action;
+      return;
+    }
     yield* openWindow();
     if (actionsReady) window?.webContents.send('porcelain:action', action);
     else pendingAction = action;
@@ -330,6 +353,12 @@ const dispatch = Effect.fn('dispatch')(
 
 const start = Effect.fn('start')(function* () {
   yield* Effect.tryPromise(() => app.whenReady());
+  if (settings.updateFeed) app.setAsDefaultProtocolClient('porcelain-desktop');
+  const url = process.argv.find(
+    (value) => parseDesktopReviewLink(value) !== undefined,
+  );
+  if (url !== undefined && pendingAction === undefined)
+    pendingAction = { kind: 'open-review', url };
   ipcMain.handle('porcelain:mcp-configuration', (event) => {
     authorize(event);
     const dataDirectory = join(settings.profile, 'server');
@@ -507,6 +536,11 @@ const start = Effect.fn('start')(function* () {
   });
   nativeTheme.on('updated', updateWindowBackground);
   yield* openWindow();
+  started = true;
+  if (actionsReady && pendingAction !== undefined) {
+    window?.webContents.send('porcelain:action', pendingAction);
+    pendingAction = undefined;
+  }
 });
 
 if (!app.requestSingleInstanceLock()) {

@@ -58,6 +58,7 @@ describe('desktopBuildSettings', () => {
       [FuseV1Options.WasmTrapHandlers]: true,
     });
     expect(settings.packaging.osxNotarize).toBeUndefined();
+    expect(settings.packaging.protocols).toBeUndefined();
     expect(settings.release).toBeUndefined();
   });
 
@@ -75,6 +76,7 @@ describe('desktopBuildSettings', () => {
       entitlements,
     });
     expect(settings.packaging.osxNotarize).toBeUndefined();
+    expect(settings.packaging.protocols).toBeUndefined();
     expect(settings.release).toBeUndefined();
   });
 
@@ -107,6 +109,9 @@ describe('desktopBuildSettings', () => {
       hardenedRuntime: true,
       entitlements,
     });
+    expect(settings.packaging.protocols).toEqual([
+      { name: 'Porcelain review', schemes: ['porcelain-desktop'] },
+    ]);
     expect(settings.packaging.osxNotarize).toEqual({
       appleId: 'verification@example.test',
       appleIdPassword: 'test-only-notary-password',
@@ -146,6 +151,7 @@ describe('desktopBuildSettings', () => {
       hardenedRuntime: false,
     });
     expect(settings.packaging.osxNotarize).toBeUndefined();
+    expect(settings.packaging.protocols).toBeUndefined();
     expect(settings.release).toBeUndefined();
   });
 });
