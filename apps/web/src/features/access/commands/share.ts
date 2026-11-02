@@ -5,6 +5,7 @@ import {
   setDeviceTrust,
   setRemoteAccess,
   setWaysInPermission,
+  setManagementPermission,
   renameEnvironment,
   setEnvironmentIcon,
 } from '@porcelain/client/access';
@@ -30,4 +31,8 @@ export function useRenameEnvironment(connection: Connection) {
 }
 export function useSetEnvironmentIcon(connection: Connection) {
   return useAtom(setEnvironmentIcon(connection));
+}
+
+export function useSetManagementPermission(connection: Connection, id: string) {
+  return useAtom(setManagementPermission({ connection, id }));
 }

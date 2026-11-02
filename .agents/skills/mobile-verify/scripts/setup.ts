@@ -200,7 +200,6 @@ export function setupCommand(
 export function pairClient(
   driver: Driver,
   metro: string,
-  link: string,
   session: string,
 ): void {
   const run = (args: string[], optional = false) =>
@@ -208,17 +207,18 @@ export function pairClient(
   const ios =
     driver.targetArgs[driver.targetArgs.indexOf('--platform') + 1] === 'ios';
   try {
-    if (ios) run(['prepare', 'ios-runner']);
     run(['open', identity.bundleIdentifier, '--foreground']);
+    if (ios) run(['prepare', 'ios-runner']);
     run(['open', identity.bundleIdentifier, developmentLink(metro)]);
     if (ios) run(['alert', 'accept', '5000'], true);
+    run(['wait', 'label="Add computer"', '60000']);
     run(['open', identity.bundleIdentifier, screenLink('/settings')]);
     run(['wait', 'text', 'General', '60000']);
     if (ios) run(['alert', 'accept', '5000'], true);
     run(['press', 'id="settings-computers"', '--settle']);
     run(['press', 'label="Add computer"', '--settle']);
-    run(['fill', 'id="pairing-link"', link, '--settle']);
-    run(['wait', '1500']);
+    run(['press', 'id="development-pairing-link"', '--settle']);
+    run(['wait', 'id="pair-environment" enabled=true', '30000']);
     run(['press', 'id="pair-environment"', '--settle']);
     run(['wait', 'text', 'Online', '30000']);
   } catch (error) {

@@ -89,6 +89,7 @@ function WaysInEditor({
 }) {
   const [change, save] = useAtom(setRemoteAccess(connection));
   const waiting = change.waiting;
+  const [networkDetails, setNetworkDetails] = useState(false);
   const setRemote = (edit: RemoteAccessChange) =>
     save({ expected: remote.editing.fingerprint, change: edit });
   return (
@@ -120,8 +121,19 @@ function WaysInEditor({
             <Text variant="caption" weight="medium">
               Not encrypted.
             </Text>{' '}
-            {LOCAL_NETWORK_WARNING}
+            Devices on this network can read the connection.
           </Text>
+          <Button
+            variant="ghost"
+            label={networkDetails ? 'Hide details' : 'Details'}
+            accessibilityLabel="Local network details"
+            onPress={() => setNetworkDetails(!networkDetails)}
+          />
+          {networkDetails ? (
+            <Text variant="caption" tone="muted">
+              {LOCAL_NETWORK_WARNING}
+            </Text>
+          ) : null}
         </Box>
       </RouteCard>
       <RouteCard

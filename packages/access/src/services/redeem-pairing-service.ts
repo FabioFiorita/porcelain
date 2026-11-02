@@ -87,6 +87,9 @@ export class RedeemPairingService extends Context.Service<
             lastSeenAt: now,
             route: input.route,
             ...(grant.trusted === true ? { trusted: true } : {}),
+            ...(grant.canManageSharing === true
+              ? { canManageSharing: true }
+              : {}),
           };
           yield* pairingGrants.redeem({
             grant,

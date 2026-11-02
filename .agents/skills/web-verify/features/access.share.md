@@ -13,7 +13,7 @@ selectors:
   - 'Pairing link'
   - 'Copy link'
   - 'Paired devices and links'
-  - 'This browser'
+  - 'This device'
   - 'Pending link'
   - 'Cancel the link for'
   - 'Revoke'
@@ -75,7 +75,7 @@ None on disk. The default server has two paired devices, both bound to "This com
    - img "Pairing QR code" and the text "Scan on My phone";
    - the Pairing link text starting `http://192.168.1.20:<port>/pair#c=<one-time code>`; button "Copy link";
    - listitem "My phone" containing "Pending link", with a button "Cancel the link for My phone";
-   - listitem "Verification browser" containing "This browser" and "This computer", with no "Revoke Verification browser" button;
+   - listitem "Verification browser" containing "This device" and "This computer", with no "Revoke Verification browser" button;
    - listitem "Development setup" containing "This computer", with a button "Revoke Development setup".
 
    Capture the QR alone at browser zoom 100% and device pixel ratio 1. Decode
@@ -105,3 +105,11 @@ Automated coverage: `access-share.desktop.e2e.ts`.
 - Host permission gates administration in both shells. Never revoke this browser; it has no Revoke action. Run access.device-trust before revoking Development setup, or restart afterward.
 - Local network remains enabled; multiple ways in add Opens through. Links work once for 15 minutes and show Works once, until <time>.
 - The fixture's 192.168.1.20 address has no listener. Keep real pairing codes private.
+
+## Remote management and new pairing defaults
+
+A device granted **Can manage sharing** may open that computer’s Devices and Pair a device controls remotely. Update permission remains separate. New links created in this form default both permissions on; verify each switch’s current state, and switch it off to opt out. Existing devices and legacy links do not gain management automatically. Old Can edit ways in grants remain narrower. Withdraw management, then verify the next administration request is refused while ordinary read access remains. Revocation still removes only the named device.
+
+Drive real configured LAN/remote transport separately from the loopback sandbox. A remote loopback connection is intentionally refused administration even with a grant. Do not count a fake address, Host rewrite or simulated tunnel as physical network or OS permission proof.
+
+Devices refresh while observed, including pairing or permission changes made on another device. Temporary read failure keeps the draft and confirmed list, disables sharing writes, and recovers without reload. Authentication loss clears prior private data; permission denial removes controls. Leaving the last observed Computers view stops its reads.

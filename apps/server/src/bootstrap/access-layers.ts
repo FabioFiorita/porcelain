@@ -30,6 +30,8 @@ import {
   RevokeDeviceService,
   SetDeviceTrustService,
   SetWaysInPermissionService,
+  SetManagementPermissionService,
+  AuthorizeSharingService,
 } from '@porcelain/access/services';
 import {
   RemoteAccessStore,
@@ -109,6 +111,8 @@ export function accessServicesLayer(
     RevokeDeviceService.layer,
     SetDeviceTrustService.layer,
     SetWaysInPermissionService.layer,
+    SetManagementPermissionService.layer,
+    AuthorizeSharingService.layer,
   ).pipe(
     Layer.provide([
       Layer.succeed(RemoteAccessStore, remoteAccess),

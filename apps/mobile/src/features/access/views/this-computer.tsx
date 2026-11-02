@@ -23,10 +23,7 @@ export function ThisComputer({
       >
         <Box gap={6} paddingX={6} paddingY={8}>
           <Box gap={2}>
-            <Text variant="heading">This computer</Text>
-            <Text variant="ui" weight="medium">
-              {remote.name}
-            </Text>
+            <Text variant="heading">{remote.name}</Text>
             <Text variant="caption" tone="muted">
               {remote.address}
             </Text>
@@ -39,7 +36,7 @@ export function ThisComputer({
             <Card>
               <Item
                 title="Paired devices"
-                description="View and manage paired devices, and which of them can edit ways in, in Settings → Computers → This computer in a browser on the computer that runs Porcelain."
+                description="Manage devices from Computers on a computer with sharing access."
               />
             </Card>
           </Box>
@@ -50,7 +47,7 @@ export function ThisComputer({
             <Card>
               <Item
                 title="Pair a device"
-                description="Create a pairing link in Settings → Computers → This computer in a browser on the computer that runs Porcelain. Open the link on the other device to connect it to this computer."
+                description="Create a link from Computers on a device with sharing access, then open it on the device you want to pair."
               />
             </Card>
           </Box>

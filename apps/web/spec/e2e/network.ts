@@ -141,3 +141,11 @@ export function waitForRemoteStatusFailure(page: Page, address: string) {
       response.status() === 503,
   );
 }
+
+export function failSharingRead(context: BrowserContext) {
+  return browserNetwork(context).fail(
+    (request) =>
+      request.method() === 'GET' && pathOf(request) === '/api/access',
+    503,
+  );
+}

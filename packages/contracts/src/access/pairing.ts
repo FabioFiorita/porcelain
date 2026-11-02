@@ -40,6 +40,7 @@ const pairingGrantSchema = Schema.Struct({
   createdAt: Schema.String,
   expiresAt: Schema.String,
   trusted: Schema.Boolean,
+  canManageSharing: Schema.optional(Schema.Boolean),
 });
 export const deviceRouteSchema = Schema.Literals([
   'loopback',
@@ -58,11 +59,13 @@ const deviceSchema = Schema.Struct({
   route: deviceRouteSchema,
   routeInferred: Schema.optional(Schema.Boolean),
   trusted: Schema.Boolean,
+  canManageSharing: Schema.optional(Schema.Boolean),
   canEditWaysIn: Schema.Boolean,
   current: Schema.optional(Schema.Boolean),
 });
 
 export const listAccessResponseSchema = Schema.Struct({
+  canEditIdentity: Schema.optional(Schema.Boolean),
   grants: Schema.Array(pairingGrantSchema),
   devices: Schema.Array(deviceSchema),
 });
@@ -79,6 +82,7 @@ export const issuePairingRequestSchema = Schema.Struct({
     .check(Schema.isMinLength(1))
     .check(Schema.isMaxLength(PAIRING_ADDRESSES)),
   trusted: Schema.optional(Schema.Boolean),
+  canManageSharing: Schema.optional(Schema.Boolean),
 });
 export const issuePairingResponseSchema = Schema.Struct({
   grants: Schema.Array(
@@ -116,13 +120,26 @@ export const setWaysInPermissionResponseSchema = Schema.Struct({
   allowed: Schema.Boolean,
 });
 
+export const setManagementPermissionRequestSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isMinLength(1)),
+  allowed: Schema.Boolean,
+});
+export const setManagementPermissionResponseSchema = Schema.Struct({
+  id: Schema.String,
+  allowed: Schema.Boolean,
+});
+
 export const clearBrowserSessionResponseSchema = Schema.Undefined;
 
 type RedeemPairingRequest = typeof redeemPairingRequestSchema.Type;
 export type DeviceRoute = typeof deviceRouteSchema.Type;
 export type RedeemPairingInput = RedeemPairingRequest & { route: DeviceRoute };
 export type RedeemPairingResponse = typeof redeemPairingResponseSchema.Type;
-export type ListAccessRequest = { viewer: Principal };
+export type ListAccessRequest = {
+  viewer: Principal;
+  local: boolean;
+  route: DeviceRoute;
+};
 export type ListAccessResponse = typeof listAccessResponseSchema.Type;
 export type IssuePairingRequest = typeof issuePairingRequestSchema.Type;
 export type IssuePairingResponse = typeof issuePairingResponseSchema.Type;
@@ -134,5 +151,21 @@ export type SetWaysInPermissionRequest =
   typeof setWaysInPermissionRequestSchema.Type;
 export type SetWaysInPermissionResponse =
   typeof setWaysInPermissionResponseSchema.Type;
+export type SetManagementPermissionRequest =
+  typeof setManagementPermissionRequestSchema.Type;
+export type SetManagementPermissionResponse =
+  typeof setManagementPermissionResponseSchema.Type;
 export type ClearBrowserSessionResponse =
   typeof clearBrowserSessionResponseSchema.Type;
+
+export type IssuePairingInput = IssuePairingRequest & ListAccessRequest;
+
+export type RevokeAccessInput = RevokeAccessRequest & ListAccessRequest;
+
+export type SetDeviceTrustInput = SetDeviceTrustRequest & ListAccessRequest;
+
+export type SetWaysInPermissionInput = SetWaysInPermissionRequest &
+  ListAccessRequest;
+
+export type SetManagementPermissionInput = SetManagementPermissionRequest &
+  ListAccessRequest;

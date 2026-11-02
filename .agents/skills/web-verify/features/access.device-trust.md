@@ -15,7 +15,7 @@ selectors:
   - 'Create pairing link'
   - 'Pairing link'
   - 'Pending link'
-  - 'This browser'
+  - 'This device'
 tests:
   - apps/web/spec/e2e/access-device-trust.desktop.e2e.ts
   - apps/web/spec/e2e/access-ways-in-permission.desktop.e2e.ts
@@ -62,7 +62,7 @@ None on disk. The default server has two paired devices: "Development setup" (th
    Expect: the switch is not checked; Navigate to `/settings/devices` shows it still not checked.
 7. Fill textbox `Device name` with 'Release laptop'
    Expect: button "Create pairing link" enabled.
-8. Click switch named `The paired device can update Porcelain`
+8. Inspect switch named `The paired device can update Porcelain` (on by default)
    Expect: switch "The paired device can update Porcelain" checked.
 9. Click button `Create pairing link`
    Expect: img "Pairing QR code"; text "Scan on Release laptop"; the Pairing link text `http://192.168.1.20:<port>/pair#c=<one-time code>&e=…`; listitem "Release laptop" containing "Pending link".
@@ -83,3 +83,11 @@ Automated coverage: `access-device-trust.desktop.e2e.ts`, `access-ways-in-permis
 
 - Both shells expose the device controls on This computer, but only host-authorized browsers see administration. Trust switches work without a way in; link creation instead shows “Turn on a way in under Computers → This computer → Ways in to pair a phone or another computer.”
 - Run before access.share, which revokes Development setup. Local network/trust changes persist; reset or restart before other maps. Wait for each switch request before toggling again.
+
+## Remote management and new pairing defaults
+
+A device granted **Can manage sharing** may open that computer’s Devices and Pair a device controls remotely. Update permission remains separate. New links created in this form default both permissions on; verify each switch’s current state, and switch it off to opt out. Existing devices and legacy links do not gain management automatically. Old Can edit ways in grants remain narrower. Withdraw management, then verify the next administration request is refused while ordinary read access remains. Revocation still removes only the named device.
+
+Drive real configured LAN/remote transport separately from the loopback sandbox. A remote loopback connection is intentionally refused administration even with a grant. Do not count a fake address, Host rewrite or simulated tunnel as physical network or OS permission proof.
+
+Devices refresh while observed, including pairing or permission changes made on another device. Temporary read failure keeps the draft and confirmed list, disables sharing writes, and recovers without reload. Authentication loss clears prior private data; permission denial removes controls. Leaving the last observed Computers view stops its reads.

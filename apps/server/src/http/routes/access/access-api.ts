@@ -9,7 +9,15 @@ import {
   RemoteAccessApi,
   ReviewGitSettingsApi,
   HostAccessApi,
+  SharingApi,
   OwnerAccessApi,
+} from '@porcelain/contracts/access';
+import type {
+  IssuePairingRequest,
+  RevokeAccessRequest,
+  SetDeviceTrustRequest,
+  SetWaysInPermissionRequest,
+  SetManagementPermissionRequest,
 } from '@porcelain/contracts/access';
 import { type SetRemoteAccessRequest } from '@porcelain/contracts/access';
 import { RequestCaller, RequestConnection } from '@porcelain/contracts/shared';
@@ -34,6 +42,7 @@ import { type SaveReviewGitSettingsUseCase } from '../../../use-cases/access/sav
 import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
 import { type SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
 import { type SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
+import { type SetManagementPermissionUseCase } from '../../../use-cases/access/set-management-permission.ts';
 import { type SetWaysInPermissionUseCase } from '../../../use-cases/access/set-ways-in-permission.ts';
 import { type StartServiceUpdateUseCase } from '../../../use-cases/access/start-service-update.ts';
 
@@ -104,6 +113,10 @@ type AccessUseCases = {
     Context.Service.Shape<typeof SetRemoteAccessUseCase>,
     'execute'
   >;
+  setManagementPermission: Pick<
+    Context.Service.Shape<typeof SetManagementPermissionUseCase>,
+    'execute'
+  >;
   setWaysInPermission: Pick<
     Context.Service.Shape<typeof SetWaysInPermissionUseCase>,
     'execute'
@@ -117,37 +130,74 @@ type AccessUseCases = {
 function administrationHandlers(useCases: AccessUseCases) {
   return {
     listAccess: () =>
-      Effect.flatMap(RequestCaller, (viewer) =>
-        useCases.listAccess.execute({ viewer }),
-      ),
-    issuePairing: ({
-      payload,
-    }: {
-      payload: Parameters<
-        Context.Service.Shape<typeof IssuePairingUseCase>['execute']
-      >[0];
-    }) => useCases.issuePairing.execute(payload),
-    revokeAccess: ({
-      payload,
-    }: {
-      payload: Parameters<
-        Context.Service.Shape<typeof RevokeAccessUseCase>['execute']
-      >[0];
-    }) => useCases.revokeAccess.execute(payload),
-    setDeviceTrust: ({
-      payload,
-    }: {
-      payload: Parameters<
-        Context.Service.Shape<typeof SetDeviceTrustUseCase>['execute']
-      >[0];
-    }) => useCases.setDeviceTrust.execute(payload),
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.listAccess.execute({ viewer, route, local });
+      }),
+    issuePairing: ({ payload }: { payload: IssuePairingRequest }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.issuePairing.execute({
+          ...payload,
+          viewer,
+          route,
+          local,
+        });
+      }),
+    revokeAccess: ({ payload }: { payload: RevokeAccessRequest }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.revokeAccess.execute({
+          ...payload,
+          viewer,
+          route,
+          local,
+        });
+      }),
+    setDeviceTrust: ({ payload }: { payload: SetDeviceTrustRequest }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.setDeviceTrust.execute({
+          ...payload,
+          viewer,
+          route,
+          local,
+        });
+      }),
     setWaysInPermission: ({
       payload,
     }: {
-      payload: Parameters<
-        Context.Service.Shape<typeof SetWaysInPermissionUseCase>['execute']
-      >[0];
-    }) => useCases.setWaysInPermission.execute(payload),
+      payload: SetWaysInPermissionRequest;
+    }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.setWaysInPermission.execute({
+          ...payload,
+          viewer,
+          route,
+          local,
+        });
+      }),
+    setManagementPermission: ({
+      payload,
+    }: {
+      payload: SetManagementPermissionRequest;
+    }) =>
+      Effect.gen(function* () {
+        const viewer = yield* RequestCaller;
+        const { route, local } = yield* RequestConnection;
+        return yield* useCases.setManagementPermission.execute({
+          ...payload,
+          viewer,
+          route,
+          local,
+        });
+      }),
   };
 }
 
@@ -196,8 +246,8 @@ export function accessRoutes(useCases: AccessUseCases) {
         .handle('readRemoteAccess', remoteAccess.readRemoteAccess)
         .handle('setRemoteAccess', remoteAccess.setRemoteAccess),
   );
-  const hostAdministration = HttpApiBuilder.group(
-    HostAccessApi,
+  const sharingAdministration = HttpApiBuilder.group(
+    SharingApi,
     'administration',
     (handlers) =>
       handlers
@@ -205,6 +255,10 @@ export function accessRoutes(useCases: AccessUseCases) {
         .handle('issuePairing', administration.issuePairing)
         .handle('revokeAccess', administration.revokeAccess)
         .handle('setDeviceTrust', administration.setDeviceTrust)
+        .handle(
+          'setManagementPermission',
+          administration.setManagementPermission,
+        )
         .handle('setWaysInPermission', administration.setWaysInPermission),
   );
   const ownerAdministration = HttpApiBuilder.group(
@@ -216,6 +270,10 @@ export function accessRoutes(useCases: AccessUseCases) {
         .handle('issuePairing', administration.issuePairing)
         .handle('revokeAccess', administration.revokeAccess)
         .handle('setDeviceTrust', administration.setDeviceTrust)
+        .handle(
+          'setManagementPermission',
+          administration.setManagementPermission,
+        )
         .handle('setWaysInPermission', administration.setWaysInPermission),
   );
   const publicHandlers = HttpApiBuilder.group(
@@ -362,8 +420,13 @@ export function accessRoutes(useCases: AccessUseCases) {
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),
+    sharing: HttpApiBuilder.layer(SharingApi).pipe(
+      Layer.provide(sharingAdministration),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
+    ),
     host: HttpApiBuilder.layer(HostAccessApi).pipe(
-      Layer.provide(Layer.merge(hostAdministration, environmentLabel)),
+      Layer.provide(environmentLabel),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),

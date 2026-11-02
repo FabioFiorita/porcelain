@@ -19,16 +19,29 @@ test.for([1280, 414])(
         exact: true,
       });
       await expect.element(lan).not.toBeChecked();
+      const warning = settings.getByRole('note', {
+        name: 'Local network warning',
+        exact: true,
+      });
       await expect
         .element(
-          settings.getByRole('note', {
-            name: 'Local network warning',
-            exact: true,
-          }),
+          warning.getByText(
+            'Devices on this network can read the connection.',
+            { exact: true },
+          ),
         )
-        .toHaveTextContent(
-          'Not encryptedAnyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.',
-        );
+        .toBeVisible();
+      await warning
+        .getByRole('button', { name: 'Details', exact: true })
+        .click();
+      await expect
+        .element(
+          warning.getByText(
+            'Anyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.',
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
       await expect
         .element(
           settings.getByText(
@@ -38,6 +51,9 @@ test.for([1280, 414])(
         )
         .toBeVisible();
 
+      await warning
+        .getByRole('button', { name: 'Details', exact: true })
+        .click();
       await lan.click();
       await expect.element(lan).toBeChecked();
       await expect

@@ -1,5 +1,9 @@
+import { type SharingManagementRequiredError } from '@porcelain/access/errors';
 import { Context, Effect, Layer } from 'effect';
-import { ListAccessService } from '@porcelain/access/services';
+import {
+  AuthorizeSharingService,
+  ListAccessService,
+} from '@porcelain/access/services';
 import {
   type ListAccessRequest,
   type ListAccessResponse,
@@ -12,12 +16,13 @@ export class ListAccessUseCase extends Context.Service<
   {
     readonly execute: (
       input: ListAccessRequest,
-    ) => Effect.Effect<ListAccessResponse, never>;
+    ) => Effect.Effect<ListAccessResponse, SharingManagementRequiredError>;
   }
 >()('@porcelain/server/ListAccessUseCase') {
   static readonly layer = Layer.effect(
     ListAccessUseCase,
     Effect.gen(function* () {
+      const authorizeSharing = yield* AuthorizeSharingService;
       const listAccessCapability = yield* ListAccessService;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
@@ -25,17 +30,25 @@ export class ListAccessUseCase extends Context.Service<
       return {
         execute: Effect.fn('ListAccessUseCase.execute')(function* (
           input: ListAccessRequest,
-        ): Effect.fn.Return<ListAccessResponse, never> {
+        ): Effect.fn.Return<
+          ListAccessResponse,
+          SharingManagementRequiredError
+        > {
           const { viewer } = input;
           return yield* lanesCapability.run(
             laneKeysCapability.access(),
             'read',
             () =>
               Effect.gen(function* () {
-                return yield* listAccessCapability.execute({
+                yield* authorizeSharing.execute(input);
+                const access = yield* listAccessCapability.execute({
                   viewerDeviceId:
                     viewer.kind === 'device' ? viewer.deviceId : undefined,
                 });
+                return {
+                  ...access,
+                  canEditIdentity: input.local || viewer.kind === 'owner',
+                };
               }),
           );
         }),

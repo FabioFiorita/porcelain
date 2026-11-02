@@ -34,13 +34,22 @@ export class ListAccessService extends Context.Service<
             grants: (yield* pairingGrants.list())
               .filter((grant) => pairingGrantPending(grant, now))
               .map(
-                ({ id, label, addresses, createdAt, expiresAt, trusted }) => ({
+                ({
+                  id,
+                  label,
+                  addresses,
+                  createdAt,
+                  expiresAt,
+                  trusted,
+                  canManageSharing,
+                }) => ({
                   id,
                   label,
                   addresses,
                   createdAt,
                   expiresAt,
                   trusted: trusted === true,
+                  canManageSharing: canManageSharing === true,
                 }),
               ),
             devices: (yield* devices.list())
@@ -57,6 +66,7 @@ export class ListAccessService extends Context.Service<
                   routeInferred,
                   trusted,
                   canEditWaysIn,
+                  canManageSharing,
                 }) => ({
                   id,
                   label,
@@ -67,6 +77,7 @@ export class ListAccessService extends Context.Service<
                   route,
                   ...(routeInferred === true ? { routeInferred } : {}),
                   trusted: trusted === true,
+                  canManageSharing: canManageSharing === true,
                   canEditWaysIn: canEditWaysIn === true,
                   ...(id === input?.viewerDeviceId ? { current: true } : {}),
                 }),

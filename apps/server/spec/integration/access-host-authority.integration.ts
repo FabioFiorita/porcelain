@@ -10,10 +10,10 @@ import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import type { HttpRequest, Session } from '../kit/session.ts';
 
-const notOnThisComputer = apiError(
+const managementRequired = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'This device cannot manage sharing. Allow it from a device with sharing access.',
 );
 const waysInPermissionRequired = apiError(
   403,
@@ -130,11 +130,11 @@ test('a browser that asked from another page is refused sharing and changes noth
       body: response.body,
     })),
   ).toStrictEqual([
-    { status: 403, body: notOnThisComputer },
+    { status: 403, body: managementRequired },
     { status: 403, body: waysInPermissionRequired },
-    { status: 403, body: notOnThisComputer },
+    { status: 403, body: managementRequired },
     { status: 403, body: waysInPermissionRequired },
-    { status: 403, body: notOnThisComputer },
+    { status: 403, body: managementRequired },
   ]);
   expect(await sharing(session)).toStrictEqual(before);
 });

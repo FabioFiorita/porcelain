@@ -10,12 +10,14 @@ import {
 import type { StoredDevice } from '@porcelain/access/models';
 import {
   AuthorizeWaysInService,
+  AuthorizeSharingService,
   CloseTunnelConnectionsService,
   OpenRemoteRoutesService,
   ReadEnvironmentService,
   ReadRemoteAccessService,
   RevokeDeviceService,
   RevokePairingGrantService,
+  SetManagementPermissionService,
   SetRemoteAccessService,
   SetWaysInPermissionService,
 } from '@porcelain/access/services';
@@ -34,6 +36,7 @@ import { Logger } from '../../ports/logger.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 import { RevokeAccessUseCase } from './revoke-access.ts';
+import { SetManagementPermissionUseCase } from './set-management-permission.ts';
 import { SetRemoteAccessUseCase } from './set-remote-access.ts';
 import { SetWaysInPermissionUseCase } from './set-ways-in-permission.ts';
 
@@ -80,13 +83,16 @@ function computer() {
     }),
   ).pipe(Layer.provide(cachedDeviceStoreLayer), Layer.provideMerge(storage));
   const domain = Layer.mergeAll(
+    SetManagementPermissionService.layer,
     SetRemoteAccessService.layer,
     ReadRemoteAccessService.layer,
     SetWaysInPermissionService.layer,
     RevokeDeviceService.layer,
     RevokePairingGrantService.layer,
   ).pipe(
-    Layer.provideMerge(AuthorizeWaysInService.layer),
+    Layer.provideMerge(
+      Layer.merge(AuthorizeWaysInService.layer, AuthorizeSharingService.layer),
+    ),
     Layer.provide([
       inMemoryRouteStateStoreLayer,
       inMemoryDeviceSightingStoreLayer,
@@ -114,6 +120,7 @@ function computer() {
     ),
   );
   const useCases = Layer.mergeAll(
+    SetManagementPermissionUseCase.layer,
     SetRemoteAccessUseCase.layer,
     SetWaysInPermissionUseCase.layer,
     RevokeAccessUseCase.layer,
@@ -154,14 +161,25 @@ const withdrawals = [
   [
     'the owner removes its permission',
     Effect.flatMap(SetWaysInPermissionUseCase, (permission) =>
-      permission.execute({ id: phone.id, allowed: false }),
+      permission.execute({
+        id: phone.id,
+        allowed: false,
+        viewer: { kind: 'owner' },
+        local: false,
+        route: 'loopback',
+      }),
     ),
     false,
   ],
   [
     'the owner revokes it',
     Effect.flatMap(RevokeAccessUseCase, (revoke) =>
-      revoke.execute({ id: phone.id }),
+      revoke.execute({
+        id: phone.id,
+        viewer: { kind: 'owner' },
+        local: false,
+        route: 'loopback',
+      }),
     ),
     false,
   ],
@@ -191,6 +209,9 @@ describe('SetRemoteAccessUseCase', () => {
           yield* (yield* SetWaysInPermissionUseCase).execute({
             id: phone.id,
             allowed: true,
+            viewer: { kind: 'owner' },
+            local: false,
+            route: 'loopback',
           });
           const { fingerprint } =
             yield* (yield* ReadRemoteAccessService).execute();
@@ -234,4 +255,58 @@ describe('SetRemoteAccessUseCase', () => {
       expect(outcome.tailnet).toBe(saves);
     },
   );
+});
+
+it('a manager admitted before permission withdrawal cannot restore its own permission when its mutation reaches the write lane', async () => {
+  const { runtime } = computer();
+  const result = await runtime.runPromise(
+    Effect.gen(function* () {
+      const grants = yield* PairingGrantStore;
+      yield* grants.redeem({
+        grant: {
+          id: 'grant-manager',
+          label: phone.label,
+          addresses: [],
+          createdAt: phone.createdAt,
+          expiresAt: phone.createdAt,
+          secretHash: 'grant-manager-hash',
+        },
+        redeemedAt: phone.createdAt,
+        device: { ...phone, canManageSharing: true },
+      });
+      const caller = {
+        viewer: { kind: 'device' as const, deviceId: phone.id },
+        local: false,
+        route: 'lan' as const,
+      };
+      const admitted = yield* (yield* AuthorizeSharingService)
+        .execute(caller)
+        .pipe(Effect.isSuccess);
+      const permission = yield* SetManagementPermissionUseCase;
+      yield* permission.execute({
+        id: phone.id,
+        allowed: false,
+        viewer: { kind: 'owner' },
+        local: false,
+        route: 'loopback',
+      });
+      const restored = yield* permission
+        .execute({ id: phone.id, allowed: true, ...caller })
+        .pipe(Effect.result);
+      const device = yield* (yield* DeviceStore).find({ deviceId: phone.id });
+      return {
+        admitted,
+        restored,
+        deviceId: device?.id,
+        allowed: device?.canManageSharing === true,
+      };
+    }),
+  );
+  expect(result.admitted).toBe(true);
+  expect(result.restored).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'SharingManagementRequiredError' },
+  });
+  expect(result.deviceId).toBe(phone.id);
+  expect(result.allowed).toBe(false);
 });

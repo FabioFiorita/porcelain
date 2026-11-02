@@ -26,12 +26,7 @@ import {
   pairingPlatform,
   remoteConnectionState,
 } from '../store';
-import {
-  appUpdate,
-  appUpdateState,
-  desktopCapabilities,
-  type useAppUpdate,
-} from './app-update';
+import { appUpdate, appUpdateState, desktopCapabilities } from './app-update';
 
 export type SettingsUpdateRow = {
   target: SettingsUpdateTarget;
@@ -211,7 +206,7 @@ export function useSettingsUpdates() {
 
 function appCheckError(
   state: AppUpdateState | undefined,
-  check: ReturnType<typeof useAppUpdate>['result'],
+  check: Atom.Type<typeof appUpdate>,
 ) {
   if (state?.status === 'error') return state.message;
   if (!check.waiting && AsyncResult.isFailure(check))

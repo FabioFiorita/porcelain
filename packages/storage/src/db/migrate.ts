@@ -173,6 +173,11 @@ export const nativeMigrations = Migrator.fromRecord({
       repository TEXT NOT NULL, detected TEXT, override TEXT
     )`;
   }),
+  '007_sharing_management': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE devices ADD COLUMN can_manage_sharing INTEGER NOT NULL DEFAULT 0 CHECK(can_manage_sharing IN (0, 1))`;
+    yield* sql`ALTER TABLE pairing_grants ADD COLUMN can_manage_sharing INTEGER NOT NULL DEFAULT 0 CHECK(can_manage_sharing IN (0, 1))`;
+  }),
   '006_environment_icon': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE environment_icon (

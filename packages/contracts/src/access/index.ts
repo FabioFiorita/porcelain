@@ -34,16 +34,20 @@ export {
   setWaysInPermissionResponseSchema,
   type ClearBrowserSessionResponse,
   type IssuePairingRequest,
+  type IssuePairingInput,
   type IssuePairingResponse,
   type ListAccessRequest,
   type ListAccessResponse,
   type RedeemPairingInput,
   type RedeemPairingResponse,
   type RevokeAccessRequest,
+  type RevokeAccessInput,
   type RevokeAccessResponse,
   type SetDeviceTrustRequest,
+  type SetDeviceTrustInput,
   type SetDeviceTrustResponse,
   type SetWaysInPermissionRequest,
+  type SetWaysInPermissionInput,
   type SetWaysInPermissionResponse,
 } from './pairing.ts';
 export {
@@ -93,3 +97,11 @@ export {
   AccessApi,
 } from './api.ts';
 export { LiveUpdatesApi, ReviewMcpApi } from './protocols.ts';
+
+export {
+  type SetManagementPermissionRequest,
+  type SetManagementPermissionInput,
+  type SetManagementPermissionResponse,
+} from './pairing.ts';
+
+export { SharingApi } from './api.ts';

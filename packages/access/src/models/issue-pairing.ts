@@ -6,6 +6,7 @@ export type IssuePairingInput = {
   addresses: readonly string[];
   environmentId: string;
   trusted?: boolean | undefined;
+  canManageSharing?: boolean | undefined;
 };
 
 type PairingLink = {
@@ -15,7 +16,7 @@ type PairingLink = {
 };
 
 export type IssuedPairingGrant = {
-  grant: PairingGrant & { trusted: boolean };
+  grant: PairingGrant & { trusted: boolean; canManageSharing: boolean };
   code: Redacted.Redacted<string>;
   link: PairingLink;
 };

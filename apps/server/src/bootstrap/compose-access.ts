@@ -20,6 +20,8 @@ import { IdentifyRequestClientUseCase } from '../use-cases/access/identify-reque
 import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
 import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
+import { AuthorizeSharingUseCase } from '../use-cases/access/authorize-sharing.ts';
+import { SetManagementPermissionUseCase } from '../use-cases/access/set-management-permission.ts';
 import { SetWaysInPermissionUseCase } from '../use-cases/access/set-ways-in-permission.ts';
 import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
 import { SetEnvironmentIconUseCase } from '../use-cases/access/set-environment-icon.ts';
@@ -104,6 +106,8 @@ export function composeAccess(
     RevokeAccessUseCase.layer,
     SetDeviceTrustUseCase.layer,
     SetWaysInPermissionUseCase.layer,
+    SetManagementPermissionUseCase.layer,
+    AuthorizeSharingUseCase.layer,
   ).pipe(Layer.provideMerge(native));
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(services);
@@ -139,6 +143,8 @@ export function composeAccess(
         revokeAccess: yield* RevokeAccessUseCase,
         setDeviceTrust: yield* SetDeviceTrustUseCase,
         setWaysInPermission: yield* SetWaysInPermissionUseCase,
+        setManagementPermission: yield* SetManagementPermissionUseCase,
+        authorizeSharing: yield* AuthorizeSharingUseCase,
       };
       return { ...useCases, routes: accessRoutes(useCases) };
     }).pipe(Effect.provideContext(runtime));

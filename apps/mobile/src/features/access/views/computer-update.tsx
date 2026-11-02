@@ -58,7 +58,7 @@ function ConnectedComputerUpdate({
       ) : null}
       {target ? (
         <Text variant="caption" tone="muted">
-          Porcelain {target.state.version ?? 'Unknown version'}
+          {target.state.version ?? 'Unknown version'}
           {settingsUpdateAvailable(target) && target.state.latest
             ? ` → ${target.state.latest}`
             : ''}

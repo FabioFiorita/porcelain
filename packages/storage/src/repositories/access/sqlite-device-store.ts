@@ -10,6 +10,7 @@ function storedDevice({
   routeInferred,
   trusted,
   canEditWaysIn,
+  canManageSharing,
   ...device
 }: DeviceRow): StoredDevice {
   return {
@@ -18,6 +19,7 @@ function storedDevice({
     ...(routeInferred ? { routeInferred } : {}),
     ...(trusted ? { trusted } : {}),
     ...(canEditWaysIn ? { canEditWaysIn } : {}),
+    ...(canManageSharing ? { canManageSharing } : {}),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
 }
@@ -66,6 +68,15 @@ export const sqliteDeviceStoreLayer = Layer.effect(
         input: Parameters<DeviceStore['recordTrust']>[0],
       ) {
         yield* sql`UPDATE devices SET trusted = ${input.trusted ? 1 : 0} WHERE id = ${input.device.id}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      recordManagementPermission: Effect.fn(
+        'DeviceStore.recordManagementPermission',
+      )(function* (
+        input: Parameters<DeviceStore['recordManagementPermission']>[0],
+      ) {
+        yield* sql`UPDATE devices SET can_manage_sharing = ${input.allowed ? 1 : 0} WHERE id = ${input.device.id}`.pipe(
           Effect.orDie,
         );
       }),

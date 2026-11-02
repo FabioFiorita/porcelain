@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { CopyIcon, LinkIcon } from 'lucide-react';
@@ -34,14 +33,17 @@ import { type Connection } from '@/shared/workspace/connection';
 export function PairDevice({
   connection,
   remote,
+  disabled = false,
 }: {
   connection: Connection;
   remote: RemoteAccess;
+  disabled?: boolean;
 }) {
   const addresses = pairingAddresses(remote);
   const [label, setLabel] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
-  const [trusted, setTrusted] = useState(false);
+  const [trusted, setTrusted] = useState(true);
+  const [management, setManagement] = useState(true);
   const [issue, createPairing] = useIssuePairing(connection);
   const access = usePairedAccess(connection);
   const issued =
@@ -57,16 +59,7 @@ export function PairDevice({
   if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">
-        Turn on a way in under{' '}
-        <Link
-          to="/settings/$section/$environmentId"
-          params={{ section: 'computers', environmentId: 'this-computer' }}
-          hash="ways-in"
-          className="underline underline-offset-4"
-        >
-          Computers → This computer → Ways in
-        </Link>{' '}
-        to pair a phone or another computer.
+        Turn on a way in above to pair a device.
       </p>
     );
   return (
@@ -79,6 +72,7 @@ export function PairDevice({
               label: label.trim(),
               addresses: [target.url],
               trusted,
+              canManageSharing: management,
             }),
           )
         }
@@ -101,6 +95,7 @@ export function PairDevice({
                 value: url,
                 label: `${remoteRouteTitles[route]} · ${url}`,
               }))}
+              disabled={disabled}
               value={target.url}
               onValueChange={(value) => {
                 if (value) setChosen(value);
@@ -135,7 +130,7 @@ export function PairDevice({
           type="submit"
           size="sm"
           className="shrink-0"
-          disabled={issue.waiting || label.trim() === ''}
+          disabled={disabled || issue.waiting || label.trim() === ''}
         >
           {issue.waiting ? <Spinner /> : <LinkIcon />}
           Create pairing link
@@ -143,8 +138,18 @@ export function PairDevice({
       </form>
       <Field orientation="horizontal">
         <Switch
+          id="pairing-management"
+          checked={management}
+          disabled={disabled}
+          onCheckedChange={setManagement}
+        />
+        <Label htmlFor="pairing-management">Can manage sharing</Label>
+      </Field>
+      <Field orientation="horizontal">
+        <Switch
           id="pairing-trusted"
           checked={trusted}
+          disabled={disabled}
           onCheckedChange={setTrusted}
         />
         <Label htmlFor="pairing-trusted">
@@ -155,9 +160,8 @@ export function PairDevice({
         </Label>
       </Field>
       <p className="text-xs leading-4.25 text-muted-foreground">
-        The link opens through {remoteRouteTitles[target.route]}. The device
-        will work only through the way in it pairs over. To use it through
-        another way in too, pair it again through that one.
+        Uses {remoteRouteTitles[target.route]}. Pair again to add another way
+        in.
       </p>
       {AsyncResult.isFailure(issue) && (
         <Alert variant="destructive">

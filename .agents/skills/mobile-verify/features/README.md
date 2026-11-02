@@ -6,7 +6,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - From the repository root set `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C doctor` and `$C start --fixture focused` with the owned device flags. Android uses `--device android --serial <serial>` on a booted emulator. A missing matching native build must be resolved before startup.
 - Read the card and private `connection.json`; set `REPO` to `fixtures.repositoryPath`. The focused fixture has a small README repository without published reviews/comments. Use the map's publication/setup commands when needed; restart to reset. The development fixture is a separate richer sample.
-- Startup pairs through Settings and closes its setup session. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
+- Startup waits for the loaded app, pairs through Settings → Computers → Add computer → Use development server → enabled Pair without typing a long link, independently checks registration and closes setup. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
 
 ## Driving conventions
 
@@ -63,3 +63,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
  - [history.timeline](history.timeline.md) — file timeline, older commits and return context.
  - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
  - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
+
+For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). iPad runs landscape first, then portrait, with fresh geometry and refs; restore its original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.

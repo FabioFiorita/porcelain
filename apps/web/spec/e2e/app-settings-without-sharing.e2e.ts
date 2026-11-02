@@ -48,7 +48,7 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   ).toBeVisible();
   await openThisComputer(pairedPage);
   await expect(
-    settings.getByText(`Porcelain ${offered.version ?? ''}`, { exact: true }),
+    settings.getByText(offered.version ?? '', { exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByRole('button', {

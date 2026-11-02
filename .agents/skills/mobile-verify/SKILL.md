@@ -11,7 +11,7 @@ From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C`
 
 1. Choose a device. Android requires a booted emulator with `--device android --serial <serial>`. iOS allocates from the existing simulator pool (`--device ipad` for iPad) or borrows a booted `--udid`. Missing/busy devices are refused. See [Android setup](references/android.md).
 2. Run `$C doctor` with the selected device flags. Resolve its dependency, driver and native-build failures before starting. Native changes need `$C build` on macOS for iOS, or `$C build --device android` locally.
-3. Run `$C start --fixture focused` with those flags for mapped journeys. The CLI prepares the disposable server, Metro, device claim and pairing, then closes its setup session.
+3. Run `$C start --fixture focused` with those flags for mapped journeys. The CLI prepares the disposable server, Metro and device claim, waits for the loaded app, pairs through Use development server → enabled Pair without typing a long link, independently checks its native registration, then closes setup.
 4. Read the short card and private `connection.json`: build identity, fixture paths, app/Metro URLs, complete agent-device command, logs, evidence and stop command.
 
 ## Drive

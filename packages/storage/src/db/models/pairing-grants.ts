@@ -10,6 +10,7 @@ export class PairingGrantRow extends Model.Class<PairingGrantRow>(
   createdAt: Schema.String,
   expiresAt: Schema.String,
   trusted: Schema.BooleanFromBit,
+  canManageSharing: Schema.BooleanFromBit,
   redeemedAt: Schema.NullOr(Schema.String),
   revokedAt: Schema.NullOr(Schema.String),
 }) {

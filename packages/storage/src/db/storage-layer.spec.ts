@@ -172,6 +172,11 @@ describe('Native storage adoption', () => {
     try {
       expect(
         database
+          .prepare("SELECT can_manage_sharing FROM devices WHERE id = 'device'")
+          .get(),
+      ).toEqual({ can_manage_sharing: 0 });
+      expect(
+        database
           .prepare('SELECT migration_id, name FROM porcelain_migrations')
           .all(),
       ).toEqual([
@@ -181,6 +186,7 @@ describe('Native storage adoption', () => {
         { migration_id: 4, name: 'archive_reviews' },
         { migration_id: 5, name: 'review_git_settings' },
         { migration_id: 6, name: 'environment_icon' },
+        { migration_id: 7, name: 'sharing_management' },
       ]);
     } finally {
       database.close();
@@ -561,6 +567,7 @@ describe('Native storage adoption', () => {
         { migration_id: 4, name: 'archive_reviews' },
         { migration_id: 5, name: 'review_git_settings' },
         { migration_id: 6, name: 'environment_icon' },
+        { migration_id: 7, name: 'sharing_management' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -616,6 +623,7 @@ describe('Native storage adoption', () => {
           { migration_id: 4, name: 'archive_reviews' },
           { migration_id: 5, name: 'review_git_settings' },
           { migration_id: 6, name: 'environment_icon' },
+          { migration_id: 7, name: 'sharing_management' },
         ]);
         expect(
           stored
