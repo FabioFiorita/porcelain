@@ -142,6 +142,7 @@ function ScopedFileNavigation({
     folder: string;
     nonce: number;
   }>();
+  const [renaming, setRenaming] = useState<{ path: string; nonce: number }>();
   const [deleting, setDeleting] = useState<string | null>(null);
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
@@ -332,6 +333,14 @@ function ScopedFileNavigation({
       (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
     ),
     creating,
+    renameRequest: renaming
+      ? { ...renaming, onStart: () => setRenaming(undefined) }
+      : undefined,
+    onRequestRename: (path) => {
+      setRequested((current) => union(current, fileTreeAncestors(path)));
+      setFileQuery('');
+      setRenaming({ path, nonce: Date.now() });
+    },
     onCreate: (path, entryKind) =>
       edit.create(path, entryKind, (created) =>
         onOpen({ kind: 'file', path: created }),
@@ -639,6 +648,8 @@ function PinnedDirectoryTree({
           input.selected.startsWith(prefix) ? relative(input.selected) : ''
         }
         creating={undefined}
+        renameRequest={undefined}
+        onRequestRename={(path) => input.onRequestRename(`${prefix}${path}`)}
         onCreate={(path, kind) => input.onCreate(`${prefix}${path}`, kind)}
         onMove={(from, to) =>
           input.onMove(`${prefix}${from}`, `${prefix}${to}`)

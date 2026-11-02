@@ -9,6 +9,7 @@ selectors:
   - "Change no longer present"
 tests:
   - apps/web/spec/integration/files-rename.test.tsx
+  - apps/web/spec/e2e/files-search.desktop.e2e.ts
 api:
   - GET /api/worktrees/:worktreeId/directory
   - POST /api/worktrees/:worktreeId/files
@@ -22,7 +23,8 @@ Renaming a tree entry moves it on disk and shows the new name without opening it
 
 - Review (phone width) → tab Files → right-click a row → menuitem "Rename" (it is the first item for a file, so `ArrowDown` then `Enter` reaches it too).
 - Review → tab Files → right-click a row under "Pinned" → menuitem "Rename".
-- `F2` on the focused tree row (the tree's own shortcut).
+- `F2` on the focused tree row.
+- From a filtered result (including an untracked file in unopened folders), Rename clears search, loads its parent folders, and focuses the inline name in the normal tree. Cancel keeps the search cleared and the original file unchanged.
 
 ## Driving it with browser
 

@@ -114,6 +114,7 @@ function mountTree(
   };
   let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
   let handledCreate: number | undefined;
+  let handledRename: number | undefined;
   const frames = new Set<number>();
   function frame(run: () => void) {
     const id = requestAnimationFrame(() => {
@@ -219,12 +220,22 @@ function mountTree(
       model.resetPaths(read().paths, { initialExpandedPaths: [] });
       syncing = false;
     });
-    read().bindRename((path) => {
-      frame(() => {
-        syncing = true;
-        model.startRenaming(path);
-        syncing = false;
-      });
+    read().bindRename((path) => read().onRequestRename(path));
+  }
+  function rename() {
+    const request = read().renameRequest;
+    if (
+      !request ||
+      read().filter ||
+      handledRename === request.nonce ||
+      model.getItem(request.path) === null
+    )
+      return;
+    handledRename = request.nonce;
+    frame(() => {
+      syncing = true;
+      if (model.startRenaming(request.path)) request.onStart();
+      syncing = false;
     });
   }
   function create() {
@@ -320,6 +331,7 @@ function mountTree(
       model.setIcons(treeIconsFor(current.links));
     previous = current;
     create();
+    rename();
     reportHeight();
   }
   const unsubscribeInput = registry.subscribe(input, sync);
@@ -378,13 +390,7 @@ function mountTree(
         focus.restore = restoreFocus;
         setMenuOpen(false);
       },
-      rename: () => {
-        frame(() => {
-          syncing = true;
-          model.startRenaming(path);
-          syncing = false;
-        });
-      },
+      rename: () => read().onRequestRename(path),
       item: {
         path,
         name: entryName(path),
@@ -395,6 +401,14 @@ function mountTree(
   }
 
   function keyDown(event: KeyboardEvent) {
+    if (event.key === 'F2' && !pendingCreate) {
+      const path = model.getFocusedPath();
+      if (path) {
+        event.preventDefault();
+        event.stopPropagation();
+        read().onRequestRename(path);
+      }
+    }
     if (event.key === 'Enter') acceptDefaultName(event);
     if (event.key === 'Escape' && pendingCreate) {
       pendingCreate = null;

@@ -60,4 +60,25 @@ test('Files searches unloaded untracked paths without losing input and restores 
   await expect(search).toHaveValue('');
   await expect(row('notes')).toHaveAttribute('aria-expanded', 'false');
   await expect(row('first.txt')).toHaveCount(0);
+  await search.fill('Nicely');
+  await expect(row(name)).toBeVisible();
+  await row(name).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const rename = page.getByRole('textbox', { name: /^Rename / });
+  await expect(rename).toBeFocused();
+  await expect(search).toHaveValue('');
+  await expect(row('README.md')).toBeVisible();
+  await rename.fill('Renamed.tsx');
+  await rename.press('Enter');
+  await expect(row('Renamed.tsx')).toBeVisible();
+  await expect
+    .poll(() => repo.read(path.replace(name, 'Renamed.tsx')))
+    .toBe('export const value = 1;\n');
+  await search.fill('Renamed');
+  await row('Renamed.tsx').focus();
+  await page.keyboard.press('F2');
+  await expect(rename).toBeFocused();
+  await expect(search).toHaveValue('');
+  await rename.press('Escape');
+  await expect(row('Renamed.tsx')).toBeVisible();
 });
