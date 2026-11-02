@@ -8,6 +8,7 @@ export const githubUnavailableReasonSchema = Schema.Literals([
   'rate-limited',
   'offline',
   'invalid-response',
+  'pull-request-not-found',
 ]);
 export const githubUnavailableSchema = Schema.Struct({
   kind: Schema.Literal('unavailable'),
@@ -72,10 +73,6 @@ export const githubPullSummarySchema = Schema.Struct({
           statusCheckRollup: Schema.NullOr(
             Schema.Struct({
               state: Schema.String,
-              contexts: Schema.Struct({
-                nodes: Schema.Array(checkSchema),
-                pageInfo: pageInfoSchema,
-              }),
             }),
           ),
         }),
@@ -92,6 +89,23 @@ const commentSchema = Schema.Struct({
 });
 export const githubPullRequestSchema = Schema.Struct({
   ...githubPullSummarySchema.fields,
+  commits: Schema.Struct({
+    nodes: Schema.Array(
+      Schema.Struct({
+        commit: Schema.Struct({
+          statusCheckRollup: Schema.NullOr(
+            Schema.Struct({
+              state: Schema.String,
+              contexts: Schema.Struct({
+                nodes: Schema.Array(checkSchema),
+                pageInfo: pageInfoSchema,
+              }),
+            }),
+          ),
+        }),
+      }),
+    ),
+  }),
   body: Schema.String,
   createdAt: Schema.optional(Schema.String),
   baseRefName: Schema.String,

@@ -26,7 +26,7 @@ export function mapPullRequestSummary(
     headBranch: raw.headRefName,
     updatedAt: raw.updatedAt,
     checksSummary: rollup?.state ?? undefined,
-    checksTruncated: rollup?.contexts.pageInfo.hasNextPage ?? false,
+    checksTruncated: false,
   };
 }
 export function mapPullRequest(
@@ -121,6 +121,7 @@ export function mapPullRequest(
     mergeable: raw.mergeable,
     labels: raw.labels.nodes,
     checks,
+    checksTruncated: rollup?.contexts.pageInfo.hasNextPage ?? false,
     timeline,
     truncated:
       raw.labels.pageInfo.hasNextPage ||

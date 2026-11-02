@@ -12,7 +12,7 @@ for (const width of [1440, 414]) {
     )?.path;
     if (!main) throw new Error('Missing main checkout');
     const fixture = await archiveFixture(main);
-    fixture.pullRequestUnavailable(true);
+    fixture.setGitHubFailure('rate-limited');
     try {
       await page.setViewportSize({ width, height: 896 });
       await app.reload();
@@ -37,7 +37,27 @@ for (const width of [1440, 414]) {
       await expect(
         page.getByText(/GitHub rate limit reached[.]/),
       ).toBeVisible();
-      fixture.pullRequestUnavailable(false);
+      fixture.setGitHubFailure(undefined);
+      await page
+        .getByRole('button', { name: 'Try again', exact: true })
+        .click();
+      await expect(
+        page.getByRole('article', { name: 'Pull request #423', exact: true }),
+      ).toBeVisible();
+      fixture.setGitHubFailure('not-found');
+      await app.reload();
+      await expect(
+        page.getByText(/GitHub could not find this pull request/),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Back to the review', exact: true }),
+      ).toBeVisible();
+      await expect
+        .poll(() => fixture.readReview())
+        .toMatchObject({
+          pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
+        });
+      fixture.setGitHubFailure(undefined);
       await page
         .getByRole('button', { name: 'Try again', exact: true })
         .click();
@@ -53,7 +73,7 @@ for (const width of [1440, 414]) {
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect.poll(() => fixture.exists()).toBe(true);
     } finally {
-      fixture.pullRequestUnavailable(false);
+      fixture.setGitHubFailure(undefined);
     }
   });
 }

@@ -97,6 +97,7 @@ export function reviewPullRequestNotice(pull: ReviewPullState) {
     'rate-limited': 'GitHub rate limit reached.',
     offline: 'GitHub could not be reached.',
     'invalid-response': 'GitHub returned an invalid response.',
+    'pull-request-not-found': 'GitHub could not find this pull request.',
   };
   return `PR state unavailable: ${reasons[pull.reason]}`;
 }

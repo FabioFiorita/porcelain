@@ -95,18 +95,18 @@ export async function archiveFixture(
   const manifest = record(JSON.parse(readFileSync(manifestPath, 'utf8')));
   const githubCommand = `#!${process.execPath}\nconst args=process.argv.slice(2);\nif(args[0]==='auth'&&args[1]==='status') console.log('["fixture"]');\nelse if(args[0]==='auth') console.log('fixture-credential');\nelse if(args.includes('repos/FabioFiorita/porcelain')) console.log('{}');\nelse console.log(JSON.stringify({data:{repository:{pullRequest:${JSON.stringify(pr)}}}}));\n`;
   const githubPath = join(text(manifest.bin), 'gh');
-  const pullRequestUnavailable = (unavailable: boolean) =>
+  const setGitHubFailure = (reason: 'rate-limited' | 'not-found' | undefined) =>
     writeFileSync(
       githubPath,
-      unavailable
+      reason !== undefined
         ? githubCommand.replace(
             'else console.log',
-            "else { console.error('HTTP 403 API rate limit exceeded'); process.exitCode = 1; }\nif (false) console.log",
+            `else { console.error(${JSON.stringify(reason === 'not-found' ? 'GraphQL: Could not resolve to a PullRequest with the number of 423.' : 'HTTP 403 API rate limit exceeded')}); process.exitCode = 1; }\nif (false) console.log`,
           )
         : githubCommand,
       { mode: 0o755 },
     );
-  pullRequestUnavailable(false);
+  setGitHubFailure(undefined);
   const server = await ServerHandle.attach(manifestPath);
   const session = server.session(new Recorder(), {
     projectId: '',
@@ -157,7 +157,7 @@ export async function archiveFixture(
           })
         ).body,
       ).review,
-    pullRequestUnavailable,
+    setGitHubFailure,
     lock: () => git('worktree', 'lock', tree),
     unlock: () => git('worktree', 'unlock', tree),
     dirty: () => writeFileSync(join(tree, 'unsaved.txt'), 'Unsaved work'),

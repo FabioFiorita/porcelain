@@ -44,9 +44,9 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
         GitHub account for pull requests
       </FieldLegend>
       <FieldDescription>
-        Pull requests open with the account{' '}
-        <code className="font-mono text-xs">gh</code> detects for each project.
-        Saved with the project, for every device.
+        Porcelain finds a signed-in account that can read each project’s
+        repository. Choose one to keep using it. Saved on this computer, for
+        every device.
       </FieldDescription>
       <ItemGroup>
         {projects?.map((project) => (
@@ -105,6 +105,13 @@ function ProjectAccount({
   const unavailable = account?.unavailable
     ? githubUnavailable(account.unavailable.reason)
     : undefined;
+  const noAccess = account?.override
+    ? 'The chosen account cannot open it. Choose another or use the detected account.'
+    : 'No signed-in account can open it';
+  const unavailableDescription =
+    account?.unavailable?.reason === 'no-access'
+      ? noAccess
+      : unavailable?.description;
   const resetLabel = `Use the detected account for ${project.name}`;
   return (
     <Item variant="outline">
@@ -184,11 +191,7 @@ function ProjectAccount({
       {unavailable && (
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-ui leading-4.5 text-warn">
           <TriangleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
-          <span>
-            {account?.unavailable?.reason === 'no-access'
-              ? 'No signed-in account can open it'
-              : unavailable.description}
-          </span>
+          <span>{unavailableDescription}</span>
           {unavailable.action.kind === 'install' && (
             <Button
               size="xs"

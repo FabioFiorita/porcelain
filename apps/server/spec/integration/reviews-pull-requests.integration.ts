@@ -20,6 +20,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     JSON.parse(await readFile(server.manifestPath, 'utf8')),
   );
   const statePath = join(session.projectHome, 'github-state.json');
+  const listQueryPath = join(session.projectHome, 'github-list-query.txt');
   const checksQueryPath = join(session.projectHome, 'github-checks-query.txt');
   const heldPath = join(session.projectHome, 'github-accounts-held');
   const releasePath = join(session.projectHome, 'github-accounts-released');
@@ -34,6 +35,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     accounts: ['personal', 'work'],
     readable: ['personal', 'work'],
     holdAccounts: false,
+    missingPull: '',
   };
   const save = () => writeFile(statePath, JSON.stringify(state));
   await save();
@@ -54,14 +56,17 @@ if (args[0] === 'auth' && args[1] === 'status') {
 }
 else if (args[0] === 'auth' && args[1] === 'token') { console.log(secret + '-' + args.at(-1)); }
 else if (fixture.mode !== 'ok') { console.error((fixture.mode === 'rate' ? 'HTTP 429 rate limit exceeded ' : 'network offline ') + process.env.GH_TOKEN); process.exitCode = 1; }
-else if (args.includes('number=999')) { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest)'); process.exitCode = 1; }
+else if (args.includes('number=999') || (fixture.missingPull === 'error' && args.some(arg => /PullRequest(?:Read|Checks)/.test(arg)))) { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest)'); process.exitCode = 1; }
 else if (args.includes('repos/FabioFiorita/porcelain')) {
   fs.appendFileSync(${JSON.stringify(probesPath)}, process.env.GH_TOKEN.slice(secret.length + 1) + '\\n');
   if (fixture.readable.some(account => process.env.GH_TOKEN === secret + '-' + account)) console.log('{}');
   else { console.error('HTTP 404 ' + process.env.GH_TOKEN); process.exitCode = 1; }
 } else {
+ if (fixture.missingPull === 'null' && args.some(arg => /PullRequest(?:Read|Checks)/.test(arg))) { console.log(JSON.stringify({ data: { repository: { pullRequest: null } } })); process.exit(0); }
  const pageInfo = { hasNextPage: false };
  const detailQuery = args.find(arg => arg.includes('PullRequestRead')) ?? '';
+ const listQuery = args.find(arg => arg.includes('PullRequestList'));
+ if (listQuery) fs.writeFileSync(${JSON.stringify(listQueryPath)}, listQuery);
  const checksQuery = args.find(arg => arg.includes('PullRequestChecks'));
  if (checksQuery) fs.writeFileSync(${JSON.stringify(checksQueryPath)}, checksQuery);
  const avatarUrl = detailQuery.includes('avatarUrl') ? 'https://avatars.githubusercontent.com/u/1' : undefined;
@@ -69,6 +74,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
  const pr = { number: 423, title: 'Fixture PR', url: 'https://github.com/FabioFiorita/porcelain/pull/423', state: fixture.state, isDraft: false,
  author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: fixture.checkState ? [{ commit: { statusCheckRollup: {state: fixture.checkState, contexts:{nodes:[],pageInfo} } } }] : [] }, body: '# Description', baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
  comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [{ id: 'review', author: { login: 'reviewer', avatarUrl }, submittedAt: '2026-10-19T12:00:00Z', body: 'A review', url: 'https://github.com/review', state: 'COMMENTED', comments: { nodes: [{ id: 'inline', author: { login: 'reviewer', avatarUrl }, createdAt: '2026-10-19T10:00:00Z', body: 'Inline comment', url: 'https://github.com/inline', path: 'README.md', line: 1, originalLine: 1, diffHunk }], pageInfo } }], pageInfo } };
+ if (listQuery && !listQuery.includes('contexts')) for (const node of pr.commits.nodes) delete node.commit.statusCheckRollup.contexts;
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
 }
 `,
@@ -204,9 +210,14 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     });
     state.mode = 'ok';
     await save();
+    state.checkState = 'SUCCESS';
+    await save();
     expect(await request(`${project}/pull-requests`)).toMatchObject({
-      pullRequests: [{ headBranch: branch }],
+      pullRequests: [{ headBranch: branch, checksSummary: 'SUCCESS' }],
     });
+    expect(await readFile(listQueryPath, 'utf8')).not.toMatch(
+      /\b(body|comments|reviews|labels|contexts)\b/,
+    );
     const linkingViewer = await session.live();
     expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     expect(
@@ -216,6 +227,28 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     expect(await request(review)).toMatchObject({
       review: { pullRequest, latestRevision: 1 },
       revision: { revision: 1 },
+    });
+    for (const missing of ['error', 'null']) {
+      state.missingPull = missing;
+      await save();
+      for (const path of [
+        review + '/pull-request',
+        review + '/pull-request/checks',
+      ])
+        expect(await request(path)).toEqual({
+          kind: 'unavailable',
+          reason: 'pull-request-not-found',
+        });
+      expect(await request(review)).toMatchObject({
+        review: { pullRequest, state: 'open', latestRevision: 1 },
+        revision: { revision: 1 },
+      });
+    }
+    state.missingPull = '';
+    await save();
+    expect(await request(`${review}/pull-request`)).toMatchObject({
+      kind: 'available',
+      pullRequest: { number: 423 },
     });
     for (const [checkState, checks] of [
       ['SUCCESS', 'passed'],
