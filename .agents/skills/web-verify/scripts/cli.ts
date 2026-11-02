@@ -22,12 +22,13 @@ import {
   serverRead,
 } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';
+import { sharing } from './sharing.ts';
 import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
 
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
 const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instance <id>]
-  start [--desktop] [--coding-tool] [--review-sample] [--git-interruption]
+  start [--for-developer] [--desktop] [--coding-tool] [--review-sample] [--git-interruption]
                           start a disposable server and Vite; print the connection card
   doctor                  check startup dependencies; list optional browser drivers
   status                  inspect captured ownership, build staleness and connection metadata
@@ -192,6 +193,7 @@ async function command(args: readonly string[]): Promise<string> {
       instance: { type: 'string' },
       ...serverOptions,
       desktop: { type: 'boolean', default: false },
+      'for-developer': { type: 'boolean', default: false },
       'coding-tool': { type: 'boolean', default: false },
       'review-sample': { type: 'boolean', default: false },
       'git-interruption': { type: 'boolean', default: false },
@@ -210,12 +212,15 @@ async function command(args: readonly string[]): Promise<string> {
     return '';
   }
   if (name === 'start')
-    return start({
-      desktop: values.desktop,
-      codingTool: values['coding-tool'],
-      reviewSample: values['review-sample'],
-      gitInterruption: values['git-interruption'],
-    });
+    return start(
+      {
+        desktop: values.desktop,
+        codingTool: values['coding-tool'],
+        reviewSample: values['review-sample'],
+        gitInterruption: values['git-interruption'],
+      },
+      values['for-developer'],
+    );
   if (name === 'doctor') return doctor();
   if (
     name === undefined ||
@@ -223,12 +228,31 @@ async function command(args: readonly string[]): Promise<string> {
   )
     throw new Usage(usage);
   if (name === 'stop') {
+    const selected =
+      values.instance === undefined
+        ? registry.chosen(undefined)
+        : registry
+            .list()
+            .find(({ instance }) => instance.id === values.instance)?.instance;
+    if (selected !== undefined)
+      sharing('stop', selected.folder, selected.detail.web);
     const result = await registry.stopById(values.instance);
     return stopOutput(result);
   }
   if (name === 'evidence') return `${registry.evidencePath(values.instance)}\n`;
-  if (name === 'status')
-    return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
+  if (name === 'status') {
+    const status = await registry.status(values.instance);
+    const instance = registry.chosen(values.instance, { includeStopped: true });
+    let preview = 'local-only';
+    if (existsSync(join(instance.folder, 'sharing-helper')))
+      try {
+        preview = sharing('status', instance.folder, instance.detail.web);
+      } catch (error) {
+        process.exitCode = 1;
+        preview = error instanceof Error ? error.message : String(error);
+      }
+    return `${JSON.stringify({ ...status, preview }, null, 2)}\n`;
+  }
   if (
     ![
       'logs',

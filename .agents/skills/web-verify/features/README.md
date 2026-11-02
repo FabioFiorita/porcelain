@@ -4,6 +4,7 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 ## Baseline preconditions
 
+- For a developer walkthrough use `$C start --for-developer`; only its protected public URL is ready for external inspection. Open it in a separate browser, pair there, check assets/API/live updates/HMR, then refresh and follow a deep link. Keep that instance running across feedback. Browser proof does not establish native behavior.
 - From the repository root set `C=.agents/skills/web-verify/scripts/cli`; run `$C doctor`, then `$C start`. Read its card and private `connection.json`. Set `REPO` to `fixtures.repositoryPath`, `HOME_DIR` to `fixtures.projectHome`, and `WEB` to `webUrl`.
 - Open a fresh browser context and redeem the card's fresh pairing link, except when a map starts unpaired. Links work once; startup opens no browser. Reloads keep this context/session.
 - The default recipe viewport is phone width, 414 × 896; use 1280 × 800 for desktop proof unless the map specifies another size. At phone width: `Toggle Sidebar` opens the navigator; `Review` or `Alt+Shift+R` opens the `Worktree review` sheet. Opening a document closes that sheet; reopen it for the next tree action. Actions that open no document leave it open, so do not click the covered Review button.

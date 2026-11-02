@@ -33,6 +33,7 @@ import {
   type Life,
 } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
+import { sharing } from './sharing.ts';
 import { verificationEnvironment } from '../../verify-core/environment.ts';
 import { agentActs } from '@porcelain/server/kit/agent';
 
@@ -160,6 +161,7 @@ export function serve(folder: string): Promise<void> {
           ...verificationEnvironment(process.env),
           PORCELAIN_API_TARGET: server.address,
           PORCELAIN_OWNER_SOCKET: server.socketPath,
+          PORCELAIN_PREVIEW_ORIGIN_FILE: join(folder, 'public-origin'),
         },
         stdio: ['ignore', log, log],
       },
@@ -171,6 +173,9 @@ export function serve(folder: string): Promise<void> {
       web.kill('SIGTERM');
     });
     await reachable(`${origin}/src/main.tsx`, Date.now() + readyTimeoutMs);
+    life.onStop(() => {
+      sharing('stop', folder, origin);
+    });
     serveRemote(folder, life.id, build, life);
     const health = await fetch(`${server.address}/api/health`);
     if (
@@ -214,6 +219,7 @@ export function serve(folder: string): Promise<void> {
 }
 export async function start(
   options: typeof startOptions.Encoded,
+  forDeveloper = false,
 ): Promise<string> {
   refuseMissing([
     ...sandboxProblems(),
@@ -223,16 +229,76 @@ export async function start(
       : 'Vite is missing: run pnpm install --frozen-lockfile',
   ]);
   const started = performance.now();
-  const instance = await registry.launch(options, readyTimeoutMs * 2);
+  const live = forDeveloper
+    ? registry.list().filter((entry) => entry.alive)
+    : [];
+  if (live.length > 1)
+    throw new Error(
+      'Several web instances run here; stop the unused ones before preparing a developer preview.',
+    );
+  const existing = live[0]?.instance;
+  const optionKey = JSON.stringify({
+    ...options,
+    gitInterruption: options.gitInterruption ?? false,
+  });
+  if (
+    existing !== undefined &&
+    (!existsSync(join(existing.folder, 'start-options.json')) ||
+      readFileSync(join(existing.folder, 'start-options.json'), 'utf8') !==
+        optionKey)
+  )
+    throw new Error(
+      'An instance already runs here; use its existing preview or stop it before changing startup options.',
+    );
+  if (existing !== undefined) {
+    const stale = await registry.staleness(existing);
+    if (stale !== undefined) throw new Error(stale);
+  }
+  const instance =
+    existing ?? (await registry.launch(options, readyTimeoutMs * 2));
+  writeFileSync(join(instance.folder, 'start-options.json'), optionKey, {
+    mode: 0o600,
+  });
   process.stderr.write(
     `started in ${Math.round(performance.now() - started)} ms\n`,
   );
   if (instance.connectionPath === undefined)
     throw new Error('The web launcher published no connection metadata');
-  return connectionCard(
+  const card = connectionCard(
     Schema.decodeUnknownSync(connectionSchema)(
       JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
     ),
     instance.connectionPath,
   );
+  if (!forDeveloper) return card;
+  const connectionPath = instance.connectionPath;
+  const publishPreview = (preview: {
+    status: 'protected' | 'local-only';
+    publicUrl?: string;
+    reason?: string;
+  }) => {
+    const metadata = Schema.decodeUnknownSync(
+      Schema.Record(Schema.String, Schema.Unknown),
+    )(JSON.parse(readFileSync(connectionPath, 'utf8')));
+    writeFileSync(
+      connectionPath,
+      `${JSON.stringify({ ...metadata, preview }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+  };
+  try {
+    const shared = sharing('start', instance.folder, instance.detail.web);
+    publishPreview({
+      status: 'protected',
+      publicUrl: readFileSync(join(instance.folder, 'public-origin'), 'utf8'),
+    });
+    return `${card}${shared}`;
+  } catch (error) {
+    publishPreview({
+      status: 'local-only',
+      reason: error instanceof Error ? error.message : String(error),
+    });
+    process.exitCode = 1;
+    return `${card}${error instanceof Error ? error.message : String(error)}\nThis instance is not ready for developer inspection.\n`;
+  }
 }

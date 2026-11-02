@@ -9,9 +9,11 @@ From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` fo
 
 ## Prepare and connect
 
-1. Run `$C doctor`, then `$C start`.
+1. Run `$C doctor`, then `$C start` for agent-only checks or `$C start --for-developer` when preparing a preview for the developer to inspect. The latter automatically starts protected sharing through the executable configured in `DEVELOPMENT_PREVIEW_HELPER`; Configure the helper's saved password once; the optional `DEVELOPMENT_PREVIEW_PASSWORD_FILE` override names a private file supplied through the native secret tool. The developer signs in with username `preview` and the saved password in their own browser; never print or commit that password. A local-only result is not ready for developer inspection.
 2. Read the card: instance ID, server/web/WebSocket URLs, private `connection.json`, pairing-link and MCP commands, evidence directory and stop command. The connection file adds build identity, fixture IDs/paths, required origins, owner socket, credential-file paths, initial route, web mode and status/log/remote-start commands.
 3. Open the web URL in a fresh browser context. For a paired journey, run the card's pairing-link command and navigate to its fresh link. Each link works once and its fragment is consumed. For an unpaired journey, open `/` without minting a link.
+
+The developer preview URL opens the same disposable app in an independent browser session. Reuse it across edits and while awaiting feedback; repeat `start --for-developer` to reuse the running instance and recheck sharing. The local agent continues using the card's loopback URL. Protected sharing covers assets, API, app WebSocket/HMR and the development pairing endpoint; the loopback pairing guard alone does not protect a tunnel. Quick Tunnels do not carry SSE; this app uses WebSockets for live updates. Verify authentication, pairing, assets, API, live updates, HMR, refresh and deep links in the external browser before claiming those journeys. A protection check does not prove authenticated app access.
 
 A restarted instance reuses its worktree-derived web port while free, but needs new pairing. For a developer walkthrough, use Vite's development-only “Pair this browser” button on the not-paired page; it obtains a one-time link from the owner socket.
 

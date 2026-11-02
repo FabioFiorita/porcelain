@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import type { IncomingMessage, ClientRequest } from 'node:http';
 import { createRequire } from 'node:module';
 import { relative } from 'node:path';
 import { Schema } from 'effect';
@@ -7,7 +8,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
-import { defineConfig, normalizePath } from 'vite';
+import { defineConfig, normalizePath, type HttpProxy } from 'vite';
 import { devPair } from './dev-pair.ts';
 
 const packageInfo = Schema.decodeUnknownSync(
@@ -26,8 +27,24 @@ const fontFiles = [
 const webRoot = fileURLToPath(new URL('.', import.meta.url));
 
 const target = process.env.PORCELAIN_API_TARGET;
+const previewOriginFile = process.env.PORCELAIN_PREVIEW_ORIGIN_FILE;
+const configurePreviewProxy = (proxy: HttpProxy.ProxyServer) => {
+  const origin = (incoming: IncomingMessage, outgoing: ClientRequest) => {
+    if (!target || !previewOriginFile || !existsSync(previewOriginFile)) return;
+    const published = readFileSync(previewOriginFile, 'utf8');
+    if (incoming.headers.origin === published) {
+      outgoing.setHeader('origin', new URL(target).origin);
+      outgoing.setHeader('host', new URL(target).host);
+    }
+  };
+  proxy.on('proxyReq', (outgoing, incoming) => origin(incoming, outgoing));
+  proxy.on('proxyReqWs', (outgoing, incoming) => origin(incoming, outgoing));
+};
 const proxy = target
-  ? { '/api': { target, ws: true }, '/review-summaries': { target } }
+  ? {
+      '/api': { target, ws: true, configure: configurePreviewProxy },
+      '/review-summaries': { target, configure: configurePreviewProxy },
+    }
   : undefined;
 const ownerSocket = process.env.PORCELAIN_OWNER_SOCKET;
 const pairing = ownerSocket && target ? devPair(ownerSocket, target) : null;
