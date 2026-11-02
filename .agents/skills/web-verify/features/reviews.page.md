@@ -89,7 +89,9 @@ If a live review refresh fails after a new publication, keep the last loaded rev
 
 Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, revision controls, links, deletion paths, menus, comment controls and the wrapping Continue button for overflow. Publish a decision containing a long unbroken filename as well as prose: The title and walkthrough row must retain the full decision text; the Continue at decision n button must fit the viewport. Scroll the complete button into view before retaining phone light/dark screenshots. Electron bridge and macOS behavior require desktop-verify; this web run does not prove them.
 
-Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
+Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
+
+With a long unchanged dependency under “Existing code it relies on”, scroll its compact card to the final line. The scroll viewport owns the rounded border; its scrollbar stays inside the card. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 

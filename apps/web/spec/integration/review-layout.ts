@@ -36,6 +36,26 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  compactCodeFrame(locator: Locator) {
+    const element = codeScroller(locator);
+    const style = getComputedStyle(element);
+    return {
+      border: style.borderRightWidth,
+      radius: Number.parseFloat(style.borderTopRightRadius) > 0,
+      bounded: element.clientHeight <= 192,
+      scrolls: element.scrollHeight > element.clientHeight,
+    };
+  },
+  codeLineInsideFrame(locator: Locator, number: number) {
+    const line = locator
+      .element()
+      .querySelector('diffs-container')
+      ?.shadowRoot?.querySelector(`[data-line="${number}"]`);
+    if (!line) return false;
+    const bounds = line.getBoundingClientRect();
+    const frame = codeScroller(locator).getBoundingClientRect();
+    return bounds.top >= frame.top && bounds.bottom <= frame.bottom;
+  },
   scrollHistoryToEnd(locator: Locator) {
     const viewport = historyScroller(locator);
     viewport.scrollTop = viewport.scrollHeight;
