@@ -132,7 +132,6 @@ function ScopedFileNavigation({
   sideLabel,
   actionsTarget,
 }: Props) {
-  const indexed = useWorktreePaths(connection, scope);
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
   const editError = AsyncResult.isFailure(edit.result)
@@ -159,6 +158,8 @@ function ScopedFileNavigation({
     requested,
     pinnedExpanded,
   } = navigation.state;
+  const searching = fileQuery.trim() !== '';
+  const indexed = useWorktreePaths(connection, scope, searching);
   const setShowHidden = (value: boolean) =>
     navigation.set((state) => ({ ...state, showHidden: value }));
   const setFileQuery = (query: string) =>
@@ -188,7 +189,6 @@ function ScopedFileNavigation({
     ),
   ];
   const loadedEntries = mergeFileTreeEntries(directories);
-  const searching = fileQuery.trim() !== '';
   const matches = searching
     ? fileSearchMatches(
         visibleFileTreePaths(
