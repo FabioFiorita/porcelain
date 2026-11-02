@@ -36,6 +36,41 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  compactCodeFrame(locator: Locator) {
+    const element = codeScroller(locator);
+    const style = getComputedStyle(locator.element());
+    return {
+      border: style.borderRightWidth,
+      radius: Number.parseFloat(style.borderTopRightRadius) > 0,
+      bounded: element.clientHeight <= 192,
+      scrolls: element.scrollHeight > element.clientHeight,
+    };
+  },
+  codeHeaderOutsideScroll(locator: Locator) {
+    const root = locator.element();
+    const comment = root.querySelector('button[aria-label^="Comment on "]');
+    if (!comment) return false;
+    const header = comment.parentElement;
+    if (!header) return false;
+    const viewport = codeScroller(locator);
+    const frame = root.getBoundingClientRect();
+    const bounds = header.getBoundingClientRect();
+    return (
+      !viewport.contains(header) &&
+      bounds.top >= frame.top &&
+      bounds.bottom <= viewport.getBoundingClientRect().top
+    );
+  },
+  codeLineInsideFrame(locator: Locator, number: number) {
+    const line = locator
+      .element()
+      .querySelector('diffs-container')
+      ?.shadowRoot?.querySelector(`[data-line="${number}"]`);
+    if (!line) return false;
+    const bounds = line.getBoundingClientRect();
+    const frame = codeScroller(locator).getBoundingClientRect();
+    return bounds.top >= frame.top && bounds.bottom <= frame.bottom;
+  },
   scrollHistoryToEnd(locator: Locator) {
     const viewport = historyScroller(locator);
     viewport.scrollTop = viewport.scrollHeight;

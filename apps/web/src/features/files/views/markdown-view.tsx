@@ -1,7 +1,9 @@
 import { File } from '@pierre/diffs/react';
-import { Markdown } from '@tanstack/markdown/react';
+import { markdownHtml } from './markdown-html';
+import { externalLink } from '@porcelain/client/links/rules';
 import {
   Children,
+  useState,
   type ComponentProps,
   isValidElement,
   type ReactNode,
@@ -55,7 +57,33 @@ function CodeBlock(props: ComponentProps<'pre'> & { 'data-lang'?: string }) {
   );
 }
 
+function MarkdownImage({ src, alt }: ComponentProps<'img'>) {
+  const [failedSource, setFailedSource] = useState<string>();
+  if (!src || !externalLink(src) || failedSource === src)
+    return (
+      <span className="inline-block rounded border px-2 py-1 text-caption text-muted-foreground">
+        Image unavailable{alt ? `: ${alt}` : ''}
+      </span>
+    );
+  return (
+    <img
+      src={src}
+      alt={alt ?? ''}
+      className="my-2 h-auto max-w-full rounded"
+      referrerPolicy="no-referrer"
+      onError={() => setFailedSource(src)}
+    />
+  );
+}
+
 const components = {
+  img: MarkdownImage,
+  details: (props: ComponentProps<'details'>) => (
+    <details className="my-3 rounded border p-3" {...props} />
+  ),
+  summary: (props: ComponentProps<'summary'>) => (
+    <summary className="cursor-pointer font-medium" {...props} />
+  ),
   pre: CodeBlock,
   h1: (props: ComponentProps<'h1'>) => (
     <h1 className="mt-5 mb-2 text-lg font-semibold first:mt-0" {...props} />
@@ -119,7 +147,7 @@ export function MarkdownView({
 }) {
   return (
     <div className={cn('text-ui text-foreground', className)}>
-      <Markdown components={components}>{text}</Markdown>
+      {markdownHtml(text, components)}
     </div>
   );
 }

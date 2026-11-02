@@ -10,6 +10,10 @@ export function quickOpenPath(query: string): string | null {
 }
 
 export function quickOpenMatches(paths: readonly string[], query: string) {
+  return fileSearchMatches(paths, query).slice(0, FILE_QUICK_OPEN_MAX);
+}
+
+export function fileSearchMatches(paths: readonly string[], query: string) {
   const needle = query.trim().toLowerCase();
   return paths
     .filter((path) => path.toLowerCase().includes(needle))
@@ -31,6 +35,5 @@ export function quickOpenMatches(paths: readonly string[], query: string) {
         left.path.length - right.path.length ||
         (left.path < right.path ? -1 : left.path > right.path ? 1 : 0),
     )
-    .slice(0, FILE_QUICK_OPEN_MAX)
     .map(({ path }) => path);
 }

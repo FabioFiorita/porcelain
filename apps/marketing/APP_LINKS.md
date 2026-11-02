@@ -37,3 +37,18 @@ References: [Expo iOS universal links](https://docs.expo.dev/linking/ios-univers
 [Expo Android App Links](https://docs.expo.dev/linking/android-app-links/),
 [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/),
 [Pages redirects](https://developers.cloudflare.com/pages/configuration/redirects/).
+
+## Mac app handoff
+
+Validated review links offer Open in Porcelain for Mac through
+`porcelain-desktop://open/reviews/<reviewId>`, retaining environment, host,
+protocol, revision and decision. The release Mac package declares this URL scheme and
+registers it on release startup. Cold launches retain the request until the
+renderer is ready; running instances receive it through `open-url` (macOS) or
+`second-instance`. The renderer uses the existing review route and saved remote
+connection. A link does not pair or authorize an unknown computer.
+
+The existing HTTPS browser action remains available if the Mac app is absent or
+has not been updated. Deploying marketing alone cannot enable handoff in an old
+Mac binary: a new desktop build and marketing deployment are both required.
+Development and signed-verification builds never register as the operating system default.

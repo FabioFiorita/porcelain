@@ -93,6 +93,10 @@ export type PierreFileTreeInput = {
   creating?:
     | { kind: 'file' | 'directory'; folder: string; nonce: number }
     | undefined;
+  renameRequest?:
+    | { path: string; nonce: number; onStart: () => void }
+    | undefined;
+  onRequestRename: (path: string) => void;
   onCreate: (path: string, kind: 'file' | 'directory') => Promise<void>;
   onMove: (from: string, to: string) => Promise<void>;
   gitStatus: readonly GitStatusEntry[];

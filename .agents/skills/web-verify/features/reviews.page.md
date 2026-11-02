@@ -24,6 +24,7 @@ selectors:
   - 'Comment on the whole branch'
   - 'Try again'
 tests:
+  - apps/web/spec/e2e/pr-description-images.e2e.ts
   - apps/web/spec/integration/reviews-worktree-comments.test.tsx
   - packages/client/src/features/reviews/rules/pull-request.spec.ts
   - apps/web/spec/integration/reviews-file-tabs.test.tsx
@@ -89,7 +90,9 @@ If a live review refresh fails after a new publication, keep the last loaded rev
 
 Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, revision controls, links, deletion paths, menus, comment controls and the wrapping Continue button for overflow. Publish a decision containing a long unbroken filename as well as prose: The title and walkthrough row must retain the full decision text; the Continue at decision n button must fit the viewport. Scroll the complete button into view before retaining phone light/dark screenshots. Electron bridge and macOS behavior require desktop-verify; this web run does not prove them.
 
-Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`.
+Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
+
+With a long unchanged dependency under “Existing code it relies on”, scroll its compact card to the final line. The filename and Comment header stay visible above the code viewport; its scrollbar starts below the header and stays inside the rounded card. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 
@@ -116,3 +119,7 @@ Automated coverage: `reviews-file-tabs.test.tsx`, plus `reviews-pane-bar.test.ts
 Install the fake `gh` only in the disposable server manifest's `bin`, as in `apps/server/spec/integration/reviews-pull-requests.integration.ts`; add a GitHub origin only to `connection.json`'s fixture repository. Return `author.avatarUrl`, PR `createdAt`, review identity/author/submitted time and each review comment's `diffHunk`, path and current/original line. Use comments dated before their parent review to prove grouping uses review identity rather than chronology. Pending reviews with comments retain a parent; absent parent metadata from older servers leaves comments readable as standalone entries.
 
 At 1440/1080/414 in both themes, open the document from the Review panel and from a standalone review. Check header/comment avatars and initials when the image is absent or fails, description age, each nested comment's author, code excerpt and file link, blank review bodies, deleted authors, empty conversation and absent optional fields. “Reply there” and each item still open GitHub. Return to the review and reopen the PR. Use a long unbroken code line in the excerpt: it must wrap inside the available width. This read-only document adds no GitHub write operation or account-selection behavior.
+
+### Pull request evidence images
+
+The PR description renders details/summary as a disclosure, closed initially. Open Screenshots and verify both Markdown images and HTML img images fit the content width. A failed image shows Image unavailable with its alt text. Close and reopen the disclosure. Script, iframe, event attributes and executable links never reach the rendered document. GitHub attachment image sources use the signed URLs returned by the current authenticated PR read; no GitHub credential reaches a client. Capture the same PR description before and after changes.

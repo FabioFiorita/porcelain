@@ -12,6 +12,7 @@ struct MarkdownBlock: Decodable, Identifiable {
   var kind: String
   var level: Int
   var runs: [MarkdownRun]
+  var url: String?
 
   static func decode(_ value: String) -> [MarkdownBlock] {
     (try? JSONDecoder().decode([MarkdownBlock].self, from: Data(value.utf8))) ?? []

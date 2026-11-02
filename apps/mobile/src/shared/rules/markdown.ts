@@ -9,7 +9,8 @@ type MarkdownRun = {
 };
 export type MarkdownBlock = {
   id: number;
-  kind: 'paragraph' | 'heading' | 'quote' | 'list' | 'code';
+  kind: 'paragraph' | 'heading' | 'quote' | 'list' | 'code' | 'image';
+  url?: string;
   level: number;
   runs: MarkdownRun[];
 };
@@ -211,24 +212,107 @@ function inline(source: string): MarkdownRun[] {
   return runs;
 }
 
+function imageUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:'
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function htmlAttribute(tag: string, name: string): string {
+  const attributes = tag.matchAll(
+    /([^\s=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s<>]+)))?/g,
+  );
+  for (const attribute of attributes) {
+    if (attribute[1]?.toLowerCase() === name)
+      return (attribute[2] ?? attribute[3] ?? attribute[4] ?? '')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'");
+  }
+  return '';
+}
+
+function readerParts(
+  source: string,
+): { text: string; image?: string; alt?: string }[] {
+  const parts: { text: string; image?: string; alt?: string }[] = [];
+  const expression =
+    /(`+)[\s\S]*?\1|!\[([^\]]*)\]\(<?([^\s]*?)>?(?:\s+"[^"]*")?\)|<!--[\s\S]*?-->|<(script|style|iframe)\b[^>]*>[\s\S]*?<\/\4\s*>|<\/?[a-z][a-z0-9-]*(?:\s[^<>]*?)?\/?>/gi;
+  let offset = 0;
+  for (const match of source.matchAll(expression)) {
+    parts.push({ text: source.slice(offset, match.index) });
+    const token = match[0];
+    let escapes = 0;
+    for (let index = match.index - 1; source[index] === '\\'; index--)
+      escapes++;
+    if (match[1] || escapes % 2) parts.push({ text: token });
+    else if (match[2] !== undefined)
+      parts.push({
+        text: '',
+        image: imageUrl(match[3] ?? '') ?? '',
+        alt: match[2],
+      });
+    else if (/^<img\b/i.test(token))
+      parts.push({
+        text: '',
+        image: imageUrl(htmlAttribute(token, 'src')) ?? '',
+        alt: htmlAttribute(token, 'alt'),
+      });
+    else if (/^<\/?summary\b/i.test(token)) parts.push({ text: '\n\n' });
+    else if (/^<br\b/i.test(token)) parts.push({ text: '\n' });
+    else if (/^<\/?(?:details|p|div)\b/i.test(token))
+      parts.push({ text: '\n\n' });
+    offset = match.index + token.length;
+  }
+  parts.push({ text: source.slice(offset) });
+  return parts;
+}
+
 export function parseMarkdown(source: string): MarkdownBlock[] {
   const blocks: MarkdownBlock[] = [];
   let paragraph: string[] = [];
   let code: string[] | undefined;
   let fence = '';
-  const add = (text: string, kind: MarkdownBlock['kind'], level = 0) => {
-    blocks.push({
-      id: blocks.length,
-      kind,
-      level,
-      runs: kind === 'code' ? [{ text }] : inline(text),
-    });
+  const add = (source: string, kind: MarkdownBlock['kind'], level = 0) => {
+    if (kind === 'code') {
+      blocks.push({ id: blocks.length, kind, level, runs: [{ text: source }] });
+      return;
+    }
+    const textBlock = (value: string) => {
+      for (const part of value.split(/\n{2,}/)) {
+        const text = part.replace(/^\n+|\n+$/g, '');
+        if (text.trim() && !(kind === 'list' && text.trim() === '•'))
+          blocks.push({ id: blocks.length, kind, level, runs: inline(text) });
+      }
+    };
+    let text = '';
+    for (const part of readerParts(source)) {
+      text += part.text;
+      if (part.image !== undefined) {
+        textBlock(text);
+        blocks.push({
+          id: blocks.length,
+          kind: 'image',
+          level,
+          runs: [{ text: part.alt || 'Image' }],
+          ...(part.image ? { url: part.image } : {}),
+        });
+        text = '';
+      }
+    }
+    textBlock(text);
   };
   const flush = () => {
     if (paragraph.length) add(paragraph.join('\n'), 'paragraph');
     paragraph = [];
   };
-  for (const line of source.replaceAll('\r\n', '\n').split('\n')) {
+  const lines = source.replaceAll('\r\n', '\n').split('\n');
+  for (const line of lines) {
     if (code) {
       if (
         line.trimEnd().length >= fence.length &&

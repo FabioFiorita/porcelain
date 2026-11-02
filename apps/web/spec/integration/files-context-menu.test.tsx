@@ -170,8 +170,6 @@ test.for(
         ['New folder', 'empty', '', ['second.md']],
         ['New file', 'cancel', '', ['second.md']],
         ['New folder', 'cancel', '', ['second.md']],
-        ['New file', 'invalid', 'second.md', ['second.md']],
-        ['New folder', 'invalid', 'second.md', ['second.md']],
       ] as const
     ).map(([command, outcome, name, entries]) => ({
       width,
@@ -222,10 +220,6 @@ test.for(
       await expect.poll(() => held.responded()).toBe(true);
       await expectInputFocus(name);
       if (outcome === 'named') await expect.element(name).toHaveValue(value);
-      if (outcome === 'invalid') {
-        await userEvent.keyboard(value);
-        await expect.element(name).toHaveValue(value);
-      }
       if (outcome === 'empty') await name.fill('');
       if (outcome === 'caret') {
         await userEvent.keyboard('{Home}x');
@@ -237,14 +231,6 @@ test.for(
           .click();
       else
         await userEvent.keyboard(outcome === 'cancel' ? '{Escape}' : '{Enter}');
-      if (outcome === 'invalid')
-        await expect
-          .element(
-            page.getByText('An entry already exists at that path', {
-              exact: true,
-            }),
-          )
-          .toBeVisible();
       await expect.element(name).not.toBeInTheDocument();
       if (outcome === 'cancel' || outcome === 'empty')
         await expect
@@ -262,3 +248,61 @@ test.for(
     }
   },
 );
+
+test('a rejected create never opens the existing file while its response is pending', async ({
+  render,
+  repo,
+  agent,
+  server,
+  fetchGate,
+}) => {
+  await agent.editFile({
+    kind: 'create',
+    path: 'beta',
+    entryKind: 'directory',
+  });
+  await repo.write('beta/second.md', 'Second folder\n');
+  const directory = fetchGate.holdNextDirectoryRead('beta');
+  const create = fetchGate.holdNextPost('/files');
+  const page = await render.workspace();
+  await page.viewport(414, 896);
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  directory.arm();
+  try {
+    await page
+      .getByRole('treeitem', { name: 'beta', exact: true })
+      .click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'New file', exact: true }).click();
+    const name = page.getByRole('textbox', { name: /^Rename / });
+    await expect.element(name).toBeVisible();
+    await expect.poll(() => directory.held()).toBe(true);
+    directory.release();
+    await expect.poll(() => directory.responded()).toBe(true);
+    await expectInputFocus(name);
+    await userEvent.keyboard('second.md');
+    create.arm();
+    await userEvent.keyboard('{Enter}');
+    await expect.poll(() => create.held()).toBe(true);
+    await expect
+      .element(
+        page.getByRole('dialog', { name: 'Worktree review', exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('tab', { name: 'beta/second.md', exact: true }))
+      .not.toBeInTheDocument();
+    create.release();
+    await expect
+      .element(
+        page.getByText('An entry already exists at that path', { exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .poll(async () => (await server.text('beta/second.md')).text)
+      .toBe('Second folder\n');
+  } finally {
+    directory.release();
+    create.release();
+  }
+});

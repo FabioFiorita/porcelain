@@ -17,7 +17,7 @@ export async function observeSummaryDelivery(
       'did-fail-load',
       (_event, code, description, url, mainFrame) => {
         process.stderr.write(
-          `${JSON.stringify({ summaryLoad: { code, description, path: URL.parse(url)?.pathname, mainFrame } })}\n`,
+          `${JSON.stringify({ summaryLoad: { code, description, path: URL.parse(url)?.pathname.replace(/(\/(?:remote-)?review-summaries\/)[^/]+/, '$1[redacted]'), mainFrame } })}\n`,
         );
       },
     );
@@ -32,7 +32,10 @@ export async function observeSummaryDelivery(
     session.defaultSession.webRequest.onBeforeRequest(
       { urls: ['<all_urls>'] },
       (request, callback) => {
-        const path = new URL(request.url).pathname;
+        const path = new URL(request.url).pathname.replace(
+          /(\/(?:remote-)?review-summaries\/)[^/]+/,
+          '$1[redacted]',
+        );
         if (/^\/(?:remote-)?review-summaries\//.test(path))
           process.stderr.write(
             `${JSON.stringify({
@@ -62,7 +65,10 @@ export async function observeSummaryDelivery(
           : input instanceof URL
             ? input.href
             : input.url,
-      )?.pathname;
+      )?.pathname.replace(
+        /(\/(?:remote-)?review-summaries\/)[^/]+/,
+        '$1[redacted]',
+      );
       const summary =
         path !== undefined && /^\/(?:remote-)?review-summaries\//.test(path);
       if (summary) {
@@ -90,7 +96,10 @@ export async function observeSummaryDelivery(
     | undefined;
   page.on('request', (request) => {
     const url = new URL(request.url());
-    const path = url.pathname;
+    const path = url.pathname.replace(
+      /(\/(?:remote-)?review-summaries\/)[^/]+/,
+      '$1[redacted]',
+    );
     if (
       /^\/(?:remote-)?review-summaries\//.test(path) &&
       request.isNavigationRequest()
@@ -106,21 +115,30 @@ export async function observeSummaryDelivery(
       );
   });
   page.on('response', (response) => {
-    const path = new URL(response.url()).pathname;
+    const path = new URL(response.url()).pathname.replace(
+      /(\/(?:remote-)?review-summaries\/)[^/]+/,
+      '$1[redacted]',
+    );
     if (/^\/(?:remote-)?review-summaries\//.test(path))
       app.output.push(
         `${JSON.stringify({ summaryBrowserResponse: { path, status: response.status(), navigation: response.request().isNavigationRequest() } })}\n`,
       );
   });
   page.on('requestfailed', (request) => {
-    const path = new URL(request.url()).pathname;
+    const path = new URL(request.url()).pathname.replace(
+      /(\/(?:remote-)?review-summaries\/)[^/]+/,
+      '$1[redacted]',
+    );
     if (/^\/(?:remote-)?review-summaries\//.test(path))
       app.output.push(
         `${JSON.stringify({ summaryBrowserFailure: { path, failure: request.failure(), navigation: request.isNavigationRequest() } })}\n`,
       );
   });
   page.on('requestfinished', (request) => {
-    const path = new URL(request.url()).pathname;
+    const path = new URL(request.url()).pathname.replace(
+      /(\/(?:remote-)?review-summaries\/)[^/]+/,
+      '$1[redacted]',
+    );
     if (/^\/(?:remote-)?review-summaries\//.test(path))
       app.output.push(
         `${JSON.stringify({ summaryBrowserFinished: { path, navigation: request.isNavigationRequest() } })}\n`,
@@ -139,7 +157,10 @@ export async function observeSummaryDelivery(
         const native = await app.electron.evaluate(({ BrowserWindow }) =>
           BrowserWindow.getAllWindows().flatMap((view) =>
             view.webContents.mainFrame.framesInSubtree.map((frame) => ({
-              path: URL.parse(frame.url)?.pathname,
+              path: URL.parse(frame.url)?.pathname.replace(
+                /(\/(?:remote-)?review-summaries\/)[^/]+/,
+                '$1[redacted]',
+              ),
               processId: frame.processId,
               routingId: frame.routingId,
             })),
@@ -150,7 +171,10 @@ export async function observeSummaryDelivery(
             native,
             iframeRequest,
             playwright: page.frames().map((frame) => ({
-              path: URL.parse(frame.url())?.pathname,
+              path: URL.parse(frame.url())?.pathname.replace(
+                /(\/(?:remote-)?review-summaries\/)[^/]+/,
+                '$1[redacted]',
+              ),
               detached: frame.isDetached(),
             })),
           }),

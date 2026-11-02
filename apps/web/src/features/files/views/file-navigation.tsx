@@ -40,6 +40,7 @@ import {
   canonicalPreferencePath,
   hiddenPathFor,
   hiddenSummary,
+  fileSearchMatches,
   visibleFileTreePaths,
 } from '@porcelain/client/files/rules';
 import {
@@ -58,6 +59,7 @@ import {
 import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
+import { useWorktreePaths } from '../queries/paths';
 import { useDirectories, useDirectory } from '../queries/directory';
 import {
   fileErrorMessage,
@@ -70,6 +72,7 @@ import {
   pinnedFileEntries,
   pinnedParentDirectories,
   type PinnedDirectoryState,
+  type FileTreeEntry,
 } from '@porcelain/client/files/rules';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import {
@@ -139,6 +142,7 @@ function ScopedFileNavigation({
     folder: string;
     nonce: number;
   }>();
+  const [renaming, setRenaming] = useState<{ path: string; nonce: number }>();
   const [deleting, setDeleting] = useState<string | null>(null);
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
@@ -155,6 +159,8 @@ function ScopedFileNavigation({
     requested,
     pinnedExpanded,
   } = navigation.state;
+  const searching = fileQuery.trim() !== '';
+  const indexed = useWorktreePaths(connection, scope, searching);
   const setShowHidden = (value: boolean) =>
     navigation.set((state) => ({ ...state, showHidden: value }));
   const setFileQuery = (query: string) =>
@@ -183,8 +189,33 @@ function ScopedFileNavigation({
       Option.toArray(AsyncResult.value(result)),
     ),
   ];
-  const entries = mergeFileTreeEntries(directories);
-  const paths = entries.map((entry) => entry.path);
+  const loadedEntries = mergeFileTreeEntries(directories);
+  const matches = searching
+    ? fileSearchMatches(
+        visibleFileTreePaths(
+          Option.getOrUndefined(AsyncResult.value(indexed.result))?.paths ?? [],
+          hidden,
+          showHidden,
+        ),
+        fileQuery,
+      )
+    : [];
+  const searchPaths = union(
+    matches,
+    matches.flatMap((path) =>
+      fileTreeAncestors(path).map((parent) => `${parent}/`),
+    ),
+  );
+  const entries: FileTreeEntry[] = [
+    ...loadedEntries,
+    ...searchPaths
+      .filter((path) => !loadedEntries.some((entry) => entry.path === path))
+      .map((path): FileTreeEntry => ({
+        path,
+        kind: path.endsWith('/') ? 'directory' : 'file',
+      })),
+  ];
+  const paths = searching ? searchPaths : entries.map((entry) => entry.path);
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
   const failed = directoriesRead.results.filter(AsyncResult.isFailure);
@@ -293,8 +324,8 @@ function ScopedFileNavigation({
   };
 
   const treeInput: PierreFileTreeInput = {
-    owner,
-    filter: fileQuery,
+    owner: searching ? `${owner}:search` : owner,
+    filter: searching ? fileQuery : '',
     onFilterChange: setFileQuery,
     paths: visiblePaths,
     kinds,
@@ -302,6 +333,14 @@ function ScopedFileNavigation({
       (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
     ),
     creating,
+    renameRequest: renaming
+      ? { ...renaming, onStart: () => setRenaming(undefined) }
+      : undefined,
+    onRequestRename: (path) => {
+      setRequested((current) => union(current, fileTreeAncestors(path)));
+      setFileQuery('');
+      setRenaming({ path, nonce: Date.now() });
+    },
     onCreate: (path, entryKind) =>
       edit.create(path, entryKind, (created) =>
         onOpen({ kind: 'file', path: created }),
@@ -463,7 +502,15 @@ function ScopedFileNavigation({
         className="flex min-h-0 flex-1 flex-col pt-1"
       >
         <FileSectionHeader label="All files" />
-        <PierreFileTree {...treeInput} />
+        {searching && AsyncResult.isFailure(indexed.result) && (
+          <div role="alert" className="px-3 py-2 text-xs">
+            Could not search files.
+            <Button variant="link" size="xs" onClick={() => indexed.refresh()}>
+              Try again
+            </Button>
+          </div>
+        )}
+        <PierreFileTree key={treeInput.owner} {...treeInput} />
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
             <EyeOffIcon className="size-3.5 shrink-0" />
@@ -578,6 +625,7 @@ function PinnedDirectoryTree({
   return (
     <div className="flex max-h-52 min-h-0 flex-col pl-1.5" style={{ height }}>
       <PierreFileTree
+        key={input.owner}
         {...input}
         onContentHeight={setHeight}
         owner={`${input.owner}:pin:${prefix}`}
@@ -600,6 +648,8 @@ function PinnedDirectoryTree({
           input.selected.startsWith(prefix) ? relative(input.selected) : ''
         }
         creating={undefined}
+        renameRequest={undefined}
+        onRequestRename={(path) => input.onRequestRename(`${prefix}${path}`)}
         onCreate={(path, kind) => input.onCreate(`${prefix}${path}`, kind)}
         onMove={(from, to) =>
           input.onMove(`${prefix}${from}`, `${prefix}${to}`)

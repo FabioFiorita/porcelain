@@ -404,20 +404,19 @@ function RevisionFile({
         <AgentNote compact={compact} title={step.title} text={step.text} />
       )}
       {entry ? (
-        <div className={compact ? 'max-h-48 overflow-auto' : undefined}>
-          <CodeDocument
-            decision={compact}
-            scope={scope}
-            context={context}
-            interaction={{
-              active,
-              worktreeId: revision.reviewId,
-              entry: `file:${revision.revision}:${path}`,
-            }}
-            entries={[entry]}
-            fullHeight
-          />
-        </div>
+        <CodeDocument
+          compactHeight={compact}
+          decision={compact}
+          scope={scope}
+          context={context}
+          interaction={{
+            active,
+            worktreeId: revision.reviewId,
+            entry: `file:${revision.revision}:${path}`,
+          }}
+          entries={[entry]}
+          fullHeight
+        />
       ) : (
         <div className="p-4 text-sm break-all">
           <p>
