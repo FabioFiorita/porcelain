@@ -34,3 +34,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [app.update](app.update.md) — App update checks, download, installation and refusal.
 - [app.window](app.window.md) — Window restoration, appearance, close and quit.
 - [projects.folder-picker](projects.folder-picker.md) — Folder sheet, cancellation and project registration.
+
+- [app.review-links](app.review-links.md) — Published review handoff, startup and environment routing.

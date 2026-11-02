@@ -4,19 +4,25 @@ import Site from '../../../layouts/site.astro';
 <Site title="Open review · Porcelain" description="Open a Porcelain review on its computer.">
   <main class="mx-auto w-full max-w-2xl px-5 py-16">
     <h1 class="text-3xl font-medium">Open this review</h1>
-    <p class="mt-4 text-muted-foreground" id="review-message">Open this link in Porcelain, or enable JavaScript to continue in your browser.</p>
+    <p class="mt-4 text-muted-foreground" id="review-message">Enable JavaScript to open this review in Porcelain or continue in your browser.</p>
+    <a id="review-desktop" hidden class="mt-6 mr-4 inline-flex rounded-full bg-foreground px-5 py-3 text-background no-underline">Open in Porcelain for Mac</a>
     <a id="review-open" hidden class="mt-6 inline-flex rounded-full bg-foreground px-5 py-3 text-background no-underline" rel="noreferrer">Open review</a>
     <p class="mt-6 text-sm text-muted-foreground">Your computer may ask you to pair this browser before showing the review.</p>
     <a class="mt-6 inline-block" href="/">Back to Porcelain</a>
   </main>
 </Site>
 <script>
-  import { parseReviewAppLink } from '@porcelain/client/reviews/rules';
+  import { parseReviewAppLink, reviewDesktopUrl } from '@porcelain/client/reviews/rules';
   const link = parseReviewAppLink(window.location.pathname + window.location.search + window.location.hash);
   const message = document.getElementById('review-message');
+  const desktop = document.getElementById('review-desktop');
   const button = document.getElementById('review-open');
   if (link && button instanceof HTMLAnchorElement) {
-    if (message) message.textContent = 'Continue in your browser on the computer that published this review.';
+    if (message) message.textContent = 'Open in the Mac app, or continue in your browser on the computer that published this review.';
+    if (desktop instanceof HTMLAnchorElement) {
+      desktop.href = reviewDesktopUrl(link);
+      desktop.hidden = false;
+    }
     button.textContent = `Open this review on ${link.host}`;
     button.href = link.webUrl;
     button.hidden = false;

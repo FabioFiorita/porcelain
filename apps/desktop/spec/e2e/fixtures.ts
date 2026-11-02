@@ -357,8 +357,11 @@ type DesktopFixtures = {
     repository: string;
     profile: string;
     folder: string;
-    launch: (profile?: string) => Promise<DesktopApp>;
-    launchSecondInstance: () => Promise<number | null>;
+    launch: (
+      profile?: string,
+      switches?: readonly string[],
+    ) => Promise<DesktopApp>;
+    launchSecondInstance: (url?: string) => Promise<number | null>;
   };
 };
 
@@ -421,9 +424,17 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
   },
   desktop: async ({ app, workspace }, use, testInfo) => {
     const launched: DesktopApp[] = [];
-    const launch = async (profile = workspace.profile) => {
+    const launch = async (
+      profile = workspace.profile,
+      switches: readonly string[] = [],
+    ) => {
       const electron = await _electron.launch(
-        launchOptions({ app, profile, projectHome: workspace.repository }),
+        launchOptions({
+          app,
+          profile,
+          projectHome: workspace.repository,
+          switches,
+        }),
       );
       const desktop = new DesktopApp(electron, profile);
       launched.push(desktop);
@@ -434,11 +445,12 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       });
       return desktop;
     };
-    const launchSecondInstance = async () => {
+    const launchSecondInstance = async (url?: string) => {
       const options = launchOptions({
         app,
         profile: workspace.profile,
         projectHome: workspace.repository,
+        switches: url === undefined ? [] : [url],
       });
       const secondary = spawn(options.executablePath, options.args, {
         env: options.env,

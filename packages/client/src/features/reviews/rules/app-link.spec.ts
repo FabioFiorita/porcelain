@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { parseReviewAppLink } from './app-link.ts';
+import {
+  parseReviewAppLink,
+  parseDesktopReviewLink,
+  reviewDesktopUrl,
+} from './app-link.ts';
 
 const reviewId = '10000000-0000-4000-8000-000000000001';
 const decision = '20000000-0000-4000-8000-000000000002';
@@ -72,7 +76,9 @@ it.each([
   '&revision=9007199254740992',
   '&decision=../settings',
   '&host=second.com',
-  '&token=secret',
+  '&environment=second',
+  '&revision=3&revision=4',
+  `&decision=${decision}&decision=${decision}`,
   '#fragment',
 ])('rejects an ambiguous or invalid destination %s', (query) => {
   expect(parseReviewAppLink(`${link}${query}`)).toBeUndefined();
@@ -133,4 +139,72 @@ it.each([
       `${path}?environment=computer&host=${encodeURIComponent(host)}&protocol=http`,
     ),
   ).toBeUndefined();
+});
+
+it.each(['&future=value', '&future=one&future=two', '&token=secret'])(
+  'ignores unknown query keys %s',
+  (query) => {
+    expect(parseReviewAppLink(`${link}&revision=3${query}`)).toEqual({
+      reviewId,
+      environmentId: 'computer',
+      host: 'computer.example.com:8443',
+      revision: 3,
+      webUrl: `https://computer.example.com:8443/reviews/${reviewId}/3`,
+    });
+  },
+);
+it('reads the current server publication link', () => {
+  expect(
+    parseReviewAppLink(
+      'https://porcelain.fabiofiorita.com/open/reviews/b50dcb25-8d72-4c8b-8984-1f74c9423a77?environment=1bc3e6b1-f849-4176-93b2-850147d4ebb3&host=porcelain-beelink.fabiofiorita.com&protocol=https&revision=3',
+    ),
+  ).toEqual({
+    reviewId: 'b50dcb25-8d72-4c8b-8984-1f74c9423a77',
+    environmentId: '1bc3e6b1-f849-4176-93b2-850147d4ebb3',
+    host: 'porcelain-beelink.fabiofiorita.com',
+    protocol: 'https',
+    revision: 3,
+    webUrl:
+      'https://porcelain-beelink.fabiofiorita.com/reviews/b50dcb25-8d72-4c8b-8984-1f74c9423a77/3',
+  });
+});
+
+it('round-trips a desktop handoff without losing the host, HTTP, environment, revision or decision', () => {
+  const url = `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=localhost%3A5090&protocol=http&revision=3&decision=${decision}`;
+  const parsed = parseDesktopReviewLink(url);
+  expect(parsed).toEqual({
+    reviewId,
+    environmentId: 'computer',
+    host: 'localhost:5090',
+    protocol: 'http',
+    revision: 3,
+    decision,
+    webUrl: `http://localhost:5090/reviews/${reviewId}/3/decisions/${decision}`,
+  });
+  expect(parsed && reviewDesktopUrl(parsed)).toBe(url);
+});
+it('ignores future desktop handoff parameters without forwarding them', () => {
+  const parsed = parseDesktopReviewLink(
+    `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=computer.example.com&future=one&future=two`,
+  );
+  expect(parsed?.webUrl).toBe(
+    `https://computer.example.com/reviews/${reviewId}`,
+  );
+  expect(parsed && reviewDesktopUrl(parsed)).toBe(
+    `porcelain-desktop://open/reviews/${reviewId}?environment=computer&host=computer.example.com`,
+  );
+});
+it.each([
+  `porcelain://open/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://app/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://user:password@open/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://open:443/reviews/${reviewId}?environment=x&host=host`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host#fragment`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&host=evil.com`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&protocol=ftp`,
+  `porcelain-desktop://open/reviews/${reviewId}?environment=x&host=host&revision=0`,
+  `porcelain-desktop://open/settings?environment=x&host=host`,
+  `https://open/reviews/${reviewId}?environment=x&host=host`,
+])('rejects an invalid desktop handoff %s', (url) => {
+  expect(parseDesktopReviewLink(url)).toBeUndefined();
 });

@@ -113,6 +113,9 @@ export function desktopBuildSettings(
       ...(release === undefined
         ? {}
         : {
+            protocols: [
+              { name: 'Porcelain review', schemes: ['porcelain-desktop'] },
+            ],
             osxNotarize: {
               appleId: release.appleId,
               appleIdPassword: release.appleIdPassword,
