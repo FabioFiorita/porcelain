@@ -22,7 +22,7 @@ export function PreferencesScreen() {
             onChange={(theme) => setPreferences({ appearance: theme })}
           />
           <Box gap={3}>
-            <Text variant="subheading" tone="muted">
+            <Text variant="headline" tone="muted">
               Code
             </Text>
             <PreferenceChoice<boolean>
@@ -42,7 +42,7 @@ export function PreferencesScreen() {
             />
           </Box>
           <Box gap={3}>
-            <Text variant="subheading" tone="muted">
+            <Text variant="headline" tone="muted">
               Documents
             </Text>
             <PreferenceChoice<Preferences['documentsDefault']>

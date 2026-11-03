@@ -5,38 +5,36 @@ import {
   View,
   type PressableProps,
 } from 'react-native';
+import { hitTarget } from './hit-target';
+import { usePressRipple } from './press-ripple';
 const variants = {
-  default: 'border-transparent bg-primary',
-  secondary: 'border-transparent bg-secondary',
-  outline: 'border-border dark:bg-input/30',
-  ghost: 'border-transparent',
-  destructive: 'border-transparent bg-destructive/10 dark:bg-destructive/20',
-  link: 'border-transparent',
+  filled: 'bg-brand',
+  tonal: 'bg-foreground/10',
+  plain: '',
+  destructive: 'bg-destructive/10 dark:bg-destructive/20',
+  destructivePlain: '',
 };
 export const buttonTones = {
-  default: 'primaryForeground',
-  secondary: 'secondaryForeground',
-  outline: 'default',
-  ghost: 'default',
+  filled: 'brandForeground',
+  tonal: 'default',
+  plain: 'brand',
   destructive: 'destructive',
-  link: 'primary',
+  destructivePlain: 'destructive',
 } as const;
 const indicatorTones = {
-  default: 'accent-primary-foreground',
-  secondary: 'accent-secondary-foreground',
-  outline: 'accent-foreground',
-  ghost: 'accent-foreground',
+  filled: 'accent-brand-foreground',
+  tonal: 'accent-foreground',
+  plain: 'accent-brand',
   destructive: 'accent-destructive',
-  link: 'accent-primary',
+  destructivePlain: 'accent-destructive',
 };
 const sizes = {
-  default: 'min-h-9 px-3 py-1.5',
-  sm: 'min-h-8 px-2.5 py-1',
-  icon: 'min-h-9 w-9',
-  iconSm: 'min-h-8 w-8',
-  navigatorGroup: 'min-h-9 min-w-9 gap-2 rounded-md px-2 py-0',
-  navigatorPhoneGroup: 'min-h-9 min-w-9 gap-1.5 rounded-md px-1.5 py-0',
+  default: 'min-h-11 gap-2 px-5',
+  sm: 'min-h-8 gap-1.5 px-3.5',
+  icon: 'size-10',
+  iconSm: 'size-8',
 };
+
 export type ButtonSurfaceProps = Omit<
   PressableProps,
   | 'children'
@@ -46,6 +44,7 @@ export type ButtonSurfaceProps = Omit<
   | 'disabled'
   | 'onPress'
   | 'accessibilityLabel'
+  | 'android_ripple'
 > & {
   children: ReactNode;
   accessibilityLabel: string;
@@ -59,7 +58,7 @@ export type ButtonSurfaceProps = Omit<
 };
 export function ButtonSurface({
   children,
-  variant = 'default',
+  variant = 'filled',
   size = 'default',
   disabled = false,
   pending = false,
@@ -70,6 +69,9 @@ export function ButtonSurface({
   ...props
 }: ButtonSurfaceProps) {
   const unavailable = disabled || pending;
+  const icon = size === 'icon' || size === 'iconSm';
+  const surface = variants[variant] !== '';
+  const ripple = usePressRipple('glyph');
   return (
     <Pressable
       {...props}
@@ -78,8 +80,10 @@ export function ButtonSurface({
       accessibilityState={{ disabled: unavailable, busy: pending, expanded }}
       disabled={unavailable}
       hitSlop={hitSlop}
+      {...(icon && !surface && ripple ? { android_ripple: ripple } : {})}
       className={[
-        'min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent focus:border-ring disabled:opacity-50',
+        hitTarget,
+        'items-center justify-center rounded-full border border-transparent focus:border-ring disabled:opacity-50',
         className,
       ]
         .filter(Boolean)
@@ -88,12 +92,12 @@ export function ButtonSurface({
       {({ pressed }) => (
         <View
           className={[
-            'flex-row items-center gap-2 rounded-md border',
+            'flex-row items-center rounded-full',
             align === 'start' ? 'justify-start' : 'justify-center',
-            size === 'icon' || size === 'iconSm' ? '' : 'self-stretch',
+            icon ? '' : 'self-stretch',
             variants[variant],
             sizes[size],
-            pressed ? 'opacity-80' : '',
+            pressed ? (surface ? 'opacity-70' : 'opacity-50') : '',
           ]
             .filter(Boolean)
             .join(' ')}

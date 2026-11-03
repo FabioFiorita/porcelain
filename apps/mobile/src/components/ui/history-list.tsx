@@ -67,7 +67,6 @@ export function HistoryList({
               <View className="min-w-0 flex-1 border-b border-border">
                 <Item
                   title="Uncommitted changes"
-                  size="sm"
                   trailing={
                     <Text variant="caption" tone="muted">
                       {uncommitted}

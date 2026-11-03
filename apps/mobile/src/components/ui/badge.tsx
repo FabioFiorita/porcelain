@@ -1,9 +1,10 @@
 import { Pressable, View, type ViewProps } from 'react-native';
+import { hitTarget } from './hit-target';
 import { Icon, type IconName } from './icon';
 import { Text } from './text';
 const variants = {
   default: 'border-transparent bg-primary',
-  secondary: 'border-transparent bg-secondary',
+  secondary: 'border-transparent bg-foreground/10',
   outline: 'border-border bg-input/20 dark:bg-input/30',
   destructive: 'border-transparent bg-destructive/10 dark:bg-destructive/20',
   brand: 'border-transparent bg-brand',
@@ -52,7 +53,7 @@ export function Badge({
     <Text
       {...(onPress ? { accessible: false } : {})}
       numberOfLines={labelNumberOfLines}
-      variant="badge"
+      variant="caption"
       weight="medium"
       tone={tones[variant]}
       {...(icon ? { className: 'shrink' } : {})}
@@ -76,7 +77,7 @@ export function Badge({
         accessibilityRole="button"
         accessibilityLabel={props.accessibilityLabel ?? label}
         onPress={onPress}
-        className="min-h-11 min-w-11 self-start justify-center"
+        className={`${hitTarget} self-start justify-center`}
       >
         <View className={classes}>{content}</View>
       </Pressable>

@@ -179,7 +179,7 @@ export function HistoryFooter({
       <Box padding={4}>
         <Button
           label="Load older commits"
-          variant="outline"
+          variant="tonal"
           onPress={history.readMore}
         />
       </Box>

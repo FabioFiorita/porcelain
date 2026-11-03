@@ -44,7 +44,7 @@ export function ReviewComposer({
       <View className="flex-row justify-end gap-2">
         <Button
           label="Cancel"
-          variant="ghost"
+          variant="plain"
           onPress={onCancel}
           disabled={pending}
         />

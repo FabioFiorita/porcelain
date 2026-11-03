@@ -9,7 +9,7 @@ export function FilePath({
 }) {
   return (
     <Text
-      variant="ui"
+      variant="secondary"
       selectable
       numberOfLines={compact ? 1 : undefined}
       ellipsizeMode="middle"

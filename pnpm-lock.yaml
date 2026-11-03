@@ -294,9 +294,6 @@ importers:
       '@effect/atom-react':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)(react@19.3.0)(scheduler@0.27.0)
-      '@expo-google-fonts/geist':
-        specifier: 0.4.2
-        version: 0.4.2
       '@expo-google-fonts/geist-mono':
         specifier: 0.4.3
         version: 0.4.3
@@ -1702,9 +1699,6 @@ packages:
 
   '@expo-google-fonts/geist-mono@0.4.3':
     resolution: {integrity: sha512-gjnwv1QOG4meZpMhrLjTIPC/+lhyNu8EcXa2eJPVbPrYvguVjCfBq+Ezq6cWKWW8ung6fqb2TjvuTalE6lqlnw==}
-
-  '@expo-google-fonts/geist@0.4.2':
-    resolution: {integrity: sha512-cTsqJRQrvK5EniTVwH7UDK18RFf9Bc6yxciAuM936aViQ+eR6j3mLEI2rQkJXz5JP9kwtn8tHJviDyZ0ulH6oA==}
 
   '@expo-google-fonts/material-symbols@0.4.48':
     resolution: {integrity: sha512-aZztj44PyA/sj3TXSwwpLJwqMlTUJ49okbZJYURzEcuERxMQB0KbX7RrLBi8WJnuWz5HFOLlTRxORrJfNnUPNQ==}
@@ -8939,8 +8933,6 @@ snapshots:
       '@types/json-schema': 7.0.15
 
   '@expo-google-fonts/geist-mono@0.4.3': {}
-
-  '@expo-google-fonts/geist@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.48': {}
 

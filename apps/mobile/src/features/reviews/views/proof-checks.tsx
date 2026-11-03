@@ -9,7 +9,7 @@ export function ProofChecks({
 }) {
   return checks.map((check, index) => (
     <Box key={`${index}:${check.name}`} gap={1}>
-      <Text variant="ui" weight="medium">
+      <Text variant="secondary" weight="medium">
         {check.name} · {check.result}
       </Text>
       {check.output ? (

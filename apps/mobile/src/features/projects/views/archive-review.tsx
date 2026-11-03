@@ -42,7 +42,7 @@ function ArchiveReview(props: ArchiveTarget) {
     <>
       <Button
         label="Archive"
-        variant="outline"
+        variant="tonal"
         disabled={!settings}
         pending={result.waiting}
         onPress={() => {

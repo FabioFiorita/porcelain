@@ -8,10 +8,11 @@ import { Field } from '../../../components/ui/field';
 import { Badge } from '../../../components/ui/badge';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
+import { Card } from '../../../components/ui/card';
+import { StatusTile } from '../../../components/ui/status-tile';
 import { Empty } from '../../../components/ui/empty';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Icon } from '../../../components/ui/icon';
 import { Button } from '../../../components/ui/button';
 import { FileHeader } from '../../../components/ui/file-header';
 import { FileNotice } from '../../../components/ui/file-notice';
@@ -48,10 +49,10 @@ export function PrimitivePreview({ name }: { name: string }) {
     return (
       <Box className="flex-1" surface="background">
         <Box padding={6}>
-          <Text variant="heading">FileTree</Text>
+          <Text variant="title">FileTree</Text>
         </Box>
         <Box paddingX={6}>
-          <Text variant="ui">Selected: {selected || 'none'}</Text>
+          <Text variant="secondary">Selected: {selected || 'none'}</Text>
           <Text variant="caption">Menu action: {value || 'none'}</Text>
         </Box>
         <FileTree
@@ -106,7 +107,7 @@ export function PrimitivePreview({ name }: { name: string }) {
     return (
       <Box className="flex-1" surface="background">
         <Box padding={6}>
-          <Text variant="heading">History</Text>
+          <Text variant="title">History</Text>
         </Box>
         <HistoryList
           entries={[
@@ -140,7 +141,7 @@ export function PrimitivePreview({ name }: { name: string }) {
       contentInsetAdjustmentBehavior="automatic"
     >
       <Box gap={6} paddingX={6} paddingY={8}>
-        <Text variant="heading">{name}</Text>
+        <Text variant="title">{name}</Text>
         {name === 'Badge' ? (
           <Box className="flex-row flex-wrap" gap={3}>
             {(
@@ -163,27 +164,32 @@ export function PrimitivePreview({ name }: { name: string }) {
         ) : null}
         {name === 'Item' ? (
           <>
-            <Text variant="ui">Actions: {actions}</Text>
-            <Item
-              title="Default item"
-              description="A title with supporting text"
-              leading={<Icon name="file" />}
-              trailing={<Badge label="Modified" variant="secondary" />}
-              onPress={() => setActions(actions + 1)}
-            />
-            <Separator />
-            <Item
-              title="Selected item"
-              selected
-              variant="outline"
-              onPress={() => setActions(actions + 1)}
-            />
-            <Item
-              title="Disabled item"
-              disabled
-              onPress={() => setActions(actions + 1)}
-            />
-            <Item title="Compact item" size="xs" variant="muted" />
+            <Text variant="secondary">Actions: {actions}</Text>
+            <Card>
+              <Item
+                title="Default item"
+                description="A title with supporting text"
+                leading={<StatusTile name="file" tone="muted" />}
+                trailing={<Badge label="Modified" variant="secondary" />}
+                onPress={() => setActions(actions + 1)}
+              />
+              <Separator inset="leading" />
+              <Item
+                title="Selected item"
+                description="Selected rows use a tonal fill"
+                leading={<StatusTile name="reviewWaiting" tone="muted" />}
+                selected
+                onPress={() => setActions(actions + 1)}
+              />
+              <Separator inset="leading" />
+              <Item
+                title="Disabled item"
+                leading={<StatusTile name="reviewDone" tone="add" />}
+                disabled
+                onPress={() => setActions(actions + 1)}
+              />
+            </Card>
+            <Item title="Compact item" size="compact" />
           </>
         ) : null}
         {name === 'States' ? (
@@ -196,7 +202,7 @@ export function PrimitivePreview({ name }: { name: string }) {
                 onPress: () => setActions(actions + 1),
               }}
             />
-            <Text variant="ui">Retries: {actions}</Text>
+            <Text variant="secondary">Retries: {actions}</Text>
             <Empty
               icon="folder"
               title="No changed files"
@@ -221,7 +227,7 @@ export function PrimitivePreview({ name }: { name: string }) {
                   <Button
                     label="File action"
                     size="sm"
-                    variant="ghost"
+                    variant="plain"
                     onPress={() => setActions(actions + 1)}
                   />
                 }
@@ -252,23 +258,22 @@ export function PrimitivePreview({ name }: { name: string }) {
               }}
               onCancel={() => setValue('')}
             />
-            <Text variant="ui">Comments: {actions}</Text>
+            <Text variant="secondary">Comments: {actions}</Text>
           </>
         ) : null}
         {name === 'IconButton' ? (
           <>
-            <Text variant="ui">Actions: {actions}</Text>
+            <Text variant="secondary">Actions: {actions}</Text>
             <Box className="flex-row" gap={3}>
               <IconButton
                 icon="add"
                 accessibilityLabel="Add example"
-                variant="default"
+                variant="filled"
                 onPress={() => setActions(actions + 1)}
               />
               <IconButton
                 icon="copy"
                 accessibilityLabel="Copy example"
-                variant="outline"
                 onPress={() => setActions(actions + 1)}
               />
               <IconButton
@@ -296,7 +301,7 @@ export function PrimitivePreview({ name }: { name: string }) {
                 onChangeText={setValue}
               />
             </Field>
-            <Text variant="ui">Value: {value || 'empty'}</Text>
+            <Text variant="secondary">Value: {value || 'empty'}</Text>
             <Field label="Comment">
               <Input
                 accessibilityLabel="Comment"

@@ -93,7 +93,7 @@ function ServiceUpdateAction({ target }: { target: ServiceUpdateTarget }) {
     return (
       <Button
         label={`Update to ${version}`}
-        variant="outline"
+        variant="tonal"
         disabled={batch.running}
         onPress={() => run([target])}
       />
@@ -117,18 +117,20 @@ function TrustInstructions({
   return (
     <Box gap={2}>
       <ButtonSurface
-        variant="outline"
+        variant="tonal"
         onPress={() => setExpanded(!expanded)}
         accessibilityLabel={`${expanded ? 'Hide trust instructions' : 'Needs trust'} for ${target.name}`}
       >
         <Icon name="lock" />
-        <Text variant="ui" weight="medium">
+        <Text variant="secondary" weight="medium">
           {expanded ? 'Hide trust instructions' : trust.label}
         </Text>
       </ButtonSurface>
       {expanded ? (
         <Box gap={2}>
-          <Text variant="ui">This device can’t update {target.name} yet.</Text>
+          <Text variant="secondary">
+            This device can’t update {target.name} yet.
+          </Text>
           <Text variant="caption" selectable>
             {trust.hint}
           </Text>
@@ -141,12 +143,12 @@ function TrustInstructions({
               {trust.deviceId}
             </Text>
           ) : null}
-          <Text variant="small" tone="muted">
+          <Text variant="caption" tone="muted">
             Touch and hold the device ID to copy. After allowing updates, check
             again.
           </Text>
           <Button
-            variant="ghost"
+            variant="plain"
             label="Check updates again"
             onPress={refresh}
           />

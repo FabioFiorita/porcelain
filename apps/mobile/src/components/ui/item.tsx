@@ -1,16 +1,16 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { hitHeight } from './hit-target';
+import { usePressRipple } from './press-ripple';
 import { Text } from './text';
 import { itemAccessibilityLabel } from '../../shared/rules/item-label.ts';
-const variants = {
-  default: 'border-transparent',
-  outline: 'border-border',
-  muted: 'border-transparent bg-muted/50',
-};
 const sizes = {
-  default: 'gap-2.5 px-3 py-2.5',
-  sm: 'gap-2.5 px-3 py-2.5',
-  xs: 'gap-2 px-2.5 py-2',
+  default: { row: 'gap-3 px-4 py-3', oneLine: 'min-h-12', twoLine: 'min-h-16' },
+  compact: {
+    row: 'gap-2.5 px-3 py-2',
+    oneLine: hitHeight,
+    twoLine: 'min-h-14',
+  },
 };
 export type ItemProps = {
   title: string;
@@ -24,7 +24,6 @@ export type ItemProps = {
   trailing?: ReactNode;
   action?: ReactNode;
   children?: ReactNode;
-  variant?: keyof typeof variants;
   size?: keyof typeof sizes;
   selected?: boolean;
   disabled?: boolean;
@@ -45,7 +44,6 @@ export function Item({
   trailing,
   action,
   children,
-  variant = 'default',
   size = 'default',
   selected = false,
   disabled = false,
@@ -54,24 +52,26 @@ export function Item({
   accessibilityLabel,
   testID,
 }: ItemProps) {
+  const ripple = usePressRipple('bounded');
+  const pressable = Boolean(onPress || onLongPress);
   const className = [
-    'min-h-11 flex-row items-center rounded-md border',
-    variants[variant],
-    sizes[size],
-    selected ? 'bg-accent' : '',
+    'flex-row items-center',
+    sizes[size].row,
+    description || children ? sizes[size].twoLine : sizes[size].oneLine,
+    selected ? 'bg-brand-soft' : '',
     disabled ? 'opacity-50' : '',
-    onPress || onLongPress ? 'active:bg-muted' : '',
+    pressable ? 'active:bg-accent' : '',
   ]
     .filter(Boolean)
     .join(' ');
   const content = (
     <>
       {leading}
-      <View className="w-0 min-w-0 flex-1 shrink gap-1">
+      <View className="w-0 min-w-0 flex-1 shrink gap-0.5">
         {titleTrailing || detail ? (
           <View className="w-full min-w-0 flex-row items-center gap-2">
             <Text
-              variant="ui"
+              variant="body"
               weight="medium"
               numberOfLines={titleNumberOfLines}
               className="w-0 min-w-0 flex-1"
@@ -94,7 +94,7 @@ export function Item({
           </View>
         ) : (
           <Text
-            variant="ui"
+            variant="body"
             weight="medium"
             numberOfLines={titleNumberOfLines}
             decoration={titleDecoration}
@@ -104,7 +104,7 @@ export function Item({
         )}
         {description ? (
           <Text
-            variant="caption"
+            variant="secondary"
             tone="muted"
             numberOfLines={descriptionNumberOfLines}
           >
@@ -116,34 +116,34 @@ export function Item({
       {trailing}
     </>
   );
-  const row =
-    onPress || onLongPress ? (
-      <Pressable
-        testID={testID}
-        accessibilityRole="button"
-        accessibilityLabel={itemAccessibilityLabel({
-          title,
-          description,
-          accessibilityLabel,
-          hasAdditionalContent: Boolean(
-            leading || trailing || titleTrailing || detail || children,
-          ),
-        })}
-        accessibilityState={{ selected, disabled }}
-        disabled={disabled}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        className={
-          action ? 'min-w-0 flex-1 flex-row items-center gap-3' : className
-        }
-      >
-        {content}
-      </Pressable>
-    ) : (
-      <View testID={testID} className={className}>
-        {content}
-      </View>
-    );
+  const row = pressable ? (
+    <Pressable
+      {...(ripple ? { android_ripple: ripple } : {})}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={itemAccessibilityLabel({
+        title,
+        description,
+        accessibilityLabel,
+        hasAdditionalContent: Boolean(
+          leading || trailing || titleTrailing || detail || children,
+        ),
+      })}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      className={
+        action ? 'min-w-0 flex-1 flex-row items-center gap-3' : className
+      }
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View testID={testID} className={className}>
+      {content}
+    </View>
+  );
   return action ? (
     <View className={className}>
       {row}

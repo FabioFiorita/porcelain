@@ -182,7 +182,6 @@ function FileTreeItem({
         ? { detail: parent }
         : {}),
     titleNumberOfLines: 1,
-    size: 'sm',
     selected: path === selected,
     accessibilityLabel: [
       availability === 'unavailable'

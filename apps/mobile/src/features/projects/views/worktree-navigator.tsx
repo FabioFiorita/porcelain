@@ -30,6 +30,7 @@ import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
+import { hitHeight } from '../../../components/ui/hit-target';
 import { Item } from '../../../components/ui/item';
 import { Badge } from '../../../components/ui/badge';
 import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
@@ -130,14 +131,14 @@ export function WorktreeNavigator({
     return (
       <Box className="flex-1" testID="worktree-navigator">
         <Box paddingX={4} paddingY={3} gap={2}>
-          <Text variant="subheading">No computers paired</Text>
+          <Text variant="headline">No computers paired</Text>
           <Text variant="caption" tone="muted">
             Pair a computer to see its worktrees and reviews here.
           </Text>
           <Box className="items-start">
             <Button
               label="Add computer"
-              variant="outline"
+              variant="tonal"
               onPress={openComputers}
             />
           </Box>
@@ -199,7 +200,7 @@ export function WorktreeNavigator({
             <Box key={project.key} gap={2}>
               <Box className="flex-row items-center" gap={1}>
                 <Text
-                  variant="navigatorCaption"
+                  variant="secondary"
                   weight="medium"
                   numberOfLines={1}
                   className="min-w-0 flex-1"
@@ -252,10 +253,10 @@ export function WorktreeNavigator({
                           titleNumberOfLines={1}
                           titleTrailing={
                             number !== undefined ? (
-                              <Box className="h-11" accessible={false} />
+                              <Box className={hitHeight} accessible={false} />
                             ) : undefined
                           }
-                          size="xs"
+                          size="compact"
                           leading={
                             <Icon
                               name={
@@ -278,7 +279,7 @@ export function WorktreeNavigator({
                           action={
                             review && number !== undefined ? (
                               <ButtonSurface
-                                variant="ghost"
+                                variant="plain"
                                 size="sm"
                                 className="self-start"
                                 disabled={picker.disabled}
@@ -394,7 +395,7 @@ export function WorktreeNavigator({
         {picker.canReadInventory || messages.length > 0 ? (
           <Button
             label="Read projects again"
-            variant="outline"
+            variant="tonal"
             pending={reading || loading}
             onPress={() => retry(undefined)}
           />
@@ -447,13 +448,13 @@ export function WorktreeNavigator({
               <Box className="flex-row" gap={2}>
                 <Button
                   label="Retry"
-                  variant="outline"
+                  variant="tonal"
                   pending={retryResult.waiting}
                   onPress={() => retry({ environmentId: issue.environmentId })}
                 />
                 <Button
                   label={details ? 'Hide details' : 'Details'}
-                  variant="ghost"
+                  variant="plain"
                   onPress={() => setDetails((current) => !current)}
                 />
               </Box>

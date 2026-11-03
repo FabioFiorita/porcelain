@@ -10,13 +10,12 @@ export default function DevelopmentSettingsSection({
 }) {
   return (
     <Box gap={3}>
-      <Text variant="subheading" tone="muted">
+      <Text variant="headline" tone="muted">
         Development
       </Text>
       <Item
         title="Component library"
         description="Preview Porcelain’s controls and native components."
-        variant="outline"
         onPress={onOpenComponentLibrary}
       />
       <DevelopmentCredentials />

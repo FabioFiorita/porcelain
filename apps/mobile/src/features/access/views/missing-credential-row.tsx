@@ -41,13 +41,13 @@ export function MissingCredentialRecovery({
         <Box className="flex-row flex-wrap" gap={2}>
           <Button
             label="Pair again"
-            variant="outline"
+            variant="tonal"
             disabled={disabled || command.result.waiting}
             onPress={() => setPairing(true)}
           />
           <Button
             label="Forget computer"
-            variant="destructive"
+            variant="destructivePlain"
             disabled={disabled}
             pending={command.result.waiting}
             onPress={() => command.forget()}

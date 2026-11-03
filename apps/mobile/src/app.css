@@ -3,6 +3,5 @@
 @import '@porcelain/theme/tokens.css';
 
 @theme {
-  --font-sans: 'Geist';
   --font-mono: 'Geist Mono';
 }

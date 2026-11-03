@@ -68,7 +68,7 @@ function HtmlContent({
       <View className="flex-row justify-end border-b border-border p-2">
         <Button
           label={source ? 'Show preview' : 'Show source'}
-          variant="ghost"
+          variant="plain"
           size="sm"
           onPress={() => setSource(!source)}
         />

@@ -23,7 +23,7 @@ export default function DevelopmentPairEnvironmentForm(
         reset: development.reset,
         renderControl: ({ disabled, onStart, onLink }) => (
           <Box gap={2}>
-            <Text variant="ui" tone="muted">
+            <Text variant="secondary" tone="muted">
               Create a pairing link for this development server, then select
               Pair.
             </Text>
@@ -34,7 +34,7 @@ export default function DevelopmentPairEnvironmentForm(
                   ? 'Creating pairing link…'
                   : 'Use development server'
               }
-              variant="outline"
+              variant="tonal"
               pending={development.result.waiting}
               disabled={disabled}
               onPress={() => {
@@ -43,7 +43,11 @@ export default function DevelopmentPairEnvironmentForm(
               }}
             />
             {AsyncResult.isFailure(development.result) ? (
-              <Text accessibilityRole="alert" variant="ui" tone="destructive">
+              <Text
+                accessibilityRole="alert"
+                variant="secondary"
+                tone="destructive"
+              >
                 {String(Cause.squash(development.result.cause))}
               </Text>
             ) : null}

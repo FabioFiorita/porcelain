@@ -48,7 +48,6 @@ export function DecisionBar({
       <Box className="flex-row items-center" gap={2}>
         <IconButton
           icon="previous"
-          variant="outline"
           accessibilityLabel={
             previous ? `Previous stop: ${stopTitle(previous)}` : 'Previous stop'
           }
@@ -58,7 +57,7 @@ export function DecisionBar({
         <Box className="flex-1">
           <Button
             label={label}
-            variant={finished ? 'outline' : 'default'}
+            variant={finished ? 'tonal' : 'filled'}
             accessibilityLabel={markName}
             disabled={disabled || (finished && !layer)}
             pending={pending}
@@ -71,13 +70,11 @@ export function DecisionBar({
         </Box>
         <IconButton
           icon="comment"
-          variant="outline"
           accessibilityLabel={`Comment on ${stopTitle(stop)}`}
           onPress={onComment}
         />
         <IconButton
           icon="chevron"
-          variant="outline"
           accessibilityLabel={
             next ? `Next stop: ${stopTitle(next)}` : 'Next stop'
           }

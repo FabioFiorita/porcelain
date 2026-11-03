@@ -267,7 +267,11 @@ function DeleteWorktreeOptions({
             className="flex-row items-center justify-between"
             gap={2}
           >
-            <Text variant="ui" weight="medium" className="min-w-0 flex-1">
+            <Text
+              variant="secondary"
+              weight="medium"
+              className="min-w-0 flex-1"
+            >
               {label}
             </Text>
             <Switch

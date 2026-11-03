@@ -23,7 +23,7 @@ export function Sheet({ title, layout = 'scroll', children }: SheetProps) {
       <View className="min-h-14 flex-row items-center gap-2 pl-6 pr-2">
         <View className="min-w-0 flex-1">
           <Text
-            variant="heading"
+            variant="title"
             weight="medium"
             numberOfLines={1}
             accessibilityRole="header"

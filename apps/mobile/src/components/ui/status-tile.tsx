@@ -5,7 +5,7 @@ const tones = {
   brand: { surface: 'bg-brand-soft', icon: 'brand' },
   add: { surface: 'bg-add-bg', icon: 'add' },
   warn: { surface: 'bg-warn-soft', icon: 'muted' },
-  muted: { surface: 'bg-muted', icon: 'muted' },
+  muted: { surface: 'bg-foreground/10', icon: 'muted' },
 } as const;
 
 export function StatusTile({

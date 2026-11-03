@@ -36,13 +36,13 @@ export function ComparisonMenu({
           <ButtonSurface
             className="max-w-full"
             accessibilityLabel={label}
-            variant="outline"
+            variant="tonal"
             size="sm"
             onPress={open}
           >
             <Text
               accessible={false}
-              variant="control"
+              variant="secondary"
               weight="medium"
               numberOfLines={1}
               className="shrink"

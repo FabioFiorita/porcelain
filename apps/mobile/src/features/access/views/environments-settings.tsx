@@ -59,7 +59,7 @@ function EnvironmentSettingsSection({
         remotes.length === 0 &&
         missing.length === 0 ? (
           <Card gap={2} padding={4}>
-            <Text variant="ui" weight="medium">
+            <Text variant="secondary" weight="medium">
               No computers paired.
             </Text>
             <Text variant="caption" tone="muted">

@@ -113,7 +113,7 @@ function ReviewToggle({
             file.path,
             file.reviewStatus,
           )}
-          variant="outline"
+          variant="tonal"
           pending={pending}
           onPress={() => {
             if (pending || !file.fingerprint) return;

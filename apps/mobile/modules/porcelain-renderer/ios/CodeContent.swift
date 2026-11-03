@@ -12,7 +12,7 @@ struct CodeContent: View {
   @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
   private var codeSize: CGFloat { model.tokens.codeSize * textScale }
   private var codeFont: Font { .custom("GeistMono-Regular", fixedSize: codeSize) }
-  private var captionFont: Font { .custom("Geist-Regular", fixedSize: model.tokens.captionSize * textScale) }
+  private var captionFont: Font { .system(size: model.tokens.captionSize * textScale) }
   var body: some View {
     let gutterWidth = textWidth(AttributedString(String(repeating: "0", count: model.gutterDigits)), fallbackFont: codeFont) + model.tokens.inset
     GeometryReader { viewport in

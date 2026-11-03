@@ -24,7 +24,7 @@ export function ComponentExplorer() {
           contentInsetAdjustmentBehavior="automatic"
         >
           <Box gap={1} padding={4}>
-            <Text variant="subheading" tone="muted">
+            <Text variant="headline" tone="muted">
               Components
             </Text>
             {componentNames.map((name) => (

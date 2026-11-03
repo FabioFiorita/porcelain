@@ -10,7 +10,7 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
         size="small"
         colorClassName="accent-muted-foreground"
       />
-      <Text variant="ui" tone="muted">
+      <Text variant="secondary" tone="muted">
         {label}
       </Text>
     </View>

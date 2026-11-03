@@ -13,7 +13,7 @@ struct MarkdownContent: View {
     var result = AttributedString()
     for run in block.runs {
       var part = AttributedString(run.text)
-      var font = Font.custom(run.code == true || block.kind == "code" ? "GeistMono-Regular" : "Geist-Regular", fixedSize: fontSize(block))
+      var font = run.code == true || block.kind == "code" ? Font.custom("GeistMono-Regular", fixedSize: fontSize(block)) : Font.system(size: fontSize(block))
       if run.bold == true || block.kind == "heading" { font = font.bold() }
       if run.italic == true { font = font.italic() }
       part.font = font

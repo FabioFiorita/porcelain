@@ -64,14 +64,14 @@ export function DocumentComments({
     <>
       <Button
         label={showComments ? 'Hide comments' : 'Comments'}
-        variant="outline"
+        variant="tonal"
         size="sm"
         onPress={() => setShowComments(!showComments)}
       />
       {selection ? (
         <Button
           label="Clear selection"
-          variant="ghost"
+          variant="plain"
           size="sm"
           disabled={composing !== undefined}
           onPress={() => setSelected(undefined)}

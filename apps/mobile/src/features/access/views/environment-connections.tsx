@@ -56,7 +56,7 @@ export function EnvironmentConnections({
       {routes.map((route, index) => (
         <Box key={route.address} gap={2}>
           <Box className="flex-row flex-wrap items-center" gap={2}>
-            <Text variant="ui" weight="medium">
+            <Text variant="secondary" weight="medium">
               {connectionRouteTitle(route.address)}
             </Text>
             {index === 0 ? <Badge label="Preferred" variant="outline" /> : null}
@@ -73,7 +73,7 @@ export function EnvironmentConnections({
           <Box className="flex-row flex-wrap" gap={2}>
             {index > 0 ? (
               <Button
-                variant="outline"
+                variant="tonal"
                 label="Prefer"
                 accessibilityLabel={`Prefer connection ${route.address}`}
                 disabled={unavailable}
@@ -83,7 +83,7 @@ export function EnvironmentConnections({
               />
             ) : null}
             <Button
-              variant="ghost"
+              variant="destructivePlain"
               label="Remove connection"
               accessibilityLabel={`Remove connection ${route.address}`}
               disabled={unavailable || routes.length === 1}
@@ -100,7 +100,7 @@ export function EnvironmentConnections({
         </Text>
       ) : null}
       {AsyncResult.isFailure(command.result) ? (
-        <Text accessibilityRole="alert" variant="ui" tone="destructive">
+        <Text accessibilityRole="alert" variant="secondary" tone="destructive">
           {connectionErrorMessage(Cause.squash(command.result.cause))}
         </Text>
       ) : null}
@@ -112,7 +112,7 @@ export function EnvironmentConnections({
         />
       ) : (
         <Button
-          variant="outline"
+          variant="tonal"
           label="Add connection"
           disabled={unavailable}
           onPress={() => setAdding(true)}

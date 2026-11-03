@@ -58,7 +58,7 @@ export function AgentFeedback(input: AgentFeedbackInput) {
           <Button
             label="Disconnect session"
             size="sm"
-            variant="outline"
+            variant="tonal"
             pending={view.disconnecting}
             disabled={!view.canDisconnect}
             onPress={() => act('disconnect')}

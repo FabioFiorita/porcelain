@@ -1,6 +1,6 @@
 import '../app.css';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { StatusBar, type ColorValue } from 'react-native';
 import { useCSSVariable, useUniwind } from 'uniwind';
 import { ShellStartup } from './shell-startup';
 import { RegistryProvider, useAtomMount } from '@effect/atom-react';
@@ -43,6 +43,9 @@ function ThemedShell() {
         },
       }}
     >
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+      />
       <ShellStartup />
     </ThemeProvider>
   );

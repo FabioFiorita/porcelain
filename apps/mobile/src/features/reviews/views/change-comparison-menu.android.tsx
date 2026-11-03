@@ -18,7 +18,7 @@ export function ChangeComparisonMenu({
       {(open) => (
         <Button
           label={`Comparison: ${current ?? 'None'}`}
-          variant="outline"
+          variant="tonal"
           size="sm"
           onPress={open}
         />

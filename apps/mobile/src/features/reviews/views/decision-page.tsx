@@ -97,7 +97,7 @@ export function DecisionPage({
         ) : null}
       </Box>
       <Box gap={2}>
-        <Text variant="heading" accessibilityRole="header" selectable>
+        <Text variant="title" accessibilityRole="header" selectable>
           {layer.title}
         </Text>
         <Text variant="body" tone="muted" selectable>
@@ -143,16 +143,16 @@ export function DecisionPage({
       ) : null}
       {decisionQuestions(review, stop).map((part) => (
         <Card key={part.id} variant="warning" padding={4} gap={2}>
-          <Text variant="ui" weight="medium">
+          <Text variant="secondary" weight="medium">
             Needs your decision · {part.label}
           </Text>
-          <Text variant="ui" selectable>
+          <Text variant="secondary" selectable>
             {part.problem}
           </Text>
           <Button
             label="Answer"
             accessibilityLabel={`Answer: ${part.label}`}
-            variant="outline"
+            variant="tonal"
             size="sm"
             onPress={() => onComment(questionAnswer(part.problem ?? '', ''))}
           />
@@ -172,7 +172,7 @@ export function DecisionPage({
                     ? 'Show fewer steps'
                     : `Show all ${layer.steps.length} steps`
                 }
-                variant="link"
+                variant="plain"
                 onPress={() => setAllSteps(!allSteps)}
               />
             ) : null}
@@ -182,7 +182,7 @@ export function DecisionPage({
             return (
               <Item
                 key={step.id}
-                size="xs"
+                size="compact"
                 title={step.title}
                 titleNumberOfLines={2}
                 description={[
@@ -225,7 +225,7 @@ export function DecisionPage({
           key={file.path}
           label={`${file.path} · shown in ${elsewhereLabel(review, file.stop)}`}
           accessibilityLabel={`Open owning stop for ${file.path}`}
-          variant="link"
+          variant="plain"
           onPress={() => go(file.stop)}
         />
       ))}
@@ -296,7 +296,7 @@ export function RevisionDiffs({
       {files.length > shown ? (
         <Button
           label="Read more files"
-          variant="outline"
+          variant="tonal"
           onPress={() => setShown(shown + DECISION_DIFF_FILES)}
         />
       ) : null}
@@ -414,7 +414,7 @@ function FileDiff({
       {folded.unplaced.map((thread) => (
         <Item
           key={thread.id}
-          size="xs"
+          size="compact"
           title={threadSummary(thread)}
           description={unplacedLabel(thread, revision)}
           leading={<Icon name="comment" tone="muted" />}

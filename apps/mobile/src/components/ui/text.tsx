@@ -4,31 +4,35 @@ import {
 } from 'react-native';
 
 const variants = {
-  body: 'text-base leading-6',
-  ui: 'text-ui leading-5',
-  control: 'text-sm leading-5',
-  controlLink: 'text-sm leading-5 underline',
-  badge: 'text-xs leading-4.5',
-  caption: 'text-caption leading-5',
-  small: 'text-2xs leading-4',
-  heading: 'text-xl leading-7',
-  subheading: 'text-sm leading-5',
-  code: 'text-ui leading-5',
-  link: 'text-ui leading-5 underline',
-  navigatorTitle: 'text-sm leading-5',
-  navigatorPhoneTitle: 'text-base leading-5.25 tracking-[-0.01em]',
-  navigatorCaption: 'text-ui leading-4.5',
-  navigatorProgress: 'text-ui leading-5 tabular-nums',
-  navigatorPhoneProgress: 'text-sm leading-5.25 tabular-nums',
-  navigatorCount: 'text-ui leading-4.5 tabular-nums',
+  largeTitle: 'text-[28px] leading-[34px]',
+  title: 'text-xl leading-7',
+  headline: 'text-base leading-5.5',
+  body: 'text-base leading-5.5',
+  secondary: 'text-sm leading-5',
+  caption: 'text-xs leading-4',
+  code: 'font-mono text-[13px] leading-5',
 };
+
+const headings = new Set<keyof typeof variants>([
+  'largeTitle',
+  'title',
+  'headline',
+]);
+
+const defaultWeights = {
+  largeTitle: 'bold',
+  title: 'semibold',
+  headline: 'semibold',
+  body: 'normal',
+  secondary: 'normal',
+  caption: 'normal',
+  code: 'normal',
+} as const;
 
 const tones = {
   default: 'text-foreground',
   muted: 'text-muted-foreground',
   destructive: 'text-destructive',
-  card: 'text-card-foreground',
-  primary: 'text-primary',
   brand: 'text-brand',
   brandForeground: 'text-brand-foreground',
   add: 'text-add-fg',
@@ -41,6 +45,7 @@ const weights = {
   normal: 'font-normal',
   medium: 'font-medium',
   semibold: 'font-semibold',
+  bold: 'font-bold',
 };
 
 type TextProps = Omit<NativeTextProps, 'style'> & {
@@ -59,23 +64,17 @@ export function Text({
   accessibilityRole,
   ...props
 }: TextProps) {
-  const heading = variant === 'heading' || variant === 'subheading';
-  const defaultWeight =
-    variant === 'heading'
-      ? 'semibold'
-      : variant === 'subheading'
-        ? 'medium'
-        : 'normal';
   return (
     <NativeText
       {...props}
-      accessibilityRole={accessibilityRole ?? (heading ? 'header' : undefined)}
+      accessibilityRole={
+        accessibilityRole ?? (headings.has(variant) ? 'header' : undefined)
+      }
       className={[
-        variant === 'code' ? 'font-mono' : 'font-sans',
         variants[variant],
         tones[tone],
-        weights[weight ?? defaultWeight],
-        decoration === 'line-through' ? 'line-through' : '',
+        weights[weight ?? defaultWeights[variant]],
+        decoration ?? '',
         className,
       ]
         .filter(Boolean)

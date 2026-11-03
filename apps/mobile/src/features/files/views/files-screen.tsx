@@ -273,7 +273,7 @@ function FilesNavigationView({
       </Box>
       {knownPath ? (
         <ButtonSurface
-          variant="outline"
+          variant="tonal"
           size="sm"
           accessibilityLabel={`Open path ${knownPath}`}
           onPress={() => open(knownPath)}
@@ -289,7 +289,7 @@ function FilesNavigationView({
         </Box>
         {preferenceEntries.hidden.size > 0 ? (
           <ButtonSurface
-            variant="link"
+            variant="plain"
             size="sm"
             accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
             onPress={() => setShowHidden((current) => !current)}

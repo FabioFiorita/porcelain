@@ -565,7 +565,7 @@ function SelectableContent({
         {selection ? (
           <Button
             label="Clear selection"
-            variant="ghost"
+            variant="plain"
             onPress={() => setSelected(undefined)}
           />
         ) : null}
@@ -636,7 +636,7 @@ function CommentAction({
   return (
     <Button
       label={label}
-      variant="outline"
+      variant="tonal"
       disabled={!anchor}
       onPress={() => {
         if (anchor)

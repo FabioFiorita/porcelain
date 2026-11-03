@@ -1,12 +1,15 @@
-import {
-  ButtonSurface,
-  buttonTones,
-  type ButtonSurfaceProps,
-} from './button-surface';
+import { ButtonSurface, type ButtonSurfaceProps } from './button-surface';
 import { Icon, type IconName } from './icon';
+const glyphTones = {
+  filled: 'brandForeground',
+  tonal: 'default',
+  plain: 'default',
+  destructive: 'destructive',
+  destructivePlain: 'destructive',
+} as const;
 export function IconButton({
   icon,
-  variant = 'ghost',
+  variant = 'plain',
   size = 'default',
   pending = false,
   ...props
@@ -24,8 +27,8 @@ export function IconButton({
       {pending ? null : (
         <Icon
           name={icon}
-          tone={buttonTones[variant]}
-          size={size === 'sm' ? 'control' : 'default'}
+          tone={glyphTones[variant]}
+          size={size === 'sm' ? 'control' : 'glyph'}
         />
       )}
     </ButtonSurface>
