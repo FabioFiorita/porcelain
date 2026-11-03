@@ -92,8 +92,8 @@ export const startLocalServer = Effect.fn('startLocalServer')(function* (
         command: process.execPath,
         args: [
           ...(app.isPackaged ? [] : [app.getAppPath()]),
-          WATCH_HOST_SWITCH,
-          join(settings.profile, 'watch-host'),
+          ...(app.commandLine.hasSwitch('no-sandbox') ? ['--no-sandbox'] : []),
+          `${WATCH_HOST_SWITCH}=${join(settings.profile, 'watch-host')}`,
         ],
       },
     });
