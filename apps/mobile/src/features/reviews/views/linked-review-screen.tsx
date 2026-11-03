@@ -334,16 +334,20 @@ function LinkedReviewContent({
           <Text variant="caption" tone="muted">
             {revision.branch} · Revision {revision.revision}
           </Text>
-          <AgentFeedback
-            connection={connection}
-            reviewId={revision.reviewId}
-            reviewRevision={revision.revision}
-            writable={false}
-          />
-          <PullRequestState
-            connection={connection}
-            reviewId={revision.reviewId}
-          />
+          {stop.kind === 'briefing' ? (
+            <>
+              <AgentFeedback
+                connection={connection}
+                reviewId={revision.reviewId}
+                reviewRevision={revision.revision}
+                writable={false}
+              />
+              <PullRequestState
+                connection={connection}
+                reviewId={revision.reviewId}
+              />
+            </>
+          ) : null}
           {place !== stop.key ? (
             <ErrorState message="This decision is not in this revision." />
           ) : null}
