@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import {
   createServer,
   type IncomingMessage,
@@ -13,13 +13,20 @@ import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
 
 async function relayThroughOwner(
-  answer: (request: IncomingMessage, response: ServerResponse) => void,
+  answer: (
+    request: IncomingMessage,
+    response: ServerResponse,
+    body: string,
+  ) => void,
   messages: readonly unknown[],
 ): Promise<unknown[]> {
   const directory = await mkdtemp(join(tmpdir(), 'pc-mcp-bridge-'));
   const server = createServer((request, response) => {
-    request.resume();
-    request.once('end', () => answer(request, response));
+    const chunks: Buffer[] = [];
+    request.on('data', (chunk: Buffer) => chunks.push(chunk));
+    request.once('end', () =>
+      answer(request, response, Buffer.concat(chunks).toString()),
+    );
   });
   const output: string[] = [];
   try {
@@ -87,6 +94,82 @@ it('keeps the negotiated owner session and protocol across stdio requests', asyn
   expect(output).toEqual([
     { jsonrpc: '2.0', id: 1, result: { accepted: true } },
     { jsonrpc: '2.0', id: 2, result: { accepted: true } },
+  ]);
+});
+
+const decodeOwnerMessage = Schema.decodeUnknownSync(
+  Schema.fromJsonString(
+    Schema.Struct({
+      id: Schema.optional(Schema.Number),
+      method: Schema.String,
+    }),
+  ),
+);
+
+it('opens a new owner session when the restarted server no longer knows the old one', async () => {
+  const issued = new Set<string>();
+  const received: unknown[] = [];
+  let restarted = false;
+  const output = await relayThroughOwner(
+    (request, response, body) => {
+      const message = decodeOwnerMessage(body);
+      const session = request.headers['mcp-session-id'];
+      received.push({ method: message.method, session });
+      if (message.id === 3 && !restarted) {
+        restarted = true;
+        issued.clear();
+      }
+      if (message.method === 'initialize') {
+        const created = `session-${received.length}`;
+        issued.add(created);
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'mcp-session-id': created,
+        });
+        response.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: { session: created },
+          }),
+        );
+        return;
+      }
+      if (typeof session !== 'string' || !issued.has(session)) {
+        response.writeHead(404);
+        response.end();
+        return;
+      }
+      if (message.id === undefined) {
+        response.writeHead(202);
+        response.end();
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { session } }),
+      );
+    },
+    [
+      { jsonrpc: '2.0', id: 1, method: 'initialize' },
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+      { jsonrpc: '2.0', id: 3, method: 'resources/read' },
+    ],
+  );
+  expect(received).toEqual([
+    { method: 'initialize', session: undefined },
+    { method: 'notifications/initialized', session: 'session-1' },
+    { method: 'tools/list', session: 'session-1' },
+    { method: 'resources/read', session: 'session-1' },
+    { method: 'initialize', session: undefined },
+    { method: 'notifications/initialized', session: 'session-5' },
+    { method: 'resources/read', session: 'session-5' },
+  ]);
+  expect(output).toEqual([
+    { jsonrpc: '2.0', id: 1, result: { session: 'session-1' } },
+    { jsonrpc: '2.0', id: 2, result: { session: 'session-1' } },
+    { jsonrpc: '2.0', id: 3, result: { session: 'session-5' } },
   ]);
 });
 
