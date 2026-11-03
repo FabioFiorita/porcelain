@@ -3,6 +3,7 @@ screen: /review
 selectors:
   - 'Connected session:'
   - 'Send feedback'
+  - 'Send feedback to agent'
   - 'Disconnect session'
   - 'Delivery outcome unknown'
   - 'Read agent connection again'
@@ -21,7 +22,7 @@ The published workspace walkthrough and its whole-review Comments sheet share th
 
 ## How to get to it (user POV)
 
-- Worktrees → worktree → Review → Agent review. Review feedback appears below the revision. A published review opened from the Reviews tab or a link shows connection/status only.
+- Worktrees → worktree → Review. Feedback status appears below the review's progress; Send feedback to agent sits in the bottom bar under Continue whenever saved feedback can be sent. A published review opened from the Reviews tab or a link shows connection/status only.
 - From a published decision, Comment opens the review-owned whole-change Comments sheet; the same session and delivery state appear above the saved comments.
 
 ## Driving it with agent-device

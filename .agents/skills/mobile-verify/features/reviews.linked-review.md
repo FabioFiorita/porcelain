@@ -1,7 +1,8 @@
 ---
 screen: /reviews/[reviewId]
 selectors:
-  - 'All decisions'
+  - 'Read-only review'
+  - 'Published review'
   - 'The walkthrough'
   - 'Briefing'
   - 'You asked'
@@ -39,10 +40,10 @@ Preconditions: [surface baseline](README.md). Use the [bounded document gesture]
 
 Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
 
-1. Open the review. Verify the native Briefing title, Recommendation (Merge success/Hold warning) and reasons first, You asked with links, Needs your decision, Proven at the short SHA once, owners and actual Removed paths, Not proven and The walkthrough. Image assets expand to retained images; links open externally and videos explicitly open this published revision in the browser. Continue at decision n stays fixed outside the scrolling content and resumes at the first unfinished decision. Repeat light/dark/larger text.
-2. Open each decision and direct decision links: summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. All decisions returns to the briefing. The verdict appears only on the briefing. Not explained and Specs list their retained paths; partial unexplained ranges stay visible.
+1. Open the review. Verify the native Published review title, Recommendation (Merge success/Hold warning) and reasons first, You asked with links, Needs your decision, Proven at the short SHA once, owners and actual Removed paths, Not proven and The walkthrough. Image assets expand to retained images; links open externally and videos explicitly open this published revision in the browser. Continue at decision n stays fixed outside the scrolling content and resumes at the first unfinished decision. Repeat light/dark/larger text.
+2. Open each decision from The walkthrough: it pushes its own screen titled Decision n of N, with previous and next stop buttons around Read-only review at the bottom; previous from the first decision and native Back return to the review. Direct decision links open on that decision. Summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. The verdict appears only on the briefing. Not explained and Specs list their retained paths; partial unexplained ranges stay visible.
 3. Read the server review independently: lastSeenRevision updates on opening. Open an older revision: exact content renders.
-4. Unknown decision leaves a readable review/note/All decisions. Unknown review/revision and offline states retain native header Back; Read again recovers connectivity.
+4. Unknown decision leaves a readable review with its note. Unknown review/revision and offline states retain native header Back; Read again recovers connectivity.
 5. Open from a Reviews row: Back returns to the inbox. Open a closed review from Worktrees → Show older reviews with a query or project filter set: the Worktrees tab stays selected and Back returns to the same query, filters and expansion; the review's available checkout stays independently selectable there.
 6. Delete a closed review's checkout on the disposable server: the review remains readable while its checkout card stays disabled in Worktrees.
 7. Cold app-link launch lands in the Reviews tab; native Back returns to the inbox. A worktree's own Review still opens.

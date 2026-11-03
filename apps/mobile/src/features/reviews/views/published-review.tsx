@@ -1,683 +1,213 @@
-import { PullRequestState } from './pull-request-state';
-import { ReviewBriefing } from './review-briefing';
-import { BriefingContinue } from './briefing-continue';
-import { briefingContinuation } from '../rules/briefing';
-import { useState, type ReactNode } from 'react';
-import { ScrollView } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { readReviewSummary } from '@porcelain/client/reviews';
-import {
-  changeAnchor,
-  currentStop,
-  neighbourStop,
-  notExplainedLabel,
-  stopTitle,
-  walkthroughStops,
-  type ReviewResponse,
-  type CommentThread,
-  type ReviewRevision,
-  type WalkthroughKey,
-  type WalkthroughStop,
-  type ReviewStep,
-} from '@porcelain/client/reviews/rules';
+import type { WalkthroughKey } from '@porcelain/client/reviews/rules';
 import { Box } from '../../../components/ui/box';
-import { Text } from '../../../components/ui/text';
-import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
-import { IconButton } from '../../../components/ui/icon-button';
-import { Loading } from '../../../components/ui/loading';
+import { Card } from '../../../components/ui/card';
 import { Empty } from '../../../components/ui/empty';
-import { HtmlPreview } from '../../../components/ui/html-preview';
 import { ErrorState } from '../../../components/ui/error-state';
+import { HtmlPreview } from '../../../components/ui/html-preview';
+import { Icon } from '../../../components/ui/icon';
+import { Item } from '../../../components/ui/item';
+import { Screen } from '../../../components/ui/screen';
+import { Text } from '../../../components/ui/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
-import { ReviewReadState } from './read-state';
-import { ReviewPointer } from './review-pointer';
-import { useReviewPlace } from '../store';
-import { useWalkthroughProgress } from '../queries/walkthrough';
-import { useWorkspaceReview } from '../queries/linked-review';
-import type { ReviewSnapshot } from '../rules/comparison';
+import { headerIcon } from '../../../shared/icons/header-icon';
+import { WorkspaceGate } from '../../projects';
+import { briefingContinuation } from '../rules/briefing';
+import { AgentFeedback, SendFeedbackButton } from './agent-feedback';
+import { PullRequestState } from './pull-request-state';
 import {
-  WalkthroughProgress,
-  useStopCompletion,
-} from './walkthrough-completion';
-import { DecisionPage, RevisionDiffs } from './decision-page';
-import { DecisionBar } from './decision-bar';
-import { Badge } from '../../../components/ui/badge';
-import { commentReviewParams, reviewParams } from '../rules/navigation';
-import type { Workspace } from '../../projects';
-import { AgentFeedback } from './agent-feedback';
+  PublishedWalkthrough,
+  type PublishedWalkthroughState,
+} from './published-walkthrough';
+import { ReviewBottomBar } from './review-bottom-bar';
+import { ReviewBriefing } from './review-briefing';
+import { ReviewReadState } from './read-state';
+import { WalkthroughProgress } from './walkthrough-completion';
+import { useWalkthroughRoutes } from './walkthrough-routes';
+import { WalkthroughStopList } from './walkthrough-stop-list';
 
-export function PublishedReview({
-  workspace,
-  onFile,
-  snapshot,
+export function PublishedOverview({
+  walkthrough,
 }: {
-  workspace: Workspace;
-  onFile: (path: string) => void;
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
+  walkthrough: PublishedWalkthroughState;
 }) {
-  const result = useWorkspaceReview(workspace);
-  if (!AsyncResult.isSuccess(result.published))
-    return (
-      <ReviewReadState
-        result={result.published}
-        refresh={result.refreshPublished}
-      />
-    );
-  const review = result.published.value;
-  if (!review)
-    return (
-      <Empty
-        title="No agent review"
-        description="Choose a changed file to review its diff. Published agent explanations will appear here."
-      />
-    );
-  if (!review.reviewId)
-    return (
-      <ErrorState message="This publication has no saved revision. Ask the agent to publish it again." />
-    );
-  if (!AsyncResult.isSuccess(result.revision))
-    return (
-      <ReviewReadState
-        result={result.revision}
-        refresh={result.refreshRevision}
-      />
-    );
-  if (!result.revision.value.revision)
-    return (
-      <ErrorState
-        message="This review revision could not be found."
-        retry={{ label: 'Read again', onPress: result.refreshRevision }}
-      />
-    );
+  const { workspace, review, revision, stops, progress } = walkthrough;
+  const routes = useWalkthroughRoutes(workspace);
+  const go = (key: WalkthroughKey) => {
+    if (key !== 'briefing') routes.openStop(key);
+  };
   return (
-    <PublishedContent
-      key={`${workspace.key}:${review.publishedAt}:${review.revision}`}
-      workspace={workspace}
-      review={review}
-      snapshot={snapshot}
-      publicationSettled={result.settled}
-      onFile={onFile}
-      onRefresh={result.refreshPublished}
-      specsApart={result.specsApart}
-      revision={result.revision.value.revision}
-    />
-  );
-}
-
-type PublicationProps = {
-  workspace: Workspace;
-  review: ReviewResponse;
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
-  onFile: (path: string) => void;
-  onRefresh: () => void;
-  publicationSettled: boolean;
-  specsApart: boolean;
-};
-
-function PublishedContent({
-  workspace,
-  review,
-  snapshot,
-  onFile,
-  onRefresh,
-  publicationSettled,
-  revision,
-  specsApart,
-}: PublicationProps & { revision: ReviewRevision }) {
-  const router = useRouter();
-  const [place, setPlace] = useReviewPlace(
-    JSON.stringify([workspace.key, review.publishedAt, review.revision]),
-  );
-  const [previousSummary, setPreviousSummary] =
-    useState<ReviewResponse['summary']>();
-  const changedPaths = snapshot?.answer.changes.map((file) => file.path) ?? [];
-  const publishedPaths = revision.files.map((file) => file.path);
-  const progress = useWalkthroughProgress(
-    workspace,
-    revision,
-    publicationSettled,
-  );
-  const stops = walkthroughStops(review, publishedPaths, {
-    specsApart,
-  });
-  const stop = currentStop(stops, place.stop);
-  const pointer =
-    stop.kind === 'decision'
-      ? stop.layer.steps.find((step) => step.id === place.step)
-      : undefined;
-  const go = (key: WalkthroughKey) => setPlace({ stop: key, summary: false });
-  return (
-    <Box gap={3}>
-      <Stack.Screen options={{ title: screenTitle(stop, stops) }} />
-      {stop.kind === 'briefing' ? (
+    <Box gap={4}>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={headerIcon('refresh')}
+          accessibilityLabel="Refresh review"
+          onPress={walkthrough.refresh}
+        />
+      </Stack.Toolbar>
+      <Box gap={1}>
         <Text
           variant="title"
-          numberOfLines={3}
+          accessibilityRole="header"
           accessibilityLabel={
             review.verdict?.asked.text ??
             workspace.worktree.branch ??
             'Agent review'
           }
+          numberOfLines={3}
         >
           {review.verdict?.asked.text ?? 'Agent review'}
         </Text>
-      ) : null}
-      <Text variant="caption" tone="muted">
-        Revision {review.revision}
-      </Text>
-      {review.reviewId ? (
-        <AgentFeedback
-          connection={workspace.connection}
-          reviewId={review.reviewId}
-          reviewRevision={review.revision}
-          writable
-        />
-      ) : null}
-      {review.reviewId && (
-        <PullRequestState
-          connection={workspace.connection}
-          reviewId={review.reviewId}
-        />
-      )}
+        <Text variant="caption" tone="muted">
+          {[workspace.worktree.branch, `Revision ${review.revision}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+      </Box>
       <WalkthroughProgress stops={stops} progress={progress} />
-      {stop.kind !== 'briefing' ? (
-        <DecisionStepper
-          stops={stops}
-          current={stop}
-          done={progress.done}
-          go={go}
-        />
-      ) : null}
-      {review.diagnostics === 'unavailable' ? (
+      <AgentFeedback
+        connection={workspace.connection}
+        reviewId={revision.reviewId}
+        reviewRevision={review.revision}
+        writable
+        sendInline={false}
+      />
+      <PullRequestState
+        connection={workspace.connection}
+        reviewId={revision.reviewId}
+      />
+      {walkthrough.unavailable ? (
         <Text variant="secondary">
           The worktree is unavailable. This is the saved review; code locations
           and coverage could not be checked.
         </Text>
       ) : null}
-      <Box className="flex-row flex-wrap" gap={2}>
-        <Button
-          label="Overview"
-          variant="tonal"
-          accessibilityLabel="Open review overview"
-          onPress={() => go('briefing')}
+      <ReviewBriefing
+        review={review}
+        revision={revision}
+        connection={workspace.connection}
+        go={go}
+      />
+      <Box gap={2}>
+        <Text variant="headline" tone="muted" accessibilityRole="header">
+          The walkthrough
+        </Text>
+        {review.layers.length === 0 ? (
+          <Empty
+            title="No walkthrough decisions"
+            description="The agent supplied no decision explanations. The summary and changed files remain available."
+          />
+        ) : null}
+        <WalkthroughStopList
+          review={review}
+          stops={stops}
+          done={progress.done}
+          onStop={routes.openStop}
         />
-        <Button
-          label="Agent summary"
-          variant="tonal"
-          accessibilityLabel="Read agent summary"
-          onPress={() => {
-            setPreviousSummary(review.summary);
-            onRefresh();
-            setPlace({ ...place, summary: true });
-          }}
-        />
-        <IconButton
-          icon="refresh"
-          accessibilityLabel="Refresh review"
-          onPress={onRefresh}
-        />
+        <Card>
+          <Item
+            title="Agent summary"
+            leading={<Icon name="info" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            accessibilityLabel="Read agent summary"
+            testID="review-summary"
+            onPress={routes.openSummary}
+          />
+        </Card>
       </Box>
-      {place.summary ? (
-        <>
-          <Button
-            label="Return to walkthrough"
-            variant="tonal"
-            onPress={() => setPlace({ ...place, summary: false })}
-          />
-          <SummaryPage
-            workspace={workspace}
-            review={review}
-            onRefresh={onRefresh}
-            refreshing={previousSummary === review.summary}
-          />
-        </>
-      ) : (
-        <>
-          {stop.kind === 'unexplained' || stop.kind === 'specs' ? (
-            <Text variant="title">
-              {stopTitle(stop)}
-              {progress.done(stop) ? ' · Reviewed' : ''}
-            </Text>
-          ) : null}
-          <ReviewPage
-            workspace={workspace}
-            review={review}
-            revision={revision}
-            stop={stop}
-            stops={stops}
-            progress={progress}
-            pointer={pointer}
-            changedPaths={changedPaths}
-            onFile={onFile}
-            go={go}
-            done={progress.done}
-            onThread={(thread) =>
-              openComments(router, workspace, { thread: thread.id })
-            }
-            decision={(entry) => (
-              <DecisionPage
-                key={entry.key}
-                workspace={workspace}
-                changedPaths={changedPaths ?? []}
-                onFile={onFile}
-                review={review}
-                revision={revision}
-                stop={entry}
-                progress={progress}
-                unavailable={review.diagnostics === 'unavailable'}
-                go={go}
-                readStep={(step) =>
-                  setPlace({ stop: stop.key, summary: false, step })
-                }
-                onComment={(body) =>
-                  openComments(router, workspace, {
-                    compose: true,
-                    body,
-                    review,
-                  })
-                }
-                onThread={(thread) =>
-                  openComments(router, workspace, { thread: thread.id })
-                }
-              />
-            )}
-          />
-        </>
-      )}
     </Box>
   );
 }
 
-function ReviewPage({
-  workspace,
-  review,
-  revision,
-  stop,
-  stops,
-  progress,
-  pointer,
-  changedPaths,
-  onFile,
-  go,
-  done,
-  onThread,
-  decision,
+export function PublishedOverviewBar({
+  walkthrough,
 }: {
-  workspace: Workspace;
-  review: ReviewResponse;
-  revision: ReviewRevision | undefined;
-  stop: WalkthroughStop;
-  decision: (stop: Extract<WalkthroughStop, { kind: 'decision' }>) => ReactNode;
-  stops: readonly WalkthroughStop[];
-  progress: ReturnType<typeof useWalkthroughProgress>;
-  pointer: ReviewStep | undefined;
-  changedPaths: readonly string[] | undefined;
-  onFile: (path: string) => void;
-  go: (key: WalkthroughKey) => void;
-  done: (stop: WalkthroughStop) => boolean;
-  onThread: (thread: CommentThread) => void;
+  walkthrough: PublishedWalkthroughState;
 }) {
-  if (pointer)
-    return (
-      <>
-        <Button
-          label={`Back to decision ${stop.kind === 'decision' ? stop.number : ''}`}
-          accessibilityLabel={`Return to ${stopTitle(stop)}`}
-          variant="tonal"
-          onPress={() => go(stop.key)}
-        />
-        <Text variant="secondary" weight="medium">
-          {pointer.title}
-        </Text>
-        <Text variant="secondary" selectable>
-          {pointer.text}
-        </Text>
-        <ReviewPointer key={pointer.id} workspace={workspace} step={pointer} />
-        {pointer.kind === 'changed' &&
-        changedPaths?.includes(pointer.pointer.path) ? (
-          <Button
-            label="Open changed-file diff"
-            variant="tonal"
-            onPress={() => onFile(pointer.pointer.path)}
-          />
-        ) : null}
-      </>
-    );
-  if (stop.kind === 'briefing')
-    return (
-      <>
-        <ReviewBriefing
-          review={review}
-          revision={revision}
-          connection={workspace.connection}
-          go={go}
-        />
-        {review.layers.length === 0 ? (
-          <Empty
-            title="No walkthrough decisions"
-            description="The agent supplied no decision explanations. The summary and available changes remain accessible."
-          />
-        ) : null}
-        <Text variant="headline" tone="muted">
-          The walkthrough
-        </Text>
-        {stops.slice(1).map((entry) => {
-          let description =
-            notExplainedLabel(review.notExplained) ??
-            'Changes no decision explains';
-          if (entry.kind === 'decision')
-            description = `${done(entry) ? 'Reviewed · ' : ''}${entry.layer.summary}`;
-          if (entry.kind === 'specs')
-            description = `${entry.paths.length} spec files set apart`;
-          return (
-            <Item
-              key={entry.key}
-              title={stopTitle(entry)}
-              description={description}
-              accessibilityLabel={`Open ${stopTitle(entry)}`}
-              onPress={() => go(entry.key)}
-            />
-          );
-        })}
-      </>
-    );
-  if (stop.kind === 'decision') return decision(stop);
+  const routes = useWalkthroughRoutes(walkthrough.workspace);
+  const next = briefingContinuation(
+    walkthrough.stops,
+    walkthrough.progress.done,
+  );
+  if (!next) return null;
   return (
-    <>
-      {stop.kind === 'unexplained' ? (
-        <Text variant="secondary">
-          {notExplainedLabel(review.notExplained) ??
-            'These changed files have no agent explanation.'}
-        </Text>
-      ) : (
-        <Text variant="secondary">
-          Spec files set apart from the decisions.
-        </Text>
+    <ReviewBottomBar>
+      <Button
+        label={next.label}
+        onPress={() => {
+          if (next.key !== 'briefing') routes.openStop(next.key);
+        }}
+      />
+      <SendFeedbackButton
+        connection={walkthrough.workspace.connection}
+        reviewId={walkthrough.revision.reviewId}
+        reviewRevision={walkthrough.review.revision}
+        writable
+      />
+    </ReviewBottomBar>
+  );
+}
+
+export function ReviewSummaryScreen({
+  workspace,
+}: {
+  workspace?: string | undefined;
+}) {
+  return (
+    <WorkspaceGate title="Agent summary" expectedWorkspace={workspace}>
+      {(selected) => (
+        <Screen layout="fixed">
+          <PublishedWalkthrough workspace={selected}>
+            {(walkthrough) => <SummaryPage walkthrough={walkthrough} />}
+          </PublishedWalkthrough>
+        </Screen>
       )}
-      {(stop.kind === 'unexplained' ? review.notExplained : []).map((gap) => (
-        <Text key={gap.path} variant="caption">
-          {gap.path} ·{' '}
-          {gap.binary
-            ? 'Binary file'
-            : gap.ranges
-                .map((range) => `${range.startLine}–${range.endLine}`)
-                .join(', ')}
-        </Text>
-      ))}
-      {revision ? (
-        <RevisionDiffs
-          key={stop.key}
-          workspace={workspace}
-          revision={revision}
-          stop={stop}
-          progress={progress}
-          changedPaths={changedPaths ?? []}
-          onFile={onFile}
-          onThread={onThread}
-        />
-      ) : null}
-    </>
+    </WorkspaceGate>
   );
 }
 
 function SummaryPage({
-  refreshing,
-  ...props
+  walkthrough,
 }: {
-  refreshing: boolean;
-  workspace: Workspace;
-  review: ReviewResponse;
-  onRefresh: () => void;
+  walkthrough: PublishedWalkthroughState;
 }) {
-  if (refreshing) return <Loading label="Refreshing agent summary…" />;
-  return <AgentSummary {...props} />;
+  return (
+    <>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={headerIcon('refresh')}
+          accessibilityLabel="Refresh agent summary"
+          onPress={walkthrough.refresh}
+        />
+      </Stack.Toolbar>
+      <AgentSummary walkthrough={walkthrough} />
+    </>
+  );
 }
 
 function AgentSummary({
-  workspace,
-  review,
-  onRefresh,
+  walkthrough,
 }: {
-  workspace: Workspace;
-  review: ReviewResponse;
-  onRefresh: () => void;
+  walkthrough: PublishedWalkthroughState;
 }) {
+  const { workspace } = walkthrough;
   const query = readReviewSummary({
     connection: workspace.connection,
     scope: workspace.scope,
-    summary: review.summary,
+    summary: walkthrough.review.summary,
   });
   const result = useAtomValue(query);
   const link = usePreviewLink();
   if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={onRefresh} />;
+    return <ReviewReadState result={result} refresh={walkthrough.refresh} />;
   return (
-    <Box gap={2}>
+    <Box className="flex-1">
       {link.error ? <ErrorState message={link.error} /> : null}
-      <Box className="h-96">
-        <HtmlPreview html={result.value} onLink={link.open} />
-      </Box>
+      <HtmlPreview html={result.value} onLink={link.open} />
     </Box>
   );
-}
-
-export function PublishedReviewContinue({
-  workspace,
-  onContinue,
-}: {
-  workspace: Workspace;
-  onContinue: () => void;
-}) {
-  const result = useWorkspaceReview(workspace);
-  if (
-    !AsyncResult.isSuccess(result.published) ||
-    !result.published.value ||
-    !AsyncResult.isSuccess(result.revision) ||
-    !result.revision.value.revision
-  )
-    return null;
-  return (
-    <PublishedContinueContent
-      key={`${workspace.key}:${result.published.value.publishedAt}:${result.published.value.revision}`}
-      workspace={workspace}
-      review={result.published.value}
-      revision={result.revision.value.revision}
-      publicationSettled={result.settled}
-      specsApart={result.specsApart}
-      onContinue={onContinue}
-    />
-  );
-}
-
-function PublishedContinueContent({
-  workspace,
-  review,
-  revision,
-  publicationSettled,
-  specsApart,
-  onContinue,
-}: {
-  workspace: Workspace;
-  review: ReviewResponse;
-  revision: ReviewRevision;
-  publicationSettled: boolean;
-  specsApart: boolean;
-  onContinue: () => void;
-}) {
-  const [place, setPlace] = useReviewPlace(
-    JSON.stringify([workspace.key, review.publishedAt, review.revision]),
-  );
-  const progress = useWalkthroughProgress(
-    workspace,
-    revision,
-    publicationSettled,
-  );
-  const stops = walkthroughStops(
-    review,
-    revision.files.map((file) => file.path),
-    { specsApart },
-  );
-  const stop = currentStop(stops, place.stop);
-  const go = (key: WalkthroughKey) => {
-    setPlace({ stop: key, summary: false });
-    onContinue();
-  };
-  if (place.summary) return null;
-  if (stop.kind !== 'briefing')
-    return (
-      <StopBar
-        key={stop.key}
-        workspace={workspace}
-        review={review}
-        stops={stops}
-        stop={stop}
-        progress={progress}
-        unavailable={review.diagnostics === 'unavailable'}
-        go={go}
-      />
-    );
-  const next = briefingContinuation(stops, progress.done);
-  if (!next) return null;
-  return <BriefingContinue label={next.label} onPress={() => go(next.key)} />;
-}
-
-function StopBar({
-  workspace,
-  review,
-  stops,
-  stop,
-  progress,
-  unavailable,
-  go,
-}: {
-  workspace: Workspace;
-  review: ReviewResponse;
-  stops: readonly WalkthroughStop[];
-  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
-  progress: ReturnType<typeof useWalkthroughProgress>;
-  unavailable: boolean;
-  go: (key: WalkthroughKey) => void;
-}) {
-  const router = useRouter();
-  const next = neighbourStop(stops, stop.key, 1);
-  const completion = useStopCompletion({
-    workspace,
-    stop,
-    progress,
-    next,
-    go,
-    unavailable,
-  });
-  return (
-    <DecisionBar
-      stop={stop}
-      previous={neighbourStop(stops, stop.key, -1)}
-      next={next}
-      go={go}
-      completion={completion}
-      onComment={() =>
-        openComments(router, workspace, {
-          compose: true,
-          body: stop.kind === 'decision' ? `On decision ${stop.number}: ` : '',
-          review,
-        })
-      }
-    />
-  );
-}
-
-export function usePublishedStop(workspace: Workspace) {
-  const result = useWorkspaceReview(workspace);
-  const review = AsyncResult.isSuccess(result.published)
-    ? result.published.value
-    : undefined;
-  const revision = AsyncResult.isSuccess(result.revision)
-    ? result.revision.value.revision
-    : undefined;
-  const [place] = useReviewPlace(
-    review
-      ? JSON.stringify([workspace.key, review.publishedAt, review.revision])
-      : '',
-  );
-  if (!review || !revision || place.summary) return undefined;
-  return currentStop(
-    walkthroughStops(
-      review,
-      revision.files.map((file) => file.path),
-      { specsApart: result.specsApart },
-    ),
-    place.stop,
-  ).kind;
-}
-
-function screenTitle(
-  stop: WalkthroughStop,
-  stops: readonly WalkthroughStop[],
-): string {
-  if (stop.kind === 'briefing') return 'Briefing';
-  if (stop.kind !== 'decision') return stopTitle(stop);
-  return `Decision ${stop.number} of ${stops.filter((entry) => entry.kind === 'decision').length}`;
-}
-
-function DecisionStepper({
-  stops,
-  current,
-  done,
-  go,
-}: {
-  stops: readonly WalkthroughStop[];
-  current: WalkthroughStop;
-  done: (stop: WalkthroughStop) => boolean;
-  go: (key: WalkthroughKey) => void;
-}) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <Box className="flex-row items-center" gap={2}>
-        {stops.map((entry) =>
-          entry.kind === 'decision' ? (
-            <Badge
-              key={entry.key}
-              label={done(entry) ? `✓ ${entry.number}` : String(entry.number)}
-              variant={stepVariant(entry.key === current.key, done(entry))}
-              accessibilityLabel={`Open ${stopTitle(entry)}${done(entry) ? ', reviewed' : ''}`}
-              accessibilityState={{ selected: entry.key === current.key }}
-              onPress={() => go(entry.key)}
-            />
-          ) : null,
-        )}
-      </Box>
-    </ScrollView>
-  );
-}
-
-function stepVariant(current: boolean, reviewed: boolean) {
-  if (current) return 'default';
-  return reviewed ? 'secondary' : 'outline';
-}
-
-function openComments(
-  router: ReturnType<typeof useRouter>,
-  workspace: Workspace,
-  input:
-    | { compose: true; body: string; review: ReviewResponse }
-    | { thread: string },
-) {
-  router.navigate({
-    pathname: '/review-comments',
-    params: {
-      ...reviewParams(workspace.key, { kind: 'worktree' }),
-      ...('thread' in input
-        ? { thread: input.thread }
-        : {
-            anchor: JSON.stringify(changeAnchor(undefined)),
-            compose: 'true',
-            body: input.body,
-            feedbackWritable: 'true',
-            ...commentReviewParams(input.review),
-          }),
-    },
-  });
 }

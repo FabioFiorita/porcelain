@@ -177,6 +177,7 @@ export function CommentThreads({
       draft={draft}
       target={target}
       showContext={currentTarget !== undefined}
+      autoFocus={compose || target.threadId !== undefined}
     />
   ) : null;
   return (
@@ -311,13 +312,16 @@ function CommentComposer({
   draft,
   target,
   showContext,
+  autoFocus,
 }: {
   draft: ReturnType<typeof useCommentDraft>;
   target: ComposerTarget;
   showContext: boolean;
+  autoFocus: boolean;
 }) {
   return (
     <ReviewComposer
+      autoFocus={autoFocus}
       value={draft.body}
       onChangeText={draft.edit}
       label={`${anchorPath(target.anchor) ?? ''} ${anchorLabel(target.anchor)}${showContext ? ` · ${documentCommentContext(target.anchor)}` : ''}${target.threadId ? ' · Reply' : ''}`}

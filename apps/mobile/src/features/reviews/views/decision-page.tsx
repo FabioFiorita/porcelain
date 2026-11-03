@@ -39,7 +39,8 @@ import {
   threadOnRevision,
   threadSummary,
 } from '../rules/thread-folds';
-import { IconButton } from '../../../components/ui/icon-button';
+import { FileActionMenu } from './file-action-menu';
+import type { WalkthroughRoutes } from './walkthrough-routes';
 import { ReviewReadState } from './read-state';
 import { RevisionReviewedAction } from './review-actions';
 
@@ -57,11 +58,8 @@ export function DecisionPage({
   progress,
   unavailable,
   go,
-  readStep,
-  onComment,
-  onThread,
+  routes,
   changedPaths,
-  onFile,
 }: {
   workspace: Workspace;
   review: ReviewResponse;
@@ -70,11 +68,8 @@ export function DecisionPage({
   progress: Progress;
   unavailable: boolean;
   go: (key: WalkthroughKey) => void;
-  readStep: (step: string) => void;
-  onComment: (body: string) => void;
-  onThread: (thread: CommentThread) => void;
+  routes: WalkthroughRoutes;
   changedPaths: readonly string[];
-  onFile: (path: string) => void;
 }) {
   const { layer } = stop;
   const [allSteps, setAllSteps] = useState(false);
@@ -154,7 +149,9 @@ export function DecisionPage({
             accessibilityLabel={`Answer: ${part.label}`}
             variant="tonal"
             size="sm"
-            onPress={() => onComment(questionAnswer(part.problem ?? '', ''))}
+            onPress={() =>
+              routes.compose(review, questionAnswer(part.problem ?? '', ''))
+            }
           />
         </Card>
       ))}
@@ -203,7 +200,9 @@ export function DecisionPage({
                 }
                 disabled={blocked}
                 accessibilityLabel={`Read step ${index + 1}: ${step.title}, ${step.pointer.path}`}
-                {...(blocked ? {} : { onPress: () => readStep(step.id) })}
+                {...(blocked
+                  ? {}
+                  : { onPress: () => routes.openStep(stop.key, step.id) })}
               />
             );
           })}
@@ -216,8 +215,7 @@ export function DecisionPage({
           revision={revision}
           stop={stop}
           changedPaths={changedPaths}
-          onFile={onFile}
-          onThread={onThread}
+          routes={routes}
         />
       ) : null}
       {stop.elsewhere.map((file) => (
@@ -247,16 +245,14 @@ export function RevisionDiffs({
   revision,
   stop,
   changedPaths,
-  onFile,
-  onThread,
+  routes,
 }: {
   workspace: Workspace;
   progress: Progress;
   revision: ReviewRevision;
   stop: Exclude<WalkthroughStop, { kind: 'briefing' }>;
   changedPaths: readonly string[];
-  onFile: (path: string) => void;
-  onThread: (thread: CommentThread) => void;
+  routes: WalkthroughRoutes;
 }) {
   const [shown, setShown] = useState(DECISION_DIFF_FILES);
   const threads = useAtomValue(
@@ -287,10 +283,8 @@ export function RevisionDiffs({
                 )
               : []
           }
-          {...(changedPaths.includes(file.path)
-            ? { onOpen: () => onFile(file.path) }
-            : {})}
-          onThread={onThread}
+          changed={changedPaths.includes(file.path)}
+          routes={routes}
         />
       ))}
       {files.length > shown ? (
@@ -310,17 +304,18 @@ function FileDiff({
   file,
   reviewed,
   threads,
-  onOpen,
-  onThread,
+  changed,
+  routes,
 }: {
   workspace: Workspace;
   revision: ReviewRevision;
   file: ReviewRevision['files'][number];
   reviewed: Progress['items'][number] | undefined;
   threads: readonly CommentThread[];
-  onOpen?: () => void;
-  onThread: (thread: CommentThread) => void;
+  changed: boolean;
+  routes: WalkthroughRoutes;
 }) {
+  const onThread = (thread: CommentThread) => routes.openThread(thread.id);
   const { preferences } = usePreferences();
   const query = readReviewRevisionDiffs({
     connection: workspace.connection,
@@ -392,14 +387,34 @@ function FileDiff({
             −{removed} +{added}
           </Text>
         ) : null}
-        {onOpen ? (
-          <IconButton
-            icon="chevron"
-            size="sm"
-            accessibilityLabel={`Open changed-file diff for ${file.path}`}
-            onPress={onOpen}
-          />
-        ) : null}
+        <FileActionMenu
+          label={`Actions for ${file.path}`}
+          actions={[
+            ...(changed
+              ? [
+                  {
+                    id: 'diff' as const,
+                    label: 'Open changed-file diff',
+                    onPress: () => routes.openChangedFile(file.path),
+                  },
+                ]
+              : []),
+            ...(file.status === 'deleted'
+              ? []
+              : [
+                  {
+                    id: 'files' as const,
+                    label: 'Open in Files',
+                    onPress: () => routes.openInFiles(file.path),
+                  },
+                ]),
+            {
+              id: 'history' as const,
+              label: 'File history',
+              onPress: () => routes.openFileHistory(file.path),
+            },
+          ]}
+        />
       </Box>
       {body}
       {reviewed ? (

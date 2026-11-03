@@ -1,4 +1,6 @@
 export { ReviewScreen } from './views/review-screen';
+export { DecisionScreen, DecisionStepScreen } from './views/decision-screen';
+export { ReviewSummaryScreen } from './views/published-review';
 export { ReviewFileScreen } from './views/review-file-screen';
 export { ReviewCommentsScreen } from './views/review-comments-screen';
 export {

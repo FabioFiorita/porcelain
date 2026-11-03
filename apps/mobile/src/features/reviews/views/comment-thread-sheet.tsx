@@ -33,7 +33,7 @@ import { Separator } from '../../../components/ui/separator';
 import type { Workspace } from '../../projects';
 import { useResolveThread, useVisibleComments } from '../commands/comments';
 import { useLinkedReview } from '../queries/linked-review';
-import { useReviewPlace } from '../store';
+import { useWalkthroughRoutes } from './walkthrough-routes';
 import { ReviewReadState } from './read-state';
 import { useCommentDraft } from './comment-draft';
 
@@ -88,11 +88,7 @@ function ThreadSheet({
     }),
   );
   const review = AsyncResult.isSuccess(published) ? published.value : undefined;
-  const [, setPlace] = useReviewPlace(
-    review
-      ? JSON.stringify([workspace.key, review.publishedAt, review.revision])
-      : '',
-  );
+  const routes = useWalkthroughRoutes(workspace);
   const sameReview =
     !thread.review ||
     (thread.review.reviewId === review?.reviewId &&
@@ -100,8 +96,8 @@ function ThreadSheet({
   const openDecision =
     review && sameReview
       ? (layer: ReviewLayer) => {
-          setPlace({ stop: decisionKey(layer.id), summary: false });
           router.back();
+          routes.openStop(decisionKey(layer.id));
         }
       : undefined;
   const path = anchorPath(thread.anchor);
