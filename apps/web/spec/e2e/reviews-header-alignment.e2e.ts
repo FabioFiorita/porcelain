@@ -1,7 +1,7 @@
-import { reviewHeaders } from '../kit/review-header.ts';
+import { reviewSliceHeaders } from '../kit/review-header.ts';
 import { expect, test } from './fixtures.ts';
 
-test('decision file headers keep comments, counts and file navigation centered as paths truncate', async ({
+test('decision slice headers keep file controls inside the card as paths truncate', async ({
   pairedPage: page,
   app,
   agent,
@@ -21,9 +21,9 @@ test('decision file headers keep comments, counts and file navigation centered a
   for (const width of [800, 1440, 1080, 721, 720, 414, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await expect
-      .poll(() => reviewHeaders(page, width >= 720), {
-        message: `Header controls must share the path's center and fit at ${width}px`,
+      .poll(() => reviewSliceHeaders(page), {
+        message: `Slice controls must fit inside their header at ${width}px`,
       })
-      .toEqual({ files: 6, misaligned: [] });
+      .toEqual({ files: 7, marks: 6, fitting: true });
   }
 });

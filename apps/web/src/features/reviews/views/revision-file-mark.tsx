@@ -1,3 +1,5 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useRevisionFileMarks } from '../commands/revision-file-marks';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -18,11 +20,13 @@ export function RevisionFileMark({
   revision,
   context,
   marks,
+  shortcut = false,
 }: {
   file: ReviewRevision['files'][number];
   revision: ReviewRevision;
   context: ConnectionContext;
   marks: ReviewMarks;
+  shortcut?: boolean;
 }) {
   const { markResult, mark, unmarkResult, unmark } = useRevisionFileMarks(
     revision,
@@ -37,7 +41,7 @@ export function RevisionFileMark({
     reviewed ? 'reviewed' : 'unreviewed',
   );
   const toggle = () => {
-    if (!fingerprint) return;
+    if (!fingerprint || markResult.waiting || unmarkResult.waiting) return;
     const target = {
       path: file.path,
       headBlobOid: fingerprint,
@@ -48,6 +52,7 @@ export function RevisionFileMark({
   };
   return (
     <span className="inline-flex items-center gap-1">
+      {shortcut && <FileMarkShortcut toggle={toggle} />}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -71,4 +76,9 @@ export function RevisionFileMark({
       )}
     </span>
   );
+}
+
+function FileMarkShortcut({ toggle }: { toggle: () => void }) {
+  useHotkey(SHORTCUTS.toggleReviewed, toggle, { ignoreInputs: true });
+  return null;
 }

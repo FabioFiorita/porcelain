@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { File, PatchDiff } from '@pierre/diffs/react';
@@ -32,6 +33,7 @@ export function DecisionSlices({
   marks,
   layer,
   onOpenFile,
+  active,
 }: {
   revision: ReviewRevision;
   context: ConnectionContext;
@@ -39,10 +41,12 @@ export function DecisionSlices({
   layer: ReviewLayer;
   marks: ReviewMarks;
   onOpenFile: (step: ReviewStep) => void;
+  active: boolean;
 }) {
   const files = revision.files.filter((file) =>
     layer.steps.some((step) => step.pointer.path === file.path),
   );
+  const [selected, setSelected] = useState(files[0]?.path);
   const result = useRevisionDiffs(revision, context.connection, files);
   const diffs = Option.getOrUndefined(AsyncResult.value(result));
   const patchFor = (step: ReviewStep) => {
@@ -64,6 +68,8 @@ export function DecisionSlices({
         return (
           <article
             key={step.id}
+            onPointerDownCapture={() => setSelected(step.pointer.path)}
+            onFocusCapture={() => setSelected(step.pointer.path)}
             id={`slice-${step.id}`}
             aria-label={`Step ${step.title}`}
             className="min-w-0 scroll-mt-4 overflow-hidden rounded-lg border"
@@ -86,6 +92,7 @@ export function DecisionSlices({
               {file && first && (
                 <RevisionFileMark
                   file={file}
+                  shortcut={active && selected === file.path}
                   revision={revision}
                   context={context}
                   marks={marks}

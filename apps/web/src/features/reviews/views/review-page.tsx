@@ -922,6 +922,7 @@ function ReviewRevisionPage({
                         />
                         <MarginRow>
                           <DecisionSlices
+                            active={interaction.active}
                             marks={marks ?? { files: [], decisions: [] }}
                             scope={scope}
                             key={stop.key}
