@@ -112,6 +112,7 @@ packageExtensionsChecksum: sha256-4ROEX6iFbLbG9Lqq+wJj6dLUpHe0RF6NtOu4q++cqJ8=
 
 patchedDependencies:
   '@pierre/diffs@1.6.1': cc219db92d44795ee7e7f2afb7a2226dbefdb467acd621d803e8b7b8ce664b3f
+  uniwind@1.12.1: 32fe31014189972f643c8f3af5a58f59ecd63c7cbc0b7f21e9de5aa24e515f14
 
 importers:
 
@@ -406,7 +407,7 @@ importers:
         version: 4.3.3
       uniwind:
         specifier: 1.12.1
-        version: 1.12.1(@expo/metro-config@58.0.20(expo@58.0.22)(supports-color@7.2.0)(typescript@7.0.2))(metro-cache@0.87.1(supports-color@7.2.0))(metro-transform-worker@0.87.1(supports-color@7.2.0))(metro@0.87.1(supports-color@7.2.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(tailwindcss@4.3.3)
+        version: 1.12.1(patch_hash=32fe31014189972f643c8f3af5a58f59ecd63c7cbc0b7f21e9de5aa24e515f14)(@expo/metro-config@58.0.20(expo@58.0.22)(supports-color@7.2.0)(typescript@7.0.2))(metro-cache@0.87.1(supports-color@7.2.0))(metro-transform-worker@0.87.1(supports-color@7.2.0))(metro@0.87.1(supports-color@7.2.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(tailwindcss@4.3.3)
     devDependencies:
       '@porcelain/server':
         specifier: workspace:*
@@ -14797,7 +14798,7 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  uniwind@1.12.1(@expo/metro-config@58.0.20(expo@58.0.22)(supports-color@7.2.0)(typescript@7.0.2))(metro-cache@0.87.1(supports-color@7.2.0))(metro-transform-worker@0.87.1(supports-color@7.2.0))(metro@0.87.1(supports-color@7.2.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(tailwindcss@4.3.3):
+  uniwind@1.12.1(patch_hash=32fe31014189972f643c8f3af5a58f59ecd63c7cbc0b7f21e9de5aa24e515f14)(@expo/metro-config@58.0.20(expo@58.0.22)(supports-color@7.2.0)(typescript@7.0.2))(metro-cache@0.87.1(supports-color@7.2.0))(metro-transform-worker@0.87.1(supports-color@7.2.0))(metro@0.87.1(supports-color@7.2.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(tailwindcss@4.3.3):
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
