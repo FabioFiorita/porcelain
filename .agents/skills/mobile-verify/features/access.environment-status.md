@@ -22,7 +22,7 @@ Each saved computer reports its connection state and refreshes when Computers ga
 
 ## How to get to it (user POV)
 
-- Settings → Computers, or the deep link `porcelain.dev://computers`, with computers paired
+- Settings gear → Computers, or the deep link `porcelain.dev://computers`, with computers paired
 
 ## Driving it with agent-device
 

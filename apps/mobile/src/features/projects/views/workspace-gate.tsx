@@ -4,63 +4,60 @@ import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { isTablet } from '../../../shared/navigation/is-tablet';
+import { Screen } from '../../../components/ui/screen';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
-
-const unframed = (content: ReactNode) => content;
 
 export function WorkspaceGate({
   title,
   expectedWorkspace,
   changed,
-  fallbackFrame = unframed,
   children,
 }: {
   title: string;
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
-  fallbackFrame?: (content: ReactNode) => ReactNode;
   children: (workspace: Workspace) => ReactNode;
 }) {
   const { state, read, reading, remote, environments } = useWorkspace();
   const router = useRouter();
   const openComputers = useOpenComputers();
-  switch (state.kind) {
-    case 'loading':
-      return fallbackFrame(<Loading label="Reading workspace…" />);
-    case 'failed':
-      return fallbackFrame(
-        <Box padding={4}>
-          <ErrorState
-            message={state.message}
-            retry={{
-              label: 'Read again',
-              onPress: read,
-              pending: reading,
-            }}
+  const notice = () => {
+    switch (state.kind) {
+      case 'loading':
+        return <Loading label="Reading workspace…" />;
+      case 'failed':
+        return (
+          <Box padding={4}>
+            <ErrorState
+              message={state.message}
+              retry={{
+                label: 'Read again',
+                onPress: read,
+                pending: reading,
+              }}
+            />
+          </Box>
+        );
+      case 'unavailable':
+        return (
+          <Empty
+            title="Workspace unavailable"
+            description={state.reason}
+            action={
+              remote
+                ? { label: 'Read again', onPress: read }
+                : {
+                    label: 'Open Settings',
+                    onPress: () => router.push('/settings'),
+                  }
+            }
           />
-        </Box>,
-      );
-    case 'unavailable':
-      return fallbackFrame(
-        <Empty
-          title="Workspace unavailable"
-          description={state.reason}
-          action={
-            remote
-              ? { label: 'Read again', onPress: read }
-              : {
-                  label: 'Open Settings',
-                  onPress: () => router.push('/settings'),
-                }
-          }
-        />,
-      );
-    case 'none':
-      return fallbackFrame(
-        changed ??
+        );
+      case 'none':
+        return (
+          changed ??
           (environments.length === 0 ? (
             <Empty
               title="Pair a computer"
@@ -73,20 +70,21 @@ export function WorkspaceGate({
           ) : (
             <Empty
               title="Select a worktree"
-              description={
-                isTablet
-                  ? `Choose a worktree in the sidebar to continue to ${title}.`
-                  : `Choose a project and worktree with the workspace filter in the toolbar to continue to ${title}.`
-              }
+              description={`Choose a worktree in Worktrees to continue to ${title}.`}
             />
-          )),
-      );
-    case 'selected':
-      return expectedWorkspace !== undefined &&
-        state.workspace.key !== expectedWorkspace
-        ? fallbackFrame(changed)
-        : children(state.workspace);
-    default:
-      return state satisfies never;
-  }
+          ))
+        );
+      case 'selected':
+        return changed;
+      default:
+        return state satisfies never;
+    }
+  };
+  if (
+    state.kind === 'selected' &&
+    (expectedWorkspace === undefined ||
+      state.workspace.key === expectedWorkspace)
+  )
+    return children(state.workspace);
+  return <Screen layout="fixed">{notice()}</Screen>;
 }

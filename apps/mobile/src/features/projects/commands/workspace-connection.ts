@@ -28,6 +28,19 @@ type WorkspaceState =
       readonly workspace: Workspace;
     };
 
+export function workspaceKey(
+  remote: Pick<Remote, 'environmentId' | 'address' | 'deviceId'>,
+  scope: { readonly projectId: string; readonly worktreeId: string },
+) {
+  return JSON.stringify([
+    remote.environmentId,
+    remote.address,
+    remote.deviceId ?? '',
+    scope.projectId,
+    scope.worktreeId,
+  ]);
+}
+
 export function useWorkspaceConnection(
   remote: Remote | undefined,
   remembered:
@@ -74,13 +87,10 @@ function connectedWorkspace(
   return {
     kind: 'selected',
     workspace: {
-      key: JSON.stringify([
-        paired.environmentId,
-        paired.address,
-        paired.deviceId ?? '',
-        decision.project.id,
-        decision.worktree.id,
-      ]),
+      key: workspaceKey(paired, {
+        projectId: decision.project.id,
+        worktreeId: decision.worktree.id,
+      }),
       connection: transport,
       scope: {
         projectId: decision.project.id,

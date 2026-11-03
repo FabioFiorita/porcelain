@@ -2,7 +2,6 @@
 screen: /computers
 selectors:
   - 'Add computer'
-  - 'add-environment'
   - 'Pair a computer'
   - 'pairing-link'
   - 'Pair'
@@ -34,10 +33,10 @@ Add computer pairs through a pasted one-time link, saves the computer across col
 
 Preconditions: [surface baseline](README.md).
 
-1. Computers → `add-environment`. Expect Pair a computer in a phone sheet or inline on iPad. Blank links disable Pair. Enter `invalid-link` in `pairing-link`, press `pair-environment`: an error remains in the form, with no new server device. Edit to clear it.
+1. Settings → Computers → header + labelled Add computer. Expect Pair a computer in a sheet on phone and iPad. Blank links disable Pair. Enter `invalid-link` in `pairing-link`, press `pair-environment`: an error remains in the form, with no new server device. Edit to clear it.
 2. Mint a fresh link with the card command, paste it, wait for the keyboard animation, then Pair. The form closes, Online appears and an independent server read shows the native device.
 3. Pair a second disposable computer; cold-launch and confirm both return. Another address for the same computer retains both connections: follow [connections](access.connections.md).
-4. Reopen and press `cancel-pairing`: saved computers stay unchanged. On phone expand the half-height sheet and scroll; every control remains reachable.
+4. Reopen and press `cancel-pairing`: saved computers stay unchanged. Expand the half-height sheet and scroll; every control remains reachable.
 5. In Metro development choose `development-pairing-link` (Use development server). Expect a full link but no device until Pair. Request another: its code differs. Pair and read the Development mobile device independently.
 6. While Creating pairing link…, field/helper/Pair are disabled and Cancel works. Inject helper failure, restore its owner connection and retry. Cancel during creation, reopen: blank field, no error/pending state. Exercise unreadable saved storage/save error: Pair stays disabled or Try again offers recovery.
 

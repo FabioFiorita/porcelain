@@ -1,11 +1,6 @@
 import { Box } from '../../../components/ui/box';
-import {
-  LeadingToolbar,
-  type LeadingToolbarProps,
-} from '../../../components/ui/leading-toolbar';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { useFileReview } from '../../reviews';
-import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { useFileNavigation } from '../store';
@@ -36,7 +31,6 @@ import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
 import { FileActionSheet } from './file-action';
-import { CreateMenu } from './create-menu';
 import type { FileAction } from '../commands/edit-file';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { GroupHeader } from '../../../components/ui/group-header';
@@ -49,21 +43,22 @@ import { pinnedNavigationRows } from '../rules/file-navigation';
 export function FilesScreen({
   onOpen,
   onOpenTimeline,
-  sidebar,
+  workspace,
 }: {
   onOpen: (path: string, workspace: string) => void;
   onOpenTimeline: (path: string, workspace: string) => void;
-  sidebar: LeadingToolbarProps['sidebar'];
+  workspace?: string | undefined;
 }) {
   return (
     <WorkspaceGate
       title="Files"
-      fallbackFrame={(content) => (
-        <>
-          <LeadingToolbar sidebar={sidebar} />
-          {content}
-        </>
-      )}
+      expectedWorkspace={workspace}
+      changed={
+        <Empty
+          title="Workspace changed"
+          description="Another worktree is selected now. Open Files again from the worktree you want."
+        />
+      }
     >
       {(selected) => (
         <FilesNavigation
@@ -71,7 +66,6 @@ export function FilesScreen({
           selected={selected}
           onOpen={onOpen}
           onOpenTimeline={onOpenTimeline}
-          sidebar={sidebar}
         />
       )}
     </WorkspaceGate>
@@ -82,17 +76,11 @@ type FilesNavigationProps = {
   selected: Workspace;
   onOpen: (path: string, workspace: string) => void;
   onOpenTimeline: (path: string, workspace: string) => void;
-  sidebar: LeadingToolbarProps['sidebar'];
-  activePath?: string | undefined;
-  embedded?: boolean;
-  onOpenToSide?: ((path: string) => void) | undefined;
-  comparison?: ReviewComparison;
-  active?: boolean;
 };
 
-export function FilesNavigation(props: FilesNavigationProps) {
+function FilesNavigation(props: FilesNavigationProps) {
   const focused = useIsFocused();
-  return focused && props.active !== false ? (
+  return focused ? (
     <FilesNavigationView key={props.selected.key} {...props} />
   ) : null;
 }
@@ -101,13 +89,8 @@ function FilesNavigationView({
   selected,
   onOpen,
   onOpenTimeline,
-  sidebar,
-  activePath,
-  embedded = false,
-  onOpenToSide,
-  comparison = { kind: 'worktree' },
 }: FilesNavigationProps) {
-  const review = useFileReview(selected, comparison);
+  const review = useFileReview(selected, { kind: 'worktree' });
   const preferences = {
     read: useFilePreferences(selected.connection, selected.scope.projectId),
     write: useSetFilePreference(selected.connection, selected.scope.projectId),
@@ -200,7 +183,7 @@ function FilesNavigationView({
       node,
       preferenceEntries.hidden,
       preferenceEntries.pinned,
-      embedded && onOpenToSide !== undefined,
+      false,
     );
     return actions.map(({ id, label }) => ({
       id,
@@ -219,9 +202,6 @@ function FilesNavigationView({
             break;
           case 'open':
             open(path);
-            break;
-          case 'open-to-side':
-            onOpenToSide?.(path);
             break;
           case 'timeline':
             onOpenTimeline(path, selected.key);
@@ -243,10 +223,7 @@ function FilesNavigationView({
     }));
   };
   const header = (
-    <Box
-      gap={embedded ? 3 : 2}
-      {...(embedded ? { paddingX: 4, paddingY: 3 } : { paddingY: 2 })}
-    >
+    <Box gap={2} paddingY={2}>
       <Box className="flex-row items-center" gap={2}>
         <Box className="min-w-0 flex-1">
           <Input
@@ -263,7 +240,6 @@ function FilesNavigationView({
         </Box>
         <IconButton
           icon="collapse"
-          size={embedded ? 'sm' : 'default'}
           accessibilityLabel={
             searching ? 'Clear search and collapse all' : 'Collapse all'
           }
@@ -272,20 +248,6 @@ function FilesNavigationView({
             setExpanded(new Set());
           }}
         />
-        {embedded ? (
-          <CreateMenu
-            onFile={() =>
-              setAction({ kind: 'create', entryKind: 'file', folder: '' })
-            }
-            onFolder={() =>
-              setAction({
-                kind: 'create',
-                entryKind: 'directory',
-                folder: '',
-              })
-            }
-          />
-        ) : null}
       </Box>
       {knownPath ? (
         <ButtonSurface
@@ -297,43 +259,31 @@ function FilesNavigationView({
           <Text variant="caption">Open {knownPath}</Text>
         </ButtonSurface>
       ) : null}
-      {!embedded || preferenceEntries.hidden.size > 0 ? (
-        <Box className="min-h-8 flex-row items-center" gap={2}>
-          <Box className="min-w-0 flex-1">
-            {!embedded ? (
-              <Text variant="caption" tone="muted" numberOfLines={1}>
-                {selected.project.name} ·{' '}
-                {worktreeLabel(selected.worktree.branch)}
-              </Text>
-            ) : null}
-          </Box>
-          {preferenceEntries.hidden.size > 0 ? (
-            <ButtonSurface
-              variant="link"
-              size="sm"
-              accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
-              onPress={() => setShowHidden((current) => !current)}
-            >
-              <Icon
-                name={showHidden ? 'visible' : 'hidden'}
-                tone="brand"
-                size="small"
-              />
-              <Text variant="caption" tone="brand" weight="medium">
-                {showHidden ? 'Hide hidden' : 'Show hidden'} (
-                {preferenceEntries.hidden.size})
-              </Text>
-            </ButtonSurface>
-          ) : null}
+      <Box className="min-h-8 flex-row items-center" gap={2}>
+        <Box className="min-w-0 flex-1">
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
+          </Text>
         </Box>
-      ) : null}
-      {embedded ? (
-        <Text variant="caption" tone="muted">
-          {comparison.kind === 'worktree'
-            ? 'Uncommitted review status'
-            : 'Branch review status'}
-        </Text>
-      ) : null}
+        {preferenceEntries.hidden.size > 0 ? (
+          <ButtonSurface
+            variant="link"
+            size="sm"
+            accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
+            onPress={() => setShowHidden((current) => !current)}
+          >
+            <Icon
+              name={showHidden ? 'visible' : 'hidden'}
+              tone="brand"
+              size="small"
+            />
+            <Text variant="caption" tone="brand" weight="medium">
+              {showHidden ? 'Hide hidden' : 'Show hidden'} (
+              {preferenceEntries.hidden.size})
+            </Text>
+          </ButtonSurface>
+        ) : null}
+      </Box>
       {review.unavailable ? (
         <ErrorState
           message="File review status is unavailable."
@@ -461,34 +411,32 @@ function FilesNavigationView({
         if (view) reconcileDirectories(confirmed);
       }}
     >
-      {!embedded ? (
-        <LeadingToolbar sidebar={sidebar}>
-          <Stack.Toolbar.Menu
-            icon={headerIcon('add')}
-            accessibilityLabel="Create file or folder"
-            title="Create file or folder"
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={headerIcon('add')}
+          accessibilityLabel="Create file or folder"
+          title="Create file or folder"
+        >
+          <Stack.Toolbar.MenuAction
+            onPress={() =>
+              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+            }
           >
-            <Stack.Toolbar.MenuAction
-              onPress={() =>
-                setAction({ kind: 'create', entryKind: 'file', folder: '' })
-              }
-            >
-              New file
-            </Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction
-              onPress={() =>
-                setAction({
-                  kind: 'create',
-                  entryKind: 'directory',
-                  folder: '',
-                })
-              }
-            >
-              New folder
-            </Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
-        </LeadingToolbar>
-      ) : null}
+            New file
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction
+            onPress={() =>
+              setAction({
+                kind: 'create',
+                entryKind: 'directory',
+                folder: '',
+              })
+            }
+          >
+            New folder
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <FileTree
         header={header}
         rows={rows}
@@ -507,9 +455,7 @@ function FilesNavigationView({
         annotations={review.labels}
         changes={review.changes}
         expanded={expanded}
-        {...((activePath ?? selectedPath)
-          ? { selected: activePath ?? selectedPath }
-          : {})}
+        {...(selectedPath ? { selected: selectedPath } : {})}
         loading={loading.folders}
         onToggle={(id) => {
           setExpanded((current) => {

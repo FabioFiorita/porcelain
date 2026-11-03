@@ -11,7 +11,7 @@ import { useWorkspace } from './workspace';
 import type { WorkspacePickerProps } from './workspace-picker-props';
 import { requestDocumentLeave } from '../store';
 
-export function useWorkspacePickerModel(onSelect?: () => void) {
+export function useWorkspacePickerModel() {
   const workspace = useWorkspace();
   const { environments, access, selection, remembered } = workspace;
   const commands = useProjectSelectionCommands();
@@ -59,13 +59,14 @@ export function useWorkspacePickerModel(onSelect?: () => void) {
       environmentId: string,
       projectId: string,
       worktreeId: string,
+      onSelect: () => void,
     ) => {
       if (
         selection.currentEnvironmentId === environmentId &&
         remembered?.projectId === projectId &&
         remembered.worktreeId === worktreeId
       ) {
-        onSelect?.();
+        onSelect();
         return;
       }
       requestDocumentLeave(() => {

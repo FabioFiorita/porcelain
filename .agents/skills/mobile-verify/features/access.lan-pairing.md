@@ -1,7 +1,7 @@
 ---
 screen: /computers
 selectors:
-  - "add-environment"
+  - "Add computer"
   - "pairing-link"
   - "pair-environment"
   - "Online"
@@ -25,7 +25,7 @@ Pair a disposable computer through its LAN address, then reconnect to it after a
 Preconditions: [surface baseline](README.md).
 
 1. Prepare a separate disposable server reachable by LAN and mint its LAN pairing link.
-2. Computers → Add computer (iOS + toolbar; `add-environment` where a content button). Fill `pairing-link` and press `pair-environment`.
+2. Settings → Computers → header + (Add computer). Fill `pairing-link` and press `pair-environment`.
 3. Expect Online. Independently confirm the native device registration and successful requests on that LAN server.
 4. Cold-launch; confirm the same environment reconnects over its LAN address. On physical iOS separately drive Local Network permission, denial and retry.
 

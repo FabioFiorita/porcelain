@@ -1,5 +1,1 @@
-import { EnvironmentsSettings } from '../../features/access';
-
-export default function ComputersRoute() {
-  return <EnvironmentsSettings showHeading={false} />;
-}
+export { EnvironmentsSettings as default } from '../../features/access';

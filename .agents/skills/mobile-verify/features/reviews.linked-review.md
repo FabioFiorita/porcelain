@@ -20,18 +20,22 @@ api:
 
 # reviews.linked-review
 
-A published review is read independently of a worktree. It opens from an HTTPS
-app link in the Review stack, on phone or iPad, with the native header back to Review.
-The `/reviews/[reviewId]` destination accepts the same environment, host,
-revision and decision query as the public `/open/reviews/[reviewId]` entry.
+A published review is read independently of a worktree. It opens from a Reviews
+tab row, from an older review in Worktrees (Show older reviews), or from an HTTPS
+app link, and stays in the tab that opened it with native Back to that list.
+Closed and archived reviews open this same screen. The `/reviews/[reviewId]`
+destination accepts the same environment, host, revision and decision query as the
+public `/open/reviews/[reviewId]` entry.
 
 ## How to get to it (user POV)
 
+- Reviews tab → review row.
+- Worktrees → Filter worktrees → Show older reviews → tap an older review.
 - HTTPS review app link; `/reviews/[reviewId]` or public `/open/reviews/[reviewId]`, with environment, host, revision and decision query.
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), with iPad landscape first then portrait and fresh bounds after rotation.
+Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying iPad in landscape and portrait with fresh bounds after rotation.
 
 Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
 
@@ -39,7 +43,9 @@ Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired 
 2. Open each decision and direct decision links: summary, step text and stored Published excerpt match that revision, with no current worktree file fetch. All decisions returns to the briefing. The verdict appears only on the briefing. Not explained and Specs list their retained paths; partial unexplained ranges stay visible.
 3. Read the server review independently: lastSeenRevision updates on opening. Open an older revision: exact content renders.
 4. Unknown decision leaves a readable review/note/All decisions. Unknown review/revision and offline states retain native header Back; Read again recovers connectivity.
-5. Cold app-link launch → native Back returns to Review; existing workspace review still opens.
+5. Open from a Reviews row: Back returns to the inbox. Open a closed review from Worktrees → Show older reviews with a query or project filter set: the Worktrees tab stays selected and Back returns to the same query, filters and expansion; the review's available checkout stays independently selectable there.
+6. Delete a closed review's checkout on the disposable server: the review remains readable while its checkout card stays disabled in Worktrees.
+7. Cold app-link launch lands in the Reviews tab; native Back returns to the inbox. A worktree's own Review still opens.
 
 Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 

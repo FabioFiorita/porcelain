@@ -36,7 +36,7 @@ A retained review discussion remains available if its optional checkout context 
 
 ## How to get to it (user POV)
 
-- Review → Comments; diff → Comment on file / Comment on selected lines. Done or sheet dismissal returns.
+- Worktrees → worktree → Review → Comments; diff → Comment on file / Comment on selected lines. Done or sheet dismissal returns.
 - A folded thread on a phone decision opens that one thread; the decision bar's Comment and a question's Answer open a whole-change draft.
 
 ## Driving it with agent-device

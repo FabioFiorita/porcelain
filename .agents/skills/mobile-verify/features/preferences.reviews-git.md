@@ -25,7 +25,7 @@ Reviews & Git edits the archive deletions, Spec files and pull strategy that a c
 
 ## How to get to it (user POV)
 
-- Settings → Reviews & Git. Phone Back returns to Settings; iPad General changes category.
+- Settings gear → Reviews & Git. Native Back returns to Settings.
 - With several paired computers, the Computer choice picks which one is edited; with one, the page names it.
 
 ## Driving it with agent-device
@@ -38,7 +38,7 @@ Preconditions: [surface baseline](README.md).
    After confirming both computers' settings, switch between them again: each computer's last confirmed values stay visible while its fresh read completes. Configured settings do not start a service-update permission check for this form. Unconfigured settings still require confirmed trust; Check again explicitly refreshes that confirmation.
 4. Stop the server while the page is open and reopen it: the error offers Read settings again and the controls show no values (switches off, no Pull strategy selected) rather than this app's earlier values; after restarting, it restores the controls.
 5. Confirm there is no Commit model setting: model choice belongs to the web/desktop commit dialog. Mobile has no commit action.
-6. Preview archive through [Worktrees](projects.workspace-picker.md): deletion choices agree with the computer's settings, and Archive is disabled with the reason until they are confirmed.
+6. Preview archive through [Worktrees](projects.worktrees.md): deletion choices agree with the computer's settings, and Archive is disabled with the reason until they are confirmed.
 
 Automated coverage: `preferences/queries/review-git-settings.spec.ts` (retention, isolation and trust), `preferences/rules/review-git-settings.spec.ts` (view states), `store.spec.ts`, `folders.spec.ts`.
 

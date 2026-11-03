@@ -26,16 +26,16 @@ General saves Theme, Long lines and one document default for Markdown and HTML f
 
 ## How to get to it (user POV)
 
-- Settings → General; on iPad its controls are visible immediately. On a phone, the native Back button returns to Settings.
+- Settings gear → General. Native Back returns to Settings; Close Settings returns to the tabs.
 - The deep link porcelain.dev://general.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
-1. Open General. Expect Theme, Code and Documents, with selected choices announced. On iPad toggle sidebar: controls stay bounded.
-2. Select Dark, Light, then System; inspect content and native navigation. Choose Scroll and Documents Source. Open Markdown and HTML from Files and expect Source; code files always open as source. Cold-launch/reopen: choices persist; independently read the owned app's porcelain-preferences.db.
-3. Back on phone or Computers on iPad preserves paired state/Add computer. Leave through tabs/sidebar and return.
+1. Open General. Expect Theme, Code and Documents, with selected choices announced. On iPad verify landscape and portrait: controls stay bounded.
+2. Select Dark, Light, then System; inspect content and native navigation. Choose Scroll and Documents Source. Open Markdown and HTML from Worktrees → worktree → Files and expect Source; code files always open as source. Cold-launch/reopen: choices persist; independently read the owned app's porcelain-preferences.db.
+3. Back to Settings → Computers preserves paired state/Add computer. Close Settings, switch tabs and return.
 4. Seed a legacy preference record with only Markdown Source, then only HTML Source: both migrate to Documents Source. Select Rendered and cold-launch; it stays Rendered and the saved record contains only documentsDefault.
 5. Corrupt one field of the disposable preference record, cold-launch: only that field resets to default; other choices stay. Exercise refused read/write: old record remains, choices disable, and Read saved preferences again recovers.
 

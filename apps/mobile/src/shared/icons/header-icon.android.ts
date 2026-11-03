@@ -1,12 +1,10 @@
-import folder from '@expo/material-symbols/folder.xml';
 import archive from '@expo/material-symbols/archive.xml';
 import close from '@expo/material-symbols/close.xml';
 import check from '@expo/material-symbols/check.xml';
 import add from '@expo/material-symbols/add.xml';
-import menu from '@expo/material-symbols/menu.xml';
-import filterList from '@expo/material-symbols/filter_list.xml';
 import merge from '@expo/material-symbols/merge.xml';
 import refresh from '@expo/material-symbols/refresh.xml';
+import settings from '@expo/material-symbols/settings.xml';
 import taskAlt from '@expo/material-symbols/task_alt.xml';
 import undo from '@expo/material-symbols/undo.xml';
 import type { ImageSourcePropType } from 'react-native';
@@ -14,10 +12,7 @@ import { type HeaderIconName } from './icon';
 
 const symbols = {
   add,
-  sidebar: menu,
-  inspector: menu,
-  workspace: filterList,
-  worktrees: folder,
+  settings,
   refresh,
   done: check,
   close,

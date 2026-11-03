@@ -1,6 +1,8 @@
 ---
 screen: /open/reviews/[reviewId]
 selectors:
+  - 'Reviews'
+  - 'Worktrees'
   - 'Review'
   - 'Files'
   - 'History'
@@ -8,7 +10,7 @@ selectors:
   - 'Pair this computer'
   - 'All decisions'
   - 'Back'
-  - 'Select a worktree to continue.'
+  - 'Select a worktree'
   - 'No computers paired.'
 tests:
   - packages/client/src/features/reviews/rules/app-link.spec.ts
@@ -24,18 +26,18 @@ Development scheme and public HTTPS links open the requested destination through
 
 ## How to get to it (user POV)
 
-- `porcelain.dev://` (Files), `://files`, `://review`, `://history`, `://settings`; use the full scheme for each.
+- `porcelain.dev://` (Reviews), `://worktrees`, `://files`, `://review`, `://history`, `://settings`; use the full scheme for each. A shared screen opened cold lands in the Reviews tab.
 - Public HTTPS `/open/reviews/<reviewId>` with environment, host, protocol (http or https) and optional revision/decision.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
-1. Open `porcelain.dev://history`, `porcelain.dev://settings`, `porcelain.dev://` and `porcelain.dev://review`. Expect History, Settings, Files and Review respectively, with the matching selected tab/sidebar. In Settings open Computers and confirm pairing. Cold-launch into History and confirm that destination.
+1. Open `porcelain.dev://history`, `porcelain.dev://settings`, `porcelain.dev://`, `porcelain.dev://worktrees` and `porcelain.dev://review`. Expect History (pushed in the Reviews tab, with Back), the Settings modal, the Reviews inbox, the Worktrees tab and Review respectively. Without a selected worktree, History/Review/Files show Select a worktree. In Settings open Computers and confirm pairing. Cold-launch into History and confirm that destination and that Back reaches Reviews.
 2. Publish a committed review through the fixture CLI. Deliver `/open/reviews/<reviewId>?environment=<environmentId>&host=<host>` with `protocol=http` for the local listener (or `https` for remote HTTPS), and optional `revision` and `decision`. On Android use a VIEW intent targeting the disposable development package, warm and cold. With another environment selected, expect the linked computer/review; independently read saved selection and seen revision.
-3. Unpaired, open a decision link → Pair this computer → pair that computer. The exact review/decision opens without resending the link. Cancel preserves the destination and pairing offer; native header Back exits to Review.
-4. Try missing review/revision/decision, offline computer and a host containing a scheme/path. Expect explanation and Back; connectivity failures offer Read again. A missing decision leaves the verdict/list usable. Return to the existing workspace Review and confirm it still opens.
-5. On iPad, open an exact-revision review link in landscape, then portrait. The native header exposes Back separately from Show/Hide sidebar. Back returns to the current workspace Review, including a cold link with no prior destination. Repeat the return on iPhone; All decisions only returns to the retained briefing.
+3. Unpaired, open a decision link → Pair this computer → pair that computer. The exact review/decision opens without resending the link. Cancel preserves the destination and pairing offer; native header Back exits to the Reviews inbox.
+4. Try missing review/revision/decision, offline computer and a host containing a scheme/path. Expect explanation and Back; connectivity failures offer Read again. A missing decision leaves the verdict/list usable. Open the selected worktree's Review from Worktrees and confirm it still opens.
+5. On iPad, open an exact-revision review link in landscape and in portrait. The native header exposes Back; Back returns to the Reviews inbox, including a cold link with no prior destination. Repeat the return on iPhone; All decisions only returns to the retained briefing.
 
 Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 

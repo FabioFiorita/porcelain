@@ -12,6 +12,19 @@ export function reviewComparison(
     : { kind: 'worktree' };
 }
 
+export function reviewFileDocumentKey(
+  path: string,
+  comparison: ReviewComparison,
+) {
+  return JSON.stringify([
+    'review-file',
+    comparison.kind === 'worktree'
+      ? ['worktree']
+      : ['branch', comparison.base ?? null],
+    path,
+  ]);
+}
+
 export function decodeCommentAnchor(value?: string): CommentAnchor | undefined {
   if (!value) return undefined;
   try {

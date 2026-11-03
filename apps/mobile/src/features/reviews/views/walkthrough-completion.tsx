@@ -13,11 +13,9 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 import { Box } from '../../../components/ui/box';
-import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects';
 import type { useWalkthroughProgress } from '../queries/walkthrough';
-import { RevisionReviewedAction } from './review-actions';
 import { ReviewReadState } from './read-state';
 import { reviewContinuation } from '../store';
 
@@ -142,85 +140,4 @@ export function CompletionNotice({
       {notice.title}. {notice.description}
     </Text>
   ) : null;
-}
-
-export function WalkthroughCompletion(props: StopCompletionProps) {
-  const { workspace, stop, progress, unavailable } = props;
-  const {
-    finished,
-    plan,
-    layer,
-    disabled,
-    notice,
-    complete,
-    reopen,
-    advance,
-    markLabel,
-  } = useStopCompletion(props);
-  const tally = filesReviewed(stop.paths, progress.items);
-  const continueLabel = plan.action
-    ? `${plan.action} for ${stopTitle(stop)} and stay here`
-    : `Mark remaining files for ${stopTitle(stop)} and continue`;
-  return (
-    <Box gap={3}>
-      <Text variant="ui" weight="medium">
-        {finished ? 'Reviewed' : 'Review this stop'}
-      </Text>
-      {plan.explanation ? (
-        <Text variant="ui" tone="muted">
-          {plan.explanation}
-        </Text>
-      ) : null}
-      <Text variant="caption" tone="muted">
-        {tally.reviewed} of {tally.total} files reviewed here
-      </Text>
-      {stop.paths.map((path) => {
-        const file = progress.items.find((item) => item.path === path);
-        return (
-          <Box key={path} gap={2}>
-            <Text variant="code" selectable>
-              {path}
-            </Text>
-            {file && progress.settled && !unavailable ? (
-              <RevisionReviewedAction
-                workspace={workspace}
-                revision={progress.revision}
-                file={file}
-              />
-            ) : null}
-          </Box>
-        );
-      })}
-      {layer ? (
-        <Button
-          label={
-            finished
-              ? 'Unmark decision reviewed'
-              : (plan.action ?? 'Mark decision reviewed')
-          }
-          accessibilityLabel={
-            finished
-              ? `Unmark decision ${stopTitle(stop)} as unreviewed`
-              : markLabel
-          }
-          variant="outline"
-          disabled={disabled}
-          onPress={() => (finished ? reopen() : complete())}
-        />
-      ) : null}
-      <Button
-        label={
-          finished
-            ? 'Continue'
-            : (plan.action ?? 'Mark remaining files and continue')
-        }
-        accessibilityLabel={
-          finished ? `Continue from ${stopTitle(stop)}` : continueLabel
-        }
-        disabled={disabled}
-        onPress={() => (finished ? advance() : complete(advance))}
-      />
-      <CompletionNotice notice={notice} />
-    </Box>
-  );
 }

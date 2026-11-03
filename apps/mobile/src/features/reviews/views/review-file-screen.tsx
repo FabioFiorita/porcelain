@@ -41,13 +41,12 @@ import {
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';
-import { reviewParams } from '../rules/navigation';
+import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
 import { diffPresentation } from '../rules/diff-presentation';
 import { ReviewReadState } from './read-state';
 import { ReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
-import { documentTab } from '../../../shared/rules/workspace-documents';
 import { documentSelectionState, reviewFileScope } from '../store';
 
 export function ReviewFileScreen({
@@ -100,7 +99,7 @@ type ReviewFileContentProps = {
   leaveScope?: string | undefined;
 };
 
-export function ReviewFileContent(props: ReviewFileContentProps) {
+function ReviewFileContent(props: ReviewFileContentProps) {
   const focused = useIsFocused();
   return focused ? <FocusedReviewFileContent {...props} /> : null;
 }
@@ -115,10 +114,7 @@ function FocusedReviewFileContent({
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const [comparisonScope, setComparisonScope] = useAtom(
     reviewFileScope(
-      JSON.stringify([
-        workspace.key,
-        documentTab({ kind: 'review-file', path, comparison }).key,
-      ]),
+      JSON.stringify([workspace.key, reviewFileDocumentKey(path, comparison)]),
     ),
   );
   const target = documentReviewTarget(
@@ -148,7 +144,7 @@ function FocusedReviewFileContent({
     <DocumentComments
       workspace={workspace}
       path={path}
-      document={documentTab({ kind: 'review-file', path, comparison }).key}
+      document={reviewFileDocumentKey(path, comparison)}
       target={target}
       leaveScope={leaveScope}
     >
@@ -518,7 +514,7 @@ function SelectableContent({
   codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const { preferences } = usePreferences();
-  const document = documentTab({ kind: 'review-file', path, comparison }).key;
+  const document = reviewFileDocumentKey(path, comparison);
   const reading = useDocumentReadingLine(
     workspace.key,
     JSON.stringify([document, target?.comparison]),

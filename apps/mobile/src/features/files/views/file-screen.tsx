@@ -68,7 +68,7 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
   );
 }
 
-export function FileContent(props: ContentProps & { selected: Workspace }) {
+function FileContent(props: ContentProps & { selected: Workspace }) {
   const focused = useIsFocused();
   return focused ? <FileContentView {...props} /> : null;
 }

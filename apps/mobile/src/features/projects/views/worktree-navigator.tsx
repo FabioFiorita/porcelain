@@ -8,7 +8,7 @@ import {
 } from '@porcelain/client/access/rules';
 import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigator,
@@ -31,7 +31,6 @@ import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
-import { Input } from '../../../components/ui/input';
 import { Item } from '../../../components/ui/item';
 import { Badge } from '../../../components/ui/badge';
 import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
@@ -40,9 +39,10 @@ import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
-import { retainedReviewRoute } from '../rules/retained-review-route';
-import { requestDocumentLeave, useWorktreeNavigator } from '../store';
+import { useWorktreeNavigator } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
+import { useOpenPublishedReview } from './open-published-review';
+import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
 import {
@@ -65,15 +65,11 @@ const environmentGlyphs: Record<EnvironmentIcon, IconName> = {
 };
 
 export function WorktreeNavigator({
-  onSelect,
-  nativeHeader = false,
-  openReview,
+  onOpenWorktree,
 }: {
-  onSelect?: () => void;
-  nativeHeader?: boolean;
-  openReview?: { reviewId: string; environmentId: string } | undefined;
+  onOpenWorktree: (entry: NavigatorEntry) => void;
 }) {
-  const { picker, initializing, reading } = useWorkspacePickerModel(onSelect);
+  const { picker, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const { loading, messages, projects, filters } = useAtomValue(
@@ -86,11 +82,9 @@ export function WorktreeNavigator({
   const [details, setDetails] = useState(false);
   const clipboard = useCopyPath();
   const [action, setAction] = useState<WorktreeActionRequest>();
-  const { query, setQuery, filter, setFilter, setExpanded } =
-    useWorktreeNavigator();
-  const router = useRouter();
-  const [group] = useSegments();
+  const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
+  const openPublishedReview = useOpenPublishedReview();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -110,8 +104,7 @@ export function WorktreeNavigator({
           worktreeId: selectedWorktree.worktree.id,
         }
       : undefined;
-  const selection: Parameters<typeof navigatorEntrySelected>[1] | undefined =
-    openReview ? { kind: 'review', ...openReview } : selectedCheckout;
+  const selection = selectedCheckout;
   const openAction = (
     kind: WorktreeActionRequest['kind'],
     entry: NavigatorEntry,
@@ -123,23 +116,17 @@ export function WorktreeNavigator({
   };
   const open = (entry: NavigatorEntry) => {
     if (entry.kind === 'worktree' && entry.available && entry.worktreeId) {
-      picker.onWorktree(entry.environmentId, entry.projectId, entry.worktreeId);
+      picker.onWorktree(
+        entry.environmentId,
+        entry.projectId,
+        entry.worktreeId,
+        () => onOpenWorktree(entry),
+      );
     } else if (entry.review.state === 'available') {
-      const remote = remotes.find(
-        (candidate) => candidate.remote.environmentId === entry.environmentId,
-      );
-      if (!remote) return;
-      requestDocumentLeave(() =>
-        router.push({
-          pathname: retainedReviewRoute(nativeHeader ? group : undefined),
-          params: {
-            reviewId:
-              entry.review.state === 'available' ? entry.review.reviewId : '',
-            environment: entry.environmentId,
-            host: new URL(remote.remote.address).host,
-          },
-        }),
-      );
+      openPublishedReview({
+        reviewId: entry.review.reviewId,
+        environmentId: entry.environmentId,
+      });
     }
   };
   if (storage.status === 'ready' && paired.length === 0)
@@ -161,65 +148,48 @@ export function WorktreeNavigator({
       </Box>
     );
   return (
-    <Box className="flex-1" testID="worktree-navigator">
-      <Box paddingX={4} paddingY={3} gap={2}>
-        <Box className="flex-row items-center" gap={1}>
-          <Box className="min-w-0 flex-1">
-            <Input
-              leading={<Icon name="search" tone="muted" />}
-              accessibilityLabel="Search reviews and worktrees"
-              placeholder="Search"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-              value={query}
-              onChangeText={setQuery}
-            />
-          </Box>
-          <NavigatorFilter
-            sections={filters.filter((section) => section.key === 'reviews')}
-            filter={filter}
-            onChange={setFilter}
-          />
-        </Box>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator
-          contentContainerClassName="items-center gap-2"
-          keyboardShouldPersistTaps="handled"
-        >
-          {filters
-            .filter((section) => section.key !== 'reviews')
-            .map((section) => (
-              <NavigatorScopePicker
-                key={section.key}
-                section={section}
-                label={scopeLabel(section)}
-                onChange={(next) =>
-                  setFilter({ ...filter, [section.key]: next })
-                }
-              />
-            ))}
-        </ScrollView>
-        {query ? (
-          <Button
-            label="Clear search"
-            variant="ghost"
-            onPress={() => setQuery('')}
-          />
-        ) : null}
-      </Box>
+    <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
+      <Stack.SearchBar
+        placeholder="Search reviews and worktrees"
+        autoCapitalize="none"
+        hideWhenScrolling={false}
+        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onCancelButtonPress={() => setQuery('')}
+      />
       <ScrollView
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         accessibilityLabel="Worktrees by project"
-        contentContainerClassName={
-          nativeHeader ? 'gap-2.5 px-4 pb-6' : 'gap-2 px-2 pb-6'
-        }
+        contentContainerClassName="gap-2.5 px-4 pb-6"
       >
+        <Box className="flex-row items-center" gap={2}>
+          <NavigatorFilter
+            sections={filters.filter((section) => section.key === 'reviews')}
+            filter={filter}
+            onChange={setFilter}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="items-center gap-2"
+            keyboardShouldPersistTaps="handled"
+          >
+            {filters
+              .filter((section) => section.key !== 'reviews')
+              .map((section) => (
+                <NavigatorScopePicker
+                  key={section.key}
+                  section={section}
+                  label={scopeLabel(section)}
+                  onChange={(next) =>
+                    setFilter({ ...filter, [section.key]: next })
+                  }
+                />
+              ))}
+          </ScrollView>
+        </Box>
         {initializing || loading ? (
           <Loading label="Reading worktrees…" />
         ) : null}
@@ -318,7 +288,6 @@ export function WorktreeNavigator({
                                 accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}, ${navigatorChecksLabel(checks)}`}
                                 onPress={() =>
                                   openPullRequest({
-                                    kind: 'pull-request',
                                     environmentId: entry.environmentId,
                                     reviewId: review.reviewId,
                                     number,
@@ -420,21 +389,12 @@ export function WorktreeNavigator({
             description="Try another search or clear the filters."
           />
         ) : null}
-        {[...new Set([...picker.messages, ...messages])].map((message) => (
-          <Text key={message} variant="caption" tone="muted">
-            {message}
-          </Text>
-        ))}
-        {picker.error ? (
-          <ErrorState
-            message={picker.error}
-            retry={{
-              label: 'Read again',
-              onPress: picker.onRead,
-              pending: reading,
-            }}
-          />
-        ) : null}
+        <PickerNotices
+          messages={[...new Set([...picker.messages, ...messages])]}
+          error={picker.error}
+          onRead={picker.onRead}
+          reading={reading}
+        />
         {picker.canReadInventory || messages.length > 0 ? (
           <Button
             label="Read projects again"

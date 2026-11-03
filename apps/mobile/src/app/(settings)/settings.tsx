@@ -1,14 +1,24 @@
-import { SettingsPresentation } from '../../shell/settings-presentation';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { SettingsScreen } from '../../features/access';
+import { headerIcon } from '../../shared/icons/header-icon';
 
 export default function SettingsRoute() {
   const router = useRouter();
   return (
-    <SettingsPresentation
-      onOpenGeneral={() => router.push('/general')}
-      onOpenReviewsGit={() => router.push('/reviews-git')}
-      onOpenComputers={() => router.push('/computers')}
-      onOpenComponentLibrary={() => router.push('/component-library')}
-    />
+    <>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={headerIcon('close')}
+          accessibilityLabel="Close Settings"
+          onPress={() => router.back()}
+        />
+      </Stack.Toolbar>
+      <SettingsScreen
+        onOpenGeneral={() => router.push('/general')}
+        onOpenReviewsGit={() => router.push('/reviews-git')}
+        onOpenComputers={() => router.push('/computers')}
+        onOpenComponentLibrary={() => router.push('/component-library')}
+      />
+    </>
   );
 }
