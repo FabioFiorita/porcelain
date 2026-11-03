@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
 import { useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
-import { readReviewSummary } from '@porcelain/client/reviews';
+import {
+  agentFeedbackControls,
+  readReviewSummary,
+} from '@porcelain/client/reviews';
 import type { WalkthroughKey } from '@porcelain/client/reviews/rules';
 import { Box } from '../../../components/ui/box';
-import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -24,7 +26,7 @@ import {
   PublishedWalkthrough,
   type PublishedWalkthroughState,
 } from './published-walkthrough';
-import { ReviewBottomBar } from './review-bottom-bar';
+import { BriefingContinue } from './briefing-continue';
 import { ReviewBriefing } from './review-briefing';
 import { ReviewReadState } from './read-state';
 import { WalkthroughProgress } from './walkthrough-completion';
@@ -133,26 +135,27 @@ export function PublishedOverviewBar({
   walkthrough: PublishedWalkthroughState;
 }) {
   const routes = useWalkthroughRoutes(walkthrough.workspace);
+  const feedback = {
+    connection: walkthrough.workspace.connection,
+    reviewId: walkthrough.revision.reviewId,
+    reviewRevision: walkthrough.review.revision,
+    writable: true,
+  };
+  const sending = useAtomValue(agentFeedbackControls(feedback));
   const next = briefingContinuation(
     walkthrough.stops,
     walkthrough.progress.done,
   );
-  if (!next) return null;
+  if (!next && !(sending.kind === 'ready' && sending.showActions)) return null;
   return (
-    <ReviewBottomBar>
-      <Button
-        label={next.label}
-        onPress={() => {
-          if (next.key !== 'briefing') routes.openStop(next.key);
-        }}
-      />
-      <SendFeedbackButton
-        connection={walkthrough.workspace.connection}
-        reviewId={walkthrough.revision.reviewId}
-        reviewRevision={walkthrough.review.revision}
-        writable
-      />
-    </ReviewBottomBar>
+    <BriefingContinue
+      next={next}
+      onContinue={() => {
+        if (next && next.key !== 'briefing') routes.openStop(next.key);
+      }}
+    >
+      <SendFeedbackButton {...feedback} />
+    </BriefingContinue>
   );
 }
 
@@ -188,11 +191,7 @@ function SummaryPage({
           onPress={walkthrough.refresh}
         />
       </Stack.Toolbar>
-      {walkthrough.refreshing ? (
-        <Loading label="Refreshing agent summary…" />
-      ) : (
-        <AgentSummary walkthrough={walkthrough} />
-      )}
+      <AgentSummary walkthrough={walkthrough} />
     </>
   );
 }
@@ -211,7 +210,11 @@ function AgentSummary({
   const result = useAtomValue(query);
   const link = usePreviewLink();
   if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={walkthrough.refresh} />;
+    return walkthrough.refreshing ? (
+      <Loading label="Refreshing agent summary…" />
+    ) : (
+      <ReviewReadState result={result} refresh={walkthrough.refresh} />
+    );
   return (
     <Box className="flex-1">
       {link.error ? <ErrorState message={link.error} /> : null}

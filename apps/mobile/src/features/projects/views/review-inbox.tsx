@@ -176,10 +176,8 @@ export function ReviewInbox() {
               {project.rows.map((row, index) => rowItem(row, false, index))}
             </Box>
           ))}
-          {empty && pending && !searching ? (
-            <Loading label="Reading reviews…" />
-          ) : null}
-          {empty && searching ? (
+          {empty && pending ? <Loading label="Reading reviews…" /> : null}
+          {empty && searching && !pending ? (
             <Empty
               title="No reviews match"
               description="Search by branch, project or computer."

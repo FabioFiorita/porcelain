@@ -13,6 +13,7 @@ import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
 import { WorkspaceGate } from '../../projects';
+import { stopScreenTitle } from '../rules/briefing';
 import { DecisionBar } from './decision-bar';
 import { DecisionPage, RevisionDiffs } from './decision-page';
 import {
@@ -285,12 +286,10 @@ function MissingStop({ what }: { what: 'decision' | 'step' }) {
           : 'This step is not in this revision'
       }
       description="The agent published a new revision. Return to the review to read it."
-      action={{ label: 'Back to review', onPress: () => router.back() }}
+      action={{
+        label: what === 'decision' ? 'Back to review' : 'Back to decision',
+        onPress: () => router.back(),
+      }}
     />
   );
-}
-
-function stopScreenTitle(stop: Stop, stops: readonly WalkthroughStop[]) {
-  if (stop.kind !== 'decision') return stopTitle(stop);
-  return `Decision ${stop.number} of ${stops.filter((entry) => entry.kind === 'decision').length}`;
 }

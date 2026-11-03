@@ -45,14 +45,14 @@ import { PairEnvironmentForm } from '../../access';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
-import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { DiffView } from '../../../components/ui/diff-view';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { BriefingVerdict } from './review-briefing';
 import { BriefingContinue } from './briefing-continue';
-import { briefingContinuation } from '../rules/briefing';
+import { briefingContinuation, stopScreenTitle } from '../rules/briefing';
+import { WalkthroughStopList } from './walkthrough-stop-list';
 import { ReviewReadState } from './read-state';
 import { AgentFeedback } from './agent-feedback';
 import { ReviewBottomBar } from './review-bottom-bar';
@@ -99,10 +99,12 @@ export function LinkedReviewScreen() {
         ? router.back()
         : router.push({
             pathname: '/reviews/[reviewId]',
-            params: { ...link, reviewId, stop: key },
+            params: { ...link, reviewId, stop: key, within: 'review' },
           }),
     move: (key) =>
-      key === 'briefing' ? router.back() : router.setParams({ stop: key }),
+      key === 'briefing' && params.within === 'review'
+        ? router.back()
+        : router.setParams({ stop: key }),
   };
   return (
     <Box className="flex-1" surface="background">
@@ -319,7 +321,14 @@ function LinkedReviewContent({
   const following = neighbourStop(stops, stop.key, 1);
   return (
     <Box className="flex-1">
-      <Stack.Screen options={{ title: linkedTitle(stop, stops) }} />
+      <Stack.Screen
+        options={{
+          title:
+            stop.kind === 'briefing'
+              ? 'Published review'
+              : stopScreenTitle(stop, stops),
+        }}
+      />
       <ScrollView
         key={stop.key}
         className="flex-1"
@@ -372,19 +381,12 @@ function LinkedReviewContent({
               {revision.content.layers.length === 0 ? (
                 <Text>No decisions were published in this revision.</Text>
               ) : null}
-              {stops.slice(1).map((entry) => (
-                <Item
-                  key={entry.key}
-                  title={stopTitle(entry)}
-                  description={
-                    entry.kind === 'decision'
-                      ? entry.layer.summary
-                      : `${entry.paths.length} files`
-                  }
-                  accessibilityLabel={`Open ${stopTitle(entry)}`}
-                  onPress={() => go(entry.key)}
-                />
-              ))}
+              <WalkthroughStopList
+                review={revision.content}
+                stops={stops}
+                done={done}
+                onStop={go}
+              />
             </>
           ) : (
             <>
@@ -417,7 +419,7 @@ function LinkedReviewContent({
         </Box>
       </ScrollView>
       {stop.kind === 'briefing' && next ? (
-        <BriefingContinue label={next.label} onPress={() => go(next.key)} />
+        <BriefingContinue next={next} onContinue={() => go(next.key)} />
       ) : null}
       {stop.kind === 'briefing' ? null : (
         <ReviewBottomBar>
@@ -488,15 +490,6 @@ function Decision({ layer }: { layer: Revision['content']['layers'][number] }) {
       ))}
     </Box>
   );
-}
-
-function linkedTitle(
-  stop: ReturnType<typeof currentStop>,
-  stops: ReturnType<typeof walkthroughStops>,
-) {
-  if (stop.kind === 'briefing') return 'Published review';
-  if (stop.kind !== 'decision') return stopTitle(stop);
-  return `Decision ${stop.number} of ${stops.filter((entry) => entry.kind === 'decision').length}`;
 }
 
 function excerptLanguage(path: string) {

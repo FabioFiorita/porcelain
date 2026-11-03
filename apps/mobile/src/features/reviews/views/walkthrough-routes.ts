@@ -13,6 +13,8 @@ export function useWalkthroughRoutes(workspace: Workspace) {
   return {
     openStop: (stop: Exclude<WalkthroughKey, 'briefing'>) =>
       router.push({ pathname: '/decision', params: { ...scope, stop } }),
+    showStop: (stop: Exclude<WalkthroughKey, 'briefing'>) =>
+      router.dismissTo({ pathname: '/decision', params: { ...scope, stop } }),
     openStep: (stop: WalkthroughKey, step: string) =>
       router.push({
         pathname: '/decision-step',
@@ -35,6 +37,7 @@ export function useWalkthroughRoutes(workspace: Workspace) {
         params: {
           ...reviewParams(workspace.key, { kind: 'worktree' }),
           thread,
+          origin: 'decision',
         },
       }),
     compose: (review: ReviewResponse, body: string) =>

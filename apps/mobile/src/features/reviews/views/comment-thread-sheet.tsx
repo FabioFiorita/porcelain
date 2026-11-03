@@ -40,9 +40,11 @@ import { useCommentDraft } from './comment-draft';
 export function CommentThreadSheet({
   workspace,
   threadId,
+  fromDecision,
 }: {
   workspace: Workspace;
   threadId: string;
+  fromDecision: boolean;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -61,15 +63,23 @@ export function CommentThreadSheet({
         description="This thread was deleted. Return to the review."
       />
     );
-  return <ThreadSheet workspace={workspace} thread={thread} />;
+  return (
+    <ThreadSheet
+      workspace={workspace}
+      thread={thread}
+      fromDecision={fromDecision}
+    />
+  );
 }
 
 function ThreadSheet({
   workspace,
   thread,
+  fromDecision,
 }: {
   workspace: Workspace;
   thread: CommentThread;
+  fromDecision: boolean;
 }) {
   const router = useRouter();
   const resolve = useResolveThread(workspace, thread);
@@ -96,6 +106,10 @@ function ThreadSheet({
   const openDecision =
     review && sameReview
       ? (layer: ReviewLayer) => {
+          if (fromDecision) {
+            routes.showStop(decisionKey(layer.id));
+            return;
+          }
           router.back();
           routes.openStop(decisionKey(layer.id));
         }

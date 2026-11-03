@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { walkthroughStops } from '@porcelain/client/reviews/rules';
-import { briefingContinuation } from './briefing';
+import { briefingContinuation, stopScreenTitle } from './briefing';
 
 const stops = walkthroughStops(
   {
@@ -47,4 +47,17 @@ it('offers no decision action for a review with only closing stops', () => {
       () => false,
     ),
   ).toBeUndefined();
+});
+
+it('titles a decision screen by its place among decisions and other stops by name', () => {
+  const titles = stops.flatMap((stop) =>
+    stop.kind === 'briefing' ? [] : [stopScreenTitle(stop, stops)],
+  );
+  expect(titles).toEqual([
+    'Decision 1 of 3',
+    'Decision 2 of 3',
+    'Decision 3 of 3',
+    'Not explained',
+    'Specs',
+  ]);
 });

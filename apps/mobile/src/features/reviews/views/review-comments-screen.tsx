@@ -46,6 +46,7 @@ export function ReviewCommentsScreen({
   compose,
   comparison,
   thread,
+  fromDecision = false,
   body,
   review,
   feedbackWritable = false,
@@ -56,6 +57,7 @@ export function ReviewCommentsScreen({
   compose: boolean;
   comparison: ReviewComparison;
   thread?: string | undefined;
+  fromDecision?: boolean | undefined;
   body?: string | undefined;
   review?: CommentReview | undefined;
   feedbackWritable?: boolean | undefined;
@@ -78,6 +80,7 @@ export function ReviewCommentsScreen({
               key={`${workspace.key}:${thread}`}
               workspace={workspace}
               threadId={thread}
+              fromDecision={fromDecision}
             />
           ) : (
             <CommentThreads
