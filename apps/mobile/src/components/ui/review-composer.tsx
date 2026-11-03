@@ -12,6 +12,7 @@ export function ReviewComposer({
   onCancel,
   label,
   pending = false,
+  autoFocus = false,
   error,
 }: {
   value: string;
@@ -20,6 +21,7 @@ export function ReviewComposer({
   onCancel: () => void;
   label?: string;
   pending?: boolean;
+  autoFocus?: boolean;
   error?: string;
 }) {
   return (
@@ -33,8 +35,9 @@ export function ReviewComposer({
         <Input
           testID="review-comment-input"
           accessibilityLabel="Review comment"
-          placeholder="Share feedback…"
+          placeholder="What should the agent change?"
           multiline
+          autoFocus={autoFocus}
           value={value}
           onChangeText={onChangeText}
           disabled={pending}

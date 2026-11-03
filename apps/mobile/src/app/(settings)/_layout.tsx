@@ -23,7 +23,7 @@ function SettingsLayout() {
       <Stack.Screen name="computer" options={{ title: 'Computer' }} />
       <Stack.Screen
         name="pair-computer"
-        options={{ title: 'Pair a computer', ...sheetOptions('half') }}
+        options={{ title: 'Pair a computer', ...sheetOptions('tall') }}
       />
       <Stack.Screen name="open/pair" options={{ animation: 'none' }} />
       <Stack.Screen

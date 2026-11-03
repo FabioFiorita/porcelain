@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { useNavigation } from 'expo-router';
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import {
   completeDecision,
@@ -65,6 +66,7 @@ export function useStopCompletion({
 }: StopCompletionProps) {
   const [notice, setNotice] = useState<ReviewNotice>();
   const continueIfActive = useAtomValue(reviewContinuation(useId()));
+  const navigation = useNavigation();
   const completion = decisionCompletionBinding(
     useAtom(
       completeDecision({
@@ -101,7 +103,14 @@ export function useStopCompletion({
             },
           }
         : {}),
-      ...(onDone ? { onDone: () => continueIfActive(onDone) } : {}),
+      ...(onDone
+        ? {
+            onDone: () =>
+              continueIfActive(() => {
+                if (navigation.isFocused()) onDone();
+              }),
+          }
+        : {}),
     });
   };
   const reopen = () => {

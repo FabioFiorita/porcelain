@@ -8,7 +8,10 @@ import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { ErrorState } from '../../../components/ui/error-state';
 
-export function AgentFeedback(input: AgentFeedbackInput) {
+export function AgentFeedback({
+  sendInline = true,
+  ...input
+}: AgentFeedbackInput & { sendInline?: boolean }) {
   const [view, act] = useAtom(agentFeedbackControls(input));
   if (view.kind === 'loading') return null;
   if (view.kind === 'failure')
@@ -48,13 +51,15 @@ export function AgentFeedback(input: AgentFeedbackInput) {
       {view.deliveryError ? <ErrorState message={view.deliveryError} /> : null}
       {view.showActions ? (
         <Box className="flex-row flex-wrap" gap={2}>
-          <Button
-            label="Send feedback"
-            size="sm"
-            pending={view.sending}
-            disabled={!view.canSend}
-            onPress={() => act('send')}
-          />
+          {sendInline ? (
+            <Button
+              label="Send feedback"
+              size="sm"
+              pending={view.sending}
+              disabled={!view.canSend}
+              onPress={() => act('send')}
+            />
+          ) : null}
           <Button
             label="Disconnect session"
             size="sm"
@@ -69,5 +74,20 @@ export function AgentFeedback(input: AgentFeedbackInput) {
         <ErrorState key={index} message={error} />
       ))}
     </Box>
+  );
+}
+
+export function SendFeedbackButton(input: AgentFeedbackInput) {
+  const [view, act] = useAtom(agentFeedbackControls(input));
+  if (view.kind !== 'ready' || !view.showActions) return null;
+  return (
+    <Button
+      label="Send feedback to agent"
+      accessibilityLabel="Send feedback"
+      variant={view.canSend ? 'filled' : 'tonal'}
+      pending={view.sending}
+      disabled={!view.canSend}
+      onPress={() => act('send')}
+    />
   );
 }

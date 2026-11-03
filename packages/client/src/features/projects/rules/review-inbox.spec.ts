@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { reviewInbox } from './review-inbox.ts';
+import { reviewInbox, searchReviewInbox } from './review-inbox.ts';
 import type { NavigatorEntry, NavigatorReview } from './worktree-navigator.ts';
 
 function entry(
@@ -109,4 +109,41 @@ it('says when progress is still reading or could not be read', () => {
     ['failed', 'unavailable', 'progress unavailable'],
   ]);
   expect(inbox.reading).toBe(true);
+});
+
+it('searches every word across branch, project, computer and pull request, dropping emptied projects', () => {
+  const tastik = { id: 'tastik', name: 'Tastik' };
+  const laptop = { id: 'laptop', name: 'Laptop' };
+  const inbox = reviewInbox([
+    entry('feat/menu', review({ reviewed: 0, total: 2 }), tastik),
+    entry('fix/shell', review({ reviewed: 1, total: 1 })),
+    entry(
+      'feat/tabs',
+      review({ reviewed: 4, total: 4 }, { pullRequestNumber: 657 }),
+      undefined,
+      laptop,
+    ),
+  ]);
+  const names = (query: string) => {
+    const found = searchReviewInbox(inbox, query);
+    return [
+      found.needsYou.map((row) => row.entry.name),
+      found.projects.map((project) => [
+        project.environmentName,
+        project.rows.map((row) => row.entry.name),
+      ]),
+    ];
+  };
+  expect(names('  ')).toEqual([
+    ['feat/menu'],
+    [
+      ['Desk', ['fix/shell']],
+      ['Laptop', ['feat/tabs']],
+    ],
+  ]);
+  expect(names('FEAT')).toEqual([['feat/menu'], [['Laptop', ['feat/tabs']]]]);
+  expect(names('feat laptop')).toEqual([[], [['Laptop', ['feat/tabs']]]]);
+  expect(names('657')).toEqual([[], [['Laptop', ['feat/tabs']]]]);
+  expect(names('tastik')).toEqual([['feat/menu'], []]);
+  expect(names('nothing')).toEqual([[], []]);
 });

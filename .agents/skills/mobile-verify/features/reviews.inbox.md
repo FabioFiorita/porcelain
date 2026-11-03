@@ -10,6 +10,8 @@ selectors:
   - 'Pair a computer'
   - 'Add computer'
   - 'PR #'
+  - 'Search reviews'
+  - 'No reviews match'
 tests:
   - packages/client/src/features/projects/rules/review-inbox.spec.ts
 api:
@@ -34,9 +36,10 @@ Preconditions: [surface baseline](README.md). Publish at least two reviews throu
 3. Mark the remaining decisions of the Needs you review (through the web client or the review screen) and return: the row moves to its project group without reload.
 4. Pair a second disposable computer with a review: project headings read "project · computer" and each row opens its own computer's review.
 5. With no published reviews expect No reviews. Forget every computer: Pair a computer with Add computer, which opens Settings → Computers.
-6. Check long branch names, larger text, light/dark, and iPad in landscape and portrait.
+6. Type in the header's Search reviews field: every word must match the branch, worktree, project, computer or `#<PR number>`; groups that empty disappear, and nothing matching says No reviews match. Cancel (iOS) or clearing the field restores the full inbox.
+7. Check long branch names, larger text, light/dark, and iPad in landscape and portrait.
 
-Automated coverage: `review-inbox.spec.ts` (grouping, ordering and status).
+Automated coverage: `review-inbox.spec.ts` (grouping, ordering, status and search).
 
 ## Gotchas
 

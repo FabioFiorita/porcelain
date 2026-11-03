@@ -33,16 +33,18 @@ import { Separator } from '../../../components/ui/separator';
 import type { Workspace } from '../../projects';
 import { useResolveThread, useVisibleComments } from '../commands/comments';
 import { useLinkedReview } from '../queries/linked-review';
-import { useReviewPlace } from '../store';
+import { useWalkthroughRoutes } from './walkthrough-routes';
 import { ReviewReadState } from './read-state';
 import { useCommentDraft } from './comment-draft';
 
 export function CommentThreadSheet({
   workspace,
   threadId,
+  fromDecision,
 }: {
   workspace: Workspace;
   threadId: string;
+  fromDecision: boolean;
 }) {
   const query = readCommentThreads({
     connection: workspace.connection,
@@ -61,15 +63,23 @@ export function CommentThreadSheet({
         description="This thread was deleted. Return to the review."
       />
     );
-  return <ThreadSheet workspace={workspace} thread={thread} />;
+  return (
+    <ThreadSheet
+      workspace={workspace}
+      thread={thread}
+      fromDecision={fromDecision}
+    />
+  );
 }
 
 function ThreadSheet({
   workspace,
   thread,
+  fromDecision,
 }: {
   workspace: Workspace;
   thread: CommentThread;
+  fromDecision: boolean;
 }) {
   const router = useRouter();
   const resolve = useResolveThread(workspace, thread);
@@ -88,11 +98,7 @@ function ThreadSheet({
     }),
   );
   const review = AsyncResult.isSuccess(published) ? published.value : undefined;
-  const [, setPlace] = useReviewPlace(
-    review
-      ? JSON.stringify([workspace.key, review.publishedAt, review.revision])
-      : '',
-  );
+  const routes = useWalkthroughRoutes(workspace);
   const sameReview =
     !thread.review ||
     (thread.review.reviewId === review?.reviewId &&
@@ -100,8 +106,9 @@ function ThreadSheet({
   const openDecision =
     review && sameReview
       ? (layer: ReviewLayer) => {
-          setPlace({ stop: decisionKey(layer.id), summary: false });
           router.back();
+          if (fromDecision) routes.showStop(decisionKey(layer.id));
+          else routes.openStop(decisionKey(layer.id));
         }
       : undefined;
   const path = anchorPath(thread.anchor);

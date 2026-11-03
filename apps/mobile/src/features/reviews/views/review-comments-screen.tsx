@@ -46,6 +46,7 @@ export function ReviewCommentsScreen({
   compose,
   comparison,
   thread,
+  fromDecision = false,
   body,
   review,
   feedbackWritable = false,
@@ -56,6 +57,7 @@ export function ReviewCommentsScreen({
   compose: boolean;
   comparison: ReviewComparison;
   thread?: string | undefined;
+  fromDecision?: boolean | undefined;
   body?: string | undefined;
   review?: CommentReview | undefined;
   feedbackWritable?: boolean | undefined;
@@ -78,6 +80,7 @@ export function ReviewCommentsScreen({
               key={`${workspace.key}:${thread}`}
               workspace={workspace}
               threadId={thread}
+              fromDecision={fromDecision}
             />
           ) : (
             <CommentThreads
@@ -177,6 +180,7 @@ export function CommentThreads({
       draft={draft}
       target={target}
       showContext={currentTarget !== undefined}
+      autoFocus={compose || target.threadId !== undefined}
     />
   ) : null;
   return (
@@ -311,13 +315,16 @@ function CommentComposer({
   draft,
   target,
   showContext,
+  autoFocus,
 }: {
   draft: ReturnType<typeof useCommentDraft>;
   target: ComposerTarget;
   showContext: boolean;
+  autoFocus: boolean;
 }) {
   return (
     <ReviewComposer
+      autoFocus={autoFocus}
       value={draft.body}
       onChangeText={draft.edit}
       label={`${anchorPath(target.anchor) ?? ''} ${anchorLabel(target.anchor)}${showContext ? ` · ${documentCommentContext(target.anchor)}` : ''}${target.threadId ? ' · Reply' : ''}`}

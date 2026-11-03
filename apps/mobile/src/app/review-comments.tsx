@@ -15,6 +15,7 @@ function ReviewCommentsRoute() {
     comparison?: string;
     base?: string;
     thread?: string;
+    origin?: string;
     body?: string;
     review?: string;
     revision?: string;
@@ -28,6 +29,7 @@ function ReviewCommentsRoute() {
       compose={params.compose === 'true'}
       comparison={reviewComparison(params.comparison, params.base)}
       thread={params.thread}
+      fromDecision={params.origin === 'decision'}
       body={params.body}
       review={decodeCommentReview(params.review, params.revision)}
       feedbackWritable={params.feedbackWritable === 'true'}

@@ -25,6 +25,12 @@ function TabRoutes({ segment }: { segment: string }) {
         <Stack.Screen name="worktree" options={{ title: '' }} />
       ) : null}
       <Stack.Screen name="review" options={{ title: 'Review' }} />
+      <Stack.Screen name="decision" options={{ title: 'Decision' }} />
+      <Stack.Screen name="decision-step" options={{ title: 'Step' }} />
+      <Stack.Screen
+        name="review-summary"
+        options={{ title: 'Agent summary' }}
+      />
       <Stack.Screen name="files" options={{ title: 'Files' }} />
       <Stack.Screen name="history" options={{ title: 'History' }} />
       <Stack.Screen
@@ -35,6 +41,7 @@ function TabRoutes({ segment }: { segment: string }) {
         name="reviews/[reviewId]"
         options={{ title: 'Published review' }}
       />
+      <Stack.Screen name="linked-decision" options={{ title: 'Decision' }} />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
       <Stack.Screen
         name="history/commit/[oid]/index"

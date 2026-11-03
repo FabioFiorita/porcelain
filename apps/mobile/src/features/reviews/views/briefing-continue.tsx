@@ -1,16 +1,20 @@
+import type { ReactNode } from 'react';
 import { Button } from '../../../components/ui/button';
 import { ReviewBottomBar } from './review-bottom-bar';
 
 export function BriefingContinue({
-  label,
-  onPress,
+  next,
+  onContinue,
+  children,
 }: {
-  label: string;
-  onPress: () => void;
+  next: { label: string } | undefined;
+  onContinue: () => void;
+  children?: ReactNode;
 }) {
   return (
     <ReviewBottomBar>
-      <Button label={label} onPress={onPress} />
+      {next ? <Button label={next.label} onPress={onContinue} /> : null}
+      {children}
     </ReviewBottomBar>
   );
 }

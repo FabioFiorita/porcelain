@@ -8,25 +8,18 @@ selectors:
   - 'Select a worktree'
   - 'worktree-review'
   - 'No changes'
-  - 'Briefing'
+  - 'Changed files'
+  - 'review-comments'
   - 'You asked'
   - 'The walkthrough'
   - 'Continue at decision'
-  - 'Open review overview'
   - 'Read agent summary'
-  - 'Return to walkthrough'
-  - 'Show whole file'
-  - 'Show relevant range'
+  - 'Refresh review'
   - 'No agent review'
   - 'No walkthrough decisions'
-  - 'Mark decision reviewed'
   - 'Review progress is unavailable.'
-  - 'Mark available files reviewed'
-  - 'Review unavailable'
   - 'Needs your decision'
   - 'Answer'
-  - 'Unmark reviewed'
-  - 'Read more files'
   - 'Pull request'
   - 'Read pull request again'
   - 'Uncommitted'
@@ -71,7 +64,7 @@ api:
 
 # reviews.review
 
-Review shows the selected worktree’s changes, reviewed status, published decisions and comments, with independent Uncommitted and Branch comparisons.
+Review is the overview of the selected worktree: the agent's published briefing and walkthrough, the review's Comments, and the Changed files list with independent Uncommitted and Branch comparisons. Each walkthrough stop opens its own [Decision](reviews.decision.md) screen.
 
 ## How to get to it (user POV)
 
@@ -83,7 +76,7 @@ Review shows the selected worktree’s changes, reviewed status, published decis
 Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying iPad in landscape and portrait with fresh bounds after rotation.
 
 1. With no worktree (`porcelain.dev://review`) expect Select a worktree with Choose a worktree in Worktrees to continue to Review. Pair/select the focused sample in Worktrees, open Review; expect Review README.md. Open it, then Back returns. Comments → Close (iOS sheet X, Android Back) returns to the same screen. The opaque header keeps content from sliding under it on iOS 26.
-2. Expect a visible, naturally sized Uncommitted button above the document. An ordinary tap opens the menu on Android and iOS; dismiss with Back/outside and reopen. Choose Branch, an explicit local/remote base, then Uncommitted: every choice closes the menu, the Branch trigger names its actual base, and the file set matches that comparison. Long base names/many choices and larger text must remain reachable without horizontal page overflow. Check iPad in landscape and portrait. Open a changed file: it captures that comparison. Switch worktrees/back: each restores its comparison.
+2. Expect a visible, naturally sized Uncommitted menu beside the Changed files heading, below the walkthrough. An ordinary tap opens the menu on Android and iOS; dismiss with Back/outside and reopen. Choose Branch, an explicit local/remote base, then Uncommitted: every choice closes the menu, the Branch trigger names its actual base, and the file set matches that comparison. Long base names/many choices and larger text must remain reachable without horizontal page overflow. Check iPad in landscape and portrait. Open a changed file: it captures that comparison. Switch worktrees/back: each restores its comparison.
 3. A cold base read says Reading branches; an in-flight refresh says Refreshing branches while retaining available choices. Uncommitted and default Branch remain available. A successful empty list says No base branches available; a refused read says Base branches could not be read and offers Read branches again. For refusal proof, keep the workspace selected and refuse only GET /api/worktrees/:worktreeId/branch-bases in the disposable transport; record the injection used. Restore that read and select Read branches again: the choices recover. Moving .git tests workspace availability instead and does not prove this isolated retry. Do not interpret an error as an empty list.
 4. Scroll a many-file list, open a diff and return: same comparison and list offset. Go back to the Worktree screen, open Files or History and return, then another worktree and back. Added/untracked dots are green, modified amber, deleted red, renamed blue; accessible rows are named `Review <full path>, <change type>, <comparison note>, <review state>`. Reviewed names have strikethrough; unreviewed/changed-since-review names remain normal. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes. Closed/hidden navigators release their live reads; returning performs a fresh read without losing comparison/place.
 5. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again. Open Files from the Worktree screen and back, then cold-launch through Metro: selected workspace stays.
@@ -92,34 +85,17 @@ Preconditions: [surface baseline](README.md). Use the [bounded document gesture]
 
 Precondition: `--fixture development`. Expect decisions in publication order: Keep document holds visible; Filter completed deliveries; Explain the dispatch handoff.
 
-1. Open each decision; Next/Previous move stops. Read a pointer: path/range/source numbers, Show whole file/Show relevant range. Open its diff then Back returns to that decision/pointer. Read agent summary shows supplied HTML without scripts/remote assets; Return to walkthrough restores the stop.
-2. Switch worktrees/back: same review restores its stop without leaks. A new revision starts its briefing; Branch/Uncommitted remain independent. No publication says No agent review; no decisions says No walkthrough decisions. Loading/failure shows state/Read again; Refresh review retries publication and expired summary links.
-3. Fail/hold changed-file reads: saved decisions remain usable, with separate loading/error and Read again. Unknown coverage cannot look empty. Retry restores Not explained/diff links. Missing worktree shows saved-review diagnostics and disables code pointers.
+1. The overview is one scrolling page under the native Review title: the asked title with branch and revision, progress, agent feedback status, pull request, the briefing, The walkthrough as numbered rows (a reviewed stop shows a check), Agent summary, Comments with its open count, then Changed files. Each walkthrough row pushes its [Decision](reviews.decision.md) screen; native Back returns to the overview at the same scroll place. Agent summary (`review-summary`) pushes the [summary](reviews.summary.md).
+2. Refresh review in the header retries the publication. Switch worktrees/back: the overview restores its comparison and scroll place. A new revision lists its own decisions; Branch/Uncommitted remain independent. No publication says No agent review above the changed files; no decisions says No walkthrough decisions. Loading/failure shows state/Read again.
+3. Fail/hold changed-file reads: the published walkthrough remains usable, with separate loading/error and Read again under Changed files. Unknown coverage cannot look empty. Missing worktree shows saved-review diagnostics and disables code pointers.
 
 ### Phone briefing
 
 1. Open a committed review with a verdict. The native title is Briefing; Recommendation (Merge or Hold) and every reason precede You asked and its links. Needs your decision shows the problem and opens the connected decision. Owners use the shared New, Changed and Removed classification and only linked owners are tappable.
 2. Expect one Proven at the seven-character published head card, failed checks before passing checks, optional output, and a stale-check notice after edits. No checks/assets says No proof was published. Open image proof: retained bytes render; hide it and reopen. A failed asset read offers Read again. Link assets open externally; videos explicitly open the exact published revision in the browser.
 3. Removed lists actual deleted paths with behavior and reason; Not proven lists every gap or says none were reported. The walkthrough lists decisions in publication order, then Not explained (including partial coverage), then Specs when present. No publication, no decisions and legacy verdict-free reviews retain their explicit empty states.
-4. Scroll from the first card through the last walkthrough row: Continue at decision n remains fixed above the tab bar and below the opaque header. It opens the first unfinished decision (the first decision when all are complete or progress is unknown). Back/Overview returns to briefing; decision marking and code-pointer navigation remain available. Republish: the new revision starts at briefing and proof remains pinned to its head.
+4. Scroll from the first card through the changed files: Continue at decision n remains fixed above the tab bar and below the opaque header, with Send feedback to agent under it whenever saved feedback can be sent ([agent feedback](reviews.agent-feedback.md)). Continue opens the first unfinished decision (the first decision when all are complete or progress is unknown); Back returns to the overview. Republish: the overview shows the new revision and proof remains pinned to its head.
 5. Repeat Merge, Hold with a question, image proof with a removed file and Not proven, and a long title in Android light/dark. Check full accessible names, many entries and larger text. Compare with v0.71.1: Asked, Recommendation, Proven, Removed and assets were absent from its worktree briefing. iOS, physical LAN and remote connections require separate proof.
-
-### Phone decision
-
-1. Open a decision from the briefing. The native title reads Decision n of N; the numbered decision row marks reviewed decisions and opens any decision. Code moved since it was explained shows when a step moved, beside the file tally for the decision.
-2. The title and explanation come first, then the contracts as one wrapped row (verb, owner, New/Changed/Removed), Needs your decision cards for every connected question, and the route (lanes joined by arrows) above the steps. More than four steps fold behind All n. A step opens its code pointer; broken pointers are not tappable.
-3. Each published file of the decision shows its diff from the published revision with −/+ counts. A thread folds under its last line as "n comments · state" and opens the thread sheet; file-level threads and lines outside the diff list under the block. More than three files load through Read more files.
-4. The bottom bar stays above the tab bar: previous, Mark decision reviewed (marks remaining files, then the decision, then moves on; Unmark reviewed afterwards), Comment (a whole-change comment that names the decision) and next. Answer on a question opens the comments sheet with the question quoted. The changed-file list and Comments button show on the briefing, not on a stop.
-
-### Completion and progress
-
-Precondition: publish multiple decisions, one shared file, a fileless decision and an unexplained file.
-
-1. Shared files appear once under their owning stop; Open owning stop returns there. Decision completion records its owned immutable files before its decision mark. Read GET /api/reviews/:reviewId/marks independently. Unmark a file: file progress changes while its decision mark stays; decision counts follow the retained decision fingerprint. Mark decision reviewed fills missing file marks; Unmark reviewed (accessible name Unmark decision <title> as unreviewed) removes only its decision mark.
-2. Mark decision reviewed with files remaining writes files before the decision and advances (overview at end). Opening code/diffs writes no marks; individual file controls remain available.
-3. Refuse one immutable file-mark write: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
-4. For a retained file without a blob identity, exercise the completion plan with unavailable metadata: name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Restore the retained blob identity: ordinary completion returns. Large file size alone does not make an existing retained Git blob identity unavailable.
-5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and iPad landscape/portrait.
 
 ### Linked pull request
 
