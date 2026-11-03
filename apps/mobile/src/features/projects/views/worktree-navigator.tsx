@@ -102,7 +102,7 @@ export function WorktreeNavigator({
   const selection = selectedCheckout;
   const openActions = (entry: NavigatorEntry) => {
     if (entry.worktreeId)
-      router.push({
+      router.navigate({
         pathname: '/worktree-actions',
         params: {
           environmentId: entry.environmentId,

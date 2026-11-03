@@ -84,6 +84,8 @@ function ActionForm({
 }) {
   const [value, setValue] = useState(action.kind === 'move' ? action.path : '');
   const edit = useEditFile(selected.connection, selected.scope);
+  const [attempted, setAttempted] = useState(false);
+  const pending = attempted && edit.result.waiting;
   return (
     <>
       <Field
@@ -99,12 +101,12 @@ function ActionForm({
           accessibilityLabel={action.kind === 'move' ? 'New path' : 'Name'}
           value={value}
           onChangeText={setValue}
-          disabled={edit.result.waiting}
+          disabled={pending}
           autoCapitalize="none"
           autoCorrect={false}
         />
       </Field>
-      {AsyncResult.isFailure(edit.result) ? (
+      {attempted && AsyncResult.isFailure(edit.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(edit.result.cause))}
         />
@@ -112,9 +114,12 @@ function ActionForm({
       <Button
         testID="file-action-submit"
         label={action.kind === 'move' ? 'Rename' : 'Create'}
-        pending={edit.result.waiting}
+        pending={pending}
         disabled={!value.trim()}
-        onPress={() => edit.submit(action, value, onClose, onCreated)}
+        onPress={() => {
+          setAttempted(true);
+          edit.submit(action, value, onClose, onCreated);
+        }}
       />
     </>
   );

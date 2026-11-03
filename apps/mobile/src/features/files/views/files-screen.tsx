@@ -113,7 +113,7 @@ function FilesNavigationView({
   const router = useRouter();
   const trash = useEditFile(selected.connection, selected.scope);
   const openAction = (action: FileAction) =>
-    router.push({
+    router.navigate({
       pathname: '/file-action',
       params: { workspace: selected.key, ...action },
     });

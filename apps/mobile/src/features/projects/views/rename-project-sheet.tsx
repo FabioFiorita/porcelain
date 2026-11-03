@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useAtomRef } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import type { Project } from '@porcelain/client/projects/rules';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { remoteConnectionState } from '../../../shared/application/store';
+import { useComputerConnection } from '../store';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { Field } from '../../../components/ui/field';
@@ -13,7 +12,7 @@ import { Input } from '../../../components/ui/input';
 import { Sheet } from '../../../components/ui/sheet';
 import { Text } from '../../../components/ui/text';
 import { useInventory } from '../queries/inventory';
-import { useProjectActions } from '../commands/project-actions';
+import { useRenameProject } from '../commands/project-actions';
 
 export function RenameProjectSheet({
   environmentId,
@@ -24,9 +23,7 @@ export function RenameProjectSheet({
   projectId: string | undefined;
   onClose: () => void;
 }) {
-  const connection = useAtomRef(remoteConnectionState).find(
-    (entry) => entry.remote.environmentId === environmentId,
-  )?.connection;
+  const connection = useComputerConnection(environmentId);
   const inventory = useInventory(connection);
   const project = Option.getOrUndefined(
     AsyncResult.value(inventory.result),
@@ -59,8 +56,8 @@ function RenameProjectForm({
   onClose: () => void;
 }) {
   const [name, setName] = useState(project.name);
-  const commands = useProjectActions(connection, project.id);
-  const result = commands.renameResult;
+  const commands = useRenameProject(connection, project.id);
+  const result = commands.result;
   const failure = AsyncResult.isFailure<unknown, unknown>(result)
     ? connectionErrorMessage(Cause.squash(result.cause))
     : undefined;

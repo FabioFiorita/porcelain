@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { useAtomValue } from '@effect/atom-react';
 import { readReview } from '@porcelain/client/reviews';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -14,7 +14,7 @@ import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
-import { remoteConnectionState } from '../../../shared/application/store';
+import { useComputerConnection } from '../store';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { Sheet } from '../../../components/ui/sheet';
@@ -48,7 +48,7 @@ function ArchiveReview(props: ArchiveTarget) {
         onPress={() => {
           if (settings)
             prepare(archiveOptions(settings), () =>
-              router.push({
+              router.navigate({
                 pathname: '/archive-review',
                 params: {
                   environmentId: props.connection.environmentId,
@@ -82,9 +82,7 @@ export function ArchiveReviewSheet({
   mainWorktreeId: string | undefined;
   onClose: () => void;
 }) {
-  const connection = useAtomRef(remoteConnectionState).find(
-    (entry) => entry.remote.environmentId === environmentId,
-  )?.connection;
+  const connection = useComputerConnection(environmentId);
   return (
     <Sheet title="Archive review">
       {connection && reviewId && projectId && mainWorktreeId ? (
@@ -96,12 +94,18 @@ export function ArchiveReviewSheet({
           onClose={onClose}
         />
       ) : (
-        <Empty
-          title="Review unavailable"
-          description="Return to the pull request and choose Archive again."
-        />
+        <ArchiveUnavailable />
       )}
     </Sheet>
+  );
+}
+
+function ArchiveUnavailable() {
+  return (
+    <Empty
+      title="Review unavailable"
+      description="Return to the pull request and choose Archive again."
+    />
   );
 }
 
@@ -122,6 +126,8 @@ function ArchiveConfirmation({
     ? archiveFailureMessage(Cause.squash(result.cause))
     : undefined;
   const risky = Boolean(plan && (plan.dirty || plan.unpushed));
+  if (AsyncResult.isInitial(result) && !result.waiting)
+    return <ArchiveUnavailable />;
   let description = 'Checking the worktree and branches…';
   if (failure) description = 'Archiving could not be completed.';
   if (plan) description = archiveDescription(plan);

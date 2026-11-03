@@ -1,6 +1,6 @@
 export { WorkspaceGate } from './views/workspace-gate';
 export type { Workspace } from './commands/workspace-connection';
-export { useDocumentLeave } from './store';
+export { useDocumentLeave, useComputerConnection } from './store';
 export { ReviewInbox } from './views/review-inbox';
 export { WorktreesScreen } from './views/worktrees-screen';
 export { WorktreeScreen } from './views/worktree-screen';

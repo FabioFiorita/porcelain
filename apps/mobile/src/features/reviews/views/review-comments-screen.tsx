@@ -20,7 +20,7 @@ import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { ReviewAnnotation } from '../../../components/ui/review-annotation';
 import { ReviewComposer } from '../../../components/ui/review-composer';
 import { Text } from '../../../components/ui/text';
-import { Sheet } from '../../../components/ui/sheet';
+import { GuardedSheet } from '../../../components/ui/sheet';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -61,7 +61,7 @@ export function ReviewCommentsScreen({
   feedbackWritable?: boolean | undefined;
 }) {
   return (
-    <Sheet title={sheetTitle(thread, path)} layout="fixed">
+    <GuardedSheet title={sheetTitle(thread, path)} layout="fixed">
       <WorkspaceGate
         title="Review"
         expectedWorkspace={workspaceKey ?? ''}
@@ -94,7 +94,7 @@ export function ReviewCommentsScreen({
           )
         }
       </WorkspaceGate>
-    </Sheet>
+    </GuardedSheet>
   );
 }
 

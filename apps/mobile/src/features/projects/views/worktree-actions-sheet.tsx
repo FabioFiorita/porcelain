@@ -36,6 +36,7 @@ import { Icon } from '../../../components/ui/icon';
 import { useReviewGitSettings } from '../../preferences';
 import { useInventory } from '../queries/inventory';
 import { useCopyPath } from '../commands/clipboard';
+import { useComputerConnection } from '../store';
 import {
   useDeleteWorktree,
   useSwitchWorktreeBranch,
@@ -80,9 +81,7 @@ export function WorktreeActionsSheet({
   onAction: (kind: 'delete' | 'switch') => void;
 }) {
   const remotes = useAtomRef(remoteConnectionState);
-  const connection = remotes.find(
-    (entry) => entry.remote.environmentId === environmentId,
-  )?.connection;
+  const connection = useComputerConnection(environmentId);
   const { projects } = useAtomValue(
     readWorktreeNavigator(remotes.map((entry) => entry.connection)),
   );

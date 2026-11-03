@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { IconButton } from './icon-button';
 import { SheetBody } from './sheet-body';
@@ -37,6 +37,24 @@ export function Sheet({ title, layout = 'scroll', children }: SheetProps) {
           onPress={() => router.back()}
         />
       </View>
+      <SheetBody layout={layout}>{children}</SheetBody>
+    </View>
+  );
+}
+
+export const guardedSheetOptions = {
+  presentation: 'card' as const,
+  headerShown: true,
+};
+
+export function GuardedSheet({
+  title,
+  layout = 'scroll',
+  children,
+}: SheetProps) {
+  return (
+    <View className="flex-1 bg-background" collapsable={false}>
+      <Stack.Screen options={{ title }} />
       <SheetBody layout={layout}>{children}</SheetBody>
     </View>
   );

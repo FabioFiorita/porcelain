@@ -29,3 +29,7 @@ export function Sheet({ title, layout = 'scroll', children }: SheetProps) {
     </View>
   );
 }
+
+export const guardedSheetOptions = sheetOptions('tall');
+
+export { Sheet as GuardedSheet };

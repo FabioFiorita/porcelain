@@ -5,7 +5,7 @@ import type { RuntimeConnection } from '@porcelain/client/transport';
 import { projectPath, type Project } from '@porcelain/client/projects/rules';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { ProjectActionMenu } from './project-action-menu';
-import { useProjectActions } from '../commands/project-actions';
+import { useRemoveProject } from '../commands/project-actions';
 
 export function ProjectActions({
   connection,
@@ -19,7 +19,7 @@ export function ProjectActions({
   onCopy: (path: string) => void;
 }) {
   const router = useRouter();
-  const commands = useProjectActions(connection, project.id);
+  const remove = useRemoveProject(connection, project.id);
   return (
     <ProjectActionMenu
       label={`Project actions: ${project.name} · ${environmentName}`}
@@ -33,7 +33,7 @@ export function ProjectActions({
           id: 'rename',
           label: 'Rename project',
           onPress: () =>
-            router.push({
+            router.navigate({
               pathname: '/rename-project',
               params: {
                 environmentId: connection.environmentId,
@@ -55,7 +55,7 @@ export function ProjectActions({
                   text: 'Remove',
                   style: 'destructive',
                   onPress: () =>
-                    commands.remove(
+                    remove(
                       () => undefined,
                       (cause) =>
                         Alert.alert(

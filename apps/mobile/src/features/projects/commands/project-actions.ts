@@ -4,33 +4,38 @@ import { renameProject, removeProject } from '@porcelain/client/projects';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { requestDocumentLeave } from '../store';
 
-export function useProjectActions(
+export function useRenameProject(
   connection: RuntimeConnection,
   projectId: string,
 ) {
-  const [renameResult, rename] = useAtom(renameProject(connection), {
-    mode: 'promiseExit',
-  });
-  const [removeResult, remove] = useAtom(removeProject(connection), {
+  const [result, rename] = useAtom(renameProject(connection), {
     mode: 'promiseExit',
   });
   return {
-    renameResult,
-    removeResult,
+    result,
     rename: (name: string, onDone: () => void) => {
       void rename({ projectId, name }).then((exit) => {
         if (Exit.isSuccess(exit)) onDone();
       });
     },
-    remove: (
-      onDone: () => void,
-      onFailure: (cause: Cause.Cause<unknown>) => void,
-    ) =>
-      requestDocumentLeave(() => {
-        void remove(projectId).then((exit) => {
-          if (Exit.isSuccess(exit)) onDone();
-          else onFailure(exit.cause);
-        });
-      }),
   };
+}
+
+export function useRemoveProject(
+  connection: RuntimeConnection,
+  projectId: string,
+) {
+  const [, remove] = useAtom(removeProject(connection), {
+    mode: 'promiseExit',
+  });
+  return (
+    onDone: () => void,
+    onFailure: (cause: Cause.Cause<unknown>) => void,
+  ) =>
+    requestDocumentLeave(() => {
+      void remove(projectId).then((exit) => {
+        if (Exit.isSuccess(exit)) onDone();
+        else onFailure(exit.cause);
+      });
+    });
 }

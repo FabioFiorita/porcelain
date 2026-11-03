@@ -28,7 +28,7 @@ Preconditions: [surface baseline](README.md).
 1. Open New file. Expect the sheet over the tab bar with the title and an X (Close); there is no Cancel button. Close, then reopen and swipe down: no disk change.
 2. Fill `file-action-path` and press `file-action-submit`: the sheet closes, the new file opens in the same tab stack, and it exists in `REPO`. A folder is created without opening.
 3. Hold a row → Rename with the full relative path; the sheet closes and the disk shows the move. A failure keeps the sheet open and retryable.
-4. Hold a row → Move to trash: the alert names the path. Cancel leaves it; Move to trash removes it from `REPO`, and a failure shows its reason above the tree.
+4. Hold a row → Move to trash: the alert names the path. Cancel leaves it; Move to trash removes it from `REPO`, and a failure shows Not moved to trash with its reason in an alert.
 
 ## Gotchas
 

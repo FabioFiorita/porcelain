@@ -2721,7 +2721,25 @@ export function probeLoose(left: string, right: string): boolean {
     valid:
       "import { Host } from '@expo/ui/jetpack-compose'; export const Frame = () => <Host />;",
     invalid:
-      "import { BottomSheet } from '@expo/ui/jetpack-compose'; export const Frame = () => <BottomSheet />;",
+      "import { ModalBottomSheet } from '@expo/ui/jetpack-compose'; export const Frame = () => <ModalBottomSheet />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/file-action-sheet.tsx',
+    valid:
+      "import { Sheet } from '../../../components/ui/sheet'; export const Form = () => <Sheet title='New file' />;",
+    invalid:
+      "import Sheet from '@expo/ui/community/bottom-sheet'; export const Form = () => <Sheet />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/file-action-sheet.tsx',
+    valid:
+      "import * as UI from '@expo/ui'; export const Form = () => <UI.Host />;",
+    invalid:
+      "import * as UI from '@expo/ui'; export const Form = () => <UI.BottomSheet isPresented />;",
     errors: 1,
   },
   {

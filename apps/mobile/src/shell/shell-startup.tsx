@@ -1,6 +1,6 @@
 import { useAtomMount } from '@effect/atom-react';
 import { Stack } from 'expo-router';
-import { sheetOptions } from '../components/ui/sheet';
+import { guardedSheetOptions, sheetOptions } from '../components/ui/sheet';
 import { shellStartup } from '../shared/application/store';
 
 export function ShellStartup() {
@@ -16,7 +16,7 @@ export function ShellStartup() {
       <Stack.Screen name="(settings)" options={{ presentation: 'modal' }} />
       <Stack.Screen
         name="review-comments"
-        options={{ title: 'Comments', ...sheetOptions('tall') }}
+        options={{ title: 'Comments', ...guardedSheetOptions }}
       />
       <Stack.Screen
         name="worktree-actions"

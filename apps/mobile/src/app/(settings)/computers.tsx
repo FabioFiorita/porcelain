@@ -5,7 +5,7 @@ export default function ComputersRoute() {
   const router = useRouter();
   return (
     <EnvironmentsSettings
-      onAddComputer={() => router.push('/pair-computer')}
+      onAddComputer={() => router.navigate('/pair-computer')}
       onOpenComputer={(environmentId) =>
         router.push({ pathname: '/computer', params: { environmentId } })
       }
