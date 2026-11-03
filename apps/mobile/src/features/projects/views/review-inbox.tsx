@@ -1,10 +1,12 @@
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { readReviewInbox } from '@porcelain/client/projects';
-import type {
-  ReviewInboxRow,
-  ReviewInboxStatus,
+import {
+  searchReviewInbox,
+  type ReviewInboxRow,
+  type ReviewInboxStatus,
 } from '@porcelain/client/projects/rules';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
+import { Stack } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -40,9 +42,13 @@ const statusTiles: Record<
 export function ReviewInbox() {
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { inbox, loading, messages } = useAtomValue(
-    readReviewInbox(connections),
-  );
+  const {
+    inbox: all,
+    loading,
+    messages,
+  } = useAtomValue(readReviewInbox(connections));
+  const [query, setQuery] = useState('');
+  const inbox = searchReviewInbox(all, query);
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
   const readEnvironments = useReadEnvironments();
@@ -136,12 +142,19 @@ export function ReviewInbox() {
   const empty = inbox.needsYou.length === 0 && inbox.projects.length === 0;
   const pending =
     storage.status !== 'ready' || initializing || loading || inbox.reading;
+  const searching = query.trim() !== '';
   return (
     <Screen
       layout="scroll"
       testID="review-inbox"
       accessibilityLabel="Reviews by project"
     >
+      <Stack.SearchBar
+        placeholder="Search reviews"
+        autoCapitalize="none"
+        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onCancelButtonPress={() => setQuery('')}
+      />
       <Box gap={4} paddingY={2}>
         {inbox.needsYou.length > 0 ? (
           <Box>
@@ -161,8 +174,16 @@ export function ReviewInbox() {
             {project.rows.map((row, index) => rowItem(row, false, index))}
           </Box>
         ))}
-        {empty && pending ? <Loading label="Reading reviews…" /> : null}
-        {empty && !pending ? (
+        {empty && pending && !searching ? (
+          <Loading label="Reading reviews…" />
+        ) : null}
+        {empty && searching ? (
+          <Empty
+            title="No reviews match"
+            description="Search by branch, project or computer."
+          />
+        ) : null}
+        {empty && !pending && !searching ? (
           <Empty
             title="No reviews"
             description="When an agent publishes a review of its work, it appears here."

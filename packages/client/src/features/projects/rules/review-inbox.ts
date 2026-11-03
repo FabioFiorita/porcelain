@@ -1,5 +1,7 @@
 import {
+  emptyNavigatorFilter,
   navigatorCardReviewLabel,
+  navigatorEntryMatches,
   type NavigatorEntry,
   type NavigatorReview,
 } from './worktree-navigator.ts';
@@ -72,5 +74,22 @@ export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
         a.key.localeCompare(b.key),
     ),
     reading: entries.some((entry) => entry.review.state === 'loading'),
+  };
+}
+
+export function searchReviewInbox(
+  inbox: ReviewInbox,
+  query: string,
+): ReviewInbox {
+  if (query.trim() === '') return inbox;
+  const matches = (row: ReviewInboxRow) =>
+    navigatorEntryMatches(row.entry, query, emptyNavigatorFilter);
+  return {
+    ...inbox,
+    needsYou: inbox.needsYou.filter(matches),
+    projects: inbox.projects.flatMap((project) => {
+      const rows = project.rows.filter(matches);
+      return rows.length > 0 ? [{ ...project, rows }] : [];
+    }),
   };
 }

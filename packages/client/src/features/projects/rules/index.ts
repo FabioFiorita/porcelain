@@ -32,7 +32,12 @@ export {
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
-export type { ReviewInboxRow, ReviewInboxStatus } from './review-inbox.ts';
+export type {
+  ReviewInbox,
+  ReviewInboxRow,
+  ReviewInboxStatus,
+} from './review-inbox.ts';
+export { searchReviewInbox } from './review-inbox.ts';
 
 export {
   archiveSettings,
