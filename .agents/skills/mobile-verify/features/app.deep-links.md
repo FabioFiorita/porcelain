@@ -28,6 +28,7 @@ Development scheme and public HTTPS links open the requested destination through
 
 - `porcelain.dev://` (Reviews), `://worktrees`, `://files`, `://review`, `://history`, `://settings`; use the full scheme for each. A shared screen opened cold lands in the Reviews tab.
 - Public HTTPS `/open/reviews/<reviewId>` with environment, host, protocol (http or https) and optional revision/decision.
+- Public HTTPS `/open/pair#…` pairing links: follow [pairing link](access.pairing-link.md).
 
 ## Driving it with agent-device
 

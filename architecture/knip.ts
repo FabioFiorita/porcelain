@@ -66,7 +66,11 @@ function expoEntries(source: string, path: string): string {
         node.declaration?.type === 'VariableDeclaration' &&
         node.declaration.declarations.length === 1 &&
         node.declaration.declarations[0]?.id.type === 'Identifier' &&
-        node.declaration.declarations[0].id.name === 'unstable_settings'),
+        node.declaration.declarations[0].id.name === 'unstable_settings') ||
+      (path.endsWith('/+native-intent.tsx') &&
+        node.type === 'ExportNamedDeclaration' &&
+        node.declaration?.type === 'FunctionDeclaration' &&
+        node.declaration.id?.name === 'redirectSystemPath'),
   );
   for (const node of entries.toReversed())
     source =
