@@ -12,6 +12,7 @@ export const DIRECTORY_ENTRIES = 2000;
 export const PATH_LENGTH = 4096;
 export const DEVICE_LABEL_LENGTH = 80;
 export const DEVICE_PLATFORM_LENGTH = 120;
+export const PUSH_TOKEN_LENGTH = 256;
 export const WORKTREE_ID_LENGTH = 32;
 export const ERROR_STATUS_MIN = 400;
 export const ERROR_STATUS_MAX = 599;

@@ -9,6 +9,7 @@ import {
   InvalidPairingAddressError,
   InvalidPairingError,
   DeviceViewerRequiredError,
+  PushRegistrationDeviceRequiredError,
   InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,
   MissingTailnetHostnameError,
@@ -236,6 +237,7 @@ const rules: readonly StatusRule[] = [
     errors: [
       CommentAuthorMismatchError,
       DeviceViewerRequiredError,
+      PushRegistrationDeviceRequiredError,
       UntrustedDeviceError,
       WaysInPermissionRequiredError,
       SharingManagementRequiredError,

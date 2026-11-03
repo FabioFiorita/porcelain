@@ -25,6 +25,7 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
         archiveDeleteLocalBranch: true,
         archiveDeleteRemoteBranch: true,
       },
+      notifications: { reviewReady: false, agentReply: false },
     });
   },
 );
@@ -74,6 +75,7 @@ const upgraded = {
   lineOverflow: 'wrap',
   documentsDefault: 'source',
   reviewGitSettingsImportCandidate: legacyCandidate,
+  notifications: { reviewReady: false, agentReply: false },
 } as const;
 it('moves the old Reviews & Git choices into the import candidate and writes only the canonical shape', () => {
   const preferences = readPreferences(JSON.stringify(legacyRecord));
@@ -208,6 +210,21 @@ it('reads web records through the browser key-value path, keeping an old record 
     rewritten: JSON.stringify(old),
     damaged: Option.some({ ...old, diffStyle: 'unified' }),
   });
+});
+
+it('keeps the notification switches the phone saved and turns a damaged choice off', () => {
+  const saved = readPreferences(
+    JSON.stringify({
+      ...upgraded,
+      notifications: { reviewReady: true, agentReply: false },
+    }),
+  );
+  expect(saved.notifications).toEqual({ reviewReady: true, agentReply: false });
+  expect(
+    readPreferences(
+      JSON.stringify({ ...upgraded, notifications: { reviewReady: 'yes' } }),
+    ).notifications,
+  ).toEqual({ reviewReady: false, agentReply: false });
 });
 
 it('ignores obsolete review-status collapse choices without losing other preferences', () => {

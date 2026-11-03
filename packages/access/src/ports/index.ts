@@ -27,3 +27,5 @@ export { RefundPairingAttemptOptions } from './refund-pairing-attempt-options.ts
 export { RemoteAccessOptions } from './remote-access-options.ts';
 export { TakePairingAttemptOptions } from './take-pairing-attempt-options.ts';
 export { ReviewGitSettingsStore } from './review-git-settings-store.ts';
+export { PushRegistrationStore } from './push-registration-store.ts';
+export { PushSender } from './push-sender.ts';

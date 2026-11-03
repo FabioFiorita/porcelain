@@ -193,6 +193,15 @@ export const nativeMigrations = Migrator.fromRecord({
       icon TEXT NOT NULL
     )`;
   }),
+  '009_push_registrations': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE push_registrations (
+      device_id TEXT PRIMARY KEY NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      platform TEXT NOT NULL CHECK(platform IN ('ios', 'android')),
+      kinds TEXT NOT NULL CHECK(json_valid(kinds))
+    )`;
+  }),
 });
 
 export const readLegacyMigrations = Effect.fn('Storage.readLegacyMigrations')(

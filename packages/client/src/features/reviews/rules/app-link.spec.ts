@@ -3,6 +3,7 @@ import {
   parseReviewAppLink,
   parseDesktopReviewLink,
   reviewDesktopUrl,
+  notificationReviewRoute,
 } from './app-link.ts';
 
 const reviewId = '10000000-0000-4000-8000-000000000001';
@@ -207,4 +208,21 @@ it.each([
   `https://open/reviews/${reviewId}?environment=x&host=host`,
 ])('rejects an invalid desktop handoff %s', (url) => {
   expect(parseDesktopReviewLink(url)).toBeUndefined();
+});
+
+it('opens the review a notification links to, inside the app', () => {
+  expect(
+    notificationReviewRoute({
+      kind: 'review-ready',
+      url: `https://porcelain.fabiofiorita.com${path}?environment=env&host=10.0.2.2%3A4100&protocol=http`,
+    }),
+  ).toBe(`${path}?environment=env&host=10.0.2.2%3A4100&protocol=http`);
+});
+
+it.each([
+  { case: 'no link', data: { kind: 'agent-reply' } },
+  { case: 'a foreign link', data: { url: `https://example.com${path}` } },
+  { case: 'no data', data: null },
+])('opens Reviews for a notification with $case', ({ data }) => {
+  expect(notificationReviewRoute(data)).toBe('/');
 });

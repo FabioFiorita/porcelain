@@ -5,6 +5,7 @@ import {
   BrowserAccessApi,
   PairingApi,
   SessionApi,
+  PushRegistrationApi,
   ServiceUpdatesApi,
   RemoteAccessApi,
   ReviewGitSettingsApi,
@@ -39,6 +40,8 @@ import { type RenameEnvironmentUseCase } from '../../../use-cases/access/rename-
 import { type SetEnvironmentIconUseCase } from '../../../use-cases/access/set-environment-icon.ts';
 import { type ReadReviewGitSettingsUseCase } from '../../../use-cases/access/read-review-git-settings.ts';
 import { type SaveReviewGitSettingsUseCase } from '../../../use-cases/access/save-review-git-settings.ts';
+import { type SetPushRegistrationUseCase } from '../../../use-cases/access/set-push-registration.ts';
+import { type ClearPushRegistrationUseCase } from '../../../use-cases/access/clear-push-registration.ts';
 import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
 import { type SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
 import { type SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
@@ -99,6 +102,14 @@ type AccessUseCases = {
   >;
   saveReviewGitSettings: Pick<
     Context.Service.Shape<typeof SaveReviewGitSettingsUseCase>,
+    'execute'
+  >;
+  setPushRegistration: Pick<
+    Context.Service.Shape<typeof SetPushRegistrationUseCase>,
+    'execute'
+  >;
+  clearPushRegistration: Pick<
+    Context.Service.Shape<typeof ClearPushRegistrationUseCase>,
     'execute'
   >;
   revokeAccess: Pick<
@@ -320,6 +331,22 @@ export function accessRoutes(useCases: AccessUseCases) {
           }),
         ),
   );
+  const pushRegistrationHandlers = HttpApiBuilder.group(
+    PushRegistrationApi,
+    'pushRegistration',
+    (handlers) =>
+      handlers
+        .handle('setPushRegistration', ({ payload }) =>
+          Effect.flatMap(RequestCaller, (viewer) =>
+            useCases.setPushRegistration.execute({ ...payload, viewer }),
+          ),
+        )
+        .handle('clearPushRegistration', () =>
+          Effect.flatMap(RequestCaller, (viewer) =>
+            useCases.clearPushRegistration.execute({ viewer }),
+          ),
+        ),
+  );
   const updatesHandlers = HttpApiBuilder.group(
     ServiceUpdatesApi,
     'serviceUpdates',
@@ -402,6 +429,11 @@ export function accessRoutes(useCases: AccessUseCases) {
     ),
     session: HttpApiBuilder.layer(SessionApi).pipe(
       Layer.provide(sessionHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
+    ),
+    pushRegistration: HttpApiBuilder.layer(PushRegistrationApi).pipe(
+      Layer.provide(pushRegistrationHandlers),
       Layer.provide(handlerAudit.layer),
       Layer.provide(requestBody.layer),
     ),

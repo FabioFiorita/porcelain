@@ -49,7 +49,7 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   agent publish-revision "<title>" | advance-review-branch | remove-review-worktree
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | push-requests | receipt <requestId>
   remote start            start a second disposable computer
   remote pairing-link [--trusted]
                           mint a link for that computer; agent/server accept --remote

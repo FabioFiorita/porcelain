@@ -64,7 +64,7 @@ Then ask the agent to read `porcelain://review-guide` and publish a review of it
 
 ## Privacy
 
-Porcelain has no account and no analytics, and it never sends your code, reviews or comments anywhere. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.
+Porcelain has no account and no analytics, and it never sends your code anywhere. If you turn on phone notifications, your computer sends a short notice (the project name and a line from the review or the agent's reply) through Expo's push service to your phone. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.
 
 ## Contributing
 

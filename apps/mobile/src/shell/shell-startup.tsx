@@ -2,9 +2,11 @@ import { useAtomMount } from '@effect/atom-react';
 import { Stack } from 'expo-router';
 import { guardedSheetOptions, sheetOptions } from '../components/ui/sheet';
 import { shellStartup } from '../shared/application/store';
+import { notificationsSync } from '../features/notifications';
 
 export function ShellStartup() {
   useAtomMount(shellStartup);
+  useAtomMount(notificationsSync);
   return (
     <Stack
       screenOptions={({ theme }) => ({

@@ -24,6 +24,7 @@ import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
+import { startRecordingPushService } from './recording-push-service.ts';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import {
   readServerSettings,
@@ -168,6 +169,8 @@ const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const routes = new Set<string>();
 const tools = new Set<string>();
 const hitsFile = join(root, 'hits.jsonl');
+const pushFile = join(root, 'push-requests.jsonl');
+let closePushService: (() => Promise<void>) | undefined;
 let fixtureReady = false;
 subscribe('porcelain.http', (message) => {
   if (
@@ -469,7 +472,11 @@ try {
   await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
   await symlink('../credential.json', join(web, fixture.web.escape));
   const desktopCredential = randomBytes(32).toString('base64url');
+  await writeFile(pushFile, '');
+  const pushService = await startRecordingPushService(pushFile);
+  closePushService = pushService.close;
   const settings = readServerSettings({
+    pushEndpoint: pushService.endpoint,
     dataDirectory: state,
     projectHome: root,
     port,
@@ -591,7 +598,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, pushFile, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(
@@ -614,6 +621,7 @@ try {
   try {
     relay.close();
     if (server !== undefined) await runtime.runPromise(server.close());
+    await closePushService?.();
   } finally {
     try {
       await runtime.dispose();

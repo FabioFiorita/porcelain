@@ -35,6 +35,7 @@
     "expo-device": "58.0.5",
     "expo-font": "58.0.11",
     "expo-linking": "58.0.15",
+    "expo-notifications": "58.1.7",
     "expo-router": "58.0.29",
     "expo-secure-store": "58.0.2",
     "expo-splash-screen": "58.0.12",

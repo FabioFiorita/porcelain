@@ -35,7 +35,12 @@ const answers = [
   {
     question: 'Does it ever talk to the internet?',
     answer:
-      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code.',
+      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code. Phone notifications, if you turn them on, are the one other exception, below.',
+  },
+  {
+    question: 'And phone notifications?',
+    answer:
+      'They stay off until you switch them on in the phone app. Then your computer sends Expo’s push service a short notice for your phone, which Expo passes to Apple or Google to deliver: the project name, the review’s title or the start of the agent’s reply with code blocks left out, and a link back to it. Switch them off and each computer deletes the phone’s notification address; forgetting a computer on your phone asks it to do the same.',
   },
   {
     question: 'What about working remotely?',

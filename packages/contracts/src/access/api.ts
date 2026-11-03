@@ -22,6 +22,7 @@ import {
   RemoteRouteInUseError,
   WaysInChangedError,
   WaysInPermissionRequiredError,
+  PushRegistrationDeviceRequiredError,
 } from '@porcelain/access/errors';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -54,6 +55,11 @@ import {
   setWaysInPermissionResponseSchema,
 } from './pairing.ts';
 import { readSessionResponseSchema } from './principal.ts';
+import {
+  clearPushRegistrationResponseSchema,
+  setPushRegistrationRequestSchema,
+  setPushRegistrationResponseSchema,
+} from './push-registration.ts';
 import {
   readRemoteAccessResponseSchema,
   setRemoteAccessRequestSchema,
@@ -122,6 +128,29 @@ const sessionGroup = HttpApiGroup.make('session')
         httpFailure(DeviceViewerRequiredError, 'Forbidden'),
         httpFailure(TooManyLiveTicketsError, 'TooManyRequests'),
       ],
+    }),
+  )
+  .middleware(PairedRequest)
+  .middleware(ClientRequest);
+const pushRegistrationDeviceRequired = httpFailure(
+  PushRegistrationDeviceRequiredError,
+  'Forbidden',
+);
+const pushRegistrationGroup = HttpApiGroup.make('pushRegistration')
+  .add(
+    HttpApiEndpoint.put('setPushRegistration', '/push-registration', {
+      disableCodecs: true,
+      payload: setPushRegistrationRequestSchema,
+      success: setPushRegistrationResponseSchema,
+      error: pushRegistrationDeviceRequired,
+    }),
+    HttpApiEndpoint.delete('clearPushRegistration', '/push-registration', {
+      disableCodecs: true,
+      success: clearPushRegistrationResponseSchema.pipe(
+        HttpApiSchema.asNoContent({ decode: () => undefined }),
+        HttpApiSchema.status('NoContent'),
+      ),
+      error: pushRegistrationDeviceRequired,
     }),
   )
   .middleware(PairedRequest)
@@ -291,6 +320,9 @@ export class BrowserAccessApi extends porcelainApi
   .prefix('/api') {}
 export class PairingApi extends porcelainApi.add(pairingGroup).prefix('/api') {}
 export class SessionApi extends porcelainApi.add(sessionGroup).prefix('/api') {}
+export class PushRegistrationApi extends porcelainApi
+  .add(pushRegistrationGroup)
+  .prefix('/api') {}
 export class ServiceUpdatesApi extends porcelainApi
   .add(updatesGroup)
   .prefix('/api') {}
@@ -317,6 +349,7 @@ export class AccessApi extends porcelainApi
     browserGroup,
     pairingGroup,
     sessionGroup,
+    pushRegistrationGroup,
     updatesGroup,
     remoteAccessGroup,
     reviewGitSettingsGroup,

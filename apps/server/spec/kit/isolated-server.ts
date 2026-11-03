@@ -117,6 +117,7 @@ type Manifest = {
   socketPath: string;
   credentialFile: string;
   hitsFile: string;
+  pushFile: string;
   bin: string;
   installation: string;
   codingTool: string;
@@ -353,6 +354,7 @@ function manifestOf(value: unknown): Manifest {
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     hitsFile: text(manifest.hitsFile),
+    pushFile: text(manifest.pushFile),
     bin: text(manifest.bin),
     installation: text(manifest.installation),
     codingTool: text(manifest.codingTool),
@@ -484,6 +486,7 @@ export class ServerHandle {
   readonly routes: readonly string[];
   readonly tools: readonly string[];
   private readonly hitsFile: string;
+  private readonly pushFile: string;
   private readonly bin: string;
   private readonly codingTool: string;
 
@@ -500,6 +503,7 @@ export class ServerHandle {
     this.routes = manifest.routes;
     this.tools = manifest.tools;
     this.hitsFile = manifest.hitsFile;
+    this.pushFile = manifest.pushFile;
     this.bin = manifest.bin;
     this.codingTool = manifest.codingTool;
     this.credential = credentials.credential;
@@ -509,6 +513,14 @@ export class ServerHandle {
   static async attach(manifestPath: string): Promise<ServerHandle> {
     const { manifest, ...credentials } = await readManifest(manifestPath);
     return new ServerHandle(manifest, credentials);
+  }
+
+  async pushRequests(): Promise<unknown[]> {
+    const lines = await readFile(this.pushFile, 'utf8');
+    return lines
+      .split('\n')
+      .filter(Boolean)
+      .map((line): unknown => JSON.parse(line));
   }
 
   async sampleIds(): Promise<{ projectId: string; worktreeId: string }> {

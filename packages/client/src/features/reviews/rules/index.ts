@@ -124,6 +124,7 @@ export {
 export {
   parseReviewAppLink,
   parseDesktopReviewLink,
+  notificationReviewRoute,
   reviewDesktopUrl,
   type ReviewAppLink,
 } from './app-link.ts';
