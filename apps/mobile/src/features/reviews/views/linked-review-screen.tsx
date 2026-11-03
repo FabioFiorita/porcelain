@@ -126,6 +126,7 @@ function ReviewEnvironment({
             <PairEnvironmentForm
               environmentId={destination.environmentId}
               onClose={() => setPairing(false)}
+              layout="inline"
             />
           ) : (
             <Button

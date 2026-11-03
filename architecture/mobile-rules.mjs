@@ -18,6 +18,15 @@ const controls = new Set([
   'Animated',
 ]);
 
+const nativeUi = new Set([
+  '@expo/ui',
+  '@expo/ui/swift-ui',
+  '@expo/ui/jetpack-compose',
+]);
+const sheetNames = new Set(['BottomSheet', 'ModalBottomSheet']);
+const sheetMessage =
+  'Present sheets as expo-router form-sheet routes built with components/ui/sheet, because a hand-made bottom sheet has no route or link, draws its own dismiss controls and sits around the tab bar instead of above it.';
+
 export const mobileRules = {
   'mobile-system-chrome': {
     create(context) {
@@ -147,6 +156,26 @@ export const mobileRules = {
             message:
               'Keep NativeTabs in shell/app-tabs.tsx; phone and tablet share one tab shell, and the system adapts it into the iPad sidebar, so a second tab navigator would split the app into two layouts again.',
           });
+        if (runtime && source === '@expo/ui/community/bottom-sheet')
+          context.report({ node, message: sheetMessage });
+        if (runtime && nativeUi.has(source))
+          for (const specifier of node.specifiers ?? []) {
+            if (
+              specifier.type !== 'ImportSpecifier' ||
+              specifier.importKind === 'type' ||
+              specifier.exportKind === 'type'
+            )
+              continue;
+            const name = specifier.imported?.name ?? specifier.local?.name;
+            if (sheetNames.has(name))
+              context.report({ node: specifier, message: sheetMessage });
+            if (name === 'RNHostView' && !primitive)
+              context.report({
+                node: specifier,
+                message:
+                  'Host React Native content inside native Expo UI only in components/ui, because a feature that glues views into a native host sizes them by hand and breaks their layout.',
+              });
+          }
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {
             if (
@@ -179,6 +208,18 @@ export const mobileRules = {
             message:
               'Import the universal Expo UI component first; a missing capability belongs in a .ios/.android module, so product views stay platform independent.',
           });
+      };
+      const sheetHolders = importedFrom(context.sourceCode.ast, (source) =>
+        nativeUi.has(source),
+      ).namespaces;
+      const sheetMember = (node) => {
+        if (
+          (node.object?.type === 'Identifier' ||
+            node.object?.type === 'JSXIdentifier') &&
+          sheetHolders.has(node.object.name) &&
+          sheetNames.has(node.property?.name)
+        )
+          context.report({ node, message: sheetMessage });
       };
       const layoutOnly = /\/(?:features\/[^/]+\/views|shell)\//.test(path);
       const styled = Object.create(context);
@@ -219,6 +260,14 @@ export const mobileRules = {
         },
         ExportNamedDeclaration: check,
         ExportAllDeclaration: check,
+        MemberExpression(node) {
+          sheetMember(node);
+          layout.MemberExpression?.(node);
+        },
+        JSXMemberExpression(node) {
+          sheetMember(node);
+          layout.JSXMemberExpression?.(node);
+        },
       };
     },
   },

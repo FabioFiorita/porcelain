@@ -663,7 +663,7 @@ function openComments(
     | { compose: true; body: string; review: ReviewResponse }
     | { thread: string },
 ) {
-  router.push({
+  router.navigate({
     pathname: '/review-comments',
     params: {
       ...reviewParams(workspace.key, { kind: 'worktree' }),

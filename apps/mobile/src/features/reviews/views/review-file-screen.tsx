@@ -640,7 +640,7 @@ function CommentAction({
       disabled={!anchor}
       onPress={() => {
         if (anchor)
-          router.push({
+          router.navigate({
             pathname: '/review-comments',
             params: {
               ...reviewParams(workspace.key, comparison),

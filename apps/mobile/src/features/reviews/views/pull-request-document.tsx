@@ -1,4 +1,4 @@
-import { useAtomRef, useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { readReviewPullRequest } from '@porcelain/client/reviews';
 import {
@@ -8,7 +8,7 @@ import {
   type PullRequestRead,
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
-import { remoteConnectionState } from '../../../shared/application/store';
+import { PullRequestArchive, useComputerConnection } from '../../projects';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
@@ -16,14 +16,11 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { MarkdownView } from '../../../components/ui/markdown-view';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
-import { PullRequestArchive } from '../../projects';
 import { pullRequestMarkdown } from '../rules/pull-request-document';
 import type { PullRequestTarget } from '../../../shared/rules/pull-request-target';
 
 export function PullRequestContent({ target }: { target: PullRequestTarget }) {
-  const connection = useAtomRef(remoteConnectionState).find(
-    (entry) => entry.remote.environmentId === target.environmentId,
-  )?.connection;
+  const connection = useComputerConnection(target.environmentId);
   return connection ? (
     <ConnectedPullRequest target={target} connection={connection} />
   ) : (

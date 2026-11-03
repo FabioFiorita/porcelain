@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { useAtomValue } from '@effect/atom-react';
 import { readReview } from '@porcelain/client/reviews';
-import { useInventory } from '../queries/inventory';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -14,37 +14,30 @@ import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
+import { useComputerConnection } from '../store';
 import { Button } from '../../../components/ui/button';
-import { AlertDialog } from '../../../components/ui/alert-dialog';
+import { Empty } from '../../../components/ui/empty';
+import { Sheet } from '../../../components/ui/sheet';
 import { Switch } from '../../../components/ui/switch';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { useReviewGitSettings } from '../../preferences';
-import {
-  useArchiveReview,
-  type ArchivePlan,
-  type ArchiveOptions,
-} from '../commands/archive-review';
-function ArchiveReview(props: {
+import { useInventory } from '../queries/inventory';
+import { useArchiveReview } from '../commands/archive-review';
+
+type ArchiveTarget = {
   connection: RuntimeConnection;
   reviewId: string;
   projectId: string;
   mainWorktreeId: string;
-}) {
+};
+
+function ArchiveReview(props: ArchiveTarget) {
+  const router = useRouter();
   const view = useReviewGitSettings(props.connection);
   const settings = confirmedReviewGitSettings(view);
   const block = reviewGitSettingsBlock(view);
-  const { result, prepare, submit } = useArchiveReview(props);
-  const [open, setOpen] = useState(false);
-  const [plan, setPlan] = useState<ArchivePlan>();
-  const [options, setOptions] = useState<ArchiveOptions>();
-  const [acknowledged, setAcknowledged] = useState(false);
-  const failure = AsyncResult.isFailure(result)
-    ? archiveFailureMessage(Cause.squash(result.cause))
-    : undefined;
-  let description = 'Checking the worktree and branches…';
-  if (failure) description = 'Archiving could not be completed.';
-  if (plan) description = archiveDescription(plan);
+  const { result, prepare } = useArchiveReview(props);
   return (
     <>
       <Button
@@ -53,13 +46,18 @@ function ArchiveReview(props: {
         disabled={!settings}
         pending={result.waiting}
         onPress={() => {
-          if (!settings) return;
-          const next = archiveOptions(settings);
-          setPlan(undefined);
-          setAcknowledged(false);
-          setOptions(next);
-          setOpen(true);
-          prepare(next, (answer) => setPlan(answer.plan));
+          if (settings)
+            prepare(archiveOptions(settings), () =>
+              router.navigate({
+                pathname: '/archive-review',
+                params: {
+                  environmentId: props.connection.environmentId,
+                  reviewId: props.reviewId,
+                  projectId: props.projectId,
+                  mainWorktreeId: props.mainWorktreeId,
+                },
+              }),
+            );
         }}
       />
       {block && view.kind !== 'reading' ? (
@@ -67,37 +65,108 @@ function ArchiveReview(props: {
           {block}
         </Text>
       ) : null}
-      <AlertDialog
-        open={open}
-        title="Archive review?"
-        description={description}
+    </>
+  );
+}
+
+export function ArchiveReviewSheet({
+  environmentId,
+  reviewId,
+  projectId,
+  mainWorktreeId,
+  onClose,
+}: {
+  environmentId: string | undefined;
+  reviewId: string | undefined;
+  projectId: string | undefined;
+  mainWorktreeId: string | undefined;
+  onClose: () => void;
+}) {
+  const connection = useComputerConnection(environmentId);
+  return (
+    <Sheet title="Archive review">
+      {connection && reviewId && projectId && mainWorktreeId ? (
+        <ArchiveConfirmation
+          connection={connection}
+          reviewId={reviewId}
+          projectId={projectId}
+          mainWorktreeId={mainWorktreeId}
+          onClose={onClose}
+        />
+      ) : (
+        <ArchiveUnavailable />
+      )}
+    </Sheet>
+  );
+}
+
+function ArchiveUnavailable() {
+  return (
+    <Empty
+      title="Review unavailable"
+      description="Return to the pull request and choose Archive again."
+    />
+  );
+}
+
+function ArchiveConfirmation({
+  onClose,
+  ...target
+}: ArchiveTarget & { onClose: () => void }) {
+  const settings = confirmedReviewGitSettings(
+    useReviewGitSettings(target.connection),
+  );
+  const { result, submit } = useArchiveReview(target);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const plan =
+    AsyncResult.isSuccess(result) && !result.value.archived
+      ? result.value.plan
+      : undefined;
+  const failure = AsyncResult.isFailure(result)
+    ? archiveFailureMessage(Cause.squash(result.cause))
+    : undefined;
+  const risky = Boolean(plan && (plan.dirty || plan.unpushed));
+  if (AsyncResult.isInitial(result) && !result.waiting)
+    return <ArchiveUnavailable />;
+  let description = 'Checking the worktree and branches…';
+  if (failure) description = 'Archiving could not be completed.';
+  if (plan) description = archiveDescription(plan);
+  return (
+    <>
+      <Text>{description}</Text>
+      {risky ? (
+        <Box className="flex-row items-center" gap={2}>
+          <Switch
+            label="I understand the risk of losing changes and commits"
+            checked={acknowledged}
+            onCheckedChange={setAcknowledged}
+          />
+          <Text className="flex-1">
+            I understand the risk of losing changes and commits
+          </Text>
+        </Box>
+      ) : null}
+      {failure ? (
+        <Text tone="destructive" accessibilityRole="alert">
+          {failure}
+        </Text>
+      ) : null}
+      <Button
+        label="Archive review"
+        variant="destructive"
         pending={result.waiting}
-        disabled={
-          !plan || Boolean((plan.dirty || plan.unpushed) && !acknowledged)
-        }
-        onCancel={() => setOpen(false)}
-        onConfirm={() => {
-          if (plan && options)
+        disabled={!plan || !settings || (risky && !acknowledged)}
+        onPress={() => {
+          if (plan && settings)
             void submit(
-              { options, confirmation: { plan, discardChanges: acknowledged } },
-              () => setOpen(false),
+              {
+                options: archiveOptions(settings),
+                confirmation: { plan, discardChanges: acknowledged },
+              },
+              onClose,
             );
         }}
-      >
-        {plan && (plan.dirty || plan.unpushed) ? (
-          <Box className="flex-row items-center" gap={2} paddingY={3}>
-            <Switch
-              label="I understand the risk of losing changes and commits"
-              checked={acknowledged}
-              onCheckedChange={setAcknowledged}
-            />
-            <Text className="flex-1">
-              I understand the risk of losing changes and commits
-            </Text>
-          </Box>
-        ) : null}
-        {failure ? <Text tone="destructive">{failure}</Text> : null}
-      </AlertDialog>
+      />
     </>
   );
 }

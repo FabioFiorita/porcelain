@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -21,22 +21,17 @@ import {
   type CommentThread,
   type ReviewLayer,
 } from '@porcelain/client/reviews/rules';
-import { headerIcon } from '../../../shared/icons/header-icon';
-import { sheetDismissButton } from '../../../shared/navigation/sheet-presentation';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Input } from '../../../components/ui/input';
 import { IconButton } from '../../../components/ui/icon-button';
+import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { KeyboardDock } from '../../../components/ui/keyboard-dock';
 import { Separator } from '../../../components/ui/separator';
 import type { Workspace } from '../../projects';
-import {
-  useCommentCommands,
-  useCommentWrite,
-  useVisibleComments,
-} from '../commands/comments';
+import { useResolveThread, useVisibleComments } from '../commands/comments';
 import { useLinkedReview } from '../queries/linked-review';
 import { useReviewPlace } from '../store';
 import { ReviewReadState } from './read-state';
@@ -57,65 +52,16 @@ export function CommentThreadSheet({
   const refresh = useAtomRefresh(query);
   useVisibleComments(workspace, false);
   if (!AsyncResult.isSuccess(result))
-    return (
-      <>
-        <SheetHeader title="Comment" />
-        <ReviewReadState result={result} refresh={refresh} />
-      </>
-    );
+    return <ReviewReadState result={result} refresh={refresh} />;
   const thread = result.value.find((entry) => entry.id === threadId);
   if (!thread)
     return (
-      <>
-        <SheetHeader title="Comment" />
-        <Empty
-          title="Thread unavailable"
-          description="This thread was deleted. Return to the review."
-        />
-      </>
+      <Empty
+        title="Thread unavailable"
+        description="This thread was deleted. Return to the review."
+      />
     );
   return <ThreadSheet workspace={workspace} thread={thread} />;
-}
-
-function SheetHeader({
-  title,
-  resolve,
-}: {
-  title: string;
-  resolve?: {
-    label: string;
-    icon: 'resolve' | 'reopen';
-    pending: boolean;
-    onPress: () => void;
-  };
-}) {
-  const router = useRouter();
-  return (
-    <>
-      <Stack.Screen options={{ title, headerBackButtonMenuEnabled: false }} />
-      {resolve || sheetDismissButton ? (
-        <Stack.Toolbar placement="right">
-          {resolve ? (
-            <Stack.Toolbar.Button
-              icon={headerIcon(resolve.icon)}
-              disabled={resolve.pending}
-              accessibilityLabel={resolve.label}
-              onPress={resolve.onPress}
-            >
-              {resolve.label}
-            </Stack.Toolbar.Button>
-          ) : null}
-          {sheetDismissButton ? (
-            <Stack.Toolbar.Button
-              icon={headerIcon('done')}
-              accessibilityLabel="Done"
-              onPress={() => router.back()}
-            />
-          ) : null}
-        </Stack.Toolbar>
-      ) : null}
-    </>
-  );
 }
 
 function ThreadSheet({
@@ -126,8 +72,7 @@ function ThreadSheet({
   thread: CommentThread;
 }) {
   const router = useRouter();
-  const commands = useCommentCommands(workspace);
-  const resolve = useCommentWrite(commands.resolve);
+  const resolve = useResolveThread(workspace, thread);
   const draft = useCommentDraft(
     workspace,
     { ...threadWriteTarget(thread), anchor: thread.anchor },
@@ -162,21 +107,6 @@ function ThreadSheet({
   const path = anchorPath(thread.anchor);
   return (
     <>
-      <SheetHeader
-        title={sheetTitle(thread)}
-        resolve={{
-          label: thread.resolved ? 'Reopen' : 'Resolve',
-          icon: thread.resolved ? 'reopen' : 'resolve',
-          pending: resolve.result.waiting,
-          onPress: () => {
-            if (!resolve.result.waiting)
-              resolve.send({
-                ...threadWriteTarget(thread),
-                resolved: !thread.resolved,
-              });
-          },
-        }}
-      />
       <KeyboardDock>
         <Box className="flex-1" surface="background" collapsable={false}>
           <Box className="flex-1 overflow-hidden" collapsable={false}>
@@ -185,14 +115,26 @@ function ThreadSheet({
               contentInsetAdjustmentBehavior="automatic"
               contentContainerClassName="gap-4 p-4"
             >
+              <Box className="flex-row items-center" gap={2}>
+                <Box className="min-w-0 flex-1" gap={1}>
+                  <Text variant="subheading">{sheetTitle(thread)}</Text>
+                  <Text variant="caption" weight="medium">
+                    {threadStateLabel(thread)}
+                  </Text>
+                </Box>
+                <Button
+                  label={resolve.label}
+                  size="sm"
+                  variant="outline"
+                  pending={resolve.result.waiting}
+                  onPress={resolve.toggle}
+                />
+              </Box>
               {path ? (
                 <Text variant="code" tone="muted" selectable>
                   {path}
                 </Text>
               ) : null}
-              <Text variant="caption" weight="medium">
-                {threadStateLabel(thread)}
-              </Text>
               {AsyncResult.isFailure(resolve.result) ? (
                 <ErrorState
                   message={reviewErrorMessage(

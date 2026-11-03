@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
-import { BottomSheet, RNHostView } from '@expo/ui';
-import { useAtomValue, useAtomSet } from '@effect/atom-react';
-import { refreshWorktreeNavigator } from '@porcelain/client/projects';
+import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
+import {
+  readWorktreeNavigator,
+  refreshWorktreeNavigator,
+} from '@porcelain/client/projects';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readBranchBases } from '@porcelain/client/changes';
@@ -22,7 +23,10 @@ import {
 } from '@porcelain/client/preferences/rules';
 import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { remoteConnectionState } from '../../../shared/application/store';
 import { Box } from '../../../components/ui/box';
+import { Empty } from '../../../components/ui/empty';
+import { Sheet } from '../../../components/ui/sheet';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { Switch } from '../../../components/ui/switch';
@@ -32,54 +36,81 @@ import { Icon } from '../../../components/ui/icon';
 import { useReviewGitSettings } from '../../preferences';
 import { useInventory } from '../queries/inventory';
 import { useCopyPath } from '../commands/clipboard';
+import { useComputerConnection } from '../store';
 import {
   useDeleteWorktree,
   useSwitchWorktreeBranch,
 } from '../commands/worktree-actions';
 
-export type WorktreeActionRequest = {
-  kind: 'menu' | 'delete' | 'switch';
+export type WorktreeActionKind = 'menu' | 'delete' | 'switch';
+
+type WorktreeActionRequest = {
+  kind: WorktreeActionKind;
   entry: NavigatorEntry;
   worktreeId: string;
   connection: EnvironmentConnection;
-  requestId: string;
 };
 
-export function WorktreeActionSheet({
-  request,
+const titles = {
+  menu: 'Worktree',
+  switch: 'Switch branch',
+  delete: 'Delete worktree',
+} satisfies Record<WorktreeActionKind, string>;
+
+function sheetTitle(kind: WorktreeActionKind, name: string) {
+  if (kind === 'menu') return name;
+  if (kind === 'delete') return `Delete ${name}?`;
+  return titles[kind];
+}
+
+export function worktreeActionKind(value: string | undefined) {
+  return value === 'delete' || value === 'switch' ? value : 'menu';
+}
+
+export function WorktreeActionsSheet({
+  environmentId,
+  worktreeId,
+  kind,
   onClose,
   onAction,
 }: {
-  request: WorktreeActionRequest | undefined;
+  environmentId: string | undefined;
+  worktreeId: string | undefined;
+  kind: WorktreeActionKind;
   onClose: () => void;
   onAction: (kind: 'delete' | 'switch') => void;
 }) {
+  const remotes = useAtomRef(remoteConnectionState);
+  const connection = useComputerConnection(environmentId);
+  const { projects } = useAtomValue(
+    readWorktreeNavigator(remotes.map((entry) => entry.connection)),
+  );
+  const found = projects
+    .flatMap((project) => project.entries)
+    .find(
+      (entry) =>
+        entry.environmentId === environmentId &&
+        entry.worktreeId === worktreeId,
+    );
+  const [kept, setKept] = useState(found);
+  if (found && found !== kept) setKept(found);
+  const entry = found ?? kept;
   return (
-    <BottomSheet
-      isPresented={request !== undefined}
-      onDismiss={onClose}
-      contentPadding={0}
-      snapPoints={request?.kind === 'menu' ? ['half'] : ['full']}
-    >
-      {request && (
-        <RNHostView>
-          <ScrollView
-            className="flex-1 bg-background"
-            contentInsetAdjustmentBehavior="automatic"
-            keyboardShouldPersistTaps="handled"
-          >
-            <Box paddingX={6} paddingY={8} gap={4}>
-              <WorktreeActionContent
-                key={request.requestId}
-                request={request}
-                onClose={onClose}
-                onAction={onAction}
-              />
-            </Box>
-          </ScrollView>
-        </RNHostView>
+    <Sheet title={entry ? sheetTitle(kind, entry.name) : titles[kind]}>
+      {entry && connection && worktreeId ? (
+        <WorktreeActionContent
+          key={kind}
+          request={{ kind, entry, worktreeId, connection }}
+          onClose={onClose}
+          onAction={onAction}
+        />
+      ) : (
+        <Empty
+          title="Worktree unavailable"
+          description="Return to Worktrees and choose the worktree again."
+        />
       )}
-    </BottomSheet>
+    </Sheet>
   );
 }
 
@@ -163,7 +194,6 @@ function WorktreeMenu({
           {connectionErrorMessage(Cause.squash(clipboard.result.cause))}
         </Text>
       )}
-      <Button label="Cancel" variant="outline" onPress={onClose} />
     </Box>
   );
 }
@@ -180,7 +210,6 @@ function DeleteWorktreeContent({
   const block = reviewGitSettingsBlock(view);
   return (
     <>
-      <Text variant="heading">Delete {request.entry.name}?</Text>
       <Text>
         Choose what to delete this time. Your saved settings won’t change.
         Review history stays available.
@@ -192,10 +221,7 @@ function DeleteWorktreeContent({
           onClose={onClose}
         />
       ) : (
-        <>
-          <Text tone="muted">{block ?? 'Reading deletion settings…'}</Text>
-          <Button label="Cancel" variant="outline" onPress={onClose} />
-        </>
+        <Text tone="muted">{block ?? 'Reading deletion settings…'}</Text>
       )}
     </>
   );
@@ -303,40 +329,32 @@ function DeleteWorktreeOptions({
           {failure}
         </Text>
       )}
-      <Box className="flex-row justify-end" gap={2}>
-        <Button
-          label="Cancel"
-          variant="outline"
-          disabled={command.result.waiting}
-          onPress={onClose}
-        />
-        <Button
-          label={plan ? 'Delete' : 'Review deletion'}
-          variant="destructive"
-          pending={command.result.waiting}
-          disabled={
-            !hasDeletion ||
-            Boolean(plan?.mainCheckout) ||
-            (needsAcknowledgement && !acknowledged)
-          }
-          onPress={() => {
-            setAttempted(true);
-            if (plan)
-              command.confirm(
-                {
-                  options,
-                  confirmation: { plan, discardChanges: acknowledged },
-                },
-                onClose,
-                () => {
-                  setPlan(undefined);
-                  setAcknowledged(false);
-                },
-              );
-            else command.preview(options, setPlan);
-          }}
-        />
-      </Box>
+      <Button
+        label={plan ? 'Delete' : 'Review deletion'}
+        variant="destructive"
+        pending={command.result.waiting}
+        disabled={
+          !hasDeletion ||
+          Boolean(plan?.mainCheckout) ||
+          (needsAcknowledgement && !acknowledged)
+        }
+        onPress={() => {
+          setAttempted(true);
+          if (plan)
+            command.confirm(
+              {
+                options,
+                confirmation: { plan, discardChanges: acknowledged },
+              },
+              onClose,
+              () => {
+                setPlan(undefined);
+                setAcknowledged(false);
+              },
+            );
+          else command.preview(options, setPlan);
+        }}
+      />
     </>
   );
 }
@@ -389,7 +407,6 @@ function SwitchWorktreeBranchContent({
   if (command.pending) submitLabel = 'Checking switch';
   return (
     <>
-      <Text variant="heading">Switch branch</Text>
       <Text>
         Choose a branch for {request.entry.name}. Branches used by another
         worktree are unavailable.
@@ -463,25 +480,17 @@ function SwitchWorktreeBranchContent({
             {receipt.message ?? 'The branch could not be switched.'}
           </Text>
         )}
-      <Box className="flex-row justify-end" gap={2}>
-        <Button
-          label="Cancel"
-          variant="outline"
-          disabled={command.pending}
-          onPress={onClose}
-        />
-        <Button
-          label={submitLabel}
-          disabled={!command.unresolved && !eligible}
-          pending={command.pending}
-          onPress={() => {
-            if (!command.unresolved && !eligible) return;
-            setAttempted(true);
-            setRecovering(command.unresolved);
-            command.submit(chosen, onClose);
-          }}
-        />
-      </Box>
+      <Button
+        label={submitLabel}
+        disabled={!command.unresolved && !eligible}
+        pending={command.pending}
+        onPress={() => {
+          if (!command.unresolved && !eligible) return;
+          setAttempted(true);
+          setRecovering(command.unresolved);
+          command.submit(chosen, onClose);
+        }}
+      />
     </>
   );
 }

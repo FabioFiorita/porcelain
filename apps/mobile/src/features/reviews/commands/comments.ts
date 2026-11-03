@@ -7,6 +7,10 @@ import {
   observeCommentVisibility,
   commentWriteBinding,
 } from '@porcelain/client/reviews';
+import {
+  threadWriteTarget,
+  type CommentThread,
+} from '@porcelain/client/reviews/rules';
 import type { Workspace } from '../../projects';
 
 export function useCommentCommands(
@@ -43,4 +47,22 @@ export function useVisibleComments(
       filter: all ? 'all' : undefined,
     }),
   );
+}
+
+export function useResolveThread(
+  workspace: Pick<Workspace, 'connection' | 'scope'>,
+  thread: CommentThread,
+) {
+  const resolve = useCommentWrite(useCommentCommands(workspace).resolve);
+  return {
+    result: resolve.result,
+    label: thread.resolved ? 'Reopen' : 'Resolve',
+    toggle: () => {
+      if (!resolve.result.waiting)
+        resolve.send({
+          ...threadWriteTarget(thread),
+          resolved: !thread.resolved,
+        });
+    },
+  };
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { randomUUID } from 'expo-crypto';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -8,7 +7,7 @@ import {
 } from '@porcelain/client/access/rules';
 import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigator,
@@ -45,10 +44,6 @@ import { useOpenPublishedReview } from './open-published-review';
 import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
-import {
-  WorktreeActionSheet,
-  type WorktreeActionRequest,
-} from './worktree-action-sheet';
 
 const pullCheckTones = {
   passed: 'add',
@@ -81,7 +76,7 @@ export function WorktreeNavigator({
   const setNotices = useAtomSet(worktreeStatusNotices);
   const [details, setDetails] = useState(false);
   const clipboard = useCopyPath();
-  const [action, setAction] = useState<WorktreeActionRequest>();
+  const router = useRouter();
   const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
   const openPublishedReview = useOpenPublishedReview();
@@ -105,14 +100,16 @@ export function WorktreeNavigator({
         }
       : undefined;
   const selection = selectedCheckout;
-  const openAction = (
-    kind: WorktreeActionRequest['kind'],
-    entry: NavigatorEntry,
-    connection: WorktreeActionRequest['connection'] | undefined,
-  ) => {
-    const worktreeId = entry.worktreeId;
-    if (!worktreeId || !connection) return;
-    setAction({ kind, entry, connection, worktreeId, requestId: randomUUID() });
+  const openActions = (entry: NavigatorEntry) => {
+    if (entry.worktreeId)
+      router.navigate({
+        pathname: '/worktree-actions',
+        params: {
+          environmentId: entry.environmentId,
+          worktreeId: entry.worktreeId,
+          kind: 'menu',
+        },
+      });
   };
   const open = (entry: NavigatorEntry) => {
     if (entry.kind === 'worktree' && entry.available && entry.worktreeId) {
@@ -321,8 +318,7 @@ export function WorktreeNavigator({
                           entry.worktreeId &&
                           connection
                             ? {
-                                onLongPress: () =>
-                                  openAction('menu', entry, connection),
+                                onLongPress: () => openActions(entry),
                               }
                             : {})}
                         >
@@ -483,15 +479,6 @@ export function WorktreeNavigator({
           message={connectionErrorMessage(Cause.squash(clipboard.result.cause))}
         />
       )}
-      <WorktreeActionSheet
-        request={action}
-        onClose={() => setAction(undefined)}
-        onAction={(kind) =>
-          setAction((current) =>
-            current ? { ...current, kind, requestId: randomUUID() } : undefined,
-          )
-        }
-      />
     </Box>
   );
 }

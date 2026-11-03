@@ -108,6 +108,7 @@ export function EnvironmentConnections({
         <PairEnvironmentForm
           environmentId={remote.environmentId}
           onClose={() => setAdding(false)}
+          layout="inline"
         />
       ) : (
         <Button

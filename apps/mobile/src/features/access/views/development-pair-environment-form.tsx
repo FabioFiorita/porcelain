@@ -5,12 +5,14 @@ import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { useDevelopmentPairing } from '../commands/development-pairing';
 import { developmentPairingUrl } from '../api';
-import { PairEnvironmentFields } from './pair-environment-fields';
+import {
+  PairEnvironmentFields,
+  type PairEnvironmentFormProps,
+} from './pair-environment-fields';
 
-export default function DevelopmentPairEnvironmentForm(props: {
-  onClose: () => void;
-  environmentId?: string;
-}) {
+export default function DevelopmentPairEnvironmentForm(
+  props: PairEnvironmentFormProps,
+) {
   const development = useDevelopmentPairing();
   if (!developmentPairingUrl) return <PairEnvironmentFields {...props} />;
   return (

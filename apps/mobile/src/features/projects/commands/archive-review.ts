@@ -4,10 +4,7 @@ import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { reviewCommands } from '@porcelain/client/reviews';
 import { ProjectSelectionCommands } from '@porcelain/client/projects';
-import type {
-  ArchiveReviewRequest,
-  ReviewArchivePlan,
-} from '@porcelain/contracts/reviews';
+import type { ArchiveReviewRequest } from '@porcelain/contracts/reviews';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { clientRuntime } from '../../../shared/application/store';
 const command = Atom.family(
@@ -32,8 +29,6 @@ const command = Atom.family(
       }),
     ),
 );
-export type ArchiveOptions = ArchiveReviewRequest['options'];
-export type ArchivePlan = ReviewArchivePlan;
 export function useArchiveReview(input: {
   connection: RuntimeConnection;
   reviewId: string;
@@ -57,16 +52,10 @@ export function useArchiveReview(input: {
   return {
     result,
     submit,
-    prepare: (
-      options: ArchiveReviewRequest['options'],
-      onPrepared: (
-        answer: NonNullable<Awaited<ReturnType<typeof submit>>>,
-      ) => void,
-    ) =>
+    prepare: (options: ArchiveReviewRequest['options'], onStart: () => void) =>
       requestDocumentLeave(() => {
-        void submit({ options }).then((answer) => {
-          if (answer) onPrepared(answer);
-        });
+        onStart();
+        void submit({ options });
       }),
   };
 }

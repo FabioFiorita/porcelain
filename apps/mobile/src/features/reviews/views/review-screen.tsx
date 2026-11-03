@@ -343,7 +343,7 @@ function ReviewNavigationList({
               }
               variant="outline"
               onPress={() =>
-                router.push({
+                router.navigate({
                   pathname: '/review-comments',
                   params: {
                     ...reviewParams(workspace.key, comparison),

@@ -1,6 +1,5 @@
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-screens/experimental';
-import { sheetPresentation } from '../shared/navigation/sheet-presentation';
 
 function TabRoutes({ segment }: { segment: string }) {
   return (
@@ -37,10 +36,6 @@ function TabRoutes({ segment }: { segment: string }) {
         options={{ title: 'Published review' }}
       />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
-      <Stack.Screen
-        name="review-comments"
-        options={{ title: 'Comments', ...sheetPresentation }}
-      />
       <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}

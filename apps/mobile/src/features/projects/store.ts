@@ -41,6 +41,12 @@ export function useProjectConnection(remote: Remote | undefined) {
   )?.connection;
 }
 
+export function useComputerConnection(environmentId: string | undefined) {
+  return useAtomRef(remoteConnectionState).find(
+    (entry) => entry.remote.environmentId === environmentId,
+  )?.connection;
+}
+
 const leaveGuards = AtomRef.make<
   ReadonlyMap<string, { scope: string; guard: DocumentLeaveGuard }>
 >(new Map());
