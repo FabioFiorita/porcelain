@@ -21,7 +21,7 @@ Opening a one-time pairing link checks the server's health, redeems the code as 
 
 ## How to get to it (user POV)
 
-- Open the link `porcelain pair "<label>"` prints: `<address>/pair#c=<code>&e=<installation id>` (a full page load).
+- `porcelain pair "<label>"` prints the app link `https://porcelain.fabiofiorita.com/open/pair#c=<code>&e=<installation id>&a=<addresses>`; in a browser its page continues to `<first address>/pair#c=<code>&e=<installation id>` (a full page load), the link this map opens.
 - The not-paired page shows the `porcelain pair "This browser" --address <origin>` command to get one.
 
 ## Driving it with browser

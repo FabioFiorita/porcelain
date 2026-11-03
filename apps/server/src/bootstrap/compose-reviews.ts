@@ -213,7 +213,7 @@ export function composeReviews(
     Layer.succeed(RouteStateStore, stores.routeStates),
     Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
     Layer.succeed(ReviewLinkOptions, {
-      hubOrigin: context.settings.reviewHubOrigin,
+      hubOrigin: context.settings.appLinkOrigin,
     }),
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),

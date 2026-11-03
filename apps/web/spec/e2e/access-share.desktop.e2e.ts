@@ -128,8 +128,10 @@ test('Settings → Computers → This computer creates a one-time pairing link f
     settings.getByRole('img', { name: 'Pairing QR code', exact: true }),
   ).toBeVisible();
   await expect(
-    settings.getByText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/),
-  ).toHaveText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/);
+    settings.getByText(/^https:\/\/porcelain\.fabiofiorita\.com\/open\/pair#/),
+  ).toHaveText(
+    /^https:\/\/porcelain\.fabiofiorita\.com\/open\/pair#c=pcp_[^&]+&e=[^&]+&a=http%3A%2F%2F192\.168\.1\.20%3A\d+$/,
+  );
   await expect
     .poll(async () => (await server.pendingLinks()).map((link) => link.label))
     .toEqual(['My phone']);
@@ -222,7 +224,9 @@ for (const trusted of [false, true]) {
       settings.getByRole('img', { name: 'Pairing QR code', exact: true }),
     ).not.toBeAttached();
     await expect(
-      settings.getByText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/),
+      settings.getByText(
+        /^https:\/\/porcelain\.fabiofiorita\.com\/open\/pair#/,
+      ),
     ).not.toBeAttached();
     await expect(
       settings.getByRole('button', { name: 'Copy link', exact: true }),

@@ -65,7 +65,7 @@ None on disk. The default server has two paired devices: "Development setup" (th
 8. Inspect switch named `The paired device can update Porcelain` (on by default)
    Expect: switch "The paired device can update Porcelain" checked.
 9. Click button `Create pairing link`
-   Expect: img "Pairing QR code"; text "Scan on Release laptop"; the Pairing link text `http://192.168.1.20:<port>/pair#c=<one-time code>&e=…`; listitem "Release laptop" containing "Pending link".
+   Expect: img "Pairing QR code"; text "Scan on Release laptop"; the Pairing link text `https://porcelain.fabiofiorita.com/open/pair#c=<one-time code>&e=…&a=http%3A%2F%2F192.168.1.20%3A<port>`; listitem "Release laptop" containing "Pending link".
 10. `$C server pending-links`
     Expect: the link labelled "Release laptop" with `"trusted": true`.
 11. Stay on Devices

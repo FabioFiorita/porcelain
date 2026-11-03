@@ -171,7 +171,7 @@ test(
           ),
         ),
       ).output,
-    ).toBe('[redacted]\n');
+    ).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/pair#c=\[redacted\]&e=[^&\s]+\n$/);
     expect(
       [...secrets, code].filter((secret) => evidence.text.includes(secret)),
       'no credential or code in the evidence',

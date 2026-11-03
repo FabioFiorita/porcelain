@@ -49,6 +49,7 @@ async function setup() {
       Effect.provideService(IssuePairingOptions, {
         lifetimeMs: 15 * 60 * 1000,
         labelLength: 80,
+        appOrigin: 'https://porcelain.example',
       }),
     ),
   );
@@ -111,7 +112,7 @@ describe('IssuePairingService', () => {
     expect(issued.grant.expiresAt).toBe('2026-09-23T10:15:00.000Z');
   });
 
-  it('hands the link its parts: every address in order, the code and the environment', async () => {
+  it('hands the link its parts: every address in order, the code, the environment and the app link origin', async () => {
     const { service } = await setup();
     const addresses = ['http://laptop.local:4173', address];
     const issued = issueOne(service, addresses);
@@ -119,6 +120,7 @@ describe('IssuePairingService', () => {
       addresses,
       code: issued.code,
       environmentId,
+      appOrigin: 'https://porcelain.example',
     });
   });
 

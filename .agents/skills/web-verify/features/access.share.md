@@ -73,7 +73,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 6. Click button `Create pairing link`
    Expect:
    - img "Pairing QR code" and the text "Scan on My phone";
-   - the Pairing link text starting `http://192.168.1.20:<port>/pair#c=<one-time code>`; button "Copy link";
+   - the Pairing link text `https://porcelain.fabiofiorita.com/open/pair#c=<one-time code>&e=<environmentId>&a=http%3A%2F%2F192.168.1.20%3A<port>`, the app link the phone Camera opens; button "Copy link";
    - listitem "My phone" containing "Pending link", with a button "Cancel the link for My phone";
    - listitem "Verification browser" containing "This device" and "This computer", with no "Revoke Verification browser" button;
    - listitem "Development setup" containing "This computer", with a button "Revoke Development setup".
