@@ -11,8 +11,10 @@ selectors:
   - 'development-pairing-link'
   - 'Creating pairing link…'
   - 'Online'
+  - 'Scan QR code'
 tests:
   - apps/server/spec/kit/development-pairing.spec.ts
+  - apps/mobile/src/features/access/pairing-sheet.spec.ts
 api:
   - POST /api/pair
   - GET /api/environment
@@ -21,11 +23,13 @@ api:
 
 # access.pairing
 
-Add computer pairs through a pasted one-time link, saves the computer across cold launches, and retains errors until corrected or retried.
+Add computer pairs through a scanned or pasted one-time link, saves the computer across cold launches, and retains errors until corrected or retried.
 
 ## How to get to it (user POV)
 
 - Settings → Computers → Add computer → paste the link → Pair
+- Settings → Computers → Add computer → Scan QR code: follow [scan pairing](access.scan-pairing.md).
+- A pairing link opened from the system Camera or another app: follow [pairing link](access.pairing-link.md).
 - Metro development: Settings → Computers → Add computer → Use development server → Pair
 
 ## Driving it with agent-device
@@ -45,5 +49,6 @@ Automated coverage: `development-pairing.spec.ts`.
 
 - Pairing a missing connection (Pair again), Add connection and the linked-review Pair this computer keep the same form inline, with its heading and `cancel-pairing`.
 
+- Closing the sheet forgets an unsubmitted link: reopening Add computer starts blank.
 - Use test IDs if a native host duplicates a button label. Pair requests have a 15-second deadline; fresh links work once and expire.
 - The helper is absent from production and unconfigured development sessions. Restart Metro after changing helper configuration/owner socket; no native rebuild is needed. Keep helper links private.

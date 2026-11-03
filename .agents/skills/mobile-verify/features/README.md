@@ -36,7 +36,9 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [access.environment-status](access.environment-status.md) — Connection status, revoked devices and recovery.
 - [access.forget-environment](access.forget-environment.md) — Forget a saved computer locally and retain the others.
 - [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
-- [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
+- [access.pairing](access.pairing.md) — Scan or paste links, pair multiple computers and restore after launch.
+- [access.pairing-link](access.pairing-link.md) — A pairing link from the Camera opens the pairing form filled in.
+- [access.scan-pairing](access.scan-pairing.md) — Scan a computer's pairing QR code, camera permission and return.
 - [access.settings](access.settings.md) — Settings categories and version.
 - [access.updates](access.updates.md) — Update offers, per-computer and batch updates in Settings → Computers.
 - [app.catalog-button](app.catalog-button.md) — Button variants, actions, disabled and pending states.

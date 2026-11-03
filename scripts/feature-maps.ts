@@ -126,7 +126,12 @@ function expoScreens(
     if (entry.isDirectory())
       return expoScreens(root, folder, [...inside, entry.name]);
     const stem = entry.name.replace(/\.(?:ios|android)?\.?tsx?$/, '');
-    if (!/\.tsx?$/.test(entry.name) || stem === '_layout') return [];
+    if (
+      !/\.tsx?$/.test(entry.name) ||
+      stem === '_layout' ||
+      stem === '+native-intent'
+    )
+      return [];
     const segments = [...inside, stem].filter(
       (segment) => !/^\(.+\)$/.test(segment) && segment !== 'index',
     );
@@ -346,7 +351,7 @@ function surfaceProblems(
     for (const page of pages)
       if (!named.has(page.path))
         problems.push(
-          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its ${surface.page}; write the map file of a feature on that page, because every rendered page needs a verification entry point. ${surface.page === 'screen' ? 'A _layout file needs none.' : '__root and a layout route, whose folder holds child routes and whose page is its index, need none.'}`,
+          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its ${surface.page}; write the map file of a feature on that page, because every rendered page needs a verification entry point. ${surface.page === 'screen' ? 'A _layout or +native-intent file needs none.' : '__root and a layout route, whose folder holds child routes and whose page is its index, need none.'}`,
         );
   }
   if (surface.flows !== undefined) {

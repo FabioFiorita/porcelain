@@ -14,14 +14,19 @@ import { useEnvironmentStorageStatus } from '../store';
 export type PairEnvironmentFormProps = {
   onClose: () => void;
   environmentId?: string;
-  layout: 'sheet' | 'inline';
-};
+} & (
+  | {
+      layout: 'sheet';
+      link: string;
+      onLinkChange: (link: string) => void;
+      onScan: () => void;
+    }
+  | { layout: 'inline' }
+);
 
 export function PairEnvironmentFields({
-  onClose,
-  environmentId,
-  layout,
   development,
+  ...props
 }: PairEnvironmentFormProps & {
   development?: {
     waiting: boolean;
@@ -33,7 +38,10 @@ export function PairEnvironmentFields({
     }) => ReactNode;
   };
 }) {
-  const [value, setValue] = useState('');
+  const { onClose, environmentId, layout } = props;
+  const [typed, setTyped] = useState('');
+  const value = props.layout === 'sheet' ? props.link : typed;
+  const setValue = props.layout === 'sheet' ? props.onLinkChange : setTyped;
   const pair = usePairEnvironment(onClose, environmentId);
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
@@ -41,6 +49,19 @@ export function PairEnvironmentFields({
     pair.result.waiting || development?.waiting || storage.status !== 'ready';
   return (
     <Box gap={4}>
+      {props.layout === 'sheet' ? (
+        <Button
+          testID="scan-pairing-link"
+          label="Scan QR code"
+          variant="outline"
+          disabled={unavailable}
+          onPress={() => {
+            pair.reset();
+            development?.reset();
+            props.onScan();
+          }}
+        />
+      ) : null}
       {layout === 'inline' ? (
         <Text variant="heading">
           {environmentId ? 'Add a connection' : 'Pair a computer'}
@@ -48,7 +69,11 @@ export function PairEnvironmentFields({
       ) : null}
       <Field
         label="Pairing link"
-        description="Run porcelain pair on the computer you want to connect, then paste the whole link it prints."
+        description={
+          props.layout === 'sheet'
+            ? 'Or run porcelain pair on the computer you want to connect and paste the whole link it prints.'
+            : 'Run porcelain pair on the computer you want to connect, then paste the whole link it prints.'
+        }
       >
         <Input
           testID="pairing-link"

@@ -83,7 +83,11 @@ export {
   type SaveReviewGitSettingsRequest,
   type SaveReviewGitSettingsResponse,
 } from './review-git-settings.ts';
-export { pairingLink } from './pairing-link.ts';
+export {
+  APP_PAIRING_PATH,
+  isAppPairingPath,
+  pairingLink,
+} from './pairing-link.ts';
 export {
   PublicAccessApi,
   BrowserAccessApi,

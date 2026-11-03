@@ -53,6 +53,15 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-sqlite',
     [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Scan the QR code on your computer to pair it with Porcelain.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    [
       'expo-font',
       {
         android: {

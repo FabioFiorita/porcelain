@@ -24,6 +24,15 @@ function SettingsLayout() {
         name="pair-computer"
         options={{ title: 'Pair a computer', ...sheetOptions('half') }}
       />
+      <Stack.Screen name="open/pair" options={{ animation: 'none' }} />
+      <Stack.Screen
+        name="scan-pairing-link"
+        options={{
+          title: 'Scan QR code',
+          presentation: 'fullScreenModal',
+          headerShown: false,
+        }}
+      />
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
           name="component-library"
