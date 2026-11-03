@@ -15,7 +15,6 @@ import {
 } from '../../shared/application/store';
 
 import { Atom, AtomRef } from 'effect/reactivity';
-import type { WorktreeDetails } from './views/worktree-screen';
 
 export function useProjectSelection() {
   return useAtomRef(selectionState);
@@ -96,6 +95,18 @@ export function requestDocumentLeave(leave: () => void, scope?: string) {
 }
 
 export const reviewPaneOpen = Atom.make(false).pipe(Atom.keepAlive);
+
+export type WorktreeDetails = {
+  title: string;
+  project: string;
+  computer: string;
+  environment: string;
+  projectId: string;
+  worktreeId: string;
+  review: string;
+  reviewId?: string | undefined;
+  number?: string | undefined;
+};
 
 export const openedWorktree = Atom.make<WorktreeDetails | undefined>(
   undefined,

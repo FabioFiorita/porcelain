@@ -10,7 +10,7 @@ import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { worktreeRow } from '../rules/worktree-row';
 import { openedWorktree } from '../store';
 import { WorktreeNavigator } from './worktree-navigator';
-import type { WorktreeDetails } from './worktree-screen';
+import type { WorktreeDetails } from '../store';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreesScreen({ mode }: { mode: ListDetailMode }) {

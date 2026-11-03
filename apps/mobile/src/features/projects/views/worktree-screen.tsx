@@ -11,18 +11,7 @@ import { useOpenPullRequest } from './open-pull-request';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenInWorktree } from './open-in-worktree';
 import { PickerNotices } from './picker-notices';
-
-export type WorktreeDetails = {
-  title: string;
-  project: string;
-  computer: string;
-  environment: string;
-  projectId: string;
-  worktreeId: string;
-  review: string;
-  reviewId?: string | undefined;
-  number?: string | undefined;
-};
+import type { WorktreeDetails } from '../store';
 
 export function WorktreeScreen() {
   const params = useLocalSearchParams<Partial<WorktreeDetails>>();
