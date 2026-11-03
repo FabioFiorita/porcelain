@@ -38,6 +38,9 @@ test('threads from other heads stay at file level with a route to their original
   const app = await render.route(
     `/reviews/${first.reviewId}/2/decisions/${first.layerId}`,
   );
+  await app.page
+    .getByRole('button', { name: 'Open review-page.ts at line 1', exact: true })
+    .click();
   await expect
     .element(app.page.getByText('Discuss the first revision', { exact: true }))
     .toBeVisible();
@@ -53,6 +56,9 @@ test('threads from other heads stay at file level with a route to their original
   await expect
     .element(app.page.getByText('export const revision = 1;', { exact: true }))
     .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Open review-page.ts at line 1', exact: true })
+    .click();
   await expect
     .element(app.page.getByText('Discuss the second revision', { exact: true }))
     .toBeVisible();
@@ -78,14 +84,18 @@ test('an unchanged context file accepts a whole-file comment and keeps its revis
       exact: true,
     })
     .click();
+  await app.page
+    .getByRole('button', {
+      name: /^Open packages\/workspace\/src\/actor\.ts at line [0-9]+$/,
+    })
+    .click();
   const context = app.page.getByRole('region', {
-    name: 'Existing code it relies on',
+    name: 'Code content',
     exact: true,
   });
-  await context
-    .getByRole('button', {
-      name: /^Comment on packages\/workspace\/src\/actor\.ts/,
-    })
+  await app.page
+    .getByRole('toolbar', { name: 'Document controls', exact: true })
+    .getByRole('button', { name: 'Comment', exact: true })
     .click();
   await context
     .getByRole('textbox', { name: 'Comment', exact: true })
@@ -158,7 +168,7 @@ test('a deleted-line thread stays at file level when its step opens the retained
   );
   await app.page
     .getByRole('button', {
-      name: `Go to step ${layer.steps.indexOf(step) + 1}: ${step.title} · Shared owners · packages/workspace/src/policy.ts`,
+      name: `Open packages/workspace/src/policy.ts at line ${step.pointer.startLine}`,
       exact: true,
     })
     .click();
@@ -170,8 +180,8 @@ test('a deleted-line thread stays at file level when its step opens the retained
       }),
     )
     .toBeVisible();
-  const file = app.page.getByRole('article', {
-    name: `Step ${step.title}`,
+  const file = app.page.getByRole('region', {
+    name: 'Code content',
     exact: true,
   });
   await expect
@@ -199,14 +209,18 @@ test.for([
     const app = await render.route(
       `/reviews/${published.reviewId}/1/decisions/${layer.id}`,
     );
+    await app.page
+      .getByRole('button', {
+        name: /^Open packages\/workspace\/src\/actor\.ts at line [0-9]+$/,
+      })
+      .click();
     const context = app.page.getByRole('region', {
-      name: 'Existing code it relies on',
+      name: 'Code content',
       exact: true,
     });
-    await context
-      .getByRole('button', {
-        name: /^Comment on packages\/workspace\/src\/actor\.ts/,
-      })
+    await app.page
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('button', { name: 'Comment', exact: true })
       .click();
     const draft = context.getByRole('textbox', {
       name: 'Comment',
@@ -227,6 +241,10 @@ test.for([
         },
       },
     );
+    await expect.element(draft).toHaveValue(body);
+    await context
+      .getByRole('button', { name: '1 comment · Agent replied', exact: true })
+      .click();
     await expect
       .element(
         context.getByText('Another retained actor discussion', { exact: true }),

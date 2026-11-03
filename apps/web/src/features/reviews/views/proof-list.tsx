@@ -38,12 +38,16 @@ function targetLabel(
   layers: readonly ReviewLayer[],
   inLayer: boolean,
 ) {
-  const index = layers.findIndex((candidate) => candidate.id === target.layerId);
+  const index = layers.findIndex(
+    (candidate) => candidate.id === target.layerId,
+  );
   const layer = layers[index];
   if (!layer) return undefined;
   const step = layer.steps.find((candidate) => candidate.id === target.stepId);
   if (inLayer) return step?.title;
-  return step ? `Decision ${index + 1} · ${step.title}` : `Decision ${index + 1}`;
+  return step
+    ? `Decision ${index + 1} · ${step.title}`
+    : `Decision ${index + 1}`;
 }
 
 export function ProofList({
@@ -52,14 +56,12 @@ export function ProofList({
   proof,
   layers,
   inLayer = false,
-  layout = 'stacked',
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   proof: ReviewProof;
   layers: readonly ReviewLayer[];
   inLayer?: boolean;
-  layout?: 'stacked' | 'columns';
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -204,13 +206,13 @@ function AssetView({
   return (
     <figure className="flex flex-col gap-1">
       <div className="overflow-hidden rounded-md border bg-muted [&_img]:h-40 [&_img]:max-h-none [&_img]:rounded-none [&_video]:h-40">
-      <ProofMedia
-        scope={scope}
-        context={context}
-        id={asset.id}
-        title={asset.title}
-        video={asset.kind === 'video'}
-      />
+        <ProofMedia
+          scope={scope}
+          context={context}
+          id={asset.id}
+          title={asset.title}
+          video={asset.kind === 'video'}
+        />
       </div>
       {caption}
     </figure>

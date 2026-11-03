@@ -2,6 +2,8 @@ import { NodeServices } from '@effect/platform-node';
 import { ReviewAgentHost } from '@porcelain/reviews/ports';
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from 'effect';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -39,10 +41,18 @@ const makeRuntime = (directory: string) =>
     ).pipe(Layer.provide(NodeServices.layer)),
   );
 let runtime: ReturnType<typeof makeRuntime>;
-async function configure(thread = target.thread, response: unknown = receipt) {
+async function configure(
+  thread: Omit<typeof target.thread, 'worktreePath'> & {
+    worktreePath: string | null;
+  } = target.thread,
+  response: unknown = receipt,
+  members: readonly { threadId: string }[] = [
+    { threadId: input.session.threadId },
+  ],
+) {
   await writeFile(
     join(directory, 'response.json'),
-    JSON.stringify({ thread, response }),
+    JSON.stringify({ thread, response, members }),
   );
 }
 async function outcome() {
@@ -57,7 +67,7 @@ beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'porcelain-t3-host-'));
   await writeFile(
     join(directory, 't3'),
-    `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const dir=path.dirname(process.argv[1]);const config=JSON.parse(fs.readFileSync(path.join(dir,'response.json'),'utf8'));const args=process.argv.slice(2);if(args[0]!=='thread')process.exit(2);if(args[1]==='show'){console.log(JSON.stringify({thread:config.thread}));}else if(args[1]==='send'){const message=fs.readFileSync(0,'utf8');fs.writeFileSync(path.join(dir,'outbox.json'),JSON.stringify({args,message}));console.log(JSON.stringify(config.response));}else process.exit(2);`,
+    `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const dir=path.dirname(process.argv[1]);const config=JSON.parse(fs.readFileSync(path.join(dir,'response.json'),'utf8'));const args=process.argv.slice(2);if(args[0]!=='thread')process.exit(2);if(args[1]==='list'){fs.writeFileSync(path.join(dir,'project-args.json'),JSON.stringify(args));console.log(JSON.stringify(config.members));}else if(args[1]==='show'){console.log(JSON.stringify({thread:config.thread}));}else if(args[1]==='send'){const message=fs.readFileSync(0,'utf8');fs.writeFileSync(path.join(dir,'outbox.json'),JSON.stringify({args,message}));console.log(JSON.stringify(config.response));}else process.exit(2);`,
     { mode: 0o700 },
   );
   await configure();
@@ -176,6 +186,53 @@ it('does not launch ambient T3 when the fixture explicitly disables agent lookup
       reason: 'recipient-unavailable',
     },
   });
+  await expect(
+    readFile(join(directory, 'outbox.json'), 'utf8'),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('connects a project thread to a shell-created worktree only after checking repository membership', async () => {
+  const main = join(directory, 'main');
+  const checkout = join(directory, 'checkout');
+  const git = promisify(execFile);
+  await git('git', ['init', main]);
+  await git('git', [
+    '-C',
+    main,
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.test',
+    'commit',
+    '--allow-empty',
+    '-m',
+    'Base',
+  ]);
+  await git('git', ['-C', main, 'worktree', 'add', '-b', 'review', checkout]);
+  await configure({ ...target.thread, worktreePath: null });
+  await runtime.runPromise(
+    Effect.gen(function* () {
+      const host = yield* ReviewAgentHost;
+      yield* host.execute({ ...input, worktreePath: checkout });
+    }),
+  );
+  expect(
+    JSON.parse(await readFile(join(directory, 'project-args.json'), 'utf8')),
+  ).toEqual(['thread', 'list', '--project', main, '--json']);
+  expect(
+    JSON.parse(await readFile(join(directory, 'outbox.json'), 'utf8')),
+  ).toMatchObject({ message: input.message });
+  await configure({ ...target.thread, worktreePath: null }, receipt, [
+    { threadId: 'unrelated-project-thread' },
+  ]);
+  await rm(join(directory, 'outbox.json'));
+  const rejected = await runtime.runPromise(
+    Effect.gen(function* () {
+      const host = yield* ReviewAgentHost;
+      return yield* host.execute({ ...input, worktreePath: checkout });
+    }).pipe(Effect.flip),
+  );
+  expect(rejected).toMatchObject({ reason: 'recipient-mismatch' });
   await expect(
     readFile(join(directory, 'outbox.json'), 'utf8'),
   ).rejects.toMatchObject({ code: 'ENOENT' });

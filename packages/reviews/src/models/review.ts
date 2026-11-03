@@ -97,7 +97,35 @@ export const reviewRemovalSchema = Schema.Struct({
   why: Schema.String,
   paths: Schema.Array(Schema.String),
 });
+const reviewTryItSchema = Schema.Struct({
+  url: Schema.String,
+  accounts: Schema.Array(
+    Schema.Struct({ label: Schema.String, signIn: Schema.String }),
+  ),
+  steps: Schema.Array(Schema.String),
+});
+const reviewCoverageSchema = Schema.Array(
+  Schema.Struct({
+    asked: Schema.String,
+    built: Schema.String,
+    left: Schema.optional(
+      Schema.Struct({
+        what: Schema.String,
+        owner: Schema.Union([
+          Schema.Struct({ kind: Schema.Literal('nobody') }),
+          Schema.Struct({
+            kind: Schema.Literals(['ticket', 'teammate']),
+            name: Schema.String,
+            message: Schema.optional(Schema.String),
+          }),
+        ]),
+      }),
+    ),
+  }),
+);
 export const reviewVerdictSchema = Schema.Struct({
+  tryIt: Schema.optional(reviewTryItSchema),
+  coverage: Schema.optional(reviewCoverageSchema),
   asked: Schema.Struct({
     text: Schema.String,
     links: Schema.optional(

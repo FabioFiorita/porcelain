@@ -5,15 +5,13 @@ import {
   MarkerType,
   Position,
   ReactFlow,
-  useNodesInitialized,
   useReactFlow,
-  useStore,
   type Edge,
   type Node,
   type NodeProps,
 } from '@xyflow/react';
 import { TriangleAlertIcon } from 'lucide-react';
-import { useEffect, type CSSProperties } from 'react';
+import { type CSSProperties } from 'react';
 import { useTheme } from '@/features/preferences/index';
 import { cn } from '@/shared/lib/utils';
 import type { ReviewRevision } from '@porcelain/client/reviews/rules';
@@ -109,13 +107,19 @@ function neighbourhood(diagram: Diagram, focus: string): Diagram {
 
 function FitOnResize() {
   const { fitView } = useReactFlow();
-  const width = useStore((state) => state.width);
-  const height = useStore((state) => state.height);
-  const ready = useNodesInitialized();
-  useEffect(() => {
-    if (ready) void fitView({ padding: 0.06, maxZoom: 1 });
-  }, [ready, width, height, fitView]);
-  return null;
+  const observe = (node: HTMLSpanElement | null) => {
+    if (!node?.parentElement) return;
+    const observer = new ResizeObserver(() => {
+      void fitView({ padding: 0.06, maxZoom: 1 });
+    });
+    observer.observe(node.parentElement);
+    return () => observer.disconnect();
+  };
+  return (
+    <span ref={observe} className="sr-only">
+      System connections
+    </span>
+  );
 }
 
 const MAP_STYLE = {

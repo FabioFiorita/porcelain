@@ -188,7 +188,37 @@ const proseSchema = Schema.String.check(Schema.isMinLength(1)).check(
   Schema.isMaxLength(REVIEW_PROSE_LENGTH),
 );
 const httpUrlSchema = Schema.String.check(Schema.isPattern(/^https?:\/\//));
+const reviewTryItSchema = Schema.Struct({
+  url: httpUrlSchema.check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
+  accounts: Schema.Array(
+    Schema.Struct({ label: proseSchema, signIn: proseSchema }),
+  ).check(Schema.isMaxLength(10)),
+  steps: Schema.Array(proseSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(20)),
+});
+const reviewCoverageSchema = Schema.Array(
+  Schema.Struct({
+    asked: proseSchema,
+    built: proseSchema,
+    left: Schema.optional(
+      Schema.Struct({
+        what: proseSchema,
+        owner: Schema.Union([
+          Schema.Struct({ kind: Schema.Literal('nobody') }),
+          Schema.Struct({
+            kind: Schema.Literals(['ticket', 'teammate']),
+            name: proseSchema,
+            message: Schema.optional(proseSchema),
+          }),
+        ]),
+      }),
+    ),
+  }),
+).check(Schema.isMaxLength(30));
 const reviewVerdictSchema = Schema.Struct({
+  tryIt: Schema.optional(reviewTryItSchema),
+  coverage: Schema.optional(reviewCoverageSchema),
   asked: Schema.Struct({
     text: proseSchema,
     links: Schema.optional(
@@ -262,6 +292,24 @@ const publishedReviewSchema = Schema.Struct({
   diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: Schema.optional(reviewDiagramSchema),
+  system: Schema.optional(
+    Schema.Struct({
+      kind: Schema.Literal('git-files'),
+      owners: Schema.Array(
+        Schema.Struct({
+          path: Schema.String,
+          files: Schema.Array(
+            Schema.Struct({
+              path: Schema.String,
+              change: Schema.Literals(['new', 'changed', 'removed']),
+            }),
+          ),
+          annotations: Schema.Array(diagramBoxSchema),
+        }),
+      ),
+      guards: Schema.Array(Schema.String),
+    }),
+  ),
   layers: Schema.Array(resolvedReviewLayerSchema).check(
     Schema.isMaxLength(REVIEW_LAYERS),
   ),

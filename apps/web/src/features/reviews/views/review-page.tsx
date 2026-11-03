@@ -922,6 +922,8 @@ function ReviewRevisionPage({
                         />
                         <MarginRow>
                           <DecisionSlices
+                            marks={marks ?? { files: [], decisions: [] }}
+                            scope={scope}
                             key={stop.key}
                             revision={revision}
                             context={context}

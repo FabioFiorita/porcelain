@@ -4,6 +4,11 @@ selectors:
   - 'Review walkthrough'
   - 'Review revisions'
   - 'You asked'
+  - 'Try it'
+  - 'Asked, built, left'
+  - 'Code slices'
+  - 'Ask for a guard'
+  - 'Guard files changed'
   - 'Recommendation'
   - 'Not proven'
   - 'Removed'
@@ -73,9 +78,9 @@ The navigator has one project list across computers, with worktree cards ordered
 Check `free -g` before startup. Start one disposable instance and retain the connection card. Run `$C agent publish-revision 'Retain the committed revision after removing the publishing checkout'` twice. Each command commits on an owned fixture worktree and publishes through MCP, returning reviewId, revision, headOid, layerId and worktree. Keep both responses. The fixture has a deletion, a long decision title, passing and failing checks, and an explicit desktop gap.
 
 1. In a fresh unpaired browser, open `/reviews/<reviewId>?decision=<layerId>`. Expect `/pair` and "This browser is not paired". Redeem the card's fresh pairing link in the same tab. Expect the original route and its latest decision, with the pairing fragment consumed.
-2. Open `/reviews/<reviewId>`. Check the briefing order: two-tone title, You asked and links, Recommendation, Continue at decision n, Needs your decision, What this adds, Proven at the short head SHA, and The walkthrough. The margin holds revisions, branch/head, Close review, Delete review…, Removed and Not proven. The removed group names `retired.ts` and its behavior and reason. The proof keeps its failing check first. Not proven names Desktop app and Mac is off.
+2. Open `/reviews/<reviewId>`. Check the briefing order: two-tone title, optional Try it (preview, labelled sign-in instructions and click steps), optional Asked, built, left (explicit owner and expandable drafted message for remaining work), You asked and links, Recommendation, Continue at decision n, Needs your decision, What this adds, Proven at the short head SHA, and The walkthrough. The margin holds revisions, branch/head, Close review, Delete review…, Removed and Not proven. The removed group names `retired.ts` and its behavior and reason. The proof keeps its failing check first. Not proven names Desktop app and Mac is off.
 3. Open the project navigator and its unified Reviews list. Its entry opens this same page. The worktree's Review tab opens its current branch review using this same component; run `$C agent advance-review-branch` and expect "The branch tip differs from this review." with "Publish a revision to include it." beneath it. At 414 and 1440 in light and dark, the complete notice heading wraps without ellipsis or clipping. Exact newer-commit counts need a contract that accepts the retained revision SHA as the comparison base; the current branch-changes base accepts branch refs only.
-4. In the margin's Revisions rows (newest first, the latest with a dot and "Latest", each with its age), select r1, then the latest row. The SHA and committed code follow the selected revision. Open the first decision with Continue at decision 1. Return with Open the briefing before selecting revisions. Its code uses the revision file/diffs endpoints, and each pointer opens the retained full file.
+4. In the margin's Revisions rows (newest first, the latest with a dot and "Latest", each with its age), select r1, then the latest row. The SHA and committed code follow the selected revision. Open the first decision with Continue at decision 1. Return with Open the briefing before selecting revisions. Its code uses the revision file/diffs endpoints. Each step shows its focused code slice with three surrounding head lines; a context step or an unavailable diff shows the saved excerpt. Each slice header opens the retained full file. Step buttons scroll to the matching slice. Screenshots and videos appear on their decision, checks stay compact, and opening All changes hides React Flow nodes; returning restores the walkthrough map.
 5. Before publishing a review, leave a worktree comment on the uncommitted change. On its standalone `/reviews/<id>` page, expect that thread in Comments and in the waiting-on-agent count while the checkout is available. Add a review-owned comment: both appear exactly once. Reply, edit, resolve and delete use each thread’s owner; Delete resolved keeps the confirmation revision checks for both owners. After checkout removal, only the retained review-owned discussion remains.
 6. On a decision, comment on `review-page.ts` from its code; in the Review panel's Comments tab use "Comment on the whole branch". Use `$C agent remove-review-worktree`, reload each route, and check that verdict, explanations, code and proof remain readable, and that the Review panel's Comments tab still lists both threads; reply to one and resolve the other. This removes only the fixture worktree created by publish-revision.
 7. Mark a decision reviewed. Inspect PUT `/api/reviews/<id>/marks` and GET of the same endpoint: its files and decision are review-owned. Unmarking a decision keeps file marks. A file toggle changes the completion indicator without removing the decision mark. Retained diff headers expose the file toggle as a checkbox with its mark/unmark label; checked state follows the file mark.
@@ -92,7 +97,7 @@ Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, re
 
 Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
 
-With a long unchanged dependency under “Existing code it relies on”, scroll its compact card to the final line. The filename and Comment header stay visible above the code viewport; its scrollbar starts below the header and stays inside the rounded card. Full-height file views and changed diffs retain their own scroll behavior.
+With a long unchanged dependency, scroll its saved code slice to the final line. The step heading and filename stay above the bounded code viewport. Use Ask for a guard, explain the repeated mistake, and post: the review Comments must contain the exact path and range plus the request for a lint or architecture rule. Send feedback notifies the connected agent through the existing batch action. The briefing also lists Git-derived file changes by folder and changed lint/architecture files; agent diagram relationships are explicitly labelled claims. Import neighbours, randomized persistent sampling and a project timeline are not implemented in this slice. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 

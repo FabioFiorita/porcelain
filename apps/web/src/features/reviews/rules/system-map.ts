@@ -3,7 +3,6 @@ import type { ReviewRevision } from '@porcelain/client/reviews/rules';
 type Content = ReviewRevision['content'];
 type Diagram = NonNullable<Content['diagram']>['after'];
 export type MapBox = Diagram['boxes'][number];
-export type MapArrow = Diagram['arrows'][number];
 
 export const MAP_BOX_WIDTH = 200;
 export const MAP_BOX_HEIGHT = 88;
@@ -11,7 +10,7 @@ const COLUMN_GAP = 28;
 const ROW_GAP = 48;
 const MAX_ROW = 3;
 
-export type PlacedBox = MapBox & { x: number; y: number };
+type PlacedBox = MapBox & { x: number; y: number };
 export type MapLayout = {
   width: number;
   height: number;
@@ -93,6 +92,6 @@ export function layoutMap(diagram: Diagram): MapLayout {
     });
   });
   const height =
-    wrapped.length * MAP_BOX_HEIGHT + (wrapped.length - 1) * ROW_GAP;
+    wrapped.length * MAP_BOX_HEIGHT + Math.max(0, wrapped.length - 1) * ROW_GAP;
   return { width, height, boxes: [...placed.values()] };
 }

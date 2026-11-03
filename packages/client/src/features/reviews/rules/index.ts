@@ -91,7 +91,6 @@ export {
   decisionKey,
   decisionLinks,
   decisionQuestions,
-  type DecisionLink,
   decisionRoute,
   reviewStepLines,
   filesReviewed,

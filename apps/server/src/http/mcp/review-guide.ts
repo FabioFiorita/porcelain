@@ -9,14 +9,14 @@ export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
 ## Agent feedback delivery
 
-When running in T3 Code on the Porcelain server's machine, after publishing use \`connect_review_agent\` with the returned reviewId and your exact local T3 threadId as \`session: { kind: "t3", threadId }\`. Never guess a thread from its title or branch. The server checks that its worktree matches the publication. Other hosts are not supported by this first delivery adapter.
+When running in T3 Code on the Porcelain server's machine, after publishing use \`connect_review_agent\` with the returned reviewId and your exact local T3 threadId as \`session: { kind: "t3", threadId }\`. Never guess a thread from its title or branch. The server checks that a thread with its own checkout matches the publication. A project thread without a checkout must belong to the publication's repository project. Other hosts are not supported by this first delivery adapter.
 
 The developer can choose Send feedback to queue a notification in that existing session. This does not close the review, mark decisions, or grant permission to implement or merge. When notified, call \`acknowledge_feedback\` with the exact reviewId and deliveryId before handling the batch. Continue only when acknowledgementAccepted is true; false means this batch was already acknowledged. Read the named published revision and current comments; reply through MCP with stable message IDs. Receipt does not mean the feedback has been fixed. An uncertain send stays pending and is never silently resent. The developer can disconnect the association without deleting comments. Connecting the same session preserves its delivery; connecting a different session is refused until the developer disconnects the current one.
 
 
 The review helps the developer understand how the architecture changes and which decisions future agents will copy. Porcelain shows it as a walkthrough: a briefing of what the change adds to the system, then one stop per layer in the order you publish, then whatever no layer explains. Each layer is one decision: a behavior told from entry point to outcome, or one coherent ownership or architectural decision. Do not make Server, Client or Interface separate layers: those are lanes within a decision, and Porcelain shows the lanes a decision crosses as its route. Order layers so a reader meets an owner before the decisions that use it.
 
-The reader marks a decision reviewed, and that marks every file it shows. Each changed file appears in full, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this committed revision alters; its text appears as a numbered note under the last line it points at, so set its inclusive startLine and endLine to cover every line the step explains. Only that range counts as explained: a single-line pointer does not cover adjacent lines, the surrounding paragraph or the whole hunk. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines outside all changed-step ranges are listed as Not explained, both as files of their own and as marked lines inside explained files.
+The reader marks a decision reviewed, and that marks every file it shows. Each step shows a focused code slice, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this committed revision alters; its text appears as a numbered note under the last line it points at, so set its inclusive startLine and endLine to cover every line the step explains. Only that range counts as explained: a single-line pointer does not cover adjacent lines, the surrounding paragraph or the whole hunk. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines outside all changed-step ranges are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
 ## Commit, then publish
 
@@ -48,22 +48,45 @@ Every publish requires:
 
 Recommendation is \`merge\` or \`hold\`. Supply 1–5 reason lines. Put work you did not run in \`notProven\`; proof checks accept only \`pass\` or \`fail\`.
 
+## Try it and what remains
+
+The verdict can include optional \`tryIt\` and \`coverage\` fields. They appear first in the briefing. Put the running preview URL, labelled test personas and instructions for signing in in \`tryIt\`; never include passwords, tokens, real credentials or private account data. Use a fixture sign-in flow and refer to the secure channel for any secret.
+
+\`\`\`json
+{
+  "verdict": {
+    "tryIt": {
+      "url": "http://localhost:5173",
+      "accounts": [{ "label": "New developer", "signIn": "Choose the New developer fixture on the preview sign-in screen" }],
+      "steps": ["Open the review", "Choose a decision", "Send feedback"]
+    },
+    "coverage": [
+      { "asked": "Deliver review feedback", "built": "Send to the connected agent thread" },
+      { "asked": "Support remote agents", "built": "Local thread delivery", "left": { "what": "Remote delivery", "owner": { "kind": "ticket", "name": "Remote feedback follow-up", "message": "Please cover agents on other machines and retain delivery receipts." } } },
+      { "asked": "Keep an owner for every gap", "built": "Show unassigned work", "left": { "what": "Choose an owner", "owner": { "kind": "nobody" } } }
+    ]
+  }
+}
+\`\`\`
+
+Include the ordinary required verdict fields too. Each coverage row names what was asked and built. Omit left when complete; otherwise name what remains and its owner: ticket, teammate, or explicitly nobody. A teammate or ticket owner has a name and may have a drafted message for the developer to send. A draft never sends a message itself.
+
 ## Removals
 
 Every file deleted between the merge base and head must appear by its exact path in \`verdict.removed[].paths\`. Each entry names the removed behavior and why it was removed. Publication refuses an unexplained deletion with \`Explain every removal: <path> is deleted but no verdict.removed entry names it.\` Diagram Removed owners do not replace this declaration.
 
 ## Decisions and diagram
 
-Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows.
+Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows. Code is shown as slices per step, with three surrounding lines, so choose precise inclusive ranges that contain the decision. Use plain names a developer understands without decoding internal labels. Never use internal question or decision codes as titles or prose. Every "Needs your decision" question must explain why the ticket, the handoff and the prototype do not already settle it; read those sources before asking. Attach screenshots and videos to the layer that built the visible behavior, and to its step when useful.
 
-When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain does not draw it as a graph. It reads it as the briefing "What this adds to the system" and as each decision's connections, so write it for those:
+When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain draws it in the briefing and shows each decision with its neighbours. These are agent annotations, not a verified import graph:
 
 - Mark each owner the work adds, alters or removes as New, Changed or Removed using \`change: "new"\`, \`"changed"\` or \`"removed"\`, and add a one-line \`detail\`. Set \`decision: true\` on the one box that stands for a decision, and name its layer with \`layerId\`. It is not listed as an owner; labels do not determine ownership.
 - Name the layer behind each box with \`layerId\` so the reader can jump from an owner to its code.
 - Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
 - Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". For an arrow arriving at a decision box, Porcelain shows "<owner label> <verb>". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
 
-These are your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
+Porcelain also reports file changes from Git grouped by folder and detects changed lint and architecture files. Import neighbours are not computed yet. The diagram remains your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
 
 For example, a decision introducing an owner can link to that owner even though both boxes name the same layer:
 

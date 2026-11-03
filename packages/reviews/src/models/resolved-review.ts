@@ -55,6 +55,20 @@ export type ResolvedReview = {
   active: boolean;
   diagnostics: 'current';
   summary: SummaryGrant;
+  system?:
+    | {
+        kind: 'git-files';
+        owners: readonly {
+          path: string;
+          files: readonly {
+            path: string;
+            change: 'new' | 'changed' | 'removed';
+          }[];
+          annotations: ReviewDiagram['after']['boxes'];
+        }[];
+        guards: readonly string[];
+      }
+    | undefined;
   diagram?: ReviewDiagram | undefined;
   layers: readonly ResolvedLayer[];
   notExplained: readonly UnexplainedChange[];

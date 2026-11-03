@@ -1,7 +1,6 @@
-import { reviewDiffLayout } from '../kit/review-diff-layout.ts';
 import { expect, test } from './fixtures.ts';
 
-test('wrapped decision diffs and inline threads end above the existing-code section', async ({
+test('decision code slices remain separate and open the retained file at every width', async ({
   pairedPage: page,
   app,
   agent,
@@ -10,41 +9,42 @@ test('wrapped decision diffs and inline threads end above the existing-code sect
   await agent.publishArchitecture();
   const published = (await server.publishedReview()).review;
   if (!published?.reviewId) throw new Error('Missing published review');
-  await page.setViewportSize({ width: 1080, height: 900 });
-  await app.open('/settings/general');
-  await page.getByRole('tab', { name: 'Unified', exact: true }).click();
-  await page.getByRole('tab', { name: 'Wrap', exact: true }).click();
   await app.open(`/reviews/${published.reviewId}`);
-  await page
-    .getByRole('button', {
-      name: 'Go to 1. Invite a teammate',
-      exact: true,
-    })
-    .click();
-  const existing = page.getByRole('region', {
-    name: 'Existing code it relies on',
-    exact: true,
-  });
-  const code = reviewDiffLayout(page);
-  await existing.scrollIntoViewIfNeeded();
-  await expect
-    .poll(() => code.read())
-    .toEqual({ files: 6, notes: 6, wrapped: true, overlaps: [] });
-  await code.commentOnLastLine();
-  await page
-    .getByRole('textbox', { name: 'Comment', exact: true })
-    .fill('Keep the last row and its thread above the next section.');
-  await page.keyboard.press('Control+Enter');
-  await expect(
-    page.getByRole('article', { name: 'Comment thread', exact: true }),
-  ).toBeVisible();
+  await page.getByRole('button', { name: /^1\. Invite a teammate · / }).click();
+  const slices = page.getByRole('region', { name: 'Code slices', exact: true });
+  const articles = slices.getByRole('article');
+  await expect(articles).toHaveCount(7);
   for (const width of [1080, 800, 1440, 414]) {
     await page.setViewportSize({ width, height: 900 });
-    await existing.scrollIntoViewIfNeeded();
     await expect
-      .poll(() => code.read(), {
-        message: `Diffs and threads must end above the next section at ${width}px`,
-      })
-      .toMatchObject({ files: 6, notes: 6, overlaps: [] });
+      .poll(() =>
+        articles.evaluateAll((nodes) =>
+          nodes.every((node, index) => {
+            const bounds = node.getBoundingClientRect();
+            const previous = nodes[index - 1]?.getBoundingClientRect();
+            return (
+              bounds.width > 0 &&
+              bounds.left >= 0 &&
+              bounds.right <= node.ownerDocument.documentElement.clientWidth &&
+              (!previous || bounds.top >= previous.bottom)
+            );
+          }),
+        ),
+      )
+      .toBe(true);
   }
+  await slices
+    .getByRole('button', {
+      name: /^Open apps\/web\/src\/invite-member\.ts at line [0-9]+$/,
+    })
+    .click();
+  await expect(
+    page.getByRole('tab', {
+      name: 'apps/web/src/invite-member.ts',
+      exact: true,
+    }),
+  ).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    page.getByRole('button', { name: 'Back to the walkthrough', exact: true }),
+  ).toBeVisible();
 });

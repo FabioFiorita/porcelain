@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('compact retained code keeps its header above scrolling code inside its rounded card', async ({
+test('a context slice shows its saved range and opens the complete retained file', async ({
   agent,
   repo,
   server,
@@ -19,28 +19,29 @@ test('compact retained code keeps its header above scrolling code inside its rou
   await app.page
     .getByRole('button', { name: 'Continue at decision 1', exact: true })
     .click();
-  const code = app.page
-    .getByRole('region', { name: 'Existing code it relies on', exact: true })
-    .getByRole('region', { name: 'Code content', exact: true });
+  const slice = app.page.getByRole('article', {
+    name: 'Step New line',
+    exact: true,
+  });
   await expect
-    .poll(() => reviewLayout.codeHeaderOutsideScroll(code))
-    .toBe(true);
+    .element(slice.getByText('Retained line 3', { exact: true }))
+    .toBeVisible();
   await expect
-    .poll(() => reviewLayout.compactCodeFrame(code))
-    .toEqual({
-      border: '1px',
-      radius: true,
-      bounded: true,
-      scrolls: true,
-    });
-  reviewLayout.scrollCodeTo(code, 100000);
+    .element(slice.getByText('Retained line 80', { exact: true }))
+    .not.toBeInTheDocument();
+  await slice
+    .getByRole('button', { name: 'Open README.md at line 3', exact: true })
+    .click();
   await expect
-    .poll(() => reviewLayout.codeScrollTop(code))
-    .toBeGreaterThan(1000);
+    .element(app.page.getByRole('tab', { name: 'README.md', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  const full = app.page.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  await expect.element(full).toBeVisible();
+  reviewLayout.scrollCodeTo(full, 100000);
   await expect
-    .poll(() => reviewLayout.codeHeaderOutsideScroll(code))
-    .toBe(true);
-  await expect
-    .poll(() => reviewLayout.codeLineInsideFrame(code, 80))
-    .toBe(true);
+    .element(app.page.getByText('Retained line 80', { exact: true }))
+    .toBeInTheDocument();
 });

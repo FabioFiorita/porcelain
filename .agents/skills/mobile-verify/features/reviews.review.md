@@ -11,6 +11,8 @@ selectors:
   - 'Changed files'
   - 'review-comments'
   - 'You asked'
+  - 'Try it'
+  - 'Asked, built, left'
   - 'The walkthrough'
   - 'Continue at decision'
   - 'Read agent summary'
@@ -116,3 +118,7 @@ Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `pu
 ### Published progress versus live comparisons
 
 Publish a committed eight-file review with one unrelated uncommitted file. The workspace walkthrough, bottom Continue/decision bar and Worktree screen Review progress must use the same selected revision files and durable marks, including removed files. Mark its first decision and independently read every owned published blob mark followed by its decision mark; no worktree reviewed-file write occurs. Commit or dirty the checkout without republishing: publication progress stays the same. Publish changed excerpt bytes: changed decision becomes unfinished, unchanged marks remain readable. Not explained and Specs render the selected revision diffs and durable file controls; live Uncommitted/Branch changed-file lists retain their separate comparison controls and marks. Respect the computer's Spec files setting for ownership allocation. Failed/pending reads never appear complete; a partial refused write retains successful marks without advancing. Leave the view before a delayed successful write: persistence completes but navigation stays where the reader went. Retained linked screens remain read-only.
+
+## Optional handoff fields
+
+When the publication includes verdict.tryIt, its preview button, labelled sign-in instructions and numbered click steps precede the verdict. Opening the preview uses the external-link adapter; an open failure stays readable with an error. Verdict.coverage renders Asked, Built and Left per row. Completed rows say Complete; remaining work names its ticket or teammate, or explicitly says Nobody owns this yet. A drafted message is displayed for the developer to send. Old reviews omit these blocks. Verify phone and iPad in both orientations with long prose.

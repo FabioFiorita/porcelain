@@ -1,4 +1,5 @@
-import { Cause, Effect, Option } from 'effect';
+import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
+import { Array as Arr, Cause, Effect, Option } from 'effect';
 import { Atom, AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
 import type {
   RuntimeConnection,
@@ -302,10 +303,19 @@ export const readReviewRevisionFile = Atom.family(
 export const readReviewRevisionDiffs = Atom.family(
   (input: RevisionInput & { paths: readonly (readonly string[])[] }) =>
     query(input.connection, (api) =>
-      api.reviews.readReviewDiffs({
-        params: { reviewId: input.reviewId, revision: input.revision },
-        payload: { paths: input.paths },
-      }),
+      Effect.forEach(
+        Arr.chunksOf(input.paths, DIFFS_PER_REQUEST),
+        (paths) =>
+          api.reviews.readReviewDiffs({
+            params: { reviewId: input.reviewId, revision: input.revision },
+            payload: { paths },
+          }),
+        { concurrency: 1 },
+      ).pipe(
+        Effect.map((answers) => ({
+          diffs: answers.flatMap((answer) => answer.diffs),
+        })),
+      ),
     ),
 );
 export const readReviewRevisionProof = Atom.family(

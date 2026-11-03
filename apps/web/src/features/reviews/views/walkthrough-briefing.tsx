@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   ArrowRightIcon,
@@ -27,11 +26,13 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
+import { ReviewHandoff } from './review-handoff';
 import { ReviewVerdict } from './review-verdict';
 import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
+import { ReviewSystemFacts } from './review-system-facts';
 import { SystemMap } from './system-map';
 import { SectionHeading } from './section-heading';
 import type { WalkthroughProps } from './walkthrough-props';
@@ -113,6 +114,7 @@ export function WalkthroughBriefing({
                   {briefingTitle(decisionStops.length)}.
                 </span>
               </h2>
+              <ReviewHandoff revision={revision} />
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
@@ -212,6 +214,12 @@ export function WalkthroughBriefing({
             >
               What this adds to the system
             </SectionHeading>
+            <ReviewSystemFacts revision={revision} />
+            {review.diagram && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Agent’s connections · annotated claims
+              </p>
+            )}
             {review.diagram ? (
               <SystemMap
                 diagram={review.diagram.after}
@@ -227,7 +235,6 @@ export function WalkthroughBriefing({
         </MarginRow>
         <MarginRow margin={<BriefingNotProven revision={revision} />}>
           <ReviewProof
-            columns
             revision={revision}
             scope={scope}
             context={context}
@@ -415,62 +422,6 @@ function StopMark({
     >
       {done ? <CheckIcon className="size-3" aria-label="Reviewed" /> : label}
     </span>
-  );
-}
-
-const partTags = {
-  New: 'default',
-  Changed: 'outline',
-  Removed: 'destructive',
-} as const;
-
-function PartGroup({
-  title,
-  parts,
-  review,
-  onGo,
-  struck = false,
-}: {
-  title: keyof typeof partTags;
-  parts: readonly SystemPart[];
-  review: WalkthroughProps['review'];
-  onGo: (key: WalkthroughKey) => void;
-  struck?: boolean;
-}) {
-  if (parts.length === 0) return null;
-  return (
-    <ul aria-label={title} className="flex min-w-0 flex-col">
-      {parts.map((part, index) => (
-        <li
-          key={part.id}
-          className="flex min-h-8.5 min-w-0 flex-col items-stretch gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
-        >
-          <span className="shrink-0 @2xl/review:w-21">
-            {index === 0 && <Badge variant={partTags[title]}>{title}</Badge>}
-          </span>
-          <TruncatedText
-            className="min-w-0 flex-1 leading-4.5"
-            text={part.detail ? `${part.label} · ${part.detail}` : part.label}
-          >
-            <span
-              className={cn(
-                'text-sm leading-4.5 font-medium',
-                struck && 'text-muted-foreground line-through',
-              )}
-            >
-              {part.label}
-            </span>
-            {part.detail && (
-              <span className="text-ui text-muted-foreground">
-                {' '}
-                · {part.detail}
-              </span>
-            )}
-          </TruncatedText>
-          <DecisionLink part={part} review={review} onGo={onGo} inline />
-        </li>
-      ))}
-    </ul>
   );
 }
 

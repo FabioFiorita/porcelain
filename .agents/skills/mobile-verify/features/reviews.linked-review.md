@@ -6,6 +6,8 @@ selectors:
   - 'The walkthrough'
   - 'Briefing'
   - 'You asked'
+  - 'Try it'
+  - 'Asked, built, left'
   - 'Pair this computer'
   - 'Pairing link'
   - 'Pair'
@@ -54,3 +56,7 @@ Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 
 - This screen has no comments, full diffs or marking. Published reviews remain independent of the worktree.
 - Android routing proof does not establish iOS/iPad or physical domain/network permissions.
+
+## Optional handoff fields
+
+When the publication includes verdict.tryIt, its preview button, labelled sign-in instructions and numbered click steps precede the verdict. Opening the preview uses the external-link adapter; an open failure stays readable with an error. Verdict.coverage renders Asked, Built and Left per row. Completed rows say Complete; remaining work names its ticket or teammate, or explicitly says Nobody owns this yet. A drafted message is displayed for the developer to send. Old reviews omit these blocks. Verify phone and iPad in both orientations with long prose.

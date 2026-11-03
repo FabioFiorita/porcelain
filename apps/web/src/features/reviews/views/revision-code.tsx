@@ -1,13 +1,9 @@
-import { reviewedControlLabel } from '@porcelain/client/reviews/rules';
+import { useRevisionFileMarks } from '../commands/revision-file-marks';
 import { useState } from 'react';
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import { useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import {
-  readReviewRevisionDiffs,
-  readReviewRevisionFile,
-  reviewCommands,
-} from '@porcelain/client/reviews';
+import { readReviewRevisionFile } from '@porcelain/client/reviews';
 import type { ReviewMarks } from '@porcelain/client/reviews/rules';
 import type {
   ReviewRevision,
@@ -18,21 +14,16 @@ import type {
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { RevisionFileMark } from './revision-file-mark';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { fileEntry } from '../adapters/code-entries';
 import { CodeDocument } from './code-document';
 import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
 import { AgentNote } from './agent-note';
-import { retainedDiffPaths } from '../rules/review-file';
+import { useRevisionDiffs } from '../queries/revision-diffs';
 import { retainedCommentTarget } from '../rules/retained-comments';
 
 export function RevisionCode({
@@ -155,14 +146,7 @@ function RevisionDiffs({
   explanations: boolean;
   commentLabel: string | undefined;
 }) {
-  const result = useAtomValue(
-    readReviewRevisionDiffs({
-      connection: context.connection,
-      reviewId: revision.reviewId,
-      revision: revision.revision,
-      paths: files.map(retainedDiffPaths),
-    }),
-  );
+  const result = useRevisionDiffs(revision, context.connection, files);
   const diffs = Option.getOrUndefined(AsyncResult.value(result));
   const notes = mergeNotes(
     ...(explanations ? revision.content.layers : []).map((layer, index) =>
@@ -170,12 +154,10 @@ function RevisionDiffs({
     ),
     gaps ? gapNotes(revision.content.notExplained) : {},
   );
-  const commands = reviewCommands({
-    connection: context.connection,
-    reviewId: revision.reviewId,
-  });
-  const [markResult, mark] = useAtom(commands.mark);
-  const [unmarkResult, unmark] = useAtom(commands.unmark);
+  const { markResult, mark, unmarkResult, unmark } = useRevisionFileMarks(
+    revision,
+    context,
+  );
   const entries = files.flatMap((file) => {
     const diff = diffs?.diffs.find((item) => item.paths.includes(file.path));
     const entry = commitEntry(
@@ -206,46 +188,12 @@ function RevisionDiffs({
           reviewed,
           control: (
             <>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Checkbox
-                      className="cursor-pointer"
-                      checked={reviewed}
-                      aria-label={reviewedControlLabel(
-                        file.path,
-                        reviewed ? 'reviewed' : 'unreviewed',
-                      )}
-                      disabled={
-                        !fingerprint ||
-                        markResult.waiting ||
-                        unmarkResult.waiting
-                      }
-                      onCheckedChange={() =>
-                        fingerprint &&
-                        (reviewed
-                          ? unmark({
-                              kind: 'file',
-                              path: file.path,
-                              headBlobOid: fingerprint,
-                            })
-                          : mark({
-                              kind: 'file',
-                              revision: revision.revision,
-                              path: file.path,
-                              headBlobOid: fingerprint,
-                            }))
-                      }
-                    />
-                  }
-                />
-                <TooltipContent>
-                  {reviewedControlLabel(
-                    file.path,
-                    reviewed ? 'reviewed' : 'unreviewed',
-                  )}
-                </TooltipContent>
-              </Tooltip>
+              <RevisionFileMark
+                file={file}
+                revision={revision}
+                context={context}
+                marks={marks}
+              />
               {stop >= 0 && (
                 <Badge
                   variant="brand-soft"

@@ -11,6 +11,7 @@ import {
 } from '../models/resolve-published-review.ts';
 import { SignatureSource } from '../ports/signature-source.ts';
 import { summaryMessage } from '../rules/review-digests.ts';
+import { reviewSystem } from '../rules/review-system.ts';
 import { layerCodeMoved } from '../rules/resolve-review.ts';
 
 export class ResolvePublishedReviewService extends Context.Service<
@@ -72,6 +73,7 @@ export class ResolvePublishedReviewService extends Context.Service<
               baseOid: review.baseOid,
               mergeBaseOid: review.mergeBaseOid,
               verdict: review.verdict,
+              system: reviewSystem(review),
               environmentId: input.environmentId,
               worktreeId: review.worktreeId,
               revision: review.revision,

@@ -504,12 +504,25 @@ test('the review page keeps whole-change and inline comments in its Review panel
       exact: true,
     });
     await review
-      .getByRole('button', { name: /^Comment on review-page\.ts \(/ })
+      .getByRole('button', {
+        name: 'Open review-page.ts at line 1',
+        exact: true,
+      })
       .click();
-    await review
+    await app.page
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('button', { name: 'Comment', exact: true })
+      .click();
+    const fileCode = app.page.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await fileCode
       .getByRole('textbox', { name: 'Comment', exact: true })
       .fill(inline);
-    await review.getByRole('button', { name: 'Comment', exact: true }).click();
+    await fileCode
+      .getByRole('button', { name: 'Comment', exact: true })
+      .click();
     await expect.poll(saved).toMatchObject([thread('file', false, [inline])]);
 
     const panel = app.page.getByRole('complementary', {
@@ -659,13 +672,12 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     exact: true,
   });
   await expect
-    .element(
-      excerpt.getByText(/^export const revision = 1;\nexport const title = /u),
-    )
+    .element(excerpt.getByText('export const revision = 1;', { exact: true }))
     .toBeVisible();
   await app.page
     .getByRole('button', {
-      name: /^Go to step 1: Read the retained revision ·/u,
+      name: 'Open review-page.ts at line 1',
+      exact: true,
     })
     .click();
   await expect

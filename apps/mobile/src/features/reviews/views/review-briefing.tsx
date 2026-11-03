@@ -21,6 +21,7 @@ import { Item } from '../../../components/ui/item';
 import { ImageView } from '../../../components/ui/image-view';
 import { ErrorState } from '../../../components/ui/error-state';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
+import { ReviewHandoff } from './review-handoff';
 import { ReviewReadState } from './read-state';
 import { ProofChecks } from './proof-checks';
 
@@ -70,6 +71,7 @@ export function BriefingVerdict({
   return (
     <Box gap={6}>
       {link.error ? <ErrorState message={link.error} /> : null}
+      <ReviewHandoff revision={revision} />
       <Card
         variant={
           sections.recommendation.value === 'hold' ? 'warning' : 'success'
@@ -307,6 +309,7 @@ function ProofAsset({
   return (
     <Box gap={2}>
       {link.error ? <ErrorState message={link.error} /> : null}
+      <ReviewHandoff revision={revision} />
       <Item
         title={asset.title}
         titleNumberOfLines={2}

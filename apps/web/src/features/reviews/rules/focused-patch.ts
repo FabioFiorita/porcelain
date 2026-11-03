@@ -4,18 +4,38 @@ function trimHunk(
   hunk: readonly string[],
   range: { startLine: number; endLine: number },
 ): string[] {
-  const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/.exec(hunk[0] ?? '');
+  const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/.exec(
+    hunk[0] ?? '',
+  );
   if (!match) return [];
-  let oldLine = Number(match[1]);
-  let newLine = Number(match[2]);
-  const rows = hunk.slice(1).flatMap((text) => {
+  let oldLine = Number(match[1]) + (match[2] === '0' ? 1 : 0);
+  let newLine = Number(match[3]) + (match[4] === '0' ? 1 : 0);
+  const rows: {
+    text: string;
+    kind: string;
+    oldLine: number;
+    newLine: number;
+    marker?: string;
+  }[] = [];
+  for (const text of hunk.slice(1)) {
     const kind = text[0];
-    if (kind !== ' ' && kind !== '+' && kind !== '-') return [];
+    if (text === '\\ No newline at end of file') {
+      const previous = rows.at(-1);
+      if (previous) previous.marker = text;
+      continue;
+    }
+    if (kind !== ' ' && kind !== '+' && kind !== '-') continue;
     const row = { text, kind, oldLine, newLine };
     if (kind !== '+') oldLine++;
     if (kind !== '-') newLine++;
-    return [row];
-  });
+    rows.push(row);
+  }
+  if (
+    !rows.some(
+      (row) => row.newLine >= range.startLine && row.newLine <= range.endLine,
+    )
+  )
+    return [];
   const near = (line: number) =>
     line >= range.startLine - EXCERPT_CONTEXT &&
     line <= range.endLine + EXCERPT_CONTEXT;
@@ -28,8 +48,10 @@ function trimHunk(
   const oldCount = slice.filter((row) => row.kind !== '+').length;
   const newCount = slice.filter((row) => row.kind !== '-').length;
   return [
-    `@@ -${oldCount === 0 ? Math.max(head.oldLine - 1, 0) : head.oldLine},${oldCount} +${head.newLine},${newCount} @@${match[3] ?? ''}`,
-    ...slice.map((row) => row.text),
+    `@@ -${oldCount === 0 ? Math.max(head.oldLine - 1, 0) : head.oldLine},${oldCount} +${newCount === 0 ? Math.max(head.newLine - 1, 0) : head.newLine},${newCount} @@${match[5] ?? ''}`,
+    ...slice.flatMap((row) =>
+      row.marker ? [row.text, row.marker] : [row.text],
+    ),
   ];
 }
 
