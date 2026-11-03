@@ -7,7 +7,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { build } from 'esbuild';
-import { bundleWatchHost } from '@porcelain/server/kit/watch-host-bundle';
 export const root = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
@@ -167,7 +166,6 @@ export async function stageDesktop(stage: {
     external: ['electron', ...external],
     banner,
   });
-  await bundleWatchHost(join(stage.directory, 'server/src'), external);
   await rm(join(stage.directory, 'server/drizzle'), {
     recursive: true,
     force: true,

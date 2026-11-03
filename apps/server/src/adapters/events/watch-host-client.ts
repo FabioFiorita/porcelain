@@ -1,6 +1,6 @@
 import {
   Deferred,
-  type Duration,
+  Duration,
   Effect,
   Exit,
   Queue,
@@ -14,9 +14,9 @@ import {
   decodeWatchHostMessage,
   type WatchHostEvent,
 } from './watch-host-protocol.ts';
+import type { WatchHostCommand } from '../../config/watch-host-settings.ts';
 
-export type WatchHostSettings = {
-  readonly entry: string;
+export type WatchHostSettings = WatchHostCommand & {
   readonly heartbeat: Duration.Duration;
   readonly answer: Duration.Duration;
 };
@@ -41,6 +41,8 @@ export type WatchHost = {
 export const WATCHER_RESTARTED =
   'The file watcher stopped answering and was restarted';
 
+const MAX_BACKOFF_HEARTBEATS = 12;
+
 type Watched = {
   readonly directory: string;
   readonly ignore: readonly string[];
@@ -55,6 +57,7 @@ type Running = {
   readonly scope: Scope.Closeable;
   readonly outbox: Queue.Queue<string>;
   readonly pending: Map<number, Deferred.Deferred<Answer>>;
+  proven: boolean;
 };
 
 type Request =
@@ -80,15 +83,25 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
     running: Running | undefined;
     recovering: boolean;
     closed: boolean;
+    quickDeaths: number;
     nextRequest: number;
     nextSubscription: number;
   } = {
     running: undefined,
     recovering: false,
     closed: false,
+    quickDeaths: 0,
     nextRequest: 0,
     nextSubscription: 0,
   };
+
+  const backoff = () =>
+    state.quickDeaths === 0
+      ? Duration.zero
+      : Duration.times(
+          settings.heartbeat,
+          Math.min(2 ** (state.quickDeaths - 1), MAX_BACKOFF_HEARTBEATS),
+        );
 
   const settle = (current: Running) => {
     for (const waiting of current.pending.values())
@@ -114,17 +127,29 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
     );
   };
 
+  const revive: Effect.Effect<void> = Effect.suspend(() =>
+    state.closed || state.running || watched.size === 0
+      ? Effect.void
+      : Effect.sleep(backoff()).pipe(
+          Effect.andThen(ensure),
+          Effect.asVoid,
+          Effect.catch(() =>
+            Effect.sync(() => {
+              state.quickDeaths++;
+            }).pipe(Effect.andThen(revive)),
+          ),
+        ),
+  );
+
   const lose = (current: Running): Effect.Effect<void> =>
     Effect.suspend(() => {
       if (state.running !== current) return Effect.void;
       state.running = undefined;
       state.recovering = true;
+      if (!current.proven) state.quickDeaths++;
       settle(current);
       return Effect.forkIn(
-        Scope.close(current.scope, Exit.void).pipe(
-          Effect.andThen(ensure),
-          Effect.ignore,
-        ),
+        Scope.close(current.scope, Exit.void).pipe(Effect.andThen(revive)),
         parent,
         { startImmediately: true },
       ).pipe(Effect.asVoid);
@@ -132,8 +157,6 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
 
   const ask = (current: Running, request: Request) =>
     Effect.gen(function* () {
-      const deadline =
-        request.kind === 'ping' ? settings.heartbeat : settings.answer;
       if (state.running !== current) return lost;
       const id = state.nextRequest++;
       const answer = yield* Deferred.make<Answer>();
@@ -144,25 +167,45 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
       );
       return yield* Deferred.await(answer).pipe(
         Effect.timeoutOrElse({
-          duration: deadline,
+          duration:
+            request.kind === 'ping' ? settings.heartbeat : settings.answer,
           orElse: () => lose(current).pipe(Effect.as(lost)),
         }),
       );
     });
 
+  const heartbeat = (current: Running) =>
+    Effect.forever(
+      Effect.sleep(settings.heartbeat).pipe(
+        Effect.andThen(ask(current, { kind: 'ping' })),
+        Effect.tap((answer) =>
+          Effect.sync(() => {
+            if (answer.kind === 'lost' || current.proven) return;
+            current.proven = true;
+            state.quickDeaths = 0;
+          }),
+        ),
+      ),
+    );
+
   const start = Effect.gen(function* () {
     const scope = yield* Scope.fork(parent, 'sequential');
     const outbox = yield* Queue.unbounded<string>();
-    const current: Running = { scope, outbox, pending: new Map() };
-    const child = yield* ChildProcess.make(process.execPath, [settings.entry], {
-      env: { ELECTRON_RUN_AS_NODE: '1' },
-      extendEnv: true,
-      killSignal: 'SIGKILL',
-      stderr: 'inherit',
-    }).pipe(
+    const current: Running = {
+      scope,
+      outbox,
+      pending: new Map(),
+      proven: false,
+    };
+    const child = yield* ChildProcess.make(
+      settings.command,
+      [...settings.args],
+      { killSignal: 'SIGKILL', stderr: 'inherit' },
+    ).pipe(
       Effect.provideService(Scope.Scope, scope),
       Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
       Effect.mapError((cause) => new WorktreeWatchError({ cause })),
+      Effect.tapError(() => Scope.close(scope, Exit.void)),
     );
     state.running = current;
     yield* Effect.forkIn(
@@ -181,15 +224,9 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
       parent,
       { startImmediately: true },
     );
-    yield* Effect.forkIn(
-      Effect.forever(
-        Effect.sleep(settings.heartbeat).pipe(
-          Effect.andThen(ask(current, { kind: 'ping' })),
-        ),
-      ),
-      scope,
-      { startImmediately: true },
-    );
+    yield* Effect.forkIn(heartbeat(current), scope, {
+      startImmediately: true,
+    });
     return current;
   });
 
@@ -204,6 +241,7 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
       if (!state.recovering) return current;
       state.recovering = false;
       for (const [subscription, entry] of [...watched]) {
+        if (!watched.has(subscription)) continue;
         const answer = yield* ask(current, {
           kind: 'subscribe',
           subscription,
@@ -211,11 +249,24 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
           ignore: entry.ignore,
         });
         if (answer.kind === 'lost') return current;
-        entry.changed(answer.failure ?? WATCHER_RESTARTED, []);
+        if (watched.has(subscription))
+          entry.changed(answer.failure ?? WATCHER_RESTARTED, []);
       }
       return current;
     }),
   );
+
+  const subscribeOnce = (subscription: number, entry: Watched) =>
+    ensure.pipe(
+      Effect.flatMap((current) =>
+        ask(current, {
+          kind: 'subscribe',
+          subscription,
+          directory: entry.directory,
+          ignore: entry.ignore,
+        }),
+      ),
+    );
 
   yield* Effect.addFinalizer(() =>
     Effect.suspend(() => {
@@ -235,29 +286,43 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
       changed: WatchHostChange,
     ) {
       const subscription = state.nextSubscription++;
-      watched.set(subscription, { directory, ignore, changed });
-      const answer = yield* ensure.pipe(
-        Effect.flatMap((current) =>
-          ask(current, { kind: 'subscribe', subscription, directory, ignore }),
-        ),
-        Effect.tapError(() => Effect.sync(() => watched.delete(subscription))),
+      const entry: Watched = { directory, ignore, changed };
+      watched.set(subscription, entry);
+      const forget = Effect.sync(() => watched.delete(subscription));
+      const first = yield* subscribeOnce(subscription, entry).pipe(
+        Effect.tapError(() => forget),
       );
-      if (answer.kind === 'answered' && answer.failure !== undefined) {
-        watched.delete(subscription);
-        return yield* new WorktreeWatchError({ cause: answer.failure });
+      const answer =
+        first.kind === 'lost'
+          ? yield* subscribeOnce(subscription, entry).pipe(
+              Effect.tapError(() => forget),
+            )
+          : first;
+      if (answer.kind === 'lost' || answer.failure !== undefined) {
+        yield* forget;
+        return yield* new WorktreeWatchError({
+          cause:
+            answer.kind === 'lost'
+              ? 'The file watcher stopped before it could watch this folder'
+              : answer.failure,
+        });
       }
       return {
-        unsubscribe: Effect.suspend(() => {
-          const current = state.running;
-          if (!watched.delete(subscription) || !current) return Effect.void;
-          return ask(current, { kind: 'unsubscribe', subscription }).pipe(
-            Effect.flatMap((result) =>
-              result.kind === 'answered' && result.failure !== undefined
-                ? Effect.fail(new WorktreeWatchError({ cause: result.failure }))
-                : Effect.void,
-            ),
-          );
-        }),
+        unsubscribe: gate.withPermit(
+          Effect.suspend(() => {
+            const current = state.running;
+            if (!watched.delete(subscription) || !current) return Effect.void;
+            return ask(current, { kind: 'unsubscribe', subscription }).pipe(
+              Effect.flatMap((result) =>
+                result.kind === 'answered' && result.failure !== undefined
+                  ? Effect.fail(
+                      new WorktreeWatchError({ cause: result.failure }),
+                    )
+                  : Effect.void,
+              ),
+            );
+          }),
+        ),
       };
     }),
   } satisfies WatchHost;

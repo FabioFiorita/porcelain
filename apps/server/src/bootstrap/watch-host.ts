@@ -7,6 +7,7 @@ import {
 } from '../adapters/events/watch-host-protocol.ts';
 
 const subscriptions = new Map<number, parcelWatcher.AsyncSubscription>();
+const turns = new Map<number, Promise<void>>();
 
 function send(message: WatchHostMessage): void {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -22,12 +23,19 @@ function options(ignore: readonly string[]): parcelWatcher.Options {
     : { ignore: [...ignore] };
 }
 
-async function handle(request: WatchHostRequest): Promise<void> {
-  if (request.kind === 'ping') return;
-  if (request.kind === 'subscribe') {
-    await subscriptions.get(request.subscription)?.unsubscribe();
-    subscriptions.delete(request.subscription);
-    const subscription = await parcelWatcher.subscribe(
+async function release(subscription: number): Promise<void> {
+  const current = subscriptions.get(subscription);
+  subscriptions.delete(subscription);
+  await current?.unsubscribe();
+}
+
+async function watch(
+  request: Extract<WatchHostRequest, { kind: 'subscribe' }>,
+): Promise<void> {
+  await release(request.subscription);
+  subscriptions.set(
+    request.subscription,
+    await parcelWatcher.subscribe(
       request.directory,
       (error, events) =>
         send({
@@ -40,13 +48,28 @@ async function handle(request: WatchHostRequest): Promise<void> {
           })),
         }),
       options(request.ignore),
-    );
-    subscriptions.set(request.subscription, subscription);
-    return;
-  }
-  const subscription = subscriptions.get(request.subscription);
-  subscriptions.delete(request.subscription);
-  await subscription?.unsubscribe();
+    ),
+  );
+}
+
+function inTurn(subscription: number, work: () => Promise<void>) {
+  const done = (turns.get(subscription) ?? Promise.resolve()).then(work, work);
+  const settled = done.then(
+    () => undefined,
+    () => undefined,
+  );
+  turns.set(subscription, settled);
+  void settled.then(() => {
+    if (turns.get(subscription) === settled) turns.delete(subscription);
+  });
+  return done;
+}
+
+function handle(request: WatchHostRequest): Promise<void> {
+  if (request.kind === 'ping') return Promise.resolve();
+  if (request.kind === 'subscribe')
+    return inTurn(request.subscription, () => watch(request));
+  return inTurn(request.subscription, () => release(request.subscription));
 }
 
 createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })

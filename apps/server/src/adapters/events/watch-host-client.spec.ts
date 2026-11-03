@@ -1,11 +1,21 @@
 import { NodeServices } from '@effect/platform-node';
 import { Duration, Effect, Exit, Scope } from 'effect';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { watchHostEntry } from '../../config/watch-host-settings.ts';
+import {
+  nodeWatchHost,
+  watchHostEntry,
+  type WatchHostCommand,
+} from '../../config/watch-host-settings.ts';
 import {
   makeWatchHost,
   WATCHER_RESTARTED,
@@ -39,11 +49,14 @@ function helpers(): number[] {
     .map(([pid]) => Number(pid));
 }
 
-async function withHost(work: (host: WatchHost) => Promise<void>) {
+async function withHost(
+  work: (host: WatchHost) => Promise<void>,
+  command: WatchHostCommand = nodeWatchHost(),
+) {
   const scope = Effect.runSync(Scope.make());
   const host = await Effect.runPromise(
     makeWatchHost({
-      entry: watchHostEntry(),
+      ...command,
       heartbeat: Duration.millis(100),
       answer: Duration.millis(1000),
     }).pipe(
@@ -104,3 +117,24 @@ it.each(['SIGSTOP', 'SIGKILL'] as const)(
     });
   },
 );
+
+it('fails a watch when its helper dies on every start, after trying once more', async () => {
+  const starts = join(folder(), 'starts');
+  writeFileSync(starts, '');
+  await withHost(
+    async (host) => {
+      const failure = await Effect.runPromise(
+        Effect.flip(host.subscribe(folder(), [], () => undefined)),
+      );
+      expect(failure._tag).toBe('WorktreeWatchError');
+    },
+    {
+      command: process.execPath,
+      args: [
+        '-e',
+        `require('node:fs').appendFileSync(${JSON.stringify(starts)}, 'started\\n'); process.exit(1)`,
+      ],
+    },
+  );
+  expect(readFileSync(starts, 'utf8')).toBe('started\nstarted\n');
+});

@@ -6,6 +6,7 @@
     "./desktop": "./src/bootstrap/desktop.ts",
     "./desktop-mcp": "./src/bootstrap/desktop-mcp.ts",
     "./desktop-settings": "./src/config/desktop-settings.ts",
+    "./watch-host": "./src/bootstrap/watch-host.ts",
     "./kit/*": "./spec/kit/*.ts"
   },
   "scripts": {

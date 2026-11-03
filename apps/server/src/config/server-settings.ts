@@ -3,6 +3,10 @@ import { isAbsolute } from 'node:path';
 import { Effect, Result, Schema } from 'effect';
 import { ServeConfigurationError } from './errors/serve-configuration-error.ts';
 import { LIMITS, type Limits } from './limits.ts';
+import {
+  nodeWatchHost,
+  watchHostCommandSchema,
+} from './watch-host-settings.ts';
 
 const HOSTNAME_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
 
@@ -65,6 +69,9 @@ const serverSettingsSchema = Schema.Struct({
   webRoot: Schema.optional(absolutePathSchema),
   allowedHosts: Schema.Array(listenHostSchema).pipe(
     Schema.withDecodingDefault(Effect.succeed([])),
+  ),
+  watchHost: watchHostCommandSchema.pipe(
+    Schema.withDecodingDefault(Effect.sync(nodeWatchHost)),
   ),
 });
 

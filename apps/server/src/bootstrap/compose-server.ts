@@ -57,7 +57,6 @@ import { readNetworkPlatform } from '../config/network-platform.ts';
 import { osNetworkAddressReaderLayer } from '../adapters/access/os-network-address-reader.ts';
 import { processRuntimeStatusReaderLayer } from '../adapters/access/process-runtime-status-reader.ts';
 import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
-import { watchHostEntry } from '../config/watch-host-settings.ts';
 import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
 import { processCommitDraftSourceLayer } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { processCommitModelReaderLayer } from '../adapters/git-actions/process-commit-model-reader.ts';
@@ -319,7 +318,7 @@ function serverResources(
                   gitDirectory: gitDirectoryName(),
                   isTemporaryWrite,
                   limits: limits.git,
-                  host: { entry: watchHostEntry(), ...limits.fileWatcher },
+                  host: { ...settings.watchHost, ...limits.fileWatcher },
                 }).pipe(Layer.provide(NodeServices.layer)),
               ),
             ),

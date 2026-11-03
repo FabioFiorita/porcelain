@@ -434,7 +434,7 @@ export const LIMITS: Limits = {
     ping: Duration.seconds(30),
     messageBytes: 64 * KIBIBYTE,
   },
-  fileWatcher: { heartbeat: Duration.seconds(5), answer: Duration.seconds(30) },
+  fileWatcher: { heartbeat: Duration.seconds(5), answer: Duration.minutes(2) },
   jobs: {
     scanInventory: Duration.seconds(30),
     collectAbsentWorktrees: Duration.hours(1),
