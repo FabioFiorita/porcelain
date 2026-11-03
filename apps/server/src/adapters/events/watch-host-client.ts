@@ -127,11 +127,12 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
     );
   };
 
+  const idle = () => state.closed || state.running || watched.size === 0;
   const revive: Effect.Effect<void> = Effect.suspend(() =>
-    state.closed || state.running || watched.size === 0
+    idle()
       ? Effect.void
       : Effect.sleep(backoff()).pipe(
-          Effect.andThen(ensure),
+          Effect.andThen(Effect.suspend(() => (idle() ? Effect.void : ensure))),
           Effect.asVoid,
           Effect.catch(() =>
             Effect.sync(() => {

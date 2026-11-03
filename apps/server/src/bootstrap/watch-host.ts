@@ -1,4 +1,4 @@
-import * as parcelWatcher from '@parcel/watcher';
+import type { AsyncSubscription, Options } from '@parcel/watcher';
 import { createInterface } from 'node:readline';
 import {
   decodeWatchHostRequest,
@@ -6,7 +6,8 @@ import {
   type WatchHostRequest,
 } from '../adapters/events/watch-host-protocol.ts';
 
-const subscriptions = new Map<number, parcelWatcher.AsyncSubscription>();
+const parcelWatcher = await import('@parcel/watcher');
+const subscriptions = new Map<number, AsyncSubscription>();
 const turns = new Map<number, Promise<void>>();
 
 function send(message: WatchHostMessage): void {
@@ -17,7 +18,7 @@ function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function options(ignore: readonly string[]): parcelWatcher.Options {
+function options(ignore: readonly string[]): Options {
   return process.platform === 'linux'
     ? { backend: 'inotify', ignore: [...ignore] }
     : { ignore: [...ignore] };
