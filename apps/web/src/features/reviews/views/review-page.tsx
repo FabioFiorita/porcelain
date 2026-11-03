@@ -85,6 +85,7 @@ import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
 import { WalkthroughBriefing } from './walkthrough-briefing';
 import { DecisionPage } from './walkthrough-stop';
+import { DecisionSlices } from './decision-slices';
 import { ClosingPage } from './closing-page';
 import { MarginRow } from './margin-row';
 import { SummaryFrame } from './summary-frame';
@@ -738,7 +739,8 @@ function ReviewRevisionPage({
       className={cn(
         '@container-size/review flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-card wrap-anywhere',
         !standalone && 'border',
-        view === 'changes' && 'pointer-events-none invisible absolute inset-0',
+        view === 'changes' &&
+          'pointer-events-none invisible absolute inset-0 [&_.react-flow]:hidden',
       )}
       style={{ containerName: 'pane review' }}
     >
@@ -893,7 +895,7 @@ function ReviewRevisionPage({
                   }
                   className="flex min-w-0 animate-in flex-col fade-in-0 duration-200 motion-reduce:animate-none"
                 >
-                  <div className="mx-auto flex w-full max-w-264 flex-col gap-8 px-4 pt-8 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
+                  <div className="mx-auto flex w-full max-w-264 flex-col gap-5 px-4 pt-5 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
                     {stop.kind === 'decision' ? (
                       <>
                         <DecisionPage
@@ -912,20 +914,19 @@ function ReviewRevisionPage({
                           finished={done(stop)}
                           items={items}
                           onGo={go}
-                          onStep={openStep}
+                          onStep={(step) =>
+                            document
+                              .getElementById(`slice-${step.id}`)
+                              ?.scrollIntoView({ behavior: 'smooth' })
+                          }
                         />
                         <MarginRow>
-                          <RevisionCode
+                          <DecisionSlices
                             key={stop.key}
                             revision={revision}
-                            place={stop.key}
-                            paths={stop.paths}
-                            scope={scope}
                             context={context}
-                            active={reviewActive && view === 'walkthrough'}
-                            marks={marks ?? { files: [], decisions: [] }}
-                            steps={stop.layer.steps}
-                            decision
+                            layer={stop.layer}
+                            onOpenFile={openStep}
                           />
                         </MarginRow>
                       </>

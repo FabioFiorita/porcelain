@@ -18,14 +18,12 @@ import {
   basename,
   checkResultLabel,
   decisionKey,
-  decisionLinks,
   decisionQuestions,
   decisionRoute,
   filesReviewed,
   orderedChecks,
   proofOnLayer,
   stepMarker,
-  type DecisionLink,
   type DecisionState,
   type ReviewChangeItem,
   type ReviewLayer,
@@ -35,6 +33,8 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 import { MarginQuestion } from './walkthrough-question';
+import { ProofMedia } from './proof-list';
+import { SystemMap } from './system-map';
 import { MarginRow } from './margin-row';
 import type { WalkthroughProps } from './walkthrough-props';
 
@@ -70,10 +70,10 @@ export function DecisionPage({
   onGo: (key: WalkthroughKey) => void;
 }) {
   const { layer } = stop;
-  const links = decisionLinks(review, layer.id);
   const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   const progress = filesReviewed(stop.paths, items);
+  const media = proof.assets.filter((asset) => asset.kind !== 'link');
   return (
     <MarginRow
       margin={
@@ -90,7 +90,6 @@ export function DecisionPage({
               context={context}
             />
           ))}
-          {links.length > 0 && <Contracts links={links} />}
           {proof.checks.length > 0 && (
             <section aria-label="Proof" className="flex flex-col gap-2">
               <h3 className="flex items-baseline justify-between border-b pb-2 font-medium text-muted-foreground">
@@ -141,8 +140,8 @@ export function DecisionPage({
         </aside>
       }
     >
-      <div className="flex min-w-0 flex-col gap-6">
-        <header className="flex min-w-0 flex-col gap-3.5">
+      <div className="flex min-w-0 flex-col gap-4">
+        <header className="flex min-w-0 flex-col gap-2.5">
           <div className="flex min-h-5.5 flex-wrap items-center gap-2.5">
             <span className="text-ui leading-5.5 font-medium text-muted-foreground tabular-nums">
               Decision {stop.number} of {total}
@@ -175,6 +174,36 @@ export function DecisionPage({
           </h2>
           <Summary text={layer.summary} />
         </header>
+        {media.length > 0 && (
+          <section
+            aria-label="Shown working"
+            className="grid min-w-0 grid-cols-2 gap-2 @3xl/review:grid-cols-3"
+          >
+            {media.map((asset) => (
+              <figure key={asset.id} className="flex min-w-0 flex-col gap-1">
+                <div className="overflow-hidden rounded-md border bg-muted [&_img]:h-44 [&_img]:max-h-none [&_img]:rounded-none [&_video]:h-44">
+                  <ProofMedia
+                    scope={scope}
+                    context={context}
+                    id={asset.id}
+                    title={asset.title}
+                    video={asset.kind === 'video'}
+                  />
+                </div>
+                <figcaption className="text-xs leading-4 text-muted-foreground">
+                  {asset.title}
+                </figcaption>
+              </figure>
+            ))}
+          </section>
+        )}
+        {review.diagram && (
+          <SystemMap
+            diagram={review.diagram.after}
+            focus={layer.id}
+            onLayer={(layerId) => onGo(decisionKey(layerId))}
+          />
+        )}
         <RouteTable
           layer={layer}
           reviewed={progress.reviewed}
@@ -204,53 +233,6 @@ export function DecisionPage({
         )}
       </div>
     </MarginRow>
-  );
-}
-
-function changeLabel(change: NonNullable<DecisionLink['change']>) {
-  if (change === 'new') return 'New';
-  if (change === 'changed') return 'Changed';
-  return 'Removed';
-}
-
-const changeVariants = {
-  new: 'default',
-  changed: 'outline',
-  removed: 'destructive',
-} as const;
-
-function Contracts({ links }: { links: readonly DecisionLink[] }) {
-  return (
-    <section aria-label="Contracts" className="flex min-w-0 flex-col gap-2">
-      <h3 className="leading-4 font-medium text-muted-foreground">Contracts</h3>
-      <ul
-        aria-label="Connections"
-        className="flex flex-wrap gap-1.5 @5xl/review:flex-col @5xl/review:gap-0 @5xl/review:divide-y @5xl/review:border-y"
-      >
-        {links.map((link) => (
-          <li
-            key={link.part.id}
-            className="flex min-w-0 items-center gap-1.5 rounded-md border bg-background px-2 py-1 @5xl/review:items-start @5xl/review:justify-between @5xl/review:rounded-none @5xl/review:border-0 @5xl/review:bg-transparent @5xl/review:px-0 @5xl/review:py-2"
-          >
-            <span className="flex min-w-0 items-baseline gap-1.5 wrap-anywhere @5xl/review:flex-col @5xl/review:gap-0.5">
-              <span className="leading-4.5 text-muted-foreground">
-                {link.outgoing ? link.verb : `${link.part.label} ${link.verb}`}
-              </span>
-              {link.outgoing && (
-                <span className="text-ui leading-4.5 font-medium text-foreground">
-                  {link.part.label}
-                </span>
-              )}
-            </span>
-            {link.change && (
-              <Badge variant={changeVariants[link.change]}>
-                {changeLabel(link.change)}
-              </Badge>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

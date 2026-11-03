@@ -32,6 +32,7 @@ import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
+import { SystemMap } from './system-map';
 import { SectionHeading } from './section-heading';
 import type { WalkthroughProps } from './walkthrough-props';
 
@@ -88,10 +89,10 @@ export function WalkthroughBriefing({
     parts.added.length + parts.changed.length + parts.removed.length > 0;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto flex w-full max-w-264 flex-col gap-9 px-4 pt-8 pb-16 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
+      <div className="mx-auto flex w-full max-w-264 flex-col gap-7 px-4 pt-5 pb-12 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
         <MarginRow margin={margin}>
-          <div className="flex min-w-0 flex-col gap-10">
-            <header className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-7">
+            <header className="flex min-w-0 flex-col gap-3.5">
               <p className="flex flex-wrap gap-x-2 text-ui leading-5.5 font-medium text-muted-foreground">
                 <span>Briefing</span>
                 <span aria-hidden="true">·</span>
@@ -102,7 +103,7 @@ export function WalkthroughBriefing({
                 <span>{relativeTime(revision.publishedAt)}</span>
                 {pullRequestChip}
               </p>
-              <h2 className="text-briefing-title font-semibold wrap-anywhere">
+              <h2 className="text-page-title font-semibold wrap-anywhere">
                 <TruncatedText
                   text={title}
                   lines={3}
@@ -211,28 +212,12 @@ export function WalkthroughBriefing({
             >
               What this adds to the system
             </SectionHeading>
-            {hasParts ? (
-              <div className="flex flex-col divide-y">
-                <PartGroup
-                  title="New"
-                  parts={parts.added}
-                  review={review}
-                  onGo={onGo}
-                />
-                <PartGroup
-                  title="Changed"
-                  parts={parts.changed}
-                  review={review}
-                  onGo={onGo}
-                />
-                <PartGroup
-                  title="Removed"
-                  parts={parts.removed}
-                  review={review}
-                  onGo={onGo}
-                  struck
-                />
-              </div>
+            {review.diagram ? (
+              <SystemMap
+                diagram={review.diagram.after}
+                onLayer={(layerId) => onGo(decisionKey(layerId))}
+                className="mt-3"
+              />
             ) : (
               <p className="pt-3 text-sm text-muted-foreground">
                 No system owners listed.
