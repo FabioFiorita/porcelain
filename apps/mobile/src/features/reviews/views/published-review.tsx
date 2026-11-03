@@ -11,6 +11,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { HtmlPreview } from '../../../components/ui/html-preview';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
+import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
@@ -115,7 +116,10 @@ export function PublishedOverview({
             trailing={<Icon name="chevron" tone="muted" />}
             accessibilityLabel="Read agent summary"
             testID="review-summary"
-            onPress={routes.openSummary}
+            onPress={() => {
+              walkthrough.refresh();
+              routes.openSummary();
+            }}
           />
         </Card>
       </Box>
@@ -184,7 +188,11 @@ function SummaryPage({
           onPress={walkthrough.refresh}
         />
       </Stack.Toolbar>
-      <AgentSummary walkthrough={walkthrough} />
+      {walkthrough.refreshing ? (
+        <Loading label="Refreshing agent summary…" />
+      ) : (
+        <AgentSummary walkthrough={walkthrough} />
+      )}
     </>
   );
 }

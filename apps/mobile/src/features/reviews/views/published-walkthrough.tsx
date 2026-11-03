@@ -22,6 +22,7 @@ export type PublishedWalkthroughState = {
   progress: ReturnType<typeof useWalkthroughProgress>;
   changedPaths: readonly string[];
   unavailable: boolean;
+  refreshing: boolean;
   refresh: () => void;
 };
 
@@ -82,6 +83,7 @@ export function PublishedWalkthrough({
       revision={result.revision.value.revision}
       settled={result.settled}
       specsApart={result.specsApart}
+      refreshing={result.published.waiting}
       refresh={result.refreshPublished}
     >
       {children}
@@ -95,6 +97,7 @@ function WalkthroughContent({
   revision,
   settled,
   specsApart,
+  refreshing,
   refresh,
   children,
 }: {
@@ -103,6 +106,7 @@ function WalkthroughContent({
   revision: ReviewRevision;
   settled: boolean;
   specsApart: boolean;
+  refreshing: boolean;
   refresh: () => void;
   children: (walkthrough: PublishedWalkthroughState) => ReactNode;
 }) {
@@ -126,6 +130,7 @@ function WalkthroughContent({
     progress,
     changedPaths,
     unavailable: review.diagnostics === 'unavailable',
+    refreshing,
     refresh,
   });
 }

@@ -70,14 +70,19 @@ function StopReader({
         options={{ title: stopScreenTitle(stop, walkthrough.stops) }}
       />
       <ScrollView
-        key={stop.key}
+        key={`${stop.key}:page`}
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="w-full max-w-3xl self-center gap-4 p-4 pb-8"
       >
         <StopPage walkthrough={walkthrough} stop={stop} go={go} />
       </ScrollView>
-      <StopBar key={stop.key} walkthrough={walkthrough} stop={stop} go={go} />
+      <StopBar
+        key={`${stop.key}:bar`}
+        walkthrough={walkthrough}
+        stop={stop}
+        go={go}
+      />
     </>
   );
 }
