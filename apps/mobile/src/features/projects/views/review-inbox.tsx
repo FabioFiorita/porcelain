@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { readReviewInbox } from '@porcelain/client/projects';
 import type {
@@ -22,6 +21,7 @@ import {
 } from '../../access';
 import { useOpenComputers } from './open-computers';
 import { useOpenPublishedReview } from './open-published-review';
+import { useOpenInWorktree } from './open-in-worktree';
 import { PickerNotices } from './picker-notices';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
@@ -36,7 +36,6 @@ const statusTiles: Record<
 };
 
 export function ReviewInbox() {
-  const router = useRouter();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const { inbox, loading, messages } = useAtomValue(
@@ -48,14 +47,17 @@ export function ReviewInbox() {
   const { picker, initializing, reading } = useWorkspacePickerModel();
   const openComputers = useOpenComputers();
   const openPublishedReview = useOpenPublishedReview();
+  const openInWorktree = useOpenInWorktree(picker.onWorktree);
   const open = (row: ReviewInboxRow) => {
     const { entry } = row;
     if (entry.available && entry.worktreeId)
-      picker.onWorktree(
-        entry.environmentId,
-        entry.projectId,
-        entry.worktreeId,
-        () => router.push('/review'),
+      openInWorktree(
+        {
+          environmentId: entry.environmentId,
+          projectId: entry.projectId,
+          worktreeId: entry.worktreeId,
+        },
+        '/review',
       );
     else
       openPublishedReview({

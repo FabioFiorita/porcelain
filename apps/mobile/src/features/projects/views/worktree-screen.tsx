@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
 import { Icon } from '../../../components/ui/icon';
@@ -9,9 +9,10 @@ import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { useOpenPullRequest } from './open-pull-request';
 import { useWorkspacePickerModel } from './workspace-picker-model';
+import { useOpenInWorktree } from './open-in-worktree';
+import { PickerNotices } from './picker-notices';
 
 export function WorktreeScreen() {
-  const router = useRouter();
   const openPullRequest = useOpenPullRequest();
   const params = useLocalSearchParams<{
     title?: string;
@@ -24,14 +25,17 @@ export function WorktreeScreen() {
     reviewId?: string;
     number?: string;
   }>();
-  const { picker } = useWorkspacePickerModel();
+  const { picker, reading } = useWorkspacePickerModel();
+  const openIn = useOpenInWorktree(picker.onWorktree);
   const openInWorktree = (pathname: '/review' | '/files' | '/history') => {
     if (params.environment && params.projectId && params.worktreeId)
-      picker.onWorktree(
-        params.environment,
-        params.projectId,
-        params.worktreeId,
-        () => router.push(pathname),
+      openIn(
+        {
+          environmentId: params.environment,
+          projectId: params.projectId,
+          worktreeId: params.worktreeId,
+        },
+        pathname,
       );
   };
   const number = Number(params.number);
@@ -97,6 +101,12 @@ export function WorktreeScreen() {
             </>
           ) : null}
         </Card>
+        <PickerNotices
+          messages={[]}
+          error={picker.error}
+          onRead={picker.onRead}
+          reading={reading}
+        />
       </Box>
     </Screen>
   );

@@ -42,10 +42,23 @@ import {
   usePublishedStop,
 } from './published-review';
 
-export function ReviewScreen() {
+export function ReviewScreen({
+  workspace,
+}: {
+  workspace?: string | undefined;
+}) {
   const focused = useIsFocused();
   return focused ? (
-    <WorkspaceGate title="Review">
+    <WorkspaceGate
+      title="Review"
+      expectedWorkspace={workspace}
+      changed={
+        <Empty
+          title="Workspace changed"
+          description="Another worktree is selected now. Open Review again from the worktree you want."
+        />
+      }
+    >
       {(workspace) => (
         <Screen layout="fixed">
           <PhoneReview key={workspace.key} workspace={workspace} />

@@ -43,12 +43,23 @@ import { pinnedNavigationRows } from '../rules/file-navigation';
 export function FilesScreen({
   onOpen,
   onOpenTimeline,
+  workspace,
 }: {
   onOpen: (path: string, workspace: string) => void;
   onOpenTimeline: (path: string, workspace: string) => void;
+  workspace?: string | undefined;
 }) {
   return (
-    <WorkspaceGate title="Files">
+    <WorkspaceGate
+      title="Files"
+      expectedWorkspace={workspace}
+      changed={
+        <Empty
+          title="Workspace changed"
+          description="Another worktree is selected now. Open Files again from the worktree you want."
+        />
+      }
+    >
       {(selected) => (
         <FilesNavigation
           key={selected.key}
