@@ -54,6 +54,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.diff](history.diff.md) — Commit comparisons, unavailable patches and comments.
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
+- [preferences.notifications](preferences.notifications.md) — Review-ready and agent-reply switches, permission, push key and registration.
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
 - [projects.archive-review](projects.archive-review.md) — Archive a merged or closed review from its pull request.
 - [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.

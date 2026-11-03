@@ -195,14 +195,16 @@ export async function serverRead(
                 ? await readers.devices()
                 : what === 'pending-links'
                   ? await readers.pendingLinks()
-                  : what === 'receipt'
-                    ? await readers.receipt(
-                        required(argument, 'the Git action request id'),
-                      )
-                    : undefined;
+                  : what === 'push-requests'
+                    ? await handle.pushRequests()
+                    : what === 'receipt'
+                      ? await readers.receipt(
+                          required(argument, 'the Git action request id'),
+                        )
+                      : undefined;
   if (state === undefined)
     throw new Usage(
-      'Use server published-review | reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links or receipt <requestId>.',
+      'Use server published-review | reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links, push-requests or receipt <requestId>.',
     );
   return `${JSON.stringify(state, null, 2)}\n`;
 }

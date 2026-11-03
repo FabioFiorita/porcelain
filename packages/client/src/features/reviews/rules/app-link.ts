@@ -122,3 +122,15 @@ export function parseDesktopReviewLink(
     return undefined;
   }
 }
+
+export function notificationReviewRoute(data: unknown): string {
+  const url =
+    data !== null && typeof data === 'object' && 'url' in data
+      ? data.url
+      : undefined;
+  if (typeof url !== 'string') return '/';
+  const link = parseReviewAppLink(url);
+  if (link === undefined) return '/';
+  const parsed = new URL(url);
+  return `${parsed.pathname}${parsed.search}`;
+}

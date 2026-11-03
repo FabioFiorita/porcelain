@@ -22,6 +22,7 @@ export type PairedUseCases = {
       routes: {
         sharing: HttpApplication;
         session: HttpApplication;
+        pushRegistration: HttpApplication;
         updates: HttpApplication;
         remoteAccess: HttpApplication;
         reviewGitSettings: HttpApplication;
@@ -68,6 +69,7 @@ export function pairedScope(options: {
     ),
     Layer.mergeAll(
       application.access.routes.session,
+      application.access.routes.pushRegistration,
       application.gitActions,
       application.reviews,
       application.files,

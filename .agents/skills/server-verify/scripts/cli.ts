@@ -35,7 +35,7 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   agent publish-review "<title>" [--context] [--summary-html <html>]
   agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | push-requests | receipt <requestId>
                           deterministic fixture actions and typed server readbacks
 Drive HTTP/WebSocket, Git and files directly using connection.json and your own tools.
 `;

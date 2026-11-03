@@ -16,6 +16,7 @@ export default function SettingsRoute() {
       <SettingsScreen
         onOpenGeneral={() => router.push('/general')}
         onOpenReviewsGit={() => router.push('/reviews-git')}
+        onOpenNotifications={() => router.push('/notifications')}
         onOpenComputers={() => router.push('/computers')}
         onOpenComponentLibrary={() => router.push('/component-library')}
       />

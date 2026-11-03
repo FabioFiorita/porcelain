@@ -5,6 +5,7 @@ import type {
 } from '../models/revoke-device.ts';
 import { DeviceSightingStore } from '../ports/device-sighting-store.ts';
 import { DeviceStore } from '../ports/device-store.ts';
+import { PushRegistrationStore } from '../ports/push-registration-store.ts';
 import { deviceRevoked } from '../rules/device-activity.ts';
 
 export class RevokeDeviceService extends Context.Service<
@@ -20,6 +21,7 @@ export class RevokeDeviceService extends Context.Service<
     Effect.gen(function* () {
       const devices = yield* DeviceStore;
       const deviceSightings = yield* DeviceSightingStore;
+      const pushRegistrations = yield* PushRegistrationStore;
       const clock = yield* Clock.Clock;
 
       return {
@@ -35,6 +37,7 @@ export class RevokeDeviceService extends Context.Service<
             ),
           });
           deviceSightings.remove({ deviceId: device.id });
+          yield* pushRegistrations.remove({ deviceId: device.id });
           return { kind: 'revoked' };
         }),
       };

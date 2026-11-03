@@ -49,6 +49,11 @@ const serverSettingsSchema = Schema.Struct({
       Effect.succeed('https://porcelain.fabiofiorita.com'),
     ),
   ),
+  pushEndpoint: Schema.String.pipe(
+    Schema.withDecodingDefault(
+      Effect.succeed('https://exp.host/--/api/v2/push/send'),
+    ),
+  ),
   dataDirectory: absolutePathSchema,
   projectHome: absolutePathSchema,
   host: listenHostSchema.pipe(

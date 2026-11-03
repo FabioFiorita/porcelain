@@ -1,9 +1,14 @@
 import { testClock } from '@porcelain/kernel/test-kit';
-import { DeviceStore, DeviceSightingStore } from '@porcelain/access/ports';
+import {
+  DeviceStore,
+  DeviceSightingStore,
+  PushRegistrationStore,
+} from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
+import { InMemoryPushRegistrationStore } from '../../spec/fakes/in-memory-push-registration-store.ts';
 import { RevokeDeviceService } from './revoke-device-service.ts';
 
 async function setup() {
@@ -18,16 +23,19 @@ async function setup() {
     secretHash: 'hash',
   });
   const sightings = new InMemoryDeviceSightingStore();
+  const pushRegistrations = new InMemoryPushRegistrationStore();
   const clock = await testClock('2026-09-23T10:05:00.000Z');
   return {
     devices,
     sightings,
+    pushRegistrations,
     clock,
     service: Effect.runSync(
       RevokeDeviceService.pipe(
         Effect.provide(RevokeDeviceService.layer),
         Effect.provideService(DeviceStore, devices),
         Effect.provideService(DeviceSightingStore, sightings),
+        Effect.provideService(PushRegistrationStore, pushRegistrations),
         Effect.provideService(Clock.Clock, clock),
       ),
     ),
@@ -97,6 +105,25 @@ describe('RevokeDeviceService', () => {
         secretHash: 'tablet-hash',
       },
     ]);
+  });
+
+  it('stops notifying the device it revokes and keeps other devices registered', async () => {
+    const { pushRegistrations, service } = await setup();
+    for (const deviceId of ['device', 'tablet'])
+      await Effect.runPromise(
+        pushRegistrations.save({
+          deviceId,
+          token: `ExponentPushToken[${deviceId}]`,
+          platform: 'ios',
+          kinds: ['review-ready'],
+        }),
+      );
+    Effect.runSync(service.execute({ id: 'device' }));
+    expect(
+      (await Effect.runPromise(pushRegistrations.list())).map(
+        (entry) => entry.deviceId,
+      ),
+    ).toEqual(['tablet']);
   });
 
   it('reports an unknown id as not revoked', async () => {

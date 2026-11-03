@@ -27,7 +27,10 @@ import {
   ObserveReviewPullRequestService,
   SelectGitHubAccountService,
 } from '@porcelain/reviews/services';
-import { CheckProjectService } from '@porcelain/projects/services';
+import {
+  CheckProjectService,
+  FindProjectService,
+} from '@porcelain/projects/services';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { ResolveProjectGitHubUseCase } from '../use-cases/reviews/resolve-project-github.ts';
 import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
@@ -167,6 +170,9 @@ import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import { NotifyDevicesUseCasePort } from '../ports/notify-devices-use-case-port.ts';
+import { NotifyReviewActivityUseCase } from '../use-cases/reviews/notify-review-activity.ts';
+import { NotifyReviewActivityUseCasePort } from '../ports/notify-review-activity-use-case-port.ts';
 import { type ComposeContext } from './compose-context.ts';
 import { type Shared } from './compose-shared.ts';
 import { type Stores } from './compose-stores.ts';
@@ -177,6 +183,7 @@ type ReviewsDependencies = {
   checkWorktree: CheckWorktreeUseCasePort;
   findWorktreeByPath: FindWorktreeByPathUseCasePort;
   runtimeStatusReader: RuntimeStatusReader;
+  notifyDevices: NotifyDevicesUseCasePort;
 };
 
 export function composeReviews(
@@ -216,6 +223,7 @@ export function composeReviews(
       hubOrigin: context.settings.appLinkOrigin,
     }),
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
+    Layer.succeed(NotifyDevicesUseCasePort, dependencies.notifyDevices),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
@@ -268,6 +276,7 @@ export function composeReviews(
     ListGitHubPullRequestsService.layer,
     ReadReviewRecordService.layer,
     CheckProjectService.layer,
+    FindProjectService.layer,
     AtReviewScopeUseCase.layer,
     ReadRetainedBranchDiffsService.layer,
     ReadReviewService.layer,
@@ -324,6 +333,14 @@ export function composeReviews(
     ReadReviewGitHubTargetUseCasePort,
     ReadReviewGitHubTargetUseCase,
   ).pipe(Layer.provideMerge(githubTargets));
+  const notifications = Layer.effect(
+    NotifyReviewActivityUseCasePort,
+    NotifyReviewActivityUseCase,
+  ).pipe(
+    Layer.provideMerge(
+      NotifyReviewActivityUseCase.layer.pipe(Layer.provideMerge(linkedGitHub)),
+    ),
+  );
   const operations = Layer.mergeAll(
     AgentFeedbackUseCase.layer.pipe(Layer.provide(AgentFeedbackService.layer)),
     CompareReviewUseCase.layer,
@@ -363,7 +380,7 @@ export function composeReviews(
     ListReviewedLayersUseCase.layer,
     SetReviewedLayerUseCase.layer,
     RemoveReviewedLayerUseCase.layer,
-  ).pipe(Layer.provideMerge(linkedGitHub));
+  ).pipe(Layer.provideMerge(notifications));
   const archivePorts = Layer.effect(
     ReadReviewPullRequestUseCasePort,
     ReadReviewPullRequestUseCase,

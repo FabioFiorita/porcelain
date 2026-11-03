@@ -44,6 +44,7 @@ import {
 import { reviewDirtyPaths, proofFilePaths } from '@porcelain/reviews/rules';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
+import { NotifyReviewActivityUseCasePort } from '../../ports/notify-review-activity-use-case-port.ts';
 
 export class PublishReviewUseCase extends Context.Service<
   PublishReviewUseCase,
@@ -86,6 +87,7 @@ export class PublishReviewUseCase extends Context.Service<
       const resolvePublishedReviewCapability =
         yield* ResolvePublishedReviewService;
       const eventsCapability = yield* EventPublisher;
+      const notifyCapability = yield* NotifyReviewActivityUseCasePort;
 
       return {
         execute: Effect.fn('PublishReviewUseCase.execute')(function* (
@@ -106,7 +108,7 @@ export class PublishReviewUseCase extends Context.Service<
           | CommitNotFoundError
           | IncompleteDiffReadError
         > {
-          return yield* Effect.suspend(() => {
+          const published = yield* Effect.suspend(() => {
             const { worktreeId, ...unvalidatedDraft } = input;
             return accessCapability.transaction(
               worktreeId,
@@ -223,6 +225,11 @@ export class PublishReviewUseCase extends Context.Service<
                 ),
             );
           });
+          yield* notifyCapability.execute({
+            kind: 'review-ready',
+            reviewId: published.reviewId,
+          });
+          return published;
         }),
       };
     }),

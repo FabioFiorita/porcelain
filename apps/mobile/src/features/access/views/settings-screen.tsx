@@ -4,6 +4,7 @@ import {
   generalSettingsSummary,
   REVIEWS_GIT_SETTINGS_SUMMARY,
 } from '@porcelain/client/preferences/rules';
+import { notificationsSummary } from '@porcelain/client/notifications/rules';
 import {
   computersSummary,
   settingsUpdateCount,
@@ -27,11 +28,13 @@ const DevelopmentSettingsSection = __DEV__
 export function SettingsScreen({
   onOpenGeneral,
   onOpenReviewsGit,
+  onOpenNotifications,
   onOpenComputers,
   onOpenComponentLibrary,
 }: {
   onOpenGeneral: () => void;
   onOpenReviewsGit: () => void;
+  onOpenNotifications: () => void;
   onOpenComputers: () => void;
   onOpenComponentLibrary: () => void;
 }) {
@@ -74,6 +77,16 @@ export function SettingsScreen({
             leading={<StatusTile name="checklist" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenReviewsGit}
+          />
+          <Separator inset="leading" />
+          <Item
+            testID="settings-notifications"
+            title="Notifications"
+            description={notificationsSummary(preferences.notifications)}
+            accessibilityLabel={`Notifications, ${notificationsSummary(preferences.notifications)}`}
+            leading={<StatusTile name="notifications" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            onPress={onOpenNotifications}
           />
         </Card>
         <Box gap={2}>

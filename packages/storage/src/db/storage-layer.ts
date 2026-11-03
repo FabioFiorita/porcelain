@@ -6,6 +6,7 @@ import { sqliteDeviceStoreLayer } from '../repositories/access/sqlite-device-sto
 import { sqliteEnvironmentIdentityReaderLayer } from '../repositories/access/sqlite-environment-identity-reader.ts';
 import { sqliteEnvironmentLabelStoreLayer } from '../repositories/access/sqlite-environment-label-store.ts';
 import { sqliteReviewGitSettingsStoreLayer } from '../repositories/access/sqlite-review-git-settings-store.ts';
+import { sqlitePushRegistrationStoreLayer } from '../repositories/access/sqlite-push-registration-store.ts';
 import { sqlitePairingGrantStoreLayer } from '../repositories/access/sqlite-pairing-grant-store.ts';
 import { sqliteRemoteAccessStoreLayer } from '../repositories/access/sqlite-remote-access-store.ts';
 import { sqliteFilePreferenceStoreLayer } from '../repositories/projects/sqlite-file-preference-store.ts';
@@ -30,6 +31,7 @@ export function storageLayer(
     sqliteEnvironmentLabelStoreLayer,
     sqliteReviewGitSettingsStoreLayer,
     sqlitePairingGrantStoreLayer,
+    sqlitePushRegistrationStoreLayer,
     sqliteRemoteAccessStoreLayer,
     sqliteFilePreferenceStoreLayer,
     sqliteInventoryStoreLayer,

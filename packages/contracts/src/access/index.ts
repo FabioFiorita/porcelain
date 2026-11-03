@@ -84,6 +84,13 @@ export {
   type SaveReviewGitSettingsResponse,
 } from './review-git-settings.ts';
 export {
+  type ClearPushRegistrationInput,
+  type PushKind,
+  type SetPushRegistrationInput,
+  type SetPushRegistrationRequest,
+  type SetPushRegistrationResponse,
+} from './push-registration.ts';
+export {
   APP_PAIRING_PATH,
   isAppPairingPath,
   pairingLink,
@@ -93,6 +100,7 @@ export {
   BrowserAccessApi,
   PairingApi,
   SessionApi,
+  PushRegistrationApi,
   ServiceUpdatesApi,
   RemoteAccessApi,
   ReviewGitSettingsApi,

@@ -5,6 +5,7 @@ import { buildIdentity } from './src/shared/rules/build-identity.ts';
 
 const identity = buildIdentity(process.env.APP_VARIANT);
 const projectId = 'e14cdaa2-be46-4c7e-8554-432e5f386871';
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
 
 const config: ExpoConfig = {
   name: identity.name,
@@ -28,6 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: identity.bundleIdentifier,
+    ...(googleServicesFile === undefined ? {} : { googleServicesFile }),
     intentFilters: [
       {
         action: 'VIEW',
@@ -52,6 +54,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-sqlite',
+    ['expo-notifications', { color: '#0a0a0a', defaultChannel: 'reviews' }],
     [
       'expo-camera',
       {

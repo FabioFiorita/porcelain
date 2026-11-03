@@ -63,6 +63,7 @@ const tableLanes: Readonly<
   PairingGrantStore: { any: ['access'] },
   EnvironmentLabelStore: { any: ['access'] },
   ReviewGitSettingsStore: { any: ['access'] },
+  PushRegistrationStore: { any: ['access'] },
   RemoteAccessStore: { any: ['remoteAccess'] },
   DeviceSightingStore: { any: ['access'] },
   PairingAttemptStore: { any: ['access'] },

@@ -62,6 +62,7 @@ export type Limits = {
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
     serviceUpdate: { latestVersionTtlMs: number };
+    pushNotifications: { timeoutMs: number; batchSize: number };
     remoteAccess: {
       hostnameLength: number;
       probeTimeoutMs: number;
@@ -281,6 +282,7 @@ export const LIMITS: Limits = {
     },
     credentials: { secretBytes: 32 },
     serviceUpdate: { latestVersionTtlMs: 10 * MINUTE_MS },
+    pushNotifications: { timeoutMs: 10 * SECOND_MS, batchSize: 100 },
     remoteAccess: {
       hostnameLength: TUNNEL_HOSTNAME_LENGTH,
       probeTimeoutMs: 5 * SECOND_MS,

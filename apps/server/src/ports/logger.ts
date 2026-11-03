@@ -19,7 +19,8 @@ export type FailureReport =
   | { kind: 'git-action'; requestId: string; error: unknown }
   | { kind: 'review-refresh'; worktreeId: string; error: unknown }
   | { kind: 'reviewed-marks'; worktreeId: string; error: unknown }
-  | { kind: 'live-updates'; error: unknown };
+  | { kind: 'live-updates'; error: unknown }
+  | { kind: 'push-notifications'; error: unknown };
 
 export interface Logger {
   failure(input: FailureReport): void;

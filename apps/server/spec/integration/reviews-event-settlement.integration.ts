@@ -50,6 +50,7 @@ import { SetReviewMarkUseCase } from '../../src/use-cases/reviews/set-review-mar
 import { RemoveReviewMarkUseCase } from '../../src/use-cases/reviews/remove-review-mark.ts';
 import { DeleteReviewUseCase } from '../../src/use-cases/reviews/delete-review.ts';
 import { SetReviewSeenUseCase } from '../../src/use-cases/reviews/set-review-seen.ts';
+import { NotifyReviewActivityUseCasePort } from '../../src/ports/notify-review-activity-use-case-port.ts';
 import { record } from '../kit/session.ts';
 import { LIMITS } from '../../src/config/limits.ts';
 
@@ -184,6 +185,9 @@ test.each(rows)(
               }),
               Layer.succeed(ReviewCodeReader, { readText: unused }),
               Layer.succeed(CheckWorktreeUseCasePort, { execute: unused }),
+              Layer.succeed(NotifyReviewActivityUseCasePort, {
+                execute: unused,
+              }),
               Layer.succeed(WorktreeConsistencyProbe, { execute: unused }),
               Layer.succeed(LaneOptions, {
                 deadlineMs: 10000,
