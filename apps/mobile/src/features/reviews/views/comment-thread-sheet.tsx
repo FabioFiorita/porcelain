@@ -106,12 +106,9 @@ function ThreadSheet({
   const openDecision =
     review && sameReview
       ? (layer: ReviewLayer) => {
-          if (fromDecision) {
-            routes.showStop(decisionKey(layer.id));
-            return;
-          }
           router.back();
-          routes.openStop(decisionKey(layer.id));
+          if (fromDecision) routes.showStop(decisionKey(layer.id));
+          else routes.openStop(decisionKey(layer.id));
         }
       : undefined;
   const path = anchorPath(thread.anchor);
