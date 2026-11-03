@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md).
 3. Open a review row from Reviews: the published review pushes inside Reviews and Back returns to the inbox. Retain a screenshot with both tabs visible.
 4. From each tab root press Settings: Settings opens as a modal over the tabs. Close Settings returns to the same tab and stack position.
 5. Cold-launch through the card's Metro URL after selecting Worktrees and confirm the destination and selected tab visually within the 30-second budget.
-6. iPad: the same two tabs and full-width stacks. Check whether the tab bar adapts into the system sidebar and record what appears; verify landscape and portrait, including rotating with a pushed screen open.
+6. iPad: the two tabs sit in a top bar with a Show Sidebar button. Portrait: the sidebar slides over the page and a tap outside closes it. Landscape (`orientation landscape-left`): the sidebar stays open beside the page, and every tab root and pushed screen starts to its right with no text under it; Hide Sidebar gives the page the full width. Rotate with a review open and check both orientations.
 
 Automated coverage: none named; retain the live action and readback evidence.
 
@@ -37,4 +37,4 @@ Automated coverage: none named; retain the live action and readback evidence.
 
 - Native selected-tab traits may be absent; use a screenshot and the header title. Reapply development-menu flags after cold launch so overlays do not cover controls.
 - A cold link to a shared route (`/review`, `/files`, `/history`, `/reviews/[reviewId]`, …) lands in the Reviews tab.
-- iPad has no separate list-beside-detail layout; the sidebar adaptation is unverified until a device run records it.
+- iPad has no separate list-beside-detail layout. The native header already moves beside the landscape sidebar while React Native content does not, so `TabStack` keeps each stack inside the left and right safe area.
