@@ -1,6 +1,5 @@
 import { fileWatchPaths } from './file-watch-paths.ts';
 import { watch as watchDirectory } from 'node:fs';
-import * as parcelWatcher from '@parcel/watcher';
 import {
   Effect,
   Exit,
@@ -11,7 +10,11 @@ import {
   Scope,
   Semaphore,
 } from 'effect';
-import { WorktreeWatchError } from '../../runtime/errors/worktree-watch-error.ts';
+import {
+  makeWatchHost,
+  type WatchHostChange,
+  type WatchHostSettings,
+} from './watch-host-client.ts';
 import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
 import { captureGitPlatform } from '@porcelain/git/discovery';
@@ -37,16 +40,6 @@ type FileWatchState = {
   closed: boolean;
 };
 
-const parcelOperation = <A>(work: () => Promise<A>) =>
-  Effect.tryPromise({
-    try: work,
-    catch: (cause) => new WorktreeWatchError({ cause }),
-  }).pipe(Effect.orDie);
-
-function backend(): parcelWatcher.Options {
-  return process.platform === 'linux' ? { backend: 'inotify' } : {};
-}
-
 function sameList(left: readonly string[], right: readonly string[]): boolean {
   return (
     left.length === right.length &&
@@ -60,6 +53,7 @@ export const parcelWorktreeWatcherLayer = (options: {
   gitDirectory: string;
   isTemporaryWrite: (path: string) => boolean;
   limits: Limits['git'];
+  host: WatchHostSettings;
 }) =>
   Layer.effect(
     WorktreeWatcher,
@@ -67,6 +61,7 @@ export const parcelWorktreeWatcherLayer = (options: {
       const provideGit = yield* captureGitPlatform();
       const fsCapability = yield* FileSystem.FileSystem;
       const pathCapability = yield* Path.Path;
+      const host = yield* makeWatchHost(options.host);
       const turns = yield* RcMap.make({
         lookup: (_directory: string) => Semaphore.make(1),
         idleTimeToLive: 0,
@@ -79,19 +74,17 @@ export const parcelWorktreeWatcherLayer = (options: {
         );
       const subscribe = Effect.fn('ParcelWorktreeWatcher.subscribe')(function* (
         directory: string,
-        changed: parcelWatcher.SubscribeCallback,
-        settings: parcelWatcher.Options,
+        changed: WatchHostChange,
+        ignore: readonly string[],
       ) {
         const subscription = yield* inTurn(
           directory,
-          parcelOperation(() =>
-            parcelWatcher.subscribe(directory, changed, settings),
-          ),
+          host.subscribe(directory, ignore, changed).pipe(Effect.orDie),
         );
         return {
           unsubscribe: inTurn(
             directory,
-            parcelOperation(() => subscription.unsubscribe()),
+            subscription.unsubscribe.pipe(Effect.orDie),
           ),
         };
       });
@@ -101,9 +94,9 @@ export const parcelWorktreeWatcherLayer = (options: {
       ) =>
         subscribe(
           state.root,
-          (error, events) => {
+          (failure, events) => {
             if (state.closed) return;
-            if (error) return state.changed([]);
+            if (failure !== undefined) return state.changed([]);
             const paths = fileWatchPaths(
               state.root,
               events,
@@ -111,13 +104,10 @@ export const parcelWorktreeWatcherLayer = (options: {
             );
             if (paths) state.changed(paths);
           },
-          {
-            ...backend(),
-            ignore: [
-              pathCapability.join(state.root, options.gitDirectory),
-              ...ignored.map((path) => pathCapability.join(state.root, path)),
-            ],
-          },
+          [
+            pathCapability.join(state.root, options.gitDirectory),
+            ...ignored.map((path) => pathCapability.join(state.root, path)),
+          ],
         );
       const refreshSupplements = Effect.fn(
         'ParcelWorktreeWatcher.refreshSupplements',
@@ -311,20 +301,15 @@ export const parcelWorktreeWatcherLayer = (options: {
             yield* Effect.acquireRelease(
               subscribe(
                 input.project.commonDirectory,
-                (error, events) => {
-                  if (!error && events.length > 0) input.changed();
+                (failure, events) => {
+                  if (failure !== undefined || events.length > 0)
+                    input.changed();
                 },
-                {
-                  ...backend(),
-                  ignore: unpublished.map((path) =>
-                    path.includes('*')
-                      ? path
-                      : pathCapability.join(
-                          input.project.commonDirectory,
-                          path,
-                        ),
-                  ),
-                },
+                unpublished.map((path) =>
+                  path.includes('*')
+                    ? path
+                    : pathCapability.join(input.project.commonDirectory, path),
+                ),
               ),
               (subscription) => subscription.unsubscribe,
             );

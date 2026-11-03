@@ -239,29 +239,33 @@ export default [
       },
     ),
   ),
-  ...['agents', 'installer', 'process', 'mac-network'].map((owner) =>
-    pair(
-      'process-importable-by-git-agents-installer',
-      {
-        [owner === 'agents'
-          ? 'packages/agents/src/commit-planning/run.ts'
-          : owner === 'process'
-            ? 'packages/process/src/run.ts'
-            : owner === 'installer'
-              ? 'apps/server/src/installer/run.ts'
-              : 'apps/server/src/adapters/access/mac-network-command.ts']:
-          "import * as dependency from 'effect/process'; export const value = dependency;",
-      },
-      {
-        'apps/server/src/adapters/access/other-command.ts':
-          "import * as dependency from 'effect/process'; export const value = dependency;",
-      },
-    ),
+  ...['agents', 'installer', 'process', 'mac-network', 'watch-host'].map(
+    (owner) =>
+      pair(
+        'process-importable-by-git-agents-installer',
+        {
+          [owner === 'agents'
+            ? 'packages/agents/src/commit-planning/run.ts'
+            : owner === 'process'
+              ? 'packages/process/src/run.ts'
+              : owner === 'installer'
+                ? 'apps/server/src/installer/run.ts'
+                : owner === 'watch-host'
+                  ? 'apps/server/src/adapters/events/watch-host-client.ts'
+                  : 'apps/server/src/adapters/access/mac-network-command.ts']:
+            "import * as dependency from 'effect/process'; export const value = dependency;",
+        },
+        {
+          'apps/server/src/adapters/access/other-command.ts':
+            "import * as dependency from 'effect/process'; export const value = dependency;",
+        },
+      ),
   ),
   ...[
     'apps/server/src/adapters/access/mac-network-address-reader.ts',
     'apps/server/src/adapters/projects/git-platform.ts',
     'apps/server/src/adapters/access/mac-network-command-other.ts',
+    'apps/server/src/adapters/events/parcel-worktree-watcher.ts',
   ].map((path) =>
     pair(
       'process-importable-by-git-agents-installer',

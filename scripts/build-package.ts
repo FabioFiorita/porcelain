@@ -12,6 +12,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { bundleWatchHost } from '../apps/server/spec/kit/watch-host-bundle.ts';
 import { parseAllDocuments } from 'yaml';
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const packageOutput = join(repositoryRoot, 'dist-porcelain');
@@ -308,6 +309,10 @@ export async function buildPackage(): Promise<string> {
   await buildWeb(webOutput);
   await requiredFile(join(webOutput, 'index.html'));
   await buildServer(serverOutput, Object.keys(dependencies));
+  await bundleWatchHost(
+    join(packageOutput, 'server/src'),
+    Object.keys(dependencies),
+  );
   await cp(migrations, join(packageOutput, 'server/drizzle'), {
     recursive: true,
   });
