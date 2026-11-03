@@ -224,7 +224,9 @@ for (const trusted of [false, true]) {
       settings.getByRole('img', { name: 'Pairing QR code', exact: true }),
     ).not.toBeAttached();
     await expect(
-      settings.getByText(/^http:\/\/192\.168\.1\.20:\d+\/pair#c=pcp_/),
+      settings.getByText(
+        /^https:\/\/porcelain\.fabiofiorita\.com\/open\/pair#/,
+      ),
     ).not.toBeAttached();
     await expect(
       settings.getByRole('button', { name: 'Copy link', exact: true }),
