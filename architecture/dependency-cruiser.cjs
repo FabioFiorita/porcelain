@@ -102,7 +102,7 @@ module.exports = {
     {
       name: 'process-importable-by-git-agents-installer',
       comment:
-        'Only Git, Agents and the installer import process capabilities so business and transport code cannot gain shell access; the process implementation owns execution, and exactly apps/server/src/adapters/access/mac-network-command.ts runs fixed macOS network tools through the process owner.',
+        'Only Git, Agents and the installer import process capabilities so business and transport code cannot gain shell access; the process implementation owns execution, exactly apps/server/src/adapters/access/mac-network-command.ts runs fixed macOS network tools through the process owner, and exactly apps/server/src/adapters/events/watch-host-client.ts runs the file watcher helper so a native watcher hang cannot freeze the server.',
       severity: 'error',
       from: {
         path: '^(?:apps/[^/]+|packages/[^/]+)/src/',
@@ -111,6 +111,7 @@ module.exports = {
           '^packages/(?:git|agents|process)/src/',
           '^apps/server/src/installer/',
           '^apps/server/src/adapters/access/mac-network-command\\.ts$',
+          '^apps/server/src/adapters/events/watch-host-client\\.ts$',
         ],
       },
       to: {

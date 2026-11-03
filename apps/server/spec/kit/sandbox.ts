@@ -117,6 +117,18 @@ export async function buildIsolatedServer(output: string): Promise<void> {
     logLevel: 'warning',
   });
   await chmod(join(output, CODING_TOOL_BUNDLE), 0o755);
+  await build({
+    entryPoints: [
+      join(repositoryRoot, 'apps/server/src/bootstrap/watch-host.ts'),
+    ],
+    outfile: join(output, 'server/src/bootstrap/watch-host.mjs'),
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node24',
+    external: [...unbundled.map(({ name }) => name), ...optionalModules],
+    logLevel: 'warning',
+  });
   await cp(
     join(repositoryRoot, 'packages/storage/drizzle'),
     join(output, 'server/drizzle'),

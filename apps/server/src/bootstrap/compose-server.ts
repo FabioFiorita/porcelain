@@ -318,6 +318,7 @@ function serverResources(
                   gitDirectory: gitDirectoryName(),
                   isTemporaryWrite,
                   limits: limits.git,
+                  host: { ...settings.watchHost, ...limits.fileWatcher },
                 }).pipe(Layer.provide(NodeServices.layer)),
               ),
             ),

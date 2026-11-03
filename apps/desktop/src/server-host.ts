@@ -2,8 +2,9 @@ import { DesktopError } from './errors/desktop-error.ts';
 import { Deferred, Effect, Result, Schema, Scope } from 'effect';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { app, utilityProcess } from 'electron';
+import { join } from 'node:path';
 import type { desktopSettings } from './settings.ts';
-import { serverMessage } from './protocol.ts';
+import { serverMessage, WATCH_HOST_SWITCH } from './protocol.ts';
 import { openServerLog } from './adapters/server-log.ts';
 import { drainServerOutput } from './adapters/server-output.ts';
 
@@ -86,6 +87,14 @@ export const startLocalServer = Effect.fn('startLocalServer')(function* (
       session: {
         deviceId: randomUUID(),
         secretHash: createHash('sha256').update(credential).digest('hex'),
+      },
+      watchHost: {
+        command: process.execPath,
+        args: [
+          ...(app.isPackaged ? [] : [app.getAppPath()]),
+          ...(app.commandLine.hasSwitch('no-sandbox') ? ['--no-sandbox'] : []),
+          `${WATCH_HOST_SWITCH}=${join(settings.profile, 'watch-host')}`,
+        ],
       },
     });
   yield* Effect.acquireRelease(

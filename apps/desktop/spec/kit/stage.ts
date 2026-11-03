@@ -153,7 +153,7 @@ export async function stageDesktop(stage: {
     format: 'esm',
     platform: 'node',
     target: 'node24',
-    external: ['electron'],
+    external: ['electron', ...external],
     banner,
   });
   await build({

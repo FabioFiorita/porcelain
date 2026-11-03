@@ -197,6 +197,7 @@ export type Limits = {
     ping: Duration.Duration;
     messageBytes: number;
   };
+  fileWatcher: { heartbeat: Duration.Duration; answer: Duration.Duration };
   jobs: {
     scanInventory: Duration.Duration;
     collectAbsentWorktrees: Duration.Duration;
@@ -433,6 +434,7 @@ export const LIMITS: Limits = {
     ping: Duration.seconds(30),
     messageBytes: 64 * KIBIBYTE,
   },
+  fileWatcher: { heartbeat: Duration.seconds(5), answer: Duration.minutes(2) },
   jobs: {
     scanInventory: Duration.seconds(30),
     collectAbsentWorktrees: Duration.hours(1),

@@ -130,6 +130,7 @@ export default {
     'apps/server': {
       entry: [
         'src/bootstrap/main.ts',
+        'src/bootstrap/watch-host.ts',
         'src/**/*.spec.ts',
         'spec/**/*.{spec,integration}.ts',
       ],

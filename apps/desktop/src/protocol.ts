@@ -1,5 +1,6 @@
 import { urlStringSchema } from '@porcelain/contracts/shared';
 import { Schema } from 'effect';
+export const WATCH_HOST_SWITCH = '--porcelain-watch-host';
 export const serverMessage = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal('ready'),
@@ -21,6 +22,10 @@ export const hostMessage = Schema.Union([
     session: Schema.Struct({
       deviceId: Schema.String,
       secretHash: Schema.String,
+    }),
+    watchHost: Schema.Struct({
+      command: Schema.String,
+      args: Schema.Array(Schema.String),
     }),
   }),
   Schema.Struct({
