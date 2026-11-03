@@ -13,18 +13,19 @@ export function GroupHeader({
       accessible
       accessibilityRole="header"
       accessibilityLabel={`${label}${count === undefined ? '' : ` · ${count}`}`}
-      className="min-h-8 flex-row items-center gap-2 px-2.5 py-1"
+      className="min-h-9 flex-row items-end gap-2 px-4 pb-1.5 pt-3"
     >
       <Text
         accessible={false}
-        variant="subheading"
+        variant="secondary"
+        weight="medium"
         tone="muted"
         className="flex-1"
       >
         {label}
       </Text>
       {count === undefined ? null : (
-        <Text accessible={false} variant="subheading" tone="muted">
+        <Text accessible={false} variant="secondary" tone="muted">
           {count}
         </Text>
       )}

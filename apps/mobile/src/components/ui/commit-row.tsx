@@ -50,7 +50,6 @@ export function CommitRow({
           titleNumberOfLines={2}
           selected={selected}
           onPress={onPress}
-          size="sm"
           accessibilityLabel={`${entry.graph?.merge ? 'Merge commit · ' : ''}${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.change ? ` · ${entry.change}` : ''}${entry.refs?.length ? ` · ${entry.refs.map(commitRefLabel).join(', ')}` : ''}`}
           trailing={<Icon name="chevron" size="small" tone="muted" />}
         >

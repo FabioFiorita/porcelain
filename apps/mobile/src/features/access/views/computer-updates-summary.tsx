@@ -12,7 +12,7 @@ export function ComputerUpdatesSummary() {
   return (
     <Box className="flex-row flex-wrap justify-end" gap={2}>
       <Button
-        variant="outline"
+        variant="tonal"
         label="Check for updates"
         pending={checking}
         disabled={running || checking}

@@ -154,7 +154,7 @@ function PublishedContent({
       <Stack.Screen options={{ title: screenTitle(stop, stops) }} />
       {stop.kind === 'briefing' ? (
         <Text
-          variant="heading"
+          variant="title"
           numberOfLines={3}
           accessibilityLabel={
             review.verdict?.asked.text ??
@@ -192,7 +192,7 @@ function PublishedContent({
         />
       ) : null}
       {review.diagnostics === 'unavailable' ? (
-        <Text variant="ui">
+        <Text variant="secondary">
           The worktree is unavailable. This is the saved review; code locations
           and coverage could not be checked.
         </Text>
@@ -200,13 +200,13 @@ function PublishedContent({
       <Box className="flex-row flex-wrap" gap={2}>
         <Button
           label="Overview"
-          variant="outline"
+          variant="tonal"
           accessibilityLabel="Open review overview"
           onPress={() => go('briefing')}
         />
         <Button
           label="Agent summary"
-          variant="outline"
+          variant="tonal"
           accessibilityLabel="Read agent summary"
           onPress={() => {
             setPreviousSummary(review.summary);
@@ -224,7 +224,7 @@ function PublishedContent({
         <>
           <Button
             label="Return to walkthrough"
-            variant="outline"
+            variant="tonal"
             onPress={() => setPlace({ ...place, summary: false })}
           />
           <SummaryPage
@@ -237,7 +237,7 @@ function PublishedContent({
       ) : (
         <>
           {stop.kind === 'unexplained' || stop.kind === 'specs' ? (
-            <Text variant="heading">
+            <Text variant="title">
               {stopTitle(stop)}
               {progress.done(stop) ? ' · Reviewed' : ''}
             </Text>
@@ -326,13 +326,13 @@ function ReviewPage({
         <Button
           label={`Back to decision ${stop.kind === 'decision' ? stop.number : ''}`}
           accessibilityLabel={`Return to ${stopTitle(stop)}`}
-          variant="outline"
+          variant="tonal"
           onPress={() => go(stop.key)}
         />
-        <Text variant="ui" weight="medium">
+        <Text variant="secondary" weight="medium">
           {pointer.title}
         </Text>
-        <Text variant="ui" selectable>
+        <Text variant="secondary" selectable>
           {pointer.text}
         </Text>
         <ReviewPointer key={pointer.id} workspace={workspace} step={pointer} />
@@ -340,7 +340,7 @@ function ReviewPage({
         changedPaths?.includes(pointer.pointer.path) ? (
           <Button
             label="Open changed-file diff"
-            variant="outline"
+            variant="tonal"
             onPress={() => onFile(pointer.pointer.path)}
           />
         ) : null}
@@ -361,7 +361,7 @@ function ReviewPage({
             description="The agent supplied no decision explanations. The summary and available changes remain accessible."
           />
         ) : null}
-        <Text variant="subheading" tone="muted">
+        <Text variant="headline" tone="muted">
           The walkthrough
         </Text>
         {stops.slice(1).map((entry) => {
@@ -388,12 +388,14 @@ function ReviewPage({
   return (
     <>
       {stop.kind === 'unexplained' ? (
-        <Text variant="ui">
+        <Text variant="secondary">
           {notExplainedLabel(review.notExplained) ??
             'These changed files have no agent explanation.'}
         </Text>
       ) : (
-        <Text variant="ui">Spec files set apart from the decisions.</Text>
+        <Text variant="secondary">
+          Spec files set apart from the decisions.
+        </Text>
       )}
       {(stop.kind === 'unexplained' ? review.notExplained : []).map((gap) => (
         <Text key={gap.path} variant="caption">

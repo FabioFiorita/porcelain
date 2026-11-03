@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useAtomRef } from '@effect/atom-react';
 import { archiveSettings } from '@porcelain/client/projects/rules';
 import {
@@ -11,9 +11,11 @@ import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
+import { Card } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
+import { Separator } from '../../../components/ui/separator';
 import { Switch } from '../../../components/ui/switch';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
@@ -63,20 +65,20 @@ function ComputerReviewGitSettings({
       ) : null}
       {view.kind === 'unconfigured' ? (
         <Box gap={3}>
-          <Text variant="ui">
+          <Text variant="secondary">
             Every device connected to {computer} uses the same Reviews & Git
             settings. These are the ones this app used before; check the archive
             deletions below, then use them for {computer}.
           </Text>
           {untrusted ? (
-            <Text variant="ui" tone="muted">
+            <Text variant="secondary" tone="muted">
               {untrusted}
             </Text>
           ) : null}
           {untrusted ? (
             <Button
               label="Check again"
-              variant="outline"
+              variant="tonal"
               onPress={checkTrustAgain}
             />
           ) : null}
@@ -89,45 +91,51 @@ function ComputerReviewGitSettings({
         </Box>
       ) : null}
       {kept ? (
-        <Text variant="ui">{reviewGitSettingsKeptMessage(computer)}</Text>
+        <Text variant="secondary">
+          {reviewGitSettingsKeptMessage(computer)}
+        </Text>
       ) : null}
       {failure ? <ErrorState message={failure} /> : null}
       <Box gap={3}>
-        <Text variant="subheading">When archiving a review</Text>
-        {archiveSettings.map(({ key, label }) => (
+        <Text variant="headline">When archiving a review</Text>
+        <Card>
+          {archiveSettings.map(({ key, label }, index) => (
+            <Fragment key={key}>
+              {index > 0 ? <Separator inset="content" /> : null}
+              <Item
+                title={label}
+                trailing={
+                  <Switch
+                    label={label}
+                    checked={settings?.[key] ?? false}
+                    disabled={disabled}
+                    onCheckedChange={(value) => change({ [key]: value })}
+                  />
+                }
+              />
+            </Fragment>
+          ))}
+        </Card>
+      </Box>
+      <Box gap={3}>
+        <Text variant="headline">Reviews</Text>
+        <Card>
           <Item
-            key={key}
-            title={label}
-            variant="outline"
+            title="Spec files"
+            description="Group specs separately in a review on the web and desktop."
             trailing={
               <Switch
-                label={label}
-                checked={settings?.[key] ?? false}
+                label="Spec files"
+                checked={settings?.collapseSpecs ?? false}
                 disabled={disabled}
-                onCheckedChange={(value) => change({ [key]: value })}
+                onCheckedChange={(collapseSpecs) => change({ collapseSpecs })}
               />
             }
           />
-        ))}
+        </Card>
       </Box>
       <Box gap={3}>
-        <Text variant="subheading">Reviews</Text>
-        <Item
-          title="Spec files"
-          description="Group specs separately in a review on the web and desktop."
-          variant="outline"
-          trailing={
-            <Switch
-              label="Spec files"
-              checked={settings?.collapseSpecs ?? false}
-              disabled={disabled}
-              onCheckedChange={(collapseSpecs) => change({ collapseSpecs })}
-            />
-          }
-        />
-      </Box>
-      <Box gap={3}>
-        <Text variant="subheading">Git</Text>
+        <Text variant="headline">Git</Text>
         <PreferenceChoice
           label="Pull strategy"
           description={`Used when pulling changes on ${computer}.`}
@@ -169,12 +177,12 @@ export function ReviewsGitSettings() {
             />
           ) : null}
           {computers.length === 1 && computer ? (
-            <Text variant="subheading" numberOfLines={2}>
+            <Text variant="headline" numberOfLines={2}>
               Settings for {computer.remote.name}
             </Text>
           ) : null}
           {computer ? null : (
-            <Text variant="ui" tone="muted">
+            <Text variant="secondary" tone="muted">
               Pair a computer to choose its Reviews & Git settings.
             </Text>
           )}

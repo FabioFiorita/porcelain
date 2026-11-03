@@ -163,7 +163,7 @@ function ReviewNavigation({
             </Text>
             <Button
               label="Read branches again"
-              variant="outline"
+              variant="tonal"
               size="sm"
               onPress={refreshBases}
             />
@@ -206,7 +206,9 @@ function ReviewOverview({
       <Box gap={3}>
         {!AsyncResult.isSuccess(result) ? (
           <Box gap={2}>
-            <Text variant="ui">Changed-file coverage is unavailable.</Text>
+            <Text variant="secondary">
+              Changed-file coverage is unavailable.
+            </Text>
             <ReviewReadState result={result} refresh={refresh} />
           </Box>
         ) : null}
@@ -341,7 +343,7 @@ function ReviewNavigationList({
                   ? `Comments · ${comments.value.filter((thread) => !thread.resolved).length} open`
                   : 'Comments'
               }
-              variant="outline"
+              variant="tonal"
               onPress={() =>
                 router.navigate({
                   pathname: '/review-comments',

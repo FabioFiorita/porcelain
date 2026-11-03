@@ -19,7 +19,7 @@ function RemoveCredential({
     <Box gap={2}>
       <Button
         label={label}
-        variant="outline"
+        variant="tonal"
         pending={command.result.waiting}
         onPress={command.remove}
       />

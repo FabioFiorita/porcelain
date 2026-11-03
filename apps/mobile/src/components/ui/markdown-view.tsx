@@ -38,7 +38,7 @@ export function MarkdownView({
         <Button
           label={raw ? 'Show rendered' : 'Show source'}
           size="sm"
-          variant="ghost"
+          variant="plain"
           onPress={() => setRaw(!raw)}
         />
       </View>

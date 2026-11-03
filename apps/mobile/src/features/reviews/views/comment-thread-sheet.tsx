@@ -117,7 +117,7 @@ function ThreadSheet({
             >
               <Box className="flex-row items-center" gap={2}>
                 <Box className="min-w-0 flex-1" gap={1}>
-                  <Text variant="subheading">{sheetTitle(thread)}</Text>
+                  <Text variant="headline">{sheetTitle(thread)}</Text>
                   <Text variant="caption" weight="medium">
                     {threadStateLabel(thread)}
                   </Text>
@@ -125,7 +125,7 @@ function ThreadSheet({
                 <Button
                   label={resolve.label}
                   size="sm"
-                  variant="outline"
+                  variant="tonal"
                   pending={resolve.result.waiting}
                   onPress={resolve.toggle}
                 />
@@ -190,7 +190,7 @@ function ThreadSheet({
                 </Box>
                 <IconButton
                   icon="send"
-                  variant="default"
+                  variant="filled"
                   accessibilityLabel="Send reply"
                   disabled={!draft.body.trim()}
                   pending={draft.pending}
@@ -251,7 +251,7 @@ function Messages({
     return (
       <Box key={message.id} gap={1}>
         <Box className="flex-row items-baseline" gap={2}>
-          <Text variant="ui" weight="medium">
+          <Text variant="secondary" weight="medium">
             {message.author === 'agent' ? 'Agent' : 'You'}
           </Text>
           {meta ? (
@@ -260,7 +260,7 @@ function Messages({
             </Text>
           ) : null}
         </Box>
-        <Text variant="ui" selectable>
+        <Text variant="secondary" selectable>
           {decisionMentions(
             message.body,
             onDecision && message.author === 'agent' ? layers.length : 0,
@@ -272,8 +272,8 @@ function Messages({
             return layer && onDecision ? (
               <Text
                 key={index}
-                variant="link"
-                tone="primary"
+                variant="secondary"
+                tone="brand"
                 weight="medium"
                 accessibilityRole="link"
                 accessibilityLabel={`Open decision: ${layer.title}`}

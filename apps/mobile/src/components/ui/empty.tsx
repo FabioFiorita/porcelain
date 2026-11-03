@@ -21,17 +21,17 @@ export function Empty({
             <Icon name={icon} size="large" />
           </View>
         ) : null}
-        <Text variant="heading" className="text-center">
+        <Text variant="title" className="text-center">
           {title}
         </Text>
-        <Text variant="ui" tone="muted" className="text-center">
+        <Text variant="secondary" tone="muted" className="text-center">
           {description}
         </Text>
         {action ? (
           <Button
             label={action.label}
             onPress={action.onPress}
-            variant="outline"
+            variant="tonal"
           />
         ) : null}
       </View>

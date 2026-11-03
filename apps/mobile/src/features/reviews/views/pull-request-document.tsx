@@ -73,7 +73,7 @@ function ConnectedPullRequest({
   return (
     <Box className="min-w-0 flex-1" gap={2}>
       <Box padding={4} gap={2}>
-        <Text variant="heading">
+        <Text variant="title">
           #{available.number} {available.title}
         </Text>
         <Text variant="caption" tone="muted">
@@ -86,13 +86,13 @@ function ConnectedPullRequest({
         <Box className="flex-row flex-wrap" gap={2}>
           <Button
             label="Read pull request again"
-            variant="ghost"
+            variant="plain"
             pending={result.waiting}
             onPress={refresh}
           />
           <Button
             label="Open on GitHub"
-            variant="outline"
+            variant="tonal"
             onPress={() => link.open(available.url)}
           />
         </Box>

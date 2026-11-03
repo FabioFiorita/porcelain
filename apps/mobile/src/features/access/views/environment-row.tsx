@@ -50,7 +50,7 @@ export function EnvironmentRow({
             <Box className="flex-row" gap={1}>
               <IconButton
                 icon="trash"
-                variant="destructive"
+                variant="destructivePlain"
                 accessibilityLabel={`Forget ${remote.name}`}
                 disabled={disabled || adding}
                 pending={command.result.waiting}
@@ -80,7 +80,7 @@ export function EnvironmentRow({
           </Text>
         ) : null}
         {!missing && AsyncResult.isFailure(command.result) ? (
-          <Text variant="ui" tone="destructive">
+          <Text variant="secondary" tone="destructive">
             {connectionErrorMessage(Cause.squash(command.result.cause))}
           </Text>
         ) : null}
@@ -88,14 +88,14 @@ export function EnvironmentRow({
       <Box paddingX={4} paddingY={3} gap={3}>
         <ComputerUpdate environmentId={remote.environmentId} />
         <Button
-          variant="outline"
+          variant="tonal"
           label="This computer"
           accessibilityLabel={`Open This computer, ${remote.name}`}
           onPress={onOpenComputer}
           disabled={disabled || Boolean(missing)}
         />
         <Button
-          variant="ghost"
+          variant="plain"
           label={managing ? 'Hide connections' : 'Manage connections'}
           accessibilityLabel={`${managing ? 'Hide' : 'Manage'} connections for ${remote.name}`}
           onPress={() => setManaging(!managing)}

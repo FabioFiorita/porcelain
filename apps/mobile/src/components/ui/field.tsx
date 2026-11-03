@@ -14,7 +14,7 @@ export function Field({
 }) {
   return (
     <View className="gap-2">
-      <Text variant="ui" weight="medium">
+      <Text variant="secondary" weight="medium">
         {label}
       </Text>
       {children}

@@ -43,7 +43,7 @@ export function ComputerWaysIn({ environmentId }: { environmentId: string }) {
   )?.connection;
   return (
     <Box gap={3}>
-      <Text variant="subheading" tone="muted">
+      <Text variant="headline" tone="muted">
         Ways in
       </Text>
       {connection ? (
@@ -72,7 +72,7 @@ function ConnectedWaysIn({
     );
   if (AsyncResult.isFailure(result))
     return (
-      <Text accessibilityRole="alert" variant="ui" tone="destructive">
+      <Text accessibilityRole="alert" variant="secondary" tone="destructive">
         {connectionErrorMessage(Cause.squash(result.cause))}
       </Text>
     );
@@ -108,7 +108,7 @@ function WaysInEditor({
           remote.routes.lan.status.kind === 'paused' &&
           remote.localNetwork ? (
             <Button
-              variant="outline"
+              variant="tonal"
               label={`Turn on for ${networkName(remote.localNetwork)}`}
               disabled={waiting}
               onPress={() => setRemote({ lan: true })}
@@ -124,7 +124,7 @@ function WaysInEditor({
             Devices on this network can read the connection.
           </Text>
           <Button
-            variant="ghost"
+            variant="plain"
             label={networkDetails ? 'Hide details' : 'Details'}
             accessibilityLabel="Local network details"
             onPress={() => setNetworkDetails(!networkDetails)}
@@ -163,7 +163,7 @@ function WaysInEditor({
         />
       </RouteCard>
       {AsyncResult.isFailure(change) ? (
-        <Text accessibilityRole="alert" variant="ui" tone="destructive">
+        <Text accessibilityRole="alert" variant="secondary" tone="destructive">
           {connectionErrorMessage(Cause.squash(change.cause))}
         </Text>
       ) : null}
@@ -187,7 +187,7 @@ function HostnameForm(input: HostnameFormInput) {
         onChangeText={setTyped}
       />
       <Button
-        variant="outline"
+        variant="tonal"
         label={form.saveLabel}
         disabled={disabled || !form.canSave}
         onPress={() => {
@@ -197,7 +197,7 @@ function HostnameForm(input: HostnameFormInput) {
       />
       {form.failed ? (
         <Button
-          variant="outline"
+          variant="tonal"
           label="Check again"
           disabled={disabled}
           onPress={() => onChange(form.check)}
@@ -228,7 +228,7 @@ function RouteCard({
     <Card gap={2} padding={4}>
       <Box className="flex-row items-center justify-between" gap={3}>
         <Box className="min-w-0 flex-1" gap={1}>
-          <Text variant="ui" weight="medium">
+          <Text variant="secondary" weight="medium">
             {title}
           </Text>
           <Text variant="caption" tone="muted">

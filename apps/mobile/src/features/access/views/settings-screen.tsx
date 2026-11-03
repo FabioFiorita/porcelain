@@ -11,7 +11,7 @@ import {
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
 import { Icon } from '../../../components/ui/icon';
-import { IconTile } from '../../../components/ui/icon-tile';
+import { StatusTile } from '../../../components/ui/status-tile';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
@@ -61,17 +61,17 @@ export function SettingsScreen({
             title="General"
             description={generalSettingsSummary(preferences)}
             accessibilityLabel={`General, ${generalSettingsSummary(preferences)}`}
-            leading={<IconTile name="sliders" />}
+            leading={<StatusTile name="sliders" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenGeneral}
           />
-          <Separator />
+          <Separator inset="leading" />
           <Item
             testID="settings-reviews-git"
             title="Reviews & Git"
             description={REVIEWS_GIT_SETTINGS_SUMMARY}
             accessibilityLabel={`Reviews & Git, ${REVIEWS_GIT_SETTINGS_SUMMARY}`}
-            leading={<IconTile name="checklist" />}
+            leading={<StatusTile name="checklist" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenReviewsGit}
           />
@@ -84,7 +84,7 @@ export function SettingsScreen({
               accessibilityLabel={['Computers', paired, computers.updates]
                 .filter(Boolean)
                 .join(', ')}
-              leading={<IconTile name="environments" />}
+              leading={<StatusTile name="environments" tone="muted" />}
               trailing={<Icon name="chevron" tone="muted" />}
               onPress={onOpenComputers}
             >

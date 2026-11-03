@@ -4,6 +4,7 @@ import type {
   ReviewInboxRow,
   ReviewInboxStatus,
 } from '@porcelain/client/projects/rules';
+import { Fragment } from 'react';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -12,6 +13,7 @@ import { Icon, type IconName } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
+import { Separator } from '../../../components/ui/separator';
 import { StatusTile } from '../../../components/ui/status-tile';
 import { remoteConnectionState } from '../../../shared/application/store';
 import {
@@ -65,40 +67,46 @@ export function ReviewInbox() {
         environmentId: entry.environmentId,
       });
   };
-  const rowItem = (row: ReviewInboxRow, withProject: boolean) => {
+  const rowItem = (
+    row: ReviewInboxRow,
+    withProject: boolean,
+    index: number,
+  ) => {
     const pull =
       row.review.pullRequestNumber === undefined
         ? undefined
         : `PR #${row.review.pullRequestNumber}`;
     return (
-      <Item
-        key={row.key}
-        title={row.entry.detached ? row.entry.name : row.entry.branch}
-        titleNumberOfLines={1}
-        description={[
-          withProject ? row.entry.projectName : undefined,
-          row.label,
-          pull,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-        descriptionNumberOfLines={1}
-        leading={<StatusTile {...statusTiles[row.status]} />}
-        trailing={<Icon name="chevron" tone="muted" />}
-        disabled={picker.disabled}
-        accessibilityLabel={[
-          row.entry.branch,
-          row.entry.projectName,
-          row.entry.environmentName,
-          row.status === 'needs-you' ? 'Needs you' : undefined,
-          row.label,
-          pull,
-        ]
-          .filter(Boolean)
-          .join(', ')}
-        testID={`review-inbox-${row.review.reviewId}`}
-        onPress={() => open(row)}
-      />
+      <Fragment key={row.key}>
+        {index > 0 ? <Separator inset="leading" /> : null}
+        <Item
+          title={row.entry.detached ? row.entry.name : row.entry.branch}
+          titleNumberOfLines={1}
+          description={[
+            withProject ? row.entry.projectName : undefined,
+            row.label,
+            pull,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          descriptionNumberOfLines={1}
+          leading={<StatusTile {...statusTiles[row.status]} />}
+          trailing={<Icon name="chevron" tone="muted" />}
+          disabled={picker.disabled}
+          accessibilityLabel={[
+            row.entry.branch,
+            row.entry.projectName,
+            row.entry.environmentName,
+            row.status === 'needs-you' ? 'Needs you' : undefined,
+            row.label,
+            pull,
+          ]
+            .filter(Boolean)
+            .join(', ')}
+          testID={`review-inbox-${row.review.reviewId}`}
+          onPress={() => open(row)}
+        />
+      </Fragment>
     );
   };
   if (storage.error)
@@ -134,15 +142,15 @@ export function ReviewInbox() {
       testID="review-inbox"
       accessibilityLabel="Reviews by project"
     >
-      <Box gap={4} padding={2}>
+      <Box gap={4} paddingY={2}>
         {inbox.needsYou.length > 0 ? (
-          <Box gap={1}>
+          <Box>
             <GroupHeader label="Needs you" count={inbox.needsYou.length} />
-            {inbox.needsYou.map((row) => rowItem(row, true))}
+            {inbox.needsYou.map((row, index) => rowItem(row, true, index))}
           </Box>
         ) : null}
         {inbox.projects.map((project) => (
-          <Box key={project.key} gap={1}>
+          <Box key={project.key}>
             <GroupHeader
               label={
                 paired.length > 1
@@ -150,7 +158,7 @@ export function ReviewInbox() {
                   : project.name
               }
             />
-            {project.rows.map((row) => rowItem(row, false))}
+            {project.rows.map((row, index) => rowItem(row, false, index))}
           </Box>
         ))}
         {empty && pending ? <Loading label="Reading reviews…" /> : null}

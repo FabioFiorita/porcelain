@@ -117,7 +117,7 @@ function ReviewEnvironment({
         contentInsetAdjustmentBehavior="automatic"
       >
         <Box gap={4}>
-          <Text variant="heading">Pair this computer to open the review</Text>
+          <Text variant="title">Pair this computer to open the review</Text>
           <Text>
             This environment is not paired. Pair {destination.host}; your review
             and decision will stay here.
@@ -326,7 +326,7 @@ function LinkedReviewContent({
             {stop.kind === 'briefing' ? (
               <>
                 <Text
-                  variant="heading"
+                  variant="title"
                   numberOfLines={3}
                   accessibilityLabel={revision.verdict.asked.text}
                 >
@@ -338,7 +338,7 @@ function LinkedReviewContent({
                   review={revision.content}
                   go={go}
                 />
-                <Text variant="subheading" tone="muted">
+                <Text variant="headline" tone="muted">
                   The walkthrough
                 </Text>
                 {revision.content.layers.length === 0 ? (
@@ -362,7 +362,7 @@ function LinkedReviewContent({
               <>
                 <Button
                   label="All decisions"
-                  variant="outline"
+                  variant="tonal"
                   onPress={() => go('briefing')}
                 />
                 {selected ? (
@@ -373,7 +373,7 @@ function LinkedReviewContent({
                   />
                 ) : (
                   <Box gap={2}>
-                    <Text variant="heading">{stopTitle(stop)}</Text>
+                    <Text variant="title">{stopTitle(stop)}</Text>
                     {stop.paths.map((path) => (
                       <Text key={path} variant="code" selectable>
                         {path}
@@ -413,11 +413,11 @@ function Decision({
   return (
     <View ref={(view) => navigation.decision(view)} collapsable={false}>
       <Box gap={4}>
-        <Text variant="heading">{layer.title}</Text>
+        <Text variant="title">{layer.title}</Text>
         <Text selectable>{layer.summary}</Text>
         {layer.steps.map((step, index) => (
           <Box key={step.id} gap={3}>
-            <Text variant="subheading">
+            <Text variant="headline">
               {index + 1}. {step.title}
             </Text>
             <Text selectable>{step.text}</Text>

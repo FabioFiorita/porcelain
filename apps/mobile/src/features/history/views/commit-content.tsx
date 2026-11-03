@@ -72,11 +72,11 @@ function CommitContentView({
             }
             ListHeaderComponent={
               <Box gap={3} divider="bottom" padding={4}>
-                <Text variant="heading" selectable>
+                <Text variant="title" selectable>
                   {value.commit.subject}
                 </Text>
                 {value.commit.body ? (
-                  <Text variant="ui" tone="muted" selectable>
+                  <Text variant="secondary" tone="muted" selectable>
                     {value.commit.body}
                   </Text>
                 ) : null}
@@ -123,7 +123,7 @@ function CommitContentView({
                   ))}
                 </Box>
                 <Text
-                  variant="ui"
+                  variant="secondary"
                   weight="medium"
                 >{`${value.files.length} file${value.files.length === 1 ? '' : 's'} changed`}</Text>
                 {commit.result.waiting ? (

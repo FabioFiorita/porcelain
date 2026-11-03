@@ -67,23 +67,6 @@ const config: ExpoConfig = {
         android: {
           fonts: [
             {
-              fontFamily: 'Geist',
-              fontDefinitions: [
-                {
-                  path: 'node_modules/@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf',
-                  weight: 400,
-                },
-                {
-                  path: 'node_modules/@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf',
-                  weight: 500,
-                },
-                {
-                  path: 'node_modules/@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf',
-                  weight: 600,
-                },
-              ],
-            },
-            {
               fontFamily: 'Geist Mono',
               fontDefinitions: [
                 {
@@ -100,9 +83,6 @@ const config: ExpoConfig = {
         },
         ios: {
           fonts: [
-            'node_modules/@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf',
-            'node_modules/@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf',
-            'node_modules/@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf',
             'node_modules/@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf',
             'node_modules/@expo-google-fonts/geist-mono/500Medium/GeistMono_500Medium.ttf',
           ],

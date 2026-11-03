@@ -72,7 +72,7 @@ function NavigatorMenu({
     <NativeDropdownMenu actions={actions}>
       {(open) =>
         label ? (
-          <Button label={label} variant="outline" size="sm" onPress={open} />
+          <Button label={label} variant="tonal" size="sm" onPress={open} />
         ) : (
           <IconButton
             icon="filter"

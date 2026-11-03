@@ -44,7 +44,7 @@ export function QrScanner(props: QrScannerProps) {
         <View className="flex-row justify-end p-4" pointerEvents="box-none">
           <IconButton
             icon="close"
-            variant={scanning ? 'secondary' : 'ghost'}
+            variant={scanning ? 'filled' : 'plain'}
             accessibilityLabel="Close"
             onPress={props.onClose}
           />
@@ -52,14 +52,14 @@ export function QrScanner(props: QrScannerProps) {
         <View className="flex-1 justify-end" pointerEvents="box-none">
           {scanning ? (
             <View className="m-4 gap-2 self-center rounded-xl bg-background/90 px-4 py-3">
-              <Text variant="ui" className="text-center">
+              <Text variant="secondary" className="text-center">
                 {props.hint}
               </Text>
               {props.message === undefined ? null : (
                 <Text
                   accessibilityRole="alert"
                   accessibilityLiveRegion="polite"
-                  variant="ui"
+                  variant="secondary"
                   tone="destructive"
                   className="text-center"
                 >

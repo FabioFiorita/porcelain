@@ -43,14 +43,14 @@ export function ReviewPointer({
         {step.pointer.path} · lines {range.startLine}–{range.endLine}
       </Text>
       {step.location.state === 'changed' ? (
-        <Text variant="ui">
+        <Text variant="secondary">
           Code changed since publication. This is the current file near the
           original range, not the original snippet.
         </Text>
       ) : null}
       <Button
         label={whole ? 'Show relevant range' : 'Show whole file'}
-        variant="outline"
+        variant="tonal"
         onPress={() => setWhole(!whole)}
       />
       <Box className="h-96">

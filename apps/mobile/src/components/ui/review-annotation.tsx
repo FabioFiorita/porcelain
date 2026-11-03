@@ -29,7 +29,7 @@ export function ReviewAnnotation({
   return (
     <Card gap={3} padding={4}>
       <View className="flex-row items-center justify-between gap-3">
-        <Text variant="ui" weight="medium">
+        <Text variant="secondary" weight="medium">
           {author === 'agent' ? 'Agent' : 'You'}
         </Text>
         <Badge label={resolved ? 'Resolved' : 'Pending'} variant="secondary" />
@@ -39,16 +39,11 @@ export function ReviewAnnotation({
           {label}
         </Text>
       ) : null}
-      <Text variant="ui" selectable>
+      <Text variant="secondary" selectable>
         {body}
       </Text>
       {onResolve && !resolved ? (
-        <Button
-          label="Resolve"
-          size="sm"
-          variant="outline"
-          onPress={onResolve}
-        />
+        <Button label="Resolve" size="sm" variant="tonal" onPress={onResolve} />
       ) : null}
     </Card>
   );

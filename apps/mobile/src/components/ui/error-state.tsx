@@ -10,13 +10,13 @@ export function ErrorState({
 }) {
   return (
     <View className="gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
-      <Text accessibilityRole="alert" variant="ui" tone="destructive">
+      <Text accessibilityRole="alert" variant="secondary" tone="destructive">
         {message}
       </Text>
       {retry ? (
         <Button
           label={retry.label}
-          variant="outline"
+          variant="tonal"
           onPress={retry.onPress}
           pending={retry.pending ?? false}
         />

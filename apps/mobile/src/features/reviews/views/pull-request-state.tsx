@@ -54,7 +54,7 @@ export function PullRequestState({
       <Text variant="caption" tone="muted">
         Pull request
       </Text>
-      <Text variant="ui" weight="medium">
+      <Text variant="secondary" weight="medium">
         {available ? `#${available.number} ${available.title}` : url}
       </Text>
       {available && (
@@ -95,14 +95,14 @@ export function PullRequestState({
       {available && (
         <Button
           label="Read pull request again"
-          variant="ghost"
+          variant="plain"
           pending={result.waiting}
           onPress={refresh}
         />
       )}
       <Button
         label="Open pull request"
-        variant="outline"
+        variant="tonal"
         disabled={number === undefined}
         onPress={() => {
           if (number !== undefined)
@@ -116,7 +116,7 @@ export function PullRequestState({
       />
       <Button
         label="Unlink pull request"
-        variant="outline"
+        variant="tonal"
         pending={mutation.waiting}
         onPress={() => setPullRequest({ pullRequest: undefined })}
       />

@@ -43,7 +43,7 @@ export function WalkthroughProgress({
   );
   return (
     <Box gap={2}>
-      <Text variant="ui" accessibilityRole="text">
+      <Text variant="secondary" accessibilityRole="text">
         {progress.settled
           ? `${decisions.filter(progress.done).length} of ${decisions.length} decisions reviewed · ${files.reviewed} of ${files.total} files reviewed`
           : 'Review progress is unavailable.'}
@@ -132,7 +132,7 @@ export function CompletionNotice({
 }) {
   return notice ? (
     <Text
-      variant="ui"
+      variant="secondary"
       tone={notice.type === 'error' ? 'destructive' : 'default'}
       accessibilityRole={notice.type === 'error' ? 'alert' : undefined}
       accessibilityLiveRegion="polite"

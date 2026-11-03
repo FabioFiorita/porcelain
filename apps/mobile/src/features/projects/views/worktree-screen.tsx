@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
 import { Icon } from '../../../components/ui/icon';
-import { IconTile } from '../../../components/ui/icon-tile';
+import { StatusTile } from '../../../components/ui/status-tile';
 import { Item } from '../../../components/ui/item';
 import { Screen } from '../../../components/ui/screen';
 import { Separator } from '../../../components/ui/separator';
@@ -65,36 +65,36 @@ export function WorktreeScreen() {
             testID="worktree-review"
             title="Review"
             description={params.review || 'No published review'}
-            leading={<IconTile name="checklist" />}
+            leading={<StatusTile name="checklist" tone="muted" />}
             trailing={chevron}
             disabled={picker.disabled}
             onPress={() => openInWorktree('/review')}
           />
-          <Separator />
+          <Separator inset="leading" />
           <Item
             testID="worktree-files"
             title="Files"
-            leading={<IconTile name="files" />}
+            leading={<StatusTile name="files" tone="muted" />}
             trailing={chevron}
             disabled={picker.disabled}
             onPress={() => openInWorktree('/files')}
           />
-          <Separator />
+          <Separator inset="leading" />
           <Item
             testID="worktree-history"
             title="History"
-            leading={<IconTile name="history" />}
+            leading={<StatusTile name="history" tone="muted" />}
             trailing={chevron}
             disabled={picker.disabled}
             onPress={() => openInWorktree('/history')}
           />
           {pullRequest ? (
             <>
-              <Separator />
+              <Separator inset="leading" />
               <Item
                 testID="worktree-pull-request"
                 title={`Pull request #${number}`}
-                leading={<IconTile name="review" />}
+                leading={<StatusTile name="review" tone="muted" />}
                 trailing={chevron}
                 onPress={() => openPullRequest(pullRequest)}
               />

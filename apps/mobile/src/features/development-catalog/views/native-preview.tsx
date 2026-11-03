@@ -23,7 +23,7 @@ export default function NativePreview({ name }: { name: string }) {
     <SafeAreaView edges={{ bottom: true }} style={{ flex: 1 }}>
       <Box className="flex-1" surface="background">
         <Box gap={2} paddingX={4} paddingY={3}>
-          <Text variant="heading">{name}</Text>
+          <Text variant="title">{name}</Text>
           {name === 'CodeView' || name === 'DiffView' ? (
             <>
               <Text variant="caption">
@@ -36,14 +36,14 @@ export default function NativePreview({ name }: { name: string }) {
                 {range ? (
                   <Button
                     label="Clear selection"
-                    variant="outline"
+                    variant="tonal"
                     size="sm"
                     onPress={() => setRange(undefined)}
                   />
                 ) : null}
                 <Button
                   label={wrap ? 'Horizontal scroll' : 'Wrap lines'}
-                  variant="outline"
+                  variant="tonal"
                   size="sm"
                   onPress={() => setWrap(!wrap)}
                 />
@@ -52,7 +52,7 @@ export default function NativePreview({ name }: { name: string }) {
                     <Button
                       label={languageLabel(language)}
                       size="sm"
-                      variant="outline"
+                      variant="tonal"
                       onPress={() => {
                         setRange(undefined);
                         setLarge(false);
@@ -61,7 +61,7 @@ export default function NativePreview({ name }: { name: string }) {
                     />
                     <Button
                       label={large ? 'Small file' : 'Large file'}
-                      variant="outline"
+                      variant="tonal"
                       size="sm"
                       onPress={() => {
                         setRange(undefined);
@@ -79,7 +79,7 @@ export default function NativePreview({ name }: { name: string }) {
           {name === 'ImageView' ? (
             <Button
               label={brokenImage ? 'Valid image' : 'Invalid image'}
-              variant="outline"
+              variant="tonal"
               size="sm"
               onPress={() => setBrokenImage(!brokenImage)}
             />

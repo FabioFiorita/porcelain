@@ -14,7 +14,7 @@ export function CommitParentMenu({
         <Button
           key={oid}
           label={`Parent ${index + 1} · ${shortOid(oid)}`}
-          variant={parent === index + 1 ? 'default' : 'outline'}
+          variant={parent === index + 1 ? 'filled' : 'tonal'}
           onPress={() => onSelect(index + 1)}
         />
       ))}

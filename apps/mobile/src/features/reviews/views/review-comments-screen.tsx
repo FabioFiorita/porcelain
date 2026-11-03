@@ -225,7 +225,7 @@ export function CommentThreads({
         {anchor && (!target || replyTarget !== undefined) ? (
           <Button
             label={newCommentLabel(anchor, path, comparison)}
-            variant="outline"
+            variant="tonal"
             onPress={() => open({ ...review, anchor })}
           />
         ) : null}
@@ -372,7 +372,7 @@ function CommentThreadView({
         <Button
           label={resolve.label}
           size="sm"
-          variant="outline"
+          variant="tonal"
           pending={resolve.result.waiting}
           onPress={resolve.toggle}
         />
@@ -380,7 +380,7 @@ function CommentThreadView({
           <Button
             label="Reply"
             size="sm"
-            variant="ghost"
+            variant="plain"
             disabled={replying}
             onPress={onReply}
           />

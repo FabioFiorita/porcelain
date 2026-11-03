@@ -34,7 +34,7 @@ export function ComputerScreen({
         </Text>
         <ComputerWaysIn environmentId={remote.environmentId} />
         <Box gap={3}>
-          <Text variant="subheading" tone="muted">
+          <Text variant="headline" tone="muted">
             Devices
           </Text>
           <Card>
@@ -45,7 +45,7 @@ export function ComputerScreen({
           </Card>
         </Box>
         <Box gap={3}>
-          <Text variant="subheading" tone="muted">
+          <Text variant="headline" tone="muted">
             Pair a device
           </Text>
           <Card>

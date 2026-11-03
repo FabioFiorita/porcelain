@@ -3,7 +3,7 @@ import { Text } from './text';
 export function HeaderTitle({ children }: { children: string }) {
   return (
     <Text
-      variant="heading"
+      variant="title"
       weight="medium"
       numberOfLines={1}
       className="translate-y-px"

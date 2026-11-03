@@ -45,7 +45,7 @@ export function ReviewBriefing({
     />
   ) : (
     <Box gap={4}>
-      <Text variant="ui" tone="muted">
+      <Text variant="secondary" tone="muted">
         This saved review has no published verdict.
       </Text>
       <BriefingQuestions review={review} go={go} />
@@ -78,22 +78,22 @@ export function BriefingVerdict({
         gap={2}
       >
         <Box className="flex-row items-center justify-between" gap={2}>
-          <Text variant="heading">{sections.recommendation.label}</Text>
+          <Text variant="title">{sections.recommendation.label}</Text>
           <Text variant="caption" tone="muted">
             Recommendation
           </Text>
         </Box>
         {sections.recommendation.reasons.map((reason, index) => (
-          <Text key={index} variant="ui" selectable>
+          <Text key={index} variant="secondary" selectable>
             • {reason}
           </Text>
         ))}
       </Card>
       <Box gap={2}>
-        <Text variant="subheading" tone="muted">
+        <Text variant="headline" tone="muted">
           You asked
         </Text>
-        <Text variant="ui" selectable>
+        <Text variant="secondary" selectable>
           {sections.asked.text}
         </Text>
         {sections.asked.links.map((entry, index) =>
@@ -102,11 +102,11 @@ export function BriefingVerdict({
               key={`${index}:${entry.url}`}
               label={entry.title}
               accessibilityLabel={`Open brief: ${entry.title}`}
-              variant="link"
+              variant="plain"
               onPress={() => link.open(entry.url)}
             />
           ) : (
-            <Text key={index} variant="ui">
+            <Text key={index} variant="secondary">
               {entry.title}
             </Text>
           ),
@@ -114,13 +114,13 @@ export function BriefingVerdict({
       </Box>
       <BriefingQuestions review={review} go={go} />
       <Card padding={4} gap={3}>
-        <Text variant="subheading">Proven at {sections.proven.shortHead}</Text>
+        <Text variant="headline">Proven at {sections.proven.shortHead}</Text>
         {!review.proof.current ? (
-          <Text variant="ui">Checks ran before the latest changes.</Text>
+          <Text variant="secondary">Checks ran before the latest changes.</Text>
         ) : null}
         {sections.proven.checks.length === 0 &&
         sections.proven.assets.length === 0 ? (
-          <Text variant="ui" tone="muted">
+          <Text variant="secondary" tone="muted">
             No proof was published.
           </Text>
         ) : null}
@@ -137,7 +137,7 @@ export function BriefingVerdict({
       <BriefingOwners review={review} go={go} />
       {sections.removed.fileCount > 0 ? (
         <Card padding={4} gap={3}>
-          <Text variant="subheading">
+          <Text variant="headline">
             Removed · {sections.removed.fileCount}{' '}
             {sections.removed.fileCount === 1 ? 'file' : 'files'}
           </Text>
@@ -145,10 +145,10 @@ export function BriefingVerdict({
             .filter((entry) => entry.paths.length > 0)
             .map((entry, index) => (
               <Box key={index} gap={1}>
-                <Text variant="ui" weight="medium">
+                <Text variant="secondary" weight="medium">
                   {entry.behavior}
                 </Text>
-                <Text variant="ui" selectable>
+                <Text variant="secondary" selectable>
                   {entry.why}
                 </Text>
                 {entry.paths.map((path) => (
@@ -166,20 +166,20 @@ export function BriefingVerdict({
         </Card>
       ) : null}
       <Box gap={2}>
-        <Text variant="subheading" tone="muted">
+        <Text variant="headline" tone="muted">
           Not proven
         </Text>
         {sections.notProven.length === 0 ? (
-          <Text variant="ui" tone="muted">
+          <Text variant="secondary" tone="muted">
             No proof gaps were reported.
           </Text>
         ) : (
           sections.notProven.map((entry, index) => (
             <Box key={index} gap={1}>
-              <Text variant="ui" weight="medium">
+              <Text variant="secondary" weight="medium">
                 {entry.what}
               </Text>
-              <Text variant="ui" selectable>
+              <Text variant="secondary" selectable>
                 {entry.why}
               </Text>
             </Box>
@@ -196,8 +196,8 @@ function BriefingQuestions({
 }: { review: ReviewResponse } & Navigation) {
   return systemChanges(review).questions.map((part) => (
     <Card key={part.id} padding={4} gap={2}>
-      <Text variant="subheading">Needs your decision</Text>
-      <Text variant="ui" selectable>
+      <Text variant="headline">Needs your decision</Text>
+      <Text variant="secondary" selectable>
         {part.problem}
       </Text>
       <PartRow part={part} label={part.label} go={go} review={review} />
@@ -214,7 +214,7 @@ function BriefingOwners({
     return null;
   return (
     <Box gap={2}>
-      <Text variant="subheading" tone="muted">
+      <Text variant="headline" tone="muted">
         What this adds to the system
       </Text>
       {(['added', 'changed', 'removed'] as const).flatMap((kind) =>

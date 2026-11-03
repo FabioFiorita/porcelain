@@ -53,7 +53,7 @@ export function PairEnvironmentFields({
         <Button
           testID="scan-pairing-link"
           label="Scan QR code"
-          variant="outline"
+          variant="tonal"
           disabled={unavailable}
           onPress={() => {
             pair.reset();
@@ -63,7 +63,7 @@ export function PairEnvironmentFields({
         />
       ) : null}
       {layout === 'inline' ? (
-        <Text variant="heading">
+        <Text variant="title">
           {environmentId ? 'Add a connection' : 'Pair a computer'}
         </Text>
       ) : null}
@@ -110,7 +110,7 @@ export function PairEnvironmentFields({
         />
       ) : null}
       {AsyncResult.isFailure(pair.result) ? (
-        <Text accessibilityRole="alert" variant="ui" tone="destructive">
+        <Text accessibilityRole="alert" variant="secondary" tone="destructive">
           {connectionErrorMessage(Cause.squash(pair.result.cause))}
         </Text>
       ) : null}
@@ -125,7 +125,7 @@ export function PairEnvironmentFields({
         <Button
           testID="cancel-pairing"
           label="Cancel"
-          variant="ghost"
+          variant="plain"
           onPress={onClose}
         />
       ) : null}

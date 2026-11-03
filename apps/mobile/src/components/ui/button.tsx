@@ -6,7 +6,8 @@ import {
 import { Text } from './text';
 export function Button({
   label,
-  variant = 'default',
+  variant = 'filled',
+  size = 'default',
   accessibilityLabel = label,
   ...props
 }: Omit<ButtonSurfaceProps, 'children' | 'accessibilityLabel' | 'size'> & {
@@ -18,12 +19,13 @@ export function Button({
     <ButtonSurface
       {...props}
       variant={variant}
+      size={size}
       accessibilityLabel={accessibilityLabel}
     >
       <Text
         accessible={false}
-        variant={variant === 'link' ? 'controlLink' : 'control'}
-        weight="medium"
+        variant={size === 'sm' ? 'secondary' : 'body'}
+        weight={size === 'sm' ? 'medium' : 'semibold'}
         tone={buttonTones[variant]}
         className="shrink text-center"
       >
