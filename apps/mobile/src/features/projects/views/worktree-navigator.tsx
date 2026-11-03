@@ -8,7 +8,7 @@ import {
 } from '@porcelain/client/access/rules';
 import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigator,
@@ -39,8 +39,10 @@ import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
-import { requestDocumentLeave, useWorktreeNavigator } from '../store';
+import { useWorktreeNavigator } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
+import { useOpenPublishedReview } from './open-published-review';
+import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
 import {
@@ -81,8 +83,8 @@ export function WorktreeNavigator({
   const clipboard = useCopyPath();
   const [action, setAction] = useState<WorktreeActionRequest>();
   const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
-  const router = useRouter();
   const openPullRequest = useOpenPullRequest();
+  const openPublishedReview = useOpenPublishedReview();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -121,21 +123,10 @@ export function WorktreeNavigator({
         () => onOpenWorktree(entry),
       );
     } else if (entry.review.state === 'available') {
-      const remote = remotes.find(
-        (candidate) => candidate.remote.environmentId === entry.environmentId,
-      );
-      if (!remote) return;
-      requestDocumentLeave(() =>
-        router.push({
-          pathname: '/reviews/[reviewId]',
-          params: {
-            reviewId:
-              entry.review.state === 'available' ? entry.review.reviewId : '',
-            environment: entry.environmentId,
-            host: new URL(remote.remote.address).host,
-          },
-        }),
-      );
+      openPublishedReview({
+        reviewId: entry.review.reviewId,
+        environmentId: entry.environmentId,
+      });
     }
   };
   if (storage.status === 'ready' && paired.length === 0)
@@ -158,16 +149,12 @@ export function WorktreeNavigator({
     );
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
-      <Stack.Screen
-        options={{
-          headerSearchBarOptions: {
-            placeholder: 'Search reviews and worktrees',
-            autoCapitalize: 'none',
-            hideWhenScrolling: false,
-            onChangeText: (event) => setQuery(event.nativeEvent.text),
-            onCancelButtonPress: () => setQuery(''),
-          },
-        }}
+      <Stack.SearchBar
+        placeholder="Search reviews and worktrees"
+        autoCapitalize="none"
+        hideWhenScrolling={false}
+        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onCancelButtonPress={() => setQuery('')}
       />
       <ScrollView
         className="flex-1"
@@ -402,21 +389,12 @@ export function WorktreeNavigator({
             description="Try another search or clear the filters."
           />
         ) : null}
-        {[...new Set([...picker.messages, ...messages])].map((message) => (
-          <Text key={message} variant="caption" tone="muted">
-            {message}
-          </Text>
-        ))}
-        {picker.error ? (
-          <ErrorState
-            message={picker.error}
-            retry={{
-              label: 'Read again',
-              onPress: picker.onRead,
-              pending: reading,
-            }}
-          />
-        ) : null}
+        <PickerNotices
+          messages={[...new Set([...picker.messages, ...messages])]}
+          error={picker.error}
+          onRead={picker.onRead}
+          reading={reading}
+        />
         {picker.canReadInventory || messages.length > 0 ? (
           <Button
             label="Read projects again"

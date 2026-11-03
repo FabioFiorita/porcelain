@@ -99,7 +99,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
     }))
     .sort(navigatorWorktreeOrder);
 }
-const readNavigatorProject = Atom.family(
+const readProjectReviewEntries = Atom.family(
   (input: {
     connection: RuntimeConnection;
     projectId: string;
@@ -113,8 +113,7 @@ const readNavigatorProject = Atom.family(
       const savedProject = inventory?.projects.find(
         (project) => project.id === input.projectId,
       );
-      if (!inventory || !savedProject)
-        return { entries: [], messages: [], statusFailures: [] };
+      if (!inventory || !savedProject) return { entries: [], messages: [] };
       const project: Project = AsyncResult.isFailure(inventoryResult)
         ? { ...savedProject, available: false }
         : savedProject;
@@ -128,7 +127,6 @@ const readNavigatorProject = Atom.family(
       );
       const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
       const messages: string[] = [];
-      const statusFailures: StatusFailure[] = [];
       const active = (records ?? []).filter(
         (record) => record.state === 'open' && !record.archived,
       );
@@ -175,39 +173,6 @@ const readNavigatorProject = Atom.family(
       }
       const associated = new Set<string>();
       for (const entry of entries) {
-        if (entry.available && entry.worktreeId) {
-          const status = get(
-            readGitStatus({
-              connection: input.connection,
-              scope: {
-                projectId: entry.projectId,
-                worktreeId: entry.worktreeId,
-              },
-            }),
-          );
-          const answer = Option.getOrUndefined(AsyncResult.value(status));
-          if (AsyncResult.isFailure(status))
-            statusFailures.push({
-              entry,
-              detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
-                ?.message,
-            });
-          entry.changes = AsyncResult.isFailure(status)
-            ? { state: 'unavailable' }
-            : answer
-              ? {
-                  state: 'available',
-                  count: new Set(
-                    answer.changes.map((change) =>
-                      change.scope === 'untracked' ||
-                      change.scope === 'unmerged'
-                        ? change.path
-                        : (change.newPath ?? change.oldPath),
-                    ),
-                  ).size,
-                }
-              : { state: 'loading' };
-        }
         if (AsyncResult.isFailure(recordsResult)) {
           entry.review = { state: 'unavailable' };
           continue;
@@ -281,7 +246,57 @@ const readNavigatorProject = Atom.family(
           });
         }
       }
-      return { entries, messages, statusFailures };
+      return { entries, messages };
+    }).pipe(Atom.setIdleTTL(0)),
+);
+
+const readNavigatorProject = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    projectId: string;
+    older: boolean;
+  }) =>
+    Atom.readable((get) => {
+      const reviewed = get(readProjectReviewEntries(input));
+      const statusFailures: StatusFailure[] = [];
+      const entries = reviewed.entries.map((source) => {
+        const entry: NavigatorEntry = { ...source };
+        if (entry.available && entry.worktreeId) {
+          const status = get(
+            readGitStatus({
+              connection: input.connection,
+              scope: {
+                projectId: entry.projectId,
+                worktreeId: entry.worktreeId,
+              },
+            }),
+          );
+          const answer = Option.getOrUndefined(AsyncResult.value(status));
+          if (AsyncResult.isFailure(status))
+            statusFailures.push({
+              entry,
+              detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
+                ?.message,
+            });
+          entry.changes = AsyncResult.isFailure(status)
+            ? { state: 'unavailable' }
+            : answer
+              ? {
+                  state: 'available',
+                  count: new Set(
+                    answer.changes.map((change) =>
+                      change.scope === 'untracked' ||
+                      change.scope === 'unmerged'
+                        ? change.path
+                        : (change.newPath ?? change.oldPath),
+                    ),
+                  ).size,
+                }
+              : { state: 'loading' };
+        }
+        return entry;
+      });
+      return { entries, messages: reviewed.messages, statusFailures };
     }).pipe(Atom.setIdleTTL(0)),
 );
 function connectionInventories(
@@ -514,7 +529,7 @@ export const readReviewInbox = Atom.family(
       for (const { connection, inventory } of inventories.reads) {
         for (const project of inventory?.projects ?? []) {
           const answer = get(
-            readNavigatorProject({
+            readProjectReviewEntries({
               connection,
               projectId: project.id,
               older: false,

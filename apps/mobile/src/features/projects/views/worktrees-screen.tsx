@@ -16,6 +16,7 @@ export function WorktreesScreen() {
             computer: entry.environmentName,
             environment: entry.environmentId,
             projectId: entry.projectId,
+            worktreeId: entry.worktreeId ?? '',
             review: row.review,
             ...(entry.review.state === 'available'
               ? {

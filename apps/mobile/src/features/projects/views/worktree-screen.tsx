@@ -8,6 +8,7 @@ import { Screen } from '../../../components/ui/screen';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { useOpenPullRequest } from './open-pull-request';
+import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreeScreen() {
   const router = useRouter();
@@ -18,10 +19,21 @@ export function WorktreeScreen() {
     computer?: string;
     environment?: string;
     projectId?: string;
+    worktreeId?: string;
     review?: string;
     reviewId?: string;
     number?: string;
   }>();
+  const { picker } = useWorkspacePickerModel();
+  const openInWorktree = (pathname: '/review' | '/files' | '/history') => {
+    if (params.environment && params.projectId && params.worktreeId)
+      picker.onWorktree(
+        params.environment,
+        params.projectId,
+        params.worktreeId,
+        () => router.push(pathname),
+      );
+  };
   const number = Number(params.number);
   const pullRequest =
     params.reviewId &&
@@ -51,7 +63,8 @@ export function WorktreeScreen() {
             description={params.review || 'No published review'}
             leading={<IconTile name="checklist" />}
             trailing={chevron}
-            onPress={() => router.push('/review')}
+            disabled={picker.disabled}
+            onPress={() => openInWorktree('/review')}
           />
           <Separator />
           <Item
@@ -59,7 +72,8 @@ export function WorktreeScreen() {
             title="Files"
             leading={<IconTile name="files" />}
             trailing={chevron}
-            onPress={() => router.push('/files')}
+            disabled={picker.disabled}
+            onPress={() => openInWorktree('/files')}
           />
           <Separator />
           <Item
@@ -67,7 +81,8 @@ export function WorktreeScreen() {
             title="History"
             leading={<IconTile name="history" />}
             trailing={chevron}
-            onPress={() => router.push('/history')}
+            disabled={picker.disabled}
+            onPress={() => openInWorktree('/history')}
           />
           {pullRequest ? (
             <>

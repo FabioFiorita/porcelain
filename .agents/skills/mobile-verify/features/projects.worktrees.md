@@ -14,7 +14,6 @@ selectors:
   - 'No matching worktrees'
   - 'No computers paired'
   - 'Add computer'
-  - 'Clear search'
   - 'current'
   - 'Read projects again'
 tests:

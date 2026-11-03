@@ -1446,7 +1446,7 @@ export const saveBoth = Atom.writable(
   },
   {
     rule: 'mobile-system-chrome',
-    path: 'apps/mobile/src/shell/root-shell.android.tsx',
+    path: 'apps/mobile/src/features/history/views/commit-parent-menu.android.tsx',
     valid:
       "import { Host } from '@expo/ui/jetpack-compose'; export const chrome = <Host matchContents />;",
     invalid:
@@ -6360,59 +6360,27 @@ export function useCompilerFixture(value: (() => string) | undefined) {
   },
   {
     rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(files)/_layout.tsx',
+    path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
     valid:
-      "export const unstable_settings = { anchor: 'files' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='files' title='Title'><Screen name='child' /></DestinationLayout>; }",
+      "import { Stack } from 'expo-router'; export const unstable_settings = { anchor: 'settings' }; export default function Layout() { return <Stack><Stack.Screen name='settings' /></Stack>; }",
     invalid:
-      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='files' title='Title'><Screen name='child' /></DestinationLayout>; }",
-  },
-  {
-    rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(review)/_layout.tsx',
-    valid:
-      "export const unstable_settings = { anchor: 'review' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Title'><Screen name='child' /></DestinationLayout>; }",
-    invalid:
-      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Title'><Screen name='child' /></DestinationLayout>; }",
-  },
-  {
-    rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(history)/_layout.tsx',
-    valid:
-      "export const unstable_settings = { anchor: 'history' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='Title'><Screen name='child' /></DestinationLayout>; }",
-    invalid:
-      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='Title'><Screen name='child' /></DestinationLayout>; }",
+      "import { Stack } from 'expo-router'; export default function Layout() { return <Stack><Stack.Screen name='settings' /></Stack>; }",
   },
   {
     rule: 'knip-expo-destination-anchor',
     path: '/fixture/apps/mobile/src/app/(settings)/_layout.tsx',
     valid:
-      "export const unstable_settings = { anchor: 'settings' }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='settings' title='Title'><Screen name='child' /></DestinationLayout>; }",
+      "import { Stack } from 'expo-router'; export const unstable_settings = { anchor: 'settings' as const } satisfies { anchor: string }; export default function Layout() { return <Stack />; }",
     invalid:
-      "import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='settings' title='Title'><Screen name='child' /></DestinationLayout>; }",
+      "import { Stack } from 'expo-router'; const anchor = 'settings'; export const unstable_settings = { anchor }; export default function Layout() { return <Stack />; }",
   },
   {
     rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(files)/_layout.tsx',
+    path: '/fixture/apps/mobile/src/app/(tabs)/(reviews,worktrees)/_layout.tsx',
     valid:
-      "export const unstable_settings = { anchor: 'files' }; import { DestinationLayout as Destination } from '../../shell/destination-layout'; export default function Layout() { return <Destination name='files' title='Files'><Screen name='child' /></Destination>; }",
+      "import { TabStack } from '../../../shell/tab-stack'; export const unstable_settings = { reviews: { anchor: 'index' }, worktrees: { anchor: 'worktrees' } }; export default function Layout({ segment }) { return <TabStack segment={segment} />; }",
     invalid:
-      "export const unstable_settings = { anchor: 'review' }; import { DestinationLayout as Destination } from '../../shell/destination-layout'; export default function Layout() { return <Destination name='files' title='Files'><Screen name='child' /></Destination>; }",
-  },
-  {
-    rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(history)/_layout.tsx',
-    valid:
-      "export const unstable_settings = { anchor: 'history' } as const; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='History' />; }",
-    invalid:
-      "export const unstable_settings = { anchor: 'files' } as const; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='history' title='History' />; }",
-  },
-  {
-    rule: 'knip-expo-destination-anchor',
-    path: '/fixture/apps/mobile/src/app/(review)/_layout.tsx',
-    valid:
-      "export const unstable_settings = { anchor: 'review' as const } satisfies { anchor: string }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Review' />; }",
-    invalid:
-      "export const unstable_settings = { anchor: 'files' as const } satisfies { anchor: string }; import { DestinationLayout } from '../../shell/destination-layout'; export default function Layout() { return <DestinationLayout name='review' title='Review' />; }",
+      "import { TabStack } from '../../../shell/tab-stack'; export const unstable_settings = { reviews: { anchor: 'index' }, worktrees: {} }; export default function Layout({ segment }) { return <TabStack segment={segment} />; }",
   },
   {
     rule: 'no-nested-ternary',

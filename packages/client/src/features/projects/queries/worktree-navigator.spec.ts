@@ -20,7 +20,10 @@ import {
   worktreeNavigatorState,
   worktreeStatusNotices,
 } from '../store/worktree-navigator.ts';
-import { readWorktreeNavigator } from './worktree-navigator.ts';
+import {
+  readReviewInbox,
+  readWorktreeNavigator,
+} from './worktree-navigator.ts';
 
 const create = clientFixtures();
 const environmentId = '10000000-0000-4000-8000-000000000001';
@@ -474,6 +477,46 @@ it('publishes main-first usable cards while review and changes reads are pending
     expect(
       subject.registry.get(list).projects[0]?.entries[0]?.changes.state,
     ).toBe('loading');
+  } finally {
+    stop();
+  }
+});
+
+it('lists the open review of each checkout for the inbox without reading Git status or pull request checks', async () => {
+  const paths: string[] = [];
+  const subject = create(
+    (path) => {
+      paths.push(path);
+      return navigatorResponse(path);
+    },
+    undefined,
+    1000,
+    environmentId,
+  );
+  const inbox = readReviewInbox([subject.connection]);
+  const stop = subject.registry.mount(inbox);
+  try {
+    await expect
+      .poll(() =>
+        subject.registry
+          .get(inbox)
+          .inbox.needsYou.map((row) => [
+            row.entry.worktreeId,
+            row.review.reviewId,
+            row.label,
+          ]),
+      )
+      .toEqual([[topicId, reviewId, '0/1 decisions']]);
+    expect(subject.registry.get(inbox).inbox.projects).toEqual([]);
+    expect(
+      paths.filter(
+        (path) =>
+          !path.startsWith('/api/inventory') &&
+          !path.endsWith('/reviews') &&
+          !path.endsWith('/marks') &&
+          !path.endsWith(reviewId),
+      ),
+    ).toEqual([]);
   } finally {
     stop();
   }

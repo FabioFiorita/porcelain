@@ -45,13 +45,13 @@ import {
 export function ReviewScreen() {
   const focused = useIsFocused();
   return focused ? (
-    <Screen layout="fixed">
-      <WorkspaceGate title="Review">
-        {(workspace) => (
+    <WorkspaceGate title="Review">
+      {(workspace) => (
+        <Screen layout="fixed">
           <PhoneReview key={workspace.key} workspace={workspace} />
-        )}
-      </WorkspaceGate>
-    </Screen>
+        </Screen>
+      )}
+    </WorkspaceGate>
   ) : null;
 }
 
