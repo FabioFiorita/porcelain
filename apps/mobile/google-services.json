@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "879447566677",
+    "project_id": "porcelain-a84b9",
+    "storage_bucket": "porcelain-a84b9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:879447566677:android:6e154991726648f3b667dc",
+        "android_client_info": {
+          "package_name": "com.fabiofiorita.porcelain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7wcl1JM-4kYfWVlHgV9gthOZHSViD8Xk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:879447566677:android:da1b3c1a2521b32fb667dc",
+        "android_client_info": {
+          "package_name": "com.fabiofiorita.porcelain.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7wcl1JM-4kYfWVlHgV9gthOZHSViD8Xk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:879447566677:android:c29b5e9b58c131dbb667dc",
+        "android_client_info": {
+          "package_name": "com.fabiofiorita.porcelain.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7wcl1JM-4kYfWVlHgV9gthOZHSViD8Xk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
