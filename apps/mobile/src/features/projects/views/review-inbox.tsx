@@ -144,58 +144,61 @@ export function ReviewInbox() {
     storage.status !== 'ready' || initializing || loading || inbox.reading;
   const searching = query.trim() !== '';
   return (
-    <Screen
-      layout="scroll"
-      testID="review-inbox"
-      accessibilityLabel="Reviews by project"
-    >
+    <>
       <Stack.SearchBar
         placeholder="Search reviews"
         autoCapitalize="none"
+        hideWhenScrolling={false}
         onChangeText={(event) => setQuery(event.nativeEvent.text)}
         onCancelButtonPress={() => setQuery('')}
       />
-      <Box gap={4} paddingY={2}>
-        {inbox.needsYou.length > 0 ? (
-          <Box>
-            <GroupHeader label="Needs you" count={inbox.needsYou.length} />
-            {inbox.needsYou.map((row, index) => rowItem(row, true, index))}
-          </Box>
-        ) : null}
-        {inbox.projects.map((project) => (
-          <Box key={project.key}>
-            <GroupHeader
-              label={
-                paired.length > 1
-                  ? `${project.name} · ${project.environmentName}`
-                  : project.name
-              }
+      <Screen
+        layout="scroll"
+        testID="review-inbox"
+        accessibilityLabel="Reviews by project"
+      >
+        <Box gap={4} paddingY={2}>
+          {inbox.needsYou.length > 0 ? (
+            <Box>
+              <GroupHeader label="Needs you" count={inbox.needsYou.length} />
+              {inbox.needsYou.map((row, index) => rowItem(row, true, index))}
+            </Box>
+          ) : null}
+          {inbox.projects.map((project) => (
+            <Box key={project.key}>
+              <GroupHeader
+                label={
+                  paired.length > 1
+                    ? `${project.name} · ${project.environmentName}`
+                    : project.name
+                }
+              />
+              {project.rows.map((row, index) => rowItem(row, false, index))}
+            </Box>
+          ))}
+          {empty && pending && !searching ? (
+            <Loading label="Reading reviews…" />
+          ) : null}
+          {empty && searching ? (
+            <Empty
+              title="No reviews match"
+              description="Search by branch, project or computer."
             />
-            {project.rows.map((row, index) => rowItem(row, false, index))}
-          </Box>
-        ))}
-        {empty && pending && !searching ? (
-          <Loading label="Reading reviews…" />
-        ) : null}
-        {empty && searching ? (
-          <Empty
-            title="No reviews match"
-            description="Search by branch, project or computer."
+          ) : null}
+          {empty && !pending && !searching ? (
+            <Empty
+              title="No reviews"
+              description="When an agent publishes a review of its work, it appears here."
+            />
+          ) : null}
+          <PickerNotices
+            messages={messages}
+            error={picker.error}
+            onRead={picker.onRead}
+            reading={reading}
           />
-        ) : null}
-        {empty && !pending && !searching ? (
-          <Empty
-            title="No reviews"
-            description="When an agent publishes a review of its work, it appears here."
-          />
-        ) : null}
-        <PickerNotices
-          messages={messages}
-          error={picker.error}
-          onRead={picker.onRead}
-          reading={reading}
-        />
-      </Box>
-    </Screen>
+        </Box>
+      </Screen>
+    </>
   );
 }
