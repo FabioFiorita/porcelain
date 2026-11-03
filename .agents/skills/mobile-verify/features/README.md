@@ -70,6 +70,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.decision](reviews.decision.md) — One walkthrough stop per screen: explanation, diffs, marking and next/previous.
 - [reviews.decision-step](reviews.decision-step.md) — A step's code pointer and its ways to the diff, Files and history.
 - [reviews.summary](reviews.summary.md) — The agent's published HTML summary.
+- [reviews.linked-decision](reviews.linked-decision.md) — One read-only stop of a published review per screen.
 - [history.timeline](history.timeline.md) — file timeline, older commits and return context.
 - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
 - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.

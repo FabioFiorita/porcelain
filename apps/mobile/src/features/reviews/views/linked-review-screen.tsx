@@ -4,8 +4,11 @@ import {
   Stack,
   useIsFocused,
   useLocalSearchParams,
+  useNavigation,
   useRouter,
+  type NativeStackNavigationProp,
 } from 'expo-router';
+import type { StopParams } from './decision-screen';
 import { ScrollView } from 'react-native';
 import {
   useAtomMount,
@@ -66,8 +69,14 @@ type StopNavigation = {
 };
 type DecisionNavigation = { navigation: StopNavigation };
 
-export function LinkedReviewScreen() {
+export function LinkedReviewScreen({
+  route = 'review',
+}: {
+  route?: 'review' | 'decision';
+}) {
   const router = useRouter();
+  const screen =
+    useNavigation<NativeStackNavigationProp<Record<string, StopParams>>>();
   const params = useLocalSearchParams();
   const query = new URLSearchParams();
   for (const key of [
@@ -92,19 +101,27 @@ export function LinkedReviewScreen() {
       return value === undefined ? [] : [[key, value]];
     }),
   );
+  const scope = { ...link, reviewId };
   const navigation: StopNavigation = {
     place: typeof params.stop === 'string' ? params.stop : undefined,
     open: (key) =>
       key === 'briefing'
         ? router.back()
         : router.push({
-            pathname: '/reviews/[reviewId]',
-            params: { ...link, reviewId, stop: key, within: 'review' },
+            pathname: '/linked-decision',
+            params: { ...scope, stop: key, within: 'review' },
           }),
-    move: (key) =>
-      key === 'briefing' && params.within === 'review'
-        ? router.back()
-        : router.setParams({ stop: key }),
+    move: (key) => {
+      if (key !== 'briefing') {
+        if (route === 'decision') screen.setParams({ stop: key });
+        else
+          router.replace({
+            pathname: '/linked-decision',
+            params: { ...scope, stop: key },
+          });
+      } else if (params.within === 'review') router.back();
+      else router.replace({ pathname: '/reviews/[reviewId]', params: scope });
+    },
   };
   return (
     <Box className="flex-1" surface="background">

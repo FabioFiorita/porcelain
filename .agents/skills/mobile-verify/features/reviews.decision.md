@@ -32,7 +32,7 @@ One walkthrough stop per screen: a published decision (or Not explained, or Spec
 ## How to get to it (user POV)
 
 - [Review](reviews.review.md) overview → a row under The walkthrough, or Continue at decision n.
-- A thread's decision link in the comments sheet closes the sheet and opens that decision.
+- A thread's decision link in the comments sheet closes the sheet and opens that decision; opened from a decision's thread, it switches that decision screen in place, so Back still lands on the overview.
 
 ## Driving it with agent-device
 
@@ -58,5 +58,6 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 
 ## Gotchas
 
-- Previous/next replace the stop's parameters rather than pushing, so the stack stays overview → decision; check Back after several moves.
+- Previous/next change the screen's own `stop` parameter (`navigation.setParams`, never the global router, which can reach the other tab's stack) rather than pushing, so the stack stays overview → decision; check Back after several moves.
+- Mark decision reviewed advances only while the decision screen is focused; a write that lands after the reader opened a step, a sheet or another tab saves without moving them.
 - Phones and iPad push the same routes; rotate with a decision open.

@@ -1,4 +1,9 @@
-import { Stack, useRouter } from 'expo-router';
+import {
+  Stack,
+  useNavigation,
+  useRouter,
+  type NativeStackNavigationProp,
+} from 'expo-router';
 import { ScrollView } from 'react-native';
 import {
   neighbourStop,
@@ -25,6 +30,7 @@ import { useStopCompletion } from './walkthrough-completion';
 import { useWalkthroughRoutes } from './walkthrough-routes';
 
 type Stop = Exclude<WalkthroughStop, { kind: 'briefing' }>;
+export type StopParams = { stop: string };
 
 export function DecisionScreen({
   workspace,
@@ -56,6 +62,8 @@ function StopReader({
   stopKey: string | undefined;
 }) {
   const router = useRouter();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<Record<string, StopParams>>>();
   const stop = walkthrough.stops.find(
     (entry): entry is Stop =>
       entry.key === stopKey && entry.kind !== 'briefing',
@@ -63,7 +71,7 @@ function StopReader({
   if (!stop) return <MissingStop what="decision" />;
   const go = (key: WalkthroughKey) => {
     if (key === 'briefing') router.back();
-    else router.setParams({ stop: key });
+    else navigation.setParams({ stop: key });
   };
   return (
     <>
