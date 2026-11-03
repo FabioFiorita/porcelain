@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
+import { SafeAreaView } from 'react-native-screens/experimental';
 import { sheetPresentation } from '../shared/navigation/sheet-presentation';
 
-export function TabStack({ segment }: { segment: string }) {
+function TabRoutes({ segment }: { segment: string }) {
   return (
     <Stack
       screenOptions={({ theme }) => ({
@@ -49,5 +50,13 @@ export function TabStack({ segment }: { segment: string }) {
         options={{ title: 'Diff' }}
       />
     </Stack>
+  );
+}
+
+export function TabStack({ segment }: { segment: string }) {
+  return (
+    <SafeAreaView edges={{ left: true, right: true }} style={{ flex: 1 }}>
+      <TabRoutes segment={segment} />
+    </SafeAreaView>
   );
 }
