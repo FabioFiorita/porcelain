@@ -4,7 +4,8 @@ import { useFileReview } from '../../reviews';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { useFileNavigation } from '../store';
-import { Stack, useIsFocused } from 'expo-router';
+import { Stack, useIsFocused, useRouter } from 'expo-router';
+import { Alert } from 'react-native';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -30,8 +31,7 @@ import { headerIcon } from '../../../shared/icons/header-icon';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
-import { FileActionSheet } from './file-action';
-import type { FileAction } from '../commands/edit-file';
+import { useEditFile, type FileAction } from '../commands/edit-file';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { GroupHeader } from '../../../components/ui/group-header';
 import { Icon } from '../../../components/ui/icon';
@@ -110,7 +110,29 @@ function FilesNavigationView({
     selectedPath,
     setSelectedPath,
   } = useFileNavigation(selected.key);
-  const [action, setAction] = useState<FileAction>();
+  const router = useRouter();
+  const trash = useEditFile(selected.connection, selected.scope);
+  const openAction = (action: FileAction) =>
+    router.push({
+      pathname: '/file-action',
+      params: { workspace: selected.key, ...action },
+    });
+  const confirmTrash = (path: string) =>
+    Alert.alert(
+      'Move to trash?',
+      `Move ${path} to the server's trash? This changes your worktree. You can restore it from the computer's system trash.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Move to trash',
+          style: 'destructive',
+          onPress: () =>
+            trash.trash(path, (message) =>
+              Alert.alert('Not moved to trash', message),
+            ),
+        },
+      ],
+    );
   const [refreshRequested, setRefreshRequested] = useState(false);
   const preferenceData = Option.getOrUndefined(
     AsyncResult.value(preferences.read.result),
@@ -194,7 +216,7 @@ function FilesNavigationView({
         switch (id) {
           case 'new-file':
           case 'new-folder':
-            setAction({
+            openAction({
               kind: 'create',
               entryKind: id === 'new-file' ? 'file' : 'directory',
               folder: path,
@@ -207,10 +229,10 @@ function FilesNavigationView({
             onOpenTimeline(path, selected.key);
             break;
           case 'rename':
-            setAction({ kind: 'move', path });
+            openAction({ kind: 'move', path });
             break;
           case 'trash':
-            setAction({ kind: 'trash', path });
+            confirmTrash(path);
             break;
           case 'pin':
             if (!preferencePending) preferences.write.submit(pin);
@@ -419,14 +441,14 @@ function FilesNavigationView({
         >
           <Stack.Toolbar.MenuAction
             onPress={() =>
-              setAction({ kind: 'create', entryKind: 'file', folder: '' })
+              openAction({ kind: 'create', entryKind: 'file', folder: '' })
             }
           >
             New file
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             onPress={() =>
-              setAction({
+              openAction({
                 kind: 'create',
                 entryKind: 'directory',
                 folder: '',
@@ -479,12 +501,6 @@ function FilesNavigationView({
             open(path);
         }}
         contextMenu={menuFor}
-      />
-      <FileActionSheet
-        selected={selected}
-        action={action}
-        onClose={() => setAction(undefined)}
-        onCreated={open}
       />
     </Box>
   );

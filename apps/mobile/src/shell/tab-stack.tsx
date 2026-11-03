@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import { sheetPresentation } from '../shared/navigation/sheet-presentation';
 
 export function TabStack({ segment }: { segment: string }) {
   return (
@@ -36,10 +35,6 @@ export function TabStack({ segment }: { segment: string }) {
         options={{ title: 'Published review' }}
       />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
-      <Stack.Screen
-        name="review-comments"
-        options={{ title: 'Comments', ...sheetPresentation }}
-      />
       <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}

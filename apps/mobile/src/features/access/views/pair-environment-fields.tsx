@@ -11,13 +11,18 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { usePairEnvironment, useReadEnvironments } from '../commands/pairing';
 import { useEnvironmentStorageStatus } from '../store';
 
+export type PairEnvironmentFormProps = {
+  onClose: () => void;
+  environmentId?: string;
+  layout: 'sheet' | 'inline';
+};
+
 export function PairEnvironmentFields({
   onClose,
   environmentId,
+  layout,
   development,
-}: {
-  onClose: () => void;
-  environmentId?: string;
+}: PairEnvironmentFormProps & {
   development?: {
     waiting: boolean;
     reset: () => void;
@@ -36,9 +41,11 @@ export function PairEnvironmentFields({
     pair.result.waiting || development?.waiting || storage.status !== 'ready';
   return (
     <Box gap={4}>
-      <Text variant="heading">
-        {environmentId ? 'Add a connection' : 'Pair a computer'}
-      </Text>
+      {layout === 'inline' ? (
+        <Text variant="heading">
+          {environmentId ? 'Add a connection' : 'Pair a computer'}
+        </Text>
+      ) : null}
       <Field
         label="Pairing link"
         description="Run porcelain pair on the computer you want to connect, then paste the whole link it prints."
@@ -89,12 +96,14 @@ export function PairEnvironmentFields({
         disabled={unavailable || value.trim() === ''}
         onPress={() => pair.submit(value)}
       />
-      <Button
-        testID="cancel-pairing"
-        label="Cancel"
-        variant="ghost"
-        onPress={onClose}
-      />
+      {layout === 'inline' ? (
+        <Button
+          testID="cancel-pairing"
+          label="Cancel"
+          variant="ghost"
+          onPress={onClose}
+        />
+      ) : null}
     </Box>
   );
 }

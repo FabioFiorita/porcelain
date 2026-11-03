@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { sheetOptions } from '../../components/ui/sheet';
 
 export const unstable_settings = { anchor: 'settings' };
 
@@ -18,6 +19,11 @@ function SettingsLayout() {
       <Stack.Screen name="general" options={{ title: 'General' }} />
       <Stack.Screen name="reviews-git" options={{ title: 'Reviews & Git' }} />
       <Stack.Screen name="computers" options={{ title: 'Computers' }} />
+      <Stack.Screen name="computer" options={{ title: 'Computer' }} />
+      <Stack.Screen
+        name="pair-computer"
+        options={{ title: 'Pair a computer', ...sheetOptions('half') }}
+      />
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen
           name="component-library"

@@ -35,6 +35,7 @@ export function MissingCredentialRecovery({
         <PairEnvironmentForm
           environmentId={remote.environmentId}
           onClose={() => setPairing(false)}
+          layout="inline"
         />
       ) : (
         <Box className="flex-row flex-wrap" gap={2}>

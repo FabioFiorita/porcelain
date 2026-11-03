@@ -30,13 +30,14 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 ## Features
 
+- [access.computer](access.computer.md) — A saved computer's page: ways in, devices and pairing guidance.
 - [access.computers](access.computers.md) — Computer management, trust and batch updates.
 - [access.connections](access.connections.md) — Connection preference, fallback and removal.
 - [access.environment-status](access.environment-status.md) — Connection status, revoked devices and recovery.
 - [access.forget-environment](access.forget-environment.md) — Forget a saved computer locally and retain the others.
 - [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
 - [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
-- [access.settings](access.settings.md) — Settings categories, version and This computer.
+- [access.settings](access.settings.md) — Settings categories and version.
 - [access.updates](access.updates.md) — Update offers, per-computer and batch updates in Settings → Computers.
 - [app.catalog-button](app.catalog-button.md) — Button variants, actions, disabled and pending states.
 - [app.catalog-library](app.catalog-library.md) — Catalog entry, sample selection and return.
@@ -44,6 +45,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
 - [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
 - [app.shell](app.shell.md) — Reviews and Worktrees tabs, Settings modal and startup navigation.
+- [files.file-action](files.file-action.md) — New file, New folder and Rename sheets; Move to trash alert.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.
 - [history.commit](history.commit.md) — Commit metadata, merge parents and file navigation.
@@ -51,17 +53,20 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
+- [projects.archive-review](projects.archive-review.md) — Archive a merged or closed review from its pull request.
+- [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.
 - [projects.worktree](projects.worktree.md) — A selected worktree's Review, Files, History and pull request.
-- [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search, filters and archive.
+- [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
+- [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
 - [reviews.inbox](reviews.inbox.md) — Open published reviews across paired computers.
 - [reviews.linked-review](reviews.linked-review.md) — Published and older reviews: verdicts, decisions and retained excerpts.
 - [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
 - [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.
- - [history.timeline](history.timeline.md) — file timeline, older commits and return context.
- - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
- - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
+- [history.timeline](history.timeline.md) — file timeline, older commits and return context.
+- [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
+- [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
 
 For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify iPad in landscape and portrait, with fresh geometry and refs; restore its original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
 

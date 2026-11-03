@@ -4,7 +4,7 @@ import {
   decodeCommentAnchor,
   decodeCommentReview,
   reviewComparison,
-} from '../../../features/reviews';
+} from '../features/reviews';
 
 function ReviewCommentsRoute() {
   const params = useLocalSearchParams<{

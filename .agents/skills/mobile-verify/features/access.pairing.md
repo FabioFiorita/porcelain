@@ -1,13 +1,12 @@
 ---
-screen: /computers
+screen: /pair-computer
 selectors:
   - 'Add computer'
   - 'Pair a computer'
   - 'pairing-link'
   - 'Pair'
   - 'pair-environment'
-  - 'Cancel'
-  - 'cancel-pairing'
+  - 'Close'
   - 'Use development server'
   - 'development-pairing-link'
   - 'Creating pairing link…'
@@ -33,16 +32,18 @@ Add computer pairs through a pasted one-time link, saves the computer across col
 
 Preconditions: [surface baseline](README.md).
 
-1. Settings → Computers → header + labelled Add computer. Expect Pair a computer in a sheet on phone and iPad. Blank links disable Pair. Enter `invalid-link` in `pairing-link`, press `pair-environment`: an error remains in the form, with no new server device. Edit to clear it.
+1. Settings → Computers → header + labelled Add computer. Expect Pair a computer in a form sheet route on phone and iPad: the title with an X (Close) in the native header on iOS, and an in-sheet header with a drag handle, the title and an X on Android, with rounded top corners over the tab bar. The form has no Cancel button. Paste a long link: it stays on one line inside the field. Blank links disable Pair. Enter `invalid-link` in `pairing-link`, press `pair-environment`: an error remains in the form, with no new server device. Edit to clear it.
 2. Mint a fresh link with the card command, paste it, wait for the keyboard animation, then Pair. The form closes, Online appears and an independent server read shows the native device.
 3. Pair a second disposable computer; cold-launch and confirm both return. Another address for the same computer retains both connections: follow [connections](access.connections.md).
-4. Reopen and press `cancel-pairing`: saved computers stay unchanged. Expand the half-height sheet and scroll; every control remains reachable.
+4. Reopen and press Close; reopen and swipe the sheet down: either way Computers returns and saved computers stay unchanged. Expand the half-height sheet and scroll; every control remains reachable.
 5. In Metro development choose `development-pairing-link` (Use development server). Expect a full link but no device until Pair. Request another: its code differs. Pair and read the Development mobile device independently.
-6. While Creating pairing link…, field/helper/Pair are disabled and Cancel works. Inject helper failure, restore its owner connection and retry. Cancel during creation, reopen: blank field, no error/pending state. Exercise unreadable saved storage/save error: Pair stays disabled or Try again offers recovery.
+6. While Creating pairing link…, field/helper/Pair are disabled and Close works. Inject helper failure, restore its owner connection and retry. Close during creation, reopen: blank field, no error/pending state. Exercise unreadable saved storage/save error: Pair stays disabled or Try again offers recovery.
 
 Automated coverage: `development-pairing.spec.ts`.
 
 ## Gotchas
+
+- Pairing a missing connection (Pair again), Add connection and the linked-review Pair this computer keep the same form inline, with its heading and `cancel-pairing`.
 
 - Use test IDs if a native host duplicates a button label. Pair requests have a 15-second deadline; fresh links work once and expire.
 - The helper is absent from production and unconfigured development sessions. Restart Metro after changing helper configuration/owner socket; no native rebuild is needed. Keep helper links private.

@@ -99,6 +99,6 @@ When `main` turns red after a pull request merges, fix it forward with a follow-
 - `apps/server`: the Effect HTTP server, its use cases, routes and installer.
 - `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
 - `apps/desktop`: Electron around the web.
-- `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, and Expo UI keeps system chrome (menus, navigation, tabs, sheets).
+- `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, Expo UI keeps system chrome (menus, navigation, tabs), and sheets are expo-router form-sheet routes drawn with `src/components/ui/sheet`.
 - `packages/contracts`, `packages/client` and the domain packages.
 - `.agents/skills`: the verification skills and their feature maps, and the release skill.

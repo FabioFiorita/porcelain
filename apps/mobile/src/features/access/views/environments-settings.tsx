@@ -1,5 +1,4 @@
-import { Fragment, useState } from 'react';
-import { BottomSheet } from '@expo/ui';
+import { Fragment } from 'react';
 import { Stack } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Box } from '../../../components/ui/box';
@@ -18,16 +17,17 @@ import {
 import { ComputerUpdatesSummary } from './computer-updates-summary';
 import { MissingCredentialRow } from './missing-credential-row';
 import { EnvironmentRow } from './environment-row';
-import { PairEnvironment } from './pair-environment';
-import { ThisComputer } from './this-computer';
 
-function EnvironmentSettingsSection() {
-  const [pairing, setPairing] = useState(false);
-  const [computerId, setComputerId] = useState<string | null>(null);
+type EnvironmentsSettingsProps = {
+  onAddComputer: () => void;
+  onOpenComputer: (environmentId: string) => void;
+};
+
+function EnvironmentSettingsSection({
+  onAddComputer,
+  onOpenComputer,
+}: EnvironmentsSettingsProps) {
   const remotes = useEnvironments();
-  const computer = remotes.find(
-    (remote) => remote.environmentId === computerId,
-  );
   const missing = useMissingCredentials();
   const storage = useEnvironmentStorageStatus();
   const read = useReadEnvironments();
@@ -38,7 +38,7 @@ function EnvironmentSettingsSection() {
           icon={headerIcon('add')}
           accessibilityLabel="Add computer"
           disabled={storage.status !== 'ready'}
-          onPress={() => setPairing(true)}
+          onPress={onAddComputer}
         />
       </Stack.Toolbar>
       <Box gap={3}>
@@ -94,36 +94,18 @@ function EnvironmentSettingsSection() {
                     (entry) => entry.environmentId === remote.environmentId,
                   )}
                   disabled={storage.status !== 'ready'}
-                  onOpenComputer={() => setComputerId(remote.environmentId)}
+                  onOpenComputer={() => onOpenComputer(remote.environmentId)}
                 />
               </Fragment>
             ))}
           </Card>
         ) : null}
       </Box>
-      <BottomSheet
-        isPresented={pairing}
-        onDismiss={() => setPairing(false)}
-        contentPadding={0}
-        snapPoints={['half', 'full']}
-      >
-        {pairing ? <PairEnvironment onClose={() => setPairing(false)} /> : null}
-      </BottomSheet>
-      <BottomSheet
-        isPresented={computer !== undefined}
-        onDismiss={() => setComputerId(null)}
-        contentPadding={0}
-        snapPoints={['half', 'full']}
-      >
-        {computer ? (
-          <ThisComputer remote={computer} onClose={() => setComputerId(null)} />
-        ) : null}
-      </BottomSheet>
     </>
   );
 }
 
-export function EnvironmentsSettings() {
+export function EnvironmentsSettings(props: EnvironmentsSettingsProps) {
   return (
     <ScrollView
       className="flex-1 bg-background"
@@ -136,7 +118,7 @@ export function EnvironmentsSettings() {
         paddingX={6}
         paddingY={8}
       >
-        <EnvironmentSettingsSection />
+        <EnvironmentSettingsSection {...props} />
       </Box>
     </ScrollView>
   );

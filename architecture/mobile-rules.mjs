@@ -147,6 +147,35 @@ export const mobileRules = {
             message:
               'Keep NativeTabs in shell/app-tabs.tsx; phone and tablet share one tab shell, and the system adapts it into the iPad sidebar, so a second tab navigator would split the app into two layouts again.',
           });
+        if (
+          runtime &&
+          [
+            '@expo/ui',
+            '@expo/ui/swift-ui',
+            '@expo/ui/jetpack-compose',
+          ].includes(source)
+        )
+          for (const specifier of node.specifiers ?? []) {
+            const name = specifier.imported?.name ?? specifier.local?.name;
+            if (
+              specifier.type !== 'ImportSpecifier' ||
+              specifier.importKind === 'type' ||
+              specifier.exportKind === 'type'
+            )
+              continue;
+            if (name === 'BottomSheet')
+              context.report({
+                node: specifier,
+                message:
+                  'Present sheets as expo-router form-sheet routes built with components/ui/sheet, because a hand-made BottomSheet has no route or link, draws its own dismiss controls and sits around the tab bar instead of above it.',
+              });
+            if (name === 'RNHostView' && !primitive)
+              context.report({
+                node: specifier,
+                message:
+                  'Host React Native content inside native Expo UI only in components/ui, because a feature that glues views into a native host sizes them by hand and breaks their layout.',
+              });
+          }
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {
             if (

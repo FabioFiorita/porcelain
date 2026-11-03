@@ -1,6 +1,5 @@
 import { Box } from '../../../components/ui/box';
 import type { ReactNode } from 'react';
-import { Stack, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -21,16 +20,12 @@ import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { ReviewAnnotation } from '../../../components/ui/review-annotation';
 import { ReviewComposer } from '../../../components/ui/review-composer';
 import { Text } from '../../../components/ui/text';
-import { headerIcon } from '../../../shared/icons/header-icon';
+import { Sheet } from '../../../components/ui/sheet';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { WorkspaceGate } from '../../projects';
-import {
-  useCommentCommands,
-  useVisibleComments,
-  useCommentWrite,
-} from '../commands/comments';
+import { useVisibleComments, useResolveThread } from '../commands/comments';
 import { documentCommentContext } from '../rules/document-comment';
 import { ReviewReadState } from './read-state';
 import { CommentThreadSheet } from './comment-thread-sheet';
@@ -65,26 +60,8 @@ export function ReviewCommentsScreen({
   review?: CommentReview | undefined;
   feedbackWritable?: boolean | undefined;
 }) {
-  const router = useRouter();
   return (
-    <>
-      {thread ? null : (
-        <>
-          <Stack.Screen
-            options={{
-              title: path ? 'File comments' : 'Comments',
-              headerBackButtonMenuEnabled: false,
-            }}
-          />
-          <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Button
-              icon={headerIcon('done')}
-              accessibilityLabel="Done"
-              onPress={() => router.back()}
-            />
-          </Stack.Toolbar>
-        </>
-      )}
+    <Sheet title={sheetTitle(thread, path)} layout="fixed">
       <WorkspaceGate
         title="Review"
         expectedWorkspace={workspaceKey ?? ''}
@@ -117,8 +94,13 @@ export function ReviewCommentsScreen({
           )
         }
       </WorkspaceGate>
-    </>
+    </Sheet>
   );
+}
+
+function sheetTitle(thread: string | undefined, path: string | undefined) {
+  if (thread) return 'Comment';
+  return path ? 'File comments' : 'Comments';
 }
 
 export function CommentThreads({
@@ -362,8 +344,7 @@ function CommentThreadView({
   children: ReactNode;
   currentTarget?: CommentTarget | undefined;
 }) {
-  const commands = useCommentCommands(workspace);
-  const resolve = useCommentWrite(commands.resolve);
+  const resolve = useResolveThread(workspace, thread);
   return (
     <Box gap={2}>
       <Text variant="caption" tone="muted">
@@ -389,17 +370,11 @@ function CommentThreadView({
       ))}
       <Box className="flex-row" gap={2}>
         <Button
-          label={thread.resolved ? 'Reopen' : 'Resolve'}
+          label={resolve.label}
           size="sm"
           variant="outline"
           pending={resolve.result.waiting}
-          onPress={() => {
-            if (!resolve.result.waiting)
-              resolve.send({
-                ...threadWriteTarget(thread),
-                resolved: !thread.resolved,
-              });
-          }}
+          onPress={resolve.toggle}
         />
         {!thread.resolved ? (
           <Button

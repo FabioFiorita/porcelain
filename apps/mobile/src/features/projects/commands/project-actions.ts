@@ -1,5 +1,5 @@
 import { useAtom } from '@effect/atom-react';
-import { Exit } from 'effect';
+import { Exit, type Cause } from 'effect';
 import { renameProject, removeProject } from '@porcelain/client/projects';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { requestDocumentLeave } from '../store';
@@ -22,10 +22,14 @@ export function useProjectActions(
         if (Exit.isSuccess(exit)) onDone();
       });
     },
-    remove: (onDone: () => void) =>
+    remove: (
+      onDone: () => void,
+      onFailure: (cause: Cause.Cause<unknown>) => void,
+    ) =>
       requestDocumentLeave(() => {
         void remove(projectId).then((exit) => {
           if (Exit.isSuccess(exit)) onDone();
+          else onFailure(exit.cause);
         });
       }),
   };

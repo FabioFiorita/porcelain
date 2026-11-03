@@ -2708,6 +2708,34 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/projects/views/project-actions.tsx',
+    valid:
+      "import { Sheet } from '../../../components/ui/sheet'; export const Rename = () => <Sheet title='Rename project' />;",
+    invalid:
+      "import { BottomSheet as Panel } from '@expo/ui'; export const Rename = () => <Panel isPresented />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/components/ui/sheet.android.tsx',
+    valid:
+      "import { Host } from '@expo/ui/jetpack-compose'; export const Frame = () => <Host />;",
+    invalid:
+      "import { BottomSheet } from '@expo/ui/jetpack-compose'; export const Frame = () => <BottomSheet />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    validPath: 'apps/mobile/src/components/ui/item-menu.android.tsx',
+    path: 'apps/mobile/src/features/access/views/pair-computer-sheet.tsx',
+    valid:
+      "import { RNHostView } from '@expo/ui'; export const Row = () => <RNHostView matchContents />;",
+    invalid:
+      "import { RNHostView } from '@expo/ui'; export const Row = () => <RNHostView matchContents />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
     validPath: 'apps/mobile/src/shell/app-tabs.tsx',
     path: 'apps/mobile/src/shell/tab-stack.tsx',
     valid:

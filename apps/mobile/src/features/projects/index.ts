@@ -7,3 +7,9 @@ export { WorktreeScreen } from './views/worktree-screen';
 
 export { useOpenPullRequest } from './views/open-pull-request';
 export { PullRequestArchive } from './views/archive-review';
+export {
+  WorktreeActionsSheet,
+  worktreeActionKind,
+} from './views/worktree-actions-sheet';
+export { RenameProjectSheet } from './views/rename-project-sheet';
+export { ArchiveReviewSheet } from './views/archive-review';
