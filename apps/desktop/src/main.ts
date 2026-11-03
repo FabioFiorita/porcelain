@@ -16,6 +16,12 @@ if (refusal !== undefined) {
 } else if (process.argv.includes(WATCH_HOST_SWITCH)) {
   const profile = process.argv[process.argv.indexOf(WATCH_HOST_SWITCH) + 1];
   if (profile !== undefined) app.setPath('userData', profile);
+  app.disableHardwareAcceleration();
   app.dock?.hide();
-  await import('@porcelain/server/watch-host');
+  await import('@porcelain/server/watch-host').catch((error: unknown) => {
+    process.stderr.write(
+      `Porcelain file watcher failed to start: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    app.exit(1);
+  });
 } else await import('./app.ts');
