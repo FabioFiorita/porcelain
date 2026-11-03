@@ -194,7 +194,7 @@ export function createFetchGate(filePath: string) {
       });
       return paths;
     },
-    holdNextChangeDiff() {
+    holdNextChangeDiff(path = filePath) {
       const gate = holdNextFetch(
         (url, init) =>
           init?.method === 'POST' &&
@@ -203,7 +203,7 @@ export function createFetchGate(filePath: string) {
             : init.body instanceof Uint8Array
               ? new TextDecoder().decode(init.body)
               : ''
-          ).includes(filePath) &&
+          ).includes(path) &&
           url.pathname.endsWith('/changes/diffs'),
       );
       restores.push(holdLiveNotices(gate.held));

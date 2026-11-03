@@ -71,7 +71,13 @@ export function ReviewCodeDocument({
 }) {
   const { connection } = context;
   const [omittedComment, setOmittedComment] = useState(0);
-  const [omittedTargets] = useState(() => new Map<string, HTMLLIElement>());
+  const [pendingOmittedPath, setPendingOmittedPath] = useState<string>();
+  const focusOmitted = (path: string, target: HTMLLIElement) => {
+    if (pendingOmittedPath !== path) return;
+    setPendingOmittedPath(undefined);
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start' });
+  };
   usePrefetchReviewed(scope, context);
   const changes = useChanges(scope, connection);
   const items = orderReviewChanges(
@@ -214,10 +220,9 @@ export function ReviewCodeDocument({
             {header?.({
               ...controls,
               open: (path) => {
-                const target = omittedTargets.get(path);
-                if (!renderedPaths.has(path) && target) {
-                  target.focus({ preventScroll: true });
-                  target.scrollIntoView({ block: 'start' });
+                setPendingOmittedPath(undefined);
+                if (!renderedPaths.has(path)) {
+                  setPendingOmittedPath(path);
                 } else controls.open(path);
               },
             })}
@@ -235,8 +240,9 @@ export function ReviewCodeDocument({
                 changes={unrenderable}
                 column={column}
                 onTarget={(path, target) => {
-                  if (target) omittedTargets.set(path, target);
-                  else omittedTargets.delete(path);
+                  if (target) {
+                    focusOmitted(path, target);
+                  }
                 }}
                 renderedPaths={renderedPaths}
                 scope={scope}
