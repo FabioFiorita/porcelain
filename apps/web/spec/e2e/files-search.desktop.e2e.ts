@@ -72,7 +72,11 @@ test('Files searches unloaded untracked paths without losing input and restores 
   await rename.press('Enter');
   await expect(row('Renamed.tsx')).toBeVisible();
   await expect
-    .poll(() => repo.read(path.replace(name, 'Renamed.tsx')))
+    .poll(() =>
+      repo
+        .read(path.replace(name, 'Renamed.tsx'))
+        .catch((error: unknown) => String(error)),
+    )
     .toBe('export const value = 1;\n');
   await search.fill('Renamed');
   await row('Renamed.tsx').focus();
