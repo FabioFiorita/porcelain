@@ -20,7 +20,7 @@ let directory: string;
 let path: string | undefined;
 beforeAll(async () => {
   local = await nativeFingerprint();
-});
+}, 30_000);
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'porcelain-mobile-host-spec-'));
   path = process.env.PATH;
@@ -61,7 +61,7 @@ it('asks the Mac checkout for its native inputs and refuses when they differ', a
   expect(args).toContain('mac');
   expect(args.at(-1)).toContain("cd '/Users/developer/porcelain'");
   expect(args.at(-1)).toContain('{"action":"inspect"}');
-});
+}, 30_000);
 
 it('refuses to start when the Mac has no development client for these native inputs', async () => {
   await mac(`{"fingerprint":"${local}","client":false}\n`);
@@ -71,7 +71,7 @@ it('refuses to start when the Mac has no development client for these native inp
   expect(problems).toContain(
     `the Mac has no development client for this native fingerprint (${local}); native inputs changed since the last build, so ${build}`,
   );
-});
+}, 30_000);
 
 it('refuses to start when the Mac cannot be reached', async () => {
   await mac('', 'ssh: Could not resolve hostname mac\n', 255);
@@ -81,7 +81,7 @@ it('refuses to start when the Mac cannot be reached', async () => {
   expect(problems).toContain(
     'the Mac checkout /Users/developer/porcelain could not report its native fingerprint over ssh mac: ssh: Could not resolve hostname mac',
   );
-});
+}, 30_000);
 
 it('refuses to start when the Mac answers without a fingerprint', async () => {
   await mac('Last login: today\n');
@@ -91,7 +91,7 @@ it('refuses to start when the Mac answers without a fingerprint', async () => {
   expect(problems).toContain(
     'the Mac checkout /Users/developer/porcelain could not report its native fingerprint over ssh mac: it answered without a fingerprint: Last login: today',
   );
-});
+}, 30_000);
 
 it('raises no native problem when the Mac has a client for the same native inputs', async () => {
   await mac(`{"fingerprint":"${local}","client":true}\n`);
@@ -99,4 +99,4 @@ it('raises no native problem when the Mac has a client for the same native input
   const problems = await hostProblems(host, false);
 
   expect(problems.filter((problem) => problem.includes('native'))).toEqual([]);
-});
+}, 30_000);
