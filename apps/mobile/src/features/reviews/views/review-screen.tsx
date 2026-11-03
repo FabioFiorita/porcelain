@@ -3,7 +3,7 @@ import { Box } from '../../../components/ui/box';
 import { Screen } from '../../../components/ui/screen';
 import { useIsFocused, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
-import { useState, type ComponentProps } from 'react';
+import { Fragment, useState, type ComponentProps } from 'react';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -18,6 +18,9 @@ import { changeAnchor } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
 import { Item } from '../../../components/ui/item';
+import { Card } from '../../../components/ui/card';
+import { Icon } from '../../../components/ui/icon';
+import { Separator } from '../../../components/ui/separator';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { StatusDot } from '../../../components/ui/status-dot';
@@ -30,17 +33,10 @@ import {
 } from '../rules/comparison';
 import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
-import {
-  phoneReviewComparison,
-  useReviewListOffset,
-  useReviewNavigation,
-} from '../store';
+import { phoneReviewComparison, useReviewListOffset } from '../store';
 import { ComparisonMenu } from './comparison-menu';
-import {
-  PublishedReview,
-  PublishedReviewContinue,
-  usePublishedStop,
-} from './published-review';
+import { PublishedOverview, PublishedOverviewBar } from './published-review';
+import { PublishedWalkthrough } from './published-walkthrough';
 
 export function ReviewScreen({
   workspace,
@@ -102,7 +98,8 @@ function ReviewNavigation({
   onFile,
 }: ReviewNavigationProps) {
   const [comparisonWidth, setComparisonWidth] = useState<number>();
-  const { result, refresh } = useReviewSnapshot(workspace, comparison);
+  const snapshotRead = useReviewSnapshot(workspace, comparison);
+  const { result } = snapshotRead;
   const basesQuery = readBranchBases({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -110,6 +107,9 @@ function ReviewNavigation({
   const bases = useAtomValue(basesQuery);
   const refreshBases = useAtomRefresh(basesQuery);
   const choices = Option.getOrUndefined(AsyncResult.value(bases));
+  const reading = useReviewListOffset(
+    JSON.stringify([workspace.key, comparison]),
+  );
   const base =
     comparison.kind === 'branch'
       ? (comparison.base ??
@@ -129,245 +129,204 @@ function ReviewNavigation({
   }
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
-      <Box
-        className="items-start"
-        gap={2}
-        paddingX={4}
-        paddingY={2}
-        divider="bottom"
-      >
-        <Box
-          className="items-start self-stretch"
-          onLayout={({ nativeEvent: { layout } }) =>
-            setComparisonWidth(layout.width)
-          }
-        >
-          <ComparisonMenu
-            comparison={comparison}
-            label={label}
-            maximumWidth={comparisonWidth}
-            base={base}
-            bases={choices?.bases ?? []}
-            onComparison={onComparison}
-          />
-        </Box>
-        {AsyncResult.isInitial(bases) || bases.waiting ? (
-          <Text variant="caption" tone="muted" accessibilityRole="text">
-            {choices ? 'Refreshing branches…' : 'Reading branches…'}
-          </Text>
-        ) : null}
-        {AsyncResult.isFailure(bases) ? (
-          <Box className="flex-row flex-wrap items-center" gap={2}>
-            <Text variant="caption" tone="muted">
-              Base branches could not be read.
-            </Text>
-            <Button
-              label="Read branches again"
-              variant="tonal"
-              size="sm"
-              onPress={refreshBases}
-            />
-          </Box>
-        ) : null}
-        {!AsyncResult.isFailure(bases) &&
-        !bases.waiting &&
-        choices?.bases.length === 0 ? (
-          <Text variant="caption" tone="muted">
-            No base branches available.
-          </Text>
-        ) : null}
-      </Box>
-      {comparison.kind === 'worktree' || AsyncResult.isSuccess(result) ? (
-        <ReviewNavigationList
-          workspace={workspace}
-          snapshotRead={{ result, refresh }}
-          comparison={comparison}
-          onFile={onFile}
-        />
-      ) : (
-        <ReviewReadState result={result} refresh={refresh} />
-      )}
-    </Box>
-  );
-}
-
-function ReviewOverview({
-  workspace,
-  comparison,
-  onFile,
-}: {
-  workspace: Workspace;
-  comparison: ReviewComparison;
-  onFile: (path: string) => void;
-}) {
-  const { result, refresh } = useReviewSnapshot(workspace, comparison);
-  if (comparison.kind === 'worktree')
-    return (
-      <Box gap={3}>
-        {!AsyncResult.isSuccess(result) ? (
-          <Box gap={2}>
-            <Text variant="secondary">
-              Changed-file coverage is unavailable.
-            </Text>
-            <ReviewReadState result={result} refresh={refresh} />
-          </Box>
-        ) : null}
-        <PublishedReview
-          workspace={workspace}
-          onFile={onFile}
-          snapshot={
-            AsyncResult.isSuccess(result) &&
-            !result.waiting &&
-            result.value.kind === 'worktree'
-              ? result.value
-              : undefined
-          }
-        />
-      </Box>
-    );
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  const branch =
-    result.value.kind === 'branch' ? result.value.answer : undefined;
-  return (
-    <Text variant="caption" tone="muted">
-      {branch?.base
-        ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
-        : 'No comparison base is available. Choose a base from the Branch menu.'}
-    </Text>
-  );
-}
-
-function ReviewNavigationList({
-  workspace,
-  snapshotRead,
-  comparison,
-  onFile,
-}: {
-  workspace: Workspace;
-  snapshotRead: ReturnType<typeof useReviewSnapshot>;
-  comparison: ReviewComparison;
-  onFile: (path: string) => void;
-}) {
-  const navigation = useReviewNavigation();
-  const router = useRouter();
-  const snapshot = AsyncResult.isSuccess(snapshotRead.result)
-    ? snapshotRead.result.value
-    : undefined;
-  const marks = useReviewMarks(workspace, snapshot);
-  const commentsQuery = readCommentThreads({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
-  const comments = useAtomValue(commentsQuery);
-  const refreshComments = useAtomRefresh(commentsQuery);
-  const branch = snapshot?.kind === 'branch' ? snapshot.answer : undefined;
-  const anchor = commentsAnchor(branch, comparison);
-  const files =
-    snapshot && AsyncResult.isSuccess(marks.result)
-      ? reviewFiles(snapshot, marks.result.value)
-      : [];
-  const changes = snapshotChangeMarks(snapshotRead.result);
-  const reading = useReviewListOffset(
-    JSON.stringify([workspace.key, comparison]),
-  );
-  const publishedStop = usePublishedStop(workspace);
-  const onStop =
-    comparison.kind === 'worktree' &&
-    publishedStop !== undefined &&
-    publishedStop !== 'briefing';
-  let fileList = (
-    <ReviewReadState result={marks.result} refresh={marks.refresh} />
-  );
-  if (!snapshot)
-    fileList = (
-      <ReviewReadState
-        result={snapshotRead.result}
-        refresh={snapshotRead.refresh}
-      />
-    );
-  else if (AsyncResult.isSuccess(marks.result))
-    fileList = (
-      <>
-        <Text variant="caption" tone="muted">
-          Changed files · {files.length}
-        </Text>
-        {files.map((file) => (
-          <Item
-            key={file.path}
-            title={file.path}
-            titleDecoration={
-              file.reviewStatus === 'reviewed' ? 'line-through' : undefined
-            }
-            description={file.note}
-            leading={<ChangeStatusDot status={changes.files.get(file.path)} />}
-            accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
-            onPress={() => onFile(file.path)}
-          />
-        ))}
-        {files.length === 0 ? (
-          <Empty
-            title="No changes"
-            description={
-              snapshot.kind === 'branch'
-                ? 'This branch has no changed files against this base.'
-                : 'This worktree has no uncommitted changes.'
-            }
-          />
-        ) : null}
-      </>
-    );
-  return (
-    <Box className="flex-1">
       <ScrollView
-        ref={(view) => navigation.scroll(view)}
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerClassName="grow gap-3 p-4"
+        contentContainerClassName="w-full max-w-3xl self-center grow gap-6 p-4"
         contentOffset={{ x: 0, y: reading.initialOffset }}
         onScroll={(event) =>
           reading.onScrollOffset(event.nativeEvent.contentOffset.y)
         }
         scrollEventThrottle={100}
       >
-        <ReviewOverview
+        <PublishedWalkthrough workspace={workspace}>
+          {(walkthrough) => <PublishedOverview walkthrough={walkthrough} />}
+        </PublishedWalkthrough>
+        <ReviewComments
           workspace={workspace}
+          snapshot={snapshotRead}
           comparison={comparison}
-          onFile={onFile}
         />
-        {onStop ? null : (
-          <>
-            <Button
-              label={
-                AsyncResult.isSuccess(comments)
-                  ? `Comments · ${comments.value.filter((thread) => !thread.resolved).length} open`
-                  : 'Comments'
-              }
-              variant="tonal"
-              onPress={() =>
-                router.navigate({
-                  pathname: '/review-comments',
-                  params: {
-                    ...reviewParams(workspace.key, comparison),
-                    ...(anchor ? { anchor: JSON.stringify(anchor) } : {}),
-                  },
-                })
-              }
+        <Box gap={2}>
+          <Box
+            className="flex-row items-center justify-between"
+            gap={2}
+            onLayout={({ nativeEvent: { layout } }) =>
+              setComparisonWidth(layout.width / 2)
+            }
+          >
+            <Text variant="headline" tone="muted" accessibilityRole="header">
+              Changed files
+            </Text>
+            <ComparisonMenu
+              comparison={comparison}
+              label={label}
+              maximumWidth={comparisonWidth}
+              base={base}
+              bases={choices?.bases ?? []}
+              onComparison={onComparison}
             />
-            {AsyncResult.isFailure(comments) ? (
-              <ReviewReadState result={comments} refresh={refreshComments} />
-            ) : null}
-            {fileList}
-          </>
-        )}
+          </Box>
+          {AsyncResult.isInitial(bases) || bases.waiting ? (
+            <Text variant="caption" tone="muted" accessibilityRole="text">
+              {choices ? 'Refreshing branches…' : 'Reading branches…'}
+            </Text>
+          ) : null}
+          {AsyncResult.isFailure(bases) ? (
+            <Box className="flex-row flex-wrap items-center" gap={2}>
+              <Text variant="caption" tone="muted">
+                Base branches could not be read.
+              </Text>
+              <Button
+                label="Read branches again"
+                variant="tonal"
+                size="sm"
+                onPress={refreshBases}
+              />
+            </Box>
+          ) : null}
+          {!AsyncResult.isFailure(bases) &&
+          !bases.waiting &&
+          choices?.bases.length === 0 ? (
+            <Text variant="caption" tone="muted">
+              No base branches available.
+            </Text>
+          ) : null}
+          <ChangedFiles
+            workspace={workspace}
+            snapshotRead={snapshotRead}
+            onFile={onFile}
+          />
+        </Box>
       </ScrollView>
-      {comparison.kind === 'worktree' ? (
-        <PublishedReviewContinue
-          workspace={workspace}
-          onContinue={navigation.scrollToStart}
+      <PublishedWalkthrough workspace={workspace} states="hidden">
+        {(walkthrough) => <PublishedOverviewBar walkthrough={walkthrough} />}
+      </PublishedWalkthrough>
+    </Box>
+  );
+}
+
+function ReviewComments({
+  workspace,
+  snapshot,
+  comparison,
+}: {
+  workspace: Workspace;
+  snapshot: ReturnType<typeof useReviewSnapshot>;
+  comparison: ReviewComparison;
+}) {
+  const router = useRouter();
+  const commentsQuery = readCommentThreads({
+    connection: workspace.connection,
+    scope: workspace.scope,
+  });
+  const comments = useAtomValue(commentsQuery);
+  const refreshComments = useAtomRefresh(commentsQuery);
+  const value = AsyncResult.isSuccess(snapshot.result)
+    ? snapshot.result.value
+    : undefined;
+  const anchor = commentsAnchor(
+    value?.kind === 'branch' ? value.answer : undefined,
+    comparison,
+  );
+  const open = AsyncResult.isSuccess(comments)
+    ? comments.value.filter((thread) => !thread.resolved).length
+    : undefined;
+  return (
+    <Box gap={2}>
+      <Card>
+        <Item
+          title="Comments"
+          {...(open === undefined ? {} : { description: `${open} open` })}
+          leading={<Icon name="comment" tone="muted" />}
+          trailing={<Icon name="chevron" tone="muted" />}
+          accessibilityLabel={
+            open === undefined ? 'Comments' : `Comments · ${open} open`
+          }
+          testID="review-comments"
+          onPress={() =>
+            router.navigate({
+              pathname: '/review-comments',
+              params: {
+                ...reviewParams(workspace.key, comparison),
+                ...(anchor ? { anchor: JSON.stringify(anchor) } : {}),
+              },
+            })
+          }
         />
+      </Card>
+      {AsyncResult.isFailure(comments) ? (
+        <ReviewReadState result={comments} refresh={refreshComments} />
       ) : null}
     </Box>
+  );
+}
+
+function ChangedFiles({
+  workspace,
+  snapshotRead,
+  onFile,
+}: {
+  workspace: Workspace;
+  snapshotRead: ReturnType<typeof useReviewSnapshot>;
+  onFile: (path: string) => void;
+}) {
+  const snapshot = AsyncResult.isSuccess(snapshotRead.result)
+    ? snapshotRead.result.value
+    : undefined;
+  const marks = useReviewMarks(workspace, snapshot);
+  if (!snapshot)
+    return (
+      <ReviewReadState
+        result={snapshotRead.result}
+        refresh={snapshotRead.refresh}
+      />
+    );
+  if (!AsyncResult.isSuccess(marks.result))
+    return <ReviewReadState result={marks.result} refresh={marks.refresh} />;
+  const files = reviewFiles(snapshot, marks.result.value);
+  const changes = snapshotChangeMarks(snapshotRead.result);
+  const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
+  return (
+    <>
+      {snapshot.kind === 'branch' ? (
+        <Text variant="caption" tone="muted">
+          {branch?.base
+            ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
+            : 'No comparison base is available. Choose a base from the Branch menu.'}
+        </Text>
+      ) : null}
+      {files.length === 0 ? (
+        <Empty
+          title="No changes"
+          description={
+            snapshot.kind === 'branch'
+              ? 'This branch has no changed files against this base.'
+              : 'This worktree has no uncommitted changes.'
+          }
+        />
+      ) : (
+        <Card>
+          {files.map((file, index) => (
+            <Fragment key={file.path}>
+              {index > 0 ? <Separator inset="leading" /> : null}
+              <Item
+                title={file.path}
+                titleDecoration={
+                  file.reviewStatus === 'reviewed' ? 'line-through' : undefined
+                }
+                description={file.note}
+                leading={
+                  <ChangeStatusDot status={changes.files.get(file.path)} />
+                }
+                accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
+                onPress={() => onFile(file.path)}
+              />
+            </Fragment>
+          ))}
+        </Card>
+      )}
+    </>
   );
 }
 

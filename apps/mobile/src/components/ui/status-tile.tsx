@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { Icon, type IconName } from './icon';
+import { Text } from './text';
 
 const tones = {
   brand: { surface: 'bg-brand-soft', icon: 'brand' },
@@ -9,18 +10,21 @@ const tones = {
 } as const;
 
 export function StatusTile({
-  name,
   tone,
-}: {
-  name: IconName;
-  tone: keyof typeof tones;
-}) {
+  ...mark
+}: { tone: keyof typeof tones } & ({ name: IconName } | { label: string })) {
   return (
     <View
       accessible={false}
       className={`size-10 items-center justify-center rounded-full ${tones[tone].surface}`}
     >
-      <Icon name={name} tone={tones[tone].icon} />
+      {'name' in mark ? (
+        <Icon name={mark.name} tone={tones[tone].icon} />
+      ) : (
+        <Text variant="secondary" weight="semibold" tone={tones[tone].icon}>
+          {mark.label}
+        </Text>
+      )}
     </View>
   );
 }

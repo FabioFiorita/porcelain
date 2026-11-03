@@ -1,7 +1,8 @@
 import type { MissingCredentialRemote } from '@porcelain/client/access';
 import { MissingCredentialRecovery } from './missing-credential-row';
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button';
+import { Icon } from '../../../components/ui/icon';
+import { Separator } from '../../../components/ui/separator';
 import { ComputerUpdate } from './computer-update';
 import { EnvironmentConnections } from './environment-connections';
 import { Text } from '../../../components/ui/text';
@@ -85,31 +86,35 @@ export function EnvironmentRow({
           </Text>
         ) : null}
       </Item>
-      <Box paddingX={4} paddingY={3} gap={3}>
-        <ComputerUpdate environmentId={remote.environmentId} />
-        <Button
-          variant="tonal"
-          label="This computer"
-          accessibilityLabel={`Open This computer, ${remote.name}`}
-          onPress={onOpenComputer}
-          disabled={disabled || Boolean(missing)}
-        />
-        <Button
-          variant="plain"
-          label={managing ? 'Hide connections' : 'Manage connections'}
-          accessibilityLabel={`${managing ? 'Hide' : 'Manage'} connections for ${remote.name}`}
-          onPress={() => setManaging(!managing)}
-          disabled={disabled || adding}
-        />
-        {managing ? (
+      <ComputerUpdate environmentId={remote.environmentId} />
+      <Separator inset="leading" />
+      <Item
+        title="This computer"
+        leading={<Icon name="laptop" tone="muted" />}
+        trailing={<Icon name="chevron" tone="muted" />}
+        accessibilityLabel={`Open This computer, ${remote.name}`}
+        onPress={onOpenComputer}
+        disabled={disabled || Boolean(missing)}
+      />
+      <Separator inset="leading" />
+      <Item
+        title={managing ? 'Hide connections' : 'Manage connections'}
+        leading={<Icon name="sliders" tone="muted" />}
+        trailing={<Icon name={managing ? 'collapse' : 'down'} tone="muted" />}
+        accessibilityLabel={`${managing ? 'Hide' : 'Manage'} connections for ${remote.name}`}
+        onPress={() => setManaging(!managing)}
+        disabled={disabled || adding}
+      />
+      {managing ? (
+        <Box paddingX={4} paddingY={2}>
           <EnvironmentConnections
             remote={remote}
             disabled={disabled}
             adding={adding}
             setAdding={setAdding}
           />
-        ) : null}
-      </Box>
+        </Box>
+      ) : null}
     </Box>
   );
 }

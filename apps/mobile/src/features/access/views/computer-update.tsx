@@ -14,7 +14,8 @@ import {
 } from '@porcelain/client/access';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { Box } from '../../../components/ui/box';
-import { ButtonSurface } from '../../../components/ui/button-surface';
+import { Item } from '../../../components/ui/item';
+import { Separator } from '../../../components/ui/separator';
 import { Icon } from '../../../components/ui/icon';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -46,32 +47,53 @@ function ConnectedComputerUpdate({
     entry &&
     (entry.status === 'queued' || entry.status === 'updating');
   return (
-    <Box gap={3}>
-      {AsyncResult.isInitial(row.result) ? (
-        <Loading label="Checking updates…" />
-      ) : null}
-      {AsyncResult.isFailure(row.result) ? (
-        <ErrorState
-          message={connectionErrorMessage(Cause.squash(row.result.cause))}
-          retry={{ label: 'Check updates again', onPress: refresh }}
-        />
-      ) : null}
-      {target ? (
-        <Text variant="caption" tone="muted">
-          {target.state.version ?? 'Unknown version'}
-          {settingsUpdateAvailable(target) && target.state.latest
-            ? ` → ${target.state.latest}`
-            : ''}
-        </Text>
-      ) : null}
-      {inBatch ? (
-        <Text variant="caption" tone="muted">
-          {entry.status === 'queued' ? 'Queued' : 'Updating…'}
-        </Text>
-      ) : null}
+    <>
+      <Box paddingX={4} paddingY={2} gap={2}>
+        {AsyncResult.isInitial(row.result) ? (
+          <Loading label="Checking updates…" />
+        ) : null}
+        {AsyncResult.isFailure(row.result) ? (
+          <ErrorState
+            message={connectionErrorMessage(Cause.squash(row.result.cause))}
+            retry={{ label: 'Check updates again', onPress: refresh }}
+          />
+        ) : null}
+        {target ? (
+          <Text variant="caption" tone="muted">
+            {target.state.version ?? 'Unknown version'}
+            {settingsUpdateAvailable(target) && target.state.latest
+              ? ` → ${target.state.latest}`
+              : ''}
+          </Text>
+        ) : null}
+        {inBatch ? (
+          <Text variant="caption" tone="muted">
+            {entry.status === 'queued' ? 'Queued' : 'Updating…'}
+          </Text>
+        ) : null}
+        {!inBatch && target ? <ServiceUpdateNote target={target} /> : null}
+        {entry && !inBatch ? <UpdateOutcome entry={entry} /> : null}
+      </Box>
       {!inBatch && target ? <ServiceUpdateAction target={target} /> : null}
-      {entry && !inBatch ? <UpdateOutcome entry={entry} /> : null}
-    </Box>
+    </>
+  );
+}
+
+function ServiceUpdateNote({ target }: { target: ServiceUpdateTarget }) {
+  if (!target.state.managed)
+    return (
+      <Text variant="caption" tone="muted">
+        This server runs outside the installed service. Update it with npm, then
+        run porcelain service update.
+      </Text>
+    );
+  if (settingsUpdateTrust(target)) return null;
+  if (target.state.running) return <Loading label="Updating…" />;
+  if (settingsUpdateVersion(target)) return null;
+  return (
+    <Text variant="caption" tone="muted">
+      {target.state.available ? 'Update unavailable' : 'Up to date'}
+    </Text>
   );
 }
 
@@ -80,28 +102,19 @@ function ServiceUpdateAction({ target }: { target: ServiceUpdateTarget }) {
   const [, run] = useAtom(runSettingsUpdates);
   const trust = settingsUpdateTrust(target);
   const version = settingsUpdateVersion(target);
-  if (!target.state.managed)
-    return (
-      <Text variant="caption" tone="muted">
-        This server runs outside the installed service. Update it with npm, then
-        run porcelain service update.
-      </Text>
-    );
+  if (!target.state.managed || target.state.running) return null;
   if (trust) return <TrustInstructions target={target} trust={trust} />;
-  if (target.state.running) return <Loading label="Updating…" />;
-  if (version)
-    return (
-      <Button
-        label={`Update to ${version}`}
-        variant="tonal"
+  if (!version) return null;
+  return (
+    <>
+      <Separator inset="leading" />
+      <Item
+        title={`Update to ${version}`}
+        leading={<Icon name="refresh" tone="brand" />}
         disabled={batch.running}
         onPress={() => run([target])}
       />
-    );
-  return (
-    <Text variant="caption" tone="muted">
-      {target.state.available ? 'Update unavailable' : 'Up to date'}
-    </Text>
+    </>
   );
 }
 
@@ -115,19 +128,17 @@ function TrustInstructions({
   const [expanded, setExpanded] = useState(false);
   const refresh = useAtomRefresh(readServiceUpdate(target.connection));
   return (
-    <Box gap={2}>
-      <ButtonSurface
-        variant="tonal"
-        onPress={() => setExpanded(!expanded)}
+    <>
+      <Separator inset="leading" />
+      <Item
+        title={expanded ? 'Hide trust instructions' : trust.label}
+        leading={<Icon name="lock" tone="muted" />}
+        trailing={<Icon name={expanded ? 'collapse' : 'down'} tone="muted" />}
         accessibilityLabel={`${expanded ? 'Hide trust instructions' : 'Needs trust'} for ${target.name}`}
-      >
-        <Icon name="lock" />
-        <Text variant="secondary" weight="medium">
-          {expanded ? 'Hide trust instructions' : trust.label}
-        </Text>
-      </ButtonSurface>
+        onPress={() => setExpanded(!expanded)}
+      />
       {expanded ? (
-        <Box gap={2}>
+        <Box paddingX={4} paddingY={2} gap={2}>
           <Text variant="secondary">
             This device can’t update {target.name} yet.
           </Text>
@@ -154,7 +165,7 @@ function TrustInstructions({
           />
         </Box>
       ) : null}
-    </Box>
+    </>
   );
 }
 

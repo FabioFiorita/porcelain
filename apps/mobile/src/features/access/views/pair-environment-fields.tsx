@@ -89,6 +89,10 @@ export function PairEnvironmentFields({
           keyboardType="url"
           autoCapitalize="none"
           autoCorrect={false}
+          multiline
+          submitBehavior="blurAndSubmit"
+          returnKeyType="done"
+          className="max-h-32"
         />
       </Field>
       {development?.renderControl({

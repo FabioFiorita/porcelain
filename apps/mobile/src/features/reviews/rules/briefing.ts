@@ -1,6 +1,7 @@
-import type {
-  WalkthroughKey,
-  WalkthroughStop,
+import {
+  stopTitle,
+  type WalkthroughKey,
+  type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 
 export function briefingContinuation(
@@ -12,4 +13,12 @@ export function briefingContinuation(
   return next
     ? { key: next.key, label: `Continue at decision ${next.number}` }
     : undefined;
+}
+
+export function stopScreenTitle(
+  stop: Exclude<WalkthroughStop, { kind: 'briefing' }>,
+  stops: readonly WalkthroughStop[],
+): string {
+  if (stop.kind !== 'decision') return stopTitle(stop);
+  return `Decision ${stop.number} of ${stops.filter((entry) => entry.kind === 'decision').length}`;
 }
