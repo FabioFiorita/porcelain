@@ -1,6 +1,5 @@
 export type ListDetailMode = 'beside' | 'stack';
 
-export const LIST_COLUMN_WIDTH = 340;
 const BESIDE_MINIMUM_WIDTH = 700;
 
 export function listDetailMode({

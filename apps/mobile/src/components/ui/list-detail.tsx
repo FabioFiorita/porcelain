@@ -2,10 +2,11 @@ import { useState, type ReactNode } from 'react';
 import { DeviceType, deviceType } from 'expo-device';
 import { View } from 'react-native';
 import {
-  LIST_COLUMN_WIDTH,
   listDetailMode,
   type ListDetailMode,
 } from '../../shared/rules/list-detail';
+
+const LIST_COLUMN_WIDTH = 340;
 
 const tablet = deviceType === DeviceType.TABLET;
 
