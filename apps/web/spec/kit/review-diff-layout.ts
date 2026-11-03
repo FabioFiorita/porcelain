@@ -22,14 +22,13 @@ export function reviewDiffLayout(page: Page) {
         const region = document.querySelector(
           '[role="region"][aria-label="Code content"]',
         );
-        if (!section || !region)
-          throw new Error('Missing decision code or existing-code section');
+        if (!section || !region) return null;
         const blocks = [...region.querySelectorAll('diffs-container')];
         const overlaps: string[] = [];
         let notes = 0;
         let wrapped = false;
         for (const [index, block] of blocks.entries()) {
-          if (!block.shadowRoot) throw new Error('Missing rendered diff');
+          if (!block.shadowRoot) return null;
           const rows = [...block.shadowRoot.querySelectorAll('[data-line]')];
           wrapped ||= rows.some(
             (row) => row.getBoundingClientRect().height > 20,
