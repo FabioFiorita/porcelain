@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { readWorktreeNavigator } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
@@ -8,20 +8,20 @@ import {
 import { remoteConnectionState } from '../../../shared/application/store';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { worktreeRow } from '../rules/worktree-row';
+import { openedWorktree } from '../store';
 import { WorktreeNavigator } from './worktree-navigator';
 import type { WorktreeDetails } from './worktree-screen';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreesScreen({ mode }: { mode: ListDetailMode }) {
   const router = useRouter();
+  const remember = useAtomSet(openedWorktree);
   return (
     <WorktreeNavigator
       onOpenWorktree={(entry) => {
-        if (mode === 'stack')
-          router.push({
-            pathname: '/worktree',
-            params: worktreeDetails(entry),
-          });
+        const details = worktreeDetails(entry);
+        if (mode === 'beside') remember(details);
+        else router.push({ pathname: '/worktree', params: details });
       }}
     />
   );
@@ -33,10 +33,16 @@ export function useSelectedWorktree(): WorktreeDetails | undefined {
   const { projects } = useAtomValue(
     readWorktreeNavigator(remotes.map((entry) => entry.connection)),
   );
+  const remembered = useAtomValue(openedWorktree);
   const entry = projects
     .flatMap((project) => project.entries)
     .find((candidate) => navigatorEntrySelected(candidate, checkout));
-  return entry ? worktreeDetails(entry) : undefined;
+  if (entry) return worktreeDetails(entry);
+  return remembered &&
+    checkout?.environmentId === remembered.environment &&
+    checkout.worktreeId === remembered.worktreeId
+    ? remembered
+    : undefined;
 }
 
 function worktreeDetails(entry: NavigatorEntry): WorktreeDetails {
