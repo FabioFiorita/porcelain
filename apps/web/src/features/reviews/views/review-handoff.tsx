@@ -4,6 +4,7 @@ import { SectionHeading } from './section-heading';
 
 export function ReviewHandoff({ revision }: { revision: ReviewRevision }) {
   const { tryIt, coverage } = revision.verdict;
+  if (!tryIt && !coverage?.length) return null;
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {tryIt && (

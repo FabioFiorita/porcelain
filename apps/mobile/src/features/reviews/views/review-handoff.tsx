@@ -9,6 +9,7 @@ import { usePreviewLink } from '../../../shared/adapters/preview-link';
 export function ReviewHandoff({ revision }: { revision: ReviewRevision }) {
   const { tryIt, coverage } = revision.verdict;
   const link = usePreviewLink();
+  if (!tryIt && !coverage?.length) return null;
   return (
     <Box gap={3}>
       {link.error ? <ErrorState message={link.error} /> : null}
