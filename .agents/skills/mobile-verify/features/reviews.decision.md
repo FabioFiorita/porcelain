@@ -12,6 +12,7 @@ selectors:
   - 'Open in Files'
   - 'File history'
   - 'Back to review'
+  - 'Decisions'
 tests:
   - apps/mobile/src/features/reviews/store.spec.ts
   - packages/client/src/features/reviews/commands/decisions.spec.ts
@@ -60,4 +61,4 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 
 - Previous/next change the screen's own `stop` parameter (`navigation.setParams`, never the global router, which can reach the other tab's stack) rather than pushing, so the stack stays overview → decision; check Back after several moves.
 - Mark decision reviewed advances only while the decision screen is focused; a write that lands after the reader opened a step, a sheet or another tab saves without moving them.
-- Phones and iPad push the same routes; rotate with a decision open.
+- Phones and iPad push the same routes. On iPad the decision screen shows the review's title, its decision count and the walkthrough rows (`Decisions`) in a left column, with the current stop highlighted; choosing a row switches the stop in place like previous/next. Rotate with a decision open: the same stop stays open in both orientations.

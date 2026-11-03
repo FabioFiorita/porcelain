@@ -1,11 +1,11 @@
 import { SettingsToolbar } from '../../../features/access';
-import { WorktreesScreen } from '../../../features/projects';
+import { WorktreesHome } from '../../../shell/worktrees-home';
 
 export default function WorktreesRoute() {
   return (
     <>
       <SettingsToolbar />
-      <WorktreesScreen />
+      <WorktreesHome />
     </>
   );
 }

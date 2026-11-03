@@ -1,11 +1,11 @@
 import { SettingsToolbar } from '../../../features/access';
-import { ReviewInbox } from '../../../features/projects';
+import { ReviewsHome } from '../../../shell/reviews-home';
 
 export default function ReviewsRoute() {
   return (
     <>
       <SettingsToolbar />
-      <ReviewInbox />
+      <ReviewsHome />
     </>
   );
 }

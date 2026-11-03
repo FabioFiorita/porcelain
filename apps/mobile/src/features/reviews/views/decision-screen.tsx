@@ -18,6 +18,8 @@ import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
 import { WorkspaceGate } from '../../projects';
+import { ListDetail } from '../../../components/ui/list-detail';
+import { WalkthroughColumn } from './walkthrough-stop-list';
 import { stopScreenTitle } from '../rules/briefing';
 import { DecisionBar } from './decision-bar';
 import { DecisionPage, RevisionDiffs } from './decision-page';
@@ -78,19 +80,36 @@ function StopReader({
       <Stack.Screen
         options={{ title: stopScreenTitle(stop, walkthrough.stops) }}
       />
-      <ScrollView
-        key={`${stop.key}:page`}
-        className="flex-1"
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerClassName="w-full max-w-3xl self-center gap-4 p-4 pb-8"
-      >
-        <StopPage walkthrough={walkthrough} stop={stop} go={go} />
-      </ScrollView>
-      <StopBar
-        key={`${stop.key}:bar`}
-        walkthrough={walkthrough}
-        stop={stop}
-        go={go}
+      <ListDetail
+        collapse="detail"
+        list={() => (
+          <WalkthroughColumn
+            title={walkthrough.review.verdict?.asked.text ?? 'Agent review'}
+            review={walkthrough.review}
+            stops={walkthrough.stops}
+            done={walkthrough.progress.done}
+            current={stop.key}
+            onStop={go}
+          />
+        )}
+        detail={
+          <>
+            <ScrollView
+              key={`${stop.key}:page`}
+              className="flex-1"
+              contentInsetAdjustmentBehavior="automatic"
+              contentContainerClassName="w-full max-w-3xl self-center gap-4 p-4 pb-8"
+            >
+              <StopPage walkthrough={walkthrough} stop={stop} go={go} />
+            </ScrollView>
+            <StopBar
+              key={`${stop.key}:bar`}
+              walkthrough={walkthrough}
+              stop={stop}
+              go={go}
+            />
+          </>
+        }
       />
     </>
   );

@@ -82,8 +82,21 @@ export function useWorkspacePickerModel() {
       });
     },
   } satisfies WorkspacePickerProps;
+  const checkoutProject = choices.find((choice) =>
+    choice.worktrees.some((row) => row.selected),
+  );
+  const checkoutRow = checkoutProject?.worktrees.find((row) => row.selected);
+  const checkout =
+    checkoutProject && checkoutRow
+      ? {
+          kind: 'worktree' as const,
+          environmentId: checkoutProject.environmentId,
+          worktreeId: checkoutRow.worktree.id,
+        }
+      : undefined;
   return {
     picker,
+    checkout,
     initializing,
     reading: workspace.reading || inventories.reading,
   };

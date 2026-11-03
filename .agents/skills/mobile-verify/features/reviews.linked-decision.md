@@ -25,6 +25,7 @@ Preconditions: [surface baseline](README.md) with `--fixture development`; open 
 1. Open decision 1 from the review: the native title reads Decision 1 of N. Next and previous swap the stop in place (Decision 2 of N, then back); previous from the first decision and native Back return to the review.
 2. Open a link with `decision=<layer id>`: it lands on that decision. Previous moves to the earlier decision, then to the review's briefing, without leaving to the inbox.
 3. Each move stays in the tab that opened it; check after several moves that the other tab's stack is unchanged.
+4. iPad: the review's decisions column sits beside the stop, current one highlighted; choosing a row switches the stop in place.
 
 ## Gotchas
 

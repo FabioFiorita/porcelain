@@ -45,6 +45,14 @@ export function ReviewScreen({
 }) {
   const focused = useIsFocused();
   return focused ? (
+    <Screen layout="fixed">
+      <ReviewPane workspace={workspace} />
+    </Screen>
+  ) : null;
+}
+
+export function ReviewPane({ workspace }: { workspace?: string | undefined }) {
+  return (
     <WorkspaceGate
       title="Review"
       expectedWorkspace={workspace}
@@ -55,13 +63,9 @@ export function ReviewScreen({
         />
       }
     >
-      {(workspace) => (
-        <Screen layout="fixed">
-          <PhoneReview key={workspace.key} workspace={workspace} />
-        </Screen>
-      )}
+      {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
     </WorkspaceGate>
-  ) : null;
+  );
 }
 
 function PhoneReview({ workspace }: { workspace: Workspace }) {

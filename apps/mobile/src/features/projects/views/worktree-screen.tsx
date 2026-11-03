@@ -11,20 +11,26 @@ import { useOpenPullRequest } from './open-pull-request';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenInWorktree } from './open-in-worktree';
 import { PickerNotices } from './picker-notices';
+import type { WorktreeDetails } from '../store';
 
 export function WorktreeScreen() {
+  const params = useLocalSearchParams<Partial<WorktreeDetails>>();
+  return (
+    <>
+      <Stack.Screen options={{ title: params.title ?? 'Worktree' }} />
+      <WorktreeDetail params={params} />
+    </>
+  );
+}
+
+export function WorktreeDetail({
+  params,
+  heading = false,
+}: {
+  params: Partial<WorktreeDetails>;
+  heading?: boolean;
+}) {
   const openPullRequest = useOpenPullRequest();
-  const params = useLocalSearchParams<{
-    title?: string;
-    project?: string;
-    computer?: string;
-    environment?: string;
-    projectId?: string;
-    worktreeId?: string;
-    review?: string;
-    reviewId?: string;
-    number?: string;
-  }>();
   const { picker, reading } = useWorkspacePickerModel();
   const openIn = useOpenInWorktree(picker.onWorktree);
   const openInWorktree = (pathname: '/review' | '/files' | '/history') => {
@@ -55,8 +61,12 @@ export function WorktreeScreen() {
   const chevron = <Icon name="chevron" tone="muted" />;
   return (
     <Screen layout="scroll" testID="worktree-screen">
-      <Stack.Screen options={{ title: params.title ?? 'Worktree' }} />
       <Box className="w-full max-w-2xl self-center" gap={4} padding={4}>
+        {heading ? (
+          <Text variant="title" accessibilityRole="header">
+            {params.title ?? 'Worktree'}
+          </Text>
+        ) : null}
         <Text variant="caption" tone="muted">
           {[params.project, params.computer].filter(Boolean).join(' · ')}
         </Text>

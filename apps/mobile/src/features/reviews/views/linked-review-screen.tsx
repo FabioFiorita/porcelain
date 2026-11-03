@@ -55,7 +55,11 @@ import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { BriefingVerdict } from './review-briefing';
 import { BriefingContinue } from './briefing-continue';
 import { briefingContinuation, stopScreenTitle } from '../rules/briefing';
-import { WalkthroughStopList } from './walkthrough-stop-list';
+import {
+  WalkthroughColumn,
+  WalkthroughStopList,
+} from './walkthrough-stop-list';
+import { ListDetail } from '../../../components/ui/list-detail';
 import { ReviewReadState } from './read-state';
 import { AgentFeedback } from './agent-feedback';
 import { ReviewBottomBar } from './review-bottom-bar';
@@ -336,6 +340,95 @@ function LinkedReviewContent({
   const go = stop.kind === 'briefing' ? navigation.open : navigation.move;
   const previous = neighbourStop(stops, stop.key, -1);
   const following = neighbourStop(stops, stop.key, 1);
+  const page = (
+    <ScrollView
+      key={stop.key}
+      className="flex-1"
+      contentInsetAdjustmentBehavior="automatic"
+    >
+      <Box
+        className="w-full max-w-3xl self-center"
+        gap={4}
+        padding={4}
+        paddingBottom={8}
+      >
+        <Text variant="caption" tone="muted">
+          {revision.branch} · Revision {revision.revision}
+        </Text>
+        {stop.kind === 'briefing' ? (
+          <>
+            <AgentFeedback
+              connection={connection}
+              reviewId={revision.reviewId}
+              reviewRevision={revision.revision}
+              writable={false}
+            />
+            <PullRequestState
+              connection={connection}
+              reviewId={revision.reviewId}
+            />
+          </>
+        ) : null}
+        {place !== stop.key ? (
+          <ErrorState message="This decision is not in this revision." />
+        ) : null}
+        {stop.kind === 'briefing' ? (
+          <>
+            <Text
+              variant="title"
+              numberOfLines={3}
+              accessibilityLabel={revision.verdict.asked.text}
+            >
+              {revision.verdict.asked.text}
+            </Text>
+            <BriefingVerdict
+              revision={revision}
+              connection={connection}
+              review={revision.content}
+              go={go}
+            />
+            <Text variant="headline" tone="muted">
+              The walkthrough
+            </Text>
+            {revision.content.layers.length === 0 ? (
+              <Text>No decisions were published in this revision.</Text>
+            ) : null}
+            <WalkthroughStopList
+              review={revision.content}
+              stops={stops}
+              done={done}
+              onStop={go}
+            />
+          </>
+        ) : (
+          <>
+            {selected ? (
+              <Decision key={selected.id} layer={selected} />
+            ) : (
+              <Box gap={2}>
+                <Text variant="title">{stopTitle(stop)}</Text>
+                {stop.paths.map((path) => (
+                  <Text key={path} variant="code" selectable>
+                    {path}
+                  </Text>
+                ))}
+                {stop.kind === 'unexplained'
+                  ? stop.partial.map((gap) => (
+                      <Text key={gap.path} variant="code" selectable>
+                        {gap.path} ·{' '}
+                        {gap.ranges
+                          .map((range) => `${range.startLine}–${range.endLine}`)
+                          .join(', ')}
+                      </Text>
+                    ))
+                  : null}
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
+    </ScrollView>
+  );
   return (
     <Box className="flex-1">
       <Stack.Screen
@@ -346,128 +439,64 @@ function LinkedReviewContent({
               : stopScreenTitle(stop, stops),
         }}
       />
-      <ScrollView
-        key={stop.key}
-        className="flex-1"
-        contentInsetAdjustmentBehavior="automatic"
-      >
-        <Box
-          className="w-full max-w-3xl self-center"
-          gap={4}
-          padding={4}
-          paddingBottom={8}
-        >
-          <Text variant="caption" tone="muted">
-            {revision.branch} · Revision {revision.revision}
-          </Text>
-          {stop.kind === 'briefing' ? (
-            <>
-              <AgentFeedback
-                connection={connection}
-                reviewId={revision.reviewId}
-                reviewRevision={revision.revision}
-                writable={false}
-              />
-              <PullRequestState
-                connection={connection}
-                reviewId={revision.reviewId}
-              />
-            </>
+      {stop.kind === 'briefing' ? (
+        <>
+          {page}
+          {stop.kind === 'briefing' && next ? (
+            <BriefingContinue next={next} onContinue={() => go(next.key)} />
           ) : null}
-          {place !== stop.key ? (
-            <ErrorState message="This decision is not in this revision." />
-          ) : null}
-          {stop.kind === 'briefing' ? (
-            <>
-              <Text
-                variant="title"
-                numberOfLines={3}
-                accessibilityLabel={revision.verdict.asked.text}
-              >
-                {revision.verdict.asked.text}
-              </Text>
-              <BriefingVerdict
-                revision={revision}
-                connection={connection}
-                review={revision.content}
-                go={go}
-              />
-              <Text variant="headline" tone="muted">
-                The walkthrough
-              </Text>
-              {revision.content.layers.length === 0 ? (
-                <Text>No decisions were published in this revision.</Text>
-              ) : null}
-              <WalkthroughStopList
-                review={revision.content}
-                stops={stops}
-                done={done}
-                onStop={go}
-              />
-            </>
-          ) : (
-            <>
-              {selected ? (
-                <Decision key={selected.id} layer={selected} />
-              ) : (
-                <Box gap={2}>
-                  <Text variant="title">{stopTitle(stop)}</Text>
-                  {stop.paths.map((path) => (
-                    <Text key={path} variant="code" selectable>
-                      {path}
-                    </Text>
-                  ))}
-                  {stop.kind === 'unexplained'
-                    ? stop.partial.map((gap) => (
-                        <Text key={gap.path} variant="code" selectable>
-                          {gap.path} ·{' '}
-                          {gap.ranges
-                            .map(
-                              (range) => `${range.startLine}–${range.endLine}`,
-                            )
-                            .join(', ')}
-                        </Text>
-                      ))
-                    : null}
-                </Box>
-              )}
-            </>
+        </>
+      ) : (
+        <ListDetail
+          collapse="detail"
+          list={() => (
+            <WalkthroughColumn
+              title={revision.verdict.asked.text}
+              review={revision.content}
+              stops={stops}
+              done={done}
+              current={stop.key}
+              onStop={go}
+            />
           )}
-        </Box>
-      </ScrollView>
-      {stop.kind === 'briefing' && next ? (
-        <BriefingContinue next={next} onContinue={() => go(next.key)} />
-      ) : null}
-      {stop.kind === 'briefing' ? null : (
-        <ReviewBottomBar>
-          <Box className="flex-row items-center" gap={2}>
-            <IconButton
-              icon="previous"
-              accessibilityLabel={
-                previous
-                  ? `Previous stop: ${stopTitle(previous)}`
-                  : 'Previous stop'
-              }
-              disabled={!previous}
-              onPress={() => previous && go(previous.key)}
-            />
-            <Text
-              variant="secondary"
-              tone="muted"
-              className="flex-1 text-center"
-            >
-              Read-only review
-            </Text>
-            <IconButton
-              icon="chevron"
-              accessibilityLabel={
-                following ? `Next stop: ${stopTitle(following)}` : 'Next stop'
-              }
-              disabled={!following}
-              onPress={() => following && go(following.key)}
-            />
-          </Box>
-        </ReviewBottomBar>
+          detail={
+            <>
+              {page}
+
+              <ReviewBottomBar>
+                <Box className="flex-row items-center" gap={2}>
+                  <IconButton
+                    icon="previous"
+                    accessibilityLabel={
+                      previous
+                        ? `Previous stop: ${stopTitle(previous)}`
+                        : 'Previous stop'
+                    }
+                    disabled={!previous}
+                    onPress={() => previous && go(previous.key)}
+                  />
+                  <Text
+                    variant="secondary"
+                    tone="muted"
+                    className="flex-1 text-center"
+                  >
+                    Read-only review
+                  </Text>
+                  <IconButton
+                    icon="chevron"
+                    accessibilityLabel={
+                      following
+                        ? `Next stop: ${stopTitle(following)}`
+                        : 'Next stop'
+                    }
+                    disabled={!following}
+                    onPress={() => following && go(following.key)}
+                  />
+                </Box>
+              </ReviewBottomBar>
+            </>
+          }
+        />
       )}
     </Box>
   );

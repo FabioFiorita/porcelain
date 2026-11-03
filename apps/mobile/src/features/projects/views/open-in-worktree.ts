@@ -15,17 +15,21 @@ export function useOpenInWorktree(
       readonly projectId: string;
       readonly worktreeId: string;
     },
-    pathname: '/review' | '/files' | '/history',
+    destination:
+      | '/review'
+      | '/files'
+      | '/history'
+      | ((workspace: string) => void),
   ) => {
     const remote = remotes.find(
       (candidate) => candidate.remote.environmentId === target.environmentId,
     )?.remote;
     if (!remote) return;
+    const workspace = workspaceKey(remote, target);
     onWorktree(target.environmentId, target.projectId, target.worktreeId, () =>
-      router.push({
-        pathname,
-        params: { workspace: workspaceKey(remote, target) },
-      }),
+      typeof destination === 'function'
+        ? destination(workspace)
+        : router.push({ pathname: destination, params: { workspace } }),
     );
   };
 }

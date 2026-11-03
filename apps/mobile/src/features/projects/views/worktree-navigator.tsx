@@ -65,7 +65,7 @@ export function WorktreeNavigator({
 }: {
   onOpenWorktree: (entry: NavigatorEntry) => void;
 }) {
-  const { picker, initializing, reading } = useWorkspacePickerModel();
+  const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const { loading, messages, projects, filters } = useAtomValue(
@@ -84,23 +84,7 @@ export function WorktreeNavigator({
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
-  const selectedProject = picker.choices.find((choice) =>
-    choice.worktrees.some((row) => row.selected),
-  );
-  const selectedWorktree = selectedProject?.worktrees.find(
-    (row) => row.selected,
-  );
-  const selectedCheckout:
-    | Parameters<typeof navigatorEntrySelected>[1]
-    | undefined =
-    selectedProject && selectedWorktree
-      ? {
-          kind: 'worktree',
-          environmentId: selectedProject.environmentId,
-          worktreeId: selectedWorktree.worktree.id,
-        }
-      : undefined;
-  const selection = selectedCheckout;
+  const selection = checkout;
   const openActions = (entry: NavigatorEntry) => {
     if (entry.worktreeId)
       router.navigate({
