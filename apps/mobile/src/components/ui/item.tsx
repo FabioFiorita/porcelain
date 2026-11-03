@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { hitHeight } from './hit-target';
 import { usePressRipple } from './press-ripple';
 import { Text } from './text';
 import { itemAccessibilityLabel } from '../../shared/rules/item-label.ts';
@@ -7,7 +8,7 @@ const sizes = {
   default: { row: 'gap-3 px-4 py-3', oneLine: 'min-h-12', twoLine: 'min-h-16' },
   compact: {
     row: 'gap-2.5 px-3 py-2',
-    oneLine: 'min-h-11',
+    oneLine: hitHeight,
     twoLine: 'min-h-14',
   },
 };

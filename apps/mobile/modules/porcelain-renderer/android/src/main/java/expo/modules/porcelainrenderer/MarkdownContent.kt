@@ -40,7 +40,7 @@ private fun text(block: MarkdownBlock, codeFamily: FontFamily, onLink: (String) 
 @Composable
 internal fun MarkdownContent(blocks: List<MarkdownBlock>, tokens: RenderTokens, onLink: (String) -> Unit) {
   val codeFamily = rememberRendererFontFamily("Geist Mono")
-  val sansFamily = rememberRendererFontFamily("Geist")
+  val sansFamily = FontFamily.Default
   LazyColumn(Modifier.fillMaxSize().background(tokens.background), contentPadding = PaddingValues(tokens.pagePadding.dp), verticalArrangement = Arrangement.spacedBy(tokens.pagePadding.dp)) {
     items(blocks, key = { it.id }) { block ->
       SelectionContainer {

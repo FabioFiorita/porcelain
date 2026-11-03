@@ -1,4 +1,5 @@
 import { Pressable, View, type ViewProps } from 'react-native';
+import { hitTarget } from './hit-target';
 import { Icon, type IconName } from './icon';
 import { Text } from './text';
 const variants = {
@@ -76,7 +77,7 @@ export function Badge({
         accessibilityRole="button"
         accessibilityLabel={props.accessibilityLabel ?? label}
         onPress={onPress}
-        className="min-h-11 min-w-11 self-start justify-center"
+        className={`${hitTarget} self-start justify-center`}
       >
         <View className={classes}>{content}</View>
       </Pressable>

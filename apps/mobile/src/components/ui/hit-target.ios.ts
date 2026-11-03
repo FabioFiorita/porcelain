@@ -1,1 +1,2 @@
-export const hitTarget = 'min-h-11 min-w-11';
+export const hitHeight = 'min-h-11';
+export const hitTarget = `${hitHeight} min-w-11`;

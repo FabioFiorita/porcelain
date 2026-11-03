@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -43,7 +44,7 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
   val measurer = rememberTextMeasurer()
   val density = LocalDensity.current
   val codeFamily = rememberRendererFontFamily("Geist Mono")
-  val sansFamily = rememberRendererFontFamily("Geist")
+  val sansFamily = FontFamily.Default
   val font = TextStyle(fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
   val gutterWidth = with(density) { measurer.measure("0".repeat(digits), font).size.width.toDp() } + tokens.inset.dp
   val scrolling = if (options.wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())

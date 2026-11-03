@@ -30,6 +30,7 @@ import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
+import { hitHeight } from '../../../components/ui/hit-target';
 import { Item } from '../../../components/ui/item';
 import { Badge } from '../../../components/ui/badge';
 import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
@@ -252,7 +253,7 @@ export function WorktreeNavigator({
                           titleNumberOfLines={1}
                           titleTrailing={
                             number !== undefined ? (
-                              <Box className="h-11" accessible={false} />
+                              <Box className={hitHeight} accessible={false} />
                             ) : undefined
                           }
                           size="compact"

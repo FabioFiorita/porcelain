@@ -83,7 +83,7 @@ export function EnvironmentConnections({
               />
             ) : null}
             <Button
-              variant="plain"
+              variant="destructivePlain"
               label="Remove connection"
               accessibilityLabel={`Remove connection ${route.address}`}
               disabled={unavailable || routes.length === 1}
