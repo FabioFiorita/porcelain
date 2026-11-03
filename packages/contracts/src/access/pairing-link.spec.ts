@@ -61,4 +61,38 @@ describe('pairingLinkSchema', () => {
       environmentId: '',
     });
   });
+
+  it('opens the app link page with the code, the environment and every address in the fragment', () => {
+    expect(
+      Schema.encodeSync(pairingLinkSchema)({
+        ...oneAddress,
+        appOrigin: 'https://porcelain.fabiofiorita.com',
+      }),
+    ).toBe(
+      'https://porcelain.fabiofiorita.com/open/pair#c=pcp_first&e=environment-1&a=http%3A%2F%2F192.168.1.10%3A3000',
+    );
+  });
+
+  it('reads the parts and the app origin back from an app link', () => {
+    expect(
+      Schema.decodeUnknownSync(pairingLinkSchema)(
+        'https://porcelain.fabiofiorita.com/open/pair#c=pcp_second&e=environment-1&a=http%3A%2F%2F192.168.1.10%3A3000%2Chttp%3A%2F%2Fporcelain.local%3A3000',
+      ),
+    ).toEqual({
+      ...twoAddresses,
+      appOrigin: 'https://porcelain.fabiofiorita.com',
+    });
+  });
+
+  it.each([
+    'http://192.168.1.10:3000/pair',
+    'http://192.168.1.10:3000/reviews#c=pcp_first&e=environment-1',
+    'https://porcelain.fabiofiorita.com/open/pair#c=pcp_first&e=environment-1',
+    'https://porcelain.fabiofiorita.com/open/pair#c=pcp_first&e=environment-1&a=',
+    'http://192.168.1.10:3000/pair#c=%E0%A4%A&e=environment-1',
+  ])('refuses a link that is not a pairing link %j', (link) => {
+    expect(() => Schema.decodeUnknownSync(pairingLinkSchema)(link)).toThrow(
+      'Expected a Porcelain pairing link',
+    );
+  });
 });

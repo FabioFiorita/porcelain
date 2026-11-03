@@ -145,6 +145,7 @@ export function accessServicesLayer(
       Layer.succeed(IssuePairingOptions, {
         lifetimeMs: limits.pairingGrant.lifetimeMs,
         labelLength: limits.deviceDetails.labelLength,
+        appOrigin: context.settings.appLinkOrigin,
       }),
       Layer.succeed(RedeemPairingOptions, limits.deviceDetails),
       Layer.succeed(PairingAttemptBudgetStore, pairingAttempts),

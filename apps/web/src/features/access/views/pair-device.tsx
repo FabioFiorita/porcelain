@@ -54,8 +54,7 @@ export function PairDevice({
       : null;
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
   const issuedRoute =
-    issued &&
-    addresses.find(({ url }) => issued.link.startsWith(`${url}/pair#`))?.route;
+    issued && addresses.find(({ url }) => url === issued.address)?.route;
   if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">

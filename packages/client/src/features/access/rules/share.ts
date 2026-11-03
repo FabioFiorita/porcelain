@@ -19,6 +19,7 @@ type DeviceRoute = PairedDevice['route'];
 type IssuedLink = {
   id: string;
   label: string;
+  address: string | undefined;
   link: string;
   expiresAt: string;
 };
@@ -153,6 +154,7 @@ export function issuedLink(issued: IssuePairingResponse): IssuedLink | null {
   return {
     id: first.grant.id,
     label: first.grant.label,
+    address: first.link.addresses[0],
     link: pairingLink(first.link),
     expiresAt: first.grant.expiresAt,
   };

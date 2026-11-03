@@ -57,7 +57,7 @@ test('the owner lists no open pairing grants and the paired fixture device', asy
   ).toStrictEqual([session.fixture.device]);
 });
 
-test('the owner issues a pairing whose link opens the pairing page and which is then listed', async ({
+test('the owner issues a pairing whose link opens the Porcelain app link and which is then listed', async ({
   session,
 }) => {
   const response = await session.send(

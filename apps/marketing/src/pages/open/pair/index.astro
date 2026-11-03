@@ -1,0 +1,25 @@
+---
+import Site from '../../../layouts/site.astro';
+---
+<Site title="Pair · Porcelain" description="Pair a device with a computer running Porcelain.">
+  <main class="mx-auto w-full max-w-2xl px-5 py-16">
+    <h1 class="text-3xl font-medium">Pair with this computer</h1>
+    <p class="mt-4 text-muted-foreground" id="pair-message">Enable JavaScript to continue pairing in your browser.</p>
+    <a id="pair-open" hidden class="mt-6 inline-flex rounded-full bg-foreground px-5 py-3 text-background no-underline" rel="noreferrer">Continue in this browser</a>
+    <p class="mt-6 text-sm text-muted-foreground">On a phone with Porcelain installed, scanning the pairing code with the Camera opens the app directly.</p>
+    <a class="mt-6 inline-block" href="/">Back to Porcelain</a>
+  </main>
+</Site>
+<script>
+  import { pairingPageUrl, remoteLink } from '@porcelain/client/access/rules/pairing-link';
+  const link = remoteLink(`${window.location.origin}/open/pair${window.location.hash}`);
+  const message = document.getElementById('pair-message');
+  const button = document.getElementById('pair-open');
+  if (link && button instanceof HTMLAnchorElement) {
+    if (message) message.textContent = `Continue pairing this browser with the computer at ${new URL(link.address).host}.`;
+    button.href = pairingPageUrl(link);
+    button.hidden = false;
+  } else if (message) {
+    message.textContent = 'This pairing link is invalid. Create a new one on your computer.';
+  }
+</script>

@@ -38,6 +38,23 @@ References: [Expo iOS universal links](https://docs.expo.dev/linking/ios-univers
 [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/),
 [Pages redirects](https://developers.cloudflare.com/pages/configuration/redirects/).
 
+## Pairing links
+
+The server builds pairing links on the app-link origin from its settings:
+`https://porcelain.fabiofiorita.com/open/pair#c=<code>&e=<environment>&a=<addresses>`.
+The code stays in the fragment, so no request carries it; only the page's script
+reads it, in the browser. The iOS
+association's `/open/*` component and the Android `/open` path prefix already
+cover `/open/pair`, so the association files are unchanged. `_redirects` rewrites
+`/open/pair` to the static `/open/pair/` page, which validates the fragment in the
+browser and offers, only when pressed, the first address's own `/pair#c=…&e=…`
+page. Clients still decode the older `<address>/pair#…` links.
+
+Installed apps are already associated with `/open/pair`, so the Camera opens the
+app as soon as a server prints these links. Until the app's router handles
+`/open/pair`, a JavaScript route an app update can deliver, it opens on an
+unmatched route. The browser page needs the marketing deployment.
+
 ## Mac app handoff
 
 Validated review links offer Open in Porcelain for Mac through

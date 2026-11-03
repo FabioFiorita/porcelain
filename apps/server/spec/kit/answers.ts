@@ -54,7 +54,7 @@ export const deviceCookieForm = new RegExp(
 
 export function pairingLinkForm(address: string, environmentId: string) {
   return new RegExp(
-    `^${literally(address)}/pair#c=${issued('pcp')}&e=${literally(environmentId)}$`,
+    `^${literally('https://porcelain.fabiofiorita.com/open/pair')}#c=${issued('pcp')}&e=${literally(environmentId)}&a=${literally(encodeURIComponent(address))}$`,
   );
 }
 
