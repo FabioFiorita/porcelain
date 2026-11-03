@@ -13,11 +13,13 @@ export function WorkspaceGate({
   title,
   expectedWorkspace,
   changed,
+  frame = 'screen',
   children,
 }: {
   title: string;
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
+  frame?: 'screen' | 'pane';
   children: (workspace: Workspace) => ReactNode;
 }) {
   const { state, read, reading, remote, environments } = useWorkspace();
@@ -86,5 +88,9 @@ export function WorkspaceGate({
       state.workspace.key === expectedWorkspace)
   )
     return children(state.workspace);
-  return <Screen layout="fixed">{notice()}</Screen>;
+  return frame === 'screen' ? (
+    <Screen layout="fixed">{notice()}</Screen>
+  ) : (
+    <Box className="flex-1">{notice()}</Box>
+  );
 }

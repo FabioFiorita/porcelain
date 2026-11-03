@@ -102,7 +102,11 @@ export function ReviewInbox({ mode }: { mode: ListDetailMode }) {
           descriptionNumberOfLines={1}
           leading={<StatusTile {...statusTiles[row.status]} />}
           trailing={
-            mode === 'beside' ? undefined : <Icon name="chevron" tone="muted" />
+            mode === 'beside' &&
+            row.entry.available &&
+            row.entry.worktreeId ? undefined : (
+              <Icon name="chevron" tone="muted" />
+            )
           }
           disabled={picker.disabled}
           selected={
