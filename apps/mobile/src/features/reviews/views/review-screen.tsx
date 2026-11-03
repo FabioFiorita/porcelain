@@ -43,25 +43,35 @@ export function ReviewScreen({
 }: {
   workspace?: string | undefined;
 }) {
+  return (
+    <Screen layout="fixed">
+      <ReviewPane workspace={workspace} />
+    </Screen>
+  );
+}
+
+export function ReviewPane({ workspace }: { workspace?: string | undefined }) {
   const focused = useIsFocused();
-  return focused ? (
+  if (!focused) return null;
+  return (
     <WorkspaceGate
       title="Review"
       expectedWorkspace={workspace}
-      changed={
-        <Empty
-          title="Workspace changed"
-          description="Another worktree is selected now. Open Review again from the worktree you want."
-        />
-      }
+      frame="pane"
+      {...(workspace === undefined
+        ? {}
+        : {
+            changed: (
+              <Empty
+                title="Workspace changed"
+                description="Another worktree is selected now. Open Review again from the worktree you want."
+              />
+            ),
+          })}
     >
-      {(workspace) => (
-        <Screen layout="fixed">
-          <PhoneReview key={workspace.key} workspace={workspace} />
-        </Screen>
-      )}
+      {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
     </WorkspaceGate>
-  ) : null;
+  );
 }
 
 function PhoneReview({ workspace }: { workspace: Workspace }) {

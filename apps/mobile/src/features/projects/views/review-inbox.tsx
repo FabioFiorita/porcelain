@@ -1,6 +1,9 @@
-import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { useAtom, useAtomRef, useAtomValue } from '@effect/atom-react';
+import type { ListDetailMode } from '../../../shared/rules/list-detail';
+import { reviewPaneOpen } from '../store';
 import { readReviewInbox } from '@porcelain/client/projects';
 import {
+  navigatorEntrySelected,
   searchReviewInbox,
   type ReviewInboxRow,
   type ReviewInboxStatus,
@@ -39,7 +42,8 @@ const statusTiles: Record<
   unavailable: { name: 'warning', tone: 'warn' },
 };
 
-export function ReviewInbox() {
+export function ReviewInbox({ mode }: { mode: ListDetailMode }) {
+  const [paneOpen, openPane] = useAtom(reviewPaneOpen);
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const {
@@ -52,7 +56,7 @@ export function ReviewInbox() {
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
   const readEnvironments = useReadEnvironments();
-  const { picker, initializing, reading } = useWorkspacePickerModel();
+  const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const openComputers = useOpenComputers();
   const openPublishedReview = useOpenPublishedReview();
   const openInWorktree = useOpenInWorktree(picker.onWorktree);
@@ -65,7 +69,7 @@ export function ReviewInbox() {
           projectId: entry.projectId,
           worktreeId: entry.worktreeId,
         },
-        '/review',
+        mode === 'beside' ? () => openPane(true) : '/review',
       );
     else
       openPublishedReview({
@@ -97,8 +101,19 @@ export function ReviewInbox() {
             .join(' · ')}
           descriptionNumberOfLines={1}
           leading={<StatusTile {...statusTiles[row.status]} />}
-          trailing={<Icon name="chevron" tone="muted" />}
+          trailing={
+            mode === 'beside' &&
+            row.entry.available &&
+            row.entry.worktreeId ? undefined : (
+              <Icon name="chevron" tone="muted" />
+            )
+          }
           disabled={picker.disabled}
+          selected={
+            mode === 'beside' &&
+            paneOpen &&
+            navigatorEntrySelected(row.entry, checkout)
+          }
           accessibilityLabel={[
             row.entry.branch,
             row.entry.projectName,
