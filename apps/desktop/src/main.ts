@@ -14,6 +14,8 @@ if (refusal !== undefined) {
   const { runDesktopMcp } = await import('./adapters/mcp.ts');
   await runDesktopMcp();
 } else if (process.argv.includes(WATCH_HOST_SWITCH)) {
+  const profile = process.argv[process.argv.indexOf(WATCH_HOST_SWITCH) + 1];
+  if (profile !== undefined) app.setPath('userData', profile);
   app.dock?.hide();
   await import('@porcelain/server/watch-host');
 } else await import('./app.ts');
