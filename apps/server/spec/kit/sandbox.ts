@@ -15,7 +15,6 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { bundleWatchHost } from './watch-host-bundle.ts';
 const kit = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(kit, '../../../..');
 const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
@@ -118,10 +117,18 @@ export async function buildIsolatedServer(output: string): Promise<void> {
     logLevel: 'warning',
   });
   await chmod(join(output, CODING_TOOL_BUNDLE), 0o755);
-  await bundleWatchHost(join(output, 'server/src'), [
-    ...unbundled.map(({ name }) => name),
-    ...optionalModules,
-  ]);
+  await build({
+    entryPoints: [
+      join(repositoryRoot, 'apps/server/src/bootstrap/watch-host.ts'),
+    ],
+    outfile: join(output, 'server/src/bootstrap/watch-host.mjs'),
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node24',
+    external: [...unbundled.map(({ name }) => name), ...optionalModules],
+    logLevel: 'warning',
+  });
   await cp(
     join(repositoryRoot, 'packages/storage/drizzle'),
     join(output, 'server/drizzle'),

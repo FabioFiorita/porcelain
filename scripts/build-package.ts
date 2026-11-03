@@ -12,7 +12,6 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { bundleWatchHost } from '../apps/server/spec/kit/watch-host-bundle.ts';
 import { parseAllDocuments } from 'yaml';
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const packageOutput = join(repositoryRoot, 'dist-porcelain');
@@ -193,18 +192,28 @@ async function buildServer(
   serverOutput: string,
   externalDependencies: readonly string[],
 ): Promise<void> {
-  await mkdir(dirname(serverOutput), { recursive: true });
-  await build({
-    entryPoints: [join(repositoryRoot, 'scripts/server.ts')],
-    outfile: serverOutput,
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    target: 'node24',
-    external: [...externalDependencies],
-    sourcemap: false,
-    logLevel: 'info',
-  });
+  const serverSource = dirname(dirname(serverOutput));
+  const entries = [
+    [join(repositoryRoot, 'scripts/server.ts'), serverOutput],
+    [
+      join(repositoryRoot, 'apps/server/src/bootstrap/watch-host.ts'),
+      join(serverSource, 'bootstrap/watch-host.mjs'),
+    ],
+  ] as const;
+  for (const [entryPoint, outfile] of entries) {
+    await mkdir(dirname(outfile), { recursive: true });
+    await build({
+      entryPoints: [entryPoint],
+      outfile,
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      target: 'node24',
+      external: [...externalDependencies],
+      sourcemap: false,
+      logLevel: 'info',
+    });
+  }
 }
 function packageReadme(version: string): string {
   return `# @fabiofiorita/porcelain (${version})
@@ -309,10 +318,6 @@ export async function buildPackage(): Promise<string> {
   await buildWeb(webOutput);
   await requiredFile(join(webOutput, 'index.html'));
   await buildServer(serverOutput, Object.keys(dependencies));
-  await bundleWatchHost(
-    join(packageOutput, 'server/src'),
-    Object.keys(dependencies),
-  );
   await cp(migrations, join(packageOutput, 'server/drizzle'), {
     recursive: true,
   });
