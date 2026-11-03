@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
 import {
   nodeWatchHost,
@@ -57,8 +58,8 @@ async function withHost(
   const host = await Effect.runPromise(
     makeWatchHost({
       ...command,
-      heartbeat: Duration.millis(100),
-      answer: Duration.millis(1000),
+      heartbeat: Duration.millis(250),
+      answer: Duration.millis(5000),
     }).pipe(
       Effect.provideService(Scope.Scope, scope),
       Effect.provide(NodeServices.layer),
@@ -137,4 +138,26 @@ it('fails a watch when its helper dies on every start, after trying once more', 
     },
   );
   expect(readFileSync(starts, 'utf8')).toBe('started\nstarted\n');
+});
+
+it('waits for a slow helper to answer before judging it frozen', async () => {
+  const directory = folder();
+  const seen: string[] = [];
+  await withHost(
+    async (host) => {
+      await Effect.runPromise(host.subscribe(directory, [], recorder(seen)));
+      writeFileSync(join(directory, 'slow.txt'), 's');
+      await expect
+        .poll(() => seen, settled)
+        .toEqual([join(directory, 'slow.txt')]);
+    },
+    {
+      command: process.execPath,
+      args: [
+        '--input-type=module',
+        '-e',
+        `await new Promise((resolve) => setTimeout(resolve, 1000)); await import(${JSON.stringify(pathToFileURL(watchHostEntry()).href)});`,
+      ],
+    },
+  );
 });

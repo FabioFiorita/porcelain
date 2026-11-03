@@ -57,6 +57,7 @@ type Running = {
   readonly scope: Scope.Closeable;
   readonly outbox: Queue.Queue<string>;
   readonly pending: Map<number, Deferred.Deferred<Answer>>;
+  readonly answering: Deferred.Deferred<void>;
   proven: boolean;
 };
 
@@ -118,6 +119,7 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
         ?.changed(message.value.failure, message.value.events);
       return;
     }
+    Deferred.doneUnsafe(current.answering, Exit.void);
     const waiting = current.pending.get(message.value.request);
     if (!waiting) return;
     current.pending.delete(message.value.request);
@@ -176,15 +178,19 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
     });
 
   const heartbeat = (current: Running) =>
-    Effect.forever(
-      Effect.sleep(settings.heartbeat).pipe(
-        Effect.andThen(ask(current, { kind: 'ping' })),
-        Effect.tap((answer) =>
-          Effect.sync(() => {
-            if (answer.kind === 'lost' || current.proven) return;
-            current.proven = true;
-            state.quickDeaths = 0;
-          }),
+    Deferred.await(current.answering).pipe(
+      Effect.andThen(
+        Effect.forever(
+          Effect.sleep(settings.heartbeat).pipe(
+            Effect.andThen(ask(current, { kind: 'ping' })),
+            Effect.tap((answer) =>
+              Effect.sync(() => {
+                if (answer.kind === 'lost' || current.proven) return;
+                current.proven = true;
+                state.quickDeaths = 0;
+              }),
+            ),
+          ),
         ),
       ),
     );
@@ -196,6 +202,7 @@ export const makeWatchHost = Effect.fn('WatchHost.make')(function* (
       scope,
       outbox,
       pending: new Map(),
+      answering: yield* Deferred.make<void>(),
       proven: false,
     };
     const child = yield* ChildProcess.make(
