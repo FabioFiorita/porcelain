@@ -53,7 +53,12 @@ export class IssuePairingService extends Context.Service<
         return {
           grant,
           code,
-          link: { addresses: [...grant.addresses], code, environmentId },
+          link: {
+            addresses: [...grant.addresses],
+            code,
+            environmentId,
+            appOrigin: options.appOrigin,
+          },
         };
       }
       return {

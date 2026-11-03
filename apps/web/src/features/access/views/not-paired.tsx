@@ -128,8 +128,9 @@ export function NotPaired({
                 'Checking that the link belongs to this Porcelain installation.'
               ) : (
                 <>
-                  It starts with <code>{pairingAddress()}/pair#</code>. On a
-                  phone, scan the QR code it prints.
+                  Its Porcelain page continues here, at{' '}
+                  <code>{pairingAddress()}/pair</code>. On a phone, scan the QR
+                  code it prints.
                 </>
               ))}
           </p>

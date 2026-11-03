@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./access/rules": "./src/features/access/rules/index.ts",
+    "./access/rules/pairing-link": "./src/features/access/rules/pairing-link.ts",
     "./transport": "./src/shared/api/index.ts",
     "./access": "./src/features/access/index.ts",
     "./access/api": "./src/features/access/api.ts",

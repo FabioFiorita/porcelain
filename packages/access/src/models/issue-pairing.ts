@@ -13,6 +13,7 @@ type PairingLink = {
   addresses: string[];
   code: Redacted.Redacted<string>;
   environmentId: string;
+  appOrigin: string;
 };
 
 export type IssuedPairingGrant = {
@@ -23,4 +24,8 @@ export type IssuedPairingGrant = {
 
 export type IssuePairingResult = { grants: IssuedPairingGrant[] };
 
-export type IssuePairingOptions = { lifetimeMs: number; labelLength: number };
+export type IssuePairingOptions = {
+  lifetimeMs: number;
+  labelLength: number;
+  appOrigin: string;
+};

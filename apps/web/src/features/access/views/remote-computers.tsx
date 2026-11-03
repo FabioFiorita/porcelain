@@ -108,7 +108,7 @@ function AddRemote() {
           <div className="min-w-0 flex-1 font-mono">
             <Input
               aria-label="Pairing link"
-              placeholder="http://192.168.1.20:4738/pair#c=…"
+              placeholder="https://porcelain.fabiofiorita.com/open/pair#c=…"
               value={link}
               disabled={add.result.waiting || status !== 'ready'}
               onChange={(event) => {

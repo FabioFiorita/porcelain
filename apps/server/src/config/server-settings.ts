@@ -44,7 +44,7 @@ export const listenPortSchema = Schema.Int.check(
 );
 
 const serverSettingsSchema = Schema.Struct({
-  reviewHubOrigin: Schema.String.pipe(
+  appLinkOrigin: Schema.String.pipe(
     Schema.withDecodingDefault(
       Effect.succeed('https://porcelain.fabiofiorita.com'),
     ),
