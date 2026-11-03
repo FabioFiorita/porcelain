@@ -1,5 +1,8 @@
-import { Box } from '../../../components/ui/box';
-import { Button } from '../../../components/ui/button';
+import { ActivityIndicator } from 'react-native';
+import { Card } from '../../../components/ui/card';
+import { Icon } from '../../../components/ui/icon';
+import { Item } from '../../../components/ui/item';
+import { Separator } from '../../../components/ui/separator';
 import {
   useServiceUpdates,
   useUpdatesIndicator,
@@ -10,15 +13,20 @@ export function ComputerUpdatesSummary() {
   const { running } = useUpdatesIndicator();
   const { checking, refresh } = useServiceUpdates();
   return (
-    <Box className="flex-row flex-wrap justify-end" gap={2}>
-      <Button
-        variant="tonal"
-        label="Check for updates"
-        pending={checking}
+    <Card>
+      <Item
+        title="Check for updates"
+        leading={<Icon name="refresh" tone="muted" />}
+        trailing={
+          checking ? (
+            <ActivityIndicator colorClassName="accent-muted-foreground" />
+          ) : undefined
+        }
         disabled={running || checking}
         onPress={refresh}
       />
+      <Separator inset="leading" />
       <UpdateAllButton />
-    </Box>
+    </Card>
   );
 }

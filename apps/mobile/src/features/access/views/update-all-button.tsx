@@ -5,7 +5,8 @@ import {
   settingsUpdateBatchProgress,
   settingsUpdateCount,
 } from '@porcelain/client/access';
-import { Button } from '../../../components/ui/button';
+import { Icon } from '../../../components/ui/icon';
+import { Item } from '../../../components/ui/item';
 import { useServiceUpdates } from '../queries/service-updates';
 
 export function UpdateAllButton() {
@@ -16,8 +17,9 @@ export function UpdateAllButton() {
   const progress = settingsUpdateBatchProgress(batch);
   const progressLabel = progress.label ? `${progress.label}…` : 'Updating…';
   return (
-    <Button
-      label={batch.running ? progressLabel : `Update all (${count})`}
+    <Item
+      title={batch.running ? progressLabel : `Update all (${count})`}
+      leading={<Icon name="refresh" tone={count === 0 ? 'muted' : 'brand'} />}
       disabled={batch.running || count === 0}
       onPress={() => run(targets)}
     />
