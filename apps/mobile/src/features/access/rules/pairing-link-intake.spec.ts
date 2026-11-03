@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  incomingPairingLink,
-  pairingIntentPath,
-  scannedPairingLink,
-} from './pairing-link-intake';
+import { pairingIntentPath, scannedPairingLink } from './pairing-link-intake';
 
 const appLink =
   'https://porcelain.fabiofiorita.com/open/pair#c=one-time&e=computer&a=http%3A%2F%2F192.168.1.20%3A4555';
@@ -14,6 +10,17 @@ describe('pairingIntentPath', () => {
     expect(pairingIntentPath(appLink)).toBe('/open/pair');
   });
 
+  it('strips the fragment from an app-scheme or trailing-slash pairing link', () => {
+    expect(
+      pairingIntentPath('porcelain.dev://open/pair#c=one-time&e=computer'),
+    ).toBe('/open/pair');
+    expect(
+      pairingIntentPath(
+        'https://porcelain.fabiofiorita.com/open/pair/#c=one-time&e=computer',
+      ),
+    ).toBe('/open/pair');
+  });
+
   it('leaves review links and app scheme links for the router', () => {
     const review =
       'https://porcelain.fabiofiorita.com/open/reviews/abc?environment=computer';
@@ -21,17 +28,6 @@ describe('pairingIntentPath', () => {
     expect(pairingIntentPath('porcelain.dev://settings')).toBe(
       'porcelain.dev://settings',
     );
-  });
-});
-
-describe('incomingPairingLink', () => {
-  it('prefills the whole incoming link, fragment included', () => {
-    expect(incomingPairingLink(appLink)).toBe(appLink);
-  });
-
-  it('offers nothing when the app opened without a pairing link', () => {
-    expect(incomingPairingLink(null)).toBeUndefined();
-    expect(incomingPairingLink('porcelain.dev://open/pair')).toBeUndefined();
   });
 });
 

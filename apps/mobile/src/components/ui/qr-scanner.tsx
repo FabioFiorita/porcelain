@@ -11,7 +11,7 @@ type QrScannerProps = {
   | {
       hint: string;
       message?: string | undefined;
-      onScan: (text: string) => void;
+      onScan: ((text: string) => void) | undefined;
       onUnavailable: (message: string) => void;
     }
   | { blocked: ReactNode }
@@ -28,7 +28,11 @@ export function QrScanner(props: QrScannerProps) {
           style={StyleSheet.absoluteFill}
           facing="back"
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={({ data }) => props.onScan(data)}
+          onBarcodeScanned={
+            props.onScan === undefined
+              ? undefined
+              : ({ data }) => props.onScan?.(data)
+          }
           onMountError={(error) => props.onUnavailable(error.message)}
         />
       ) : null}

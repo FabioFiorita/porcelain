@@ -32,6 +32,6 @@ Automated coverage: `pairing-link-intake.spec.ts`, `pairing-sheet.spec.ts`.
 
 ## Gotchas
 
-- The code never enters navigation state: the app rewrites `/open/pair#…` to `/open/pair` before routing and reads the full link from the linking URL. Keep it out of evidence; redact the `c` value.
+- The code never enters navigation state: the app rewrites `/open/pair#…` to `/open/pair` before routing, hands the full link to the next pairing form once and clears the native launch URL. Keep it out of evidence; redact the `c` value.
 - On Android a warm link currently shows the form as a full page with a header and Back to Settings rather than a sheet; a cold link and Add computer present the sheet. A direct `porcelain.dev://pair-computer` link behaves the same way.
 - A debug cold HTTPS intent can stop at the development launcher; choosing the Metro server then delivers the link. Automatic domain verification needs the distributed binary and the deployed association files.

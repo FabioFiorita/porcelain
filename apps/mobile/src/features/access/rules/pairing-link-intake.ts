@@ -1,26 +1,26 @@
+import {
+  APP_PAIRING_PATH,
+  isAppPairingPath,
+} from '@porcelain/contracts/access';
 import { remoteLink } from '@porcelain/client/access/rules/pairing-link';
 
-const APP_PAIRING_PATH = '/open/pair';
-
-function isAppPairingUrl(value: string): boolean {
+function routedPath(value: string): string | undefined {
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    return false;
+    return undefined;
   }
-  return (
-    (url.protocol === 'https:' || url.protocol === 'http:') &&
-    url.pathname === APP_PAIRING_PATH
-  );
+  return url.protocol === 'https:' || url.protocol === 'http:'
+    ? url.pathname
+    : `/${url.host}${url.pathname}`;
 }
 
 export function pairingIntentPath(path: string): string {
-  return isAppPairingUrl(path) ? APP_PAIRING_PATH : path;
-}
-
-export function incomingPairingLink(url: string | null): string | undefined {
-  return url !== null && isAppPairingUrl(url) ? url : undefined;
+  const routed = routedPath(path);
+  return routed !== undefined && isAppPairingPath(routed)
+    ? APP_PAIRING_PATH
+    : path;
 }
 
 export function scannedPairingLink(text: string): string | undefined {

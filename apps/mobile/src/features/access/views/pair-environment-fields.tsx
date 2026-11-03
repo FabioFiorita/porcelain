@@ -69,7 +69,11 @@ export function PairEnvironmentFields({
       ) : null}
       <Field
         label="Pairing link"
-        description="Or run porcelain pair on the computer you want to connect and paste the whole link it prints."
+        description={
+          props.layout === 'sheet'
+            ? 'Or run porcelain pair on the computer you want to connect and paste the whole link it prints.'
+            : 'Run porcelain pair on the computer you want to connect, then paste the whole link it prints.'
+        }
       >
         <Input
           testID="pairing-link"

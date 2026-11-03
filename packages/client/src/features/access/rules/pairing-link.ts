@@ -1,4 +1,4 @@
-import { pairingLink } from '@porcelain/contracts/access';
+import { isAppPairingPath, pairingLink } from '@porcelain/contracts/access';
 
 export type PairingCode = { code: string; environmentId: string };
 
@@ -27,7 +27,7 @@ export function remoteLink(value: string): RemoteLink | undefined {
   const pairing = parsePairingLink(url.hash);
   if (!pairing) return undefined;
   if (url.pathname === '/pair') return { address: url.origin, ...pairing };
-  if (url.pathname !== '/open/pair') return undefined;
+  if (!isAppPairingPath(url.pathname)) return undefined;
   const [first = ''] = (
     new URLSearchParams(url.hash.replace(/^#/, '')).get('a') ?? ''
   ).split(',');

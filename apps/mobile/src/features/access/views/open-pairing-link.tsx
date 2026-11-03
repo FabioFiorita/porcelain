@@ -1,9 +1,7 @@
-import { useLinkingURL } from 'expo-linking';
 import { Redirect } from 'expo-router';
-import { incomingPairingLink } from '../rules/pairing-link-intake';
-import { usePairingLinkArrival } from '../pairing-sheet';
+import { usePairingLinkArrival } from '../store';
 
 export function OpenPairingLink() {
-  usePairingLinkArrival(incomingPairingLink(useLinkingURL()) ?? '');
+  usePairingLinkArrival();
   return <Redirect href="/pair-computer" />;
 }

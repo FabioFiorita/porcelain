@@ -6,12 +6,12 @@ import { Loading } from '../../../components/ui/loading';
 import { QrScanner } from '../../../components/ui/qr-scanner';
 import { useCameraPermission } from '../queries/camera-permission';
 import { scannedPairingLink } from '../rules/pairing-link-intake';
-import { useOfferPairingLink } from '../pairing-sheet';
+import { useScannedPairingLink } from '../pairing-sheet';
 
 export function ScanPairingLinkScreen() {
   const router = useRouter();
   const { permission, request } = useCameraPermission();
-  const offer = useOfferPairingLink();
+  const scanned = useScannedPairingLink();
   const [message, setMessage] = useState<string>();
   const close = () => router.back();
 
@@ -47,15 +47,19 @@ export function ScanPairingLinkScreen() {
       message={message}
       onClose={close}
       onUnavailable={setMessage}
-      onScan={(text) => {
-        const link = scannedPairingLink(text);
-        if (link === undefined) {
-          setMessage('This QR code is not a Porcelain pairing link.');
-          return;
-        }
-        offer(link);
-        router.dismissTo('/pair-computer');
-      }}
+      onScan={
+        scanned.accepted
+          ? undefined
+          : (text) => {
+              const link = scannedPairingLink(text);
+              if (link === undefined) {
+                setMessage('This QR code is not a Porcelain pairing link.');
+                return;
+              }
+              scanned.accept(link);
+              router.dismissTo('/pair-computer');
+            }
+      }
     />
   );
 }

@@ -10,4 +10,4 @@ export { useEnvironments, useEnvironmentStorageStatus } from './store';
 export { PairEnvironmentForm } from './views/pair-environment-form';
 
 export { SettingsToolbar } from './views/settings-toolbar';
-export { pairingIntentPath } from './rules/pairing-link-intake';
+export { receivePairingLink } from './store';

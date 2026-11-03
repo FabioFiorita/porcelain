@@ -7,8 +7,12 @@ type PairingLinkParts = {
   appOrigin?: string | undefined;
 };
 
-const APP_PATH = '/open/pair';
+export const APP_PAIRING_PATH = '/open/pair';
 const PAGE_PATH = '/pair';
+
+export function isAppPairingPath(pathname: string): boolean {
+  return pathname.replace(/\/$/, '') === APP_PAIRING_PATH;
+}
 
 export function pairingLink(parts: PairingLinkParts): string {
   const fragment = (withAddresses: boolean) =>
@@ -21,7 +25,7 @@ export function pairingLink(parts: PairingLinkParts): string {
     ].join('&');
   return parts.appOrigin === undefined
     ? `${parts.addresses[0] ?? ''}${PAGE_PATH}#${fragment(parts.addresses.length > 1)}`
-    : `${parts.appOrigin}${APP_PATH}#${fragment(true)}`;
+    : `${parts.appOrigin}${APP_PAIRING_PATH}#${fragment(true)}`;
 }
 
 function linkParts(link: string): PairingLinkParts | undefined {
@@ -49,13 +53,13 @@ function linkParts(link: string): PairingLinkParts | undefined {
     code: values.get('c') ?? '',
     environmentId: values.get('e') ?? '',
   };
-  if (base.endsWith(APP_PATH))
+  if (base.endsWith(APP_PAIRING_PATH))
     return listed.length === 0
       ? undefined
       : {
           ...secret,
           addresses: listed,
-          appOrigin: base.slice(0, -APP_PATH.length),
+          appOrigin: base.slice(0, -APP_PAIRING_PATH.length),
         };
   if (base.endsWith(PAGE_PATH))
     return {
