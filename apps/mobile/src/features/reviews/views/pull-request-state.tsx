@@ -107,7 +107,6 @@ export function PullRequestState({
         onPress={() => {
           if (number !== undefined)
             openPullRequest({
-              kind: 'pull-request',
               environmentId: connection.environmentId,
               projectId,
               reviewId,

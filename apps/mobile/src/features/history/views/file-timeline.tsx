@@ -12,7 +12,7 @@ import { useFileTimeline, type HistorySelection } from '../queries/history';
 import { commitAge } from '../rules/commit-age';
 import { HistoryFooter } from './history-navigation';
 
-export function FileTimelineContent({
+function FileTimelineContent({
   selection,
   path,
   onOpen,

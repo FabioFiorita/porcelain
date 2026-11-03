@@ -4,24 +4,19 @@ import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { isTablet } from '../../../shared/navigation/is-tablet';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
-
-const unframed = (content: ReactNode) => content;
 
 export function WorkspaceGate({
   title,
   expectedWorkspace,
   changed,
-  fallbackFrame = unframed,
   children,
 }: {
   title: string;
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
-  fallbackFrame?: (content: ReactNode) => ReactNode;
   children: (workspace: Workspace) => ReactNode;
 }) {
   const { state, read, reading, remote, environments } = useWorkspace();
@@ -29,9 +24,9 @@ export function WorkspaceGate({
   const openComputers = useOpenComputers();
   switch (state.kind) {
     case 'loading':
-      return fallbackFrame(<Loading label="Reading workspace…" />);
+      return <Loading label="Reading workspace…" />;
     case 'failed':
-      return fallbackFrame(
+      return (
         <Box padding={4}>
           <ErrorState
             message={state.message}
@@ -41,10 +36,10 @@ export function WorkspaceGate({
               pending: reading,
             }}
           />
-        </Box>,
+        </Box>
       );
     case 'unavailable':
-      return fallbackFrame(
+      return (
         <Empty
           title="Workspace unavailable"
           description={state.reason}
@@ -56,35 +51,31 @@ export function WorkspaceGate({
                   onPress: () => router.push('/settings'),
                 }
           }
-        />,
+        />
       );
     case 'none':
-      return fallbackFrame(
+      return (
         changed ??
-          (environments.length === 0 ? (
-            <Empty
-              title="Pair a computer"
-              description="Pair a computer, then select a project and worktree."
-              action={{
-                label: 'Add computer',
-                onPress: openComputers,
-              }}
-            />
-          ) : (
-            <Empty
-              title="Select a worktree"
-              description={
-                isTablet
-                  ? `Choose a worktree in the sidebar to continue to ${title}.`
-                  : `Choose a project and worktree with the workspace filter in the toolbar to continue to ${title}.`
-              }
-            />
-          )),
+        (environments.length === 0 ? (
+          <Empty
+            title="Pair a computer"
+            description="Pair a computer, then select a project and worktree."
+            action={{
+              label: 'Add computer',
+              onPress: openComputers,
+            }}
+          />
+        ) : (
+          <Empty
+            title="Select a worktree"
+            description={`Choose a worktree in Worktrees to continue to ${title}.`}
+          />
+        ))
       );
     case 'selected':
       return expectedWorkspace !== undefined &&
         state.workspace.key !== expectedWorkspace
-        ? fallbackFrame(changed)
+        ? changed
         : children(state.workspace);
     default:
       return state satisfies never;

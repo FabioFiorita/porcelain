@@ -27,7 +27,7 @@ A computer can retain several independently paired addresses, choose a preferred
 
 ## How to get to it (user POV)
 
-Settings → Computers → Manage connections → Add connection. The same controls render in the phone settings and iPad Computers destination.
+Settings gear → Computers → Manage connections → Add connection. Phone and iPad use the same Computers screen.
 
 ## Driving it with agent-device
 

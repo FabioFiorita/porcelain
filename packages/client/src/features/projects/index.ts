@@ -28,7 +28,10 @@ export { openProject } from './commands/open-project.ts';
 
 export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';
 
-export { readWorktreeNavigator } from './queries/worktree-navigator.ts';
+export {
+  readReviewInbox,
+  readWorktreeNavigator,
+} from './queries/worktree-navigator.ts';
 export { readWorktreeBranchSwitch } from './queries/worktree-actions.ts';
 export { refreshWorktreeNavigator } from './commands/worktree-navigator.ts';
 

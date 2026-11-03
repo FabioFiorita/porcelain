@@ -139,15 +139,13 @@ export const mobileRules = {
           });
         if (
           runtime &&
-          ((source === 'expo-router/native-tabs' &&
-            !path.endsWith('/shell/phone-tabs.tsx')) ||
-            (path.includes('/shell/tablet-') &&
-              /(?:^|\/)phone-tabs(?:\.tsx?)?$/.test(source ?? '')))
+          source === 'expo-router/native-tabs' &&
+          !path.endsWith('/shell/app-tabs.tsx')
         )
           context.report({
             node,
             message:
-              'Keep NativeTabs in the phone shell; the tablet owns its root SplitView and master/detail selections, so embedding the phone navigator cannot replace the agreed tablet layout.',
+              'Keep NativeTabs in shell/app-tabs.tsx; phone and tablet share one tab shell, and the system adapts it into the iPad sidebar, so a second tab navigator would split the app into two layouts again.',
           });
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {

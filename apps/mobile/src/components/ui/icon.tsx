@@ -37,13 +37,13 @@ const symbols = {
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
-  split: { ios: 'rectangle.split.2x1', android: 'vertical_split' },
   hidden: { ios: 'eye.slash', android: 'visibility_off' },
   visible: { ios: 'eye', android: 'visibility' },
   sliders: { ios: 'slider.horizontal.3', android: 'tune' },
   checklist: { ios: 'checklist', android: 'checklist' },
-  sidebar: { ios: 'sidebar.left', android: 'left_panel_open' },
-  panel: { ios: 'sidebar.right', android: 'right_panel_open' },
+  reviewWaiting: { ios: 'text.badge.checkmark', android: 'rate_review' },
+  reviewDone: { ios: 'checkmark.circle', android: 'task_alt' },
+  reviewReading: { ios: 'hourglass', android: 'hourglass_empty' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

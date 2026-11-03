@@ -1,33 +1,32 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Schema, Option } from 'effect';
-import { pullRequestDocumentSchema } from '../../../shared/rules/workspace-documents';
-import { Box } from '../../../components/ui/box';
 import { ErrorState } from '../../../components/ui/error-state';
-import { PullRequestDocumentContent } from './pull-request-document';
+import { Screen } from '../../../components/ui/screen';
+import { pullRequestTargetSchema } from '../../../shared/rules/pull-request-target';
+import { PullRequestContent } from './pull-request-document';
 
 export function PullRequestScreen() {
   const params = useLocalSearchParams();
-  const document = Schema.decodeUnknownOption(pullRequestDocumentSchema)({
-    kind: 'pull-request',
+  const target = Schema.decodeUnknownOption(pullRequestTargetSchema)({
     environmentId: params.environment,
     projectId: params.projectId,
     reviewId: params.reviewId,
     number: Number(params.number),
   });
   return (
-    <Box className="flex-1" surface="background">
+    <Screen layout="fixed">
       <Stack.Screen
         options={{
-          title: Option.isSome(document)
-            ? `PR #${document.value.number}`
+          title: Option.isSome(target)
+            ? `PR #${target.value.number}`
             : 'Pull request',
         }}
       />
-      {Option.isSome(document) ? (
-        <PullRequestDocumentContent document={document.value} />
+      {Option.isSome(target) ? (
+        <PullRequestContent target={target.value} />
       ) : (
         <ErrorState message="This pull request link is invalid. Return to Worktrees and open its PR again." />
       )}
-    </Box>
+    </Screen>
   );
 }

@@ -13,5 +13,6 @@ export type WorkspacePickerProps = {
     environmentId: string,
     projectId: string,
     worktreeId: string,
+    onSelect: () => void,
   ) => void;
 };

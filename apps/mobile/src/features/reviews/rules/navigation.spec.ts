@@ -5,7 +5,22 @@ import {
   decodeCommentReview,
   reviewParams,
   reviewComparison,
+  reviewFileDocumentKey,
 } from './navigation';
+
+it('keeps saved reading places of one path apart per review comparison', () => {
+  expect(
+    [
+      { kind: 'worktree' as const },
+      { kind: 'branch' as const },
+      { kind: 'branch' as const, base: 'refs/heads/main' },
+    ].map((comparison) => reviewFileDocumentKey('README.md', comparison)),
+  ).toEqual([
+    '["review-file",["worktree"],"README.md"]',
+    '["review-file",["branch",null],"README.md"]',
+    '["review-file",["branch","refs/heads/main"],"README.md"]',
+  ]);
+});
 
 it('preserves a valid deleted-line anchor when opening the native sheet', () => {
   expect(

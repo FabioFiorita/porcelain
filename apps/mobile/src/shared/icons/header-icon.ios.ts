@@ -2,11 +2,8 @@ import { type SFSymbolIcon } from 'expo-router/native-tabs';
 import { type HeaderIconName } from './icon';
 
 const symbols = {
-  sidebar: 'sidebar.left',
-  inspector: 'sidebar.right',
   add: 'plus',
-  workspace: 'line.3.horizontal.decrease',
-  worktrees: 'folder',
+  settings: 'gearshape',
   refresh: 'arrow.clockwise',
   done: 'checkmark',
   close: 'xmark',

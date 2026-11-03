@@ -2,10 +2,8 @@ import { type MaterialIcon } from 'expo-router/native-tabs';
 import { type IconName } from './icon';
 
 const symbols = {
-  review: 'exposure',
-  files: 'folder',
-  history: 'history',
-  settings: 'settings',
+  reviews: 'rate_review',
+  worktrees: 'account_tree',
 } satisfies Record<IconName, NonNullable<MaterialIcon['md']>>;
 
 export function tabIcon(name: IconName): MaterialIcon {

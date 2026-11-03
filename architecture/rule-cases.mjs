@@ -2708,11 +2708,12 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    validPath: 'apps/mobile/src/shell/app-tabs.tsx',
+    path: 'apps/mobile/src/shell/tab-stack.tsx',
     valid:
-      "import { SplitView } from 'expo-router/unstable-split-view'; export const Tablet = () => <SplitView />;",
+      "import { NativeTabs } from 'expo-router/native-tabs'; export const Tabs = () => <NativeTabs />;",
     invalid:
-      "import { PhoneTabs } from './phone-tabs'; export const Detail = () => <PhoneTabs />;",
+      "import { NativeTabs } from 'expo-router/native-tabs'; export const Tabs = () => <NativeTabs />;",
     errors: 1,
   },
   {
@@ -2735,7 +2736,7 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
+    path: 'apps/mobile/src/features/reviews/views/review-screen.tsx',
     valid: "import type { NativeTabsProps } from 'expo-router/native-tabs';",
     invalid:
       "import { NativeTabs as Tabs } from 'expo-router/native-tabs'; export const Detail = () => <Tabs />;",
@@ -2743,7 +2744,7 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/phone-tabs.tsx',
+    path: 'apps/mobile/src/shell/app-tabs.tsx',
     valid:
       "import { NativeTabs } from 'expo-router/native-tabs'; export const Phone = () => <NativeTabs />;",
     invalid: "export { Platform } from 'react-native';",
@@ -2775,7 +2776,7 @@ export function probeLoose(left: string, right: string): boolean {
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/phone-tabs.tsx',
+    path: 'apps/mobile/src/shell/app-tabs.tsx',
     valid:
       "import { View } from 'react-native'; export const Frame = () => <View />;",
     invalid:

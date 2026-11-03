@@ -110,7 +110,6 @@ it.each(
         'src/app/(settings)/component-text.tsx',
         'src/app/(settings)/component-button.tsx',
         'src/app/(settings)/component-preview.tsx',
-        ...(platform === 'ios' ? ['src/shell/tablet-settings.ios.tsx'] : []),
       ],
       bundle: true,
       packages: 'external',

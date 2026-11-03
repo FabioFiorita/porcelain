@@ -1,6 +1,5 @@
 import { Button } from '@expo/ui/swift-ui';
 import { ContentMenu } from '../../../components/ui/content-menu.ios';
-import { isTablet } from '../../../shared/navigation/is-tablet';
 import type { ProjectActionMenuProps } from './project-action-menu-props';
 
 const images = {
@@ -11,7 +10,7 @@ const images = {
 
 export function ProjectActionMenu({ label, actions }: ProjectActionMenuProps) {
   return (
-    <ContentMenu label={label} icon="more" size={isTablet ? 'sm' : 'default'}>
+    <ContentMenu label={label} icon="more">
       {actions.map((action) => (
         <Button
           key={action.id}

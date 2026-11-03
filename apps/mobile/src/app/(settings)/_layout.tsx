@@ -1,11 +1,20 @@
 import { Stack } from 'expo-router';
-import { DestinationLayout } from '../../shell/destination-layout';
 
 export const unstable_settings = { anchor: 'settings' };
 
 function SettingsLayout() {
   return (
-    <DestinationLayout name="settings" title="Settings">
+    <Stack
+      screenOptions={({ theme }) => ({
+        headerBackButtonDisplayMode: 'minimal',
+        headerLargeTitleEnabled: false,
+        headerTintColor: theme.colors.text,
+      })}
+    >
+      <Stack.Screen
+        name="settings"
+        options={{ title: 'Settings', headerLargeTitleEnabled: true }}
+      />
       <Stack.Screen name="general" options={{ title: 'General' }} />
       <Stack.Screen name="reviews-git" options={{ title: 'Reviews & Git' }} />
       <Stack.Screen name="computers" options={{ title: 'Computers' }} />
@@ -21,7 +30,7 @@ function SettingsLayout() {
           options={{ title: 'Primitives' }}
         />
       </Stack.Protected>
-    </DestinationLayout>
+    </Stack>
   );
 }
 

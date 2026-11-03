@@ -1,0 +1,40 @@
+---
+screen: /
+selectors:
+  - 'Reviews'
+  - 'Worktrees'
+  - 'Settings'
+  - 'Close Settings'
+  - 'review-inbox'
+  - 'worktree-navigator'
+tests: []
+api: []
+---
+
+# app.shell
+
+Phones and iPad share one native tab shell with two tabs, Reviews and Worktrees. Each tab is its own stack: a screen pushed from it (Review, Files, History, a published review, a pull request) stays in that tab, and native Back/swipe returns. A gear button labelled Settings on the left of both tab roots opens Settings as a modal. The development client is ready on Reviews within 30 seconds of a cold launch.
+
+## How to get to it (user POV)
+
+- Launch the app on an iPhone, Android phone or iPad; choose Reviews or Worktrees in the tab bar.
+- Settings: the gear on the left of the Reviews or Worktrees header.
+
+## Driving it with agent-device
+
+Preconditions: [surface baseline](README.md).
+
+1. Cold-launch. Expect Reviews selected with the `review-inbox` screen (Reading reviews…, No reviews or review rows, or Pair a computer when unpaired), ready within 30 seconds.
+2. Select Worktrees: its large title and `worktree-navigator` appear. Open a worktree and push Review; select Reviews and back to Worktrees: the Worktrees stack still shows Review. Native Back returns to the worktree, then Worktrees.
+3. Open a review row from Reviews: the published review pushes inside Reviews and Back returns to the inbox. Retain a screenshot with both tabs visible.
+4. From each tab root press Settings: Settings opens as a modal over the tabs. Close Settings returns to the same tab and stack position.
+5. Cold-launch through the card's Metro URL after selecting Worktrees and confirm the destination and selected tab visually within the 30-second budget.
+6. iPad: the same two tabs and full-width stacks. Check whether the tab bar adapts into the system sidebar and record what appears; verify landscape and portrait, including rotating with a pushed screen open.
+
+Automated coverage: none named; retain the live action and readback evidence.
+
+## Gotchas
+
+- Native selected-tab traits may be absent; use a screenshot and the header title. Reapply development-menu flags after cold launch so overlays do not cover controls.
+- A cold link to a shared route (`/review`, `/files`, `/history`, `/reviews/[reviewId]`, …) lands in the Reviews tab.
+- iPad has no separate list-beside-detail layout; the sidebar adaptation is unverified until a device run records it.

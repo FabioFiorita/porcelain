@@ -12,8 +12,8 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - Preserve the card's complete agent-device invocation, including config, session, platform and device flags, on every command. Open `mobile.bundleIdentifier` with `--foreground`; iOS then needs `prepare ios-runner`. Refresh `snapshot -i` before pressing refs; use a full snapshot without `-i` for static text and counters. Use screenshots to confirm native tabs whose selected trait is absent.
 - For deep links and cold launches follow [driving](../references/driving.md): keep the development flags and reconnect to `mobile.metroUrl`. Pairing links expire and work once; wait for keyboard animation before Pair.
-- Phones use tabs and native Back/swipe. iPad uses worktree navigation, central document tabs and a right panel: drive landscape first, then portrait/narrow panes. Verify entry and return paths, retained selection and draft protection.
-- Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.workspace-picker.md#driving-it-with-agent-device).
+- Phones and iPad use the two native tabs (Reviews and Worktrees), native Back/swipe and the Settings modal from the header gear. Verify iPad in landscape and portrait. Verify entry and return paths, retained selection and draft protection.
+- Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.worktrees.md#driving-it-with-agent-device).
 - Preference storage readbacks use the owned development app's `porcelain-preferences.db`. Keep tokens, pairing links and driver configuration private.
 - Mobile has no E2E suite. Android, iPhone, iPad, physical-device LAN permissions and remote routing require separate proof; a loopback emulator run establishes only that platform/connection. See [Android setup](../references/android.md).
 
@@ -37,15 +37,13 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [access.lan-pairing](access.lan-pairing.md) — Local-network pairing and reconnection.
 - [access.pairing](access.pairing.md) — Paste links, pair multiple computers and restore after launch.
 - [access.settings](access.settings.md) — Settings categories, version and This computer.
-- [access.updates](access.updates.md) — Update visibility, sheet navigation and batch outcomes.
+- [access.updates](access.updates.md) — Update offers, per-computer and batch updates in Settings → Computers.
 - [app.catalog-button](app.catalog-button.md) — Button variants, actions, disabled and pending states.
 - [app.catalog-library](app.catalog-library.md) — Catalog entry, sample selection and return.
 - [app.catalog-preview](app.catalog-preview.md) — Primitive previews, interactions and failures.
 - [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
 - [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
-- [app.phone-shell](app.phone-shell.md) — Native tabs and startup navigation.
-- [app.tablet-shell](app.tablet-shell.md) — Sidebar, panel and central documents.
-- [app.workspace](app.workspace.md) — Per-worktree document tabs and panel state.
+- [app.shell](app.shell.md) — Reviews and Worktrees tabs, Settings modal and startup navigation.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.
 - [history.commit](history.commit.md) — Commit metadata, merge parents and file navigation.
@@ -53,17 +51,18 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
-- [projects.workspace-picker](projects.workspace-picker.md) — Projects, worktrees, review progress, filters and archive.
+- [projects.worktree](projects.worktree.md) — A selected worktree's Review, Files, History and pull request.
+- [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search, filters and archive.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
-- [reviews.linked-review](reviews.linked-review.md) — Published verdicts, decisions and retained excerpts.
+- [reviews.inbox](reviews.inbox.md) — Open published reviews across paired computers.
+- [reviews.linked-review](reviews.linked-review.md) — Published and older reviews: verdicts, decisions and retained excerpts.
 - [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
-- [reviews.retained-review](reviews.retained-review.md) — Closed reviews that return to Files or History Worktrees.
 - [reviews.review](reviews.review.md) — Changed files, agent decisions and completion.
  - [history.timeline](history.timeline.md) — file timeline, older commits and return context.
  - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
  - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
 
-For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). iPad runs landscape first, then portrait, with fresh geometry and refs; restore its original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
+For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify iPad in landscape and portrait, with fresh geometry and refs; restore its original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
 
 - [Review agent feedback](reviews.agent-feedback.md)

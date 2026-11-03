@@ -1,6 +1,6 @@
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
-import type { ReviewPanelSelection } from '../../../shared/rules/workspace-session';
 import { Box } from '../../../components/ui/box';
+import { Screen } from '../../../components/ui/screen';
 import { useIsFocused, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { useState, type ComponentProps } from 'react';
@@ -21,7 +21,6 @@ import { Item } from '../../../components/ui/item';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { StatusDot } from '../../../components/ui/status-dot';
-import { Icon } from '../../../components/ui/icon';
 import type { Workspace } from '../../projects';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -46,9 +45,13 @@ import {
 export function ReviewScreen() {
   const focused = useIsFocused();
   return focused ? (
-    <WorkspaceGate title="Review">
-      {(workspace) => <PhoneReview key={workspace.key} workspace={workspace} />}
-    </WorkspaceGate>
+    <Screen layout="fixed">
+      <WorkspaceGate title="Review">
+        {(workspace) => (
+          <PhoneReview key={workspace.key} workspace={workspace} />
+        )}
+      </WorkspaceGate>
+    </Screen>
   ) : null;
 }
 
@@ -62,14 +65,12 @@ function PhoneReview({ workspace }: { workspace: Workspace }) {
       workspace={workspace}
       comparison={comparison}
       onComparison={setComparison}
-      inlineOverview
       onFile={(path) =>
         router.push({
           pathname: '/review-file',
           params: { ...reviewParams(workspace.key, comparison), path },
         })
       }
-      onOverview={() => undefined}
     />
   );
 }
@@ -79,26 +80,13 @@ type ReviewNavigationProps = {
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
   onFile: (path: string) => void;
-  onOverview: () => void;
-  selection?: ReviewPanelSelection | undefined;
-  inlineOverview?: boolean;
 };
 
-export function ReviewNavigation({
-  active = true,
-  ...props
-}: ReviewNavigationProps & { active?: boolean }) {
-  return active ? <ReviewNavigationContent {...props} /> : null;
-}
-
-function ReviewNavigationContent({
+function ReviewNavigation({
   workspace,
   comparison,
   onComparison,
   onFile,
-  onOverview,
-  selection,
-  inlineOverview = false,
 }: ReviewNavigationProps) {
   const [comparisonWidth, setComparisonWidth] = useState<number>();
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
@@ -182,9 +170,6 @@ function ReviewNavigationContent({
           snapshotRead={{ result, refresh }}
           comparison={comparison}
           onFile={onFile}
-          onOverview={onOverview}
-          selection={selection}
-          inlineOverview={inlineOverview}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
@@ -193,16 +178,14 @@ function ReviewNavigationContent({
   );
 }
 
-export function ReviewOverview({
+function ReviewOverview({
   workspace,
   comparison,
   onFile,
-  docked = false,
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
   onFile: (path: string) => void;
-  docked?: boolean;
 }) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   if (comparison.kind === 'worktree')
@@ -217,7 +200,6 @@ export function ReviewOverview({
         <PublishedReview
           workspace={workspace}
           onFile={onFile}
-          docked={docked}
           snapshot={
             AsyncResult.isSuccess(result) &&
             !result.waiting &&
@@ -246,17 +228,11 @@ function ReviewNavigationList({
   snapshotRead,
   comparison,
   onFile,
-  onOverview,
-  selection,
-  inlineOverview,
 }: {
   workspace: Workspace;
   snapshotRead: ReturnType<typeof useReviewSnapshot>;
   comparison: ReviewComparison;
   onFile: (path: string) => void;
-  onOverview: () => void;
-  selection: ReviewPanelSelection | undefined;
-  inlineOverview: boolean;
 }) {
   const navigation = useReviewNavigation();
   const router = useRouter();
@@ -282,7 +258,6 @@ function ReviewNavigationList({
   );
   const publishedStop = usePublishedStop(workspace);
   const onStop =
-    inlineOverview &&
     comparison.kind === 'worktree' &&
     publishedStop !== undefined &&
     publishedStop !== 'briefing';
@@ -305,32 +280,12 @@ function ReviewNavigationList({
         {files.map((file) => (
           <Item
             key={file.path}
-            {...(!inlineOverview
-              ? {
-                  titleNumberOfLines: 1,
-                  descriptionNumberOfLines: 1,
-                }
-              : {})}
-            title={
-              inlineOverview
-                ? file.path
-                : (file.path.split('/').at(-1) ?? file.path)
-            }
+            title={file.path}
             titleDecoration={
               file.reviewStatus === 'reviewed' ? 'line-through' : undefined
             }
-            description={
-              inlineOverview
-                ? file.note
-                : `${file.path} · ${file.note} · ${reviewStatusLabel(file.reviewStatus)}`
-            }
+            description={file.note}
             leading={<ChangeStatusDot status={changes.files.get(file.path)} />}
-            size={inlineOverview ? 'default' : 'sm'}
-            selected={
-              !inlineOverview &&
-              selection?.kind === 'file' &&
-              selection.path === file.path
-            }
             accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
             onPress={() => onFile(file.path)}
           />
@@ -360,26 +315,11 @@ function ReviewNavigationList({
         }
         scrollEventThrottle={100}
       >
-        {inlineOverview ? (
-          <ReviewOverview
-            workspace={workspace}
-            comparison={comparison}
-            onFile={onFile}
-            docked
-          />
-        ) : (
-          <Item
-            title="Overview"
-            description={
-              comparison.kind === 'worktree'
-                ? 'Agent explanation and proof'
-                : 'Branch comparison'
-            }
-            leading={<Icon name="review" />}
-            selected={selection?.kind === 'overview'}
-            onPress={onOverview}
-          />
-        )}
+        <ReviewOverview
+          workspace={workspace}
+          comparison={comparison}
+          onFile={onFile}
+        />
         {onStop ? null : (
           <>
             <Button
@@ -406,7 +346,7 @@ function ReviewNavigationList({
           </>
         )}
       </ScrollView>
-      {inlineOverview && comparison.kind === 'worktree' ? (
+      {comparison.kind === 'worktree' ? (
         <PublishedReviewContinue
           workspace={workspace}
           onContinue={navigation.scrollToStart}

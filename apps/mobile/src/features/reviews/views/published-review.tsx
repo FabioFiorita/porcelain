@@ -39,7 +39,6 @@ import { useWalkthroughProgress } from '../queries/walkthrough';
 import { useWorkspaceReview } from '../queries/linked-review';
 import type { ReviewSnapshot } from '../rules/comparison';
 import {
-  WalkthroughCompletion,
   WalkthroughProgress,
   useStopCompletion,
 } from './walkthrough-completion';
@@ -54,12 +53,10 @@ export function PublishedReview({
   workspace,
   onFile,
   snapshot,
-  docked = false,
 }: {
   workspace: Workspace;
   onFile: (path: string) => void;
   snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> | undefined;
-  docked?: boolean;
 }) {
   const result = useWorkspaceReview(workspace);
   if (!AsyncResult.isSuccess(result.published))
@@ -104,7 +101,6 @@ export function PublishedReview({
       publicationSettled={result.settled}
       onFile={onFile}
       onRefresh={result.refreshPublished}
-      docked={docked}
       specsApart={result.specsApart}
       revision={result.revision.value.revision}
     />
@@ -118,7 +114,6 @@ type PublicationProps = {
   onFile: (path: string) => void;
   onRefresh: () => void;
   publicationSettled: boolean;
-  docked: boolean;
   specsApart: boolean;
 };
 
@@ -130,7 +125,6 @@ function PublishedContent({
   onRefresh,
   publicationSettled,
   revision,
-  docked,
   specsApart,
 }: PublicationProps & { revision: ReviewRevision }) {
   const router = useRouter();
@@ -155,8 +149,6 @@ function PublishedContent({
       ? stop.layer.steps.find((step) => step.id === place.step)
       : undefined;
   const go = (key: WalkthroughKey) => setPlace({ stop: key, summary: false });
-  const previous = neighbourStop(stops, stop.key, -1);
-  const next = neighbourStop(stops, stop.key, 1);
   return (
     <Box gap={3}>
       <Stack.Screen options={{ title: screenTitle(stop, stops) }} />
@@ -191,7 +183,7 @@ function PublishedContent({
         />
       )}
       <WalkthroughProgress stops={stops} progress={progress} />
-      {docked && stop.kind !== 'briefing' ? (
+      {stop.kind !== 'briefing' ? (
         <DecisionStepper
           stops={stops}
           current={stop}
@@ -293,41 +285,6 @@ function PublishedContent({
               />
             )}
           />
-          {stop.kind !== 'briefing' && !pointer && !docked ? (
-            <WalkthroughCompletion
-              key={stop.key}
-              workspace={workspace}
-              stop={stop}
-              progress={progress}
-              next={next}
-              go={go}
-              unavailable={review.diagnostics === 'unavailable'}
-            />
-          ) : null}
-          {stop.kind !== 'briefing' && !docked ? (
-            <Box className="flex-row flex-wrap" gap={2}>
-              <Button
-                label="Previous"
-                accessibilityLabel={
-                  previous
-                    ? `Previous stop: ${stopTitle(previous)}`
-                    : 'Previous stop'
-                }
-                variant="outline"
-                disabled={!previous}
-                onPress={() => previous && go(previous.key)}
-              />
-              <Button
-                label="Next"
-                accessibilityLabel={
-                  next ? `Next stop: ${stopTitle(next)}` : 'Next stop'
-                }
-                variant="outline"
-                disabled={!next}
-                onPress={() => next && go(next.key)}
-              />
-            </Box>
-          ) : null}
         </>
       )}
     </Box>

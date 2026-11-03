@@ -13,7 +13,7 @@ Forget computer removes this device’s saved computer, credentials and remember
 
 ## How to get to it (user POV)
 
-- Settings → Computers → the environment's Forget computer button
+- Settings gear → Computers → the computer's Forget computer button
 
 ## Driving it with agent-device
 

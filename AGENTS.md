@@ -8,7 +8,7 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 - **A review walks through decisions, never file names.** The agent publishes one stop per decision, in an order that meets an owner before what uses it; `apps/server/src/http/mcp/review-guide.ts` owns that shape.
 - **A file tree for very large repositories.** The developer pins the files and folders they care about and hides the ones they never open.
 - **Git beside the review:** history, a per-file timeline, commit, pull and push.
-- **Phone and tablet.** The iPhone is a companion: check, review, comment and small controls. The iPad can replace the desk, so its layouts are designed and verified in landscape first, and portrait stays usable.
+- **Phone and tablet.** The iPhone and iPad are both companions away from the desk: check, review, comment and small controls. The iPad gives a review more room, with the list beside the detail, and is verified in landscape and portrait.
 
 ## How we work
 

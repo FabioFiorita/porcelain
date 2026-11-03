@@ -8,7 +8,6 @@ import {
   type PullRequestRead,
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
-import type { PullRequestDocument } from '../../../shared/rules/workspace-documents';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
@@ -19,32 +18,29 @@ import { MarkdownView } from '../../../components/ui/markdown-view';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { PullRequestArchive } from '../../projects';
 import { pullRequestMarkdown } from '../rules/pull-request-document';
+import type { PullRequestTarget } from '../../../shared/rules/pull-request-target';
 
-export function PullRequestDocumentContent({
-  document,
-}: {
-  document: PullRequestDocument;
-}) {
+export function PullRequestContent({ target }: { target: PullRequestTarget }) {
   const connection = useAtomRef(remoteConnectionState).find(
-    (entry) => entry.remote.environmentId === document.environmentId,
+    (entry) => entry.remote.environmentId === target.environmentId,
   )?.connection;
   return connection ? (
-    <ConnectedPullRequest document={document} connection={connection} />
+    <ConnectedPullRequest target={target} connection={connection} />
   ) : (
     <ErrorState message="The pull request's computer is unavailable. Reconnect it in Settings → Computers." />
   );
 }
 
 function ConnectedPullRequest({
-  document,
+  target,
   connection,
 }: {
-  document: PullRequestDocument;
+  target: PullRequestTarget;
   connection: RuntimeConnection;
 }) {
   const query = readReviewPullRequest({
     connection,
-    reviewId: document.reviewId,
+    reviewId: target.reviewId,
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
@@ -72,7 +68,7 @@ function ConnectedPullRequest({
         }}
       />
     );
-  if (pull.pullRequest.number !== document.number)
+  if (pull.pullRequest.number !== target.number)
     return (
       <ErrorState message="This review now links to a different pull request. Return to Worktrees and open its current PR." />
     );
@@ -105,8 +101,8 @@ function ConnectedPullRequest({
         </Box>
         {available.state !== 'open' ? (
           <PullRequestArchive
-            projectId={document.projectId}
-            reviewId={document.reviewId}
+            projectId={target.projectId}
+            reviewId={target.reviewId}
             connection={connection}
           />
         ) : null}
