@@ -155,7 +155,12 @@ export type AgentAction =
       body: string;
       thread?: Omit<CreateCommentThreadRequest, 'body'> | undefined;
     }
-  | { kind: 'reply'; threadId: string; body: string }
+  | {
+      kind: 'reply';
+      threadId: string;
+      body: string;
+      reviewId?: string | undefined;
+    }
   | { kind: 'edit-file'; edit: EditFileRequest };
 
 export type Phase = 'setup' | 'request' | 'follow-up';

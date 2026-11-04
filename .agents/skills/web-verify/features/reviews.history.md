@@ -10,6 +10,6 @@ api:
   - GET /api/projects/:projectId/reviews
 ---
 
-Open Project history under a project's Reviews heading. Each retained review appears oldest first, showing added, changed and removed owners and guards added from its agent drawing. Reviews without a drawing say no diagram was published. Open a review and return through the project heading. Repeat at 1440 and 414, light and dark, after publishing a second revision and after removing a checkout. A disconnected remote must not silently show the local project's history.
+Open Project history under a project's Reviews heading. Only landed (`record`) reviews appear oldest first, showing added, changed and removed owners and guards added from its agent drawing. Reviews without a drawing say no diagram was published. Open a review and return through the project heading. Repeat at 1440 and 414, light and dark, after publishing a second revision and after removing a checkout. A disconnected remote must not silently show the local project's history.
 
 Automated coverage: `reviews-page.test.tsx`.

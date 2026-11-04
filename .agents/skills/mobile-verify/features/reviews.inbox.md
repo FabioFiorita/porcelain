@@ -1,6 +1,7 @@
 ---
 screen: /
 selectors:
+  - 'Landed'
   - 'Reviews'
   - 'review-inbox'
   - 'Reviews by project'
@@ -45,3 +46,5 @@ Automated coverage: `review-inbox.spec.ts` (grouping, ordering, status and searc
 ## Gotchas
 
 - A row whose progress cannot be read shows a warning icon; it is not counted as Needs you. Follow [Worktrees](projects.worktrees.md#driving-it-with-agent-device) for inventory loading and recovery.
+
+Timing comes from the publishing agent. Decision reviews appear under Needs you when unread; record reviews appear under Landed, including unread records and closed records. The human chooses slices to read; there are no random saved samples.

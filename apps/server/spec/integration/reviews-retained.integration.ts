@@ -94,7 +94,10 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
     randomUUID(),
   );
   const viewer = await session.live();
-  const first = record(toolValue(await call(2, 'publish_review', draft)));
+  const first = record(
+    toolValue(await call(2, 'publish_review', { ...draft, timing: 'record' })),
+  );
+  expect(record(first.review).timing).toBe('record');
   expect(await viewer.next((notice) => notice.type === 'inventory')).toEqual({
     type: 'inventory',
   });
@@ -266,10 +269,12 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
   await call(8, 'resolve_comment', { reviewId, threadId, resolved: true });
   await session.git('worktree', 'remove', path);
   await session.git('branch', '-D', 'retained-review');
+  execFileSync('git', ['-C', session.repository, 'gc', '--prune=now']);
   const retained = record(
     toolValue(await call(9, 'read_review', { reviewId, revision: 1 })),
   );
   expect(record(retained.revision).headOid).toBe(headOid);
+  expect(record(record(retained.revision).content).timing).toBe('record');
   expect(
     await read(session, {
       method: 'GET',

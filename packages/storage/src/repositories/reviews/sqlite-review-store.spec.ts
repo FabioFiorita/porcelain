@@ -115,60 +115,6 @@ it('reports a conflicting PR identity without losing either review or its branch
   }
 });
 
-it('retains independently sampled state for each review revision', async () => {
-  const first = reviewFixture({
-    samples: [
-      { layerId: 'decision', stepId: 'one', sampled: false },
-      { layerId: 'decision', stepId: 'other', sampled: false },
-    ],
-  });
-  const second = {
-    ...first,
-    revision: 2,
-    summaryToken: 'second-summary',
-    samples: [{ layerId: 'decision', stepId: 'two', sampled: false }],
-  };
-  const opened = await openStore([first.worktreeId]);
-  try {
-    await Effect.runPromise(opened.store.save(reviewSave(first)));
-    await Effect.runPromise(opened.store.save(reviewSave(second)));
-    await Effect.runPromise(
-      opened.store.markSample({
-        reviewId: first.reviewId,
-        revision: 1,
-        layerId: 'decision',
-        stepId: 'one',
-      }),
-    );
-    await Effect.runPromise(
-      opened.store.markSample({
-        reviewId: first.reviewId,
-        revision: 1,
-        layerId: 'decision',
-        stepId: 'other',
-      }),
-    );
-    expect(
-      (
-        await Effect.runPromise(
-          opened.store.read({ reviewId: first.reviewId, revision: 1 }),
-        )
-      )?.samples,
-    ).toEqual([
-      { layerId: 'decision', stepId: 'one', sampled: true },
-      { layerId: 'decision', stepId: 'other', sampled: true },
-    ]);
-    const latest = await Effect.runPromise(
-      opened.store.read({ reviewId: first.reviewId }),
-    );
-    expect(latest?.samples).toEqual([
-      { layerId: 'decision', stepId: 'two', sampled: false },
-    ]);
-  } finally {
-    await opened.close();
-  }
-});
-
 it('upgrades legacy unassigned coverage to a neutral ownerless gap before reading retained reviews', async () => {
   const first = reviewFixture();
   const opened = await openStore([first.worktreeId]);
@@ -196,7 +142,7 @@ it('upgrades legacy unassigned coverage to a neutral ownerless gap before readin
       }),
     );
     database.exec(
-      'ALTER TABLE review_revisions DROP COLUMN samples; DELETE FROM porcelain_migrations WHERE migration_id = 10;',
+      'ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE migration_id = 10;',
     );
     database.close();
     const store = await next.runPromise(ReviewStore);
@@ -212,6 +158,34 @@ it('upgrades legacy unassigned coverage to a neutral ownerless gap before readin
     ]);
   } finally {
     await next.dispose();
+    await opened.close();
+  }
+});
+
+it('retains publication timing independently for each immutable revision', async () => {
+  const first = reviewFixture({ timing: 'decision' });
+  const second = {
+    ...first,
+    revision: 2,
+    timing: 'record' as const,
+    summaryToken: 'second-summary',
+  };
+  const opened = await openStore([first.worktreeId]);
+  try {
+    await Effect.runPromise(opened.store.save(reviewSave(first)));
+    await Effect.runPromise(opened.store.save(reviewSave(second)));
+    expect(
+      (
+        await Effect.runPromise(
+          opened.store.read({ reviewId: first.reviewId, revision: 1 }),
+        )
+      )?.timing,
+    ).toBe('decision');
+    expect(
+      (await Effect.runPromise(opened.store.read({ reviewId: first.reviewId })))
+        ?.timing,
+    ).toBe('record');
+  } finally {
     await opened.close();
   }
 });

@@ -274,7 +274,7 @@ function PartRow({
   );
 }
 
-function ProofAsset({
+export function ProofAsset({
   asset,
   revision,
   connection,
@@ -309,7 +309,6 @@ function ProofAsset({
   return (
     <Box gap={2}>
       {link.error ? <ErrorState message={link.error} /> : null}
-      <ReviewHandoff revision={revision} />
       <Item
         title={asset.title}
         titleNumberOfLines={2}

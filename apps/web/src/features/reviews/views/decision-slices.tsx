@@ -1,10 +1,9 @@
-import { useAtom } from '@effect/atom-react';
-import { reviewCommands } from '@porcelain/client/reviews';
 import { useState } from 'react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { File, PatchDiff } from '@pierre/diffs/react';
 import { ArrowUpRightIcon } from 'lucide-react';
+import { readingSteps } from '@porcelain/client/reviews/rules';
 import type {
   ReviewLayer,
   ReviewMarks,
@@ -45,12 +44,6 @@ export function DecisionSlices({
   onOpenFile: (step: ReviewStep) => void;
   active: boolean;
 }) {
-  const [sampleResult, sample] = useAtom(
-    reviewCommands({
-      connection: context.connection,
-      reviewId: revision.reviewId,
-    }).mark,
-  );
   const files = revision.files.filter((file) =>
     layer.steps.some((step) => step.pointer.path === file.path),
   );
@@ -67,7 +60,7 @@ export function DecisionSlices({
   };
   return (
     <section aria-label="Code slices" className="flex min-w-0 flex-col gap-3">
-      {layer.steps.map((step, index) => {
+      {readingSteps(layer).map(({ step, index }) => {
         const file = files.find((file) => file.path === step.pointer.path);
         const first =
           layer.steps.find(
@@ -122,37 +115,6 @@ export function DecisionSlices({
                 <ArrowUpRightIcon data-icon="inline-end" />
               </Button>
             </header>
-            {sampleResult._tag === 'Failure' && (
-              <p role="alert" className="p-2 text-xs text-warn">
-                Could not save sampled state. Reopen the slice to retry.
-              </p>
-            )}
-            {revision.content.samples?.some(
-              (pick) => pick.layerId === layer.id && pick.stepId === step.id,
-            ) && (
-              <Button
-                size="xs"
-                variant="ghost"
-                disabled={sampleResult.waiting}
-                onClick={() =>
-                  sample({
-                    kind: 'sample',
-                    revision: revision.revision,
-                    layerId: layer.id,
-                    stepId: step.id,
-                  })
-                }
-              >
-                {revision.content.samples?.some(
-                  (pick) =>
-                    pick.layerId === layer.id &&
-                    pick.stepId === step.id &&
-                    pick.sampled,
-                )
-                  ? 'Sampled'
-                  : 'Mark slice as sampled'}
-              </Button>
-            )}
             <Slice
               loading={AsyncResult.isInitial(result)}
               patch={patchFor(step)}

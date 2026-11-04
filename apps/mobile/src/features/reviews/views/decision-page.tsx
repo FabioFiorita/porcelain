@@ -1,8 +1,11 @@
+import { ReviewRequest } from './review-request';
+import { ProofAsset } from './review-briefing';
 import { useState } from 'react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import {
   readCommentThreads,
+  readReviewComments,
   readReviewRevisionDiffs,
 } from '@porcelain/client/reviews';
 import {
@@ -13,6 +16,9 @@ import {
   decisionRoute,
   filesReviewed,
   questionAnswer,
+  teachRequest,
+  optionRequest,
+  guardRequest,
   type CommentThread,
   type ReviewResponse,
   type ReviewRevision,
@@ -72,6 +78,31 @@ export function DecisionPage({
   changedPaths: readonly string[];
 }) {
   const { layer } = stop;
+  const discussion = useAtomValue(
+    revision
+      ? readReviewComments({
+          connection: workspace.connection,
+          reviewId: revision.reviewId,
+        })
+      : readCommentThreads({
+          connection: workspace.connection,
+          scope: workspace.scope,
+        }),
+  );
+  const questions = decisionQuestions(review, stop);
+  const replies = AsyncResult.isSuccess(discussion)
+    ? discussion.value.filter((thread) => {
+        const anchor = thread.anchor;
+        if (anchor.kind !== 'change') return false;
+        const target = anchor.reviewTarget;
+        return (
+          (target?.kind === 'decision' && target.id === layer.id) ||
+          (target?.kind === 'question' &&
+            questions.some((question) => question.id === target.id))
+        );
+      })
+    : [];
+
   const [allSteps, setAllSteps] = useState(false);
   const links = decisionLinks(review, layer.id);
   const route = decisionRoute(layer);
@@ -99,6 +130,42 @@ export function DecisionPage({
           {layer.summary}
         </Text>
       </Box>
+      {revision ? (
+        <ReviewRequest
+          label="Teach me"
+          body={teachRequest(layer)}
+          target={{ kind: 'decision', id: layer.id }}
+          revision={revision}
+          connection={workspace.connection}
+        />
+      ) : null}
+      {replies.map((thread) => (
+        <Card key={thread.id} padding={4} gap={1}>
+          {thread.messages.map((message) => (
+            <Text key={message.id} variant="secondary" selectable>
+              {message.body}
+            </Text>
+          ))}
+          <Button
+            label="Open discussion"
+            variant="plain"
+            size="sm"
+            onPress={() => routes.openThread(thread.id)}
+          />
+        </Card>
+      ))}
+      {layer.alternatives?.length ? (
+        <Box gap={1}>
+          <Text variant="caption" weight="medium">
+            What else was considered
+          </Text>
+          {layer.alternatives.map((alternative) => (
+            <Text key={alternative.label} variant="secondary" selectable>
+              {alternative.label} · {alternative.whyNot}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       {links.length > 0 ? (
         <Box
           className="flex-row flex-wrap items-center"
@@ -136,7 +203,7 @@ export function DecisionPage({
           ))}
         </Box>
       ) : null}
-      {decisionQuestions(review, stop).map((part) => (
+      {questions.map((part) => (
         <Card key={part.id} variant="warning" padding={4} gap={2}>
           <Text variant="secondary" weight="medium">
             Needs your decision · {part.label}
@@ -144,6 +211,36 @@ export function DecisionPage({
           <Text variant="secondary" selectable>
             {part.problem}
           </Text>
+          {part.options?.map((option) => (
+            <Box key={option.id} gap={1}>
+              <Text variant="secondary" selectable>
+                {option.label} · {option.consequence}
+              </Text>
+              {revision ? (
+                <>
+                  <>
+                    {review.proof.assets
+                      .filter((asset) => asset.optionId === option.id)
+                      .map((asset) => (
+                        <ProofAsset
+                          key={asset.id}
+                          asset={asset}
+                          revision={revision}
+                          connection={workspace.connection}
+                        />
+                      ))}
+                  </>
+                  <ReviewRequest
+                    label={`Choose ${option.label}`}
+                    body={optionRequest(part, option)}
+                    target={{ kind: 'question', id: part.id }}
+                    revision={revision}
+                    connection={workspace.connection}
+                  />
+                </>
+              ) : null}
+            </Box>
+          ))}
           <Button
             label="Answer"
             accessibilityLabel={`Answer: ${part.label}`}
@@ -218,6 +315,17 @@ export function DecisionPage({
           routes={routes}
         />
       ) : null}
+      {revision
+        ? layer.steps.map((step) => (
+            <ReviewRequest
+              key={`guard-${step.id}`}
+              label={`Ask for a guard · ${step.title}`}
+              body={guardRequest(step)}
+              revision={revision}
+              connection={workspace.connection}
+            />
+          ))
+        : null}
       {stop.elsewhere.map((file) => (
         <Button
           key={file.path}

@@ -154,7 +154,10 @@ export function ReviewInbox({ mode }: { mode: ListDetailMode }) {
         />
       </Screen>
     );
-  const empty = inbox.needsYou.length === 0 && inbox.projects.length === 0;
+  const empty =
+    inbox.needsYou.length === 0 &&
+    inbox.landed.length === 0 &&
+    inbox.projects.length === 0;
   const pending =
     storage.status !== 'ready' || initializing || loading || inbox.reading;
   const searching = query.trim() !== '';
@@ -177,6 +180,12 @@ export function ReviewInbox({ mode }: { mode: ListDetailMode }) {
             <Box>
               <GroupHeader label="Needs you" count={inbox.needsYou.length} />
               {inbox.needsYou.map((row, index) => rowItem(row, true, index))}
+            </Box>
+          ) : null}
+          {inbox.landed.length > 0 ? (
+            <Box>
+              <GroupHeader label="Landed" count={inbox.landed.length} />
+              {inbox.landed.map((row, index) => rowItem(row, false, index))}
             </Box>
           ) : null}
           {inbox.projects.map((project) => (

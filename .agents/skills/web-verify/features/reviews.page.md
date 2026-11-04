@@ -8,8 +8,9 @@ selectors:
   - 'Asked, built, left'
   - 'Code slices'
   - 'Ask for a guard'
-  - 'Suggested code samples'
-  - 'Mark slice as sampled'
+  - 'Teach me'
+  - 'What else was considered'
+  - 'Discuss this decision'
   - 'Recommendation'
   - 'Not proven'
   - 'Removed'
@@ -98,7 +99,7 @@ Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, re
 
 Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
 
-With a long unchanged dependency, scroll its saved code slice to the final line. The step heading and filename stay above the bounded code viewport. Use Ask for a guard, explain the repeated mistake, and post: the review Comments must contain the exact path and range plus the request for a lint or architecture rule. Send feedback notifies the connected agent through the existing batch action. The map draws the agent’s published boxes, change statuses and meaningful labelled arrows. Porcelain trusts the drawing and does not compute an import graph or a map inventory. Crowded or repeated arrow labels stay in hover titles. Read a picked slice, choose Mark slice as sampled, and reload: its Sampled state and the two picks survive. Every decision map keeps its own boxes and their direct diagram neighbours. Project history is reachable beneath the project heading in Reviews. Full-height file views and changed diffs retain their own scroll behavior.
+With a long unchanged dependency, scroll its saved code slice to the final line. The step heading and filename stay above the bounded code viewport. Use Ask for a guard to save a strongest-layer request and queue feedback when an agent is connected. The request names the exact path and range, a failing past case, and one PR per guard waiting for owner approval. The map draws the agent’s published boxes, change statuses and meaningful labelled arrows. Crowded or repeated arrow labels stay in hover titles. Sampling belongs to the human; no picks or sampled state are saved. Every decision map keeps its own boxes and their direct diagram neighbours. Project history is reachable beneath the project heading in Reviews. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 
@@ -129,3 +130,5 @@ At 1440/1080/414 in both themes, open the document from the Review panel and fro
 ### Pull request evidence images
 
 The PR description renders details/summary as a disclosure, closed initially. Open Screenshots and verify both Markdown images and HTML img images fit the content width. A failed image shows Image unavailable with its alt text. Close and reopen the disclosure. Script, iframe, event attributes and executable links never reach the rendered document. GitHub attachment image sources use the signed URLs returned by the current authenticated PR read; no GitHub credential reaches a client. Capture the same PR description before and after changes.
+
+Review timing is the agent’s choice: decision reviews appear under Needs you, records under Landed in the existing list. Sampling is manual: no saved picks or sampled state. Rule and contract slices appear first. Questions can offer evidence-backed choices that post comments; Teach me posts an explanation request and its reply stays on that decision. Ask for a guard posts the strongest-layer and failing-past-case request, with one PR per guard waiting for approval.

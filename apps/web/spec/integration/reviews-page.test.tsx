@@ -694,27 +694,82 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     .toBeVisible();
 });
 
-test('suggested slices save their sampled mark and project history opens from Reviews', async ({
+test('landed history opens retained code and decision choices and teaching use comments', async ({
   repo,
   render,
+  agent,
+  server,
 }) => {
   await page.viewport(1440, 896);
-  const fixture = await repo.review('Read a small sample');
-  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  const fixture = await repo.review('Keep snapshots', undefined, {
+    path: 'review-page.ts',
+    lane: 'Client',
+    timing: 'record',
+    choices: true,
+  });
+  await repo.removeReviewWorktree();
+  const app = await render.route(
+    `/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`,
+  );
   await expect
     .element(
       app.page.getByRole('region', {
-        name: 'Suggested code samples',
+        name: 'What else was considered',
         exact: true,
       }),
     )
     .toBeVisible();
   await app.page
-    .getByRole('region', { name: 'Suggested code samples', exact: true })
-    .getByRole('button', { name: 'Read the retained revision', exact: true })
+    .getByRole('button', { name: 'Choose Keep the snapshot', exact: true })
     .click();
   await expect
-    .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))
+    .element(
+      app.page.getByText(
+        /I choose “Keep the snapshot”. Code stays readable after cleanup./,
+      ),
+    )
+    .toBeVisible();
+  await app.page.getByRole('button', { name: 'Teach me', exact: true }).click();
+  await expect
+    .element(app.page.getByText(/Teach me this decision in plain words./))
+    .toBeVisible();
+  const threads = await server.reviewComments(fixture.reviewId);
+  const teaching = threads.find(
+    (thread) =>
+      thread.anchor.kind === 'change' &&
+      thread.anchor.reviewTarget?.kind === 'decision',
+  );
+  await expect
+    .poll(
+      async () =>
+        (await server.reviewComments(fixture.reviewId)).find(
+          (thread) => thread.id === teaching?.id,
+        )?.anchor,
+    )
+    .toMatchObject({ reviewTarget: { kind: 'decision', id: fixture.layerId } });
+  await agent.reply(
+    teaching!.id,
+    'A snapshot keeps the original code readable after branch cleanup. It costs a little storage.',
+    fixture.reviewId,
+  );
+  await expect
+    .element(
+      app.page.getByText(
+        'A snapshot keeps the original code readable after branch cleanup. It costs a little storage.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Ask for a guard', exact: true })
+    .click();
+  await expect
+    .element(
+      app.page.getByRole('button', {
+        name: 'Ask for a guard · posted',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await app.page
     .getByRole('link', { name: 'Project history', exact: true })
@@ -734,6 +789,6 @@ test('suggested slices save their sampled mark and project history opens from Re
     })
     .click();
   await expect
-    .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))
+    .element(app.page.getByRole('region', { name: 'You asked', exact: true }))
     .toBeVisible();
 });

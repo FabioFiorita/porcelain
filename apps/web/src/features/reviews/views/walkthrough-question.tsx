@@ -1,3 +1,4 @@
+import { QuestionOptions } from './question-options';
 import { Button } from '@/components/ui/button';
 import { CircleHelpIcon, MessageSquareIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -76,6 +77,12 @@ export function AnswerableQuestion({
       <p className="mt-2 text-reading leading-6 whitespace-pre-wrap wrap-anywhere">
         {part.problem}
       </p>
+      <QuestionOptions
+        part={part}
+        revision={revision}
+        scope={scope}
+        context={context}
+      />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {action}
         <Button
@@ -130,6 +137,12 @@ export function MarginQuestion({
           {part.problem}
         </p>
       </div>
+      <QuestionOptions
+        part={part}
+        revision={revision}
+        scope={scope}
+        context={context}
+      />
       <div className="border-t pt-2.5">
         <QuestionAnswer
           part={part}

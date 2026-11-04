@@ -110,7 +110,6 @@
   "packages/reviews/src/rules/comment-threads.ts#commentAnchorProblem",
   "packages/reviews/src/rules/comment-threads.ts#commentAuthor",
   "packages/reviews/src/rules/comment-threads.ts#commentStorageSize",
-  "packages/reviews/src/rules/comment-threads.ts#repeatsCreation",
   "packages/reviews/src/rules/comment-threads.ts#repeatsReply",
   "packages/reviews/src/rules/comment-threads.ts#replyFits",
   "packages/reviews/src/rules/comment-threads.ts#rewriteFits",

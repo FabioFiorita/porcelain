@@ -1,4 +1,4 @@
-import { ReviewSampling } from './review-sampling';
+import { DecisionFeedback } from './decision-feedback';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ArrowRightIcon,
@@ -74,7 +74,9 @@ export function DecisionPage({
   const questions = decisionQuestions(review, stop);
   const proof = proofOnLayer(review.proof, layer.id);
   const progress = filesReviewed(stop.paths, items);
-  const media = proof.assets.filter((asset) => asset.kind !== 'link');
+  const media = proof.assets.filter(
+    (asset) => asset.kind !== 'link' && asset.optionId === undefined,
+  );
   return (
     <MarginRow
       margin={
@@ -174,11 +176,26 @@ export function DecisionPage({
             {layer.title}
           </h2>
           <Summary text={layer.summary} />
-          <ReviewSampling
+          {(layer.alternatives?.length ?? 0) > 0 && (
+            <section aria-label="What else was considered" className="text-sm">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                What else was considered
+              </h3>
+              <ul className="mt-1 space-y-1">
+                {layer.alternatives?.map((alternative) => (
+                  <li key={alternative.label} className="wrap-anywhere">
+                    <span className="font-medium">{alternative.label}</span> ·{' '}
+                    {alternative.whyNot}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <DecisionFeedback
+            layer={layer}
             revision={revision}
-            layerId={layer.id}
+            scope={scope}
             context={context}
-            onGo={onGo}
           />
         </header>
         {media.length > 0 && (

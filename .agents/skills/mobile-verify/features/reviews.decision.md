@@ -8,6 +8,9 @@ selectors:
   - 'Read more files'
   - 'Needs your decision'
   - 'Answer'
+  - 'Teach me'
+  - 'What else was considered'
+  - 'Open discussion'
   - 'Open changed-file diff'
   - 'Open in Files'
   - 'File history'
@@ -62,3 +65,5 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 - Previous/next change the screen's own `stop` parameter (`navigation.setParams`, never the global router, which can reach the other tab's stack) rather than pushing, so the stack stays overview → decision; check Back after several moves.
 - Mark decision reviewed advances only while the decision screen is focused; a write that lands after the reader opened a step, a sheet or another tab saves without moving them.
 - Phones and iPad push the same routes. On iPad the decision screen shows the review's title, its decision count and the walkthrough rows (`Decisions`) in a left column, with the current stop highlighted; choosing a row switches the stop in place like previous/next. Rotate with a decision open: the same stop stays open in both orientations.
+
+A decision can show compact alternatives and evidence-backed options. Teach me and option choices save comments scoped to that decision or question and queue the normal feedback batch; the agent reply stays on the decision. Guard requests name the strongest suitable layer, prove failure on the past mistake, and ask for one PR per guard waiting for owner approval. With no connected agent, the request remains saved in comments.

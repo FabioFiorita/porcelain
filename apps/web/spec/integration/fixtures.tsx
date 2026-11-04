@@ -1,3 +1,5 @@
+import { Schema } from 'effect';
+import { listCommentThreadsResponseSchema } from '@porcelain/contracts/reviews';
 import {
   createMemoryHistory,
   createRouter,
@@ -394,13 +396,15 @@ export const test = base
         })
       ).body,
     reviewComments: async (reviewId: string) =>
-      (
-        await host.porcelainRead({
-          server: 'this',
-          target: 'network',
-          path: `/api/reviews/${reviewId}/comments`,
-        })
-      ).body,
+      Schema.decodeUnknownSync(listCommentThreadsResponseSchema)(
+        (
+          await host.porcelainRead({
+            server: 'this',
+            target: 'network',
+            path: `/api/reviews/${reviewId}/comments`,
+          })
+        ).body,
+      ),
   }))
   .extend('repo', async ({ world: _world, failures }) =>
     sampleRepository(

@@ -62,6 +62,7 @@ function recordReview(
 ): Extract<NavigatorReview, { state: 'available' }> {
   return {
     state: 'available',
+    timing: record.timing ?? 'decision',
     reviewId: record.reviewId,
     closed: record.state === 'closed' || record.archived === true,
     archived: record.archived === true,
@@ -128,7 +129,9 @@ const readProjectReviewEntries = Atom.family(
       const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
       const messages: string[] = [];
       const active = (records ?? []).filter(
-        (record) => record.state === 'open' && !record.archived,
+        (record) =>
+          (record.state === 'open' || record.timing === 'record') &&
+          !record.archived,
       );
       const branches = new Set(entries.map((entry) => entry.branch));
       const candidates = active
@@ -219,9 +222,15 @@ const readProjectReviewEntries = Atom.family(
           progressUnavailable: AsyncResult.isFailure(markResult),
         };
       }
-      if (input.older) {
+      if (records !== undefined) {
         for (const record of records ?? []) {
-          if (associated.has(record.reviewId)) continue;
+          if (
+            associated.has(record.reviewId) ||
+            (!input.older &&
+              (record.archived ||
+                (record.state === 'closed' && record.timing !== 'record')))
+          )
+            continue;
           const revision = candidates.find(
             (candidate) => candidate.record.reviewId === record.reviewId,
           )?.revision;

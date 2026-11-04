@@ -82,3 +82,76 @@ it.each([
     ),
   ).toBe(true);
 });
+
+it('accepts an agent-selected timing and bounded decision choices with reusable proof targets', () => {
+  const id = '10000000-0000-4000-8000-000000000001';
+
+  expect(
+    Result.isFailure(
+      Schema.decodeUnknownResult(publishReviewRequestSchema.fields.timing)(
+        'automatic',
+      ),
+    ),
+  ).toBe(true);
+  const diagram = {
+    after: {
+      boxes: [
+        {
+          id,
+          label: 'Retention',
+          problem: 'How long?',
+          layerId: id,
+          options: [
+            { id, label: 'Keep', consequence: 'The saved snapshot remains.' },
+            {
+              id: '10000000-0000-4000-8000-000000000002',
+              label: 'Expire',
+              consequence: 'Old code is lost.',
+            },
+          ],
+        },
+      ],
+      arrows: [],
+    },
+  };
+  expect(
+    Schema.decodeUnknownSync(publishReviewRequestSchema.fields.diagram)(
+      diagram,
+    ),
+  ).toEqual(diagram);
+  expect(
+    Result.isFailure(
+      Schema.decodeUnknownResult(publishReviewRequestSchema.fields.diagram)({
+        after: {
+          ...diagram.after,
+          boxes: [
+            {
+              ...diagram.after.boxes[0],
+              options: [{ id, label: '', consequence: 'No label' }],
+            },
+          ],
+        },
+      }),
+    ),
+  ).toBe(true);
+  const proof = {
+    assets: [
+      {
+        kind: 'video',
+        title: 'The option in use',
+        path: 'option.webm',
+        layerId: id,
+        optionId: id,
+      },
+    ],
+  };
+  expect(
+    Schema.decodeUnknownSync(publishReviewRequestSchema.fields.proof)(proof),
+  ).toEqual(proof);
+});
+
+it.each(['decision', 'record'])('keeps the agent timing %s', (timing) => {
+  expect(
+    Schema.decodeUnknownSync(publishReviewRequestSchema.fields.timing)(timing),
+  ).toBe(timing);
+});

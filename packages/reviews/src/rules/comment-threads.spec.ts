@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { commentHasOwner, commentOwner } from './comment-threads.ts';
+import {
+  commentHasOwner,
+  commentOwner,
+  repeatsCreation,
+} from './comment-threads.ts';
 const thread = {
   id: 'thread',
   worktreeId: 'worktree',
@@ -41,4 +45,32 @@ it('selects the durable review owner instead of the publishing worktree for save
   expect(commentOwner({ worktreeId: 'publishing-worktree' })).toEqual({
     worktreeId: 'publishing-worktree',
   });
+});
+
+it('refuses a comment retry that retargets the same identity to another decision', () => {
+  const anchor = {
+    kind: 'change' as const,
+    reviewTarget: { kind: 'decision' as const, id: 'one' },
+  };
+  const saved = {
+    ...thread,
+    anchor,
+    messages: [
+      { id: 'message', body: 'Teach me', author: 'reviewer' as const },
+    ],
+  };
+  const attempt = {
+    worktreeId: 'worktree',
+    anchor,
+    messageId: 'message',
+    body: 'Teach me',
+    author: 'reviewer' as const,
+  };
+  expect(repeatsCreation(saved, attempt)).toBe(true);
+  expect(
+    repeatsCreation(saved, {
+      ...attempt,
+      anchor: { ...anchor, reviewTarget: { kind: 'decision', id: 'two' } },
+    }),
+  ).toBe(false);
 });

@@ -616,7 +616,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
   }
 });
 
-it('requires both checkout path and identity before associating progress or a PR, and reveals retained reviews only on request', async () => {
+it('requires both checkout path and identity before associating progress or a PR, keeps open retained reviews visible, and reveals closed reviews on request', async () => {
   let answer = review(mainId);
   const subject = create(
     (path) =>
@@ -674,7 +674,7 @@ it('requires both checkout path and identity before associating progress or a PR
       subject.registry
         .get(list)
         .projects[0]?.entries.map((entry) => entry.kind),
-    ).toEqual(['worktree', 'worktree']);
+    ).toEqual(['worktree', 'worktree', 'review']);
     await reread(review(topicId, '/code/elsewhere'));
     await expect.poll(() => currentReview()?.state).toBe('none');
     await reread(review());
@@ -700,6 +700,7 @@ it('requires both checkout path and identity before associating progress or a PR
         {
           state: 'available',
           reviewId: closedReviewId,
+          timing: 'decision',
           closed: true,
           archived: false,
           pullRequestNumber: 42,

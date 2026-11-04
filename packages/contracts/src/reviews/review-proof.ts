@@ -16,6 +16,7 @@ const titleSchema = Schema.String.pipe(
   .check(Schema.isMinLength(1))
   .check(Schema.isMaxLength(REVIEW_TITLE_LENGTH));
 const targetShape = {
+  optionId: Schema.optional(idSchema),
   layerId: Schema.optional(idSchema),
   stepId: Schema.optional(idSchema),
 };

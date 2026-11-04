@@ -4,7 +4,7 @@ import type {
   ProofMediaType,
   ProofTarget,
 } from '../models/review-proof.ts';
-import type { LayerDraft } from '../models/review.ts';
+import type { ReviewDiagram, LayerDraft } from '../models/review.ts';
 
 const signatures: readonly {
   mediaType: ProofMediaType;
@@ -45,8 +45,18 @@ export function proofFilePaths(proof: ProofDraft | undefined): string[] {
 export function proofTargetsKnown(
   proof: ProofDraft | undefined,
   layers: readonly LayerDraft[],
+  diagram?: ReviewDiagram,
 ): boolean {
   const known = (target: ProofTarget) => {
+    if (
+      target.optionId !== undefined &&
+      !diagram?.after.boxes.some(
+        (box) =>
+          box.layerId === target.layerId &&
+          box.options?.some((option) => option.id === target.optionId),
+      )
+    )
+      return false;
     if (target.layerId === undefined) return target.stepId === undefined;
     const layer = layers.find((candidate) => candidate.id === target.layerId);
     if (layer === undefined) return false;

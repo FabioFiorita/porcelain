@@ -1,4 +1,3 @@
-import type { ReviewSamples } from './review-samples.ts';
 import { Schema, Struct } from 'effect';
 const codePointerSchema = Schema.Struct({
   path: Schema.mutableKey(Schema.String),
@@ -19,6 +18,11 @@ const stepDraftSchema = Schema.Struct({
   pointer: Schema.mutableKey(codePointerSchema),
 });
 const layerDraftSchema = Schema.Struct({
+  alternatives: Schema.optional(
+    Schema.Array(
+      Schema.Struct({ label: Schema.String, whyNot: Schema.String }),
+    ),
+  ),
   id: Schema.mutableKey(Schema.String),
   title: Schema.mutableKey(Schema.String),
   summary: Schema.mutableKey(Schema.String),
@@ -100,6 +104,7 @@ export const reviewVerdictSchema = Schema.Struct({
 });
 export type ReviewVerdict = typeof reviewVerdictSchema.Type;
 export const reviewRecordSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   reviewId: Schema.String,
   projectId: Schema.String,
   commonDirectory: Schema.String,
@@ -146,6 +151,7 @@ export type ReviewCommit = {
   mergeBaseOid: string;
 };
 export type ReviewDraft = {
+  timing?: 'decision' | 'record' | undefined;
   expectedRevision: number;
   summaryHtml?: string | undefined;
   verdict: ReviewVerdict;
@@ -170,7 +176,7 @@ export const unexplainedChangeSchema = Schema.Struct({
   binary: Schema.optional(Schema.Boolean),
 });
 export type Review = ReviewCommit & {
-  samples?: ReviewSamples | undefined;
+  timing?: 'decision' | 'record' | undefined;
   notExplained: readonly (typeof unexplainedChangeSchema.Type)[];
   reviewId: string;
   verdict: ReviewVerdict;
@@ -215,6 +221,15 @@ export type ValidatedReviewDraft = Brand.Branded<
 >;
 
 const diagramBoxSchema = Schema.Struct({
+  options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        label: Schema.String,
+        consequence: Schema.String,
+      }),
+    ),
+  ),
   id: Schema.mutableKey(Schema.String),
   label: Schema.mutableKey(Schema.String),
   detail: Schema.mutableKey(

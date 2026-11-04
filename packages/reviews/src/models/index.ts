@@ -65,7 +65,6 @@ export {
 } from './pull-request.ts';
 export * from './review-archive.ts';
 
-export { reviewSamplesSchema } from './review-samples.ts';
 export {
   githubPullChecksSchema,
   pullChecksResultSchema,

@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useProjectHistory } from '../queries/project-history';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { SystemMap } from './system-map';
@@ -11,10 +11,11 @@ export function ProjectHistory({
   environment?: string | undefined;
   context: ConnectionContext;
 }) {
+  const navigate = useNavigate();
   const read = useProjectHistory(projectId, context);
-  const records = [...(read.value ?? [])].sort((a, b) =>
-    (a.publishedAt ?? '').localeCompare(b.publishedAt ?? ''),
-  );
+  const records = [
+    ...(read.value ?? []).filter((record) => record.timing === 'record'),
+  ].sort((a, b) => (a.publishedAt ?? '').localeCompare(b.publishedAt ?? ''));
   return (
     <main
       className="mx-auto flex w-full max-w-264 flex-col gap-4 p-4"
@@ -23,7 +24,7 @@ export function ProjectHistory({
       <header>
         <h1 className="text-xl font-semibold">How this project is growing</h1>
         <p className="text-sm text-muted-foreground">
-          Each review’s system drawing, oldest first.
+          Landed reviews and their system drawings, oldest first.
         </p>
         <Link to="/" search={{}} className="text-sm text-brand">
           Back to Reviews
@@ -31,7 +32,7 @@ export function ProjectHistory({
       </header>
       {read.result.waiting && <p role="status">Loading project history…</p>}
       {!read.result.waiting && records.length === 0 && (
-        <p>No reviews published yet.</p>
+        <p>No landed reviews published yet.</p>
       )}
       {records.map((record) => (
         <article
@@ -78,7 +79,20 @@ export function ProjectHistory({
                   Guards added: {(record.guards ?? []).join(', ')}
                 </p>
               )}
-              <SystemMap diagram={record.diagram.after} onLayer={() => {}} />
+              <SystemMap
+                diagram={record.diagram.after}
+                onLayer={(layerId) => {
+                  void navigate({
+                    to: '/reviews/$reviewId/$revision/decisions/$layerId',
+                    params: {
+                      reviewId: record.reviewId,
+                      revision: String(record.latestRevision),
+                      layerId,
+                    },
+                    search: { environment, decision: undefined },
+                  });
+                }}
+              />
             </>
           ) : (
             <p className="text-xs text-muted-foreground">

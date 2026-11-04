@@ -52,6 +52,12 @@ const commentAuthorSchema = Schema.Literals(['reviewer', 'agent']);
 const commentAnchorSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal('change'),
+    reviewTarget: Schema.optional(
+      Schema.Struct({
+        kind: Schema.Literals(['decision', 'question']),
+        id: Schema.String.check(Schema.isUUID()),
+      }),
+    ),
     filePath: Schema.optional(Schema.Never),
     ...evidence,
   }),

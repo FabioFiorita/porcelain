@@ -18,6 +18,12 @@ The review helps the developer understand how the architecture changes and which
 
 The reader marks a decision reviewed, and that marks every file it shows. Each step shows a focused code slice, once, in the first layer whose changed step points at it, so point the layer that introduces a shared owner at that owner's file. A changed step points at code this committed revision alters; its text appears as a numbered note under the last line it points at, so set its inclusive startLine and endLine to cover every line the step explains. Only that range counts as explained: a single-line pointer does not cover adjacent lines, the surrounding paragraph or the whole hunk. A context step points at unchanged code the reader needs and appears as an excerpt after the decision's code. Write step text as one or two sentences on the decision and its consequence, not a narration of the code. Keep the layer summary to two or three sentences; longer text is folded. Changed lines outside all changed-step ranges are listed as Not explained, both as files of their own and as marked lines inside explained files.
 
+## Choose whether and when to publish
+
+Set \`timing: "decision"\` before landing work that needs a human choice: one-way doors, public contracts, migrations, releases, new architecture or hard-to-reverse changes. Set \`timing: "record"\` after meaningful routine work lands, so the developer can read it by sampling. Small or mechanical changes need no review. Choose by the size and door of the work, not by whether the developer has a team or ticket system. Existing reviews without timing are treated as decision reviews.
+
+Sampling belongs to the human. Make reading cheap with precise slices, real "Needs your decision" flags, and rule and contract files first. Do not invent random reading assignments or sampled receipts.
+
 ## Commit, then publish
 
 Publish committed branch work. HEAD must be a commit on an attached branch, and staged, unstaged and untracked changes must be committed first. Paths explicitly supplied as proof assets are excluded from the clean-tree check.
@@ -75,6 +81,14 @@ Include the ordinary required verdict fields too. Asked may come directly from t
 
 Every file deleted between the merge base and head must appear by its exact path in \`verdict.removed[].paths\`. Each entry names the removed behavior and why it was removed. Publication refuses an unexplained deletion with \`Explain every removal: <path> is deleted but no verdict.removed entry names it.\` Diagram Removed owners do not replace this declaration.
 
+## Decision choices and learning
+
+Each layer may include \`alternatives: [{ label, whyNot }]\`: what else was considered and the one-line reason it was not chosen. Put it next to the summary, not in a separate document.
+
+A diagram box with a real \`problem\` and \`layerId\` may carry \`options: [{ id, label, consequence }]\` (2–6 options, UUID ids). Each consequence is one line describing the result of choosing it. Reuse proof assets for optional screenshots or video: set the asset's \`layerId\` and \`optionId\` to the option's UUID. A developer's choice is posted as a comment and travels through the existing feedback batch; read it and reply on that thread.
+
+"Teach me" posts a comment asking you to explain the decision in plain words, why it beats the alternatives and what it traded off. Answer as a reply on that decision's thread. "Ask for a guard" asks for the strongest suitable layer: architecture, types, a lint rule, then a test; words last. Prove the guard fails on the past mistake and passes with the fix. Open one PR per guard and leave it waiting for the owner's approval. A feedback request never grants merge permission.
+
 ## Decisions and diagram
 
 Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows. Code is shown as slices per step, with three surrounding lines, so choose precise inclusive ranges that contain the decision. Use plain names a developer understands without decoding internal labels. Never use internal question or decision codes as titles or prose. Every "Needs your decision" question must explain why the developer’s request and any available ticket, handoff or prototype do not already settle it; read the sources that exist before asking. Attach screenshots and videos to the layer that built the visible behavior, and to its step when useful.
@@ -86,7 +100,7 @@ When the change crosses more than one part of the system, add a diagram with box
 - Use \`problem\` for a decision the developer must make: two writes without a shared transaction, a second copy of an owner that already exists, a pattern this change follows differently from the rest of the codebase. Each problem is shown as "Needs your decision" in the briefing and in every decision connected to that box.
 - Label every arrow with its meaning, such as calls, reads, writes, publishes or depends on. An arrow labelled \`uses\` from a decision box to an owner labelled \`Delivery outbox\` appears as "uses Delivery outbox". For an arrow arriving at a decision box, Porcelain shows "<owner label> <verb>". Porcelain uses the label verbatim; an unlabelled arrow reads "relates to". Describe all actual relationships, including ordinary calls; step order never creates an arrow.
 
-Porcelain also reports file changes from Git grouped by folder and detects changed lint and architecture files. Import neighbours are not computed yet. The diagram remains your architectural claims, not automatically verified call traces. Support them with code pointers in the linked layer, and leave uncertain relationships in the detail instead of drawing a confident arrow.
+The map draws exactly your diagram and change labels, by design. Porcelain does not compute a file inventory or import graph for the map and does not check its claims. Support the drawing with the linked decisions and proof.
 
 For example, a decision introducing an owner can link to that owner even though both boxes name the same layer:
 

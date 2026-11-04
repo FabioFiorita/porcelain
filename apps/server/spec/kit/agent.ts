@@ -76,6 +76,7 @@ async function agentRequest(
   }
   if (action.kind === 'reply')
     return toolCall(agent, 1, 'reply_to_comment', {
+      ...(action.reviewId === undefined ? {} : { reviewId: action.reviewId }),
       threadId: action.threadId,
       body: action.body,
     });

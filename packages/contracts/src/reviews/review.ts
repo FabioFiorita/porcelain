@@ -1,4 +1,3 @@
-import { reviewSamplesSchema } from '@porcelain/reviews/models';
 import { isoDateTimeSchema } from '../shared/schema.ts';
 import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 import { Effect, Schema, SchemaTransformation } from 'effect';
@@ -90,6 +89,18 @@ const resolvedReviewStepSchema = Schema.Struct({
 });
 
 const reviewLayerSchema = Schema.Struct({
+  alternatives: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        label: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_TITLE_LENGTH),
+        ),
+        whyNot: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_PROSE_LENGTH),
+        ),
+      }),
+    ).check(Schema.isMaxLength(8)),
+  ),
   id: idSchema,
   title: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
     .check(Schema.isMinLength(1))
@@ -130,6 +141,21 @@ const diagramArrowSchema = Schema.Struct({
   ),
 });
 const diagramBoxSchema = Schema.Struct({
+  options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: idSchema,
+        label: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_TITLE_LENGTH),
+        ),
+        consequence: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_PROSE_LENGTH),
+        ),
+      }),
+    )
+      .check(Schema.isMinLength(2))
+      .check(Schema.isMaxLength(6)),
+  ),
   id: idSchema,
   label: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
     .check(Schema.isMinLength(1))
@@ -298,7 +324,7 @@ const publishedReviewSchema = Schema.Struct({
   diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: Schema.optional(reviewDiagramSchema),
-  samples: Schema.optional(reviewSamplesSchema),
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   layers: Schema.Array(resolvedReviewLayerSchema).check(
     Schema.isMaxLength(REVIEW_LAYERS),
   ),
@@ -309,6 +335,7 @@ const publishedReviewSchema = Schema.Struct({
 });
 
 export const publishReviewRequestSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   expectedRevision: Schema.Number.check(Schema.isInt())
     .check(Schema.isGreaterThanOrEqualTo(0))
     .check(Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1)),
@@ -358,6 +385,7 @@ export const reviewRevisionParamsSchema = Schema.Struct({
   ),
 });
 const reviewRecordSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   publishedAt: Schema.optional(isoDateTimeSchema),
   title: Schema.optional(Schema.String),
   diagram: Schema.optional(reviewDiagramSchema),
@@ -454,12 +482,6 @@ export const reviewMarksResponseSchema = Schema.Struct({
   decisions: Schema.Array(reviewDecisionMarkSchema),
 });
 export const setReviewMarkRequestSchema = Schema.Union([
-  Schema.Struct({
-    kind: Schema.Literal('sample'),
-    revision: revisionSchema,
-    layerId: Schema.String,
-    stepId: Schema.String,
-  }),
   Schema.Struct({
     kind: Schema.Literal('file'),
     revision: revisionSchema,

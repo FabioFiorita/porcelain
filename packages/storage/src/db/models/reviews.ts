@@ -1,7 +1,6 @@
 import { Schema } from 'effect';
 import { Model } from 'effect/schema';
 import {
-  reviewSamplesSchema,
   reviewDiagramSchema,
   reviewLayerSchema,
   reviewProofSchema,
@@ -31,7 +30,7 @@ export class ReviewRow extends Model.Class<ReviewRow>('ReviewRow')({
   summaryHtml: Schema.String,
   summaryToken: Schema.String,
   summarySecret: Schema.String,
-  samples: Schema.NullOr(Schema.fromJsonString(reviewSamplesSchema)),
+  timing: Schema.Literals(['decision', 'record']),
   diagram: Schema.NullOr(Schema.fromJsonString(reviewDiagramSchema)),
   layers: Schema.fromJsonString(Schema.Array(reviewLayerSchema)),
   proof: Schema.NullOr(Schema.fromJsonString(reviewProofSchema)),

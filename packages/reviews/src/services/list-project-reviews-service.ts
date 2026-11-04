@@ -38,6 +38,7 @@ export class ListProjectReviewsService extends Context.Service<
                         ...(review.diagram === undefined
                           ? {}
                           : { diagram: review.diagram }),
+                        timing: review.timing ?? 'decision',
                         guards: reviewGuards(review.files),
                         publishedAt: review.publishedAt,
                         title: review.verdict.asked.text,

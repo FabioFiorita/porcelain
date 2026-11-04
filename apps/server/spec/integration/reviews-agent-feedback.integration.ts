@@ -82,7 +82,8 @@ test('feedback routes preserve saved comments, enforce paired access and refuse 
   ).toEqual({
     statusCode: 409,
     error: 'Conflict',
-    message: 'The associated T3 session is unavailable on this machine',
+    message:
+      'The T3 command is not available to the Porcelain server. Add it to the server’s PATH.',
   });
   expect(
     await call('acknowledge_feedback', { reviewId, deliveryId: randomUUID() }),

@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 const proofTargetSchema = Schema.Struct({
+  optionId: Schema.optional(Schema.String),
   layerId: Schema.mutableKey(
     Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
   ),

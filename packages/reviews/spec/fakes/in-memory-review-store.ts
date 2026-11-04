@@ -8,7 +8,6 @@ import { openReviewForKey } from '../../src/rules/review-record.ts';
 import { InMemoryReviewedLayerStore } from './in-memory-reviewed-layer-store.ts';
 
 export class InMemoryReviewStore implements ReviewStore {
-  private readonly sampled = new Set<string>();
   private readonly records: Map<string, ReviewRecord>;
   private readonly rows: Map<string, Review[]>;
   private readonly proofFiles = new Map<string, ProofFile[]>();
@@ -45,24 +44,12 @@ export class InMemoryReviewStore implements ReviewStore {
       structuredClone(
         this.rows
           .get(input.reviewId)
-          ?.filter(
+          ?.find(
             (review) =>
               review.revision ===
               (input.revision ??
                 this.records.get(input.reviewId)?.latestRevision),
-          )
-          .map((review) => ({
-            ...review,
-            samples: review.samples?.map((pick) => ({
-              ...pick,
-              sampled:
-                pick.sampled ||
-                this.sampled.has(
-                  `${review.reviewId}:${review.revision}:${pick.layerId}:${pick.stepId}`,
-                ),
-            })),
-          }))
-          .at(0),
+          ),
       ),
     );
   }
@@ -109,19 +96,7 @@ export class InMemoryReviewStore implements ReviewStore {
     input: Parameters<ReviewStore['listRevisions']>[0],
   ): ReturnType<ReviewStore['listRevisions']> {
     return Effect.sync(() =>
-      structuredClone(
-        (this.rows.get(input.reviewId) ?? []).map((review) => ({
-          ...review,
-          samples: review.samples?.map((pick) => ({
-            ...pick,
-            sampled:
-              pick.sampled ||
-              this.sampled.has(
-                `${review.reviewId}:${review.revision}:${pick.layerId}:${pick.stepId}`,
-              ),
-          })),
-        })),
-      ),
+      structuredClone(this.rows.get(input.reviewId) ?? []),
     );
   }
   findSummary(
@@ -217,13 +192,6 @@ export class InMemoryReviewStore implements ReviewStore {
   ): ReturnType<ReviewStore['setState']> {
     return Effect.sync(() => {
       this.states.set(input.reviewId, input.state);
-    });
-  }
-  markSample(input: Parameters<ReviewStore['markSample']>[0]) {
-    return Effect.sync(() => {
-      this.sampled.add(
-        `${input.reviewId}:${input.revision}:${input.layerId}:${input.stepId}`,
-      );
     });
   }
   markSeen(

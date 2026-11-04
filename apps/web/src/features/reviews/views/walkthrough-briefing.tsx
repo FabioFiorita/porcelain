@@ -1,4 +1,3 @@
-import { ReviewSampling } from './review-sampling';
 import { Button } from '@/components/ui/button';
 import {
   ArrowRightIcon,
@@ -114,11 +113,6 @@ export function WalkthroughBriefing({
                 </span>
               </h2>
               <ReviewHandoff revision={revision} />
-              <ReviewSampling
-                revision={revision}
-                context={context}
-                onGo={onGo}
-              />
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (

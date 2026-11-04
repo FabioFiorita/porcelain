@@ -31,7 +31,12 @@ export async function durableReviewFixture(
   operation: 'publish' | 'remove-worktree' | 'advance' | 'remove-repository',
   title: string,
   asked = 'Read one committed review after checkout cleanup',
-  route = { path: 'review-page.ts', lane: 'Client' },
+  route: {
+    path: string;
+    lane: string;
+    timing?: 'decision' | 'record';
+    choices?: boolean;
+  } = { path: 'review-page.ts', lane: 'Client' },
   branch = name,
 ) {
   const filename = route.path;
@@ -90,6 +95,7 @@ export async function durableReviewFixture(
   );
   const response = await session.send({
     ...toolCall({ ...session, repository: worktree }, 1, 'publish_review', {
+      timing: route.timing ?? 'decision',
       expectedRevision: count,
       base: 'refs/heads/review-page-base',
       verdict: {
@@ -119,6 +125,16 @@ export async function durableReviewFixture(
         {
           id: layerId,
           title,
+          ...(route.choices
+            ? {
+                alternatives: [
+                  {
+                    label: 'Delete the snapshot',
+                    whyNot: 'It would lose the explanation after cleanup.',
+                  },
+                ],
+              }
+            : {}),
           summary:
             'Keep the reviewed code and its explanation after removing the publishing checkout.',
           lanes: [route.lane],
@@ -140,6 +156,23 @@ export async function durableReviewFixture(
             {
               id: 'b9d158f2-a920-41b3-81f3-1ac88acbd1fd',
               label: 'Revision owner',
+              ...(route.choices
+                ? {
+                    problem: 'Which retention policy should we use?',
+                    options: [
+                      {
+                        id: '28000000-0000-4000-8000-000000000001',
+                        label: 'Keep the snapshot',
+                        consequence: 'Code stays readable after cleanup.',
+                      },
+                      {
+                        id: '28000000-0000-4000-8000-000000000002',
+                        label: 'Expire it',
+                        consequence: 'Old explanations will lose code.',
+                      },
+                    ],
+                  }
+                : {}),
               change: 'new',
               layerId,
             },

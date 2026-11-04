@@ -17,12 +17,6 @@ export type ReadReviewResult = {
 };
 const setReviewMarkSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal('sample'),
-    revision: Schema.Number,
-    layerId: Schema.String,
-    stepId: Schema.String,
-  }),
-  Schema.Struct({
     kind: Schema.Literal('file'),
     revision: Schema.Number,
     path: Schema.String,

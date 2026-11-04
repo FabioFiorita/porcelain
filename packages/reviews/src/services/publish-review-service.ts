@@ -1,4 +1,3 @@
-import { reviewSamples } from '../rules/review-samples.ts';
 import {
   normalizedReviewPullRequest,
   reviewPullRequestNumber,
@@ -150,6 +149,7 @@ export class PublishReviewService extends Context.Service<
         file: ProofFile,
       ): ProofAsset {
         return {
+          ...(asset.optionId === undefined ? {} : { optionId: asset.optionId }),
           id: file.id,
           kind: proofFileKind(file.mediaType),
           title: asset.title,
@@ -255,6 +255,7 @@ export class PublishReviewService extends Context.Service<
           );
           const review: Review = {
             notExplained,
+            timing: draft.timing ?? 'decision',
             ...commit,
             reviewId,
             verdict: structuredClone(draft.verdict),
@@ -274,7 +275,6 @@ export class PublishReviewService extends Context.Service<
             layers,
             ...(proof === undefined ? {} : { proof }),
           };
-          review.samples = reviewSamples(review, idSourceCapability.next());
           yield* pinner.pin({
             commonDirectory: commit.commonDirectory,
             reviewId,

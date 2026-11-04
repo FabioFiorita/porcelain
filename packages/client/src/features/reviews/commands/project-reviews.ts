@@ -1,3 +1,4 @@
+import { reviewErrorMessage } from '../rules/review.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
@@ -24,6 +25,15 @@ export const reviewCommands = Atom.family(
       queryKeys.projectReviews(input.connection.environmentId),
       queryKeys.durableReview(input.connection.environmentId, input.reviewId),
     ]);
+    const createComment = Effect.fn('Reviews.createComment')(function* (
+      payload: CreateCommentThreadRequest,
+    ) {
+      const answer = yield* requestApi(input.connection, (api) =>
+        api.reviews.createReviewCommentThread({ params, payload }),
+      );
+      yield* invalidate;
+      return answer;
+    });
     return {
       sendAgentFeedback: runtime.fn(
         Effect.fn('Reviews.sendAgentFeedback')(function* (
@@ -64,15 +74,36 @@ export const reviewCommands = Atom.family(
           return answer;
         }),
       ),
-      createComment: runtime.fn(
-        Effect.fn('Reviews.createComment')(function* (
-          payload: CreateCommentThreadRequest,
+      createComment: runtime.fn(createComment),
+      requestFeedback: runtime.fn(
+        Effect.fn('Reviews.requestFeedback')(function* (
+          payload: CreateCommentThreadRequest & { reviewRevision: number },
         ) {
-          const answer = yield* requestApi(input.connection, (api) =>
-            api.reviews.createReviewCommentThread({ params, payload }),
+          yield* createComment(payload);
+          const delivery = yield* Effect.gen(function* () {
+            const feedback = yield* requestApi(input.connection, (api) =>
+              api.reviews.readReviewAgentFeedback({ params }),
+            );
+            if (!feedback.session)
+              return 'No agent connected; request saved in comments.';
+            if (feedback.delivery?.state === 'pending')
+              return 'A feedback batch is pending; request saved in comments.';
+            yield* requestApi(input.connection, (api) =>
+              api.reviews.sendReviewAgentFeedback({
+                params,
+                payload: { reviewRevision: payload.reviewRevision },
+              }),
+            );
+            return 'Feedback queued for the agent.';
+          }).pipe(
+            Effect.match({
+              onSuccess: (status) => status,
+              onFailure: (error) =>
+                `Request saved. ${reviewErrorMessage(error)}`,
+            }),
           );
           yield* invalidate;
-          return answer;
+          return { delivery };
         }),
       ),
       reply: runtime.fn(
@@ -239,9 +270,7 @@ export const reviewCommands = Atom.family(
           const answer = yield* requestApi(input.connection, (api) =>
             payload.kind === 'file'
               ? api.reviews.setReviewMark({ params, payload })
-              : payload.kind === 'sample'
-                ? api.reviews.setReviewMark({ params, payload })
-                : api.reviews.setReviewMark({ params, payload }),
+              : api.reviews.setReviewMark({ params, payload }),
           );
           yield* invalidate;
           return answer;
