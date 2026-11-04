@@ -314,11 +314,13 @@ function ReviewRevisionPage({
   const worktree = project?.worktrees.find(
     (entry) => entry.available && entry.id === revision.content.worktreeId,
   );
-  const currentScope =
+  const checkoutScope =
     liveScope ??
     (worktree
       ? { projectId: revision.projectId, worktreeId: worktree.id }
       : undefined);
+  const currentScope =
+    revision.content.timing === 'record' ? undefined : checkoutScope;
   const latestHead =
     data.revisions.find(
       (entry) => entry.revision === data.review?.latestRevision,

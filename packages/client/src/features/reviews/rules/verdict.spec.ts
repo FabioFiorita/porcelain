@@ -143,3 +143,11 @@ describe('verdict sections', () => {
     expect(revision.verdict.removed[0]?.paths).toEqual(['old.ts', 'kept.ts']);
   });
 });
+
+it('labels a landed record as history rather than a new merge recommendation', () => {
+  const landed = {
+    ...revision,
+    content: { ...revision.content, timing: 'record' as const },
+  };
+  expect(verdictSections(landed).recommendation.label).toBe('Landed');
+});

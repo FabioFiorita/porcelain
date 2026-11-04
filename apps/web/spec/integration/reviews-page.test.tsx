@@ -789,6 +789,8 @@ test('landed history opens retained code and decision choices and teaching use c
     })
     .click();
   await expect
-    .element(app.page.getByRole('region', { name: 'You asked', exact: true }))
+    .element(
+      app.page.getByRole('heading', { name: 'Status: Landed', exact: true }),
+    )
     .toBeVisible();
 });

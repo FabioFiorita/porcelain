@@ -74,7 +74,10 @@ export function BriefingVerdict({
       <ReviewHandoff revision={revision} />
       <Card
         variant={
-          sections.recommendation.value === 'hold' ? 'warning' : 'success'
+          sections.recommendation.value === 'hold' &&
+          sections.recommendation.label !== 'Landed'
+            ? 'warning'
+            : 'success'
         }
         padding={4}
         gap={2}
@@ -82,7 +85,9 @@ export function BriefingVerdict({
         <Box className="flex-row items-center justify-between" gap={2}>
           <Text variant="title">{sections.recommendation.label}</Text>
           <Text variant="caption" tone="muted">
-            Recommendation
+            {sections.recommendation.label === 'Landed'
+              ? 'Record'
+              : 'Recommendation'}
           </Text>
         </Box>
         {sections.recommendation.reasons.map((reason, index) => (

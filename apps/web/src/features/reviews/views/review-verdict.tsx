@@ -13,7 +13,8 @@ import { cn } from '@/shared/lib/utils';
 export function ReviewVerdict({ revision }: { revision: ReviewRevision }) {
   const sections = verdictSections(revision);
   const { recommendation } = sections;
-  const merge = recommendation.value === 'merge';
+  const landed = recommendation.label === 'Landed';
+  const merge = landed || recommendation.value === 'merge';
   const RecommendationIcon = merge ? CheckIcon : PauseIcon;
   return (
     <section aria-label="Verdict" className="flex min-w-0 flex-col gap-6">
@@ -41,9 +42,12 @@ export function ReviewVerdict({ revision }: { revision: ReviewRevision }) {
           </ul>
         )}
       </section>
-      <section aria-label="Recommendation" className="flex min-w-0 flex-col">
+      <section
+        aria-label={landed ? 'Landed change' : 'Recommendation'}
+        className="flex min-w-0 flex-col"
+      >
         <h3
-          aria-label={`Recommendation: ${recommendation.label}`}
+          aria-label={`${landed ? 'Status' : 'Recommendation'}: ${recommendation.label}`}
           className="flex flex-wrap items-center gap-x-2.5 gap-y-1"
         >
           <span
@@ -60,7 +64,9 @@ export function ReviewVerdict({ revision }: { revision: ReviewRevision }) {
             {recommendation.label}
           </span>
           <span className="text-reading leading-5 font-medium">
-            The agent recommends {merge ? 'merging' : 'holding'} this change
+            {landed
+              ? 'A record of a landed change'
+              : `The agent recommends ${merge ? 'merging' : 'holding'} this change`}
           </span>
         </h3>
         {recommendation.reasons.length > 0 && (
