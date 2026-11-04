@@ -36,6 +36,11 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '010_review_timing': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE review_revisions ADD COLUMN timing TEXT NOT NULL DEFAULT 'decision' CHECK(timing IN ('decision', 'record'))`;
+    yield* sql`UPDATE review_revisions SET verdict = json_set(verdict, '$.coverage', (SELECT json_group_array(json(CASE WHEN json_extract(value, '$.left.owner.kind') = 'nobody' THEN json_remove(value, '$.left.owner') ELSE value END)) FROM json_each(json_extract(verdict, '$.coverage')))) WHERE json_type(verdict, '$.coverage') = 'array'`;
+  }),
   '008_review_agent_feedback': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE review_agent_feedback (

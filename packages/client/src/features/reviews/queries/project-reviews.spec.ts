@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import {
   clientFixtures,
@@ -11,6 +11,7 @@ import {
   readProjectReviews,
   observeReviewSeen,
   readReviewPullChecks,
+  readReviewRevisionDiffs,
 } from './project-reviews.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { reviewCommands } from '../commands/project-reviews.ts';
@@ -530,4 +531,53 @@ it('refreshes an initially loading project list when a review closes before memb
     pending.resolve(stale);
     stop();
   }
+});
+
+it('reads large decisions in bounded sequential requests without losing any diff', async () => {
+  const batches: (readonly (readonly string[])[])[] = [];
+  const subject = fixture(async (_path, init) => {
+    const payload = Schema.decodeUnknownSync(
+      Schema.Struct({ paths: Schema.Array(Schema.Array(Schema.String)) }),
+    )(await new Response(init?.body).json());
+    batches.push(payload.paths);
+    return Promise.resolve(
+      Response.json({
+        diffs: payload.paths.map((paths) => ({
+          paths,
+          content: { kind: 'text', patch: 'literal patch' },
+        })),
+      }),
+    );
+  });
+  const paths = Array.from({ length: 201 }, (_, index) => [`file-${index}.ts`]);
+  const result = await visitClientRead(
+    subject.registry,
+    readReviewRevisionDiffs({
+      connection: subject.connection,
+      reviewId,
+      revision: 1,
+      paths,
+    }),
+  );
+  expect(batches.map((batch) => batch.length)).toEqual([200, 1]);
+  expect(result.diffs.map((diff) => diff.paths)).toEqual(paths);
+});
+it('does not request an invalid empty batch for a decision containing only unchanged code', async () => {
+  const requests: string[] = [];
+  const subject = fixture((path) => {
+    requests.push(path);
+    return Promise.resolve(Response.json({ diffs: [] }));
+  });
+  expect(
+    await visitClientRead(
+      subject.registry,
+      readReviewRevisionDiffs({
+        connection: subject.connection,
+        reviewId,
+        revision: 1,
+        paths: [],
+      }),
+    ),
+  ).toEqual({ diffs: [] });
+  expect(requests).toEqual([]);
 });

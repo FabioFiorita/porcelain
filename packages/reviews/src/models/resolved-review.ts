@@ -1,9 +1,9 @@
+import type { ReviewDiagram } from './review.ts';
 import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
 import type { ResolvedProof } from './review-proof.ts';
 import type {
   ReviewVerdict,
   CodePointer,
-  ReviewDiagram,
   ReviewLayer,
   StepDraft,
 } from './review.ts';
@@ -55,6 +55,7 @@ export type ResolvedReview = {
   active: boolean;
   diagnostics: 'current';
   summary: SummaryGrant;
+  timing?: 'decision' | 'record' | undefined;
   diagram?: ReviewDiagram | undefined;
   layers: readonly ResolvedLayer[];
   notExplained: readonly UnexplainedChange[];

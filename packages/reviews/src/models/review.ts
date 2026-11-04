@@ -18,6 +18,11 @@ const stepDraftSchema = Schema.Struct({
   pointer: Schema.mutableKey(codePointerSchema),
 });
 const layerDraftSchema = Schema.Struct({
+  alternatives: Schema.optional(
+    Schema.Array(
+      Schema.Struct({ label: Schema.String, whyNot: Schema.String }),
+    ),
+  ),
   id: Schema.mutableKey(Schema.String),
   title: Schema.mutableKey(Schema.String),
   summary: Schema.mutableKey(Schema.String),
@@ -33,45 +38,6 @@ export const reviewLayerSchema = Schema.Struct({
   steps: Schema.mutableKey(Schema.Array(reviewStepSchema)),
   fingerprint: Schema.mutableKey(Schema.String),
 });
-const diagramBoxSchema = Schema.Struct({
-  id: Schema.mutableKey(Schema.String),
-  label: Schema.mutableKey(Schema.String),
-  detail: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  change: Schema.mutableKey(
-    Schema.optional(
-      Schema.Union([
-        Schema.Literal('new'),
-        Schema.Literal('changed'),
-        Schema.Literal('removed'),
-        Schema.Undefined,
-      ]),
-    ),
-  ),
-  problem: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  layerId: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  decision: Schema.mutableKey(Schema.optional(Schema.Literal(true))),
-});
-const diagramArrowSchema = Schema.Struct({
-  from: Schema.mutableKey(Schema.String),
-  to: Schema.mutableKey(Schema.String),
-  label: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-});
-const diagramSchema = Schema.Struct({
-  boxes: Schema.mutableKey(Schema.Array(diagramBoxSchema)),
-  arrows: Schema.mutableKey(Schema.Array(diagramArrowSchema)),
-});
-export const reviewDiagramSchema = Schema.Struct({
-  after: Schema.mutableKey(diagramSchema),
-});
-
 import type { Brand } from 'effect';
 import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
 
@@ -80,12 +46,6 @@ export type CodePointer = typeof codePointerSchema.Type;
 export type StepDraft = typeof stepDraftSchema.Type;
 
 export type LayerDraft = typeof layerDraftSchema.Type;
-
-export type DiagramBox = typeof diagramBoxSchema.Type;
-
-export type Diagram = typeof diagramSchema.Type;
-
-export type ReviewDiagram = typeof reviewDiagramSchema.Type;
 
 export const reviewRecommendationSchema = Schema.Literals(['merge', 'hold']);
 export const reviewNotProvenSchema = Schema.Struct({
@@ -97,7 +57,40 @@ export const reviewRemovalSchema = Schema.Struct({
   why: Schema.String,
   paths: Schema.Array(Schema.String),
 });
+const reviewTryItSchema = Schema.Struct({
+  url: Schema.String,
+  accounts: Schema.Array(
+    Schema.Struct({ label: Schema.String, signIn: Schema.String }),
+  ),
+  steps: Schema.Array(Schema.String),
+});
+const reviewCoverageSchema = Schema.Array(
+  Schema.Struct({
+    asked: Schema.String,
+    built: Schema.String,
+    left: Schema.optional(
+      Schema.Struct({
+        what: Schema.String,
+        owner: Schema.optional(
+          Schema.Union([
+            Schema.Struct({
+              kind: Schema.Literal('ticket'),
+              name: Schema.String,
+            }),
+            Schema.Struct({
+              kind: Schema.Literal('teammate'),
+              name: Schema.String,
+              message: Schema.optional(Schema.String),
+            }),
+          ]),
+        ),
+      }),
+    ),
+  }),
+);
 export const reviewVerdictSchema = Schema.Struct({
+  tryIt: Schema.optional(reviewTryItSchema),
+  coverage: Schema.optional(reviewCoverageSchema),
   asked: Schema.Struct({
     text: Schema.String,
     links: Schema.optional(
@@ -111,6 +104,7 @@ export const reviewVerdictSchema = Schema.Struct({
 });
 export type ReviewVerdict = typeof reviewVerdictSchema.Type;
 export const reviewRecordSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   reviewId: Schema.String,
   projectId: Schema.String,
   commonDirectory: Schema.String,
@@ -157,6 +151,7 @@ export type ReviewCommit = {
   mergeBaseOid: string;
 };
 export type ReviewDraft = {
+  timing?: 'decision' | 'record' | undefined;
   expectedRevision: number;
   summaryHtml?: string | undefined;
   verdict: ReviewVerdict;
@@ -181,6 +176,7 @@ export const unexplainedChangeSchema = Schema.Struct({
   binary: Schema.optional(Schema.Boolean),
 });
 export type Review = ReviewCommit & {
+  timing?: 'decision' | 'record' | undefined;
   notExplained: readonly (typeof unexplainedChangeSchema.Type)[];
   reviewId: string;
   verdict: ReviewVerdict;
@@ -223,3 +219,55 @@ export type ValidatedReviewDraft = Brand.Branded<
   Readonly<ReviewDraft>,
   'Porcelain/ValidatedReviewDraft'
 >;
+
+const diagramBoxSchema = Schema.Struct({
+  options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        label: Schema.String,
+        consequence: Schema.String,
+      }),
+    ),
+  ),
+  id: Schema.mutableKey(Schema.String),
+  label: Schema.mutableKey(Schema.String),
+  detail: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  change: Schema.mutableKey(
+    Schema.optional(
+      Schema.Union([
+        Schema.Literal('new'),
+        Schema.Literal('changed'),
+        Schema.Literal('removed'),
+        Schema.Undefined,
+      ]),
+    ),
+  ),
+  problem: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  layerId: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  decision: Schema.mutableKey(Schema.optional(Schema.Literal(true))),
+});
+const diagramArrowSchema = Schema.Struct({
+  from: Schema.mutableKey(Schema.String),
+  to: Schema.mutableKey(Schema.String),
+  label: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const diagramSchema = Schema.Struct({
+  boxes: Schema.mutableKey(Schema.Array(diagramBoxSchema)),
+  arrows: Schema.mutableKey(Schema.Array(diagramArrowSchema)),
+});
+export const reviewDiagramSchema = Schema.Struct({
+  after: Schema.mutableKey(diagramSchema),
+});
+
+export type DiagramBox = typeof diagramBoxSchema.Type;
+export type Diagram = typeof diagramSchema.Type;
+export type ReviewDiagram = typeof reviewDiagramSchema.Type;

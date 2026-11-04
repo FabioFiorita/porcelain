@@ -21,6 +21,7 @@ import { Item } from '../../../components/ui/item';
 import { ImageView } from '../../../components/ui/image-view';
 import { ErrorState } from '../../../components/ui/error-state';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
+import { ReviewHandoff } from './review-handoff';
 import { ReviewReadState } from './read-state';
 import { ProofChecks } from './proof-checks';
 
@@ -70,9 +71,13 @@ export function BriefingVerdict({
   return (
     <Box gap={6}>
       {link.error ? <ErrorState message={link.error} /> : null}
+      <ReviewHandoff revision={revision} />
       <Card
         variant={
-          sections.recommendation.value === 'hold' ? 'warning' : 'success'
+          sections.recommendation.value === 'hold' &&
+          sections.recommendation.label !== 'Landed'
+            ? 'warning'
+            : 'success'
         }
         padding={4}
         gap={2}
@@ -80,7 +85,9 @@ export function BriefingVerdict({
         <Box className="flex-row items-center justify-between" gap={2}>
           <Text variant="title">{sections.recommendation.label}</Text>
           <Text variant="caption" tone="muted">
-            Recommendation
+            {sections.recommendation.label === 'Landed'
+              ? 'Record'
+              : 'Recommendation'}
           </Text>
         </Box>
         {sections.recommendation.reasons.map((reason, index) => (
@@ -272,7 +279,7 @@ function PartRow({
   );
 }
 
-function ProofAsset({
+export function ProofAsset({
   asset,
   revision,
   connection,

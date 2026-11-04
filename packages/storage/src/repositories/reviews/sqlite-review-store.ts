@@ -162,6 +162,7 @@ export const sqliteReviewStoreLayer = Layer.effect(
           }
           const row = yield* Schema.encodeEffect(ReviewRow.insert)({
             ...review,
+            timing: review.timing ?? 'decision',
             diagram: review.diagram ?? null,
             proof: review.proof ?? null,
           });

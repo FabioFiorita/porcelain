@@ -176,3 +176,65 @@ describe('reviewDraftProblem', () => {
     ).toEqual({ kind: 'duplicate-layer-id' });
   });
 });
+
+it('accepts option media only for an option on its named decision, and refuses ambiguous option ids', () => {
+  const proposed = draft({
+    diagram: {
+      after: {
+        boxes: [
+          {
+            id: 'q',
+            label: 'Retention',
+            problem: 'How long?',
+            layerId: 'layer-a',
+            options: [
+              { id: 'keep', label: 'Keep', consequence: 'Saved' },
+              { id: 'expire', label: 'Expire', consequence: 'Gone' },
+            ],
+          },
+        ],
+        arrows: [],
+      },
+    },
+    proof: {
+      assets: [
+        {
+          kind: 'image',
+          title: 'Option',
+          path: 'shot.png',
+          layerId: 'layer-a',
+          optionId: 'keep',
+        },
+      ],
+    },
+  });
+  expect(reviewDraftProblem(proposed)).toBeUndefined();
+  expect(
+    reviewDraftProblem({
+      ...proposed,
+      proof: {
+        assets: [
+          {
+            kind: 'image',
+            title: 'Unknown',
+            path: 'shot.png',
+            layerId: 'layer-b',
+            optionId: 'keep',
+          },
+        ],
+      },
+    }),
+  ).toEqual({ kind: 'unknown-proof-target' });
+  const box = proposed.diagram!.after.boxes[0]!;
+  expect(
+    reviewDraftProblem({
+      ...proposed,
+      diagram: {
+        after: {
+          boxes: [{ ...box, options: [...box.options!, box.options![0]!] }],
+          arrows: [],
+        },
+      },
+    }),
+  ).toEqual({ kind: 'invalid-decision-box' });
+});

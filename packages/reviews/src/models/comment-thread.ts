@@ -34,6 +34,12 @@ export const commentAnchorSchema = Schema.Union([
       Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
     ),
     kind: Schema.mutableKey(Schema.Literal('change')),
+    reviewTarget: Schema.optional(
+      Schema.Struct({
+        kind: Schema.Literals(['decision', 'question']),
+        id: Schema.String,
+      }),
+    ),
   }),
   Schema.Struct({
     comparison: Schema.mutableKey(

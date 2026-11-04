@@ -82,19 +82,19 @@ export function routingPromises() {
     ).toBeVisible();
   });
 
-  test('unknown Settings sections show a recoverable not-found without silently redirecting', async ({
-    app,
-    pairedPage,
-  }) => {
-    for (const path of [
-      '/settings/unknown',
-      '/settings/computer',
-      '/settings/appearance',
-      '/settings/connection',
-      '/settings/updates',
-      '/settings/ways-in',
-      '/settings/remotes',
-    ]) {
+  for (const path of [
+    '/settings/unknown',
+    '/settings/computer',
+    '/settings/appearance',
+    '/settings/connection',
+    '/settings/updates',
+    '/settings/ways-in',
+    '/settings/remotes',
+  ]) {
+    test(`unknown Settings section ${path} shows a recoverable not-found without silently redirecting`, async ({
+      app,
+      pairedPage,
+    }) => {
       await app.open(path);
       await expect(
         pairedPage.getByText('Page not found', { exact: true }),
@@ -114,8 +114,8 @@ export function routingPromises() {
       await expect(
         pairedPage.getByRole('region', { name: 'Review content', exact: true }),
       ).toBeVisible();
-    }
-  });
+    });
+  }
 
   test('an invalid worktree ID explains the URL and directly opens an available worktree', async ({
     app,

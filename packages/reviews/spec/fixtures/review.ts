@@ -6,6 +6,7 @@ import type {
 
 export function reviewFixture(overrides: Partial<Review> = {}): Review {
   return {
+    timing: 'decision',
     reviewId: '10000000-0000-4000-8000-000000000001',
     projectId: 'project',
     commonDirectory: '/repositories/project/.git',

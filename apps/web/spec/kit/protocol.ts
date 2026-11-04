@@ -29,7 +29,14 @@ export type RepoStep =
       title: string;
       asked?: string | undefined;
       branch?: string | undefined;
-      route?: { path: string; lane: string } | undefined;
+      route?:
+        | {
+            path: string;
+            lane: string;
+            timing?: 'decision' | 'record';
+            choices?: boolean;
+          }
+        | undefined;
     }
   | {
       kind: 'service-update-fixture';

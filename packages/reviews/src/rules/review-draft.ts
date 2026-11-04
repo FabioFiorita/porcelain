@@ -1,5 +1,5 @@
+import type { Diagram } from '../models/review.ts';
 import type {
-  Diagram,
   LayerDraft,
   ReviewDraft,
   ReviewDraftProblem,
@@ -31,6 +31,18 @@ function diagramProblem(
     )
   )
     return { kind: 'unknown-box-layer' };
+  const optionIds = diagram.boxes.flatMap(
+    (box) => box.options?.map((option) => option.id) ?? [],
+  );
+  if (
+    repeats(optionIds) ||
+    diagram.boxes.some(
+      (box) =>
+        box.options !== undefined &&
+        (box.problem === undefined || box.layerId === undefined),
+    )
+  )
+    return { kind: 'invalid-decision-box' };
   const decisions = diagram.boxes.filter((box) => box.decision);
   if (
     decisions.some((box) => box.layerId === undefined) ||
@@ -57,7 +69,7 @@ export function reviewDraftProblem(
     (draft.diagram
       ? diagramProblem(draft.diagram.after, draft.layers)
       : undefined) ??
-    (proofTargetsKnown(draft.proof, draft.layers)
+    (proofTargetsKnown(draft.proof, draft.layers, draft.diagram)
       ? undefined
       : { kind: 'unknown-proof-target' })
   );

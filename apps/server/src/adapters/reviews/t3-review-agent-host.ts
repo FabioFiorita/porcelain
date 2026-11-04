@@ -1,4 +1,5 @@
 import { Effect, Layer, Schema } from 'effect';
+import { captureGitPlatform, listWorktrees } from '@porcelain/git/discovery';
 import { captureT3Session } from '@porcelain/agents/feedback';
 import { AgentFeedbackConflictError } from '@porcelain/reviews/errors';
 import { ReviewAgentHost } from '@porcelain/reviews/ports';
@@ -13,6 +14,10 @@ const targetSchema = Schema.Struct({
   }),
 });
 
+const projectThreadsSchema = Schema.Array(
+  Schema.Struct({ threadId: Schema.String }),
+);
+
 const receiptSchema = Schema.Struct({
   threadId: Schema.String,
   runId: Schema.NonEmptyString,
@@ -25,6 +30,7 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
     ReviewAgentHost,
     Effect.gen(function* () {
       const command = yield* captureT3Session();
+      const git = yield* captureGitPlatform();
       return ReviewAgentHost.of({
         execute: Effect.fn('ReviewAgentHost.execute')(function* (input) {
           const target = yield* command({
@@ -38,23 +44,75 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
               Schema.decodeUnknownEffect(Schema.fromJsonString(targetSchema)),
             ),
             Effect.mapError(
-              () =>
+              (cause) =>
                 new AgentFeedbackConflictError({
                   reviewId: input.reviewId,
+                  detail:
+                    cause._tag === 'T3SessionCommandError'
+                      ? cause.reason
+                      : 'protocol',
                   reason: 'recipient-unavailable',
                 }),
             ),
           );
           if (
             target.thread.threadId !== input.session.threadId ||
-            target.thread.worktreePath !== input.worktreePath
+            (target.thread.worktreePath !== null &&
+              target.thread.worktreePath !== input.worktreePath)
           )
             return yield* new AgentFeedbackConflictError({
               reviewId: input.reviewId,
               reason: 'recipient-mismatch',
             });
+          if (target.thread.worktreePath === null) {
+            const members = yield* git(
+              listWorktrees(input.worktreePath, limits),
+            ).pipe(
+              Effect.flatMap(
+                Effect.fn(function* (repository) {
+                  const main = repository.worktrees.find(
+                    (worktree) => worktree.main,
+                  );
+                  if (main === undefined)
+                    return yield* new AgentFeedbackConflictError({
+                      reviewId: input.reviewId,
+                      reason: 'recipient-mismatch',
+                    });
+                  return yield* command({
+                    threadId: input.session.threadId,
+                    operation: { kind: 'project-threads', path: main.path },
+                    timeoutMs: limits.readTimeoutMs,
+                    maxBytes: limits.outputBytes,
+                    processGroup: limits.processGroup,
+                  });
+                }),
+              ),
+              Effect.flatMap(
+                Schema.decodeUnknownEffect(
+                  Schema.fromJsonString(projectThreadsSchema),
+                ),
+              ),
+              Effect.mapError(
+                () =>
+                  new AgentFeedbackConflictError({
+                    reviewId: input.reviewId,
+                    reason: 'recipient-mismatch',
+                  }),
+              ),
+            );
+            if (
+              !members.some(
+                (member) => member.threadId === input.session.threadId,
+              )
+            )
+              return yield* new AgentFeedbackConflictError({
+                reviewId: input.reviewId,
+                reason: 'recipient-mismatch',
+              });
+          }
           if (target.thread.archived || target.thread.pendingRequestCount > 0)
             return yield* new AgentFeedbackConflictError({
+              detail: target.thread.archived ? 'archived' : 'pending-input',
               reviewId: input.reviewId,
               reason: 'recipient-unavailable',
             });
@@ -70,9 +128,13 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
               Schema.decodeUnknownEffect(Schema.fromJsonString(receiptSchema)),
             ),
             Effect.mapError(
-              () =>
+              (cause) =>
                 new AgentFeedbackConflictError({
                   reviewId: input.reviewId,
+                  detail:
+                    cause._tag === 'T3SessionCommandError'
+                      ? cause.reason
+                      : 'protocol',
                   reason: 'recipient-unavailable',
                 }),
             ),

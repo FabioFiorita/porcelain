@@ -6,9 +6,9 @@ export function commentWriteBinding<Input, A, E, Result>([
 ]: readonly [Result, (input: Input | Atom.Reset) => Promise<Exit.Exit<A, E>>]) {
   return {
     result,
-    send: (input: Input, onConfirmed?: () => void) => {
+    send: (input: Input, onConfirmed?: (answer: A) => void) => {
       void submit(input).then((exit) => {
-        if (Exit.isSuccess(exit)) onConfirmed?.();
+        if (Exit.isSuccess(exit)) onConfirmed?.(exit.value);
       });
     },
     reset: () => {

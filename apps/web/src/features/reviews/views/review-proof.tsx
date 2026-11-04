@@ -16,14 +16,12 @@ export function ReviewProof({
   context,
   current,
   title,
-  columns = false,
 }: {
   revision: ReviewRevision;
   scope: ReviewScope;
   context: ConnectionContext;
   current: boolean;
   title: string;
-  columns?: boolean;
 }) {
   const sections = verdictSections(revision);
   const empty =
@@ -74,7 +72,6 @@ export function ReviewProof({
         scope={scope}
         context={context}
         proof={revision.content.proof}
-        layout={columns ? 'columns' : 'stacked'}
         layers={revision.content.layers}
       />
       {empty && (

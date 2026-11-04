@@ -504,12 +504,25 @@ test('the review page keeps whole-change and inline comments in its Review panel
       exact: true,
     });
     await review
-      .getByRole('button', { name: /^Comment on review-page\.ts \(/ })
+      .getByRole('button', {
+        name: 'Open review-page.ts at line 1',
+        exact: true,
+      })
       .click();
-    await review
+    await app.page
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('button', { name: 'Comment', exact: true })
+      .click();
+    const fileCode = app.page.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await fileCode
       .getByRole('textbox', { name: 'Comment', exact: true })
       .fill(inline);
-    await review.getByRole('button', { name: 'Comment', exact: true }).click();
+    await fileCode
+      .getByRole('button', { name: 'Comment', exact: true })
+      .click();
     await expect.poll(saved).toMatchObject([thread('file', false, [inline])]);
 
     const panel = app.page.getByRole('complementary', {
@@ -659,13 +672,12 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     exact: true,
   });
   await expect
-    .element(
-      excerpt.getByText(/^export const revision = 1;\nexport const title = /u),
-    )
+    .element(excerpt.getByText('export const revision = 1;', { exact: true }))
     .toBeVisible();
   await app.page
     .getByRole('button', {
-      name: /^Go to step 1: Read the retained revision ·/u,
+      name: 'Open review-page.ts at line 1',
+      exact: true,
     })
     .click();
   await expect
@@ -678,6 +690,107 @@ test('stored changed-step excerpts remain readable when the project Git reposito
   await expect
     .element(
       excerpt.getByText(/^export const revision = 1;\nexport const title = /u),
+    )
+    .toBeVisible();
+});
+
+test('landed history opens retained code and decision choices and teaching use comments', async ({
+  repo,
+  render,
+  agent,
+  server,
+}) => {
+  await page.viewport(1440, 896);
+  const fixture = await repo.review('Keep snapshots', undefined, {
+    path: 'review-page.ts',
+    lane: 'Client',
+    timing: 'record',
+    choices: true,
+  });
+  await repo.removeReviewWorktree();
+  const app = await render.route(
+    `/reviews/${fixture.reviewId}/1/decisions/${fixture.layerId}`,
+  );
+  await expect
+    .element(
+      app.page.getByRole('region', {
+        name: 'What else was considered',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Choose Keep the snapshot', exact: true })
+    .click();
+  await expect
+    .element(
+      app.page.getByText(
+        /I choose “Keep the snapshot”. Code stays readable after cleanup./,
+      ),
+    )
+    .toBeVisible();
+  await app.page.getByRole('button', { name: 'Teach me', exact: true }).click();
+  await expect
+    .element(app.page.getByText(/Teach me this decision in plain words./))
+    .toBeVisible();
+  const threads = await server.reviewComments(fixture.reviewId);
+  const teaching = threads.find(
+    (thread) =>
+      thread.anchor.kind === 'change' &&
+      thread.anchor.reviewTarget?.kind === 'decision',
+  );
+  await expect
+    .poll(
+      async () =>
+        (await server.reviewComments(fixture.reviewId)).find(
+          (thread) => thread.id === teaching?.id,
+        )?.anchor,
+    )
+    .toMatchObject({ reviewTarget: { kind: 'decision', id: fixture.layerId } });
+  await agent.reply(
+    teaching!.id,
+    'A snapshot keeps the original code readable after branch cleanup. It costs a little storage.',
+    fixture.reviewId,
+  );
+  await expect
+    .element(
+      app.page.getByText(
+        'A snapshot keeps the original code readable after branch cleanup. It costs a little storage.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Ask for a guard', exact: true })
+    .click();
+  await expect
+    .element(
+      app.page.getByRole('button', {
+        name: 'Ask for a guard · posted',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('link', { name: 'Project history', exact: true })
+    .click();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'How this project is growing',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('link', {
+      name: 'Read one committed review after checkout cleanup',
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(
+      app.page.getByRole('heading', { name: 'Status: Landed', exact: true }),
     )
     .toBeVisible();
 });

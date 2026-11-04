@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('different questions with identical wording keep separate answer drafts', async ({
@@ -70,25 +70,20 @@ test('a delayed send confirmation leaves another file draft open', async ({
   const app = await render.route(
     `/reviews/${published.reviewId}?decision=${decision.id}`,
   );
-  const serverHeader = app.page.getByRole('button', {
-    name: 'Comment on apps/server/src/schedule-reminder.ts (modified)',
-    exact: true,
-  });
-  const webHeader = app.page.getByRole('button', {
-    name: 'Comment on apps/web/src/schedule-reminder.ts (modified)',
-    exact: true,
-  });
   const comment = app.page.getByRole('textbox', {
     name: 'Comment',
     exact: true,
   });
-  await webHeader.click();
+  await commentOnRetainedFile('apps/web/src/schedule-reminder.ts');
   await comment.fill('Keep the web feedback open.');
-  await serverHeader.click();
+  await commentOnRetainedFile('apps/server/src/schedule-reminder.ts');
   await comment.fill('Send the server feedback.');
-  await app.page.getByRole('button', { name: 'Comment', exact: true }).click();
+  await app.page
+    .getByRole('region', { name: 'Code content', exact: true })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
   await held.requested;
-  await webHeader.click();
+  await commentOnRetainedFile('apps/web/src/schedule-reminder.ts');
   await expect.element(comment).toHaveValue('Keep the web feedback open.');
   held.release();
   await expect
@@ -107,22 +102,19 @@ test('published revisions keep separate drafts and returning posts on the origin
   const route = (revision: number) =>
     `/reviews/${first.reviewId}/${revision}/decisions/${first.layerId}`;
   const app = await render.route(route(first.revision));
-  const header = app.page.getByRole('button', {
-    name: /^Comment on review-page\.ts \(/,
-  });
   const comment = app.page.getByRole('textbox', {
     name: 'Comment',
     exact: true,
   });
-  await header.click();
+  await commentOnRetainedFile('review-page.ts');
   await comment.fill('Keep this draft on revision one.');
   const second = await repo.review('Discuss the saved revision');
   await app.navigate(route(second.revision));
-  await header.click();
+  await commentOnRetainedFile('review-page.ts');
   await expect.element(comment).toHaveValue('');
   await comment.fill('A separate draft for revision two.');
   await app.navigate(route(first.revision));
-  await header.click();
+  await commentOnRetainedFile('review-page.ts');
   await expect.element(comment).toHaveValue('Keep this draft on revision one.');
   await userEvent.keyboard('{Control>}{Enter}{/Control}');
   await expect
@@ -151,40 +143,35 @@ test('file drafts keep their own text across decisions and cancel clears only th
   const app = await render.route(
     `/reviews/${published.reviewId}?decision=${decision.id}`,
   );
-  const serverHeader = app.page.getByRole('button', {
-    name: 'Comment on apps/server/src/schedule-reminder.ts (modified)',
-    exact: true,
-  });
-  const webHeader = app.page.getByRole('button', {
-    name: 'Comment on apps/web/src/schedule-reminder.ts (modified)',
-    exact: true,
-  });
   const comment = app.page.getByRole('textbox', {
     name: 'Comment',
     exact: true,
   });
-  await serverHeader.click();
+  await commentOnRetainedFile('apps/server/src/schedule-reminder.ts');
   await comment.fill('Keep the server draft while reading another decision.');
+  await app.page
+    .getByRole('button', { name: 'Back to the walkthrough', exact: true })
+    .click();
   await app.page
     .getByRole('button', { name: 'Next stop', exact: true })
     .click();
   await app.page
     .getByRole('button', { name: 'Previous stop', exact: true })
     .click();
-  await serverHeader.click();
+  await commentOnRetainedFile('apps/server/src/schedule-reminder.ts');
   await expect
     .element(comment)
     .toHaveValue('Keep the server draft while reading another decision.');
-  await webHeader.click();
+  await commentOnRetainedFile('apps/web/src/schedule-reminder.ts');
   await comment.fill('Keep a separate draft on the web entry.');
-  await serverHeader.click();
+  await commentOnRetainedFile('apps/server/src/schedule-reminder.ts');
   await expect
     .element(comment)
     .toHaveValue('Keep the server draft while reading another decision.');
   await userEvent.keyboard('{Escape}');
-  await serverHeader.click();
+  await commentOnRetainedFile('apps/server/src/schedule-reminder.ts');
   await expect.element(comment).toHaveValue('');
-  await webHeader.click();
+  await commentOnRetainedFile('apps/web/src/schedule-reminder.ts');
   await expect
     .element(comment)
     .toHaveValue('Keep a separate draft on the web entry.');
@@ -319,3 +306,16 @@ test('an edit draft survives navigation and Escape discards it without changing 
     )
     .toEqual([['Original feedback']]);
 });
+
+async function commentOnRetainedFile(path: string) {
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: new RegExp(`^Open ${path.replaceAll('.', '\\.')} at line [0-9]+$`),
+    })
+    .click();
+  await page
+    .getByRole('toolbar', { name: 'Document controls', exact: true })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
+}

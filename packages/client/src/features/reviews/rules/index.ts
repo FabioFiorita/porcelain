@@ -91,7 +91,6 @@ export {
   decisionKey,
   decisionLinks,
   decisionQuestions,
-  type DecisionLink,
   decisionRoute,
   reviewStepLines,
   filesReviewed,
@@ -157,3 +156,10 @@ export {
   type PullChecksTone,
   type PullRequestState,
 } from './pull-request.ts';
+export {
+  teachRequest,
+  optionRequest,
+  guardRequest,
+} from './review-requests.ts';
+
+export { readingSteps } from './walkthrough.ts';

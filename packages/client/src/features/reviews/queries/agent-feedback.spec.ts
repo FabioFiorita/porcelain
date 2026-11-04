@@ -212,3 +212,59 @@ it('shares canonical reads between writable and retained controls for the same r
     stops.forEach((stop) => stop());
   }
 });
+
+it.each([false, true])(
+  'saves a decision request before queuing its existing feedback path, connected=%s',
+  async (connected) => {
+    const calls: string[] = [];
+    const subject = create(async (path, init) => {
+      calls.push(`${init?.method ?? 'GET'} ${path}`);
+      if (path.endsWith('/comments'))
+        return Response.json({
+          id: '30000000-0000-4000-8000-000000000001',
+          worktreeId: 'a'.repeat(32),
+          anchor: { kind: 'change' },
+          resolved: false,
+          messages: [
+            {
+              id: '30000000-0000-4000-8000-000000000002',
+              body: 'Teach me this decision',
+              author: 'reviewer',
+            },
+          ],
+          revision: 1,
+        });
+      if (init?.method === 'POST')
+        return Response.json({
+          session,
+          currentCommentRevision: 4,
+          delivery: { ...delivery, state: 'delivered' },
+        });
+      return Response.json({
+        ...(connected ? { session } : {}),
+        currentCommentRevision: 4,
+      });
+    });
+    const command = reviewCommands({
+      connection: subject.connection,
+      reviewId,
+    }).requestFeedback;
+    subject.registry.set(command, {
+      threadId: '30000000-0000-4000-8000-000000000001',
+      messageId: '30000000-0000-4000-8000-000000000002',
+      body: 'Teach me this decision',
+      anchor: { kind: 'change' },
+      reviewRevision: 2,
+    });
+    expect(await readClientAtom(subject.registry, command)).toEqual({
+      delivery: connected
+        ? 'Feedback queued for the agent.'
+        : 'No agent connected; request saved in comments.',
+    });
+    expect(calls).toEqual([
+      `POST /api/reviews/${reviewId}/comments`,
+      `GET /api/reviews/${reviewId}/agent-feedback`,
+      ...(connected ? [`POST /api/reviews/${reviewId}/agent-feedback`] : []),
+    ]);
+  },
+);

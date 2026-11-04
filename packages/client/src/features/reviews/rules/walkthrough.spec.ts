@@ -11,6 +11,7 @@ import {
   filesReviewed,
   neighbourStop,
   reviewStepLines,
+  readingSteps,
   stepMarker,
   stopDone,
   systemChanges,
@@ -590,4 +591,21 @@ describe('step markers', () => {
       }),
     ).toBe(moved);
   });
+});
+
+it('puts rule and contract slices first while preserving their narrative step numbers', () => {
+  const decision = layer('one', [
+    step('apps/web/view.tsx'),
+    step('packages/contracts/src/reviews.ts'),
+    step('architecture/rule.ts'),
+    step('packages/reviews/src/service.ts'),
+  ]);
+  expect(
+    readingSteps(decision).map(({ step, index }) => [step.pointer.path, index]),
+  ).toEqual([
+    ['packages/contracts/src/reviews.ts', 1],
+    ['architecture/rule.ts', 2],
+    ['apps/web/view.tsx', 0],
+    ['packages/reviews/src/service.ts', 3],
+  ]);
 });

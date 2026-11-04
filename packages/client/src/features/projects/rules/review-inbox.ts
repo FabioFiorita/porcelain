@@ -27,6 +27,7 @@ type ReviewInboxProject = {
 };
 export type ReviewInbox = {
   needsYou: readonly ReviewInboxRow[];
+  landed: readonly ReviewInboxRow[];
   projects: readonly ReviewInboxProject[];
   reading: boolean;
 };
@@ -41,7 +42,9 @@ function reviewInboxStatus(review: AvailableReview): ReviewInboxStatus {
 
 export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
   const rows = entries.flatMap((entry): ReviewInboxRow[] =>
-    entry.review.state === 'available' && !entry.review.closed
+    entry.review.state === 'available' &&
+    !entry.review.archived &&
+    (!entry.review.closed || entry.review.timing === 'record')
       ? [
           {
             key: entry.key,
@@ -55,7 +58,7 @@ export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
   );
   const projects = new Map<string, ReviewInboxProject>();
   for (const row of rows) {
-    if (row.status === 'needs-you') continue;
+    if (row.status === 'needs-you' || row.review.timing === 'record') continue;
     const key = `${row.entry.environmentId}/${row.entry.projectId}`;
     const project = projects.get(key);
     projects.set(key, {
@@ -66,7 +69,10 @@ export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
     });
   }
   return {
-    needsYou: rows.filter((row) => row.status === 'needs-you'),
+    needsYou: rows.filter(
+      (row) => row.status === 'needs-you' && row.review.timing !== 'record',
+    ),
+    landed: rows.filter((row) => row.review.timing === 'record'),
     projects: [...projects.values()].sort(
       (a, b) =>
         a.name.localeCompare(b.name) ||
@@ -87,6 +93,7 @@ export function searchReviewInbox(
   return {
     ...inbox,
     needsYou: inbox.needsYou.filter(matches),
+    landed: inbox.landed.filter(matches),
     projects: inbox.projects.flatMap((project) => {
       const rows = project.rows.filter(matches);
       return rows.length > 0 ? [{ ...project, rows }] : [];

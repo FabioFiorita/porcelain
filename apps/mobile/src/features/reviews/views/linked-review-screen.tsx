@@ -507,6 +507,16 @@ function Decision({ layer }: { layer: Revision['content']['layers'][number] }) {
     <Box gap={4}>
       <Text variant="title">{layer.title}</Text>
       <Text selectable>{layer.summary}</Text>
+      {layer.alternatives?.length ? (
+        <Box gap={1}>
+          <Text variant="headline">What else was considered</Text>
+          {layer.alternatives.map((alternative) => (
+            <Text key={alternative.label} selectable>
+              {alternative.label} · {alternative.whyNot}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       {layer.steps.map((step, index) => (
         <Box key={step.id} gap={3}>
           <Text variant="headline">

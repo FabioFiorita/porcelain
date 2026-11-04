@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   ArrowRightIcon,
@@ -27,11 +26,13 @@ import {
   type WalkthroughKey,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
+import { ReviewHandoff } from './review-handoff';
 import { ReviewVerdict } from './review-verdict';
 import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
+import { SystemMap } from './system-map';
 import { SectionHeading } from './section-heading';
 import type { WalkthroughProps } from './walkthrough-props';
 
@@ -84,14 +85,13 @@ export function WalkthroughBriefing({
     ),
   );
   const asked = decisionStops.find((stop) => askedNumbers.has(stop.number));
-  const hasParts =
-    parts.added.length + parts.changed.length + parts.removed.length > 0;
+  const counts = `${parts.added.length} new · ${parts.changed.length} changed · ${parts.removed.length} removed`;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto flex w-full max-w-264 flex-col gap-9 px-4 pt-8 pb-16 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
+      <div className="mx-auto flex w-full max-w-264 flex-col gap-5 px-4 pt-5 pb-12 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
         <MarginRow margin={margin}>
-          <div className="flex min-w-0 flex-col gap-10">
-            <header className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5">
+            <header className="flex min-w-0 flex-col gap-3.5">
               <p className="flex flex-wrap gap-x-2 text-ui leading-5.5 font-medium text-muted-foreground">
                 <span>Briefing</span>
                 <span aria-hidden="true">·</span>
@@ -102,7 +102,7 @@ export function WalkthroughBriefing({
                 <span>{relativeTime(revision.publishedAt)}</span>
                 {pullRequestChip}
               </p>
-              <h2 className="text-briefing-title font-semibold wrap-anywhere">
+              <h2 className="text-page-title font-semibold wrap-anywhere">
                 <TruncatedText
                   text={title}
                   lines={3}
@@ -112,6 +112,7 @@ export function WalkthroughBriefing({
                   {briefingTitle(decisionStops.length)}.
                 </span>
               </h2>
+              <ReviewHandoff revision={revision} />
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
@@ -197,52 +198,24 @@ export function WalkthroughBriefing({
         </MarginRow>
         <MarginRow margin={<BriefingRemoved revision={revision} />}>
           <section aria-labelledby="briefing-system" className="flex flex-col">
-            <SectionHeading
-              id="briefing-system"
-              aside={
-                hasParts
-                  ? [
-                      `${parts.added.length} new`,
-                      `${parts.changed.length} changed`,
-                      `${parts.removed.length} removed`,
-                    ].join(' · ')
-                  : undefined
-              }
-            >
+            <SectionHeading id="briefing-system" aside={counts}>
               What this adds to the system
             </SectionHeading>
-            {hasParts ? (
-              <div className="flex flex-col divide-y">
-                <PartGroup
-                  title="New"
-                  parts={parts.added}
-                  review={review}
-                  onGo={onGo}
-                />
-                <PartGroup
-                  title="Changed"
-                  parts={parts.changed}
-                  review={review}
-                  onGo={onGo}
-                />
-                <PartGroup
-                  title="Removed"
-                  parts={parts.removed}
-                  review={review}
-                  onGo={onGo}
-                  struck
-                />
-              </div>
+            {review.diagram ? (
+              <SystemMap
+                diagram={review.diagram.after}
+                onLayer={(layerId) => onGo(decisionKey(layerId))}
+                className="mt-3"
+              />
             ) : (
               <p className="pt-3 text-sm text-muted-foreground">
-                No system owners listed.
+                No diagram published.
               </p>
             )}
           </section>
         </MarginRow>
         <MarginRow margin={<BriefingNotProven revision={revision} />}>
           <ReviewProof
-            columns
             revision={revision}
             scope={scope}
             context={context}
@@ -430,62 +403,6 @@ function StopMark({
     >
       {done ? <CheckIcon className="size-3" aria-label="Reviewed" /> : label}
     </span>
-  );
-}
-
-const partTags = {
-  New: 'default',
-  Changed: 'outline',
-  Removed: 'destructive',
-} as const;
-
-function PartGroup({
-  title,
-  parts,
-  review,
-  onGo,
-  struck = false,
-}: {
-  title: keyof typeof partTags;
-  parts: readonly SystemPart[];
-  review: WalkthroughProps['review'];
-  onGo: (key: WalkthroughKey) => void;
-  struck?: boolean;
-}) {
-  if (parts.length === 0) return null;
-  return (
-    <ul aria-label={title} className="flex min-w-0 flex-col">
-      {parts.map((part, index) => (
-        <li
-          key={part.id}
-          className="flex min-h-8.5 min-w-0 flex-col items-stretch gap-1 py-2 @2xl/review:flex-row @2xl/review:items-center @2xl/review:gap-3"
-        >
-          <span className="shrink-0 @2xl/review:w-21">
-            {index === 0 && <Badge variant={partTags[title]}>{title}</Badge>}
-          </span>
-          <TruncatedText
-            className="min-w-0 flex-1 leading-4.5"
-            text={part.detail ? `${part.label} · ${part.detail}` : part.label}
-          >
-            <span
-              className={cn(
-                'text-sm leading-4.5 font-medium',
-                struck && 'text-muted-foreground line-through',
-              )}
-            >
-              {part.label}
-            </span>
-            {part.detail && (
-              <span className="text-ui text-muted-foreground">
-                {' '}
-                · {part.detail}
-              </span>
-            )}
-          </TruncatedText>
-          <DecisionLink part={part} review={review} onGo={onGo} inline />
-        </li>
-      ))}
-    </ul>
   );
 }
 

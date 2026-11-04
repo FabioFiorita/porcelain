@@ -71,7 +71,7 @@ test('published review documents carry their revision and split through URLs and
   const decisionLocation = route.location();
   await screen
     .getByRole('button', {
-      name: /^Go to step 1: Revoke from the device list ·/,
+      name: /^Open apps\/web\/src\/revoke-access\.ts at line [0-9]+$/,
     })
     .click();
   const path = 'apps/web/src/revoke-access.ts';

@@ -40,7 +40,7 @@ for (const [width, entry] of [
       screen,
       review,
       step: review.getByRole('button', {
-        name: /^Go to step 1: Revoke from the device list ·.+$/,
+        name: /^Open apps\/web\/src\/revoke-access\.ts at line [0-9]+$/,
       }),
       tabs: screen.getByRole('tablist', {
         name: 'Open documents',

@@ -114,3 +114,78 @@ it('reports a conflicting PR identity without losing either review or its branch
     await opened.close();
   }
 });
+
+it('upgrades legacy unassigned coverage to a neutral ownerless gap before reading retained reviews', async () => {
+  const first = reviewFixture();
+  const opened = await openStore([first.worktreeId]);
+  const next = ManagedRuntime.make(
+    storageLayer(opened.dataDirectory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
+  try {
+    await Effect.runPromise(opened.store.save(reviewSave(first)));
+    const database = new DatabaseSync(
+      join(opened.dataDirectory, 'inventory.sqlite'),
+    );
+    database.prepare('UPDATE review_revisions SET verdict = ?').run(
+      JSON.stringify({
+        ...first.verdict,
+        coverage: [
+          {
+            asked: 'Chat request',
+            built: 'Partial change',
+            left: { what: 'Later', owner: { kind: 'nobody' } },
+          },
+        ],
+      }),
+    );
+    database.exec(
+      'ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE migration_id = 10;',
+    );
+    database.close();
+    const store = await next.runPromise(ReviewStore);
+    const review = await Effect.runPromise(
+      store.read({ reviewId: first.reviewId }),
+    );
+    expect(review?.verdict.coverage).toEqual([
+      {
+        asked: 'Chat request',
+        built: 'Partial change',
+        left: { what: 'Later' },
+      },
+    ]);
+  } finally {
+    await next.dispose();
+    await opened.close();
+  }
+});
+
+it('retains publication timing independently for each immutable revision', async () => {
+  const first = reviewFixture({ timing: 'decision' });
+  const second = {
+    ...first,
+    revision: 2,
+    timing: 'record' as const,
+    summaryToken: 'second-summary',
+  };
+  const opened = await openStore([first.worktreeId]);
+  try {
+    await Effect.runPromise(opened.store.save(reviewSave(first)));
+    await Effect.runPromise(opened.store.save(reviewSave(second)));
+    expect(
+      (
+        await Effect.runPromise(
+          opened.store.read({ reviewId: first.reviewId, revision: 1 }),
+        )
+      )?.timing,
+    ).toBe('decision');
+    expect(
+      (await Effect.runPromise(opened.store.read({ reviewId: first.reviewId })))
+        ?.timing,
+    ).toBe('record');
+  } finally {
+    await opened.close();
+  }
+});

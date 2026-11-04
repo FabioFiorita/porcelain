@@ -89,6 +89,18 @@ const resolvedReviewStepSchema = Schema.Struct({
 });
 
 const reviewLayerSchema = Schema.Struct({
+  alternatives: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        label: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_TITLE_LENGTH),
+        ),
+        whyNot: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_PROSE_LENGTH),
+        ),
+      }),
+    ).check(Schema.isMaxLength(8)),
+  ),
   id: idSchema,
   title: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
     .check(Schema.isMinLength(1))
@@ -129,6 +141,21 @@ const diagramArrowSchema = Schema.Struct({
   ),
 });
 const diagramBoxSchema = Schema.Struct({
+  options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: idSchema,
+        label: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_TITLE_LENGTH),
+        ),
+        consequence: Schema.String.check(Schema.isMinLength(1)).check(
+          Schema.isMaxLength(REVIEW_PROSE_LENGTH),
+        ),
+      }),
+    )
+      .check(Schema.isMinLength(2))
+      .check(Schema.isMaxLength(6)),
+  ),
   id: idSchema,
   label: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
     .check(Schema.isMinLength(1))
@@ -188,7 +215,42 @@ const proseSchema = Schema.String.check(Schema.isMinLength(1)).check(
   Schema.isMaxLength(REVIEW_PROSE_LENGTH),
 );
 const httpUrlSchema = Schema.String.check(Schema.isPattern(/^https?:\/\//));
+const reviewTryItSchema = Schema.Struct({
+  url: httpUrlSchema.check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
+  accounts: Schema.Array(
+    Schema.Struct({ label: proseSchema, signIn: proseSchema }),
+  ).check(Schema.isMaxLength(10)),
+  steps: Schema.Array(proseSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(20)),
+});
+const reviewCoverageSchema = Schema.Array(
+  Schema.Struct({
+    asked: proseSchema,
+    built: proseSchema,
+    left: Schema.optional(
+      Schema.Struct({
+        what: proseSchema,
+        owner: Schema.optional(
+          Schema.Union([
+            Schema.Struct({
+              kind: Schema.Literal('ticket'),
+              name: proseSchema,
+            }),
+            Schema.Struct({
+              kind: Schema.Literal('teammate'),
+              name: proseSchema,
+              message: Schema.optional(proseSchema),
+            }),
+          ]),
+        ),
+      }),
+    ),
+  }),
+).check(Schema.isMaxLength(30));
 const reviewVerdictSchema = Schema.Struct({
+  tryIt: Schema.optional(reviewTryItSchema),
+  coverage: Schema.optional(reviewCoverageSchema),
   asked: Schema.Struct({
     text: proseSchema,
     links: Schema.optional(
@@ -262,6 +324,7 @@ const publishedReviewSchema = Schema.Struct({
   diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: Schema.optional(reviewDiagramSchema),
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   layers: Schema.Array(resolvedReviewLayerSchema).check(
     Schema.isMaxLength(REVIEW_LAYERS),
   ),
@@ -272,6 +335,7 @@ const publishedReviewSchema = Schema.Struct({
 });
 
 export const publishReviewRequestSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
   expectedRevision: Schema.Number.check(Schema.isInt())
     .check(Schema.isGreaterThanOrEqualTo(0))
     .check(Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1)),
@@ -321,6 +385,11 @@ export const reviewRevisionParamsSchema = Schema.Struct({
   ),
 });
 const reviewRecordSchema = Schema.Struct({
+  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
+  publishedAt: Schema.optional(isoDateTimeSchema),
+  title: Schema.optional(Schema.String),
+  diagram: Schema.optional(reviewDiagramSchema),
+  guards: Schema.optional(Schema.Array(Schema.String)),
   reviewId: reviewIdSchema,
   projectId: Schema.String,
   branch: Schema.String,

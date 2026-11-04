@@ -119,7 +119,13 @@ function sameAnchor(left: CommentAnchor, right: CommentAnchor): boolean {
     left.revision === right.revision &&
     left.contentFingerprint === right.contentFingerprint &&
     sameComparison(left.comparison, right.comparison);
-  if (left.kind === 'change') return shared && right.kind === 'change';
+  if (left.kind === 'change')
+    return (
+      shared &&
+      right.kind === 'change' &&
+      left.reviewTarget?.kind === right.reviewTarget?.kind &&
+      left.reviewTarget?.id === right.reviewTarget?.id
+    );
   if (left.kind === 'file')
     return shared && right.kind === 'file' && left.filePath === right.filePath;
   return (

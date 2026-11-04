@@ -32,7 +32,12 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     review: async (
       title: string,
       asked?: string,
-      route?: { path: string; lane: string },
+      route?: {
+        path: string;
+        lane: string;
+        timing?: 'decision' | 'record';
+        choices?: boolean;
+      },
       branch?: string,
     ) =>
       Schema.decodeUnknownSync(reviewFixtureSchema)(
@@ -99,8 +104,8 @@ export function agentOn(step: Step) {
       body: string,
       thread?: Omit<CreateCommentThreadRequest, 'body'>,
     ) => act({ kind: 'comment', path, body, thread }),
-    reply: (threadId: string, body: string) =>
-      act({ kind: 'reply', threadId, body }),
+    reply: (threadId: string, body: string, reviewId?: string) =>
+      act({ kind: 'reply', threadId, body, reviewId }),
     editFile: (edit: EditFileRequest) => act({ kind: 'edit-file', edit }),
   };
 }

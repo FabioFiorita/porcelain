@@ -206,6 +206,7 @@ export function decisionRoute(layer: ReviewLayer): string[] {
 }
 
 export type SystemPart = {
+  options?: DiagramBox['options'];
   id: string;
   label: string;
   detail: string | undefined;
@@ -218,6 +219,7 @@ function partOf(review: Pick<ReviewResponse, 'layers'>) {
     review.layers.map((layer, index) => [layer.id, index + 1]),
   );
   return (box: DiagramBox): SystemPart => ({
+    options: box.options,
     id: box.id,
     label: box.label,
     detail: box.detail,
@@ -310,4 +312,18 @@ export function decisionQuestions(
   return parts.filter(
     (part, index) => parts.findIndex((other) => other.id === part.id) === index,
   );
+}
+
+export function readingSteps(layer: Pick<ReviewLayer, 'steps'>) {
+  const priority = (path: string) =>
+    /(?:^|\/)(?:architecture|contracts|lint-rules?)(?:\/|$)|(?:eslint|oxlint)/.test(
+      path,
+    )
+      ? 0
+      : 1;
+  return layer.steps
+    .map((step, index) => ({ step, index }))
+    .sort(
+      (a, b) => priority(a.step.pointer.path) - priority(b.step.pointer.path),
+    );
 }

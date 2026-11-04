@@ -147,3 +147,22 @@ it('searches every word across branch, project, computer and pull request, dropp
   expect(names('tastik')).toEqual([['feat/menu'], []]);
   expect(names('nothing')).toEqual([[], []]);
 });
+
+it('keeps landed records out of Needs you even with unread decisions, and keeps closed records visible', () => {
+  const inbox = reviewInbox([
+    entry(
+      'human-choice',
+      review({ reviewed: 0, total: 2 }, { timing: 'decision' }),
+    ),
+    entry(
+      'routine-landed',
+      review({ reviewed: 0, total: 3 }, { timing: 'record', closed: true }),
+    ),
+  ]);
+  expect(inbox.needsYou.map((row) => row.entry.name)).toEqual(['human-choice']);
+  expect(inbox.landed.map((row) => row.entry.name)).toEqual(['routine-landed']);
+  expect(inbox.projects).toEqual([]);
+  expect(
+    searchReviewInbox(inbox, 'routine').landed.map((row) => row.entry.name),
+  ).toEqual(['routine-landed']);
+});

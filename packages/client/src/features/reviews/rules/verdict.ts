@@ -5,6 +5,9 @@ export type ReviewRevision = NonNullable<ReadReviewResponse['revision']>;
 
 export function verdictSections(revision: ReviewRevision) {
   const { verdict, content } = revision;
+  let recommendationLabel =
+    verdict.recommendation === 'merge' ? 'Merge' : 'Hold';
+  if (content.timing === 'record') recommendationLabel = 'Landed';
   const deletedPaths = revision.files
     .filter((file) => file.status === 'deleted')
     .map((file) => file.path);
@@ -20,7 +23,7 @@ export function verdictSections(revision: ReviewRevision) {
     asked: { text: verdict.asked.text, links: verdict.asked.links ?? [] },
     recommendation: {
       value: verdict.recommendation,
-      label: verdict.recommendation === 'merge' ? 'Merge' : 'Hold',
+      label: recommendationLabel,
       reasons: verdict.reasons,
     },
     proven: {

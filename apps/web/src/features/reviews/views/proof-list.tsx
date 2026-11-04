@@ -38,11 +38,16 @@ function targetLabel(
   layers: readonly ReviewLayer[],
   inLayer: boolean,
 ) {
-  const layer = layers.find((candidate) => candidate.id === target.layerId);
+  const index = layers.findIndex(
+    (candidate) => candidate.id === target.layerId,
+  );
+  const layer = layers[index];
   if (!layer) return undefined;
   const step = layer.steps.find((candidate) => candidate.id === target.stepId);
   if (inLayer) return step?.title;
-  return step ? `${layer.title} · ${step.title}` : layer.title;
+  return step
+    ? `Decision ${index + 1} · ${step.title}`
+    : `Decision ${index + 1}`;
 }
 
 export function ProofList({
@@ -51,43 +56,21 @@ export function ProofList({
   proof,
   layers,
   inLayer = false,
-  layout = 'stacked',
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   proof: ReviewProof;
   layers: readonly ReviewLayer[];
   inLayer?: boolean;
-  layout?: 'stacked' | 'columns';
 }) {
   return (
-    <div
-      className={cn(
-        'flex min-w-0 flex-col gap-5',
-        layout === 'columns' &&
-          '@2xl/review:grid @2xl/review:grid-cols-2 @2xl/review:items-start',
-      )}
-    >
-      {proof.checks.length > 0 && (
-        <section aria-label="Checks" className="flex flex-col gap-2">
-          <h2 className="text-xs font-medium text-muted-foreground">Checks</h2>
-          <ul className="flex flex-col gap-1.5">
-            {orderedChecks(proof.checks).map((check, index) => (
-              <CheckRow
-                key={`${check.result}:${check.name}:${index}`}
-                check={check}
-                target={targetLabel(check, layers, inLayer)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
+    <div className="flex min-w-0 flex-col gap-4">
       {proof.assets.length > 0 && (
         <section aria-label="Attachments" className="flex flex-col gap-2">
           <h2 className="text-xs font-medium text-muted-foreground">
             Attachments
           </h2>
-          <ul className="grid gap-3 @lg/review:grid-cols-2">
+          <ul className="grid grid-cols-2 gap-2 @3xl/review:grid-cols-3">
             {proof.assets.map((asset) => (
               <li key={asset.id} className="min-w-0">
                 <AssetView
@@ -97,6 +80,20 @@ export function ProofList({
                   target={targetLabel(asset, layers, inLayer)}
                 />
               </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {proof.checks.length > 0 && (
+        <section aria-label="Checks" className="flex flex-col gap-2">
+          <h2 className="text-xs font-medium text-muted-foreground">Checks</h2>
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {orderedChecks(proof.checks).map((check, index) => (
+              <CheckRow
+                key={`${check.result}:${check.name}:${index}`}
+                check={check}
+                target={targetLabel(check, layers, inLayer)}
+              />
             ))}
           </ul>
         </section>
@@ -124,10 +121,7 @@ function CheckRow({
     <li
       aria-label={`${check.name}: ${checkResultLabel(check.result)}`}
       data-result={check.result}
-      className={cn(
-        'rounded-lg border px-3 py-2',
-        failed && 'border-destructive/50 bg-destructive/5',
-      )}
+      className={cn('px-3 py-1.5', failed && 'bg-destructive/5')}
     >
       <div className="flex min-w-0 items-center gap-2">
         <Icon
@@ -151,14 +145,14 @@ function CheckRow({
         </span>
       </div>
       {target && (
-        <p className="mt-0.5 pl-6 wrap-anywhere text-xs text-muted-foreground">
+        <p className="pl-6 text-xs leading-4 font-medium wrap-anywhere text-muted-foreground">
           {target}
         </p>
       )}
       {check.output && (
-        <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono text-xs whitespace-pre-wrap">
+        <p className="pl-6 text-xs leading-4 wrap-anywhere text-muted-foreground">
           {check.output}
-        </pre>
+        </p>
       )}
     </li>
   );
@@ -176,8 +170,8 @@ function AssetView({
   target: string | undefined;
 }) {
   const caption = (
-    <figcaption className="flex min-w-0 flex-col px-1 pt-1.5">
-      <span className="text-sm wrap-anywhere">{asset.title}</span>
+    <figcaption className="flex min-w-0 flex-col">
+      <span className="text-xs leading-4 wrap-anywhere">{asset.title}</span>
       {target && (
         <span className="text-xs wrap-anywhere text-muted-foreground">
           {target}
@@ -210,20 +204,22 @@ function AssetView({
       </figure>
     );
   return (
-    <figure className="rounded-lg border p-2">
-      <ProofMedia
-        scope={scope}
-        context={context}
-        id={asset.id}
-        title={asset.title}
-        video={asset.kind === 'video'}
-      />
+    <figure className="flex flex-col gap-1">
+      <div className="overflow-hidden rounded-md border bg-muted [&_img]:h-40 [&_img]:max-h-none [&_img]:rounded-none [&_video]:h-40">
+        <ProofMedia
+          scope={scope}
+          context={context}
+          id={asset.id}
+          title={asset.title}
+          video={asset.kind === 'video'}
+        />
+      </div>
       {caption}
     </figure>
   );
 }
 
-function ProofMedia({
+export function ProofMedia({
   scope,
   context,
   id,

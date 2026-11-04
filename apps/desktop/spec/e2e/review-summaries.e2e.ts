@@ -1,3 +1,7 @@
+import {
+  watchSummaryActivations,
+  summaryActivations,
+} from '../kit/summary-activations.ts';
 import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -21,14 +25,8 @@ import {
   type Page,
 } from './fixtures.ts';
 
-declare const parent: {
-  readonly document: unknown;
-  postMessage(data: unknown, origin: string): void;
-};
-declare function addEventListener(
-  type: 'message',
-  listener: (event: { data: unknown }) => void,
-): void;
+declare const parent: { readonly document: unknown };
+
 declare const document: {
   hasFocus(): boolean;
   readonly activeElement: { getAttribute(name: string): string | null } | null;
@@ -53,78 +51,6 @@ declare const document: {
 };
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
-
-async function watchSummaryActivations(
-  page: Page,
-  frame: ReturnType<Page['frames']>[number],
-) {
-  const marker = randomUUID();
-  await page.evaluate((marker) => {
-    const activations: unknown[] = [];
-    Reflect.set(globalThis, 'porcelainSummaryActivations', activations);
-    Reflect.set(globalThis, 'porcelainSummaryPointer', undefined);
-    addEventListener('message', (event) => {
-      const data = event.data;
-      if (
-        typeof data === 'object' &&
-        data !== null &&
-        Reflect.get(data, 'source') === marker
-      ) {
-        const activation: unknown = Reflect.get(data, 'activation');
-        if (activation !== undefined) activations.push(activation);
-        const pointer: unknown = Reflect.get(data, 'pointer');
-        if (pointer !== undefined)
-          Reflect.set(globalThis, 'porcelainSummaryPointer', pointer);
-      }
-    });
-  }, marker);
-  await frame.evaluate((marker) => {
-    for (const type of ['pointerover', 'pointermove'] as const)
-      document.addEventListener(
-        type,
-        (event) => {
-          parent.postMessage(
-            {
-              source: marker,
-              pointer: {
-                trusted: event.isTrusted,
-                href: event.target?.getAttribute?.('href'),
-              },
-            },
-            '*',
-          );
-        },
-        true,
-      );
-    document.addEventListener(
-      'click',
-      (event) => {
-        parent.postMessage(
-          {
-            source: marker,
-            activation: {
-              trusted: event.isTrusted,
-              href: event.target?.getAttribute?.('href'),
-              focused: document.hasFocus(),
-            },
-          },
-          '*',
-        );
-      },
-      true,
-    );
-  }, marker);
-}
-
-function summaryActivations(page: Page): Promise<unknown> {
-  return page.evaluate(() => {
-    const activations: unknown = Reflect.get(
-      globalThis,
-      'porcelainSummaryActivations',
-    );
-    return activations;
-  });
-}
 
 async function hoverSummaryLink(
   page: Page,
@@ -303,7 +229,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
   });
 }
 
-test('a remote computer summary renders through the app from that computer, cannot reach the app, Node or the bridge, and cannot show a website', async ({
+test('a remote computer summary survives document renewal, stays isolated and cannot show a website', async ({
   desktop,
 }, testInfo) => {
   const app = await desktop.launch();
@@ -406,6 +332,7 @@ test('a remote computer summary renders through the app from that computer, cann
     throw new Error('The remote summary did not load through the app');
   await frame.waitForLoadState('load');
   await watchSummaryActivations(page, frame);
+  await frame.goto(frame.url(), { waitUntil: 'load' });
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
