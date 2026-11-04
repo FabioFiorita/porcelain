@@ -336,12 +336,19 @@ function ReviewRevisionPage({
     worktreeId: review.worktreeId,
     review: { reviewId: revision.reviewId, revision: revision.revision },
   };
+  const [requestedView, setView] = useState<
+    'walkthrough' | 'summary' | 'changes'
+  >('walkthrough');
+  const view =
+    requestedView === 'summary' && review.summary.hasContent === false
+      ? 'walkthrough'
+      : requestedView;
   const {
     loading: summaryLoading,
     page: summaryPage,
     url: summaryUrl,
-    available: hasSummary,
-  } = useReviewSummary(scope, context, review.summary);
+    available: showSummary,
+  } = useReviewSummary(scope, context, review.summary, view === 'summary');
   const [expiredLink, setExpiredLink] = useState<string>();
   const renewSummaryLink = () => {
     setExpiredLink(review.summary.expires);
@@ -374,14 +381,6 @@ function ReviewRevisionPage({
   );
   const origins = useReviewFileOrigins(revision.reviewId, revision.revision);
   const [chosen, setChosen] = useState<string>();
-  const [requestedView, setView] = useState<
-    'walkthrough' | 'summary' | 'changes'
-  >('walkthrough');
-  const view =
-    requestedView === 'summary' && summaryPage !== undefined && !hasSummary
-      ? 'walkthrough'
-      : requestedView;
-  const showSummary = hasSummary;
   const standalone = documentNavigation !== undefined;
   const tabOwner = `review:${revision.reviewId}:${revision.revision}`;
   const { focused: focusedPane, setFocused: setFocusedPane } =

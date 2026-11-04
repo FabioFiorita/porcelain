@@ -66,6 +66,7 @@ it('renders stored decisions and diagnostics at their immutable lines without a 
   ]);
   expect(current.summary.expires).toBe('2026-10-19T01:00:00.000Z');
   expect(current.summary.byteLength).toBe(17);
+  expect(current.summary.hasContent).toBe(true);
   expect(current.verdict).toEqual(review.verdict);
   expect(current.active).toBe(true);
   expect(current.proof.current).toBe(true);

@@ -10,12 +10,14 @@ const byteLengthSchema = Schema.Number.check(Schema.isInt()).check(
 const reviewSummaryLinkWireSchema = Schema.Struct({
   url: Schema.String.check(Schema.isMinLength(1)),
   byteLength: byteLengthSchema,
+  hasContent: Schema.optional(Schema.Boolean),
 });
 const reviewSummaryLinkValueSchema = Schema.Struct({
   token: Schema.String,
   expires: Schema.String,
   signature: Schema.String,
   byteLength: byteLengthSchema,
+  hasContent: Schema.optional(Schema.Boolean),
 });
 export const reviewSummaryLinkSchema = reviewSummaryLinkWireSchema.pipe(
   Schema.decodeTo(
@@ -31,11 +33,17 @@ export const reviewSummaryLinkSchema = reviewSummaryLinkWireSchema.pipe(
           expires: decodeURIComponent(parts?.expires ?? ''),
           signature: decodeURIComponent(parts?.signature ?? ''),
           byteLength: link.byteLength,
+          ...(link.hasContent === undefined
+            ? {}
+            : { hasContent: link.hasContent }),
         };
       },
       encode: (grant) => ({
         url: `/review-summaries/${encodeURIComponent(grant.token)}?expires=${encodeURIComponent(grant.expires)}&signature=${encodeURIComponent(grant.signature)}`,
         byteLength: grant.byteLength,
+        ...(grant.hasContent === undefined
+          ? {}
+          : { hasContent: grant.hasContent }),
       }),
     }),
   ),

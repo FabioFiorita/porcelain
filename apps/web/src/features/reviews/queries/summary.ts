@@ -10,12 +10,12 @@ import {
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
 import { summaryTransport } from '@/shared/api/summary-transport';
-import { hasAgentSummary } from '../adapters/summary-content';
 
 export function useReviewSummary(
   scope: ReviewScope,
   context: ConnectionContext,
   summary: ReviewResponse['summary'],
+  active: boolean,
 ) {
   const url = reviewSummaryUrl(
     summary,
@@ -28,7 +28,7 @@ export function useReviewSummary(
       connection: context.connection,
       scope,
       summary,
-      enabled: !expired,
+      enabled: active && !expired && summary.hasContent !== false,
       delivery: { url, transport: summaryTransport },
     }),
   );
@@ -36,7 +36,8 @@ export function useReviewSummary(
   return {
     page,
     url,
-    loading: !expired && (AsyncResult.isInitial(result) || result.waiting),
-    available: page === undefined ? expired : hasAgentSummary(page),
+    loading:
+      active && !expired && (AsyncResult.isInitial(result) || result.waiting),
+    available: summary.hasContent !== false,
   };
 }
