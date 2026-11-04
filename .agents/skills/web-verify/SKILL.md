@@ -34,7 +34,7 @@ Save browser actions and resulting URL/title, snapshots, screenshots, console an
 
 ## Sweep the standard states
 
-Before handing off a view, run one sweep over the routes it touches; QA reruns the same command:
+Choose evidence for the behavior changed: drive the affected entry and return path, capture its result, and add widths, themes, long text or many items when those dimensions can change that behavior. Use the full sweep for shared shell, responsive layout or theme changes and broad visual audits; record why the selected states are sufficient. QA reuses the same evidence scope:
 
 ```sh
 $C sweep reviews.page --board <Board>.png /settings/general --instance <id>
@@ -56,7 +56,7 @@ The [board role maps](features/app.board-comparison.md) cover sidebar, briefing/
 
 Each run retains `index.md`, JSON and board/app screenshots in a numbered `board-diff` evidence folder, including on failure, and prints the Markdown table. Exit 0 means every mapped property matched; exit 1 names mismatches or capture problems. The map documents routes and setup for each screen. Browsers close on success and failure.
 
-Before handoff, run `board-diff` for every board the change touches, paste its element table into the PR body, and fix every mismatch.
+Use `board-diff` when the change alters an approved visual design. Include its element table in the PR body and fix mismatches introduced by the change. Record pre-existing or unrelated differences separately; they do not expand the requested work.
 
 ## Inject browser failures
 

@@ -12,7 +12,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/git-actions"
+    "test": "pnpm --dir ../.. test --project @porcelain/git-actions"
   },
   "dependencies": {
     "@porcelain/effects": "workspace:*",

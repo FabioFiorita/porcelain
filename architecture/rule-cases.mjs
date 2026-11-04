@@ -1787,7 +1787,7 @@ export const saveBoth = Atom.writable(
     })),
     ...[
       'apps/web/src/features/files/commands/sample.ts',
-      'architecture/spec-gaps.mjs',
+      'architecture/guardrail-tests.mjs',
       'apps/mobile/spec/kit/metro.ts',
       'apps/server/spec/fakes/scripted-service-update-runner.ts',
     ].map((validPath) => ({
@@ -6154,7 +6154,28 @@ export const guardrailCases = [
           'package',
         ],
       },
-      { name: 'unchanged selects nothing', selected: [] },
+      { name: 'unchanged selects nothing', selected: [], unitProjects: [] },
+      {
+        name: 'desktop test helpers select their unit project',
+        path: 'scripts/desktop-ci-fixture.spec.ts',
+        source: 'export const fixture = true;',
+        selected: [],
+        unitProjects: ['@porcelain/desktop'],
+      },
+      {
+        name: 'crash collector selects its desktop unit project',
+        path: 'scripts/collect-desktop-crashes.sh',
+        source: 'true',
+        selected: ['desktop'],
+        unitProjects: ['@porcelain/desktop'],
+      },
+      {
+        name: 'web rule test keeps unrelated unit results cached',
+        path: 'apps/web/src/features/reviews/rules/ci-fixture.spec.ts',
+        source: 'export const fixture = true;',
+        selected: ['web-integration', 'web-e2e', 'package'],
+        changedUnitProjects: ['@porcelain/web'],
+      },
       {
         name: 'client selects dependent surfaces',
         path: 'packages/client/src/ci-fixture.ts',
@@ -6195,6 +6216,8 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-required-checks',
+    unitCommand:
+      'pnpm exec turbo run test --affected --concurrency=1 --continue',
     webE2eShards: [1, 2, 3, 4],
     webE2eCommand:
       'pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4',
@@ -6812,135 +6835,5 @@ export const workspaceBoundaryCases = [
         "import { value } from '../../../mobile/spec/kit/value.ts'; export const result = value;",
       'apps/mobile/spec/kit/value.ts': 'export const value = 1;',
     },
-  },
-];
-
-export const specGapCases = [
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts'; decide();",
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts'; [1].map(decide);",
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide as choice } from './sample.ts'; pipe(1, choice);",
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import * as rules from './sample.ts'; [1].map(rules.decide);",
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import * as rules from './sample.ts'; pipe(1, rules['decide']);",
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts';",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: 'function decide() {} decide();',
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts'; type T = typeof decide;",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import type { decide } from './sample.ts';",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from './sample.ts'; const other = { decide: 1 };",
-    gaps: ['decide'],
-  },
-  {
-    source: 'export default function decide() {}',
-    spec: "import choice from './sample.ts'; expect(choice).toBeDefined();",
-    gaps: [],
-  },
-  {
-    source: 'export const limit = 5;',
-    spec: "import { limit } from './sample.ts'; expect(limit).toBe(5);",
-    gaps: [],
-  },
-  {
-    source: 'export const decide = () => 1;',
-    spec: undefined,
-    gaps: ['decide'],
-  },
-  { source: 'export type Decision = string;', spec: undefined, gaps: [] },
-  {
-    source: "export { decide } from './decision.ts';",
-    spec: undefined,
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { choose } from '@porcelain/client/rules'; [1].map(choose);",
-    files: {
-      'packages/client/package.json':
-        '{"exports":{"./rules":"./src/rules/index.ts"}}',
-      'packages/client/src/rules/index.ts':
-        "export { decide as choose } from '../features/files/rules/sample.ts';",
-    },
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import * as rules from '@porcelain/client/rules'; pipe(1, rules.decide);",
-    files: {
-      'packages/client/package.json':
-        '{"exports":{"./rules":"./src/rules/index.ts"}}',
-      'packages/client/src/rules/index.ts':
-        "export * from '../features/files/rules/sample.ts';",
-    },
-    gaps: [],
-  },
-  {
-    source: 'export function decide() {}',
-    spec: "import { decide } from '@porcelain/client/rules'; decide();",
-    files: {
-      'packages/client/package.json':
-        '{"exports":{"./rules":"./src/rules/index.ts"}}',
-      'packages/client/src/rules/index.ts':
-        "export { decide } from './different.ts';",
-    },
-    gaps: ['decide'],
-  },
-];
-
-export const specGapRatchetCases = [
-  { current: [], baseline: [], allowed: ['old'], errors: [] },
-  { current: ['old'], baseline: ['old'], allowed: ['old'], errors: [] },
-  {
-    current: ['new'],
-    baseline: [],
-    allowed: [],
-    errors: ['Unspecified rule export: new'],
-  },
-  {
-    current: [],
-    baseline: ['old'],
-    allowed: ['old'],
-    errors: ['Remove resolved baseline entry: old'],
-  },
-  {
-    current: ['new'],
-    baseline: ['new'],
-    allowed: ['old'],
-    errors: ['The spec-gap baseline may only shrink: new'],
   },
 ];
