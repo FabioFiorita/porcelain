@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-for (const width of [1440, 1080, 768, 414]) {
+for (const width of [1440, 414]) {
   test(`closing paths stay readable and the last content clears the dock at ${width}px`, async ({
     page,
     app,

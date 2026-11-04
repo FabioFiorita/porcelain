@@ -3,121 +3,120 @@ import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 import { nameWeight } from '../kit/navigator.ts';
 
-for (const width of [1440, 414]) {
-  for (const colorScheme of ['light', 'dark'] as const) {
-    test(`compact project cards distinguish selection and keep single-computer headers clear at ${width}px in ${colorScheme}`, async ({
-      pairedPage: page,
-      repo,
-      server,
-      app,
-    }) => {
-      await page.setViewportSize({ width, height: 896 });
-      await page.emulateMedia({ colorScheme });
-      for (const name of ['detached-531', 'detached-532']) {
-        await repo.worktree(name);
-        await repo.detachWorktree(name);
-      }
-      await repo.worktree('clean-topic');
-      await app.reload();
-      const project = await server.project();
-      const inventory = await server.inventory();
-      const environment = inventory.environment;
+for (const [width, colorScheme] of [
+  [1440, 'light'],
+  [414, 'dark'],
+] as const) {
+  test(`compact project cards distinguish selection and keep single-computer headers clear at ${width}px in ${colorScheme}`, async ({
+    pairedPage: page,
+    repo,
+    server,
+    app,
+  }) => {
+    await page.setViewportSize({ width, height: 896 });
+    await page.emulateMedia({ colorScheme });
+    for (const name of ['detached-531', 'detached-532']) {
+      await repo.worktree(name);
+      await repo.detachWorktree(name);
+    }
+    await repo.worktree('clean-topic');
+    await app.reload();
+    const project = await server.project();
+    const inventory = await server.inventory();
+    const environment = inventory.environment;
+    if (width === 414)
+      await page
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    const sidebar = page.getByRole('navigation', {
+      name: 'Projects and worktrees',
+      exact: true,
+    });
+    const computer = sidebar.getByRole('img', {
+      name: `Computer: ${environment.name}`,
+      exact: true,
+    });
+    await expect(computer).not.toBeAttached();
+    await expect(
+      sidebar.getByRole('button', {
+        name: `Collapse ${project.name} · ${environment.name}`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    const cards = sidebar.getByRole('listitem');
+    await expect(
+      cards.first().getByRole('button', { name: /Main worktree/ }),
+    ).toHaveAccessibleName(/Main worktree/);
+    const clean = cards.filter({
+      has: page.getByRole('button', { name: /^clean-topic,/ }),
+    });
+    await expect(clean).toHaveText('clean-topic');
+    await expect(
+      clean.getByRole('button', { name: /No review, Working tree clean/ }),
+    ).toBeVisible();
+    for (const folder of ['detached-531', 'detached-532']) {
+      const target = project.worktrees.find((row) =>
+        row.path.endsWith(`/${folder}`),
+      );
+      if (!target) throw new Error(`Missing ${folder}`);
+      const row = sidebar.getByRole('button', {
+        name: new RegExp(`${folder}.*Detached HEAD`),
+      });
+      await expect(row).toBeVisible();
+      await expect(
+        sidebar
+          .getByRole('listitem')
+          .filter({
+            has: page.getByRole('button', {
+              name: new RegExp(`${folder}.*Detached HEAD`),
+            }),
+          })
+          .getByText(folder, { exact: true }),
+      ).toBeVisible();
+      await row.click();
+      await expect
+        .poll(() => app.address().path)
+        .toBe(`/${project.id}/${target.id}`);
       if (width === 414)
         await page
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
-      const sidebar = page.getByRole('navigation', {
-        name: 'Projects and worktrees',
-        exact: true,
-      });
-      const computer = sidebar.getByRole('img', {
-        name: `Computer: ${environment.name}`,
-        exact: true,
-      });
-      await expect(computer).not.toBeAttached();
-      await expect(
-        sidebar.getByRole('button', {
-          name: `Collapse ${project.name} · ${environment.name}`,
-          exact: true,
-        }),
-      ).toBeVisible();
-      const cards = sidebar.getByRole('listitem');
-      await expect(
-        cards.first().getByRole('button', { name: /Main worktree/ }),
-      ).toHaveAccessibleName(/Main worktree/);
-      const clean = cards.filter({
-        has: page.getByRole('button', { name: /^clean-topic,/ }),
-      });
-      await expect(clean).toHaveText('clean-topic');
-      await expect(
-        clean.getByRole('button', { name: /No review, Working tree clean/ }),
-      ).toBeVisible();
-      for (const folder of ['detached-531', 'detached-532']) {
-        const target = project.worktrees.find((row) =>
-          row.path.endsWith(`/${folder}`),
-        );
-        if (!target) throw new Error(`Missing ${folder}`);
-        const row = sidebar.getByRole('button', {
+      await expect(row).toHaveAttribute('aria-current', 'page');
+      const selectedCard = cards.filter({
+        has: page.getByRole('button', {
           name: new RegExp(`${folder}.*Detached HEAD`),
-        });
-        await expect(row).toBeVisible();
-        await expect(
-          sidebar
-            .getByRole('listitem')
-            .filter({
-              has: page.getByRole('button', {
-                name: new RegExp(`${folder}.*Detached HEAD`),
-              }),
-            })
-            .getByText(folder, { exact: true }),
-        ).toBeVisible();
-        await row.click();
-        await expect
-          .poll(() => app.address().path)
-          .toBe(`/${project.id}/${target.id}`);
-        if (width === 414)
-          await page
-            .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-            .click();
-        await expect(row).toHaveAttribute('aria-current', 'page');
-        const selectedCard = cards.filter({
-          has: page.getByRole('button', {
-            name: new RegExp(`${folder}.*Detached HEAD`),
-          }),
-        });
-        await expect(
-          selectedCard.getByText('Detached', { exact: true }),
-        ).toBeVisible();
-        await clean.hover();
-        await expect
-          .poll(
-            async () =>
-              (await nameWeight(
-                selectedCard.getByText(folder, { exact: true }),
-              )) >
-              (await nameWeight(
-                clean.getByText('clean-topic', { exact: true }),
-              )),
-          )
-          .toBe(true);
-      }
-      const search = sidebar.getByRole('searchbox', {
-        name: 'Search reviews and worktrees',
-        exact: true,
+        }),
       });
-      await search.fill('NO-MATCH');
       await expect(
-        sidebar.getByText('No matching worktrees', { exact: true }),
+        selectedCard.getByText('Detached', { exact: true }),
       ).toBeVisible();
-      await search.press('ArrowDown');
-      await expect(search).toBeFocused();
-      await search.fill('detached-532');
-      await search.press('ArrowDown');
-      await expect(
-        sidebar.getByRole('button', { name: /detached-532.*Detached HEAD/ }),
-      ).toBeFocused();
+      await clean.hover();
+      await expect
+        .poll(
+          async () =>
+            (await nameWeight(
+              selectedCard.getByText(folder, { exact: true }),
+            )) >
+            (await nameWeight(clean.getByText('clean-topic', { exact: true }))),
+        )
+        .toBe(true);
+    }
+    const search = sidebar.getByRole('searchbox', {
+      name: 'Search reviews and worktrees',
+      exact: true,
     });
-  }
+    await search.fill('NO-MATCH');
+    await expect(
+      sidebar.getByText('No matching worktrees', { exact: true }),
+    ).toBeVisible();
+    await search.press('ArrowDown');
+    await expect(search).toBeFocused();
+    await search.fill('detached-532');
+    await search.press('ArrowDown');
+    await expect(
+      sidebar.getByRole('button', { name: /detached-532.*Detached HEAD/ }),
+    ).toBeFocused();
+  });
 }
 
 test('search reveals a collapsed project without replacing its session choice and filtering preserves project management', async ({

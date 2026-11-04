@@ -8,7 +8,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:check": "node scripts/check-migrations.ts",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/storage"
+    "test": "pnpm --dir ../.. test --project @porcelain/storage"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.1",

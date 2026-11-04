@@ -233,6 +233,23 @@ function ciSelectionFixture(entry) {
         ]),
       ).tasks.find((task) => task.taskId === '//#test:rules').hash;
     const originalHash = ruleHash();
+    const unitHashes = (dry) =>
+      new Map(
+        dry.tasks
+          .filter(
+            (task) => task.task === 'test' && task.command !== '<NONEXISTENT>',
+          )
+          .map((task) => [task.package, task.hash]),
+      );
+    const originalUnits = unitHashes(
+      JSON.parse(
+        run(join(repository, 'node_modules/.bin/turbo'), [
+          'run',
+          'test',
+          '--dry=json',
+        ]),
+      ),
+    );
     for (const fixture of entry.cases) {
       const path = fixture.path && join(root, fixture.path);
       const original = path && readFileSync(path, 'utf8');
@@ -243,6 +260,7 @@ function ciSelectionFixture(entry) {
           [
             'run',
             'test:rules',
+            'test',
             'test:integration',
             'test:e2e',
             'build',
@@ -262,6 +280,27 @@ function ciSelectionFixture(entry) {
           `${fixture.name}: test:rules cache hash`,
         );
       const tasks = new Set(dry.tasks.map((task) => task.taskId));
+      if (fixture.unitProjects)
+        deepStrictEqual(
+          dry.tasks
+            .filter(
+              (task) =>
+                task.task === 'test' && task.command !== '<NONEXISTENT>',
+            )
+            .map((task) => task.package)
+            .sort((left, right) => left.localeCompare(right)),
+          fixture.unitProjects,
+          `${fixture.name}: affected unit projects`,
+        );
+      if (fixture.changedUnitProjects)
+        deepStrictEqual(
+          [...unitHashes(dry)]
+            .filter(([name, hash]) => originalUnits.get(name) !== hash)
+            .map(([name]) => name)
+            .sort((left, right) => left.localeCompare(right)),
+          fixture.changedUnitProjects,
+          `${fixture.name}: invalidated unit results`,
+        );
       strictEqual(
         tasks.has('//#test:rules'),
         fixture.rules ?? false,
@@ -524,6 +563,13 @@ export async function runGuardrailCases(named = []) {
           new URL('../.github/workflows/ci.yml', import.meta.url),
           'utf8',
         ),
+      );
+      strictEqual(
+        workflow.jobs.units.steps.find((step) =>
+          step.run?.includes('run test --affected'),
+        )?.run,
+        entry.unitCommand,
+        'CI runs unit projects through affected task selection',
       );
       deepStrictEqual(
         workflow.jobs['web-e2e'].strategy.matrix.shard,

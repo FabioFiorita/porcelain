@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/files"
+    "test": "pnpm --dir ../.. test --project @porcelain/files"
   },
   "dependencies": {
     "@porcelain/effects": "workspace:*",

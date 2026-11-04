@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/git"
+    "test": "pnpm --dir ../.. test --project @porcelain/git"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.1",

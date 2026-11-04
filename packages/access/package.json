@@ -12,7 +12,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/access"
+    "test": "pnpm --dir ../.. test --project @porcelain/access"
   },
   "dependencies": {
     "@porcelain/kernel": "workspace:*",

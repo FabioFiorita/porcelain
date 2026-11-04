@@ -28,6 +28,15 @@
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$"]
     },
+    "@porcelain/desktop#test": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/scripts/desktop-*.ts",
+        "$TURBO_ROOT$/scripts/collect-desktop-crashes.sh"
+      ]
+    },
     "@porcelain/server#test:integration": {
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.integration.config.ts"]
@@ -261,10 +270,6 @@
     "@porcelain/client#test:integration": {
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.integration.config.ts"]
-    },
-    "//#spec:gaps": {
-      "inputs": ["$TURBO_DEFAULT$"],
-      "cache": false
     },
     "@porcelain/verification#transit": {
       "dependsOn": ["^transit"],

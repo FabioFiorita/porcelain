@@ -10,7 +10,7 @@
     "dev": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile"
+    "test": "pnpm --dir ../.. test --project @porcelain/mobile"
   },
   "dependencies": {
     "@effect/atom-react": "4.0.1",
