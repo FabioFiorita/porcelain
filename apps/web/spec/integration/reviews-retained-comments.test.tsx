@@ -115,6 +115,7 @@ test('an unchanged context file accepts a whole-file comment and keeps its revis
         messages: [{ body: 'Keep the existing actor contract.' }],
       },
     ]);
+  await context.getByRole('button', { name: '1 comment', exact: true }).click();
   await expect
     .element(
       context.getByText('Keep the existing actor contract.', { exact: true }),
