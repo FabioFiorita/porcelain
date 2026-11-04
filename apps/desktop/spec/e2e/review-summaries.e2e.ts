@@ -1,6 +1,7 @@
 import {
   watchSummaryActivations,
   summaryActivations,
+  resetSummaryActivations,
 } from '../kit/summary-activations.ts';
 import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
@@ -51,6 +52,12 @@ declare const document: {
 };
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
+
+async function renewSummary(frame: ReturnType<Page['frames']>[number]) {
+  const url = new URL(frame.url());
+  url.search = new URLSearchParams([...url.searchParams].reverse()).toString();
+  await frame.goto(url.href, { waitUntil: 'load' });
+}
 
 async function hoverSummaryLink(
   page: Page,
@@ -150,7 +157,7 @@ async function publishSummary(page: Page, repository: string, title: string) {
   return { project, worktree, summaryUrl };
 }
 
-for (const activation of ['pointer', 'keyboard'] as const) {
+for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
   test(`a local signed summary renders through the app origin in its sandbox, keeps the theme and opens its layer link (${activation})`, async ({
     desktop,
   }) => {
@@ -175,6 +182,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     await expect(
       page.getByRole('tab', { name: 'Walkthrough', exact: true }),
     ).toHaveAttribute('aria-selected', 'true');
+    if (activation !== 'renewal') await watchSummaryActivations(page);
     await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
     const summary = page.frameLocator('iframe[title="Review summary"]');
     await expect(
@@ -186,7 +194,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     await expect(
       summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
     ).toHaveCount(1);
-    const frame = page
+    let frame = page
       .frames()
       .find((entry) =>
         entry.url().startsWith('porcelain://app/review-summaries/'),
@@ -194,7 +202,40 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     if (frame === undefined)
       throw new Error('The local summary did not load through the app');
     await frame.waitForLoadState('load');
-    await watchSummaryActivations(page, frame);
+    if (activation === 'renewal') {
+      const renewingPage = new Proxy(page, {
+        get(target, property) {
+          if (property === 'addInitScript')
+            return async (...args: Parameters<Page['addInitScript']>) => {
+              await target.addInitScript(...args);
+              await page
+                .getByRole('tab', { name: 'Walkthrough', exact: true })
+                .click();
+              await page
+                .getByRole('tab', { name: 'Agent summary', exact: true })
+                .click();
+              await expect(
+                summary.getByRole('heading', {
+                  name: 'Local summary',
+                  exact: true,
+                }),
+              ).toBeVisible();
+            };
+          const value: unknown = Reflect.get(target, property);
+          const bound: unknown =
+            typeof value === 'function' ? value.bind(target) : value;
+          return bound;
+        },
+      });
+      await watchSummaryActivations(renewingPage);
+      frame = page
+        .frames()
+        .find((entry) =>
+          entry.url().startsWith('porcelain://app/review-summaries/'),
+        );
+      if (frame === undefined)
+        throw new Error('The renewed summary did not load through the app');
+    }
     await app.electron.evaluate(({ app, BrowserWindow }) => {
       app.focus({ steal: true });
       const view = BrowserWindow.getAllWindows()[0];
@@ -213,17 +254,22 @@ for (const activation of ['pointer', 'keyboard'] as const) {
     } else await page.keyboard.press('Enter');
     await expect
       .poll(() => summaryActivations(page))
-      .toContainEqual({
-        trusted: true,
-        href: '#layer-1',
-        focused: true,
-      });
+      .toEqual([
+        {
+          trusted: true,
+          href: '#layer-1',
+          focused: true,
+        },
+      ]);
     await expect(
       page.getByRole('region', {
         name: '1. Local summary layer',
         exact: true,
       }),
     ).toBeVisible();
+    expect(await summaryActivations(page)).toEqual([
+      { trusted: true, href: '#layer-1', focused: true },
+    ]);
     expect(app.electron.windows()).toHaveLength(1);
     expect(app.errors).toEqual([]);
   });
@@ -318,6 +364,7 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   await expect(
     page.getByRole('tab', { name: 'Walkthrough', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
+  await watchSummaryActivations(page);
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
   await expect(
@@ -331,8 +378,7 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   if (frame === undefined)
     throw new Error('The remote summary did not load through the app');
   await frame.waitForLoadState('load');
-  await watchSummaryActivations(page, frame);
-  await frame.goto(frame.url(), { waitUntil: 'load' });
+  await renewSummary(frame);
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
@@ -363,11 +409,13 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   await page.keyboard.down('Enter');
   await expect
     .poll(() => summaryActivations(page))
-    .toContainEqual({
-      trusted: true,
-      href: '#layer-1',
-      focused: true,
-    });
+    .toEqual([
+      {
+        trusted: true,
+        href: '#layer-1',
+        focused: true,
+      },
+    ]);
   await expect(
     page.getByRole('region', {
       name: '1. Remote summary layer',
@@ -386,6 +434,8 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   expect(app.errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('remote-layer.png') });
 
+  await resetSummaryActivations(page);
+  expect(await summaryActivations(page)).toEqual([]);
   const summaryNavigation = page.waitForEvent('framenavigated', {
     predicate: (entry) =>
       entry.url().startsWith('porcelain://app/remote-review-summaries/'),
@@ -397,7 +447,7 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
-  await watchSummaryActivations(page, reopenedSummary);
+  expect(await summaryActivations(page)).toEqual([]);
   await app.electron.evaluate(({ app, BrowserWindow }) => {
     app.focus({ steal: true });
     const view = BrowserWindow.getAllWindows()[0];
@@ -451,11 +501,13 @@ test('a remote computer summary survives document renewal, stays isolated and ca
     await page.keyboard.down('Enter');
     await expect
       .poll(() => summaryActivations(page))
-      .toContainEqual({
-        trusted: true,
-        href: 'https://example.com/',
-        focused: true,
-      });
+      .toEqual([
+        {
+          trusted: true,
+          href: 'https://example.com/',
+          focused: true,
+        },
+      ]);
     await expect
       .poll(() =>
         page.evaluate(() => {
