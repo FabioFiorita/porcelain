@@ -266,12 +266,17 @@ export function useReviewRevisionSelection(reviewId: string) {
   };
 }
 
-const reviewPanelOpen = Atom.family((_reviewId: string) =>
-  Atom.make(true).pipe(Atom.keepAlive),
-);
-export function useReviewPanelOpen(reviewId: string) {
-  const atom = reviewPanelOpen(reviewId);
-  return { open: useAtomValue(atom), setOpen: useAtomSet(atom) };
+const reviewPanelOpen = Atom.kvs({
+  runtime: storageRuntime,
+  key: 'porcelain.review-panel.open',
+  schema: Schema.Boolean,
+  defaultValue: () => true,
+}).pipe(Atom.keepAlive);
+export function useReviewPanelOpen() {
+  return {
+    open: useAtomValue(reviewPanelOpen),
+    setOpen: useAtomSet(reviewPanelOpen),
+  };
 }
 
 const reviewPanelView = Atom.family((_reviewId: string) =>

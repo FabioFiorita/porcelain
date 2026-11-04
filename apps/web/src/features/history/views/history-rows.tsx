@@ -43,7 +43,37 @@ export function GraphRows({
       : undefined;
   return (
     <div className="relative py-2 pr-3 pl-1.5">
-      <ol aria-label={label} className="flex flex-col">
+      <ol
+        aria-label={label}
+        className="flex flex-col"
+        onKeyDown={(event) => {
+          if (
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')
+          )
+            return;
+          const buttons = Array.from(
+            event.currentTarget.querySelectorAll<HTMLButtonElement>(
+              'button[aria-pressed]',
+            ),
+          );
+          const row =
+            event.target instanceof Element ? event.target.closest('li') : null;
+          const index = buttons.findIndex(
+            (button) => button.closest('li') === row,
+          );
+          if (index < 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const next = buttons[index + (event.key === 'ArrowDown' ? 1 : -1)];
+          if (!next) return;
+          next.focus();
+          next.click();
+        }}
+      >
         {rows.map(({ commit }) => (
           <li key={commit.oid}>
             <CommitRow

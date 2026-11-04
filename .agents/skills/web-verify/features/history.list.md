@@ -9,6 +9,8 @@ selectors:
   - "Start of history."
 tests:
   - apps/web/spec/integration/history-list.test.tsx
+  - apps/web/spec/integration/history-keyboard.test.tsx
+  - apps/web/spec/integration/review-panel-preference.test.tsx
   - apps/web/spec/integration/history-return.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits
@@ -76,3 +78,11 @@ Load more than one page, select an older commit, switch to Files and back to His
 
 - Match row names by anchored regex; merge starts with Merge commit. Full long subjects remain accessible despite visual truncation.
 - Setup leaves branch/merge/files; reset before another map.
+
+### Panel preference and commit keyboard navigation
+
+On a fresh desktop profile the right panel starts open. Hide it with the rail toggle or Alt+Shift+R, change worktrees, enter Settings and return with Escape, then reload: it stays closed. Show it and repeat: it stays open, including saved-review document workspaces. At 414 px it stays an explicitly opened Review sheet; dismissing that sheet does not change the desktop preference.
+
+With two commits, click the newest row in the docked History list. Its document opens while focus stays on the row. Down selects and focuses the next commit; Up returns to the previous one. Neither end wraps. Alt+Left/Right still steps document tabs. Opening to the side deliberately focuses the destination pane. At phone width selecting a commit closes the sheet and focuses its document tab.
+
+Regressions: `history-keyboard.test.tsx`, `review-panel-preference.test.tsx`.

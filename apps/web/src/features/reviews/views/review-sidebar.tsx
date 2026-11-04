@@ -263,6 +263,7 @@ function SidebarSurface({
           onSelect={(oid, toSide) =>
             onOpen({ kind: 'commit', oid }, undefined, {
               toSide: toSide === true,
+              preserveFocus: true,
             })
           }
           sideLabel={sideLabel}

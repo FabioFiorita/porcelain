@@ -404,15 +404,18 @@ function ReviewRevisionPage({
       return;
     }
     if (options?.toSide) tabLayout.openToSide(focusedPane, entryKey(ref));
-    else tabLayout.open(focusedPane, entryKey(ref));
+    else
+      tabLayout.open(
+        focusedPane,
+        entryKey(ref),
+        options?.preserveFocus === true && desktop,
+      );
   };
   const reviewActive =
     active &&
     (!standalone || tabLayout.panes[focusedPane]?.active === 'handoff');
   const desktop = useDesktopReview();
-  const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen(
-    revision.reviewId,
-  );
+  const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
   const linkFocus = usePullRequestLinkFocus(revision.reviewId);
   const openPullRequest = (number: number) =>
     openDocument({ kind: 'pull-request', reviewId: revision.reviewId, number });
