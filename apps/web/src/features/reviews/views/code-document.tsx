@@ -199,14 +199,13 @@ function CodeSurface({
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
-  const viewer = useCodeViewScroll(
-    JSON.stringify([
-      gitContext.connection.environmentId,
-      interaction.worktreeId,
-      interaction.entry,
-      range,
-    ]),
-  );
+  const scrollOwner = JSON.stringify([
+    gitContext.connection.environmentId,
+    interaction.worktreeId,
+    interaction.entry,
+    range,
+  ]);
+  const viewer = useCodeViewScroll(scrollOwner);
   const margin = useMarginStack();
   const [composer, setComposer] = useState<{
     id: string;
@@ -662,17 +661,13 @@ function CodeSurface({
               return release;
             }
             const frame = requestAnimationFrame(() => {
-              const position = viewer.position();
-              handle.scrollTo({
-                type: 'position',
-                position:
-                  position +
-                  (options.stickyHeaders && !options.disableFileHeader
-                    ? (options.itemMetrics?.diffHeaderHeight ??
+              viewer.restorePosition(
+                handle,
+                options.stickyHeaders && !options.disableFileHeader
+                  ? (options.itemMetrics?.diffHeaderHeight ??
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
-                    : 0),
-                behavior: 'instant',
-              });
+                  : 0,
+              );
               const entry = entries[0];
               if (foundLine && entry && handledFound !== foundLine.nonce) {
                 setSelection({

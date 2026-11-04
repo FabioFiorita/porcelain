@@ -21,6 +21,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .toBe(27);
   const gate = fetchGate.holdNextPost('/branch-changes/diffs');
   const refresh = fetchGate.holdNextPost('/branch-changes/diffs');
+  await repo.write('pending.txt', 'Not committed\n');
   const workspace = await render.workspace();
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
@@ -89,10 +90,22 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .element(workspace.getByText('notes-25.md · Whole file', { exact: true }))
     .toBeVisible();
   await workspace.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect
+    .element(
+      workspace.getByText(
+        'Uncommitted changes are not part of the branch review. Review them under Uncommitted.',
+        { exact: true },
+      ),
+    )
+    .toBeInTheDocument();
+  const contentPosition = reviewLayout.codeOffset(
+    code,
+    workspace.getByText('note 25', { exact: true }),
+  );
   const height = reviewLayout.codeScrollHeight(code);
-  const position = reviewLayout.codeScrollTop(code);
   refresh.arm();
 
+  await repo.remove('pending.txt');
   await repo.write('zz-after-reading-more.md', 'Added after reading more\n');
   await repo.commit('Add another file after reading more');
   await refresh.requested;
@@ -113,7 +126,22 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .poll(() => reviewLayout.codeScrollHeight(code))
     .toBeGreaterThan(height);
-  await expect.poll(() => reviewLayout.codeScrollTop(code)).toBe(position);
+  await expect
+    .element(
+      workspace.getByText(
+        'Uncommitted changes are not part of the branch review. Review them under Uncommitted.',
+        { exact: true },
+      ),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .poll(() =>
+      reviewLayout.codeOffset(
+        code,
+        workspace.getByText('note 25', { exact: true }),
+      ),
+    )
+    .toBe(contentPosition);
   reviewLayout.scrollCodeTo(code, 1_000_000);
   await expect
     .element(workspace.getByText('Added after reading more', { exact: true }))

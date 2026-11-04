@@ -275,6 +275,7 @@ export function createFetchGate(filePath: string) {
 const livePath = '/api/live';
 const opened = new Set<WebSocket>();
 let down = false;
+let reconnectAttempts = 0;
 let reconnecting = Promise.withResolvers<void>();
 
 class FollowedSocket extends WebSocket {
@@ -283,7 +284,9 @@ class FollowedSocket extends WebSocket {
     if (new URL(url, location.href).pathname !== livePath) return;
     if (down) {
       this.close();
+      reconnectAttempts += 1;
       reconnecting.resolve();
+      reconnecting = Promise.withResolvers<void>();
       return;
     }
     opened.add(this);
@@ -295,15 +298,19 @@ window.WebSocket = FollowedSocket;
 
 export const live = {
   drop: () => {
+    reconnectAttempts = 0;
     reconnecting = Promise.withResolvers<void>();
     down = true;
     for (const socket of opened) socket.close();
     opened.clear();
   },
-  restore: () => {
+  restore: (signal?: 'online') => {
     down = false;
+    if (signal) window.dispatchEvent(new Event(signal));
   },
-  reconnecting: () => reconnecting.promise,
+  reconnecting: async (attempts = 1) => {
+    while (reconnectAttempts < attempts) await reconnecting.promise;
+  },
   connected: () =>
     [...opened].some((socket) => socket.readyState === WebSocket.OPEN),
 };

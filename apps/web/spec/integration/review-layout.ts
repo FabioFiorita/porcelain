@@ -140,6 +140,9 @@ export const reviewLayout = {
   scrollCodeTo(locator: Locator, position: number) {
     codeScroller(locator).scrollTop = position;
   },
+  codeOffset: (locator: Locator, content: Locator) =>
+    content.element().getBoundingClientRect().top -
+    codeScroller(locator).getBoundingClientRect().top,
   codeScrollTop: (locator: Locator) => codeScroller(locator).scrollTop,
   codeScrollHeight: (locator: Locator) => codeScroller(locator).scrollHeight,
   currentChangeRows(table: Locator) {
