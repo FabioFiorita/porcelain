@@ -214,7 +214,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       .element(table.getByText('0 of 1 file reviewed', { exact: true }))
       .toBeVisible();
     const row = table.getByRole('button', {
-      name: `${repo.readme.path} −0 +2`,
+      name: `${repo.readme.path} +2 −0`,
       exact: true,
     });
     await expect.element(row).toHaveAttribute('aria-current', 'true');
@@ -240,7 +240,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       exact: true,
     });
     const notes = both.getByRole('button', {
-      name: 'notes.md −0 +2',
+      name: 'notes.md +2 −0',
       exact: true,
     });
     await notes.click();
@@ -248,7 +248,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
     await expect
       .element(
         both.getByRole('button', {
-          name: `${repo.readme.path} −0 +2`,
+          name: `${repo.readme.path} +2 −0`,
           exact: true,
         }),
       )
@@ -277,7 +277,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
   }
 });
 
-test('Changes file buttons follow the displayed file order', async ({
+test('Changes keeps file shortcuts without redundant header arrows', async ({
   repo,
   render,
   reviewLayout,
@@ -290,19 +290,65 @@ test('Changes file buttons follow the displayed file order', async ({
   });
   const currentRows = () => reviewLayout.currentChangeRows(table);
   await table
-    .getByRole('button', { name: 'zz-notes.md −0 +2', exact: true })
+    .getByRole('button', { name: 'zz-notes.md +2 −0', exact: true })
     .click();
-  await expect.poll(currentRows).toEqual(['zz-notes.md−0+2']);
-  await workspace
-    .getByRole('button', { name: 'Previous file', exact: true })
-    .last()
+  await expect
+    .element(
+      workspace
+        .getByRole('button', { name: 'Previous file', exact: true })
+        .first(),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace.getByRole('button', { name: 'Next file', exact: true }).first(),
+    )
+    .not.toBeInTheDocument();
+  await userEvent.keyboard('K');
+  await expect.poll(currentRows).toEqual(['README.md+2−0']);
+  await userEvent.keyboard('J');
+  await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
+});
+
+test('Changes preserves filenames and discloses shortened directories on hover and focus', async ({
+  repo,
+  render,
+  agent,
+  reviewLayout,
+}) => {
+  await agent.publishArchitecture();
+  const path = 'packages/workspace/src/recognizable-configuration.ts';
+  await repo.write(path, 'export const visible = true;\n');
+  const workspace = await render.workspace();
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  const drawer = workspace.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
+  await drawer
+    .getByRole('button', { name: 'All changes', exact: true })
     .click();
-  await expect.poll(currentRows).toEqual(['README.md−0+2']);
-  await workspace
-    .getByRole('button', { name: 'Next file', exact: true })
-    .first()
-    .click();
-  await expect.poll(currentRows).toEqual(['zz-notes.md−0+2']);
+  const table = workspace.getByRole('region', { name: /uncommitted changes/ });
+  const row = table.getByRole('button', { name: `${path} +1 −0`, exact: true });
+  await expect.element(row).toBeVisible();
+  await expect
+    .poll(() =>
+      reviewLayout.filenameVisible(row, 'recognizable-configuration.ts'),
+    )
+    .toBe(true);
+  await row.hover();
+  await expect
+    .element(workspace.getByRole('tooltip', { name: path, exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await row.click();
+  await userEvent.tab();
+  await userEvent.tab({ shift: true });
+  await expect.element(row).toHaveFocus();
+  await expect
+    .element(workspace.getByRole('tooltip', { name: path, exact: true }))
+    .toBeVisible();
 });
 
 test('Changes reopens a collapsed file from its table', async ({
@@ -317,7 +363,7 @@ test('Changes reopens a collapsed file from its table', async ({
   await expect.element(code).not.toBeInTheDocument();
   await workspace
     .getByRole('region', { name: '1 uncommitted change', exact: true })
-    .getByRole('button', { name: `${repo.readme.path} −0 +2`, exact: true })
+    .getByRole('button', { name: `${repo.readme.path} +2 −0`, exact: true })
     .click();
   await expect.element(code).toBeVisible();
 });
@@ -340,14 +386,14 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
     });
     const currentRows = () => reviewLayout.currentChangeRows(table);
     await table
-      .getByRole('button', { name: 'zz-notes.md −0 +1', exact: true })
+      .getByRole('button', { name: 'zz-notes.md +1 −0', exact: true })
       .click();
-    await expect.poll(currentRows).toEqual(['zz-notes.md−0+1']);
+    await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
     held.release();
     await expect
       .element(workspace.getByText('A change to review.', { exact: true }))
       .toBeInTheDocument();
-    await expect.poll(currentRows).toEqual(['zz-notes.md−0+1']);
+    await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
   } finally {
     held.release();
   }
@@ -388,4 +434,21 @@ test('Changes file rows reach non-text content without line counts', async ({
   } finally {
     held.release();
   }
+});
+
+test('a retained changed file shows additions before deletions', async ({
+  render,
+  repo,
+}) => {
+  const review = await repo.review('Readme counts');
+  const app = await render.route('/');
+  const entry = `review-change:${review.reviewId}:1:review-page.ts`;
+  await app.navigate(
+    `${app.location().split('?')[0]}?entry=${encodeURIComponent(entry)}`,
+  );
+  await expect
+    .element(
+      app.page.getByLabelText('2 additions, 0 deletions', { exact: true }),
+    )
+    .toHaveTextContent('+2 −0');
 });

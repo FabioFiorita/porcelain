@@ -18,10 +18,7 @@ declare const document: {
   ): void;
 };
 
-export async function watchSummaryActivations(
-  page: Page,
-  frame: ReturnType<Page['frames']>[number],
-) {
+export async function watchSummaryActivations(page: Page) {
   const marker = randomUUID();
   await page.evaluate((marker) => {
     const activations: unknown[] = [];
@@ -79,7 +76,6 @@ export async function watchSummaryActivations(
     );
   };
   await page.addInitScript(observe, marker);
-  await frame.evaluate(observe, marker);
 }
 
 export function summaryActivations(page: Page): Promise<unknown> {
@@ -89,5 +85,18 @@ export function summaryActivations(page: Page): Promise<unknown> {
       'porcelainSummaryActivations',
     );
     return activations;
+  });
+}
+
+export async function resetSummaryActivations(page: Page) {
+  await page.evaluate(() => {
+    const activations: unknown = Reflect.get(
+      globalThis,
+      'porcelainSummaryActivations',
+    );
+    if (!Array.isArray(activations))
+      throw new Error('Summary observation has not started');
+    activations.length = 0;
+    Reflect.set(globalThis, 'porcelainSummaryPointer', undefined);
   });
 }

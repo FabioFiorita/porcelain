@@ -46,11 +46,11 @@ export function FileHeading({
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         {diff && (
           <span
-            aria-label={`${deletions} deletions, ${additions} additions`}
+            aria-label={`${additions} additions, ${deletions} deletions`}
             className="font-mono text-xs font-medium tabular-nums"
           >
-            <span className="text-del-fg">−{deletions}</span>{' '}
-            <span className="text-add-fg">+{additions}</span>
+            <span className="text-add-fg">+{additions}</span>{' '}
+            <span className="text-del-fg">−{deletions}</span>
           </span>
         )}
         {children}

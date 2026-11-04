@@ -198,7 +198,10 @@ export const branchFilesShown = Atom.family((_comparison: string) =>
   Atom.make(DIFF_WINDOW_FILES).pipe(Atom.keepAlive),
 );
 const codeViewScroll = Atom.family((_owner: string) =>
-  Atom.make<CodeScroll | null>(null),
+  Atom.make<{
+    viewer: CodeScroll | null;
+    restored: { viewer: CodeScroll; owner: string } | null;
+  }>({ viewer: null, restored: null }),
 );
 type CodeSelection = {
   lines: CodeViewLineSelection;
@@ -233,12 +236,25 @@ export function useCodeViewScroll(owner: string) {
       registry.set(place, { ...registry.get(place), selection });
     },
     scrollTo: (request: Parameters<CodeScroll['scrollTo']>[0]) =>
-      registry.get(atom)?.scrollTo(request),
+      registry.get(atom).viewer?.scrollTo(request),
+    restorePosition: (viewer: CodeScroll, headerHeight: number) => {
+      const state = registry.get(atom);
+      if (state.restored?.viewer === viewer && state.restored.owner === owner)
+        return;
+      viewer.scrollTo({
+        type: 'position',
+        position: registry.get(place).scrollTop + headerHeight,
+        behavior: 'instant',
+      });
+      registry.set(atom, { ...state, restored: { viewer, owner } });
+    },
     attach: (viewer: CodeScroll | null) => {
       if (!viewer) return;
-      registry.set(atom, viewer);
+      registry.set(atom, { ...registry.get(atom), viewer });
       return () => {
-        if (registry.get(atom) === viewer) registry.set(atom, null);
+        const state = registry.get(atom);
+        if (state.viewer === viewer)
+          registry.set(atom, { ...state, viewer: null });
       };
     },
   };

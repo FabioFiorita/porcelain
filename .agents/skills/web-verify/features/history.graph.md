@@ -65,6 +65,10 @@ The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic 
 3. Add a local branch and tag with the same name on one commit. Expect: tag chips have a small tag icon, including in the overflow popover at phone width; branch chips have no tag icon. Both chips remain reachable; only a local branch matching the full checked-out branch ref is current.
 4. Check out a commit detached. Expect: Graph keeps its separate HEAD marker and no branch or tag receives current-branch colour. Internal Porcelain refs stay hidden.
 
+### Shared merge parents
+
+Create topic work from the initial commit, then a commit on main. Merge main into topic, then topic into main with `--no-ff` both times. Read the real parent OIDs with Git. In both the compact History panel and full Graph, the main ancestry lane must continue past the topic merge while its second-parent edge joins that lane. Inspect SVG geometry: every path endpoint must meet another path start or a commit dot, and following edges from each dot must reach exactly its Git parents. Genuine roots have no outgoing ancestry. Repeat at desktop and phone widths in light and dark; loaded row/lane prefixes must remain stable as older pages append.
+
 ### Observable proof
 
 Reload full URL: Graph remains selected; opening merge records files GET/200.

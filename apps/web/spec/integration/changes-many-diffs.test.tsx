@@ -28,7 +28,7 @@ test('All changes shows the diffs of more tracked changes than one diff request 
     .click();
   await opened
     .getByRole('region', { name: '205 uncommitted changes', exact: true })
-    .getByRole('button', { name: `${paths[0]} −1 +1`, exact: true })
+    .getByRole('button', { name: `${paths[0]} +1 −1`, exact: true })
     .click();
   await expect
     .element(opened.getByText(`${paths[0]} changed`, { exact: true }))
