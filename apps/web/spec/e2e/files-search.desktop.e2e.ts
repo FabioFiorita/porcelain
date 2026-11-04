@@ -24,7 +24,7 @@ test('Files searches unloaded untracked paths without losing input and restores 
   await repo.write('notes/second.txt', 'Second\n');
   const page = await app.open(await app.link('this'));
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await page.keyboard.press('Alt+1');
   const tree = page.getByRole('region', { name: 'All files', exact: true });
   const row = (name: string) =>
     tree.getByRole('treeitem', { name, exact: true });
