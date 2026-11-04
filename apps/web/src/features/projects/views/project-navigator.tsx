@@ -445,207 +445,180 @@ export function ProjectNavigator({
                   </Tooltip>
                 </div>
                 <CollapsibleContent>
-                  <Link
-                    to="/reviews/history/$projectId"
-                    params={{ projectId: source.project.id }}
-                    search={
-                      source.connection.environmentId ===
-                      connection.environmentId
-                        ? {}
-                        : { environment: source.connection.environmentId }
-                    }
-                    className="block px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Project history
-                  </Link>
                   <SidebarMenu>
-                    {source.entries
-                      .toSorted(
-                        (a, b) =>
-                          NAVIGATOR_SECTION_ORDER[navigatorSection(a)] -
-                          NAVIGATOR_SECTION_ORDER[navigatorSection(b)],
-                      )
-                      .map((entry, index, entries) => {
-                        const active =
-                          selection !== undefined &&
-                          navigatorEntrySelected(entry, selection);
-                        const review =
-                          entry.review.state === 'available'
-                            ? entry.review
-                            : undefined;
-                        const checkResult =
-                          review?.checks?.state === 'available'
-                            ? review.checks.result
-                            : 'none';
-                        const summary = navigatorDiffSummary(entry.changes);
-                        const retained = entry.kind === 'review';
-                        const detail = navigatorCardReviewLabel(entry);
-                        const changes = retained
-                          ? ''
-                          : navigatorCardChangesLabel(entry.changes);
-                        const compactChanges =
-                          entry.changes.state === 'unavailable' ? '—' : changes;
-                        const openRetained =
-                          retained ||
-                          (!entry.available && review !== undefined);
-                        let attach =
-                          entry.key === lastKey ? lastEntry.attach : undefined;
-                        if (entry.key === firstKey) attach = firstEntry.attach;
-                        const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
-                        return (
-                          <SidebarMenuItem key={entry.key}>
-                            {(index === 0 ||
-                              navigatorSection(entries[index - 1]!) !==
-                                navigatorSection(entry)) && (
-                              <p className="px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground">
-                                {navigatorSection(entry)}
-                              </p>
-                            )}
-                            <NavigatorRowMenu
-                              onRetryChanges={() =>
-                                retry({ environmentId: entry.environmentId })
+                    {source.entries.map((entry) => {
+                      const active =
+                        selection !== undefined &&
+                        navigatorEntrySelected(entry, selection);
+                      const review =
+                        entry.review.state === 'available'
+                          ? entry.review
+                          : undefined;
+                      const checkResult =
+                        review?.checks?.state === 'available'
+                          ? review.checks.result
+                          : 'none';
+                      const summary = navigatorDiffSummary(entry.changes);
+                      const retained = entry.kind === 'review';
+                      const detail = navigatorCardReviewLabel(entry);
+                      const changes = retained
+                        ? ''
+                        : navigatorCardChangesLabel(entry.changes);
+                      const compactChanges =
+                        entry.changes.state === 'unavailable' ? '—' : changes;
+                      const openRetained =
+                        retained || (!entry.available && review !== undefined);
+                      let attach =
+                        entry.key === lastKey ? lastEntry.attach : undefined;
+                      if (entry.key === firstKey) attach = firstEntry.attach;
+                      const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
+                      return (
+                        <SidebarMenuItem key={entry.key}>
+                          <NavigatorRowMenu
+                            onRetryChanges={() =>
+                              retry({ environmentId: entry.environmentId })
+                            }
+                            entry={entry}
+                            connection={
+                              connections.find(
+                                (candidate) =>
+                                  candidate.environmentId ===
+                                  source.connection.environmentId,
+                              ) ?? connection
+                            }
+                          >
+                            <TruncatedText
+                              text={
+                                entry.path
+                                  ? `${entry.name} · ${entry.path}`
+                                  : entry.name
                               }
-                              entry={entry}
-                              connection={
-                                connections.find(
-                                  (candidate) =>
-                                    candidate.environmentId ===
-                                    source.connection.environmentId,
-                                ) ?? connection
-                              }
-                            >
-                              <TruncatedText
-                                text={
-                                  entry.path
-                                    ? `${entry.name} · ${entry.path}`
-                                    : entry.name
-                                }
-                                disclose={entry.detached ? 'always' : 'clipped'}
-                                renderTrigger={(_label, clip) => (
-                                  <div
-                                    data-navigator-card=""
-                                    role="presentation"
-                                    tabIndex={-1}
-                                    className={
-                                      active
-                                        ? 'relative rounded-md bg-card'
-                                        : 'relative rounded-md hover:bg-card'
+                              disclose={entry.detached ? 'always' : 'clipped'}
+                              renderTrigger={(_label, clip) => (
+                                <div
+                                  data-navigator-card=""
+                                  role="presentation"
+                                  tabIndex={-1}
+                                  className={
+                                    active
+                                      ? 'relative rounded-md bg-card'
+                                      : 'relative rounded-md hover:bg-card'
+                                  }
+                                >
+                                  <Item
+                                    className="absolute inset-0 h-full cursor-pointer"
+                                    data-sidebar="menu-button"
+                                    size="xs"
+                                    aria-label={label}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() =>
+                                      openRetained
+                                        ? setOpenMobile(false)
+                                        : openWorktree(entry)
                                     }
+                                    render={
+                                      openRetained && review ? (
+                                        <Link
+                                          ref={attach}
+                                          to="/reviews/$reviewId"
+                                          params={{
+                                            reviewId: review.reviewId,
+                                          }}
+                                          search={{
+                                            environment:
+                                              entry.environmentId ===
+                                              connection.environmentId
+                                                ? undefined
+                                                : entry.environmentId,
+                                            decision: undefined,
+                                          }}
+                                        />
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          ref={attach}
+                                          disabled={
+                                            !openRetained && !entry.available
+                                          }
+                                        />
+                                      )
+                                    }
+                                  />
+                                  <Item
+                                    size="xs"
+                                    className="pointer-events-none"
                                   >
-                                    <Item
-                                      className="absolute inset-0 h-full cursor-pointer"
-                                      data-sidebar="menu-button"
-                                      size="xs"
-                                      aria-label={label}
-                                      aria-current={active ? 'page' : undefined}
-                                      onClick={() =>
-                                        openRetained
-                                          ? setOpenMobile(false)
-                                          : openWorktree(entry)
-                                      }
-                                      render={
-                                        openRetained && review ? (
-                                          <Link
-                                            ref={attach}
-                                            to="/reviews/$reviewId"
-                                            params={{
-                                              reviewId: review.reviewId,
+                                    <ItemContent className="min-w-0">
+                                      <div className="flex min-w-0 items-center gap-1">
+                                        {clip(
+                                          entry.name,
+                                          active
+                                            ? 'min-w-0 flex-1 font-semibold'
+                                            : 'min-w-0 flex-1 font-medium',
+                                        )}
+                                        {entry.detached && (
+                                          <span className="text-xs text-muted-foreground">
+                                            Detached
+                                          </span>
+                                        )}
+                                        {review?.pullRequestNumber && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            className="relative pointer-events-auto cursor-pointer"
+                                            aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
+                                            onClick={() => {
+                                              onOpenPullRequest(entry);
+                                              setOpenMobile(false);
                                             }}
-                                            search={{
-                                              environment:
-                                                entry.environmentId ===
-                                                connection.environmentId
-                                                  ? undefined
-                                                  : entry.environmentId,
-                                              decision: undefined,
-                                            }}
-                                          />
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            ref={attach}
-                                            disabled={
-                                              !openRetained && !entry.available
-                                            }
-                                          />
-                                        )
-                                      }
-                                    />
-                                    <Item
-                                      size="xs"
-                                      className="pointer-events-none"
-                                    >
-                                      <ItemContent className="min-w-0">
-                                        <div className="flex min-w-0 items-center gap-1">
-                                          {clip(
-                                            entry.name,
-                                            active
-                                              ? 'min-w-0 flex-1 font-semibold'
-                                              : 'min-w-0 flex-1 font-medium',
-                                          )}
-                                          {entry.detached && (
-                                            <span className="text-xs text-muted-foreground">
-                                              Detached
+                                          >
+                                            <span
+                                              className={
+                                                checkTones[checkResult]
+                                              }
+                                            >
+                                              PR #{review.pullRequestNumber}
+                                            </span>
+                                          </Button>
+                                        )}
+                                      </div>
+                                      {(detail || changes) && (
+                                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                                          {detail &&
+                                            clip(detail, 'min-w-0 flex-1')}
+                                          {changes && (
+                                            <span
+                                              className="ml-auto shrink-0"
+                                              role="img"
+                                              aria-label={`Local uncommitted changes: ${changes}`}
+                                            >
+                                              {summary ? (
+                                                <>
+                                                  <span className="text-add-fg">
+                                                    +{summary.additions}
+                                                  </span>{' '}
+                                                  <span className="text-del-fg">
+                                                    −{summary.deletions}
+                                                  </span>
+                                                  {summary.binaryFiles > 0 &&
+                                                    ` · ${summary.binaryFiles} binary`}
+                                                </>
+                                              ) : (
+                                                compactChanges
+                                              )}
                                             </span>
                                           )}
-                                          {review?.pullRequestNumber && (
-                                            <Button
-                                              variant="ghost"
-                                              size="xs"
-                                              className="relative pointer-events-auto cursor-pointer"
-                                              aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
-                                              onClick={() => {
-                                                onOpenPullRequest(entry);
-                                                setOpenMobile(false);
-                                              }}
-                                            >
-                                              <span
-                                                className={
-                                                  checkTones[checkResult]
-                                                }
-                                              >
-                                                PR #{review.pullRequestNumber}
-                                              </span>
-                                            </Button>
-                                          )}
                                         </div>
-                                        {(detail || changes) && (
-                                          <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
-                                            {detail &&
-                                              clip(detail, 'min-w-0 flex-1')}
-                                            {changes && (
-                                              <span
-                                                className="ml-auto shrink-0"
-                                                role="img"
-                                                aria-label={`Local uncommitted changes: ${changes}`}
-                                              >
-                                                {summary ? (
-                                                  <>
-                                                    <span className="text-add-fg">
-                                                      +{summary.additions}
-                                                    </span>{' '}
-                                                    <span className="text-del-fg">
-                                                      −{summary.deletions}
-                                                    </span>
-                                                    {summary.binaryFiles > 0 &&
-                                                      ` · ${summary.binaryFiles} binary`}
-                                                  </>
-                                                ) : (
-                                                  compactChanges
-                                                )}
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
-                                      </ItemContent>
-                                    </Item>
-                                  </div>
-                                )}
-                              />
-                            </NavigatorRowMenu>
-                          </SidebarMenuItem>
-                        );
-                      })}
+                                      )}
+                                    </ItemContent>
+                                  </Item>
+                                </div>
+                              )}
+                            />
+                          </NavigatorRowMenu>
+                        </SidebarMenuItem>
+                      );
+                    })}
                     {source.entries.length === 0 && !loading && (
                       <p className="px-2 py-3 text-xs text-muted-foreground">
                         No matching worktrees
@@ -770,12 +743,3 @@ export function ProjectNavigator({
     </div>
   );
 }
-
-function navigatorSection(entry: {
-  review: { state: string; timing?: 'decision' | 'record' | undefined };
-}) {
-  if (entry.review.state !== 'available') return 'Worktrees';
-  return entry.review.timing === 'record' ? 'Landed' : 'Needs you';
-}
-
-const NAVIGATOR_SECTION_ORDER = { 'Needs you': 0, Landed: 1, Worktrees: 2 };

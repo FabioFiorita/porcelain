@@ -694,7 +694,7 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     .toBeVisible();
 });
 
-test('landed history opens retained code and decision choices and teaching use comments', async ({
+test('a landed record keeps decision choices, teaching and guard requests after its worktree is removed', async ({
   repo,
   render,
   agent,
@@ -769,28 +769,6 @@ test('landed history opens retained code and decision choices and teaching use c
         name: 'Ask for a guard · posted',
         exact: true,
       }),
-    )
-    .toBeVisible();
-  await app.page
-    .getByRole('link', { name: 'Project history', exact: true })
-    .click();
-  await expect
-    .element(
-      app.page.getByRole('heading', {
-        name: 'How this project is growing',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await app.page
-    .getByRole('link', {
-      name: 'Read one committed review after checkout cleanup',
-      exact: true,
-    })
-    .click();
-  await expect
-    .element(
-      app.page.getByRole('heading', { name: 'Status: Landed', exact: true }),
     )
     .toBeVisible();
 });

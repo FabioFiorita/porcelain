@@ -144,4 +144,3 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 - [Review agent feedback](reviews.agent-feedback.md)
 
-- [Project history](reviews.history.md)

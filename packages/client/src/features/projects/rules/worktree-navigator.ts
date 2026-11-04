@@ -28,7 +28,6 @@ export type NavigatorReview =
   | { state: 'none' }
   | {
       state: 'available';
-      timing?: 'decision' | 'record' | undefined;
       reviewId: string;
       closed: boolean;
       archived: boolean;
