@@ -337,10 +337,10 @@ function ReviewRevisionPage({
     review: { reviewId: revision.reviewId, revision: revision.revision },
   };
   const {
-    result: summary,
+    loading: summaryLoading,
     page: summaryPage,
     url: summaryUrl,
-    available: showSummary,
+    available: hasSummary,
   } = useReviewSummary(scope, context, review.summary);
   const [expiredLink, setExpiredLink] = useState<string>();
   const renewSummaryLink = () => {
@@ -374,9 +374,14 @@ function ReviewRevisionPage({
   );
   const origins = useReviewFileOrigins(revision.reviewId, revision.revision);
   const [chosen, setChosen] = useState<string>();
-  const [view, setView] = useState<'walkthrough' | 'summary' | 'changes'>(
-    'walkthrough',
-  );
+  const [requestedView, setView] = useState<
+    'walkthrough' | 'summary' | 'changes'
+  >('walkthrough');
+  const view =
+    requestedView === 'summary' && summaryPage !== undefined && !hasSummary
+      ? 'walkthrough'
+      : requestedView;
+  const showSummary = hasSummary;
   const standalone = documentNavigation !== undefined;
   const tabOwner = `review:${revision.reviewId}:${revision.revision}`;
   const { focused: focusedPane, setFocused: setFocusedPane } =
@@ -501,10 +506,7 @@ function ReviewRevisionPage({
         }
       }}
     >
-      <TabsList
-        aria-label="Review presentation"
-        aria-busy={AsyncResult.isInitial(summary) || summary.waiting}
-      >
+      <TabsList aria-label="Review presentation" aria-busy={summaryLoading}>
         <Tooltip>
           <TooltipTrigger
             render={

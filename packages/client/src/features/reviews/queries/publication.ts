@@ -29,11 +29,13 @@ export const readReviewSummary = Atom.family(
     scope,
     summary,
     delivery,
+    enabled = true,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
     summary: ReviewResponse['summary'];
     delivery?: SummaryDelivery;
+    enabled?: boolean;
   }) => {
     const page = summaryPages({ connection, scope, token: summary.token });
     const read = clientRuntime(connection).atom(
@@ -44,6 +46,7 @@ export const readReviewSummary = Atom.family(
     return Atom.transform(read, (get) => {
       const cached = get(page);
       if (Option.isSome(cached)) return AsyncResult.success(cached.value);
+      if (!enabled) return AsyncResult.initial<string>();
       const result = get(read);
       if (AsyncResult.isSuccess(result))
         get.set(page, Option.some(result.value));

@@ -42,6 +42,7 @@ tests:
   - apps/web/spec/integration/reviews-panel.test.tsx
   - apps/web/spec/e2e/reviews-live-refresh.e2e.ts
   - apps/web/spec/e2e/reviews-summary-link.e2e.ts
+  - apps/web/spec/e2e/reviews-workspace-return.e2e.ts
 api:
   - GET /api/reviews/:reviewId
   - GET /api/projects/:projectId/reviews
@@ -132,3 +133,6 @@ At 1440/1080/414 in both themes, open the document from the Review panel and fro
 The PR description renders details/summary as a disclosure, closed initially. Open Screenshots and verify both Markdown images and HTML img images fit the content width. A failed image shows Image unavailable with its alt text. Close and reopen the disclosure. Script, iframe, event attributes and executable links never reach the rendered document. GitHub attachment image sources use the signed URLs returned by the current authenticated PR read; no GitHub credential reaches a client. Capture the same PR description before and after changes.
 
 Review timing is the agent’s choice: decision reviews appear under Needs you, records under Landed in the existing list. Sampling is manual: no saved picks or sampled state. Rule and contract slices appear first. Questions can offer evidence-backed choices that post comments; Teach me posts an explanation request and its reply stays on that decision. Ask for a guard posts the strongest-layer and failing-past-case request, with one PR per guard waiting for approval.
+
+
+Expired summary links do not trigger an eager HTML download when entering or returning to a review. Previously read HTML, including an empty summary, stays cached. If the content is still unknown, Agent summary offers the existing fresh-link flow; when that read discovers empty HTML, the page returns to Walkthrough. The workspace-return test expires a held publication response using the isolated server clock and a fixed browser clock, without waiting for real time.

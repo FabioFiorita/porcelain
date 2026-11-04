@@ -22,19 +22,21 @@ export function useReviewSummary(
     context.connection.address,
     desktopAppAddress(),
   );
+  const expired = Date.parse(summary.expires) <= Date.now();
   const result = useAtomValue(
     readReviewSummary({
       connection: context.connection,
       scope,
       summary,
+      enabled: !expired,
       delivery: { url, transport: summaryTransport },
     }),
   );
   const page = Option.getOrUndefined(AsyncResult.value(result));
   return {
-    result,
     page,
     url,
-    available: page !== undefined && hasAgentSummary(page),
+    loading: !expired && (AsyncResult.isInitial(result) || result.waiting),
+    available: page === undefined ? expired : hasAgentSummary(page),
   };
 }
