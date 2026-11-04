@@ -58,7 +58,7 @@ import {
   paneTabActions,
 } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { useTabLayoutStore } from '../store';
+import { useReviewPanelOpen, useTabLayoutStore } from '../store';
 import {
   anchorBase,
   type RevealComment,
@@ -107,7 +107,7 @@ function ReviewWorkspaceContent({
   context,
   navigationTrigger,
 }: ReviewWorkspaceProps) {
-  const [panelOpen, setPanelOpen] = useState(false);
+  const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
   const [docked, setDocked] = useState(desktop);
@@ -181,7 +181,13 @@ function ReviewWorkspaceContent({
   const open: OpenDocument = (ref, anchor, options) => {
     const key = entryKey(ref);
     const otherPane: PaneIndex = focusedPane === 0 ? 1 : 0;
-    const pane = options?.toSide ? otherPane : layout.open(focusedPane, key);
+    const pane = options?.toSide
+      ? otherPane
+      : layout.open(
+          focusedPane,
+          key,
+          options?.preserveFocus === true && desktop,
+        );
     setReveal(
       anchor
         ? {

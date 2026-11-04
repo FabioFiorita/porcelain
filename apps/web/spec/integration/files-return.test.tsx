@@ -68,7 +68,7 @@ test('reopening Files keeps its confirmed tree visible while folder reads refres
   const app = await render.workspace();
   const rail = app.getByRole('navigation', { name: 'Side panel', exact: true });
   const files = rail.getByRole('button', { name: 'Files', exact: true });
-  await files.click();
+  await expect.element(files).toHaveAttribute('aria-pressed', 'true');
   const file = app.getByRole('treeitem', { name: 'README.md', exact: true });
   await expect.element(file).toBeVisible();
   await rail

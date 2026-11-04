@@ -196,10 +196,11 @@ export function useTabLayout({
       setFocused(index);
       goPane(index, key);
     },
-    open(index: PaneIndex, key: string) {
+    open(index: PaneIndex, key: string, preserveFocus = false) {
       const target = documentPane(panes, index, key);
       goPane(target, key);
-      focus.request({ pane: target, key });
+      if (preserveFocus) focus.cancel();
+      else focus.request({ pane: target, key });
       setFocused(target);
       return target;
     },

@@ -196,7 +196,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
           exact: true,
         }),
       )
-      .not.toBeInTheDocument();
+      .toBeVisible();
     const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
     await tab.hover();
     await expect

@@ -5,10 +5,7 @@ test.for(['clean', 'unsaved'] as const)(
   'a disk update refreshes split file tabs with a %s draft without React errors',
   async (initial, { workspace, repo, server }) => {
     await page.viewport(1440, 900);
-    await workspace
-      .getByRole('navigation', { name: 'Side panel', exact: true })
-      .getByRole('button', { name: 'Files', exact: true })
-      .click();
+    await userEvent.keyboard('{Alt>}1{/Alt}');
     const path = repo.readme.path;
     await workspace
       .getByRole('treeitem', { name: path, exact: true })
@@ -73,10 +70,7 @@ test('an open clean editor follows restored disk text and reopens on it', async 
   server,
 }) => {
   await page.viewport(1440, 900);
-  await workspace
-    .getByRole('navigation', { name: 'Side panel', exact: true })
-    .getByRole('button', { name: 'Files', exact: true })
-    .click();
+  await userEvent.keyboard('{Alt>}1{/Alt}');
   const path = repo.readme.path;
   await repo.write(path, 'Rewritten outside');
   await workspace
@@ -122,10 +116,7 @@ test('reopening an editor starts from a rewrite that landed while its draft was 
   server,
 }) => {
   await page.viewport(1440, 900);
-  await workspace
-    .getByRole('navigation', { name: 'Side panel', exact: true })
-    .getByRole('button', { name: 'Files', exact: true })
-    .click();
+  await userEvent.keyboard('{Alt>}1{/Alt}');
   const path = repo.readme.path;
   await repo.write(path, 'Saved text');
   await workspace

@@ -35,7 +35,7 @@ A durable review page (`/reviews/<reviewId>`) uses the same rail and panel with 
 
 Preconditions: [surface baseline](README.md).
 
-1. At 1280 × 800 open the worktree. Expect navigation "Side panel" with no view pressed and no complementary "Review sidebar": the panel starts hidden, as on the boards. The bar has no visible button "Review". Click "Files": the panel docks with heading "Files".
+1. At 1280 × 800 open the worktree in a fresh profile. Expect navigation "Side panel" with Files pressed and complementary "Review sidebar" showing Files: the panel starts open. The bar has no visible button "Review". Click "Files": the panel closes. Click it again: the panel returns with heading "Files".
 2. Click "Changes" and "History": the heading follows. Click the pressed button again: the panel closes, no view button is pressed and button "Show side panel" has `aria-expanded="false"`. Click it: the panel returns on the last view.
 3. Press `Alt+Shift+R`: the panel closes and focus lands on "Show side panel". Press `Alt+3`, `Alt+2`, `Alt+1`: each opens its view.
 4. In History, check region "Branch" (branch name, `n ahead · n behind`, `against <upstream>`), write a file in `REPO`, then click "Uncommitted changes 1 file": tab "All changes" opens. Click "Open graph": tab "Commit graph" opens.
@@ -45,7 +45,7 @@ Preconditions: [surface baseline](README.md).
 ## Gotchas
 
 - Clicking the pressed rail button closes the panel; select a different view, or use `Alt+1`/`Alt+2`/`Alt+3`, when a journey needs the panel open.
-- The selected view is the `surface` search parameter; it survives a reload, the panel's visibility does not: every load starts with the panel hidden.
+- The selected view is the `surface` search parameter. Panel visibility is a saved browser-profile preference, shared across worktrees and saved reviews; changing worktrees, Settings/Escape and reload retain the user's open or closed choice.
 - Widening past 1280px while the phone sheet is open docks the panel on the same view.
 
 ## Linked pull request recovery
