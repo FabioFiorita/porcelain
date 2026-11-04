@@ -11,7 +11,6 @@ import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/
 import { Route as PairedSettingsIndexRouteImport } from './routes/_paired/settings/index';
 import { Route as PairedSettingsSectionRouteImport } from './routes/_paired/settings/$section';
 import { Route as PairedReviewsReviewIdIndexRouteImport } from './routes/_paired/reviews/$reviewId/index';
-import { Route as PairedReviewsHistoryProjectIdRouteImport } from './routes/_paired/reviews/history/$projectId';
 import { Route as PairedSettingsSectionIndexRouteImport } from './routes/_paired/settings/$section/index';
 import { Route as PairedSettingsSectionEnvironmentIdRouteImport } from './routes/_paired/settings/$section/$environmentId';
 import { Route as PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport } from './routes/_paired/remotes/$environmentId/$projectId/$worktreeId';
@@ -59,12 +58,6 @@ const PairedReviewsReviewIdIndexRoute =
     path: '/reviews/$reviewId/',
     getParentRoute: () => PairedRoute,
   } as any);
-const PairedReviewsHistoryProjectIdRoute =
-  PairedReviewsHistoryProjectIdRouteImport.update({
-    id: '/reviews/history/$projectId',
-    path: '/reviews/history/$projectId',
-    getParentRoute: () => PairedRoute,
-  } as any);
 const PairedSettingsSectionIndexRoute =
   PairedSettingsSectionIndexRouteImport.update({
     id: '/',
@@ -103,7 +96,6 @@ export interface FileRoutesByFullPath {
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings/$section': typeof PairedSettingsSectionRouteWithChildren;
   '/settings/': typeof PairedSettingsIndexRoute;
-  '/reviews/history/$projectId': typeof PairedReviewsHistoryProjectIdRoute;
   '/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
   '/reviews/$reviewId/': typeof PairedReviewsReviewIdIndexRoute;
   '/settings/$section/': typeof PairedSettingsSectionIndexRoute;
@@ -117,7 +109,6 @@ export interface FileRoutesByTo {
   '/': typeof PairedIndexRoute;
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings': typeof PairedSettingsIndexRoute;
-  '/reviews/history/$projectId': typeof PairedReviewsHistoryProjectIdRoute;
   '/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
   '/reviews/$reviewId': typeof PairedReviewsReviewIdIndexRoute;
   '/settings/$section': typeof PairedSettingsSectionIndexRoute;
@@ -134,7 +125,6 @@ export interface FileRoutesById {
   '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/_paired/settings/$section': typeof PairedSettingsSectionRouteWithChildren;
   '/_paired/settings/': typeof PairedSettingsIndexRoute;
-  '/_paired/reviews/history/$projectId': typeof PairedReviewsHistoryProjectIdRoute;
   '/_paired/settings/$section/$environmentId': typeof PairedSettingsSectionEnvironmentIdRoute;
   '/_paired/reviews/$reviewId/': typeof PairedReviewsReviewIdIndexRoute;
   '/_paired/settings/$section/': typeof PairedSettingsSectionIndexRoute;
@@ -151,7 +141,6 @@ export interface FileRouteTypes {
     | '/$projectId/$worktreeId'
     | '/settings/$section'
     | '/settings/'
-    | '/reviews/history/$projectId'
     | '/settings/$section/$environmentId'
     | '/reviews/$reviewId/'
     | '/settings/$section/'
@@ -165,7 +154,6 @@ export interface FileRouteTypes {
     | '/'
     | '/$projectId/$worktreeId'
     | '/settings'
-    | '/reviews/history/$projectId'
     | '/settings/$section/$environmentId'
     | '/reviews/$reviewId'
     | '/settings/$section'
@@ -181,7 +169,6 @@ export interface FileRouteTypes {
     | '/_paired/$projectId/$worktreeId'
     | '/_paired/settings/$section'
     | '/_paired/settings/'
-    | '/_paired/reviews/history/$projectId'
     | '/_paired/settings/$section/$environmentId'
     | '/_paired/reviews/$reviewId/'
     | '/_paired/settings/$section/'
@@ -253,13 +240,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedReviewsReviewIdIndexRouteImport;
       parentRoute: typeof PairedRoute;
     };
-    '/_paired/reviews/history/$projectId': {
-      id: '/_paired/reviews/history/$projectId';
-      path: '/reviews/history/$projectId';
-      fullPath: '/reviews/history/$projectId';
-      preLoaderRoute: typeof PairedReviewsHistoryProjectIdRouteImport;
-      parentRoute: typeof PairedRoute;
-    };
     '/_paired/settings/$section/': {
       id: '/_paired/settings/$section/';
       path: '/';
@@ -320,7 +300,6 @@ interface PairedRouteChildren {
   PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
   PairedSettingsSectionRoute: typeof PairedSettingsSectionRouteWithChildren;
   PairedSettingsIndexRoute: typeof PairedSettingsIndexRoute;
-  PairedReviewsHistoryProjectIdRoute: typeof PairedReviewsHistoryProjectIdRoute;
   PairedReviewsReviewIdIndexRoute: typeof PairedReviewsReviewIdIndexRoute;
   PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute: typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
   PairedReviewsReviewIdRevisionIndexRoute: typeof PairedReviewsReviewIdRevisionIndexRoute;
@@ -333,7 +312,6 @@ const PairedRouteChildren: PairedRouteChildren = {
   PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
   PairedSettingsSectionRoute: PairedSettingsSectionRouteWithChildren,
   PairedSettingsIndexRoute: PairedSettingsIndexRoute,
-  PairedReviewsHistoryProjectIdRoute: PairedReviewsHistoryProjectIdRoute,
   PairedReviewsReviewIdIndexRoute: PairedReviewsReviewIdIndexRoute,
   PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute:
     PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute,
