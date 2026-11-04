@@ -1,3 +1,4 @@
+import { readHistoryGeometry } from '../kit/history-geometry.ts';
 import { expect, test } from './fixtures.ts';
 
 test('Open graph opens the commit graph as a tab that comes back after a reload, and clicking the merge commit in it opens its document', async ({
@@ -48,4 +49,54 @@ test('Open graph opens the commit graph as a tab that comes back after a reload,
     'aria-selected',
     'false',
   );
+});
+
+test('shared merge parents keep continuous ancestry in History and Graph', async ({
+  app,
+  repo,
+  server,
+}) => {
+  await repo.branch('topic');
+  await repo.switch('topic');
+  await repo.write('topic.md', '# Topic\n');
+  await repo.commit('Topic work');
+  await repo.switch(repo.initialBranch);
+  await repo.write('main.md', '# Main\n');
+  await repo.commit('Main continues');
+  await repo.switch('topic');
+  await repo.merge(repo.initialBranch);
+  await repo.switch(repo.initialBranch);
+  await repo.merge('topic');
+  const { commits } = await server.commits();
+  await expect
+    .poll(async () => (await server.commits()).commits.length)
+    .toBe(5);
+
+  const opened = await app.open(await app.link('this'));
+  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'History', exact: true }).click();
+  const expected = commits.map((commit) => [...commit.parentOids].sort());
+  const assertAncestry = async (name: string) => {
+    const area = opened.getByRole('region', { name, exact: true });
+    await expect(area).toBeVisible();
+    await expect
+      .poll(async () => {
+        const observed = await area.evaluate(readHistoryGeometry);
+        return {
+          dangling: observed.dangling,
+          parents: observed.parents.map((indices) =>
+            indices.map((index) => commits[index]?.oid).sort(),
+          ),
+        };
+      })
+      .toEqual({ dangling: [], parents: expected });
+  };
+  await expect(
+    opened
+      .getByRole('list', { name: 'Commits', exact: true })
+      .getByRole('listitem'),
+  ).toHaveCount(5);
+  await assertAncestry('History reading area');
+  await opened.getByRole('button', { name: 'Open graph', exact: true }).click();
+  await assertAncestry('Graph reading area');
 });
