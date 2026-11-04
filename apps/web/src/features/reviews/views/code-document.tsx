@@ -12,8 +12,7 @@ import type {
 } from '@pierre/diffs';
 import { DEFAULT_VIRTUAL_FILE_METRICS } from '@pierre/diffs';
 import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { Kbd } from '@/components/ui/kbd';
+import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   Tooltip,
   TooltipContent,
@@ -21,7 +20,6 @@ import {
 } from '@/components/ui/tooltip';
 import {
   ChevronDownIcon,
-  ChevronUpIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
@@ -929,29 +927,7 @@ function CodeSurface({
             const entry = byId.get(item.id);
             if (disableFileHeader || !entry) return null;
             const first = item.id === entries[0]?.id;
-            const index = entries.findIndex((entry) => entry.id === item.id);
             const actions = !paneFile && first ? headerActions : null;
-            const steps =
-              decision && entries.length > 1 ? (
-                <>
-                  <HeaderStep
-                    label="Previous file"
-                    keys={SHORTCUTS.previousFile}
-                    disabled={index === 0}
-                    onClick={() => focusEntry(index - 1)}
-                  >
-                    <ChevronUpIcon />
-                  </HeaderStep>
-                  <HeaderStep
-                    label="Next file"
-                    keys={SHORTCUTS.nextFile}
-                    disabled={index === entries.length - 1}
-                    onClick={() => focusEntry(index + 1)}
-                  >
-                    <ChevronDownIcon />
-                  </HeaderStep>
-                </>
-              ) : null;
             const leading = item.id === entries[0]?.id ? headerLeading : null;
             const stale = entry.review?.stale ? (
               <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-2xs text-graph-4">
@@ -995,42 +971,9 @@ function CodeSurface({
                   {stale}
                   {entry.comment && commentButton}
                   <ChangeCounts counts={entryLineCounts(entry)} />
-                  <span className="ml-1 flex h-4 items-center gap-2 border-l border-border-strong pl-2 text-muted-foreground">
-                    <FileHeaderAction
-                      label="Previous file"
-                      icon={ChevronUpIcon}
-                      shortcut={SHORTCUTS.previousFile}
-                      onClick={() =>
-                        focusEntry(
-                          Math.max(
-                            entries.findIndex(
-                              (candidate) => candidate.id === entry.id,
-                            ) - 1,
-                            0,
-                          ),
-                        )
-                      }
-                    />
-                    <FileHeaderAction
-                      label="Next file"
-                      icon={ChevronDownIcon}
-                      shortcut={SHORTCUTS.nextFile}
-                      onClick={() =>
-                        focusEntry(
-                          Math.min(
-                            entries.findIndex(
-                              (candidate) => candidate.id === entry.id,
-                            ) + 1,
-                            entries.length - 1,
-                          ),
-                        )
-                      }
-                    />
-                  </span>
                 </span>
               );
-            if (!stale && !leading && !actions && !comment && !steps)
-              return null;
+            if (!stale && !leading && !actions && !comment) return null;
             return (
               <div
                 className={cn(
@@ -1052,11 +995,6 @@ function CodeSurface({
                       {comment}
                     </ButtonGroup>
                   )
-                )}
-                {steps && (
-                  <span className="flex items-center max-narrow:hidden">
-                    {steps}
-                  </span>
                 )}
               </div>
             );
@@ -1128,42 +1066,6 @@ function CodeSurface({
 const COLUMN_GUTTERS =
   'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';
 
-function HeaderStep({
-  label,
-  keys,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  keys: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
-            variant="ghost"
-            size="icon-sm"
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent>
-        {label} <Kbd>{formatForDisplay(keys)}</Kbd>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 function CodeShortcuts({
   next,
   previous,
@@ -1186,13 +1088,11 @@ function CodeShortcuts({
 function FileHeaderAction({
   label,
   icon: Icon,
-  shortcut,
   expanded,
   onClick,
 }: {
   label: string;
-  icon: typeof ChevronUpIcon;
-  shortcut?: string;
+  icon: typeof ChevronDownIcon;
   expanded?: boolean;
   onClick: () => void;
 }) {
@@ -1204,7 +1104,6 @@ function FileHeaderAction({
             size="icon-xs"
             variant="ghost"
             aria-label={label}
-            aria-keyshortcuts={shortcut}
             aria-expanded={expanded}
             onClick={onClick}
           />
@@ -1212,10 +1111,7 @@ function FileHeaderAction({
       >
         <Icon />
       </TooltipTrigger>
-      <TooltipContent>
-        {label}
-        {shortcut && <Kbd>{formatForDisplay(shortcut)}</Kbd>}
-      </TooltipContent>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }

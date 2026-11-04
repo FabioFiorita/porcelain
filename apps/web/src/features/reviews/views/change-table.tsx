@@ -84,52 +84,39 @@ export function ChangeTable({
                 latest={latest === item.path}
                 onStart={() => setLatest(item.path)}
               />
-              <RowTarget
-                current={controls.current === item.path}
-                onOpen={() => controls.open(item.path)}
-              >
-                <TruncatedText
-                  className="min-w-0 font-mono text-caption leading-4"
-                  text={item.path}
-                >
-                  <span className="text-muted-foreground">
-                    {item.path.slice(0, slash)}
-                  </span>
-                  {item.path.slice(slash)}
-                </TruncatedText>
-                {counts && (
-                  <span className="ml-auto">
-                    <ChangeCounts counts={counts} />
-                  </span>
+              <TruncatedText
+                text={item.path}
+                renderTrigger={(_label, clip) => (
+                  <button
+                    type="button"
+                    aria-label={`${item.path}${counts ? ` +${counts.additions} −${counts.deletions}` : ''}`}
+                    aria-current={
+                      controls.current === item.path ? 'true' : undefined
+                    }
+                    onClick={() => controls.open(item.path)}
+                    className="flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="flex min-w-0 font-mono text-caption leading-4">
+                      {slash > 0 &&
+                        clip(
+                          item.path.slice(0, slash),
+                          'shrink-[100] text-muted-foreground',
+                          'start',
+                        )}
+                      {clip(item.path.slice(slash), 'shrink-0 max-w-full')}
+                    </span>
+                    {counts && (
+                      <span className="ml-auto shrink-0">
+                        <ChangeCounts counts={counts} />
+                      </span>
+                    )}
+                  </button>
                 )}
-              </RowTarget>
+              />
             </li>
           );
         })}
       </ol>
     </section>
-  );
-}
-
-function RowTarget({
-  current,
-  onOpen,
-  children,
-}: {
-  current: boolean;
-  onOpen: () => void;
-  children: ReactNode;
-}) {
-  const className =
-    'flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground';
-  return (
-    <button
-      type="button"
-      aria-current={current ? 'true' : undefined}
-      onClick={onOpen}
-      className={`${className} outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring`}
-    >
-      {children}
-    </button>
   );
 }

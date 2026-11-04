@@ -36,6 +36,33 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  filenameVisible(row: Locator, filename: string) {
+    const root = row.element();
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent ?? '';
+      if (text.endsWith(filename)) {
+        const range = document.createRange();
+        range.setStart(node, text.length - filename.length);
+        range.setEnd(node, text.length);
+        const bounds = range.getBoundingClientRect();
+        let parent = node.parentElement;
+        while (parent && root.contains(parent)) {
+          const frame = parent.getBoundingClientRect();
+          if (
+            getComputedStyle(parent).overflowX !== 'visible' &&
+            (bounds.left < frame.left || bounds.right > frame.right)
+          )
+            return false;
+          parent = parent.parentElement;
+        }
+        return bounds.width > 0;
+      }
+      node = walker.nextNode();
+    }
+    return false;
+  },
   compactCodeFrame(locator: Locator) {
     const element = codeScroller(locator);
     const style = getComputedStyle(locator.element());
