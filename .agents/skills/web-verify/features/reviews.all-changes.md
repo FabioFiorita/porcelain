@@ -29,7 +29,7 @@ The worktree Changes tab opens one scrollable document of every current changed 
 - At phone width, Review opens the "Worktree review" sheet; choose tab "Changes", then "All changes".
 - With no review published, the handoff tab "Changes" is the same document under the "No review yet" introduction.
 
-The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its −deletions +additions that unfolds and scrolls to the file's diff. Counts include zero values and untracked additions, matching the card header. Non-text rows have no line counts; their buttons scroll to and focus the file's non-text notice. A text row carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.
+The document is a centred reading column (760px, 28px gutters; 16px in a narrow pane). Above the diffs, region "n uncommitted changes" (or "n uncommitted spec changes" on Specs) has a header with that count and "r of n files reviewed", with a File review actions popover on that progress count containing Collapse all/Expand all and Mark all reviewed, then one 32px row per file: checkbox "<path> reviewed", and a button with the path (folder muted) and its +additions −deletions that unfolds and scrolls to the file's diff. Counts include zero values and untracked additions, matching the card header. Non-text rows have no line counts; their buttons scroll to and focus the file's non-text notice. A text row carries `aria-current` for the current file. The selected file stays current when other diffs finish loading. File review actions stays open while file content refreshes.
 
 ## Driving it with browser
 
@@ -71,6 +71,12 @@ Automated coverage: `reviews-all-changes.test.tsx`, "a clean worktree keeps Chan
 - The bulk count leaves out current files already reviewed. Unmark first if the fixture has marks from an earlier run.
 - Files committed in a retained review are not all current worktree changes. Use the retained walkthrough to read the complete published revision.
 
-Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle, collapse control and Previous file / Next file buttons (K/J). Use the visible Comment button (the Comment icon in a narrow pane) to comment on that file; the comparison or decision label is plain text and an untracked file reads "untracked" once. The accessible name is "Comment on <path> (<note>)" for diffs and "Comment on <path> (file)" for untracked text.
+Changes diff cards use the shared token syntax theme, 12.5px/22px code, a 40px muted header with a reviewed toggle and collapse control. J/K moves between files without header arrow buttons. Use the visible Comment button (the Comment icon in a narrow pane) to comment on that file; the comparison or decision label is plain text and an untracked file reads "untracked" once. The accessible name is "Comment on <path> (<note>)" for diffs and "Comment on <path> (file)" for untracked text.
 
 For binary-row navigation, add and commit a binary fixture, modify it, then choose its path in the table. Expect its focused Non-text content entry, full reading-column width, reviewed and Comment controls. Repeat with text and binary files together, and at 1440/1080/414 in light and dark.
+
+### Paths, counts and file navigation
+
+At 414 and desktop widths, add a changed file below a long directory. Its table row preserves the filename and shortens the directory from the start. Hover the row and focus it using Tab: both disclose the complete path through the shared tooltip. Escape dismisses it. Short paths need no disclosure. Counts read additions before deletions in the table, diff headers and sidebar.
+
+Scrolling multi-file diff headers have no Previous file or Next file buttons. Click a table row to reach a file; J/K still move between files in displayed order. Collapse and expand still work. In a published decision with multiple files, its diff headers also have no file arrows; the walkthrough Previous stop and Next stop controls still navigate decisions.

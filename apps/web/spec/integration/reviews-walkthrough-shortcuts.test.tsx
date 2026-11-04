@@ -25,6 +25,30 @@ test('N and P move between retained decisions without moving their published rev
       }),
     )
     .toBeVisible();
+  await expect
+    .element(
+      review
+        .getByRole('button', { name: 'Previous file', exact: true })
+        .first(),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      review.getByRole('button', { name: 'Next file', exact: true }).first(),
+    )
+    .not.toBeInTheDocument();
+  await review.getByRole('button', { name: 'Next stop', exact: true }).click();
+  await expect
+    .element(
+      review.getByRole('region', {
+        name: '4. Export history without blocking writes',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await review
+    .getByRole('button', { name: 'Previous stop', exact: true })
+    .click();
   await userEvent.keyboard('n');
   await expect
     .element(
