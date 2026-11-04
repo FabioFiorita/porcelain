@@ -62,7 +62,8 @@ test('a lost grouped-commit response is read once, then the remaining group comm
     .toBeVisible();
   await expect.poll(() => traffic.writes.length).toBe(1);
   await expect.poll(() => traffic.reads.length).toBe(1);
-  live.restore();
+  await live.reconnecting(3);
+  live.restore('online');
   await expect.poll(() => live.connected()).toBe(true);
   await dialog
     .getByRole('button', { name: 'Commit groups in order', exact: true })
