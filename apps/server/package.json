@@ -31,9 +31,11 @@
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
     "@porcelain/storage": "workspace:*",
+    "dependency-cruiser": "18.4.0",
     "effect": "4.0.1",
     "qrcode-terminal": "0.12.0",
     "trash": "10.1.1",
+    "typescript": "6.0.3",
     "ws": "8.21.3"
   },
   "devDependencies": {

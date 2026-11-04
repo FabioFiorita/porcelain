@@ -20,6 +20,8 @@ const repositoryRoot = resolve(kit, '../../../..');
 const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
 const CODING_TOOL_BUNDLE = 'coding-tool/claude.mjs';
 const unbundled = [
+  { name: 'dependency-cruiser', via: [] },
+  { name: 'typescript', via: ['dependency-cruiser'] },
   { name: '@parcel/watcher', via: [] },
   { name: '@stroncium/procfs', via: ['trash'] },
 ];

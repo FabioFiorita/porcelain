@@ -36,6 +36,11 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '010_review_system': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE review_revisions ADD COLUMN system TEXT`;
+    yield* sql`ALTER TABLE review_revisions ADD COLUMN samples TEXT`;
+  }),
   '008_review_agent_feedback': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE review_agent_feedback (

@@ -26,8 +26,8 @@ const handoff = {
       left: {
         what: 'Remote hosts',
         owner: {
-          kind: 'ticket',
-          name: 'Remote feedback',
+          kind: 'teammate',
+          name: 'Review partner',
           message: 'Please cover remote receipt recovery.',
         },
       },
@@ -35,7 +35,7 @@ const handoff = {
     {
       asked: 'Name all gaps',
       built: 'Explicit owners',
-      left: { what: 'Assign the remaining gap', owner: { kind: 'nobody' } },
+      left: { what: 'Revisit the remaining gap later' },
     },
   ],
 };
@@ -63,8 +63,16 @@ it.each([
       },
     ],
   },
-  { coverage: [{ asked: 'A', built: 'B', left: { what: 'C' } }] },
-])('refuses an unusable or ownerless handoff %j', (fields) => {
+  {
+    coverage: [
+      {
+        asked: 'A',
+        built: 'B',
+        left: { what: 'C', owner: { kind: 'ticket' } },
+      },
+    ],
+  },
+])('refuses an unusable handoff %j', (fields) => {
   expect(
     Result.isFailure(
       Schema.decodeUnknownResult(publishReviewRequestSchema.fields.verdict)({

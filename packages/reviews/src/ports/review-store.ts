@@ -1,3 +1,4 @@
+import type { ReviewSamples } from '../models/review-system.ts';
 import { type Effect, Context } from 'effect';
 import type {
   Review,
@@ -41,6 +42,11 @@ export interface ReviewStore {
     state: 'open' | 'closed';
   }): Effect.Effect<void>;
   archive(input: { reviewId: string }): Effect.Effect<void>;
+  saveSamples(input: {
+    reviewId: string;
+    revision: number;
+    samples: ReviewSamples;
+  }): Effect.Effect<void>;
   markSeen(input: { reviewId: string; revision: number }): Effect.Effect<void>;
 }
 export const ReviewStore = Context.Service<

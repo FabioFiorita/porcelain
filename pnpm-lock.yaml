@@ -469,6 +469,9 @@ importers:
       '@porcelain/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      dependency-cruiser:
+        specifier: 18.4.0
+        version: 18.4.0
       effect:
         specifier: 4.0.1
         version: 4.0.1
@@ -478,6 +481,9 @@ importers:
       trash:
         specifier: 10.1.1
         version: 10.1.1
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
       ws:
         specifier: 8.21.3
         version: 8.21.3

@@ -1,3 +1,8 @@
+export {
+  reviewDiagramSchema,
+  type DiagramBox,
+  type Diagram,
+} from './review-diagram.ts';
 export type {
   AgentReply,
   CommentAnchor,
@@ -15,8 +20,6 @@ export type { ReadReviewEvidenceInput } from './read-review-evidence.ts';
 export type { ReplyToCommentInput } from './reply-to-comment.ts';
 export type { ReviewEvidence } from './review-evidence.ts';
 export type {
-  Diagram,
-  DiagramBox,
   LayerDraft,
   Review,
   ReviewDraft,
@@ -28,7 +31,7 @@ export type {
 export type { WorktreeReviewedLayerMark } from './reviewed-mark.ts';
 export type { ProofFileReads } from './review-proof.ts';
 
-export { reviewLayerSchema, reviewDiagramSchema } from './review.ts';
+export { reviewLayerSchema } from './review.ts';
 export { reviewProofSchema, proofMediaTypeSchema } from './review-proof.ts';
 export {
   commentAnchorSchema,
@@ -62,6 +65,7 @@ export {
 } from './pull-request.ts';
 export * from './review-archive.ts';
 
+export { reviewSystemSchema, reviewSamplesSchema } from './review-system.ts';
 export {
   githubPullChecksSchema,
   pullChecksResultSchema,

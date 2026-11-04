@@ -5,10 +5,10 @@ import type {
   BranchReviewKey,
 } from '../models/review.ts';
 
-export function reviewRecordView({
+export function reviewRecordView<T extends ReviewRecord>({
   commonDirectory: _,
   ...record
-}: ReviewRecord) {
+}: T) {
   return record;
 }
 export function revisionMetadata(review: Review) {

@@ -21,7 +21,14 @@ const manifestSchema = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
 });
-const external = ['@parcel/watcher', 'trash', 'bufferutil', 'utf-8-validate'];
+const external = [
+  'dependency-cruiser',
+  'typescript',
+  '@parcel/watcher',
+  'trash',
+  'bufferutil',
+  'utf-8-validate',
+];
 export async function desktopCommand(command: string, args: readonly string[]) {
   await new Promise<void>((resolveCommand, rejectCommand) => {
     const child = spawn(command, args, { cwd: root, stdio: 'inherit' });

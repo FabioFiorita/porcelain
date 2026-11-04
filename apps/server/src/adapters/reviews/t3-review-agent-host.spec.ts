@@ -237,3 +237,33 @@ it('connects a project thread to a shell-created worktree only after checking re
     readFile(join(directory, 'outbox.json'), 'utf8'),
   ).rejects.toMatchObject({ code: 'ENOENT' });
 });
+
+it('distinguishes an unavailable T3 command from a waiting thread without attempting delivery', async () => {
+  await rm(join(directory, 't3'));
+  expect(await outcome()).toMatchObject({
+    reason: 'recipient-unavailable',
+    detail: 'command-missing',
+    message:
+      'The T3 command is not available to the Porcelain server. Add it to the server’s PATH.',
+  });
+  await expect(
+    readFile(join(directory, 'outbox.json'), 'utf8'),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('reports an incompatible T3 response as a protocol failure instead of calling the session unavailable', async () => {
+  await writeFile(
+    join(directory, 'response.json'),
+    JSON.stringify({
+      thread: { threadId: input.session.threadId },
+      response: receipt,
+      members: [],
+    }),
+  );
+  expect(await outcome()).toMatchObject({
+    reason: 'recipient-unavailable',
+    detail: 'protocol',
+    message:
+      'T3 returned an unsupported response. Update the T3 command to match its server.',
+  });
+});

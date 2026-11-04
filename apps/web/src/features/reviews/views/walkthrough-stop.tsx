@@ -1,3 +1,4 @@
+import { ReviewSampling } from './review-sampling';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import {
   ArrowRightIcon,
@@ -173,6 +174,7 @@ export function DecisionPage({
             {layer.title}
           </h2>
           <Summary text={layer.summary} />
+          <ReviewSampling revision={revision} layerId={layer.id} onGo={onGo} />
         </header>
         {media.length > 0 && (
           <section
@@ -197,9 +199,9 @@ export function DecisionPage({
             ))}
           </section>
         )}
-        {review.diagram && (
+        {revision.content.system && (
           <SystemMap
-            diagram={review.diagram.after}
+            system={revision.content.system}
             focus={layer.id}
             onLayer={(layerId) => onGo(decisionKey(layerId))}
           />

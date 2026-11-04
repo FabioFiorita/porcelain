@@ -445,6 +445,14 @@ export function ProjectNavigator({
                   </Tooltip>
                 </div>
                 <CollapsibleContent>
+                  <Link
+                    to="/reviews/history/$projectId"
+                    params={{ projectId: source.project.id }}
+                    search={{ environment: source.connection.environmentId }}
+                    className="block px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Project history
+                  </Link>
                   <SidebarMenu>
                     {source.entries.map((entry) => {
                       const active =

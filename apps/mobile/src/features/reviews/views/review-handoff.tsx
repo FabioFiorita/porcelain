@@ -44,14 +44,13 @@ export function ReviewHandoff({ revision }: { revision: ReviewRevision }) {
               </Text>
               {row.left ? (
                 <Text variant="caption">
-                  Owner:{' '}
-                  {row.left.owner.kind === 'nobody'
-                    ? 'Nobody owns this yet'
-                    : row.left.owner.name}
+                  {row.left.owner
+                    ? `Owner: ${row.left.owner.name}`
+                    : 'Not done yet'}
                 </Text>
               ) : null}
               {row.left &&
-              row.left.owner.kind !== 'nobody' &&
+              row.left.owner?.kind === 'teammate' &&
               row.left.owner.message ? (
                 <Text variant="secondary">
                   Draft message: {row.left.owner.message}

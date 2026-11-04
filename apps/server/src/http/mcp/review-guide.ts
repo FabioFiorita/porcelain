@@ -37,7 +37,7 @@ Every publish requires:
 \`\`\`json
 {
   "verdict": {
-    "asked": { "text": "What the developer asked for", "links": [{ "title": "Brief", "url": "https://github.com/owner/repository/issues/1" }] },
+    "asked": { "text": "What the developer asked for in chat" },
     "recommendation": "hold",
     "reasons": ["Why this should merge or wait"],
     "notProven": [{ "what": "Desktop", "why": "Mac is off" }],
@@ -62,14 +62,14 @@ The verdict can include optional \`tryIt\` and \`coverage\` fields. They appear 
     },
     "coverage": [
       { "asked": "Deliver review feedback", "built": "Send to the connected agent thread" },
-      { "asked": "Support remote agents", "built": "Local thread delivery", "left": { "what": "Remote delivery", "owner": { "kind": "ticket", "name": "Remote feedback follow-up", "message": "Please cover agents on other machines and retain delivery receipts." } } },
-      { "asked": "Keep an owner for every gap", "built": "Show unassigned work", "left": { "what": "Choose an owner", "owner": { "kind": "nobody" } } }
+      { "asked": "Support remote agents", "built": "Local thread delivery", "left": { "what": "Remote delivery later" } },
+      { "asked": "Ask a named collaborator to check the preview", "built": "Preview instructions", "left": { "what": "Preview check", "owner": { "kind": "teammate", "name": "The person named by the developer", "message": "Please check the preview." } } }
     ]
   }
 }
 \`\`\`
 
-Include the ordinary required verdict fields too. Each coverage row names what was asked and built. Omit left when complete; otherwise name what remains and its owner: ticket, teammate, or explicitly nobody. A teammate or ticket owner has a name and may have a drafted message for the developer to send. A draft never sends a message itself.
+Include the ordinary required verdict fields too. Asked may come directly from the developer’s own request in chat. A ticket system, teammates and ticket links are never required; all links are optional. Each coverage row names what was asked and built. Omit left when complete; otherwise name what remains. Owner is optional on every left row: omit it for solo work or work left for later. Never invent a teammate or ticket and never turn an unnamed owner into an alarm. Add an owner only when the developer or source names one: a ticket has kind ticket and a name; a person has kind teammate and a name, and only a named person may have a drafted message. A draft never sends a message itself.
 
 ## Removals
 
@@ -77,7 +77,7 @@ Every file deleted between the merge base and head must appear by its exact path
 
 ## Decisions and diagram
 
-Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows. Code is shown as slices per step, with three surrounding lines, so choose precise inclusive ranges that contain the decision. Use plain names a developer understands without decoding internal labels. Never use internal question or decision codes as titles or prose. Every "Needs your decision" question must explain why the ticket, the handoff and the prototype do not already settle it; read those sources before asking. Attach screenshots and videos to the layer that built the visible behavior, and to its step when useful.
+Layers have UUID ids, a title, summary, lanes and steps. A step has a UUID id, lane index, title, text, \`kind: "changed" | "context"\`, and a pointer with path and inclusive line range. A context step introduces useful unchanged code. Keep explanations concise and order steps as the behavior flows. Code is shown as slices per step, with three surrounding lines, so choose precise inclusive ranges that contain the decision. Use plain names a developer understands without decoding internal labels. Never use internal question or decision codes as titles or prose. Every "Needs your decision" question must explain why the developer’s request and any available ticket, handoff or prototype do not already settle it; read the sources that exist before asking. Attach screenshots and videos to the layer that built the visible behavior, and to its step when useful.
 
 When the change crosses more than one part of the system, add a diagram with boxes and explicit arrows in \`diagram.after\`. Porcelain draws it in the briefing and shows each decision with its neighbours. These are agent annotations, not a verified import graph:
 

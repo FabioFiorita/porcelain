@@ -1,4 +1,5 @@
 import '@xyflow/react/dist/style.css';
+import { importMap } from '../rules/import-map';
 import {
   Controls,
   Handle,
@@ -22,7 +23,6 @@ import {
   type MapBox,
 } from '../rules/system-map';
 
-type Diagram = NonNullable<ReviewRevision['content']['diagram']>['after'];
 type BoxData = { box: MapBox; lit: boolean };
 type BoxNode = Node<BoxData, 'box'>;
 
@@ -88,23 +88,6 @@ function BoxView({ data }: NodeProps<BoxNode>) {
 
 const nodeTypes = { box: BoxView };
 
-function neighbourhood(diagram: Diagram, focus: string): Diagram {
-  const own = new Set(
-    diagram.boxes.filter((box) => box.layerId === focus).map((box) => box.id),
-  );
-  const near = new Set(own);
-  for (const arrow of diagram.arrows) {
-    if (own.has(arrow.from)) near.add(arrow.to);
-    if (own.has(arrow.to)) near.add(arrow.from);
-  }
-  return {
-    boxes: diagram.boxes.filter((box) => near.has(box.id)),
-    arrows: diagram.arrows.filter(
-      (arrow) => near.has(arrow.from) && near.has(arrow.to),
-    ),
-  };
-}
-
 function FitOnResize() {
   const { fitView } = useReactFlow();
   const observe = (node: HTMLSpanElement | null) => {
@@ -133,18 +116,18 @@ const MAP_STYLE = {
 } as CSSProperties;
 
 export function SystemMap({
-  diagram,
+  system,
   focus,
   onLayer,
   className,
 }: {
-  diagram: Diagram;
+  system: NonNullable<ReviewRevision['content']['system']>;
   focus?: string | undefined;
   onLayer: (layerId: string) => void;
   className?: string;
 }) {
   const { dark } = useTheme();
-  const shown = focus === undefined ? diagram : neighbourhood(diagram, focus);
+  const shown = importMap(system, focus);
   const layout = layoutMap(shown);
   const lit = (box: MapBox) => focus === undefined || box.layerId === focus;
   const litIds = new Set(layout.boxes.filter(lit).map((box) => box.id));

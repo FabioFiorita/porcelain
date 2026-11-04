@@ -27,3 +27,4 @@ export {
   ReviewAgentHost,
   type ReviewAgentHostRequest,
 } from './review-agent-host.ts';
+export { ReviewGraphReader } from './review-graph-reader.ts';

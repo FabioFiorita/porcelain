@@ -5,7 +5,9 @@ import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 
 class T3SessionCommandError extends Schema.TaggedError<T3SessionCommandError>()(
   'T3SessionCommandError',
-  {},
+  {
+    reason: Schema.Literals(['command-missing', 'deadline', 'command-failed']),
+  },
 ) {}
 
 export const captureT3Session = Effect.fn('T3Session.capture')(function* () {
@@ -26,7 +28,8 @@ export const captureT3Session = Effect.fn('T3Session.capture')(function* () {
       Effect.provideService(FileSystem.FileSystem, fs),
       Effect.provideService(Path.Path, path),
     );
-    if (command === undefined) return yield* new T3SessionCommandError();
+    if (command === undefined)
+      return yield* new T3SessionCommandError({ reason: 'command-missing' });
     const output = yield* Effect.scoped(
       runCommand({
         command,
@@ -50,7 +53,11 @@ export const captureT3Session = Effect.fn('T3Session.capture')(function* () {
       !output.groupStopped ||
       (output.stopped !== undefined && output.stopped !== 'lingering')
     )
-      return yield* Effect.fail(new T3SessionCommandError());
+      return yield* Effect.fail(
+        new T3SessionCommandError({
+          reason: output.stopped === 'deadline' ? 'deadline' : 'command-failed',
+        }),
+      );
     return output.stdout.toString('utf8');
   });
 });

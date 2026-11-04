@@ -35,6 +35,25 @@ export class SetReviewMarkService extends Context.Service<
           const reviewedAt = DateTime.formatIso(
             DateTime.makeUnsafe(yield* clock.currentTimeMillis),
           );
+          if (input.kind === 'sample') {
+            if (
+              !review.samples?.some(
+                (pick) =>
+                  pick.layerId === input.layerId &&
+                  pick.stepId === input.stepId,
+              )
+            )
+              return yield* new ReviewedMarkConflictError();
+            yield* reviews.saveSamples({
+              ...input,
+              samples: review.samples.map((pick) =>
+                pick.layerId === input.layerId && pick.stepId === input.stepId
+                  ? { ...pick, sampled: true }
+                  : pick,
+              ),
+            });
+            return { updated: true };
+          }
           if (input.kind === 'file') {
             const file = review.files.find((file) => file.path === input.path);
             if (

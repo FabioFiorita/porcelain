@@ -1,3 +1,7 @@
+import {
+  reviewSystemSchema,
+  reviewSamplesSchema,
+} from '@porcelain/reviews/models';
 import { isoDateTimeSchema } from '../shared/schema.ts';
 import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 import { Effect, Schema, SchemaTransformation } from 'effect';
@@ -204,14 +208,19 @@ const reviewCoverageSchema = Schema.Array(
     left: Schema.optional(
       Schema.Struct({
         what: proseSchema,
-        owner: Schema.Union([
-          Schema.Struct({ kind: Schema.Literal('nobody') }),
-          Schema.Struct({
-            kind: Schema.Literals(['ticket', 'teammate']),
-            name: proseSchema,
-            message: Schema.optional(proseSchema),
-          }),
-        ]),
+        owner: Schema.optional(
+          Schema.Union([
+            Schema.Struct({
+              kind: Schema.Literal('ticket'),
+              name: proseSchema,
+            }),
+            Schema.Struct({
+              kind: Schema.Literal('teammate'),
+              name: proseSchema,
+              message: Schema.optional(proseSchema),
+            }),
+          ]),
+        ),
       }),
     ),
   }),
@@ -292,24 +301,8 @@ const publishedReviewSchema = Schema.Struct({
   diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: Schema.optional(reviewDiagramSchema),
-  system: Schema.optional(
-    Schema.Struct({
-      kind: Schema.Literal('git-files'),
-      owners: Schema.Array(
-        Schema.Struct({
-          path: Schema.String,
-          files: Schema.Array(
-            Schema.Struct({
-              path: Schema.String,
-              change: Schema.Literals(['new', 'changed', 'removed']),
-            }),
-          ),
-          annotations: Schema.Array(diagramBoxSchema),
-        }),
-      ),
-      guards: Schema.Array(Schema.String),
-    }),
-  ),
+  system: Schema.optional(reviewSystemSchema),
+  samples: Schema.optional(reviewSamplesSchema),
   layers: Schema.Array(resolvedReviewLayerSchema).check(
     Schema.isMaxLength(REVIEW_LAYERS),
   ),
@@ -369,6 +362,9 @@ export const reviewRevisionParamsSchema = Schema.Struct({
   ),
 });
 const reviewRecordSchema = Schema.Struct({
+  system: Schema.optional(reviewSystemSchema),
+  publishedAt: Schema.optional(isoDateTimeSchema),
+  title: Schema.optional(Schema.String),
   reviewId: reviewIdSchema,
   projectId: Schema.String,
   branch: Schema.String,
@@ -461,6 +457,12 @@ export const reviewMarksResponseSchema = Schema.Struct({
   decisions: Schema.Array(reviewDecisionMarkSchema),
 });
 export const setReviewMarkRequestSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('sample'),
+    revision: revisionSchema,
+    layerId: Schema.String,
+    stepId: Schema.String,
+  }),
   Schema.Struct({
     kind: Schema.Literal('file'),
     revision: revisionSchema,

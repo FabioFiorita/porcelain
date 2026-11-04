@@ -239,7 +239,9 @@ export const reviewCommands = Atom.family(
           const answer = yield* requestApi(input.connection, (api) =>
             payload.kind === 'file'
               ? api.reviews.setReviewMark({ params, payload })
-              : api.reviews.setReviewMark({ params, payload }),
+              : payload.kind === 'sample'
+                ? api.reviews.setReviewMark({ params, payload })
+                : api.reviews.setReviewMark({ params, payload }),
           );
           yield* invalidate;
           return answer;

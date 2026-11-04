@@ -1,3 +1,4 @@
+import type { ReviewSamples } from '../../src/models/review-system.ts';
 import { Effect } from 'effect';
 import type { Review, ReviewRecord } from '../../src/models/review.ts';
 import type { ProofFile } from '../../src/models/review-proof.ts';
@@ -8,6 +9,7 @@ import { openReviewForKey } from '../../src/rules/review-record.ts';
 import { InMemoryReviewedLayerStore } from './in-memory-reviewed-layer-store.ts';
 
 export class InMemoryReviewStore implements ReviewStore {
+  private readonly sampled = new Map<string, ReviewSamples>();
   private readonly records: Map<string, ReviewRecord>;
   private readonly rows: Map<string, Review[]>;
   private readonly proofFiles = new Map<string, ProofFile[]>();
@@ -44,12 +46,19 @@ export class InMemoryReviewStore implements ReviewStore {
       structuredClone(
         this.rows
           .get(input.reviewId)
-          ?.find(
+          ?.filter(
             (review) =>
               review.revision ===
               (input.revision ??
                 this.records.get(input.reviewId)?.latestRevision),
-          ),
+          )
+          .map((review) => ({
+            ...review,
+            samples:
+              this.sampled.get(`${review.reviewId}:${review.revision}`) ??
+              review.samples,
+          }))
+          .at(0),
       ),
     );
   }
@@ -96,7 +105,14 @@ export class InMemoryReviewStore implements ReviewStore {
     input: Parameters<ReviewStore['listRevisions']>[0],
   ): ReturnType<ReviewStore['listRevisions']> {
     return Effect.sync(() =>
-      structuredClone(this.rows.get(input.reviewId) ?? []),
+      structuredClone(
+        (this.rows.get(input.reviewId) ?? []).map((review) => ({
+          ...review,
+          samples:
+            this.sampled.get(`${review.reviewId}:${review.revision}`) ??
+            review.samples,
+        })),
+      ),
     );
   }
   findSummary(
@@ -194,6 +210,15 @@ export class InMemoryReviewStore implements ReviewStore {
       this.states.set(input.reviewId, input.state);
     });
   }
+  saveSamples(input: Parameters<ReviewStore['saveSamples']>[0]) {
+    return Effect.sync(() => {
+      this.sampled.set(
+        `${input.reviewId}:${input.revision}`,
+        structuredClone(input.samples),
+      );
+    });
+  }
+
   markSeen(
     input: Parameters<ReviewStore['markSeen']>[0],
   ): ReturnType<ReviewStore['markSeen']> {

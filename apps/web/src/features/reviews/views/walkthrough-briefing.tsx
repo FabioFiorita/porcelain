@@ -1,3 +1,4 @@
+import { ReviewSampling } from './review-sampling';
 import { Button } from '@/components/ui/button';
 import {
   ArrowRightIcon,
@@ -86,13 +87,20 @@ export function WalkthroughBriefing({
     ),
   );
   const asked = decisionStops.find((stop) => askedNumbers.has(stop.number));
-  const hasParts =
-    parts.added.length + parts.changed.length + parts.removed.length > 0;
+  const systemOwners = revision.content.system?.owners;
+  const counts = systemOwners
+    ? ['new', 'changed', 'removed']
+        .map(
+          (change) =>
+            `${systemOwners.filter((owner) => owner.change === change).length} ${change}`,
+        )
+        .join(' · ')
+    : undefined;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
-      <div className="mx-auto flex w-full max-w-264 flex-col gap-7 px-4 pt-5 pb-12 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
+      <div className="mx-auto flex w-full max-w-264 flex-col gap-5 px-4 pt-5 pb-12 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
         <MarginRow margin={margin}>
-          <div className="flex min-w-0 flex-col gap-7">
+          <div className="flex min-w-0 flex-col gap-5">
             <header className="flex min-w-0 flex-col gap-3.5">
               <p className="flex flex-wrap gap-x-2 text-ui leading-5.5 font-medium text-muted-foreground">
                 <span>Briefing</span>
@@ -115,6 +123,7 @@ export function WalkthroughBriefing({
                 </span>
               </h2>
               <ReviewHandoff revision={revision} />
+              <ReviewSampling revision={revision} onGo={onGo} />
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
@@ -200,29 +209,13 @@ export function WalkthroughBriefing({
         </MarginRow>
         <MarginRow margin={<BriefingRemoved revision={revision} />}>
           <section aria-labelledby="briefing-system" className="flex flex-col">
-            <SectionHeading
-              id="briefing-system"
-              aside={
-                hasParts
-                  ? [
-                      `${parts.added.length} new`,
-                      `${parts.changed.length} changed`,
-                      `${parts.removed.length} removed`,
-                    ].join(' · ')
-                  : undefined
-              }
-            >
+            <SectionHeading id="briefing-system" aside={counts}>
               What this adds to the system
             </SectionHeading>
             <ReviewSystemFacts revision={revision} />
-            {review.diagram && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Agent’s connections · annotated claims
-              </p>
-            )}
-            {review.diagram ? (
+            {revision.content.system ? (
               <SystemMap
-                diagram={review.diagram.after}
+                system={revision.content.system}
                 onLayer={(layerId) => onGo(decisionKey(layerId))}
                 className="mt-3"
               />

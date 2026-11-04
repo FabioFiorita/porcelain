@@ -44,9 +44,13 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
               Schema.decodeUnknownEffect(Schema.fromJsonString(targetSchema)),
             ),
             Effect.mapError(
-              () =>
+              (cause) =>
                 new AgentFeedbackConflictError({
                   reviewId: input.reviewId,
+                  detail:
+                    cause._tag === 'T3SessionCommandError'
+                      ? cause.reason
+                      : 'protocol',
                   reason: 'recipient-unavailable',
                 }),
             ),
@@ -108,6 +112,7 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
           }
           if (target.thread.archived || target.thread.pendingRequestCount > 0)
             return yield* new AgentFeedbackConflictError({
+              detail: target.thread.archived ? 'archived' : 'pending-input',
               reviewId: input.reviewId,
               reason: 'recipient-unavailable',
             });
@@ -123,9 +128,13 @@ export const t3ReviewAgentHostLayer = (limits: Limits['git']) =>
               Schema.decodeUnknownEffect(Schema.fromJsonString(receiptSchema)),
             ),
             Effect.mapError(
-              () =>
+              (cause) =>
                 new AgentFeedbackConflictError({
                   reviewId: input.reviewId,
+                  detail:
+                    cause._tag === 'T3SessionCommandError'
+                      ? cause.reason
+                      : 'protocol',
                   reason: 'recipient-unavailable',
                 }),
             ),

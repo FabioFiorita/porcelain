@@ -12,9 +12,17 @@ import {
 import { ReviewRow, ReviewRecordRow } from '../../db/models/reviews.ts';
 import { ProofFileRow } from '../../db/models/review-proof-files.ts';
 
-function reviewFromRow({ diagram, proof, ...review }: ReviewRow) {
+function reviewFromRow({
+  system,
+  samples,
+  diagram,
+  proof,
+  ...review
+}: ReviewRow) {
   return {
     ...review,
+    ...(system === null ? {} : { system }),
+    ...(samples === null ? {} : { samples }),
     ...(diagram === null ? {} : { diagram }),
     ...(proof === null ? {} : { proof }),
   };
@@ -162,6 +170,8 @@ export const sqliteReviewStoreLayer = Layer.effect(
           }
           const row = yield* Schema.encodeEffect(ReviewRow.insert)({
             ...review,
+            system: review.system ?? null,
+            samples: review.samples ?? null,
             diagram: review.diagram ?? null,
             proof: review.proof ?? null,
           });
@@ -199,6 +209,11 @@ export const sqliteReviewStoreLayer = Layer.effect(
       }),
       archive: Effect.fn('ReviewStore.archive')(function* (input) {
         yield* sql`UPDATE reviews SET archived = 1, state = 'closed' WHERE review_id = ${input.reviewId}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      saveSamples: Effect.fn('ReviewStore.saveSamples')(function* (input) {
+        yield* sql`UPDATE review_revisions SET samples = ${JSON.stringify(input.samples)} WHERE review_id = ${input.reviewId} AND revision = ${input.revision}`.pipe(
           Effect.orDie,
         );
       }),

@@ -1,9 +1,10 @@
+import type { ReviewDiagram } from './review-diagram.ts';
+import type { ReviewSystem, ReviewSamples } from './review-system.ts';
 import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
 import type { ResolvedProof } from './review-proof.ts';
 import type {
   ReviewVerdict,
   CodePointer,
-  ReviewDiagram,
   ReviewLayer,
   StepDraft,
 } from './review.ts';
@@ -55,20 +56,8 @@ export type ResolvedReview = {
   active: boolean;
   diagnostics: 'current';
   summary: SummaryGrant;
-  system?:
-    | {
-        kind: 'git-files';
-        owners: readonly {
-          path: string;
-          files: readonly {
-            path: string;
-            change: 'new' | 'changed' | 'removed';
-          }[];
-          annotations: ReviewDiagram['after']['boxes'];
-        }[];
-        guards: readonly string[];
-      }
-    | undefined;
+  system?: ReviewSystem | undefined;
+  samples?: ReviewSamples | undefined;
   diagram?: ReviewDiagram | undefined;
   layers: readonly ResolvedLayer[];
   notExplained: readonly UnexplainedChange[];

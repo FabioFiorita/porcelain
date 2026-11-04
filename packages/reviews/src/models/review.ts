@@ -1,3 +1,5 @@
+import type { ReviewDiagram } from './review-diagram.ts';
+import type { ReviewSystem, ReviewSamples } from './review-system.ts';
 import { Schema, Struct } from 'effect';
 const codePointerSchema = Schema.Struct({
   path: Schema.mutableKey(Schema.String),
@@ -33,45 +35,6 @@ export const reviewLayerSchema = Schema.Struct({
   steps: Schema.mutableKey(Schema.Array(reviewStepSchema)),
   fingerprint: Schema.mutableKey(Schema.String),
 });
-const diagramBoxSchema = Schema.Struct({
-  id: Schema.mutableKey(Schema.String),
-  label: Schema.mutableKey(Schema.String),
-  detail: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  change: Schema.mutableKey(
-    Schema.optional(
-      Schema.Union([
-        Schema.Literal('new'),
-        Schema.Literal('changed'),
-        Schema.Literal('removed'),
-        Schema.Undefined,
-      ]),
-    ),
-  ),
-  problem: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  layerId: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-  decision: Schema.mutableKey(Schema.optional(Schema.Literal(true))),
-});
-const diagramArrowSchema = Schema.Struct({
-  from: Schema.mutableKey(Schema.String),
-  to: Schema.mutableKey(Schema.String),
-  label: Schema.mutableKey(
-    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
-  ),
-});
-const diagramSchema = Schema.Struct({
-  boxes: Schema.mutableKey(Schema.Array(diagramBoxSchema)),
-  arrows: Schema.mutableKey(Schema.Array(diagramArrowSchema)),
-});
-export const reviewDiagramSchema = Schema.Struct({
-  after: Schema.mutableKey(diagramSchema),
-});
-
 import type { Brand } from 'effect';
 import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
 
@@ -80,12 +43,6 @@ export type CodePointer = typeof codePointerSchema.Type;
 export type StepDraft = typeof stepDraftSchema.Type;
 
 export type LayerDraft = typeof layerDraftSchema.Type;
-
-export type DiagramBox = typeof diagramBoxSchema.Type;
-
-export type Diagram = typeof diagramSchema.Type;
-
-export type ReviewDiagram = typeof reviewDiagramSchema.Type;
 
 export const reviewRecommendationSchema = Schema.Literals(['merge', 'hold']);
 export const reviewNotProvenSchema = Schema.Struct({
@@ -111,14 +68,19 @@ const reviewCoverageSchema = Schema.Array(
     left: Schema.optional(
       Schema.Struct({
         what: Schema.String,
-        owner: Schema.Union([
-          Schema.Struct({ kind: Schema.Literal('nobody') }),
-          Schema.Struct({
-            kind: Schema.Literals(['ticket', 'teammate']),
-            name: Schema.String,
-            message: Schema.optional(Schema.String),
-          }),
-        ]),
+        owner: Schema.optional(
+          Schema.Union([
+            Schema.Struct({
+              kind: Schema.Literal('ticket'),
+              name: Schema.String,
+            }),
+            Schema.Struct({
+              kind: Schema.Literal('teammate'),
+              name: Schema.String,
+              message: Schema.optional(Schema.String),
+            }),
+          ]),
+        ),
       }),
     ),
   }),
@@ -209,6 +171,8 @@ export const unexplainedChangeSchema = Schema.Struct({
   binary: Schema.optional(Schema.Boolean),
 });
 export type Review = ReviewCommit & {
+  system?: ReviewSystem | undefined;
+  samples?: ReviewSamples | undefined;
   notExplained: readonly (typeof unexplainedChangeSchema.Type)[];
   reviewId: string;
   verdict: ReviewVerdict;

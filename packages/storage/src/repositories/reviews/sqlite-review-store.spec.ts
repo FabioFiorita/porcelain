@@ -114,3 +114,56 @@ it('reports a conflicting PR identity without losing either review or its branch
     await opened.close();
   }
 });
+
+it('retains the exact import snapshot and independently sampled state for each review revision', async () => {
+  const first = reviewFixture({
+    samples: [{ layerId: 'decision', stepId: 'one', sampled: false }],
+    system: {
+      kind: 'imports',
+      owners: [],
+      edges: [],
+      guards: ['architecture/new.mjs'],
+      unresolved: 0,
+    },
+  });
+  const second = {
+    ...first,
+    revision: 2,
+    summaryToken: 'second-summary',
+    samples: [{ layerId: 'decision', stepId: 'two', sampled: false }],
+  };
+  const opened = await openStore([first.worktreeId]);
+  try {
+    await Effect.runPromise(opened.store.save(reviewSave(first)));
+    await Effect.runPromise(opened.store.save(reviewSave(second)));
+    await Effect.runPromise(
+      opened.store.saveSamples({
+        reviewId: first.reviewId,
+        revision: 1,
+        samples: [{ layerId: 'decision', stepId: 'one', sampled: true }],
+      }),
+    );
+    expect(
+      (
+        await Effect.runPromise(
+          opened.store.read({ reviewId: first.reviewId, revision: 1 }),
+        )
+      )?.samples,
+    ).toEqual([{ layerId: 'decision', stepId: 'one', sampled: true }]);
+    const latest = await Effect.runPromise(
+      opened.store.read({ reviewId: first.reviewId }),
+    );
+    expect(latest?.samples).toEqual([
+      { layerId: 'decision', stepId: 'two', sampled: false },
+    ]);
+    expect(latest?.system).toEqual({
+      kind: 'imports',
+      owners: [],
+      edges: [],
+      guards: ['architecture/new.mjs'],
+      unresolved: 0,
+    });
+  } finally {
+    await opened.close();
+  }
+});

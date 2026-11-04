@@ -693,3 +693,46 @@ test('stored changed-step excerpts remain readable when the project Git reposito
     )
     .toBeVisible();
 });
+
+test('suggested slices save their sampled mark and project history opens from Reviews', async ({
+  repo,
+  render,
+}) => {
+  const fixture = await repo.review('Read a small sample');
+  const app = await render.route(`/reviews/${fixture.reviewId}`);
+  await expect
+    .element(app.page.getByRole('region', { name: 'Suggested code samples' }))
+    .toBeVisible();
+  await app.page
+    .getByRole('button', { name: 'Continue at decision 1', exact: true })
+    .click();
+  await app.page
+    .getByRole('button', { name: 'Mark slice as sampled', exact: true })
+    .click();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))
+    .toBeVisible();
+  await app.page
+    .getByRole('link', { name: 'Project history', exact: true })
+    .click();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'How this project is growing',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await app.page
+    .getByRole('link', {
+      name: 'Read one committed review after checkout cleanup',
+      exact: true,
+    })
+    .click();
+  await app.page
+    .getByRole('button', { name: 'Continue at decision 1', exact: true })
+    .click();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))
+    .toBeVisible();
+});

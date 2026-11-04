@@ -27,3 +27,4 @@ export { readBlobAtOid } from './commands/read-blob-at-oid.ts';
 export { pinReviewRevision } from './commands/pin-review-revision.ts';
 
 export { readWorktreeSummary } from './commands/read-worktree-summary.ts';
+export { readModuleSnapshot } from './commands/read-module-snapshot.ts';

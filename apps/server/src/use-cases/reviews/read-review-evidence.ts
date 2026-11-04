@@ -1,3 +1,4 @@
+import { ReadReviewGraphService } from '@porcelain/reviews/services';
 import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
 import { ReadReviewTextsService } from '@porcelain/reviews/services';
 import {
@@ -30,6 +31,7 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
     Effect.gen(function* () {
       const branches = yield* ReadRetainedBranchDiffsService;
       const code = yield* ReadReviewTextsService;
+      const graph = yield* ReadReviewGraphService;
 
       return {
         execute: Effect.fn('ReadReviewEvidenceUseCase.execute')(function* (
@@ -87,7 +89,22 @@ export class ReadReviewEvidenceUseCase extends Context.Service<
               reason: 'size-limit' as const,
             },
           }));
-          return { headOid: revision.headOid, changes, texts, missing, diffs };
+          const base = yield* graph.execute({
+            commonDirectory: revision.commonDirectory,
+            oid: revision.mergeBaseOid,
+          });
+          const head = yield* graph.execute({
+            commonDirectory: revision.commonDirectory,
+            oid: revision.headOid,
+          });
+          return {
+            headOid: revision.headOid,
+            changes,
+            texts,
+            missing,
+            diffs,
+            ...(base && head ? { graphs: { base, head } } : {}),
+          };
         }),
       };
     }),

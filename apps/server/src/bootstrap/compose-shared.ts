@@ -1,4 +1,6 @@
 import { catalogBranchReviewReaderLayer } from '../adapters/reviews/catalog-branch-review-reader.ts';
+import { ReadReviewGraphService } from '@porcelain/reviews/services';
+import { gitReviewGraphReaderLayer } from '../adapters/reviews/git-review-graph-reader.ts';
 import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-reader.ts';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
@@ -129,6 +131,9 @@ export function composeShared(dependencies: SharedDependencies) {
     const reviewPorts = Layer.mergeAll(
       catalogBranchReviewReaderLayer,
       gitReviewCodeReaderLayer(dependencies.settings.limits),
+      ReadReviewGraphService.layer.pipe(
+        Layer.provide(gitReviewGraphReaderLayer(dependencies.settings.limits)),
+      ),
     ).pipe(Layer.provideMerge(ports));
     const native = Layer.mergeAll(
       ReadEnvironmentService.layer,

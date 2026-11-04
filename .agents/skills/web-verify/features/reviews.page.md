@@ -8,7 +8,8 @@ selectors:
   - 'Asked, built, left'
   - 'Code slices'
   - 'Ask for a guard'
-  - 'Guard files changed'
+  - 'Suggested code samples'
+  - 'Mark slice as sampled'
   - 'Recommendation'
   - 'Not proven'
   - 'Removed'
@@ -97,7 +98,7 @@ Drive at 414 × 896 and 1440 × 900, light and dark. Check long branch names, re
 
 Automated coverage: `reviews-page.test.tsx`, `reviews-summary.test.tsx`, `reviews-scrollbar.test.tsx`.
 
-With a long unchanged dependency, scroll its saved code slice to the final line. The step heading and filename stay above the bounded code viewport. Use Ask for a guard, explain the repeated mistake, and post: the review Comments must contain the exact path and range plus the request for a lint or architecture rule. Send feedback notifies the connected agent through the existing batch action. The briefing also lists Git-derived file changes by folder and changed lint/architecture files; agent diagram relationships are explicitly labelled claims. Import neighbours, randomized persistent sampling and a project timeline are not implemented in this slice. Full-height file views and changed diffs retain their own scroll behavior.
+With a long unchanged dependency, scroll its saved code slice to the final line. The step heading and filename stay above the bounded code viewport. Use Ask for a guard, explain the repeated mistake, and post: the review Comments must contain the exact path and range plus the request for a lint or architecture rule. Send feedback notifies the connected agent through the existing batch action. The briefing shows the base/head import graph grouped into package and feature owners. Edges are imports; labels are agent notes. Read a picked slice, choose Mark slice as sampled, and reload: its Sampled state and the two picks survive. Every decision map shows its owners and their direct neighbours. Project history is reachable beneath the project heading in Reviews. Full-height file views and changed diffs retain their own scroll behavior.
 
 ## Gotchas
 
