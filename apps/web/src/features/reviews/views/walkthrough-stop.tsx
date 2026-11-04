@@ -174,7 +174,12 @@ export function DecisionPage({
             {layer.title}
           </h2>
           <Summary text={layer.summary} />
-          <ReviewSampling revision={revision} layerId={layer.id} onGo={onGo} />
+          <ReviewSampling
+            revision={revision}
+            layerId={layer.id}
+            context={context}
+            onGo={onGo}
+          />
         </header>
         {media.length > 0 && (
           <section
@@ -199,9 +204,9 @@ export function DecisionPage({
             ))}
           </section>
         )}
-        {revision.content.system && (
+        {review.diagram && (
           <SystemMap
-            system={revision.content.system}
+            diagram={review.diagram.after}
             focus={layer.id}
             onLayer={(layerId) => onGo(decisionKey(layerId))}
           />

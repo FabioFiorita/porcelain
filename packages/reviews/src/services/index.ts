@@ -1,4 +1,3 @@
-export { ReadReviewGraphService } from './read-review-graph-service.ts';
 export { CreateCommentThreadService } from './create-comment-thread-service.ts';
 export { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
 export { DeleteCommentMessageService } from './delete-comment-message-service.ts';

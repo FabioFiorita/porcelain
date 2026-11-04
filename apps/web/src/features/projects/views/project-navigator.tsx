@@ -448,7 +448,12 @@ export function ProjectNavigator({
                   <Link
                     to="/reviews/history/$projectId"
                     params={{ projectId: source.project.id }}
-                    search={{ environment: source.connection.environmentId }}
+                    search={
+                      source.connection.environmentId ===
+                      connection.environmentId
+                        ? {}
+                        : { environment: source.connection.environmentId }
+                    }
                     className="block px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
                   >
                     Project history

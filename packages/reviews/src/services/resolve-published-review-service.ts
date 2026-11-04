@@ -72,7 +72,6 @@ export class ResolvePublishedReviewService extends Context.Service<
               baseOid: review.baseOid,
               mergeBaseOid: review.mergeBaseOid,
               verdict: review.verdict,
-              ...(review.system === undefined ? {} : { system: review.system }),
               ...(review.samples === undefined
                 ? {}
                 : { samples: review.samples }),

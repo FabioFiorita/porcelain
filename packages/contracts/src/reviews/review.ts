@@ -1,7 +1,4 @@
-import {
-  reviewSystemSchema,
-  reviewSamplesSchema,
-} from '@porcelain/reviews/models';
+import { reviewSamplesSchema } from '@porcelain/reviews/models';
 import { isoDateTimeSchema } from '../shared/schema.ts';
 import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 import { Effect, Schema, SchemaTransformation } from 'effect';
@@ -301,7 +298,6 @@ const publishedReviewSchema = Schema.Struct({
   diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: Schema.optional(reviewDiagramSchema),
-  system: Schema.optional(reviewSystemSchema),
   samples: Schema.optional(reviewSamplesSchema),
   layers: Schema.Array(resolvedReviewLayerSchema).check(
     Schema.isMaxLength(REVIEW_LAYERS),
@@ -362,9 +358,10 @@ export const reviewRevisionParamsSchema = Schema.Struct({
   ),
 });
 const reviewRecordSchema = Schema.Struct({
-  system: Schema.optional(reviewSystemSchema),
   publishedAt: Schema.optional(isoDateTimeSchema),
   title: Schema.optional(Schema.String),
+  diagram: Schema.optional(reviewDiagramSchema),
+  guards: Schema.optional(Schema.Array(Schema.String)),
   reviewId: reviewIdSchema,
   projectId: Schema.String,
   branch: Schema.String,

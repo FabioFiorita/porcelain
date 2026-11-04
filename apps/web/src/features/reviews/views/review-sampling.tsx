@@ -1,3 +1,6 @@
+import { useAtom } from '@effect/atom-react';
+import { reviewCommands } from '@porcelain/client/reviews';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 import type {
   ReviewRevision,
   WalkthroughKey,
@@ -6,13 +9,21 @@ import { decisionKey } from '@porcelain/client/reviews/rules';
 import { Button } from '@/components/ui/button';
 export function ReviewSampling({
   revision,
+  context,
   layerId,
   onGo,
 }: {
   revision: ReviewRevision;
+  context: ConnectionContext;
   layerId?: string;
   onGo: (key: WalkthroughKey) => void;
 }) {
+  const [result, mark] = useAtom(
+    reviewCommands({
+      connection: context.connection,
+      reviewId: revision.reviewId,
+    }).mark,
+  );
   const picks =
     revision.content.samples?.filter(
       (pick) => layerId === undefined || pick.layerId === layerId,
@@ -29,6 +40,11 @@ export function ReviewSampling({
           · risk weighted, with a random pick
         </span>
       </p>
+      {result._tag === 'Failure' && (
+        <p role="alert" className="text-xs text-warn">
+          Could not save sampled state. Open the slice to try again.
+        </p>
+      )}
       <div className="flex flex-wrap gap-1">
         {picks.map((pick) => {
           const layer = revision.content.layers.find(
@@ -40,7 +56,15 @@ export function ReviewSampling({
               key={`${pick.layerId}:${pick.stepId}`}
               size="xs"
               variant="ghost"
+              className="h-auto min-w-0 max-w-full text-left whitespace-normal wrap-anywhere"
               onClick={() => {
+                if (!pick.sampled)
+                  mark({
+                    kind: 'sample',
+                    revision: revision.revision,
+                    layerId: pick.layerId,
+                    stepId: pick.stepId,
+                  });
                 onGo(decisionKey(pick.layerId));
                 requestAnimationFrame(() =>
                   document

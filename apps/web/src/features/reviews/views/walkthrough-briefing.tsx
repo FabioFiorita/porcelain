@@ -33,7 +33,6 @@ import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
 import { MarginRow } from './margin-row';
-import { ReviewSystemFacts } from './review-system-facts';
 import { SystemMap } from './system-map';
 import { SectionHeading } from './section-heading';
 import type { WalkthroughProps } from './walkthrough-props';
@@ -87,15 +86,7 @@ export function WalkthroughBriefing({
     ),
   );
   const asked = decisionStops.find((stop) => askedNumbers.has(stop.number));
-  const systemOwners = revision.content.system?.owners;
-  const counts = systemOwners
-    ? ['new', 'changed', 'removed']
-        .map(
-          (change) =>
-            `${systemOwners.filter((owner) => owner.change === change).length} ${change}`,
-        )
-        .join(' · ')
-    : undefined;
+  const counts = `${parts.added.length} new · ${parts.changed.length} changed · ${parts.removed.length} removed`;
   return (
     <div className="shrink-0" aria-label="Briefing" role="region">
       <div className="mx-auto flex w-full max-w-264 flex-col gap-5 px-4 pt-5 pb-12 @2xl/review:px-6 @5xl/review:pr-9 @5xl/review:pl-5.5">
@@ -123,7 +114,11 @@ export function WalkthroughBriefing({
                 </span>
               </h2>
               <ReviewHandoff revision={revision} />
-              <ReviewSampling revision={revision} onGo={onGo} />
+              <ReviewSampling
+                revision={revision}
+                context={context}
+                onGo={onGo}
+              />
               <ReviewVerdict revision={revision} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {next ? (
@@ -212,16 +207,15 @@ export function WalkthroughBriefing({
             <SectionHeading id="briefing-system" aside={counts}>
               What this adds to the system
             </SectionHeading>
-            <ReviewSystemFacts revision={revision} />
-            {revision.content.system ? (
+            {review.diagram ? (
               <SystemMap
-                system={revision.content.system}
+                diagram={review.diagram.after}
                 onLayer={(layerId) => onGo(decisionKey(layerId))}
                 className="mt-3"
               />
             ) : (
               <p className="pt-3 text-sm text-muted-foreground">
-                No system owners listed.
+                No diagram published.
               </p>
             )}
           </section>

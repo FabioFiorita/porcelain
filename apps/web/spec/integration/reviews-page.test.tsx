@@ -698,16 +698,20 @@ test('suggested slices save their sampled mark and project history opens from Re
   repo,
   render,
 }) => {
+  await page.viewport(1440, 896);
   const fixture = await repo.review('Read a small sample');
   const app = await render.route(`/reviews/${fixture.reviewId}`);
   await expect
-    .element(app.page.getByRole('region', { name: 'Suggested code samples' }))
+    .element(
+      app.page.getByRole('region', {
+        name: 'Suggested code samples',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await app.page
-    .getByRole('button', { name: 'Continue at decision 1', exact: true })
-    .click();
-  await app.page
-    .getByRole('button', { name: 'Mark slice as sampled', exact: true })
+    .getByRole('region', { name: 'Suggested code samples', exact: true })
+    .getByRole('button', { name: 'Read the retained revision', exact: true })
     .click();
   await expect
     .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))
@@ -728,9 +732,6 @@ test('suggested slices save their sampled mark and project history opens from Re
       name: 'Read one committed review after checkout cleanup',
       exact: true,
     })
-    .click();
-  await app.page
-    .getByRole('button', { name: 'Continue at decision 1', exact: true })
     .click();
   await expect
     .element(app.page.getByRole('button', { name: 'Sampled', exact: true }))

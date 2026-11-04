@@ -5,8 +5,10 @@ import { SystemMap } from './system-map';
 export function ProjectHistory({
   projectId,
   context,
+  environment,
 }: {
   projectId: string;
+  environment?: string | undefined;
   context: ConnectionContext;
 }) {
   const read = useProjectHistory(projectId, context);
@@ -21,7 +23,7 @@ export function ProjectHistory({
       <header>
         <h1 className="text-xl font-semibold">How this project is growing</h1>
         <p className="text-sm text-muted-foreground">
-          Each review’s saved system change, oldest first.
+          Each review’s system drawing, oldest first.
         </p>
         <Link to="/" search={{}} className="text-sm text-brand">
           Back to Reviews
@@ -40,7 +42,7 @@ export function ProjectHistory({
             to="/reviews/$reviewId"
             params={{ reviewId: record.reviewId }}
             search={{
-              environment: context.connection.environmentId,
+              environment,
               decision: undefined,
             }}
             className="text-sm font-medium text-brand wrap-anywhere"
@@ -53,13 +55,13 @@ export function ProjectHistory({
               : 'Publication date unavailable'}{' '}
             · Revision {record.latestRevision}
           </p>
-          {record.system ? (
+          {record.diagram ? (
             <>
               <div className="flex flex-wrap gap-2 text-xs">
-                {record.system.owners
+                {record.diagram.after.boxes
                   .filter((owner) => owner.change)
                   .map((owner) => (
-                    <span key={owner.path} className="wrap-anywhere">
+                    <span key={owner.label} className="wrap-anywhere">
                       {
                         {
                           new: 'Added',
@@ -67,20 +69,20 @@ export function ProjectHistory({
                           changed: 'Changed',
                         }[owner.change ?? 'changed']
                       }{' '}
-                      · {owner.path}
+                      · {owner.label}
                     </span>
                   ))}
               </div>
-              {record.system.guards.length > 0 && (
+              {(record.guards ?? []).length > 0 && (
                 <p className="text-xs wrap-anywhere">
-                  Guards added: {record.system.guards.join(', ')}
+                  Guards added: {(record.guards ?? []).join(', ')}
                 </p>
               )}
-              <SystemMap system={record.system} onLayer={() => {}} />
+              <SystemMap diagram={record.diagram.after} onLayer={() => {}} />
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Import map unavailable for this older review.
+              No diagram was published for this review.
             </p>
           )}
         </article>

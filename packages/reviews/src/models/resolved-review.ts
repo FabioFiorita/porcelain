@@ -1,5 +1,5 @@
-import type { ReviewDiagram } from './review-diagram.ts';
-import type { ReviewSystem, ReviewSamples } from './review-system.ts';
+import type { ReviewDiagram } from './review.ts';
+import type { ReviewSamples } from './review-samples.ts';
 import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
 import type { ResolvedProof } from './review-proof.ts';
 import type {
@@ -56,7 +56,6 @@ export type ResolvedReview = {
   active: boolean;
   diagnostics: 'current';
   summary: SummaryGrant;
-  system?: ReviewSystem | undefined;
   samples?: ReviewSamples | undefined;
   diagram?: ReviewDiagram | undefined;
   layers: readonly ResolvedLayer[];

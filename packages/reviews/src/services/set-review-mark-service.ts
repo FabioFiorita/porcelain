@@ -44,14 +44,7 @@ export class SetReviewMarkService extends Context.Service<
               )
             )
               return yield* new ReviewedMarkConflictError();
-            yield* reviews.saveSamples({
-              ...input,
-              samples: review.samples.map((pick) =>
-                pick.layerId === input.layerId && pick.stepId === input.stepId
-                  ? { ...pick, sampled: true }
-                  : pick,
-              ),
-            });
+            yield* reviews.markSample(input);
             return { updated: true };
           }
           if (input.kind === 'file') {

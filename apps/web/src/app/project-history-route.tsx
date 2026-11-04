@@ -25,7 +25,11 @@ export function ProjectHistoryRoute({
           </p>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
-            <ProjectHistory projectId={projectId} context={context} />
+            <ProjectHistory
+              projectId={projectId}
+              context={context}
+              environment={remote?.connection.environmentId}
+            />
           </div>
         )
       }

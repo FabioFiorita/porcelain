@@ -95,3 +95,70 @@ export function layoutMap(diagram: Diagram): MapLayout {
     wrapped.length * MAP_BOX_HEIGHT + Math.max(0, wrapped.length - 1) * ROW_GAP;
   return { width, height, boxes: [...placed.values()] };
 }
+
+export function diagramSlice(diagram: Diagram, focus?: string): Diagram {
+  if (focus === undefined) return diagram;
+  const own = new Set(
+    diagram.boxes.filter((box) => box.layerId === focus).map((box) => box.id),
+  );
+  const near = new Set(own);
+  for (const arrow of diagram.arrows) {
+    if (own.has(arrow.from)) near.add(arrow.to);
+    if (own.has(arrow.to)) near.add(arrow.from);
+  }
+  return {
+    boxes: diagram.boxes.filter((box) => near.has(box.id)),
+    arrows: diagram.arrows.filter(
+      (arrow) => near.has(arrow.from) && near.has(arrow.to),
+    ),
+  };
+}
+export function edgeLabels(diagram: Diagram, layout: MapLayout): boolean[] {
+  const placed = new Map(layout.boxes.map((box) => [box.id, box]));
+  const occupied: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }[] = [];
+  return diagram.arrows.map((arrow, index) => {
+    const from = placed.get(arrow.from),
+      to = placed.get(arrow.to);
+    if (!arrow.label || !from || !to || arrow.label.length > 50) return false;
+    const repeated = diagram.arrows
+      .slice(0, index)
+      .some(
+        (other) =>
+          other.label === arrow.label &&
+          (other.from === arrow.from || other.to === arrow.to),
+      );
+    if (repeated) return false;
+    const x = (from.x + to.x + MAP_BOX_WIDTH) / 2,
+      y = (from.y + MAP_BOX_HEIGHT + to.y) / 2;
+    const width = arrow.label.length * 6 + 20;
+    const area = {
+      left: x - width / 2,
+      right: x + width / 2,
+      top: y - 12,
+      bottom: y + 12,
+    };
+    const nodes = layout.boxes.map((box) => ({
+      left: box.x - 8,
+      right: box.x + MAP_BOX_WIDTH + 8,
+      top: box.y - 6,
+      bottom: box.y + MAP_BOX_HEIGHT + 6,
+    }));
+    if (
+      [...occupied, ...nodes].some(
+        (other) =>
+          area.left < other.right &&
+          area.right > other.left &&
+          area.top < other.bottom &&
+          area.bottom > other.top,
+      )
+    )
+      return false;
+    occupied.push(area);
+    return true;
+  });
+}

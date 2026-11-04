@@ -1,4 +1,4 @@
-import type { Diagram } from '../models/review-diagram.ts';
+import type { Diagram } from '../models/review.ts';
 import type {
   LayerDraft,
   ReviewDraft,

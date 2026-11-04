@@ -115,16 +115,12 @@ it('reports a conflicting PR identity without losing either review or its branch
   }
 });
 
-it('retains the exact import snapshot and independently sampled state for each review revision', async () => {
+it('retains independently sampled state for each review revision', async () => {
   const first = reviewFixture({
-    samples: [{ layerId: 'decision', stepId: 'one', sampled: false }],
-    system: {
-      kind: 'imports',
-      owners: [],
-      edges: [],
-      guards: ['architecture/new.mjs'],
-      unresolved: 0,
-    },
+    samples: [
+      { layerId: 'decision', stepId: 'one', sampled: false },
+      { layerId: 'decision', stepId: 'other', sampled: false },
+    ],
   });
   const second = {
     ...first,
@@ -137,10 +133,19 @@ it('retains the exact import snapshot and independently sampled state for each r
     await Effect.runPromise(opened.store.save(reviewSave(first)));
     await Effect.runPromise(opened.store.save(reviewSave(second)));
     await Effect.runPromise(
-      opened.store.saveSamples({
+      opened.store.markSample({
         reviewId: first.reviewId,
         revision: 1,
-        samples: [{ layerId: 'decision', stepId: 'one', sampled: true }],
+        layerId: 'decision',
+        stepId: 'one',
+      }),
+    );
+    await Effect.runPromise(
+      opened.store.markSample({
+        reviewId: first.reviewId,
+        revision: 1,
+        layerId: 'decision',
+        stepId: 'other',
       }),
     );
     expect(
@@ -149,21 +154,64 @@ it('retains the exact import snapshot and independently sampled state for each r
           opened.store.read({ reviewId: first.reviewId, revision: 1 }),
         )
       )?.samples,
-    ).toEqual([{ layerId: 'decision', stepId: 'one', sampled: true }]);
+    ).toEqual([
+      { layerId: 'decision', stepId: 'one', sampled: true },
+      { layerId: 'decision', stepId: 'other', sampled: true },
+    ]);
     const latest = await Effect.runPromise(
       opened.store.read({ reviewId: first.reviewId }),
     );
     expect(latest?.samples).toEqual([
       { layerId: 'decision', stepId: 'two', sampled: false },
     ]);
-    expect(latest?.system).toEqual({
-      kind: 'imports',
-      owners: [],
-      edges: [],
-      guards: ['architecture/new.mjs'],
-      unresolved: 0,
-    });
   } finally {
+    await opened.close();
+  }
+});
+
+it('upgrades legacy unassigned coverage to a neutral ownerless gap before reading retained reviews', async () => {
+  const first = reviewFixture();
+  const opened = await openStore([first.worktreeId]);
+  const next = ManagedRuntime.make(
+    storageLayer(opened.dataDirectory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
+  try {
+    await Effect.runPromise(opened.store.save(reviewSave(first)));
+    const database = new DatabaseSync(
+      join(opened.dataDirectory, 'inventory.sqlite'),
+    );
+    database.prepare('UPDATE review_revisions SET verdict = ?').run(
+      JSON.stringify({
+        ...first.verdict,
+        coverage: [
+          {
+            asked: 'Chat request',
+            built: 'Partial change',
+            left: { what: 'Later', owner: { kind: 'nobody' } },
+          },
+        ],
+      }),
+    );
+    database.exec(
+      'ALTER TABLE review_revisions DROP COLUMN samples; DELETE FROM porcelain_migrations WHERE migration_id = 10;',
+    );
+    database.close();
+    const store = await next.runPromise(ReviewStore);
+    const review = await Effect.runPromise(
+      store.read({ reviewId: first.reviewId }),
+    );
+    expect(review?.verdict.coverage).toEqual([
+      {
+        asked: 'Chat request',
+        built: 'Partial change',
+        left: { what: 'Later' },
+      },
+    ]);
+  } finally {
+    await next.dispose();
     await opened.close();
   }
 });

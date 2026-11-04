@@ -2,7 +2,7 @@ export {
   reviewDiagramSchema,
   type DiagramBox,
   type Diagram,
-} from './review-diagram.ts';
+} from './review.ts';
 export type {
   AgentReply,
   CommentAnchor,
@@ -65,7 +65,7 @@ export {
 } from './pull-request.ts';
 export * from './review-archive.ts';
 
-export { reviewSystemSchema, reviewSamplesSchema } from './review-system.ts';
+export { reviewSamplesSchema } from './review-samples.ts';
 export {
   githubPullChecksSchema,
   pullChecksResultSchema,

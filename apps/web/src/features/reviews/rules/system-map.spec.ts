@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { layoutMap, MAP_BOX_HEIGHT, MAP_BOX_WIDTH } from './system-map';
+import {
+  layoutMap,
+  MAP_BOX_HEIGHT,
+  MAP_BOX_WIDTH,
+  diagramSlice,
+  edgeLabels,
+} from './system-map';
 
 it('places dependencies below their callers and keeps the annotation data', () => {
   const result = layoutMap({
@@ -54,4 +60,52 @@ it('gives an empty diagram zero height', () => {
     height: 0,
     boxes: [],
   });
+});
+
+it('shows the agent drawing and its direct neighbours without inventing parts', () => {
+  const diagram = {
+    boxes: [
+      { id: 'a', label: 'A', layerId: 'decision' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ],
+    arrows: [
+      { from: 'a', to: 'b', label: 'saves' },
+      { from: 'b', to: 'c', label: 'reads' },
+    ],
+  };
+  expect(diagramSlice(diagram)).toEqual(diagram);
+  expect(diagramSlice(diagram, 'decision')).toEqual({
+    boxes: diagram.boxes.slice(0, 2),
+    arrows: diagram.arrows.slice(0, 1),
+  });
+});
+it('keeps repeated neighbouring labels and labels inside nodes in hover titles only', () => {
+  const diagram = {
+    boxes: [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ],
+    arrows: [
+      { from: 'a', to: 'b', label: 'saves' },
+      { from: 'a', to: 'c', label: 'saves' },
+    ],
+  };
+  expect(edgeLabels(diagram, layoutMap(diagram))).toEqual([true, false]);
+  const sameRow = {
+    ...diagram,
+    arrows: [{ from: 'b', to: 'c', label: 'A label' }],
+  };
+  expect(
+    edgeLabels(sameRow, {
+      width: 700,
+      height: 100,
+      boxes: sameRow.boxes.map((box, index) => ({
+        ...box,
+        x: index * 228,
+        y: 0,
+      })),
+    }),
+  ).toEqual([false]);
 });

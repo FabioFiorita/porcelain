@@ -1,7 +1,10 @@
 import '@xyflow/react/dist/style.css';
-import { importMap } from '../rules/import-map';
 import {
   Controls,
+  BaseEdge,
+  EdgeText,
+  getBezierPath,
+  type EdgeProps,
   Handle,
   MarkerType,
   Position,
@@ -20,6 +23,8 @@ import {
   MAP_BOX_HEIGHT,
   MAP_BOX_WIDTH,
   layoutMap,
+  diagramSlice,
+  edgeLabels,
   type MapBox,
 } from '../rules/system-map';
 
@@ -86,6 +91,42 @@ function BoxView({ data }: NodeProps<BoxNode>) {
   );
 }
 
+type RelationshipEdge = Edge<{ label?: string | undefined }>;
+function RelationshipView({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  label,
+  data,
+}: EdgeProps<RelationshipEdge>) {
+  const [path, x, y] = getBezierPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+  return (
+    <g>
+      <title>{data?.label}</title>
+      <BaseEdge
+        id={id}
+        path={path}
+        {...(markerEnd === undefined ? {} : { markerEnd })}
+        style={style}
+      />
+      <EdgeText x={x} y={y} label={label} labelShowBg labelBgPadding={[5, 3]} />
+    </g>
+  );
+}
+const edgeTypes = { relationship: RelationshipView };
 const nodeTypes = { box: BoxView };
 
 function FitOnResize() {
@@ -116,19 +157,20 @@ const MAP_STYLE = {
 } as CSSProperties;
 
 export function SystemMap({
-  system,
+  diagram,
   focus,
   onLayer,
   className,
 }: {
-  system: NonNullable<ReviewRevision['content']['system']>;
+  diagram: NonNullable<ReviewRevision['content']['diagram']>['after'];
   focus?: string | undefined;
   onLayer: (layerId: string) => void;
   className?: string;
 }) {
   const { dark } = useTheme();
-  const shown = importMap(system, focus);
+  const shown = diagramSlice(diagram, focus);
   const layout = layoutMap(shown);
+  const labels = edgeLabels(shown, layout);
   const lit = (box: MapBox) => focus === undefined || box.layerId === focus;
   const litIds = new Set(layout.boxes.filter(lit).map((box) => box.id));
   const nodes: BoxNode[] = layout.boxes.map((box) => ({
@@ -147,7 +189,9 @@ export function SystemMap({
       id: `${arrow.from}-${arrow.to}-${index}`,
       source: arrow.from,
       target: arrow.to,
-      label: arrow.label ?? 'relates to',
+      label: labels[index] ? arrow.label : undefined,
+      data: { label: arrow.label },
+      type: 'relationship',
       selectable: false,
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       style: { opacity: bright ? 1 : 0.5 },
@@ -167,6 +211,7 @@ export function SystemMap({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         colorMode={dark ? 'dark' : 'light'}
         fitView
         fitViewOptions={{ padding: 0.08 }}

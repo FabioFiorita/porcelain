@@ -1,4 +1,3 @@
-import type { ReviewSamples } from '../../src/models/review-system.ts';
 import { Effect } from 'effect';
 import type { Review, ReviewRecord } from '../../src/models/review.ts';
 import type { ProofFile } from '../../src/models/review-proof.ts';
@@ -9,7 +8,7 @@ import { openReviewForKey } from '../../src/rules/review-record.ts';
 import { InMemoryReviewedLayerStore } from './in-memory-reviewed-layer-store.ts';
 
 export class InMemoryReviewStore implements ReviewStore {
-  private readonly sampled = new Map<string, ReviewSamples>();
+  private readonly sampled = new Set<string>();
   private readonly records: Map<string, ReviewRecord>;
   private readonly rows: Map<string, Review[]>;
   private readonly proofFiles = new Map<string, ProofFile[]>();
@@ -54,9 +53,14 @@ export class InMemoryReviewStore implements ReviewStore {
           )
           .map((review) => ({
             ...review,
-            samples:
-              this.sampled.get(`${review.reviewId}:${review.revision}`) ??
-              review.samples,
+            samples: review.samples?.map((pick) => ({
+              ...pick,
+              sampled:
+                pick.sampled ||
+                this.sampled.has(
+                  `${review.reviewId}:${review.revision}:${pick.layerId}:${pick.stepId}`,
+                ),
+            })),
           }))
           .at(0),
       ),
@@ -108,9 +112,14 @@ export class InMemoryReviewStore implements ReviewStore {
       structuredClone(
         (this.rows.get(input.reviewId) ?? []).map((review) => ({
           ...review,
-          samples:
-            this.sampled.get(`${review.reviewId}:${review.revision}`) ??
-            review.samples,
+          samples: review.samples?.map((pick) => ({
+            ...pick,
+            sampled:
+              pick.sampled ||
+              this.sampled.has(
+                `${review.reviewId}:${review.revision}:${pick.layerId}:${pick.stepId}`,
+              ),
+          })),
         })),
       ),
     );
@@ -210,15 +219,13 @@ export class InMemoryReviewStore implements ReviewStore {
       this.states.set(input.reviewId, input.state);
     });
   }
-  saveSamples(input: Parameters<ReviewStore['saveSamples']>[0]) {
+  markSample(input: Parameters<ReviewStore['markSample']>[0]) {
     return Effect.sync(() => {
-      this.sampled.set(
-        `${input.reviewId}:${input.revision}`,
-        structuredClone(input.samples),
+      this.sampled.add(
+        `${input.reviewId}:${input.revision}:${input.layerId}:${input.stepId}`,
       );
     });
   }
-
   markSeen(
     input: Parameters<ReviewStore['markSeen']>[0],
   ): ReturnType<ReviewStore['markSeen']> {

@@ -1,4 +1,3 @@
-import { gitReviewGraphReaderLayer } from '../adapters/reviews/git-review-graph-reader.ts';
 import { AgentFeedbackUseCase } from '../use-cases/reviews/agent-feedback.ts';
 import { AgentFeedbackService } from '@porcelain/reviews/services';
 import { AgentFeedbackStore } from '@porcelain/reviews/ports';
@@ -213,7 +212,6 @@ export function composeReviews(
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
     Layer.succeed(InventoryStore, stores.inventory),
     gitReviewCodeReaderLayer(context.settings.limits),
-    gitReviewGraphReaderLayer(context.settings.limits),
     originLayer,
     gitReviewCommitPinnerLayer(context.settings.limits.git),
     Layer.succeed(BranchReviewReader, shared.branchReviewReader),

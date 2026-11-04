@@ -1,4 +1,3 @@
-import type { ModuleGraph } from './review-system.ts';
 import type { FileChange } from '@porcelain/kernel/models';
 
 export type ReviewTexts = ReadonlyMap<string, string>;
@@ -37,7 +36,6 @@ export type ReviewDiagnostics = {
 };
 
 export type ReviewEvidence = {
-  graphs?: { base: ModuleGraph; head: ModuleGraph } | undefined;
   headOid?: string | undefined;
   changes: readonly FileChange[];
   texts: ReviewTexts;

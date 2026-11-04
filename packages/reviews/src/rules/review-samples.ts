@@ -1,19 +1,14 @@
 import { sha256Hex } from '@porcelain/kernel/rules';
 import type { Review } from '../models/review.ts';
-import type { ReviewSamples } from '../models/review-system.ts';
+import type { ReviewSamples } from '../models/review-samples.ts';
 
 export function reviewSamples(
-  review: Pick<Review, 'layers' | 'diagram' | 'system' | 'files'>,
+  review: Pick<Review, 'layers' | 'diagram' | 'files'>,
   entropy: string,
 ): ReviewSamples {
   const candidates = review.layers.flatMap((layer) =>
     layer.steps.map((step) => {
       const path = step.pointer.path;
-      const owner = review.system?.owners.find((owner) =>
-        owner.files.some((file) => file.path === path),
-      );
-      const importers =
-        owner?.files.find((file) => file.path === path)?.importers ?? 0;
       const question = review.diagram?.after.boxes.some(
         (box) =>
           box.layerId === layer.id &&
@@ -22,18 +17,13 @@ export function reviewSamples(
       const removal = review.files.some(
         (file) =>
           file.status === 'deleted' &&
-          (file.path === path ||
-            owner?.files.some((owned) => owned.path === file.path)),
+          file.path.startsWith(path.slice(0, path.lastIndexOf('/') + 1)),
       );
       const boundary = /(?:^|\/)(?:contracts|rules|architecture)(?:\/|\.)/.test(
         path,
       );
       const weight =
-        1 +
-        (question ? 4 : 0) +
-        (removal ? 4 : 0) +
-        (boundary ? 3 : 0) +
-        Math.min(importers, 10);
+        1 + (question ? 4 : 0) + (removal ? 4 : 0) + (boundary ? 3 : 0);
       const random =
         (parseInt(
           sha256Hex(`${entropy}:${layer.id}:${step.id}`).slice(0, 8),

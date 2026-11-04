@@ -1,4 +1,5 @@
-import type { ReviewSystem } from '../models/review-system.ts';
+import type { ReviewDiagram } from '../models/review.ts';
+import { reviewGuards } from '../rules/review-guards.ts';
 import { Context, Effect, Layer } from 'effect';
 import type { ReviewRecord } from '../models/review.ts';
 
@@ -9,7 +10,8 @@ export class ListProjectReviewsService extends Context.Service<
   {
     readonly execute: (input: { projectId: string }) => Effect.Effect<
       readonly (ReviewRecord & {
-        system?: ReviewSystem | undefined;
+        diagram?: ReviewDiagram | undefined;
+        guards?: readonly string[];
         publishedAt?: string;
         title?: string;
       })[],
@@ -33,9 +35,10 @@ export class ListProjectReviewsService extends Context.Service<
                   ...record,
                   ...(review
                     ? {
-                        ...(review.system === undefined
+                        ...(review.diagram === undefined
                           ? {}
-                          : { system: review.system }),
+                          : { diagram: review.diagram }),
+                        guards: reviewGuards(review.files),
                         publishedAt: review.publishedAt,
                         title: review.verdict.asked.text,
                       }

@@ -1,5 +1,4 @@
 import { reviewSamples } from '../rules/review-samples.ts';
-import { reviewSystem } from '../rules/review-system.ts';
 import {
   normalizedReviewPullRequest,
   reviewPullRequestNumber,
@@ -257,14 +256,6 @@ export class PublishReviewService extends Context.Service<
           const review: Review = {
             notExplained,
             ...commit,
-            ...(input.evidence.graphs
-              ? {
-                  system: reviewSystem(
-                    { ...commit, layers, diagram: draft.diagram },
-                    input.evidence.graphs,
-                  ),
-                }
-              : {}),
             reviewId,
             verdict: structuredClone(draft.verdict),
             worktreeId: input.worktreeId,
