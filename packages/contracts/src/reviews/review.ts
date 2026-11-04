@@ -386,10 +386,6 @@ export const reviewRevisionParamsSchema = Schema.Struct({
 });
 const reviewRecordSchema = Schema.Struct({
   timing: Schema.optional(Schema.Literals(['decision', 'record'])),
-  publishedAt: Schema.optional(isoDateTimeSchema),
-  title: Schema.optional(Schema.String),
-  diagram: Schema.optional(reviewDiagramSchema),
-  guards: Schema.optional(Schema.Array(Schema.String)),
   reviewId: reviewIdSchema,
   projectId: Schema.String,
   branch: Schema.String,
