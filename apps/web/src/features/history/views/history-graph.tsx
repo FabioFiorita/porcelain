@@ -54,7 +54,13 @@ export function HistoryGraph({
             : laneX(lane);
           const endX =
             waitingFor === next.commit.oid ? laneX(next.lane) : laneX(lane);
-          return [{ lane, startX, endX }];
+          const starts = [startX];
+          if (
+            startX !== laneX(lane) &&
+            rows[index - 1]?.lanesAfter[lane] === waitingFor
+          )
+            starts.push(laneX(lane));
+          return starts.map((startX) => ({ lane, startX, endX }));
         });
         const merge = row.commit.parentOids.length > 1;
 
@@ -62,7 +68,7 @@ export function HistoryGraph({
           <g key={row.commit.oid}>
             {segments.map(({ lane, startX, endX }) => (
               <path
-                key={lane}
+                key={`${lane}-${startX}`}
                 d={
                   startX === endX
                     ? `M ${startX} ${y} L ${endX} ${y + rowHeight}`
