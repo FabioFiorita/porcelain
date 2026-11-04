@@ -1,12 +1,16 @@
 import { expect, test } from './fixtures.ts';
 import { archiveFixture } from '../kit/archive-fixture.ts';
-import { reviewReturnProbe } from '../kit/review-return.ts';
+import {
+  expireNextReviewLink,
+  reviewReturnProbe,
+} from '../kit/review-return.ts';
 
 test('returning to a visited review reuses warm content and a later publication still refreshes the selected scope', async ({
   pairedPage: page,
   agent,
   server,
   app,
+  world,
 }) => {
   const initial = await server.project();
   const main = initial.worktrees.find((entry) => entry.main);
@@ -15,6 +19,9 @@ test('returning to a visited review reuses warm content and a later publication 
   await agent.publishReview('Main cache decision');
   const published = (await server.publishedReview()).review;
   if (!published?.reviewId) throw new Error('Missing main review');
+  await expireNextReviewLink(page, main.id, published.summary.expires, () =>
+    world.server.advanceTime(60_000),
+  );
   await app.reload();
   await page.setViewportSize({ width: 1440, height: 896 });
   const sidebar = page.getByRole('navigation', {

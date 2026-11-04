@@ -18,13 +18,6 @@ test('omitting summary HTML keeps the Agent summary tab hidden on a retained rev
     )
     .toBeVisible();
   await expect
-    .poll(async () =>
-      (await world.porcelainHits('this')).some(
-        (hit) => hit.route === '/review-summaries/:token' && hit.status === 200,
-      ),
-    )
-    .toBe(true);
-  await expect
     .element(tabs.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toBeVisible();
   await expect
@@ -33,6 +26,13 @@ test('omitting summary HTML keeps the Agent summary tab hidden on a retained rev
   await expect
     .element(app.page.getByRole('tab', { name: 'Agent summary', exact: true }))
     .not.toBeInTheDocument();
+  await expect
+    .poll(async () =>
+      (await world.porcelainHits('this')).filter(
+        (hit) => hit.route === '/review-summaries/:token',
+      ),
+    )
+    .toEqual([]);
 });
 
 for (const summary of [
@@ -55,14 +55,6 @@ for (const summary of [
       exact: true,
     });
     await expect.element(review).toBeVisible();
-    await expect
-      .poll(async () =>
-        (await world.porcelainHits('this')).some(
-          (hit) =>
-            hit.route === '/review-summaries/:token' && hit.status === 200,
-        ),
-      )
-      .toBe(true);
     const tabs = workspace.getByRole('tablist', {
       name: 'Review presentation',
       exact: true,
@@ -73,6 +65,13 @@ for (const summary of [
     });
     if (summary.visible) {
       await expect.element(tabs).toHaveAttribute('aria-busy', 'false');
+      await expect
+        .poll(async () =>
+          (await world.porcelainHits('this')).filter(
+            (hit) => hit.route === '/review-summaries/:token',
+          ),
+        )
+        .toEqual([]);
       await tab.click();
       await expect.element(tab).toHaveAttribute('aria-selected', 'true');
     } else {

@@ -291,3 +291,29 @@ it('reads a remote signed summary through the public app proxy without using the
     `porcelain://app/remote-review-summaries/${proofId}?computer=https%3A%2F%2Fremote.test&expires=2026-10-15T23%3A00%3A00.000Z&signature=${'s'.repeat(43)}`,
   ]);
 });
+
+it('defers disabled summary downloads while retaining HTML already read for the same publication', async () => {
+  const paths: string[] = [];
+  const subject = fixture((path) => {
+    paths.push(path);
+    return Promise.resolve(new Response('<h1>Context</h1>'));
+  });
+  owned.push(subject);
+  const summary = { ...summaryCapability, byteLength: 16 };
+  const deferred = readReviewSummary({
+    connection: subject.connection,
+    scope,
+    summary,
+    enabled: false,
+  });
+  const stop = subject.registry.mount(deferred);
+  await Effect.runPromise(Effect.yieldNow);
+  expect(AsyncResult.isInitial(subject.registry.get(deferred))).toBe(true);
+  expect(paths).toEqual([]);
+  expect(await readSummary(subject, summary)).toBe('<h1>Context</h1>');
+  expect(
+    Option.getOrThrow(AsyncResult.value(subject.registry.get(deferred))),
+  ).toBe('<h1>Context</h1>');
+  expect(paths).toHaveLength(1);
+  stop();
+});

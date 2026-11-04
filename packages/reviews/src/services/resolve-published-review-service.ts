@@ -84,6 +84,10 @@ export class ResolvePublishedReviewService extends Context.Service<
                 expires,
                 signature,
                 byteLength: utf8ByteLength(review.summaryHtml),
+                hasContent:
+                  review.summaryHtml.trim().length > 0 &&
+                  review.summaryHtml.trim() !==
+                    '<!doctype html><html><body></body></html>',
               },
               ...(review.diagram === undefined
                 ? {}

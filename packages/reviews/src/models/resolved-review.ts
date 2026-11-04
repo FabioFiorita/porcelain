@@ -35,6 +35,7 @@ type SummaryGrant = {
   expires: string;
   signature: string;
   byteLength: number;
+  hasContent: boolean;
 };
 
 export type SummaryLinkLimits = {

@@ -57,3 +57,21 @@ export async function reviewReturnProbe(page: Page, reviewId: string) {
     },
   };
 }
+
+export async function expireNextReviewLink(
+  page: Page,
+  worktreeId: string,
+  expires: string,
+  advance: () => Promise<void>,
+) {
+  await page.clock.setFixedTime(Date.parse(expires) + 60_000);
+  await page.route(
+    `**/api/worktrees/${worktreeId}/review`,
+    async (route) => {
+      const response = await route.fetch();
+      await advance();
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
+}
