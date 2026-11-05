@@ -60,7 +60,7 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
     }),
   ).toMatchObject({
     review: 'Review unavailable',
-    changes: 'Changes unavailable',
+    changes: '—',
   });
 });
 

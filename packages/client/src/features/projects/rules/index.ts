@@ -23,6 +23,7 @@ export {
   emptyNavigatorFilter,
   navigatorCardReviewLabel,
   navigatorCardChangesLabel,
+  navigatorChangesLabel,
   navigatorChecksLabel,
   navigatorEntryLabel,
   navigatorEntrySelected,

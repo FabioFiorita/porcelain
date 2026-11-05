@@ -55,6 +55,7 @@ import {
   navigatorEntrySelected,
   navigatorCardReviewLabel,
   navigatorCardChangesLabel,
+  navigatorChangesLabel,
   navigatorChecksLabel,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
@@ -631,7 +632,7 @@ export function ProjectNavigator({
                                           {changes && (
                                             <span
                                               role="img"
-                                              aria-label={`Local uncommitted changes: ${changes}`}
+                                              aria-label={`Local uncommitted changes: ${navigatorChangesLabel(entry.changes)}`}
                                             >
                                               {changes}
                                             </span>

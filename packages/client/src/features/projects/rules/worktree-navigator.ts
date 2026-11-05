@@ -121,6 +121,7 @@ export function navigatorCardReviewLabel(entry: NavigatorEntry) {
     : navigatorReviewLabel(entry.review);
 }
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
+  if (changes.state === 'unavailable') return '—';
   if (changes.state === 'available' && changes.count === 0) return '';
   return navigatorChangesLabel(changes);
 }

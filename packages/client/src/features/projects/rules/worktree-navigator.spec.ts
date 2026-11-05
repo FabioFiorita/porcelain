@@ -83,7 +83,7 @@ it('describes publication purpose and a new revision without treating reading as
 
 it.each<{ changes: NavigatorChanges; label: string }>([
   { changes: { state: 'loading' }, label: 'Reading changes…' },
-  { changes: { state: 'unavailable' }, label: 'Changes unavailable' },
+  { changes: { state: 'unavailable' }, label: '—' },
   { changes: { state: 'available', count: 0 }, label: '' },
   { changes: { state: 'available', count: 1 }, label: '1 file changed' },
   { changes: { state: 'available', count: 3 }, label: '3 files changed' },
