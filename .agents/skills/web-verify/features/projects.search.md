@@ -10,7 +10,6 @@ selectors:
   - 'Keyboard shortcuts'
 tests:
   - apps/web/spec/e2e/projects-search.e2e.ts
-  - apps/web/spec/e2e/projects-navigator.desktop.e2e.ts
   - apps/web/spec/e2e/projects-open-remote.desktop.e2e.ts
   - apps/web/spec/e2e/truncated-text.e2e.ts
   - apps/web/spec/e2e/reviews-workspace-return.e2e.ts
