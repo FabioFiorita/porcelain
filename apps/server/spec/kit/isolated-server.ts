@@ -1078,7 +1078,7 @@ export class IsolatedServer extends ServerHandle {
   static async start(
     repositoryRoot: string,
     build: string,
-    sample?: 'service-ahead' | 'git-interruption',
+    sample?: 'service-ahead' | 'git-interruption' | 'startup-bind-conflict',
     onOutput?: (text: string) => void,
     port?: number,
     allowedHosts: readonly string[] = [],

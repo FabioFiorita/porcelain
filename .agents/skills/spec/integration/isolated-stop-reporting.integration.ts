@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto';
 import { request } from 'node:http';
 import type { Socket } from 'node:net';
 import { existsSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
@@ -19,8 +19,10 @@ import { test } from '@porcelain/server/kit/server-test';
 import { record, text } from '@porcelain/server/kit/session';
 import {
   captureProcess,
+  captureGroup,
   processes,
   sameProcess,
+  type ProcessIdentity,
 } from '../../verify-core/processes.ts';
 
 const execute = promisify(execFile);
@@ -176,6 +178,74 @@ for (const failed of [false, true])
       ).toEqual([]);
     },
   );
+
+test('a failed owned startup preserves the native bind cause and stops its processes', async ({
+  onTestFinished,
+}) => {
+  const build = await mkdtemp(join(tmpdir(), 'porcelain-startup-error-'));
+  const marker = `held-${basename(build)}`;
+  let child: ProcessIdentity | undefined;
+  let starting: Promise<unknown> | undefined;
+  let released = false;
+  onTestFinished(async () => {
+    if (!released && child !== undefined && sameProcess(child))
+      process.kill(child.pid, 'SIGUSR2');
+    const outcome = await starting;
+    if (outcome instanceof IsolatedServer) await outcome.stop();
+    if (child !== undefined) {
+      expect(sameProcess(child)).toBe(false);
+      expect(processes(child.pgid)).toEqual([]);
+    }
+    expect(
+      processes().filter((entry) => entry.command.includes(build)),
+    ).toEqual([]);
+    await rm(build, { recursive: true, force: true });
+  });
+  await cp(inject('serverBuild'), build, { recursive: true });
+  const entry = join(build, 'server/src/bootstrap/dev-server-child.mjs');
+  await writeFile(
+    entry,
+    `await new Promise(resolve => {
+  const stopped = () => process.exit(0);
+  process.stdin.once('end', stopped);
+  process.once('SIGUSR2', () => {
+    process.stdin.off('end', stopped);
+    resolve();
+  });
+  process.stdin.resume();
+  process.title = ${JSON.stringify(marker)};
+});
+${await readFile(entry, 'utf8')}`,
+  );
+  starting = IsolatedServer.start(root, build, 'startup-bind-conflict').catch(
+    (error: unknown) => error,
+  );
+  await expect
+    .poll(() => processes().filter((entry) => entry.command.includes(marker)))
+    .toHaveLength(1);
+  child = processes().find((entry) => entry.command.includes(marker));
+  if (child === undefined)
+    throw new Error('The held startup child was not captured');
+  expect(captureGroup(child).map((member) => member.pid)).toContain(child.pid);
+  expect(captureGroup(child).map((member) => member.pid)).not.toContain(
+    process.pid,
+  );
+  process.kill(child.pid, 'SIGUSR2');
+  released = true;
+  const failure = await starting;
+  expect(failure).toBeInstanceOf(AggregateError);
+  const diagnostic = String(failure);
+  expect(diagnostic).toContain('ServeError');
+  expect(diagnostic).toContain("code: 'EADDRINUSE'");
+  expect(diagnostic).toContain("syscall: 'listen'");
+  expect(diagnostic).toContain("address: '127.0.0.1'");
+  const nativeAddress =
+    /listen EADDRINUSE: address already in use 127\.0\.0\.1:([1-9]\d*)/.exec(
+      diagnostic,
+    );
+  expect(nativeAddress).not.toBeNull();
+  expect(diagnostic).toContain(`port: ${nativeAddress?.[1]}`);
+});
 
 test('startup keeps its original failure and the failed cleanup outcome', async () => {
   const failure = await IsolatedServer.start(
