@@ -214,7 +214,11 @@ jobs:
   desktop-e2e:
     needs: affected
     if: ${{ needs.affected.outputs.desktop == 'true' }}
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - name: Record desktop job start
@@ -231,15 +235,20 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      - run: pnpm --filter @porcelain/desktop test:e2e
+      - name: Run portable Electron journeys on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm --filter @porcelain/desktop test:e2e --project portable
+      - name: Run portable and native Electron journeys on macOS
+        if: runner.os == 'macOS'
+        run: pnpm --filter @porcelain/desktop test:e2e
       - name: Upload desktop test results
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
-          name: desktop-e2e
+          name: desktop-e2e-${{ runner.os }}
           path: apps/desktop/test-results/
       - name: Collect desktop crash reports
-        if: failure()
+        if: failure() && runner.os == 'macOS'
         shell: bash
         run: |
           bash scripts/collect-desktop-crashes.sh \
@@ -248,7 +257,7 @@ jobs:
             "$RUNNER_TEMP/desktop-e2e-crashes"
       - name: Upload desktop crash reports
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: failure()
+        if: failure() && runner.os == 'macOS'
         with:
           name: desktop-e2e-crashes
           path: ${{ runner.temp }}/desktop-e2e-crashes/

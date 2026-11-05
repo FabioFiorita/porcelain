@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md).
 2. `worktree-review` shows the same progress as the card (or No published review) and opens [Review](reviews.review.md). Back returns here. Repeat with `worktree-files` ([Files](files.files.md)) and `worktree-history` ([History](history.history.md)).
 3. For a review linked to a PR, `worktree-pull-request` reads Pull request #n and opens the [PR document](reviews.pull-request.md); without a link the row is absent.
 4. Back returns to Worktrees with its search, filters and expansion. Tap another worktree: the screen and every destination follow the new selection.
-5. Check long names, larger text, and iPad in landscape and portrait.
+5. Check long names, larger text, and tablets in landscape and portrait.
 
 Automated coverage: `workspace-selection.spec.ts`.
 

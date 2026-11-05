@@ -26,6 +26,8 @@ Preconditions: [surface baseline](README.md).
 
 ## Gotchas
 
+- Startup arguments and second-process delivery are `portable` regressions on Linux and macOS. The emitted Mac `open-url` event is a `macos` regression; neither proves installed protocol registration.
+
 - Unpackaged development does not register as the operating system's protocol default and must not replace the installed app's registration. Injected open-url proves handler/bridge delivery, not Launch Services or a browser-to-installed-app journey.
 - Release packaging declares the URL scheme and release startup registers it. Actual browser-to-app delivery requires a newly built Mac binary; marketing deployment alone cannot update the installed app.
 - Mobile HTTPS association and browser fallback remain separate entry points.

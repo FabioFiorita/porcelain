@@ -37,7 +37,7 @@ Preconditions: [surface baseline](README.md).
 2. Publish a committed review through the fixture CLI. Deliver `/open/reviews/<reviewId>?environment=<environmentId>&host=<host>` with `protocol=http` for the local listener (or `https` for remote HTTPS), and optional `revision` and `decision`. On Android use a VIEW intent targeting the disposable development package, warm and cold. With another environment selected, expect the linked computer/review; independently read saved selection and seen revision.
 3. Unpaired, open a decision link → Pair this computer → pair that computer. The exact review/decision opens without resending the link. Cancel preserves the destination and pairing offer; native header Back exits to the Reviews inbox.
 4. Try missing review/revision/decision, offline computer and a host containing a scheme/path. Expect explanation and Back; connectivity failures offer Read again. A missing decision leaves the verdict/list usable. Open the selected worktree's Review from Worktrees and confirm it still opens.
-5. On iPad, open an exact-revision review link in landscape and in portrait. The native header exposes Back; Back returns to the Reviews inbox, including a cold link with no prior destination. Repeat the return on iPhone; Back from a decision opened inside the review returns to that review.
+5. On a tablet, open an exact-revision review link in landscape and in portrait. The native header exposes Back; Back returns to the Reviews inbox, including a cold link with no prior destination. Repeat the return on a phone; Back from a decision opened inside the review returns to that review.
 
 Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 

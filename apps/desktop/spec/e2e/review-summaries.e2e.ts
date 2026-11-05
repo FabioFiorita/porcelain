@@ -275,7 +275,7 @@ for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
   });
 }
 
-test('a remote computer summary survives document renewal, stays isolated and cannot show a website', async ({
+test('a remote computer summary survives document renewal, stays isolated and cannot show a website @macos', async ({
   desktop,
 }, testInfo) => {
   const app = await desktop.launch();

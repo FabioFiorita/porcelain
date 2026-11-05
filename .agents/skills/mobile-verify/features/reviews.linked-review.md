@@ -38,7 +38,7 @@ public `/open/reviews/[reviewId]` entry.
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying iPad in landscape and portrait with fresh bounds after rotation.
+Preconditions: [surface baseline](README.md). Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying tablets in landscape and portrait with fresh bounds after rotation.
 
 Preconditions: [deep-link setup](app.deep-links.md) for warm, cold and unpaired entry; publish a committed review.
 
@@ -59,4 +59,4 @@ Automated coverage: `app-link.spec.ts`, `selection.spec.ts`.
 
 ## Optional handoff fields
 
-When the publication includes verdict.tryIt, its preview button, labelled sign-in instructions and numbered click steps precede the verdict. Opening the preview uses the external-link adapter; an open failure stays readable with an error. Verdict.coverage renders Asked, Built and Left per row. Completed rows say Complete; remaining work names its ticket or teammate, or explicitly says Nobody owns this yet. A drafted message is displayed for the developer to send. Old reviews omit these blocks. Verify phone and iPad in both orientations with long prose.
+When the publication includes verdict.tryIt, its preview button, labelled sign-in instructions and numbered click steps precede the verdict. Opening the preview uses the external-link adapter; an open failure stays readable with an error. Verdict.coverage renders Asked, Built and Left per row. Completed rows say Complete; remaining work names its ticket or teammate, or explicitly says Nobody owns this yet. A drafted message is displayed for the developer to send. Old reviews omit these blocks. Verify phone and tablet layouts with long prose, including both tablet orientations.

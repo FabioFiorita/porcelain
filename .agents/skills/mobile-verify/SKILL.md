@@ -9,10 +9,12 @@ From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C`
 
 ## Prepare
 
-1. Choose a device. Android requires a booted emulator with `--device android --serial <serial>`. iOS allocates from the existing simulator pool (`--device ipad` for iPad) or borrows a booted `--udid`. Missing/busy devices are refused. See [Android setup](references/android.md).
+1. Choose a device for the changed behavior. Shared mobile journeys run on a local Android phone emulator; shared tablet journeys use a proper Android tablet emulator in landscape and portrait. Both use `--device android --serial <serial>` on an already booted emulator. iOS-specific behavior needs an iOS run: allocate from the existing simulator pool (`--device ipad` for iPad) or borrow a booted `--udid`. Missing/busy devices are refused. See [Android setup](references/android.md#phone-and-tablet-profiles).
 2. Run `$C doctor` with the selected device flags. Resolve its dependency, driver and native-build failures before starting. Native changes need `$C build` on macOS for iOS, or `$C build --device android` locally.
 3. Run `$C start --fixture focused` with those flags for mapped journeys. The CLI prepares the disposable server, Metro and device claim, waits for the loaded app, pairs through Use development server → enabled Pair without typing a long link, independently checks its native registration, then closes setup.
 4. Read the short card and private `connection.json`: build identity, fixture paths, app/Metro URLs, complete agent-device command, logs, evidence and stop command.
+
+When a device tool supplies a bound driver, pass its executable, private configuration and session with `--agent-device-command`, `--agent-device-config` and `--agent-device-session`, alongside that device's `--serial` or `--udid`. Use the same flags for `doctor` and `start`; preserve the resulting card's full invocation throughout the journey. The external tool owns emulator boot/shutdown; this CLI owns the disposable app run and releases its claim before the device is closed.
 
 ## Drive
 
@@ -28,6 +30,8 @@ The default `--fixture development` seeds Dispatch Desk: nested source/docs, pre
 Keep one instance per surface while iterating; Metro reloads JavaScript edits. Native changes require stop/build/start; server or launcher edits require stop/start. Run changed tests by name plus the map's named test for the changed feature.
 
 Starts clear development app data and the iOS keychain. Matching native fingerprints are required; Android also compares the installed APK digest. Physical Android devices are refused. Report the platform and connection actually proved; emulator loopback does not prove physical-device LAN permission or another platform.
+
+Android tablet proof establishes shared tablet behavior on Android. Native iPad tab sidebars, iOS sheets, keyboard behavior, Dynamic Type, permissions and native modules require iOS proof when the change affects them. An unrelated shared change does not require repeating those platform-specific journeys.
 
 An iOS Preview startup repair requires a fresh Release artifact with embedded JavaScript, built from the changed native inputs. Retain its build ID, source commit, runtime fingerprint, bundle identifier and version/build number. Cold-launch that exact artifact without Metro on the intended physical iPhone and iPad; retain launch logs and confirm the app reaches its first usable screen without a native loader failure. Development-client, simulator, export and build success do not establish physical Preview launch proof. An SDK or native configuration change invalidates older native artifacts; do not reuse their proof or overwrite shared development caches to qualify Preview.
 

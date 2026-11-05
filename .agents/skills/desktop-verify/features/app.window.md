@@ -12,7 +12,7 @@ api:
 
 # app.window
 
-The Mac app's window and the private server behind it.
+The desktop app's window and the private server behind it. Loopback trust boundaries and draining shutdown are portable; traffic lights, Dock reopening and Mac window transitions require macOS.
 
 ## How to get to it (user POV)
 
@@ -23,6 +23,8 @@ The Mac app's window and the private server behind it.
 ## Driving it with Electron
 
 Preconditions: [surface baseline](README.md).
+
+On Linux, drive step 5 and quit through the lifecycle's `stop()` or the card's stop command: captured app/server PIDs exit normally, the owner socket disappears and the retained server log records shutdown. The named `portable` regressions also hold log writes and interrupt request setup to verify draining. Steps 1–3 and Mac window restoration use the `macos` project; Linux closing its last window quits the app rather than leaving it available in the Dock.
 
 1. Inspect the sidebar: traffic lights have clearance, the header drags, and buttons remain clickable. Resize, maximize and enter/leave full screen through the traffic lights and View → Toggle Full Screen; the sidebar inset follows full screen.
 2. Choose an appearance. For restart persistence, use the named regression's reusable disposable profile: restore bounds, maximized state, appearance and project. Confirm the main worktree card in Projects and worktrees remains visible with aria-current=page after reopening or restarting. A fresh CLI start creates a new profile.

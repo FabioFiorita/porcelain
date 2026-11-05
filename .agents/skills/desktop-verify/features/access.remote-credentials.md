@@ -43,6 +43,7 @@ Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
 
 ## Gotchas
 
-- Keychain/encryption and restart proof require macOS and the same disposable profile. Never inspect the installed profile.
+- The named encrypted-store and remote-summary regressions run in the `macos` project with Keychain and the same disposable profile. Linux encrypted persistence would need a real supported encrypted backend; plaintext fallback is refused. Never inspect the installed profile.
+- The `portable` project independently covers local signed summaries, untrusted-window IPC refusal and emitted suspend/resume delivery. Those promises do not require Keychain; they do not prove remote persistence or physical OS sleep.
 - Signed summary links expire shortly after the review read; reload for a fresh link before mounting a late frame. Focus the intended link and release Enter only after the destination takes focus; iframe replacement can otherwise send activation twice. Confirm the actual decision opens, or a frame-src violation blocks website navigation with zero website requests.
 - A remote encrypted-store file may not exist before the first save.

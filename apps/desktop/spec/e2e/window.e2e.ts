@@ -159,7 +159,7 @@ test('the app serves its window from a private loopback server that refuses othe
   expect(app.errors).toEqual([]);
 });
 
-test('the sidebar leaves room for the traffic lights with its button clickable, and full screen drops the inset', async ({
+test('the sidebar leaves room for the traffic lights with its button clickable, and full screen drops the inset @macos', async ({
   desktop,
 }, testInfo) => {
   const app = await desktop.launch();
@@ -194,7 +194,7 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   expect(app.errors).toEqual([]);
 });
 
-test('Quit persists the latest maximized window before closing it, even while its atomic save is pending', async ({
+test('Quit persists the latest maximized window before closing it, even while its atomic save is pending @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -268,7 +268,7 @@ test('Quit persists the latest maximized window before closing it, even while it
   expect(app.errors).toEqual([]);
 });
 
-test('delayed events after destroying a restored maximized window do not throw, and Quit stops the server', async ({
+test('delayed events after destroying a restored maximized window do not throw, and Quit stops the server @macos', async ({
   desktop,
 }) => {
   const first = await desktop.launch();
@@ -368,7 +368,7 @@ test('delayed events after destroying a restored maximized window do not throw, 
   expect(processAlive(pid)).toBe(false);
 });
 
-test('closing the last window keeps the same server, the Dock reopens the window, and Quit stops the server, removes its socket and keeps its log', async ({
+test('closing the last window keeps the same server, the Dock reopens the window, and Quit stops the server, removes its socket and keeps its log @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -396,7 +396,7 @@ test('closing the last window keeps the same server, the Dock reopens the window
   expect(app.errors).toEqual([]);
 });
 
-test('a second instance reopens the primary window and exits without starting another server', async ({
+test('a second instance reopens the primary window and exits without starting another server @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -471,7 +471,7 @@ test('Quit during app request setup cancels forwarding without a main-process ex
   expect(processAlive(pid)).toBe(false);
 });
 
-test('Quit while reopening the window cancels its initial load without showing a failure dialog', async ({
+test('Quit while reopening the window cancels its initial load without showing a failure dialog @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -502,7 +502,7 @@ test('Quit while reopening the window cancels its initial load without showing a
   expect(processAlive(pid)).toBe(false);
 });
 
-test('restarting restores the saved window bounds, the maximized window, the dark appearance and the opened project, without pairing a browser', async ({
+test('restarting restores the saved window bounds, the maximized window, the dark appearance and the opened project, without pairing a browser @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();

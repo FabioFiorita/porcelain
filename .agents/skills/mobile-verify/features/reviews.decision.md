@@ -40,7 +40,7 @@ One walkthrough stop per screen: a published decision (or Not explained, or Spec
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md) with `--fixture development`. Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying iPad in landscape and portrait with fresh bounds after rotation.
+Preconditions: [surface baseline](README.md) with `--fixture development`. Use the [bounded document gesture](../references/driving.md#scroll-the-review-document), verifying tablets in landscape and portrait with fresh bounds after rotation.
 
 ### Reading a decision
 
@@ -58,12 +58,12 @@ Precondition: publish multiple decisions, one shared file, a fileless decision a
 2. Mark decision reviewed with files remaining writes files before the decision and advances (overview at end). Leave the screen before a delayed successful write: persistence completes but navigation stays where the reader went. Opening code/diffs writes no marks; individual file controls remain available.
 3. Refuse one immutable file-mark write: successful file marks remain, refusal displays, same stop stays and no new decision mark appears. Pending/failed marks hide completion and disable controls; Read again recovers.
 4. For a retained file without a blob identity, exercise the completion plan with unavailable metadata: name/explanation keeps stop open. Mark available files reviewed keeps readable marks without advancing/marking the decision. With none available, Review unavailable is disabled. Restore the retained blob identity: ordinary completion returns. Large file size alone does not make an existing retained Git blob identity unavailable.
-5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and iPad landscape/portrait.
+5. Commit/republish to change a published decision fingerprint; dirty edits change only worktree marks/proof freshness. Reconnect and switch worktrees/comparisons; compare literal marks/counts with an authorized web client. Check overview, summary, range and navigation labels at larger text sizes, Android light/dark, and tablet landscape/portrait.
 
 ## Gotchas
 
 - Previous/next change the screen's own `stop` parameter (`navigation.setParams`, never the global router, which can reach the other tab's stack) rather than pushing, so the stack stays overview → decision; check Back after several moves.
 - Mark decision reviewed advances only while the decision screen is focused; a write that lands after the reader opened a step, a sheet or another tab saves without moving them.
-- Phones and iPad push the same routes. On iPad the decision screen shows the review's title, its decision count and the walkthrough rows (`Decisions`) in a left column, with the current stop highlighted; choosing a row switches the stop in place like previous/next. Rotate with a decision open: the same stop stays open in both orientations.
+- Phones and tablets push the same routes. On tablets with sufficient content width the decision screen shows the review's title, its decision count and the walkthrough rows (`Decisions`) in a left column, with the current stop highlighted; choosing a row switches the stop in place like previous/next. Rotate with a decision open: the same stop stays open in both orientations.
 
 A decision can show compact alternatives and evidence-backed options. Teach me and option choices save comments scoped to that decision or question and queue the normal feedback batch; the agent reply stays on the decision. Guard requests name the strongest suitable layer, prove failure on the past mistake, and ask for one PR per guard waiting for owner approval. With no connected agent, the request remains saved in comments.
