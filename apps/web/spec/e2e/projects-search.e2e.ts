@@ -249,3 +249,41 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .poll(async () => (await server.text(repo.readme.path)).text)
     .toBe('Independent disk change\n');
 });
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`selected review labels stay painted on hover in ${colorScheme}`, async ({
+    pairedPage: page,
+    agent,
+    app,
+  }) => {
+    await agent.publishReview('Review hover visibility');
+    await page.setViewportSize({ width: 1440, height: 896 });
+    await page.emulateMedia({ colorScheme });
+    await app.reload();
+    const navigator = page.getByRole('navigation', {
+      name: 'Projects and worktrees',
+      exact: true,
+    });
+    await navigator.getByRole('tab', { name: 'Reviews', exact: true }).click();
+    const row = navigator.getByRole('link', { name: /^main,/ });
+    await row.click();
+    await expect(row).toHaveAttribute('aria-current', 'page');
+    const card = navigator.getByRole('listitem').filter({
+      has: page.getByRole('link', { name: /^main,/ }),
+    });
+    await expect(card).toContainText('Decision review');
+    await expect(card).not.toContainText('New revision');
+    await navigator.getByRole('tab', { name: 'Reviews', exact: true }).hover();
+    const title = card.getByText('main', { exact: true });
+    const before = await title.screenshot({ animations: 'disabled' });
+    await row.hover();
+    await expect
+      .poll(async () =>
+        Buffer.compare(
+          await title.screenshot({ animations: 'disabled' }),
+          before,
+        ),
+      )
+      .toBe(0);
+  });
+}

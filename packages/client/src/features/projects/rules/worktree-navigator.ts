@@ -11,6 +11,18 @@ export const emptyNavigatorFilter: NavigatorFilter = {
   reviews: undefined,
   older: false,
 };
+export function navigatorProjectVisible(
+  key: string,
+  environmentId: string,
+  filter: NavigatorFilter,
+) {
+  return (
+    filter.reviews?.length !== 0 &&
+    (filter.projects === undefined || filter.projects.includes(key)) &&
+    (filter.environments === undefined ||
+      filter.environments.includes(environmentId))
+  );
+}
 export type NavigatorFilterSection = {
   key: 'projects' | 'environments' | 'reviews';
   label: string;
@@ -39,8 +51,9 @@ export type NavigatorReview =
             state: 'available';
             result: 'passed' | 'running' | 'failed' | 'none';
           };
-      progress: { reviewed: number; total: number } | undefined;
-      progressUnavailable?: boolean;
+      timing: 'decision' | 'record';
+      latestRevision: number;
+      lastSeenRevision: number;
       retained?: boolean;
     };
 export type NavigatorChanges =
@@ -49,15 +62,6 @@ export type NavigatorChanges =
   | {
       state: 'available';
       count: number;
-      summary?:
-        | { state: 'loading' }
-        | { state: 'unavailable' }
-        | {
-            state: 'available';
-            additions: number;
-            deletions: number;
-            binaryFiles: number;
-          };
     };
 export type NavigatorEntry = {
   key: string;
@@ -97,11 +101,12 @@ export function navigatorReviewLabel(review: NavigatorReview) {
   if (review.state === 'unavailable') return 'Review unavailable';
   if (review.archived) return 'Archived review';
   if (review.closed) return 'Closed review';
-  if (review.retained) return 'Retained review';
-  if (review.progressUnavailable) return 'Review · progress unavailable';
-  return review.progress
-    ? `Review · ${review.progress.reviewed}/${review.progress.total} decisions`
-    : 'Review · reading progress…';
+  const labels: string[] = [];
+  if (review.timing === 'decision') labels.push('Decision review');
+  if (review.latestRevision > review.lastSeenRevision)
+    labels.push('New revision');
+  if (labels.length > 0) return labels.join(' · ');
+  return review.retained ? 'Saved review' : 'Review available';
 }
 export function navigatorChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'loading') return 'Reading changes…';
@@ -113,28 +118,11 @@ export function navigatorChangesLabel(changes: NavigatorChanges) {
 export function navigatorCardReviewLabel(entry: NavigatorEntry) {
   return entry.review.state === 'none'
     ? ''
-    : navigatorReviewLabel(entry.review).replace('Review · ', '');
-}
-export function navigatorDiffSummary(changes: NavigatorChanges) {
-  if (changes.state !== 'available') return undefined;
-  const summary = changes.summary;
-  return summary?.state === 'available' &&
-    (summary.additions || summary.deletions || summary.binaryFiles)
-    ? summary
-    : undefined;
+    : navigatorReviewLabel(entry.review);
 }
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
-  if (changes.state === 'loading') return 'Reading changes…';
-  if (changes.state === 'unavailable') return 'Changes unavailable';
-  const summary = navigatorDiffSummary(changes);
-  if (summary) {
-    const binary = summary.binaryFiles
-      ? ` · ${summary.binaryFiles} binary`
-      : '';
-    return `+${summary.additions} −${summary.deletions}${binary}`;
-  }
-  if (changes.count === 0) return '';
-  return `${changes.count} ${changes.count === 1 ? 'file' : 'files'}`;
+  if (changes.state === 'available' && changes.count === 0) return '';
+  return navigatorChangesLabel(changes);
 }
 export function navigatorChecksLabel(
   checks: Extract<NavigatorReview, { state: 'available' }>['checks'],

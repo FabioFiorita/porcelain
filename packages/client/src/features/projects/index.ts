@@ -30,6 +30,7 @@ export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';
 
 export {
   readReviewInbox,
+  readReviewNavigator,
   readWorktreeNavigator,
 } from './queries/worktree-navigator.ts';
 export { readWorktreeBranchSwitch } from './queries/worktree-actions.ts';

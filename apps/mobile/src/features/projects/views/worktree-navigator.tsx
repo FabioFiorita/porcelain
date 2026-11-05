@@ -30,9 +30,7 @@ import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
-import { hitHeight } from '../../../components/ui/hit-target';
 import { Item } from '../../../components/ui/item';
-import { Badge } from '../../../components/ui/badge';
 import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
@@ -46,19 +44,17 @@ import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
 
-const pullCheckTones = {
-  passed: 'add',
-  running: 'muted',
-  failed: 'del',
-  none: 'muted',
-} as const;
-
 const environmentGlyphs: Record<EnvironmentIcon, IconName> = {
   desktop: 'environments',
   laptop: 'laptop',
   server: 'server',
   cloud: 'cloud',
 };
+
+function worktreeIcon(entry: NavigatorEntry): IconName {
+  if (entry.kind === 'review') return 'review';
+  return entry.main ? 'home' : 'branch';
+}
 
 export function WorktreeNavigator({
   onOpenWorktree,
@@ -148,6 +144,7 @@ export function WorktreeNavigator({
       >
         <Box className="flex-row items-center" gap={2}>
           <NavigatorFilter
+            view="worktrees"
             sections={filters.filter((section) => section.key === 'reviews')}
             filter={filter}
             onChange={setFilter}
@@ -183,26 +180,38 @@ export function WorktreeNavigator({
           return (
             <Box key={project.key} gap={2}>
               <Box className="flex-row items-center" gap={1}>
-                <Text
-                  variant="secondary"
-                  weight="medium"
-                  numberOfLines={1}
-                  className="min-w-0 flex-1"
-                  accessibilityLabel={`${project.project.name}, ${project.environmentName}`}
-                >
-                  {project.project.name}
-                </Text>
-                {connections.length > 1 && (
-                  <Box className="min-w-0 max-w-20 shrink">
-                    <Badge
-                      label={project.environmentName}
-                      labelNumberOfLines={1}
-                      icon={environmentGlyphs[project.environmentIcon]}
-                      variant="secondary"
+                <Box className="min-w-0 flex-1" gap={0.5}>
+                  <Text
+                    variant="secondary"
+                    weight="semibold"
+                    numberOfLines={1}
+                    accessibilityLabel={`${project.project.name}, ${project.environmentName}`}
+                  >
+                    {project.project.name}
+                  </Text>
+                  {connections.length > 1 && (
+                    <Box
+                      className="min-w-0 flex-row items-center"
+                      gap={1}
+                      accessible
                       accessibilityLabel={`Computer: ${project.environmentName}`}
-                    />
-                  </Box>
-                )}
+                    >
+                      <Icon
+                        name={environmentGlyphs[project.environmentIcon]}
+                        tone="muted"
+                        size="caption"
+                      />
+                      <Text
+                        variant="caption"
+                        tone="muted"
+                        numberOfLines={1}
+                        className="min-w-0 flex-1"
+                      >
+                        {project.environmentName}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
                 <ProjectActions
                   connection={project.connection}
                   project={project.project}
@@ -227,37 +236,37 @@ export function WorktreeNavigator({
                         : undefined;
                     const number = review?.pullRequestNumber;
                     const checks = review?.checks;
-                    const checkResult =
-                      checks?.state === 'available' ? checks.result : 'none';
+                    const failed =
+                      checks?.state === 'available' &&
+                      checks.result === 'failed';
+                    const pending =
+                      entry.review.state === 'loading' ||
+                      (entry.kind === 'worktree' &&
+                        entry.changes.state === 'loading');
                     return (
                       <Box key={entry.key} gap={1}>
                         <Item
                           title={row.title}
                           {...(entry.detached ? { detail: 'Detached' } : {})}
                           titleNumberOfLines={1}
-                          titleTrailing={
-                            number !== undefined ? (
-                              <Box className={hitHeight} accessible={false} />
-                            ) : undefined
-                          }
                           size="compact"
                           leading={
-                            <Icon
-                              name={
-                                entry.kind === 'review' ? 'review' : 'folder'
-                              }
-                              tone="muted"
-                            />
+                            <Icon name={worktreeIcon(entry)} tone="muted" />
                           }
                           trailing={
-                            entry.review.state === 'loading' ||
-                            (entry.kind === 'worktree' &&
-                              entry.changes.state === 'loading') ? (
-                              <ActivityIndicator
-                                accessible={false}
-                                size="small"
-                                colorClassName="accent-muted-foreground"
-                              />
+                            failed || pending ? (
+                              <Box className="flex-row items-center" gap={2}>
+                                {failed ? (
+                                  <Icon name="warning" tone="destructive" />
+                                ) : null}
+                                {pending ? (
+                                  <ActivityIndicator
+                                    accessible={false}
+                                    size="small"
+                                    colorClassName="accent-muted-foreground"
+                                  />
+                                ) : null}
+                              </Box>
                             ) : undefined
                           }
                           action={
@@ -265,7 +274,7 @@ export function WorktreeNavigator({
                               <ButtonSurface
                                 variant="plain"
                                 size="sm"
-                                className="self-start"
+                                className="self-end"
                                 disabled={picker.disabled}
                                 accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}, ${navigatorChecksLabel(checks)}`}
                                 onPress={() =>
@@ -280,24 +289,28 @@ export function WorktreeNavigator({
                                 <Text
                                   accessible={false}
                                   variant="caption"
-                                  tone={pullCheckTones[checkResult]}
+                                  tone="muted"
                                 >
-                                  PR #{number}
-                                  {checkResult === 'running'
-                                    ? ' · Running'
-                                    : ''}
+                                  #{number}
                                 </Text>
                               </ButtonSurface>
                             ) : undefined
                           }
                           selected={selected}
+                          selectionTone="neutral"
                           disabled={
                             picker.disabled ||
                             (entry.kind === 'worktree' &&
                               !entry.available &&
                               !review)
                           }
-                          accessibilityLabel={`${navigatorEntryLabel(entry)}${row.diff ? `, Local uncommitted changes: ${row.changes}` : ''}${selected ? ', current' : ''}`}
+                          accessibilityLabel={[
+                            navigatorEntryLabel(entry),
+                            review ? navigatorChecksLabel(checks) : undefined,
+                            selected ? 'current' : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')}
                           onPress={() => open(entry)}
                           {...(entry.kind === 'worktree' &&
                           entry.worktreeId &&
@@ -309,7 +322,7 @@ export function WorktreeNavigator({
                         >
                           {row.review || row.changes ? (
                             <Box
-                              className="flex-row items-center justify-between"
+                              className="flex-row flex-wrap items-center"
                               gap={2}
                             >
                               {row.review ? (
@@ -317,40 +330,16 @@ export function WorktreeNavigator({
                                   variant="caption"
                                   tone="muted"
                                   numberOfLines={1}
-                                  className="min-w-0 flex-1"
+                                  className="min-w-0 shrink"
                                 >
                                   {row.review}
                                 </Text>
                               ) : null}
-                              {row.changes &&
-                                (row.diff ? (
-                                  <Box
-                                    className="ml-auto flex-row items-center"
-                                    gap={1}
-                                  >
-                                    <Text variant="caption" tone="add">
-                                      +{row.diff.additions}
-                                    </Text>
-                                    <Text variant="caption" tone="del">
-                                      −{row.diff.deletions}
-                                    </Text>
-                                    {row.diff.binaryFiles > 0 && (
-                                      <Text variant="caption" tone="muted">
-                                        {row.diff.binaryFiles} binary
-                                      </Text>
-                                    )}
-                                  </Box>
-                                ) : (
-                                  <Text
-                                    variant="caption"
-                                    tone="muted"
-                                    className="ml-auto"
-                                  >
-                                    {entry.changes.state === 'unavailable'
-                                      ? '—'
-                                      : row.changes}
-                                  </Text>
-                                ))}
+                              {row.changes ? (
+                                <Text variant="caption" tone="muted">
+                                  {row.changes}
+                                </Text>
+                              ) : null}
                             </Box>
                           ) : null}
                         </Item>

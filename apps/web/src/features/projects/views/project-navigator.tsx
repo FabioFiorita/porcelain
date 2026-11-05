@@ -21,11 +21,21 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useState } from 'react';
+import { navigatorView } from '../store';
 import { useElement } from '@/shared/hooks/use-element';
-import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
+import {
+  useAtom,
+  useAtomValue,
+  useAtomSet,
+  useAtomMount,
+} from '@effect/atom-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import {
   ChevronDownIcon,
+  CircleAlertIcon,
+  FileTextIcon,
+  GitBranchIcon,
+  HouseIcon,
   KeyboardIcon,
   ListFilterIcon,
   SearchIcon,
@@ -34,6 +44,7 @@ import {
 } from 'lucide-react';
 import {
   readWorktreeNavigator,
+  readReviewNavigator,
   refreshWorktreeNavigator,
   refreshInventories,
   worktreeNavigatorState,
@@ -45,7 +56,6 @@ import {
   navigatorCardReviewLabel,
   navigatorCardChangesLabel,
   navigatorChecksLabel,
-  navigatorDiffSummary,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 import {
@@ -87,7 +97,8 @@ import {
   EmptyDescription,
 } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
-import { Item, ItemContent } from '@/components/ui/item';
+import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -104,6 +115,11 @@ import { ProjectActions } from './project-actions';
 import { ProjectHeading } from './project-heading';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
+
+function entryIcon(entry: NavigatorEntry, reviewsOnly: boolean) {
+  if (entry.kind === 'review' || reviewsOnly) return FileTextIcon;
+  return entry.main ? HouseIcon : GitBranchIcon;
+}
 
 function StatusToasts({ container }: { container: HTMLElement | null }) {
   const { toasts } = useToastManager();
@@ -161,13 +177,6 @@ function statusDescription(issue: WorktreeStatusIssue) {
   );
 }
 
-const checkTones = {
-  passed: 'text-add-fg group-hover/button:text-add-fg/70',
-  running: 'text-warn group-hover/button:text-warn/70',
-  failed: 'text-del-fg group-hover/button:text-del-fg/70',
-  none: 'text-muted-foreground group-hover/button:text-foreground',
-} as const;
-
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
@@ -192,6 +201,8 @@ export function ProjectNavigator({
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
+  const [view, setView] = useAtom(navigatorView);
+  const reviewsOnly = view === 'reviews';
   const [toastContainer, setToastContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -203,7 +214,9 @@ export function ProjectNavigator({
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
   const { projects, filters, loading, messages } = useAtomValue(
-    readWorktreeNavigator(connections),
+    reviewsOnly
+      ? readReviewNavigator(connections)
+      : readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
   const setState = useAtomSet(worktreeNavigatorState);
@@ -223,6 +236,14 @@ export function ProjectNavigator({
     filter.environments !== undefined ||
     filter.reviews !== undefined ||
     filter.older;
+  const emptyTitle =
+    query.trim() || filtered
+      ? 'No matching worktrees'
+      : 'No projects registered';
+  const emptyDescription =
+    query.trim() || filtered
+      ? 'Try another search or clear the filters.'
+      : 'Open a Git repository to get started.';
   const { setOpenMobile, isMobile } = useSidebar();
   const checkoutSelection = selected
     ? {
@@ -273,6 +294,23 @@ export function ProjectNavigator({
             <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
           </div>
         </NavigatorHeader>
+        <div className="px-2 pt-1 pb-3">
+          <Tabs
+            value={view}
+            onValueChange={(value) =>
+              setView(value === 'reviews' ? 'reviews' : 'worktrees')
+            }
+          >
+            <TabsList
+              variant="line"
+              className="w-full"
+              aria-label="Navigator view"
+            >
+              <TabsTrigger value="worktrees">Worktrees</TabsTrigger>
+              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         <div className="navigator-filters mb-2 flex items-center gap-1 px-2">
           <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
@@ -396,7 +434,7 @@ export function ProjectNavigator({
             </div>
           )}
           {projects.map((source) => (
-            <SidebarGroup key={source.key}>
+            <SidebarGroup key={source.key} className="mb-3">
               <Collapsible
                 open={source.expanded}
                 onOpenChange={(open) =>
@@ -454,20 +492,20 @@ export function ProjectNavigator({
                         entry.review.state === 'available'
                           ? entry.review
                           : undefined;
-                      const checkResult =
-                        review?.checks?.state === 'available'
-                          ? review.checks.result
-                          : 'none';
-                      const summary = navigatorDiffSummary(entry.changes);
                       const retained = entry.kind === 'review';
                       const detail = navigatorCardReviewLabel(entry);
-                      const changes = retained
-                        ? ''
-                        : navigatorCardChangesLabel(entry.changes);
-                      const compactChanges =
-                        entry.changes.state === 'unavailable' ? '—' : changes;
+                      const changes =
+                        entry.kind === 'worktree'
+                          ? navigatorCardChangesLabel(entry.changes)
+                          : '';
+                      const EntryIcon = entryIcon(entry, reviewsOnly);
+                      const failed =
+                        review?.checks?.state === 'available' &&
+                        review.checks.result === 'failed';
                       const openRetained =
-                        retained || (!entry.available && review !== undefined);
+                        retained ||
+                        (reviewsOnly && review !== undefined) ||
+                        (!entry.available && review !== undefined);
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
@@ -546,8 +584,11 @@ export function ProjectNavigator({
                                   />
                                   <Item
                                     size="xs"
-                                    className="pointer-events-none"
+                                    className="pointer-events-none relative"
                                   >
+                                    <ItemMedia className="self-start">
+                                      <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
+                                    </ItemMedia>
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
                                         {clip(
@@ -561,51 +602,38 @@ export function ProjectNavigator({
                                             Detached
                                           </span>
                                         )}
-                                        {review?.pullRequestNumber && (
-                                          <Button
-                                            variant="ghost"
-                                            size="xs"
-                                            className="relative pointer-events-auto cursor-pointer"
-                                            aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
-                                            onClick={() => {
-                                              onOpenPullRequest(entry);
-                                              setOpenMobile(false);
-                                            }}
-                                          >
-                                            <span
-                                              className={
-                                                checkTones[checkResult]
-                                              }
-                                            >
-                                              PR #{review.pullRequestNumber}
-                                            </span>
-                                          </Button>
+                                        {failed && (
+                                          <CircleAlertIcon
+                                            className="size-3 shrink-0 text-del-fg"
+                                            aria-label="Checks failed"
+                                          />
                                         )}
                                       </div>
                                       {(detail || changes) && (
-                                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
-                                          {detail &&
-                                            clip(detail, 'min-w-0 flex-1')}
+                                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
+                                          {detail && <span>{detail}</span>}
+                                          {review?.pullRequestNumber && (
+                                            <Button
+                                              variant="ghost"
+                                              size="xs"
+                                              className="relative pointer-events-auto cursor-pointer"
+                                              aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
+                                              onClick={() => {
+                                                onOpenPullRequest(entry);
+                                                setOpenMobile(false);
+                                              }}
+                                            >
+                                              <span className="text-muted-foreground">
+                                                #{review.pullRequestNumber}
+                                              </span>
+                                            </Button>
+                                          )}
                                           {changes && (
                                             <span
-                                              className="ml-auto shrink-0"
                                               role="img"
                                               aria-label={`Local uncommitted changes: ${changes}`}
                                             >
-                                              {summary ? (
-                                                <>
-                                                  <span className="text-add-fg">
-                                                    +{summary.additions}
-                                                  </span>{' '}
-                                                  <span className="text-del-fg">
-                                                    −{summary.deletions}
-                                                  </span>
-                                                  {summary.binaryFiles > 0 &&
-                                                    ` · ${summary.binaryFiles} binary`}
-                                                </>
-                                              ) : (
-                                                compactChanges
-                                              )}
+                                              {changes}
                                             </span>
                                           )}
                                         </div>
@@ -633,14 +661,12 @@ export function ProjectNavigator({
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>
-                  {query.trim() || filtered
-                    ? 'No matching worktrees'
-                    : 'No projects registered'}
+                  {reviewsOnly ? 'No matching reviews' : emptyTitle}
                 </EmptyTitle>
                 <EmptyDescription>
-                  {query.trim() || filtered
-                    ? 'Try another search or clear the filters.'
-                    : 'Open a Git repository to get started.'}
+                  {reviewsOnly
+                    ? 'Try another search or show older reviews in the filter.'
+                    : emptyDescription}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

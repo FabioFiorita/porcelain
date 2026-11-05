@@ -40,7 +40,7 @@ export function setDesktopAppearance(appearance: DesktopAppearance): void {
 }
 
 export function connectDesktopChrome(): () => void {
-  if (!desktopShell) return () => undefined;
+  if (!desktopShell || !window.porcelainDesktop) return () => undefined;
   document.documentElement.classList.add('desktop-shell');
   const fullscreen = (value: boolean) =>
     document.documentElement.classList.toggle('desktop-fullscreen', value);
