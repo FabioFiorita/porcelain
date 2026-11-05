@@ -32,6 +32,9 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   build                    build the matching development client (--device android on Linux)
   start [--device iphone|ipad|android] [--udid <owned-ios-udid> | --serial <owned-android-serial>] [--manual-pairing] [--fixture development|focused]
                            prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
+                           android selects either an owned phone or tablet emulator by serial
+  --agent-device-command <executable> --agent-device-config <private-file> --agent-device-session <session>
+                           preserve an externally supplied device driver for doctor/start and the resulting journey
   status                   report passive lifecycle status and connection metadata
   logs                     record app, Metro and server logs
   evidence                 list retained evidence

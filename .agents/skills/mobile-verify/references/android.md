@@ -10,9 +10,17 @@ The development build selects one host-native emulator ABI: x86_64 on an x64 hos
 
 On Linux, `build --device android` checks `/proc/meminfo` before Expo prebuild or Gradle starts. It requires 8 GiB of **available** RAM (swap does not count), separately from the 4 GiB floor for starting a disposable verification instance. On the 26 GiB Linux verification host, a clean native build peaked at 5.42 GiB of aggregate build-process RSS with four compilers, leaving about 2.58 GiB of margin at that floor. Insufficient or unreadable available memory causes a refusal explaining the build budget and how to recover; wait or stop a process you own, then retry. This check observes available memory; it does not reserve it against other work. macOS does not have `/proc/meminfo` and keeps its existing startup policy.
 
-Create an emulator once in Android Studio's Device Manager. Boot it and use `adb devices -l` to read its serial. Select a booted local emulator explicitly; physical devices are refused because starts clear development app data.
-
 Configure `agentDevice` and optionally `androidSerial` in the [machine-local host file](remote.md).
+
+## Phone and tablet profiles
+
+Create a phone and a tablet profile once in Android Studio's Device Manager, using the host-native ABI above. Device provisioning and boot/shutdown belong to the machine's device tool; the mobile launcher selects an already booted local emulator by serial. Physical devices are refused because starts clear development app data. Keep personal profile names and serial defaults in machine-local configuration.
+
+Use the phone for shared phone journeys and a proper tablet profile for shared tablet journeys. Enlarging the phone window or changing screenshot dimensions is insufficient: `expo-device` must classify the device as `DeviceType.TABLET`. The shared `ListDetail` component then uses its measured content width: at least 700dp shows a 340dp list beside detail, while a narrower content area stacks. Screen pixels alone do not establish the content width because density, insets and native chrome reduce the available space.
+
+Choose a tablet whose content area can reach that width in both landscape and portrait. Through the bound device driver, verify Reviews and Worktrees list/detail selection, a pushed screen and its Back path, Settings open/close, and rotation with a selected review or worktree. Selection, list position and unsent drafts stay with their original workspace. Retain both orientations and the observed layout; refresh geometry and refs after rotation, then restore the original orientation. Use [the shell map](../features/app.shell.md) for the detailed journey.
+
+Android tablet checks cover the shared layout and Android navigation. They do not establish iPad's native tab sidebar, iOS sheet behavior or Apple-specific input and accessibility behavior.
 
 ## Build, start and develop
 
@@ -24,6 +32,8 @@ $C build --device android
 $C doctor --device android --serial <owned-emulator-serial>
 $C start --device android --serial <owned-emulator-serial> --fixture development
 ```
+
+The same commands select either profile; use its actual serial rather than assuming one fixed emulator port. When a device tool supplies an executable, configuration and session, preserve them through the launcher's `--agent-device-command`, `--agent-device-config` and `--agent-device-session` options instead of creating another driver session.
 
 `build` runs Expo prebuild for Android and the generated Gradle wrapper. The fingerprint includes Android configuration, native modules and the selected ABI; a matching APK can be reused across worktrees on the same architecture. APKs cached for another ABI or under the old universal fingerprint require a rebuild. A rebuild removes its local success marker before prebuild and publishes its shared APK atomically only after the build succeeds and the native inputs are checked again. A failed or interrupted build leaves no local success marker; the error identifies the failed command, exit code or signal and build log. Native changes require another build. JavaScript and TypeScript changes reload through Metro; keep the instance running while iterating. `doctor` reports missing SDK/Java/driver, unavailable emulator and missing native build separately, with the command needed to fix them.
 

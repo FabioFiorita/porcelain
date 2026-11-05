@@ -3,6 +3,12 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './spec/e2e',
   testMatch: '**/*.e2e.ts',
+  projects: [
+    { name: 'portable', grepInvert: /@macos/ },
+    ...(process.platform === 'darwin'
+      ? [{ name: 'macos', grep: /@macos/ }]
+      : []),
+  ],
   outputDir: './test-results/e2e',
   globalSetup: './spec/e2e/global-setup.ts',
   fullyParallel: true,

@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('the Settings menu opens Settings, which shows the app version and that the local build updates by reinstalling', async ({
+test('the Settings menu opens Settings, which shows the app version and that the local build updates by reinstalling @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -39,7 +39,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   expect(app.errors).toEqual([]);
 });
 
-test('without a Vite server the menus offer full screen and zoom but no Reload or Developer Tools item', async ({
+test('without a Vite server the menus offer full screen and zoom but no Reload or Developer Tools item @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();

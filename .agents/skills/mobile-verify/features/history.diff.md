@@ -31,7 +31,7 @@ Preconditions: [surface baseline](README.md).
 1. Open a commit file. Verify path/status and old/new line numbers against the server patch, including multiple hunks and added/deleted/renamed files. Only that file's paths are requested; renames preserve both.
 2. Exercise binary, metadata-only, omitted, empty, missing and unavailable patches. Malformed patch says The patch could not be parsed with Retry; read error says Couldn't load diff. History code remains read-only.
 3. Comments supports whole-file and source-line feedback with code visible. Select added/deleted lines; post/cancel and independently read OID, parent, side and range. Back/swipe returns to commit/list with unsent-draft protection.
-4. Open the same path under another parent: the diff names that parent. Return: the commit keeps it. Verify iPad in landscape and portrait.
+4. Open the same path under another parent: the diff names that parent. Return: the commit keeps it. Verify tablets in landscape and portrait.
 
 Automated coverage: `document-comment.spec.ts`.
 

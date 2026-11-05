@@ -100,7 +100,7 @@ test('Settings obtains the local app executable and server directory through its
   ).toBeVisible();
 });
 
-test('the bridge keeps one opaque credential string encrypted in a file only the owner reads, and restores it after a restart', async ({
+test('the bridge keeps one opaque credential string encrypted in a file only the owner reads, and restores it after a restart @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -126,7 +126,7 @@ test('the bridge keeps one opaque credential string encrypted in a file only the
   });
 });
 
-test('credentials the app cannot decrypt read as unreadable, are never saved over, and Settings says they could not be read', async ({
+test('credentials the app cannot decrypt read as unreadable, are never saved over, and Settings says they could not be read @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -158,7 +158,7 @@ test('credentials the app cannot decrypt read as unreadable, are never saved ove
   expect(await readFile(app.credentialsFile)).toEqual(encrypted);
 });
 
-test('with encryption unavailable a write is refused and the saved ciphertext stays, and clear still removes the saved credentials', async ({
+test('with encryption unavailable a write is refused and the saved ciphertext stays, and clear still removes the saved credentials @macos', async ({
   desktop,
 }) => {
   const app = await desktop.launch();

@@ -48,7 +48,7 @@ Automated coverage: `settings-updates.spec.ts`, `settings-updates.spec.ts`.
 
 ## Gotchas
 
-- Add computer (header +) opens the pairing form sheet on phone and iPad; This computer pushes [the computer's page](access.computer.md) in the Settings stack. Closing the sheet leaves saved computers unchanged.
+- Add computer (header +) opens the pairing form sheet on phones and tablets; This computer pushes [the computer's page](access.computer.md) in the Settings stack. Closing the sheet leaves saved computers unchanged.
 - Untrusted offers remain visible with zero eligible updates. Unmanaged computers retain their explanation in Computers but count toward no update. The bundled Mac server updates through the Mac app.
 
 Missing SecureStore credentials keep a Needs pairing row with Pair again and Forget computer. Other computers and healthy alternate routes continue loading, and Add computer stays enabled. Pair again accepts only a missing connection address for that computer. A transient keychain read error keeps mutations disabled and offers Try again.

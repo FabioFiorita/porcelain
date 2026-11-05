@@ -59,13 +59,15 @@ Domain services and server use cases use named `Context.Service` capabilities wi
 
 ## Testing
 
-| Layer         | Server                                            | Web                                             | Desktop              | Mobile                                  |
-| ------------- | ------------------------------------------------- | ----------------------------------------------- | -------------------- | --------------------------------------- |
-| Unit (Vitest) | services, rules, parsers                          | rules, stores                                   | main-process modules | rules; `packages/client`                |
-| Integration   | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge on macOS  | `packages/client` against a real server |
-| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron  | none                                    |
+| Layer         | Server                                            | Web                                             | Desktop                                  | Mobile                                  |
+| ------------- | ------------------------------------------------- | ----------------------------------------------- | ---------------------------------------- | --------------------------------------- |
+| Unit (Vitest) | services, rules, parsers                          | rules, stores                                   | main-process modules                     | rules; `packages/client`                |
+| Integration   | the built server over HTTP, real database and Git | Browser Mode: one feature against a real server | the bridge in Electron on Linux or macOS | `packages/client` against a real server |
+| E2E           | covered by integration                            | Playwright Test                                 | Playwright Electron                      | none                                    |
 
 The mobile-verify skill drives mobile features on demand.
+
+Use Linux Electron and Android phone/tablet emulators for shared behavior. Select macOS or iOS when the changed promise depends on that platform, such as Keychain, Mac menus and Dock behavior, or iOS navigation and sheets. Shared tablet layouts need a device recognized as a tablet and portrait/landscape checks; Android proof does not establish iPad-specific behavior. Verification skills own disposable app lifecycles and feature evidence; the caller supplies its available browser, desktop or device driver.
 
 A test states an observable promise. Derive its cases from the contract, feature or request before reading the code, so a wrong implementation fails it. Choose the cheapest layer that proves the promise; no test is required per export or file, and test counts or coverage quotas are never a goal. A file that only forwards, wires or re-exports gets no test of its own. Assert literal values and observable effects; rewrite or delete tests that mirror constants, types, implementation or mocks, or would still pass if every import returned `undefined`. Before deleting a test, preserve the sole coverage of a promise, especially authentication, trust boundaries, persistence, real Git and deterministic races. Fakes stand in only at ports; Git, files and the database are real when the unit is about them.
 

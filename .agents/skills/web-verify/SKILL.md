@@ -13,6 +13,8 @@ From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` fo
 2. Read the card: instance ID, server/web/WebSocket URLs, private `connection.json`, pairing-link and MCP commands, evidence directory and stop command. The connection file adds build identity, fixture IDs/paths, required origins, owner socket, credential-file paths, initial route, web mode and status/log/remote-start commands.
 3. Open the web URL in a fresh browser context. For a paired journey, run the card's pairing-link command and navigate to its fresh link. Each link works once and its fragment is consumed. For an unpaired journey, open `/` without minting a link.
 
+A new tab can share credentials with an existing tab. Use an isolated browser context/profile for disposable verification and preserve the browser driver's ownership controls. The caller selects its available driver; this skill keeps the same startup, pairing, fixture and evidence lifecycle.
+
 A restarted instance reuses its worktree-derived web port while free, but needs new pairing. For a developer walkthrough, use Vite's development-only “Pair this browser” button on the not-paired page; it obtains a one-time link from the owner socket.
 
 `start --desktop` exposes desktop-mode views without Electron's native bridge. `start --coding-tool` enables the fixture's fake coding tool in the disposable server's explicit coding-tool directory. Without it, no coding CLI is available. Host provider credentials and configuration variables are removed from verification supervisors.
