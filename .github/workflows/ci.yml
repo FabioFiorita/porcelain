@@ -31,6 +31,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - name: Find affected runtime checks
@@ -63,6 +64,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -83,6 +85,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -103,6 +106,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:package
@@ -123,6 +127,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -149,6 +154,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -180,6 +186,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -207,6 +214,7 @@ jobs:
         with:
           runtime: node@24.20.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:check

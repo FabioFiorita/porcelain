@@ -6216,6 +6216,16 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-required-checks',
+    dependencyStoreWriter: 'units',
+    dependencyStoreReaders: [
+      'affected',
+      'static',
+      'package',
+      'server-integration',
+      'web-integration',
+      'web-e2e',
+      'migrations',
+    ],
     unitCommand:
       'pnpm exec turbo run test --affected --concurrency=1 --continue',
     webE2eShards: [1, 2, 3, 4],
