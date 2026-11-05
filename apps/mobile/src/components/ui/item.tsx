@@ -61,7 +61,7 @@ export function Item({
     sizes[size].row,
     description || children ? sizes[size].twoLine : sizes[size].oneLine,
     selected && selectionTone === 'brand' ? 'bg-brand-soft' : '',
-    selected && selectionTone === 'neutral' ? 'rounded-md bg-card' : '',
+    selected && selectionTone === 'neutral' ? 'rounded-md bg-muted' : '',
     disabled ? 'opacity-50' : '',
     pressable ? 'active:bg-accent' : '',
   ]
