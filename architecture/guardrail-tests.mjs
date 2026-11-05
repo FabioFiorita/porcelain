@@ -609,16 +609,27 @@ export async function runGuardrailCases(named = []) {
         entry.unitCommand,
         'CI runs unit projects through affected task selection',
       );
-      deepStrictEqual(
-        workflow.jobs['web-e2e'].strategy.matrix.shard,
-        entry.webE2eShards,
-      );
-      strictEqual(
-        workflow.jobs['web-e2e'].steps.find((step) =>
-          step.run?.includes('test:e2e --shard='),
-        )?.run,
-        entry.webE2eCommand,
-      );
+      for (const [name, shards, command] of [
+        [
+          'web-integration',
+          entry.webIntegrationShards,
+          entry.webIntegrationCommand,
+        ],
+        ['web-e2e', entry.webE2eShards, entry.webE2eCommand],
+      ]) {
+        deepStrictEqual(
+          workflow.jobs[name].strategy.matrix.shard,
+          shards,
+          name,
+        );
+        strictEqual(
+          workflow.jobs[name].steps.find((step) =>
+            step.run?.includes('--shard='),
+          )?.run,
+          command,
+          name,
+        );
+      }
       const gate = workflow.jobs.checks;
       deepStrictEqual(
         gate.needs.toSorted(),
