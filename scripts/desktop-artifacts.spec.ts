@@ -278,18 +278,18 @@ it('records the timestamp before checkout and scopes uploads without extra permi
   ).toBeUndefined();
 });
 
-it('uploads test evidence before collecting and separately uploading crashes', () => {
+it('uploads separate platform test evidence before collecting and uploading Mac crashes', () => {
   const tests = step('Upload desktop test results');
   const crashes = step('Upload desktop crash reports');
   const collection = step('Collect desktop crash reports');
   expect(tests.get('if')).toBe('failure()');
-  expect(collection.get('if')).toBe('failure()');
-  expect(crashes.get('if')).toBe('failure()');
+  expect(collection.get('if')).toBe("failure() && runner.os == 'macOS'");
+  expect(crashes.get('if')).toBe("failure() && runner.os == 'macOS'");
   expect(tests.getIn(['with', 'path'])).toBe('apps/desktop/test-results/');
   expect(crashes.getIn(['with', 'path'])).toBe(
     '${{ runner.temp }}/desktop-e2e-crashes/',
   );
-  expect(tests.getIn(['with', 'name'])).toBe('desktop-e2e');
+  expect(tests.getIn(['with', 'name'])).toBe('desktop-e2e-${{ runner.os }}');
   expect(crashes.getIn(['with', 'name'])).toBe('desktop-e2e-crashes');
   expect(crashes.get('uses')).toBe(tests.get('uses'));
   expect(stepEntries.indexOf(tests)).toBeLessThan(

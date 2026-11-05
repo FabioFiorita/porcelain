@@ -11,7 +11,7 @@ api: []
 
 # projects.folder-picker
 
-The Mac app opens a project through the native folder sheet instead of the web's folder browser.
+The desktop app opens a project through its native folder picker instead of the web's folder browser. On macOS it is a sheet attached to the window.
 
 ## How to get to it (user POV)
 
@@ -21,6 +21,8 @@ The Mac app opens a project through the native folder sheet instead of the web's
 ## Driving it with Electron
 
 Preconditions: [surface baseline](README.md).
+
+The `portable` regression exercises the sidebar and menu bridge with substituted cancel/selection answers on Linux or macOS, independently reads inventory, and verifies history and live file updates. It does not observe the real native picker. The following real-sheet journey requires macOS and an OS driver that can operate that sheet.
 
 1. Use Computer Use for File → Open Project…, then ⌘O. Expect the real sheet attached to Porcelain Dev, titled “Open project”, with an Open project button and the sample repository directory. Cancel; `/api/inventory` through the renderer shows no project registered.
 2. Click sidebar Open project. Choose `REPO` in the sheet and confirm. Expect `desktop-smoke` in the sidebar; open it and inspect History.

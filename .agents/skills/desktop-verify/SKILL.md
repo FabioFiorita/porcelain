@@ -1,11 +1,13 @@
 ---
 name: desktop-verify
-description: Launch disposable unpackaged Porcelain Dev, publish its renderer CDP and raw Playwright Electron lifecycle, and verify native desktop features. macOS owns menus, sheets, Keychain and window transitions; Linux supports bounded renderer launch and shutdown.
+description: Verify disposable Porcelain Dev in real Electron on Linux or macOS through renderer CDP and raw Playwright Electron. Use macOS for Keychain, Mac menus/sheets, Dock and Mac window transitions.
 ---
 
 # Desktop verification
 
 The launcher stages unpackaged Porcelain Dev with a disposable profile and sample Git repository; drive its renderer and native shell.
+
+Use Linux for shared renderer, trusted bridge, project registration, local review links and shutdown journeys. Use macOS when the changed behavior depends on its native shell or Keychain; an unrelated shared UI change does not require another Mac run. The driver controls the instance this skill prepares; it does not launch a replacement app or own a second profile.
 
 `C=.agents/skills/desktop-verify/scripts/cli`, from the checkout root. Run `$C` alone for help. Use `doctor`, then `start`; the card supplies the remaining lifecycle commands.
 
@@ -61,7 +63,11 @@ xvfb-run -a $C start
 
 The detached instance inherits that display, so keep the xvfb owner alive until `$C stop` completes (for a bounded script, run the entire start/renderer/stop journey under `xvfb-run`). `doctor` reports missing display or Electron; run the normal project install to obtain dependencies. If Electron remains missing, report the missing binary/dependencies.
 
-Linux proof is one launch, renderer inspection and stop. Keychain credentials, macOS menus/sheets and window transitions stay macOS-only. On macOS, Keychain writes need the logged-in session; full screen needs an unlocked screen. If Computer Use is unavailable, report bridge proof only and leave real-sheet assurance open.
+Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, MCP configuration, substituted picker answers, local summaries and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
+
+An OS accessibility driver additionally needs the accessibility bus and a window manager in the same owned graphical session; a display alone is insufficient. Select the exact disposable process/window and retain the resulting app state. Unsupported native dialogs or actions remain explicit gaps; use the renderer/Playwright handle for supported journeys.
+
+Keychain, macOS menus/sheets, Dock and Mac window transitions require macOS. Encrypted persistence needs a real supported encrypted store; never enable plaintext storage to make Linux proof pass. On macOS, Keychain writes need the logged-in session; full screen needs an unlocked screen. If Computer Use is unavailable, report bridge proof only and leave real-sheet assurance open.
 
 ## Stop and regressions
 
@@ -75,3 +81,5 @@ $C evidence --instance <id>
 Stop checks captured process ownership, removes private runtime data and keeps evidence (`supervisor.log`, `electron.log`, `server.log`, stop outcome). Repeated confirmed stops are safe. Incomplete shutdown exits nonzero and retains private state; inspect the report. No idle expiry; quit also stops a registered instance.
 
 Run changed tests by name plus the map's named test for the changed feature. Packaged launch-refusal and build settings are covered by their unit specs; signing/fuse assurance belongs to release verification.
+
+The desktop E2E `portable` project runs on Linux and macOS. The `macos` project retains tests tagged `@macos` and is available on macOS only; the default Mac run executes both. On Linux, run a named file through `xvfb-run -a pnpm --filter @porcelain/desktop test:e2e <file> --project portable`. Report the selected project and named tests separately from a live-driven journey. The full native Mac suite stays in CI.

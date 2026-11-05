@@ -450,20 +450,30 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
         app,
         profile: workspace.profile,
         projectHome: workspace.repository,
-        switches: url === undefined ? [] : [url],
+        switches: [
+          ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
+          ...(url === undefined ? [] : [url]),
+        ],
       });
       const secondary = spawn(options.executablePath, options.args, {
         env: options.env,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
+      const output: string[] = [];
+      secondary.stdout.on('data', (chunk: Buffer) =>
+        output.push(chunk.toString()),
+      );
+      secondary.stderr.on('data', (chunk: Buffer) =>
+        output.push(chunk.toString()),
+      );
       try {
-        await once(secondary, 'exit', {
+        await once(secondary, 'close', {
           signal: AbortSignal.timeout(options.timeout),
         });
         await keepLog(
           testInfo,
           'second-instance.txt',
-          `App process ${secondary.pid} exited ${secondary.exitCode}\n`,
+          `App process ${secondary.pid} exited ${secondary.exitCode}, signal ${secondary.signalCode}\n${output.join('')}`,
         );
         return secondary.exitCode;
       } finally {

@@ -12,10 +12,10 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - Preserve the card's complete agent-device invocation, including config, session, platform and device flags, on every command. Open `mobile.bundleIdentifier` with `--foreground`; iOS then needs `prepare ios-runner`. Refresh `snapshot -i` before pressing refs; use a full snapshot without `-i` for static text and counters. Use screenshots to confirm native tabs whose selected trait is absent.
 - For deep links and cold launches follow [driving](../references/driving.md): keep the development flags and reconnect to `mobile.metroUrl`. Pairing links expire and work once; wait for keyboard animation before Pair.
-- Phones and iPad use the two native tabs (Reviews and Worktrees), native Back/swipe and the Settings modal from the header gear. Verify iPad in landscape and portrait. Verify entry and return paths, retained selection and draft protection.
+- Phones and tablets use the two native tabs (Reviews and Worktrees), platform Back/swipe and the Settings modal from the header gear. Shared tablet journeys use a proper Android tablet in landscape and portrait; see [profile requirements](../references/android.md#phone-and-tablet-profiles). Verify entry and return paths, retained selection and draft protection. Native iPad tab sidebars and other explicitly iOS-specific behavior retain their separate iOS journeys.
 - Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.worktrees.md#driving-it-with-agent-device).
 - Preference storage readbacks use the owned development app's `porcelain-preferences.db`. Keep tokens, pairing links and driver configuration private.
-- Mobile has no E2E suite. Android, iPhone, iPad, physical-device LAN permissions and remote routing require separate proof; a loopback emulator run establishes only that platform/connection. See [Android setup](../references/android.md).
+- Mobile has no E2E suite. Choose Android phone/tablet for shared behavior and iOS for affected iOS-specific behavior. Report Android phone, Android tablet, iPhone and iPad evidence separately; a loopback emulator run establishes only that platform/connection. Physical-device LAN permissions and remote routing need their own journeys. See [Android setup](../references/android.md).
 
 ## Feature entry contract
 
@@ -75,6 +75,6 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.timeline-commit](history.timeline-commit.md) — timeline commit in the Files stack.
 - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
 
-For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify iPad in landscape and portrait, with fresh geometry and refs; restore its original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
+For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify tablets in landscape and portrait, with fresh geometry and refs; restore the original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
 
 - [Review agent feedback](reviews.agent-feedback.md)

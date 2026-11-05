@@ -34,7 +34,7 @@ test('a cold review link waits for the renderer and retains the remote destinati
   expect(app.errors).toEqual([]);
 });
 
-test('a Mac open-url event uses this computer when the environment matches and rejects unsafe links', async ({
+test('a Mac open-url event uses this computer when the environment matches and rejects unsafe links @macos', async ({
   desktop,
 }, testInfo) => {
   const app = await desktop.launch();

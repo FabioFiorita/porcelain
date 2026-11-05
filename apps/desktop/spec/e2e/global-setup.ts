@@ -3,14 +3,23 @@ import { stageDesktop } from '../kit/stage.ts';
 import { stagedApp } from './fixtures.ts';
 
 export default async function globalSetup(): Promise<void> {
-  if (process.platform !== 'darwin')
+  if (process.platform !== 'darwin' && process.platform !== 'linux')
     throw new Error(
-      'The desktop e2e tests need macOS: they drive Porcelain Dev through Playwright Electron, and the Keychain behind its credentials exists only there. Run pnpm --filter @porcelain/desktop test:e2e on a Mac, in a Terminal window of the logged-in session (see .agents/skills/desktop-verify/SKILL.md).',
+      'Desktop e2e tests support Linux and macOS. Run portable Electron journeys on Linux; native macOS and encrypted credential journeys need macOS.',
     );
-  spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
-    detached: true,
-    stdio: 'ignore',
-  }).unref();
+  if (
+    process.platform === 'linux' &&
+    !process.env.DISPLAY &&
+    !process.env.WAYLAND_DISPLAY
+  )
+    throw new Error(
+      'Linux desktop e2e tests need a display. Use a desktop session or run xvfb-run -a pnpm --filter @porcelain/desktop test:e2e.',
+    );
+  if (process.platform === 'darwin')
+    spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
   await stageDesktop({
     directory: stagedApp(),
     productName: 'Porcelain Dev',
