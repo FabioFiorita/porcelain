@@ -19,7 +19,10 @@ function ticketFor(message: unknown) {
     : { status: 'ok', id: crypto.randomUUID() };
 }
 
-export async function startRecordingPushService(file: string) {
+export async function startRecordingPushService(
+  file: string,
+  requestedPort = 0,
+) {
   const server = createServer((request, response) => {
     let body = '';
     request.setEncoding('utf8');
@@ -47,7 +50,7 @@ export async function startRecordingPushService(file: string) {
   });
   await new Promise<void>((resolveListen, rejectListen) => {
     server.once('error', rejectListen);
-    server.listen(0, '127.0.0.1', () => resolveListen());
+    server.listen(requestedPort, '127.0.0.1', () => resolveListen());
   });
   const address = server.address();
   if (address === null || typeof address === 'string')
