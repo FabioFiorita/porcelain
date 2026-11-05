@@ -77,7 +77,7 @@ function createConnection(environmentId: string, server: Server): Connection {
       timeoutMs: REQUEST_TIMEOUT_MS,
     },
     Layer.merge(
-      BrowserCrypto.layer,
+      BrowserCrypto.layerSecureRandom,
       Layer.succeed(OperationStorage, operationStorage(server.operationsKey)),
     ),
     applicationRuntime.memoMap,
@@ -116,7 +116,7 @@ function remoteConnection(remote: Remote): Connection {
       timeoutMs: REQUEST_TIMEOUT_MS,
     },
     Layer.merge(
-      BrowserCrypto.layer,
+      BrowserCrypto.layerSecureRandom,
       Layer.succeed(
         OperationStorage,
         operationStorage(

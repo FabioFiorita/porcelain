@@ -14,6 +14,7 @@ import {
   HttpServerRequest,
   HttpServerResponse,
   HttpIncomingMessage,
+  Headers,
 } from 'effect/http';
 import { Socket } from 'effect/socket';
 import { RpcSerialization, RpcServer } from 'effect/rpc';
@@ -177,7 +178,13 @@ function openedRequest(
     headers: request.headers,
     cookies: request.cookies,
     remoteAddress: request.remoteAddress,
+    peerAddress: request.peerAddress,
+    protocol: request.protocol,
     upgrade: Effect.succeed(socket),
+    upgradeWith: (options) =>
+      Object.keys(Headers.fromInput(options.headers)).length === 0
+        ? Effect.succeed(socket)
+        : request.upgradeWith(options),
     text: request.text,
     json: request.json,
     urlParamsBody: request.urlParamsBody,

@@ -9,7 +9,7 @@ import {
 } from '@porcelain/client/access';
 import { operationStorage } from './operation-storage';
 import { mobileSocket } from './live-socket';
-import { cryptoLayer } from './crypto';
+import { secureRandomLayer } from './secure-random';
 import { REQUEST_TIMEOUT_MS } from '../../config/limits';
 
 export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
@@ -34,7 +34,7 @@ export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
                   timeoutMs: REQUEST_TIMEOUT_MS,
                 },
                 Layer.merge(
-                  cryptoLayer,
+                  secureRandomLayer,
                   Layer.succeed(
                     OperationStorage,
                     operationStorage(

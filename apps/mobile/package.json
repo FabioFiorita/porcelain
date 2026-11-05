@@ -13,7 +13,7 @@
     "test": "pnpm --dir ../.. test --project @porcelain/mobile"
   },
   "dependencies": {
-    "@effect/atom-react": "4.0.1",
+    "@effect/atom-react": "4.1.2",
     "@expo-google-fonts/geist-mono": "0.4.3",
     "@expo/material-symbols": "0.1.1",
     "@expo/ui": "58.0.26",
@@ -24,7 +24,7 @@
     "@porcelain/theme": "workspace:*",
     "@shikijs/langs": "4.4.3",
     "babel-preset-expo": "58.0.23",
-    "effect": "4.0.1",
+    "effect": "4.1.2",
     "expo": "58.0.22",
     "expo-build-properties": "58.0.12",
     "expo-camera": "58.0.14",

@@ -11,6 +11,7 @@ import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import { Effect, Layer, Clock } from 'effect';
 import { ClusterWorkflowEngine, SingleRunner } from 'effect/cluster';
+import { NodeCrypto } from '@effect/platform-node';
 import { GitActionWorkflow } from '../runtime/git-action-workflow.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { gitActionsRoutes } from '../http/routes/git-actions/git-actions-api.ts';
@@ -147,6 +148,7 @@ export function composeGitActions(
   );
   const engine = ClusterWorkflowEngine.layer.pipe(
     Layer.provideMerge(SingleRunner.layer({ runnerStorage: 'memory' })),
+    Layer.provide(NodeCrypto.layerDigest),
     Layer.orDie,
   );
   const workflow = GitActionWorkflow.layer.pipe(

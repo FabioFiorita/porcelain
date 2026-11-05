@@ -11,6 +11,6 @@
     "test": "pnpm --dir ../.. test --project @porcelain/effects"
   },
   "dependencies": {
-    "effect": "4.0.1"
+    "effect": "4.1.2"
   }
 }

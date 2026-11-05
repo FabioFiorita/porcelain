@@ -450,7 +450,7 @@ export function toStatusResponse(error: unknown): StatusResponse {
     if (error.reason._tag === 'RouteNotFound')
       return response(
         404,
-        `Route ${error.reason.request.method}:${error.reason.request.originalUrl} not found`,
+        `Route ${error.reason.request.method}:${error.reason.request.url} not found`,
       );
     if (error.reason._tag === 'RequestParseError')
       return response(400, INVALID_REQUEST);

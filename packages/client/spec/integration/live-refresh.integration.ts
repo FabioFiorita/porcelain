@@ -144,7 +144,10 @@ test.for([
         },
       },
       undefined,
-      Layer.merge(NodeCrypto.layer, Layer.succeed(OperationStore, operations)),
+      Layer.merge(
+        NodeCrypto.layerSecureRandom,
+        Layer.succeed(OperationStore, operations),
+      ),
     );
     const subject = { ...lifetime, registry: AtomRegistry.make() };
     let callbacks: Parameters<LiveUpdatePort['connect']>[0] | undefined;
