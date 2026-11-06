@@ -7,7 +7,6 @@ import {
   navigatorReviewLabel,
   navigatorCardReviewLabel,
   navigatorCardChangesLabel,
-  navigatorDiffSummary,
   navigatorChecksLabel,
   type NavigatorChanges,
   type NavigatorReview,
@@ -38,130 +37,58 @@ const entry: NavigatorEntry = {
     closed: false,
     archived: false,
     pullRequestNumber: 42,
-    progress: undefined,
+    timing: 'record',
+    latestRevision: 1,
+    lastSeenRevision: 1,
   },
   changes: { state: 'loading' },
 };
-it('uses decision progress without empty review filler in compact cards', () => {
-  expect(
-    navigatorCardReviewLabel({
-      ...entry,
-      detached: false,
-      review: {
-        state: 'available',
-        reviewId: 'review',
-        closed: false,
-        archived: false,
-        pullRequestNumber: 42,
-        progress: { reviewed: 3, total: 12 },
-      },
-    }),
-  ).toBe('3/12 decisions');
+it('describes publication purpose and a new revision without treating reading as a decision', () => {
+  expect(navigatorCardReviewLabel(entry)).toBe('Review available');
   expect(
     navigatorCardReviewLabel({ ...entry, review: { state: 'none' } }),
   ).toBe('');
+  const review = {
+    state: 'available' as const,
+    reviewId: 'review',
+    closed: false,
+    archived: false,
+    pullRequestNumber: undefined,
+    timing: 'decision' as const,
+    latestRevision: 3,
+    lastSeenRevision: 3,
+  };
+  expect(navigatorCardReviewLabel({ ...entry, review })).toBe(
+    'Decision review',
+  );
   expect(
     navigatorCardReviewLabel({
       ...entry,
-      detached: false,
-      review: {
-        state: 'available',
-        reviewId: 'retained',
-        closed: false,
-        archived: false,
-        retained: true,
-        pullRequestNumber: undefined,
-        progress: undefined,
-      },
+      review: { ...review, lastSeenRevision: 2 },
     }),
-  ).toBe('Retained review');
+  ).toBe('Decision review · New revision');
+  expect(
+    navigatorCardReviewLabel({
+      ...entry,
+      review: { ...review, timing: 'record', retained: true },
+    }),
+  ).toBe('Saved review');
+  expect(
+    navigatorCardReviewLabel({
+      ...entry,
+      review: { ...review, timing: 'record', lastSeenRevision: 2 },
+    }),
+  ).toBe('New revision');
 });
 
 it.each<{ changes: NavigatorChanges; label: string }>([
   { changes: { state: 'loading' }, label: 'Reading changes…' },
-  { changes: { state: 'unavailable' }, label: 'Changes unavailable' },
+  { changes: { state: 'unavailable' }, label: '—' },
   { changes: { state: 'available', count: 0 }, label: '' },
-  {
-    changes: { state: 'available', count: 2, summary: { state: 'loading' } },
-    label: '2 files',
-  },
-  {
-    changes: {
-      state: 'available',
-      count: 1,
-      summary: { state: 'unavailable' },
-    },
-    label: '1 file',
-  },
-  {
-    changes: {
-      state: 'available',
-      count: 1,
-      summary: {
-        state: 'available',
-        additions: 0,
-        deletions: 0,
-        binaryFiles: 0,
-      },
-    },
-    label: '1 file',
-  },
-  {
-    changes: {
-      state: 'available',
-      count: 3,
-      summary: {
-        state: 'available',
-        additions: 12,
-        deletions: 4,
-        binaryFiles: 0,
-      },
-    },
-    label: '+12 −4',
-  },
-  {
-    changes: {
-      state: 'available',
-      count: 1,
-      summary: {
-        state: 'available',
-        additions: 0,
-        deletions: 0,
-        binaryFiles: 1,
-      },
-    },
-    label: '+0 −0 · 1 binary',
-  },
-])('shows honest compact change information: $label', ({ changes, label }) => {
+  { changes: { state: 'available', count: 1 }, label: '1 file changed' },
+  { changes: { state: 'available', count: 3 }, label: '3 files changed' },
+])('shows a quiet uncommitted file count: $label', ({ changes, label }) => {
   expect(navigatorCardChangesLabel(changes)).toBe(label);
-});
-
-it('only exposes a numeric diff summary when there are line changes or binary files', () => {
-  expect(navigatorDiffSummary({ state: 'loading' })).toBeUndefined();
-  expect(
-    navigatorDiffSummary({
-      state: 'available',
-      count: 2,
-      summary: {
-        state: 'available',
-        additions: 0,
-        deletions: 0,
-        binaryFiles: 0,
-      },
-    }),
-  ).toBeUndefined();
-  expect(
-    navigatorDiffSummary({
-      state: 'available',
-      count: 1,
-      summary: {
-        state: 'available',
-        additions: 0,
-        deletions: 0,
-        binaryFiles: 1,
-      },
-    }),
-  ).toEqual({ state: 'available', additions: 0, deletions: 0, binaryFiles: 1 });
 });
 
 it.each<{
@@ -268,7 +195,7 @@ it('keeps pending and failed details distinct from no review and a clean checkou
   );
   expect(navigatorReviewLabel({ state: 'none' })).toBe('No review');
   expect(navigatorEntryLabel(entry)).toBe(
-    'long-detached-folder, Porcelain, Desk computer, Detached HEAD, /worktrees/long-detached-folder, Review · reading progress…, Reading changes…, Pull request #42',
+    'long-detached-folder, Porcelain, Desk computer, Detached HEAD, /worktrees/long-detached-folder, Review available, Reading changes…, Pull request #42',
   );
 });
 

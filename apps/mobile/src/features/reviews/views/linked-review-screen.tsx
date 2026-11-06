@@ -34,6 +34,7 @@ import { readReviewMarks } from '@porcelain/client/reviews';
 import { specsApart } from '@porcelain/client/preferences/rules';
 import { useReviewGitSettings } from '../../preferences';
 import type { LinkedRevision } from '../queries/linked-review';
+import type { OpenedReview } from '../../projects';
 import {
   openReview,
   selectReviewEnvironment,
@@ -67,6 +68,7 @@ import { IconButton } from '../../../components/ui/icon-button';
 
 type Revision = LinkedRevision;
 type StopNavigation = {
+  frame: 'screen' | 'pane';
   place: string | undefined;
   open: (key: WalkthroughKey) => void;
   move: (key: WalkthroughKey) => void;
@@ -107,6 +109,7 @@ export function LinkedReviewScreen({
   );
   const scope = { ...link, reviewId };
   const navigation: StopNavigation = {
+    frame: 'screen',
     place: typeof params.stop === 'string' ? params.stop : undefined,
     open: (key) =>
       key === 'briefing'
@@ -138,6 +141,35 @@ export function LinkedReviewScreen({
       ) : (
         <ErrorState message="This review link is invalid. Ask the agent for a new link." />
       )}
+    </Box>
+  );
+}
+
+export function LinkedReviewPane({ review }: { review: OpenedReview }) {
+  const [place, setPlace] = useState<WalkthroughKey>('briefing');
+  const remotes = useAtomRef(remoteConnectionState);
+  const remote = remotes.find(
+    (entry) => entry.remote.environmentId === review.environmentId,
+  )?.remote;
+  if (!remote)
+    return <ErrorState message="This review computer is not paired." />;
+  const address = new URL(remote.address);
+  const query = new URLSearchParams({
+    environment: review.environmentId,
+    host: address.host,
+    protocol: address.protocol.slice(0, -1),
+  });
+  const destination = parseReviewAppLink(
+    `/open/reviews/${encodeURIComponent(review.reviewId)}?${query}`,
+  );
+  if (!destination)
+    return <ErrorState message="This review link is invalid." />;
+  return (
+    <Box className="flex-1" surface="background">
+      <ReviewEnvironment
+        destination={destination}
+        navigation={{ frame: 'pane', place, open: setPlace, move: setPlace }}
+      />
     </Box>
   );
 }
@@ -431,14 +463,16 @@ function LinkedReviewContent({
   );
   return (
     <Box className="flex-1">
-      <Stack.Screen
-        options={{
-          title:
-            stop.kind === 'briefing'
-              ? 'Published review'
-              : stopScreenTitle(stop, stops),
-        }}
-      />
+      {navigation.frame === 'screen' ? (
+        <Stack.Screen
+          options={{
+            title:
+              stop.kind === 'briefing'
+                ? 'Published review'
+                : stopScreenTitle(stop, stops),
+          }}
+        />
+      ) : null}
       {stop.kind === 'briefing' ? (
         <>
           {page}

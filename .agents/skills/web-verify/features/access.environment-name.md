@@ -24,15 +24,15 @@ api:
 
 # access.environment-name
 
-Settings names the computer Porcelain runs on and picks its icon (desktop, laptop, server or cloud; desktop until one is picked). Project controls keep that identity accessible; badges show the icon and name when multiple computers are connected, and only the icon, with the name in a tooltip, when the project or computer name would be cut off. The application header stays Porcelain.
+Settings names the computer Porcelain runs on and picks its icon (desktop, laptop, server or cloud; desktop until one is picked). Project controls keep that identity accessible; captions show the icon and name when multiple computers are connected, and only the icon, with the name in a tooltip, when the project or computer name would be cut off. The application header stays Porcelain.
 
 ## How to get to it (user POV)
 
-- Workspace → `Toggle Sidebar` (phone width) → the application header shows "Porcelain" and project controls name their computer; badges appear only with multiple connected computers.
+- Workspace → `Toggle Sidebar` (phone width) → the application header shows "Porcelain" and project controls name their computer; captions appear only with multiple connected computers.
 - Navigator footer `Settings` (or `Alt+Shift+S` on the workspace, focus outside a text field) → `Computers` → `Open This computer: <name>` → `Rename` beside the title → textbox "Name of this computer" → `Save` (or `Enter` in the field); `Cancel` or `Escape` closes the field.
 - Same page → `Icon: <icon>` beside `Rename` → menu "Icon of this computer" → `Desktop`, `Laptop`, `Server` or `Cloud`; the choice saves at once. `Desktop` is the default and clears the choice.
 - Route: `/settings/computers/this-computer` (host-authorized browser or desktop).
-- The sidebar badge needs a second computer: `$C remote start`, then add `$C remote pairing-link` in Settings → `Computers` → `Pairing link` → `Add` (see [projects.remote-workspace](projects.remote-workspace.md)). The remote computer's icon comes from its own inventory: set it with `PUT /api/environment/icon` on the remote server.
+- The sidebar caption needs a second computer: `$C remote start`, then add `$C remote pairing-link` in Settings → `Computers` → `Pairing link` → `Add` (see [projects.remote-workspace](projects.remote-workspace.md)). The remote computer's icon comes from its own inventory: set it with `PUT /api/environment/icon` on the remote server.
 
 ## Driving it with browser
 
@@ -47,7 +47,7 @@ Required instance mode: `--desktop`.
 `HOST=$(hostname)`: the server reads the machine's own host name (the sandbox does not change it). That is the name shown until one is saved. The project is named `repository`.
 
 1. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" with application header "Porcelain". There is no redundant badge with one connected computer. Project actions and collapse controls include `$HOST` in their full accessible names. With multiple connected computers the static badge has role img `Computer: $HOST`.
+   Expect: navigation "Projects and worktrees" with application header "Porcelain". There is no redundant caption with one connected computer. Project actions and collapse controls include `$HOST` in their full accessible names. With multiple connected computers the static caption has role img `Computer: $HOST`.
 2. Click button `Settings`
    Expect: URL ends `/settings/general`; title "Settings".
 3. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
@@ -65,7 +65,7 @@ Required instance mode: `--desktop`.
 8. Click button `Close Settings` twice
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
-   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no badge. With multiple computers, the static badge updates to `Computer: Workstation`, retaining its full accessible name.
+   Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no caption. With multiple computers, the static caption updates to `Computer: Workstation`, retaining its full accessible name.
 10. Click button `Settings`
     Expect: URL ends `/settings/general`; title "Settings · Workstation".
 11. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
@@ -75,7 +75,7 @@ Required instance mode: `--desktop`.
 13. Click button `Save`
     Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
 14. Click button `Close Settings` twice
-    Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer badge.
+    Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
 
 15. Click button `Settings`, then button `Computers`, then button named `Open This computer: <name>`, then button `Icon: Desktop`
     Expect: menu with label "Icon of this computer" and radio items Desktop (checked), Laptop, Server, Cloud.
@@ -84,14 +84,14 @@ Required instance mode: `--desktop`.
 17. Press Escape to dismiss the radio menu, then click button `Icon: Laptop` and menu item radio `Desktop`
     Expect: trigger `Icon: Desktop`; inventory `environment` has no `icon`.
 
-Sidebar badge with two computers (after pairing the remote as above, 1280 × 800):
+Sidebar caption with two computers (after pairing the remote as above, 1280 × 800):
 
 18. Give both short names (`PUT /api/environment/name` `Desk` here, `Lab` on the remote) and the remote icon `server`
-    Expect: each project header has a badge with role img `Computer: <name>` that shows its icon and the name.
-19. Rename the remote to a name longer than the badge (the remote fixture's `Remote journey computer`), or rename a project to a long name
-    Expect: that header's badge shows only the icon, keeps role img `Computer: <full name>`, and hovering or focusing it (Tab) shows the full computer name in a tooltip. Headers whose names fit keep the icon and name.
+    Expect: each project header has a caption with role img `Computer: <name>` that shows its icon and the name.
+19. Rename the remote to a name longer than the caption (the remote fixture's `Remote journey computer`), or rename a project to a long name
+    Expect: the project name and computer caption occupy separate lines. The full computer identity stays below its project; a clipped name uses the standard keyboard/touch text disclosure rather than becoming an icon-only badge.
 20. With short computer names and a project named `Document inspection`, resize the navigator from 220px to 420px, then repeat
-    Expect: the computer badge is icon-only at 220px and restores icon + name at 420px every time.
+    Expect: the computer caption retains its icon and visible name at both widths every time.
 21. Click button `Filter worktrees`
     Expect: each Environments row shows its computer's icon before the name.
 

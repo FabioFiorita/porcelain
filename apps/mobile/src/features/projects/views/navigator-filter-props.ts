@@ -4,6 +4,7 @@ import type {
 } from '@porcelain/client/projects/rules';
 
 export type NavigatorFilterProps = {
+  view: 'worktrees' | 'reviews';
   sections: readonly NavigatorFilterSection[];
   filter: NavigatorFilter;
   onChange: (filter: NavigatorFilter) => void;

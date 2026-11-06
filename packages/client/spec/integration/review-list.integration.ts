@@ -20,12 +20,13 @@ import {
 } from '@porcelain/client/reviews';
 import {
   readWorktreeNavigator,
+  readReviewNavigator,
   refreshWorktreeNavigator,
   worktreeNavigatorState,
 } from '@porcelain/client/projects';
 import { connection } from '../kit/connection.ts';
 
-test('a main checkout keeps its review progress and retained closed review stays readable when older reviews are shown', async ({
+test('a main checkout stays selectable while closed publications remain readable in Reviews history', async ({
   server,
   session,
 }) => {
@@ -50,6 +51,10 @@ test('a main checkout keeps its review progress and retained closed review stays
   const list = readWorktreeNavigator(connections);
   const entries = () =>
     registry.get(list).projects.flatMap((project) => project.entries);
+  const reviews = readReviewNavigator(connections);
+  const reviewEntries = () =>
+    registry.get(reviews).projects.flatMap((project) => project.entries);
+  const stopReviews = registry.mount(reviews);
   const stop = registry.mount(list);
   try {
     const records = await nativeRead(
@@ -70,7 +75,8 @@ test('a main checkout keeps its review progress and retained closed review stays
         state: 'available',
         reviewId,
         closed: false,
-        progress: { reviewed: 0, total: 1 },
+        timing: 'decision',
+        latestRevision: 1,
       });
     expect(
       entries().filter((entry) => entry.worktreeId === session.worktreeId),
@@ -99,15 +105,14 @@ test('a main checkout keeps its review progress and retained closed review stays
     await execute(refreshWorktreeNavigator(connections), undefined);
     await expect
       .poll(
-        () =>
-          entries().find((entry) => entry.worktreeId === session.worktreeId)
-            ?.review,
+        async () =>
+          (
+            await nativeRead(
+              readReviewMarks({ connection: connected, reviewId }),
+            )
+          ).decisions,
       )
-      .toMatchObject({
-        state: 'available',
-        reviewId,
-        progress: { reviewed: 1, total: 1 },
-      });
+      .toMatchObject([{ layerId: layer.id, fingerprint: layer.fingerprint }]);
     await execute(commands.close, undefined);
     await execute(refreshWorktreeNavigator(connections), undefined);
     await expect
@@ -118,13 +123,21 @@ test('a main checkout keeps its review progress and retained closed review stays
       )
       .toEqual({ state: 'none' });
     expect(entries().some((entry) => entry.kind === 'review')).toBe(false);
+    expect(reviewEntries()).toEqual([]);
     const state = registry.get(worktreeNavigatorState);
     registry.set(worktreeNavigatorState, {
       ...state,
       filter: { ...state.filter, older: true },
     });
     await expect
-      .poll(() => entries().find((entry) => entry.kind === 'review')?.review)
+      .poll(
+        () =>
+          reviewEntries().find(
+            (entry) =>
+              entry.review.state === 'available' &&
+              entry.review.reviewId === reviewId,
+          )?.review,
+      )
       .toMatchObject({
         state: 'available',
         reviewId,
@@ -135,6 +148,7 @@ test('a main checkout keeps its review progress and retained closed review stays
       worktreeId: session.worktreeId,
       available: true,
     });
+    expect(entries().every((entry) => entry.kind === 'worktree')).toBe(true);
     const retained = await nativeRead(
       readReview({ connection: connected, reviewId }),
     );
@@ -143,6 +157,7 @@ test('a main checkout keeps its review progress and retained closed review stays
     );
   } finally {
     stop();
+    stopReviews();
   }
 });
 
@@ -221,6 +236,10 @@ for (const main of [true, false])
     const list = readWorktreeNavigator(connections);
     const entries = () =>
       registry.get(list).projects.flatMap((project) => project.entries);
+    const reviews = readReviewNavigator(connections);
+    const reviewEntries = () =>
+      registry.get(reviews).projects.flatMap((project) => project.entries);
+    const stopReviews = registry.mount(reviews);
     const stop = registry.mount(list);
     try {
       expect(
@@ -238,13 +257,27 @@ for (const main of [true, false])
           ),
         )
         .toBe(false);
+      expect(
+        reviewEntries().some(
+          (row) =>
+            row.review.state === 'available' &&
+            row.review.reviewId === reviewId,
+        ),
+      ).toBe(false);
       const state = registry.get(worktreeNavigatorState);
       registry.set(worktreeNavigatorState, {
         ...state,
         filter: { ...state.filter, older: true },
       });
       await expect
-        .poll(() => entries().find((row) => row.kind === 'review')?.review)
+        .poll(
+          () =>
+            reviewEntries().find(
+              (row) =>
+                row.review.state === 'available' &&
+                row.review.reviewId === reviewId,
+            )?.review,
+        )
         .toMatchObject({
           state: 'available',
           reviewId,
@@ -279,7 +312,14 @@ for (const main of [true, false])
       });
       await execute(refreshWorktreeNavigator(connections), undefined);
       await expect
-        .poll(() => entries().find((row) => row.kind === 'review')?.review)
+        .poll(
+          () =>
+            reviewEntries().find(
+              (row) =>
+                row.review.state === 'available' &&
+                row.review.reviewId === reviewId,
+            )?.review,
+        )
         .toMatchObject({
           state: 'available',
           reviewId,
@@ -314,5 +354,6 @@ for (const main of [true, false])
       }
     } finally {
       stop();
+      stopReviews();
     }
   });

@@ -7,11 +7,7 @@ import {
 } from './worktree-navigator.ts';
 
 type AvailableReview = Extract<NavigatorReview, { state: 'available' }>;
-export type ReviewInboxStatus =
-  | 'needs-you'
-  | 'reviewed'
-  | 'reading'
-  | 'unavailable';
+type ReviewInboxStatus = 'decision' | 'new' | 'available';
 export type ReviewInboxRow = {
   key: string;
   entry: NavigatorEntry;
@@ -26,22 +22,24 @@ type ReviewInboxProject = {
   rows: readonly ReviewInboxRow[];
 };
 export type ReviewInbox = {
-  needsYou: readonly ReviewInboxRow[];
+  decisions: readonly ReviewInboxRow[];
   projects: readonly ReviewInboxProject[];
   reading: boolean;
 };
 
 function reviewInboxStatus(review: AvailableReview): ReviewInboxStatus {
-  if (review.progressUnavailable) return 'unavailable';
-  if (!review.progress) return 'reading';
-  return review.progress.reviewed < review.progress.total
-    ? 'needs-you'
-    : 'reviewed';
+  if (review.closed || review.archived) return 'available';
+  if (review.timing === 'decision') return 'decision';
+  return review.latestRevision > review.lastSeenRevision ? 'new' : 'available';
 }
 
-export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
+export function reviewInbox(
+  entries: readonly NavigatorEntry[],
+  older = false,
+): ReviewInbox {
   const rows = entries.flatMap((entry): ReviewInboxRow[] =>
-    entry.review.state === 'available' && !entry.review.closed
+    entry.review.state === 'available' &&
+    (older || (!entry.review.closed && !entry.review.archived))
       ? [
           {
             key: entry.key,
@@ -55,7 +53,7 @@ export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
   );
   const projects = new Map<string, ReviewInboxProject>();
   for (const row of rows) {
-    if (row.status === 'needs-you') continue;
+    if (row.status === 'decision') continue;
     const key = `${row.entry.environmentId}/${row.entry.projectId}`;
     const project = projects.get(key);
     projects.set(key, {
@@ -66,7 +64,7 @@ export function reviewInbox(entries: readonly NavigatorEntry[]): ReviewInbox {
     });
   }
   return {
-    needsYou: rows.filter((row) => row.status === 'needs-you'),
+    decisions: rows.filter((row) => row.status === 'decision'),
     projects: [...projects.values()].sort(
       (a, b) =>
         a.name.localeCompare(b.name) ||
@@ -86,7 +84,7 @@ export function searchReviewInbox(
     navigatorEntryMatches(row.entry, query, emptyNavigatorFilter);
   return {
     ...inbox,
-    needsYou: inbox.needsYou.filter(matches),
+    decisions: inbox.decisions.filter(matches),
     projects: inbox.projects.flatMap((project) => {
       const rows = project.rows.filter(matches);
       return rows.length > 0 ? [{ ...project, rows }] : [];

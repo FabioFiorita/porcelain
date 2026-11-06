@@ -4,7 +4,9 @@ selectors:
   - 'Reviews'
   - 'review-inbox'
   - 'Reviews by project'
-  - 'Needs you'
+  - 'Decision reviews'
+  - 'Filter reviews'
+  - 'Show older reviews'
   - 'Reading reviews…'
   - 'No reviews'
   - 'Pair a computer'
@@ -14,34 +16,35 @@ selectors:
   - 'No reviews match'
 tests:
   - packages/client/src/features/projects/rules/review-inbox.spec.ts
+  - packages/client/src/features/projects/queries/worktree-navigator.spec.ts
 api:
   - GET /api/inventory
+  - GET /api/projects/:projectId/reviews
   - GET /api/reviews/:reviewId
+  - GET /api/worktrees/:worktreeId/review
+  - GET /api/reviews/:reviewId/pull-request/checks
 ---
 
 # reviews.inbox
 
-The Reviews tab lists the open published reviews of every paired computer. Reviews with undecided decisions come first under Needs you; the rest are grouped by project, labelled "project · computer" when more than one computer is paired. Each row has a status icon in a tonal circle, the branch as its title and "project · n/m decisions · PR #n" as its subtitle, and opens the published review. The inbox shows no time, agent name or unread state.
+The Reviews tab reads durable stored publications independently of live worktrees. Open decision reviews appear under Decision reviews; routine records are grouped by project. A record’s unread state never creates an approval obligation. Multiple computers show their plain name beneath each project; decision rows include project/computer context in their description. Rows use a neutral file icon, branch identity, recorded decision/new-revision metadata, and optional PR number. Failed CI has a separate warning icon. Reading progress and diff-size totals stay inside the review.
 
 ## How to get to it (user POV)
 
-- Launch the app: Reviews is the first tab. Tap a row to open the published review; Back returns to the inbox.
+- Reviews is the first native tab. Tap a row to read its publication; native Back returns to the inbox on a phone.
+- Filter reviews includes the shared computer, project and review-presence filters. Reviews has its own visible search field; a Worktrees search never silently narrows it. Show older reviews includes closed and archived publications. Clear filters restores open reviews without clearing search.
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md). Publish at least two reviews through `$C agent …`: one with an undecided decision and one fully reviewed, plus one linked to a PR when a GitHub fixture is available.
+Preconditions: [surface baseline](README.md). Publish decision and record reviews, including two separate reviews from the same checkout and an open review whose checkout is removed. Retain independent server reads of review ids, timing, revision/seen state, and lifecycle state.
 
-1. Open Reviews. While reads are pending and nothing is listed, expect Reading reviews…. Then the undecided review sits under Needs you and the reviewed one under its project heading. Compare each row's branch, decision counts and PR number with independent `$C server …` reads; a closed or archived review does not appear.
-2. Tap `review-inbox-<reviewId>`: the [published review](reviews.linked-review.md) pushes inside the Reviews tab. Back returns to the inbox at the same position.
-3. Mark the remaining decisions of the Needs you review (through the web client or the review screen) and return: the row moves to its project group without reload.
-4. Pair a second disposable computer with a review: project headings read "project · computer" and each row opens its own computer's review.
-5. With no published reviews expect No reviews. Forget every computer: Pair a computer with Add computer, which opens Settings → Computers.
-6. Type in the header's Search reviews field: every word must match the branch, worktree, project, computer or `#<PR number>`; groups that empty disappear, and nothing matching says No reviews match. Cancel (iOS) or clearing the field restores the full inbox.
-7. Tablets with sufficient content width: the inbox is the left column and the chosen review's overview sits beside it ([shell](app.shell.md)); the chosen row is highlighted and search filters the column. Rotate with a review open: the same review stays open.
-8. Check long branch names, larger text, light/dark, and tablets in landscape and portrait.
+1. Open Reviews. While nothing has settled, expect Reading reviews…. Decision-timed publications appear under Decision reviews, without claiming their questions remain unanswered. Routine records stay in their project group even when unread or unmarked. A new revision uses latestRevision versus lastSeenRevision; no n/m decisions fraction appears on a row.
+2. Open each `review-inbox-<reviewId>` and confirm the exact published review id and computer. The publication currently attached to a live checkout retains its writable feedback and review controls on phone and tablet layouts. An earlier publication or one whose checkout was removed opens its saved, read-only review. Both reviews from the same checkout remain reachable. Removing a checkout does not remove its open publication from the default list. If the current publication changes after the inbox read, opening the older row still shows that saved publication, without newer-worktree feedback controls.
+3. On a phone, native Back returns to the same inbox. On tablets with sufficient content width, selecting a row updates the overview beside the list and moves the neutral selected fill to that exact review id and computer. Navigating decisions stays inside that selected publication; switching between two reviews of the same branch remains distinct. Rotate in landscape/portrait with a review and decision selected: the same publication remains selected. Review-pane navigation does not rename the native Reviews tab.
+4. Mark every decision in a decision review and return: its decision timing remains visible; a reading mark is not an answer or approval. Open a routine record and return: its new-revision label clears after the seen revision is acknowledged, without creating a Decision reviews item.
+5. Closed/archived reviews stay hidden by default. Filter reviews → Show older reviews reveals them under their project, with explicit closed/archived labels. Closed decision-timed reviews do not enter Decision reviews. Disable history again and confirm open publications remain.
+6. Pair a second disposable computer with colliding project/review ids. Project headers retain computer captions; each row opens the correct computer’s publication. CI failure has a separate warning icon and accessible Checks failed meaning without changing a publication’s timing or reading state.
+7. Search every word across branch, project, computer, and PR number. Empty groups disappear, unmatched searches say No reviews match, and cancelling/clearing restores the list. Filter reviews applies project, computer, review-presence and older-publication choices consistently; a nonexistent project/computer filter yields no rows. Clear filters restores the publication list. With no publications expect No reviews. Forget every computer: Pair a computer → Add computer opens Settings → Computers.
+8. Check long branch/computer names, larger text, light/dark, phone and tablet layouts, including both tablet orientations. Worktrees remains a separate native destination with its existing entry/return paths.
 
-Automated coverage: `review-inbox.spec.ts` (grouping, ordering, status and search).
-
-## Gotchas
-
-- A row whose progress cannot be read shows a warning icon; it is not counted as Needs you. Follow [Worktrees](projects.worktrees.md#driving-it-with-agent-device) for inventory loading and recovery.
+Automated coverage: shared review-inbox and navigator query specs cover decision/record distinctions, revision labels, durable review identities, history, and search. Native list/detail geometry and navigation require device proof.

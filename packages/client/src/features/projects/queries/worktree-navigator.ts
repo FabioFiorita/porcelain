@@ -1,24 +1,19 @@
 import { Cause, Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import {
-  readGitStatus,
-  readWorktreeSummary,
-} from '../../changes/queries/changes.ts';
+import { readGitStatus } from '../../changes/queries/changes.ts';
 import {
   readProjectReviews,
   readReviewPullChecks,
   readReview,
-  readReviewMarks,
 } from '../../reviews/queries/project-reviews.ts';
-import {
-  decisionMarked,
-  checkoutFolder,
-} from '../../reviews/rules/review-list.ts';
+import { readPublishedReview } from '../../reviews/queries/publication.ts';
+import { checkoutFolder } from '../../reviews/rules/review-list.ts';
 import { pullRequestNumber } from '../../reviews/rules/pull-request.ts';
 import type { ReviewRecord } from '../../reviews/rules/review.ts';
 import {
   navigatorEntryMatches,
+  navigatorProjectVisible,
   reconcileNavigatorStatusNotices,
   navigatorFilterSections,
   navigatorWorktreeOrder,
@@ -55,7 +50,6 @@ type ProjectInput = {
   connection: RuntimeConnection;
   project: Project;
   environmentName: string;
-  older: boolean;
 };
 function recordReview(
   record: ReviewRecord,
@@ -68,7 +62,9 @@ function recordReview(
     pullRequestNumber: record.pullRequest
       ? pullRequestNumber(record.pullRequest)
       : undefined,
-    progress: undefined,
+    timing: record.timing ?? 'decision',
+    latestRevision: record.latestRevision,
+    lastSeenRevision: record.lastSeenRevision,
   };
 }
 function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
@@ -99,12 +95,8 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
     }))
     .sort(navigatorWorktreeOrder);
 }
-const readProjectReviewEntries = Atom.family(
-  (input: {
-    connection: RuntimeConnection;
-    projectId: string;
-    older: boolean;
-  }) =>
+const readWorktreeReviewEntries = Atom.family(
+  (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
       const inventoryResult = get(readInventory(input.connection));
       const inventory = Option.getOrUndefined(
@@ -171,7 +163,6 @@ const readProjectReviewEntries = Atom.family(
         ]);
         if (!byCheckout.has(key)) byCheckout.set(key, candidate);
       }
-      const associated = new Set<string>();
       for (const entry of entries) {
         if (AsyncResult.isFailure(recordsResult)) {
           entry.review = { state: 'unavailable' };
@@ -181,7 +172,7 @@ const readProjectReviewEntries = Atom.family(
         const match = byCheckout.get(
           JSON.stringify([entry.path, entry.worktreeId]),
         );
-        if (!match) {
+        if (!match || match.record.branch !== entry.branch) {
           if (failed.has(entry.branch) && !pending.has(entry.branch))
             messages.push(
               `Review for ${entry.name} on ${environmentName} could not be read.`,
@@ -191,51 +182,84 @@ const readProjectReviewEntries = Atom.family(
           if (pending.has(entry.branch)) entry.review = { state: 'loading' };
           continue;
         }
-        associated.add(match.record.reviewId);
-        const markResult = get(
-          readReviewMarks({
-            connection: input.connection,
-            reviewId: match.record.reviewId,
-          }),
-        );
-        const marks = Option.getOrUndefined(AsyncResult.value(markResult));
-        if (AsyncResult.isFailure(markResult))
-          messages.push(
-            `Progress for ${entry.name} on ${environmentName} could not be read.`,
-          );
-        const layers = match.revision?.content.layers;
-        entry.review = {
-          ...recordReview(match.record),
-          ...(marks && layers && !AsyncResult.isFailure(markResult)
-            ? {
-                progress: {
-                  reviewed: layers.filter((layer) =>
-                    decisionMarked(marks.decisions, layer),
-                  ).length,
-                  total: layers.length,
-                },
-              }
-            : {}),
-          progressUnavailable: AsyncResult.isFailure(markResult),
-        };
+        entry.review = recordReview(match.record);
       }
-      if (input.older) {
-        for (const record of records ?? []) {
-          if (associated.has(record.reviewId)) continue;
-          const revision = candidates.find(
-            (candidate) => candidate.record.reviewId === record.reviewId,
-          )?.revision;
-          entries.push({
+      return { entries, messages };
+    }).pipe(Atom.setIdleTTL(0)),
+);
+
+const readStoredReviewEntries = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    projectId: string;
+    older: boolean;
+  }) =>
+    Atom.readable((get) => {
+      const inventoryResult = get(readInventory(input.connection));
+      const inventory = Option.getOrUndefined(
+        AsyncResult.value(inventoryResult),
+      );
+      const project = inventory?.projects.find(
+        (project) => project.id === input.projectId,
+      );
+      const statusFailures: StatusFailure[] = [];
+      if (!inventory || !project)
+        return { entries: [], messages: [], loading: false, statusFailures };
+      const result = get(
+        readProjectReviews({
+          connection: input.connection,
+          projectId: input.projectId,
+        }),
+      );
+      const records = Option.getOrUndefined(AsyncResult.value(result)) ?? [];
+      const checkouts =
+        !AsyncResult.isFailure(inventoryResult) && project.available
+          ? project.worktrees
+              .filter(
+                (worktree) =>
+                  worktree.available &&
+                  records.some(
+                    (record) =>
+                      record.state === 'open' &&
+                      !record.archived &&
+                      record.branch === worktreeLabel(worktree.branch),
+                  ),
+              )
+              .map((worktree) => {
+                const published = get(
+                  readPublishedReview({
+                    connection: input.connection,
+                    scope: { projectId: project.id, worktreeId: worktree.id },
+                  }),
+                );
+                return {
+                  worktree,
+                  reviewId: AsyncResult.isSuccess(published)
+                    ? published.value?.reviewId
+                    : undefined,
+                };
+              })
+          : [];
+      const entries = records
+        .filter(
+          (record) =>
+            input.older || (record.state === 'open' && !record.archived),
+        )
+        .map((record): NavigatorEntry => {
+          const checkout = checkouts.find(
+            (entry) =>
+              entry.reviewId === record.reviewId &&
+              worktreeLabel(entry.worktree.branch) === record.branch,
+          )?.worktree;
+          return {
             key: `${input.connection.environmentId}/${record.reviewId}`,
             kind: 'review',
             environmentId: input.connection.environmentId,
-            environmentName: environmentName,
+            environmentName: inventory.environment.name,
             projectId: project.id,
             projectName: project.name,
-            worktreeId: entries.find(
-              (entry) => revision?.worktreePath === entry.path,
-            )?.worktreeId,
-            path: revision?.worktreePath,
+            worktreeId: checkout?.id,
+            path: checkout?.path,
             name: record.branch,
             branch: record.branch,
             main: false,
@@ -243,21 +267,23 @@ const readProjectReviewEntries = Atom.family(
             available: true,
             review: { ...recordReview(record), retained: true },
             changes: { state: 'unavailable' },
-          });
-        }
-      }
-      return { entries, messages };
+          };
+        });
+      return {
+        entries,
+        messages: AsyncResult.isFailure(result)
+          ? [`Reviews for ${project.name} could not be read.`]
+          : [],
+        loading: AsyncResult.isInitial(result),
+        statusFailures,
+      };
     }).pipe(Atom.setIdleTTL(0)),
 );
 
 const readNavigatorProject = Atom.family(
-  (input: {
-    connection: RuntimeConnection;
-    projectId: string;
-    older: boolean;
-  }) =>
+  (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
-      const reviewed = get(readProjectReviewEntries(input));
+      const reviewed = get(readWorktreeReviewEntries(input));
       const statusFailures: StatusFailure[] = [];
       const entries = reviewed.entries.map((source) => {
         const entry: NavigatorEntry = { ...source };
@@ -296,7 +322,12 @@ const readNavigatorProject = Atom.family(
         }
         return entry;
       });
-      return { entries, messages: reviewed.messages, statusFailures };
+      return {
+        entries,
+        messages: reviewed.messages,
+        statusFailures,
+        loading: false,
+      };
     }).pipe(Atom.setIdleTTL(0)),
 );
 function connectionInventories(
@@ -324,225 +355,196 @@ function connectionInventories(
   };
 }
 
+function navigator(
+  connections: readonly RuntimeConnection[],
+  view: 'worktrees' | 'reviews' | 'inbox',
+) {
+  return Atom.readable((get) => {
+    const state = get(worktreeNavigatorState);
+    const reviewsOnly = view !== 'worktrees';
+    const query = view === 'inbox' ? '' : state.query;
+    const all: NavigatorProject[] = [];
+    const observedEntries: NavigatorEntry[] = [];
+    const readEnvironments: string[] = [];
+    const statusIssues: {
+      connection: RuntimeConnection;
+      environmentName: string;
+      failures: StatusFailure[];
+    }[] = [];
+    const inventories = connectionInventories(get, connections);
+    const messages = [...inventories.messages];
+    let detailsLoading = false;
+    for (const { connection, result, inventory } of inventories.reads) {
+      if (AsyncResult.isSuccess(result))
+        readEnvironments.push(connection.environmentId);
+      for (const savedProject of inventory?.projects ?? []) {
+        const project: Project = AsyncResult.isFailure(result)
+          ? { ...savedProject, available: false }
+          : savedProject;
+        const key = `${connection.environmentId}/${project.id}`;
+        all.push({
+          key,
+          connection,
+          project,
+          environmentName: inventory!.environment.name,
+          environmentIcon: environmentIcon(inventory!.environment),
+          expanded:
+            view === 'inbox' ||
+            query.trim().length > 0 ||
+            state.expanded[key] !== false,
+          entries: [],
+        });
+      }
+    }
+    all.sort(
+      (a, b) =>
+        a.project.name.localeCompare(b.project.name) ||
+        a.environmentName.localeCompare(b.environmentName) ||
+        a.key.localeCompare(b.key),
+    );
+    const filters = navigatorFilterSections(
+      all.map((source) => ({
+        key: source.key,
+        name: source.project.name,
+        environmentId: source.connection.environmentId,
+        environmentName: source.environmentName,
+        environmentIcon: source.environmentIcon,
+      })),
+      state.filter,
+    );
+    const projects: NavigatorProject[] = [];
+    for (const source of all) {
+      if (
+        !navigatorProjectVisible(
+          source.key,
+          source.connection.environmentId,
+          state.filter,
+        )
+      )
+        continue;
+      if (!source.expanded) {
+        projects.push(source);
+        continue;
+      }
+      const input = {
+        connection: source.connection,
+        projectId: source.project.id,
+      };
+      const answer = reviewsOnly
+        ? get(readStoredReviewEntries({ ...input, older: state.filter.older }))
+        : get(readNavigatorProject(input));
+      detailsLoading ||= answer.loading;
+      observedEntries.push(...answer.entries);
+      messages.push(...answer.messages);
+      if (answer.statusFailures.length > 0) {
+        const issue = statusIssues.find(
+          (issue) =>
+            issue.connection.environmentId === source.connection.environmentId,
+        );
+        if (issue) issue.failures.push(...answer.statusFailures);
+        else
+          statusIssues.push({
+            connection: source.connection,
+            environmentName: source.environmentName,
+            failures: [...answer.statusFailures],
+          });
+      }
+      const entries = answer.entries
+        .filter((entry) => navigatorEntryMatches(entry, query, state.filter))
+        .map((entry): NavigatorEntry => ({
+          ...entry,
+          review: { ...entry.review },
+          changes: { ...entry.changes },
+        }));
+      for (const entry of entries) {
+        if (
+          entry.review.state === 'available' &&
+          entry.review.pullRequestNumber
+        ) {
+          const result = get(
+            readReviewPullChecks({
+              connection: source.connection,
+              reviewId: entry.review.reviewId,
+            }),
+          );
+          const value = Option.getOrUndefined(AsyncResult.value(result));
+          entry.review.checks = { state: 'loading' };
+          if (
+            AsyncResult.isFailure(result) ||
+            (value &&
+              (value.kind !== 'available' ||
+                value.number !== entry.review.pullRequestNumber))
+          )
+            entry.review.checks = { state: 'unavailable' };
+          else if (value?.kind === 'available')
+            entry.review.checks = {
+              state: 'available',
+              result: value.checks,
+            };
+        }
+      }
+      if (
+        entries.length === 0 &&
+        (reviewsOnly || query.trim() || state.filter.reviews !== undefined)
+      )
+        continue;
+      projects.push({ ...source, entries });
+    }
+    const previousNotices = get.once(worktreeStatusNotices);
+    const notices = reconcileNavigatorStatusNotices(previousNotices, {
+      issues: statusIssues.map(({ connection, environmentName, failures }) => ({
+        environmentId: connection.environmentId,
+        environmentName,
+        failures,
+      })),
+      recoveredKeys: observedEntries
+        .filter((entry) => entry.changes.state === 'available')
+        .map((entry) => entry.key),
+      inventoryKeys: all.flatMap((source) =>
+        source.project.worktrees.map(
+          (worktree) =>
+            `${source.connection.environmentId}/${source.project.id}/${worktree.id}`,
+        ),
+      ),
+      environments: readEnvironments,
+    });
+    if (notices !== previousNotices) get.set(worktreeStatusNotices, notices);
+    return {
+      projects,
+      allProjects: all,
+      statusIssues: get(worktreeStatusNotices),
+      filters,
+      loading: inventories.loading || detailsLoading,
+      messages: [...new Set(messages)],
+    };
+  });
+}
+
 export const readWorktreeNavigator = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
-    Atom.readable((get) => {
-      const state = get(worktreeNavigatorState);
-      const all: NavigatorProject[] = [];
-      const observedEntries: NavigatorEntry[] = [];
-      const readEnvironments: string[] = [];
-      const statusIssues: {
-        connection: RuntimeConnection;
-        environmentName: string;
-        failures: StatusFailure[];
-      }[] = [];
-      const inventories = connectionInventories(get, connections);
-      const messages = [...inventories.messages];
-      for (const { connection, result, inventory } of inventories.reads) {
-        if (AsyncResult.isSuccess(result))
-          readEnvironments.push(connection.environmentId);
-        for (const savedProject of inventory?.projects ?? []) {
-          const project: Project = AsyncResult.isFailure(result)
-            ? { ...savedProject, available: false }
-            : savedProject;
-          const key = `${connection.environmentId}/${project.id}`;
-          all.push({
-            key,
-            connection,
-            project,
-            environmentName: inventory!.environment.name,
-            environmentIcon: environmentIcon(inventory!.environment),
-            expanded:
-              state.query.trim().length > 0 || state.expanded[key] !== false,
-            entries: [],
-          });
-        }
-      }
-      all.sort(
-        (a, b) =>
-          a.project.name.localeCompare(b.project.name) ||
-          a.environmentName.localeCompare(b.environmentName) ||
-          a.key.localeCompare(b.key),
-      );
-      const filters = navigatorFilterSections(
-        all.map((source) => ({
-          key: source.key,
-          name: source.project.name,
-          environmentId: source.connection.environmentId,
-          environmentName: source.environmentName,
-          environmentIcon: source.environmentIcon,
-        })),
-        state.filter,
-      );
-      const projects: NavigatorProject[] = [];
-      for (const source of all) {
-        if (state.filter.reviews?.length === 0) continue;
-        if (
-          state.filter.projects !== undefined &&
-          !state.filter.projects.includes(source.key)
-        )
-          continue;
-        if (
-          state.filter.environments !== undefined &&
-          !state.filter.environments.includes(source.connection.environmentId)
-        )
-          continue;
-        if (!source.expanded) {
-          projects.push(source);
-          continue;
-        }
-        const answer = get(
-          readNavigatorProject({
-            connection: source.connection,
-            projectId: source.project.id,
-            older: state.filter.older,
-          }),
-        );
-        observedEntries.push(...answer.entries);
-        messages.push(...answer.messages);
-        if (answer.statusFailures.length > 0) {
-          const issue = statusIssues.find(
-            (issue) =>
-              issue.connection.environmentId ===
-              source.connection.environmentId,
-          );
-          if (issue) issue.failures.push(...answer.statusFailures);
-          else
-            statusIssues.push({
-              connection: source.connection,
-              environmentName: source.environmentName,
-              failures: [...answer.statusFailures],
-            });
-        }
-        const entries = answer.entries
-          .filter((entry) =>
-            navigatorEntryMatches(entry, state.query, state.filter),
-          )
-          .map((entry): NavigatorEntry => ({
-            ...entry,
-            review: { ...entry.review },
-            changes: { ...entry.changes },
-          }));
-        for (const entry of entries) {
-          if (entry.changes.state === 'available' && entry.worktreeId) {
-            if (entry.changes.count === 0)
-              entry.changes.summary = {
-                state: 'available',
-                additions: 0,
-                deletions: 0,
-                binaryFiles: 0,
-              };
-            else {
-              const result = get(
-                readWorktreeSummary({
-                  connection: source.connection,
-                  scope: {
-                    projectId: entry.projectId,
-                    worktreeId: entry.worktreeId,
-                  },
-                }),
-              );
-              const value = Option.getOrUndefined(AsyncResult.value(result));
-              entry.changes.summary = { state: 'loading' };
-              if (AsyncResult.isFailure(result))
-                entry.changes.summary = { state: 'unavailable' };
-              else if (value)
-                entry.changes.summary = {
-                  state: 'available',
-                  additions: value.additions,
-                  deletions: value.deletions,
-                  binaryFiles: value.binaryFiles,
-                };
-            }
-          }
-          if (
-            entry.review.state === 'available' &&
-            entry.review.pullRequestNumber
-          ) {
-            const result = get(
-              readReviewPullChecks({
-                connection: source.connection,
-                reviewId: entry.review.reviewId,
-              }),
-            );
-            const value = Option.getOrUndefined(AsyncResult.value(result));
-            entry.review.checks = { state: 'loading' };
-            if (
-              AsyncResult.isFailure(result) ||
-              (value &&
-                (value.kind !== 'available' ||
-                  value.number !== entry.review.pullRequestNumber))
-            )
-              entry.review.checks = { state: 'unavailable' };
-            else if (value?.kind === 'available')
-              entry.review.checks = {
-                state: 'available',
-                result: value.checks,
-              };
-          }
-        }
-        if (
-          entries.length === 0 &&
-          (state.query.trim() || state.filter.reviews !== undefined)
-        )
-          continue;
-        projects.push({ ...source, entries });
-      }
-      const previousNotices = get.once(worktreeStatusNotices);
-      const notices = reconcileNavigatorStatusNotices(previousNotices, {
-        issues: statusIssues.map(
-          ({ connection, environmentName, failures }) => ({
-            environmentId: connection.environmentId,
-            environmentName,
-            failures,
-          }),
-        ),
-        recoveredKeys: observedEntries
-          .filter((entry) => entry.changes.state === 'available')
-          .map((entry) => entry.key),
-        inventoryKeys: all.flatMap((source) =>
-          source.project.worktrees.map(
-            (worktree) =>
-              `${source.connection.environmentId}/${source.project.id}/${worktree.id}`,
-          ),
-        ),
-        environments: readEnvironments,
-      });
-      if (notices !== previousNotices) get.set(worktreeStatusNotices, notices);
-      return {
-        projects,
-        allProjects: all,
-        statusIssues: get(worktreeStatusNotices),
-        filters,
-        loading: inventories.loading,
-        messages: [...new Set(messages)],
-      };
-    }),
+    navigator(connections, 'worktrees'),
+);
+
+export const readReviewNavigator = Atom.family(
+  (connections: readonly RuntimeConnection[]) =>
+    navigator(connections, 'reviews'),
 );
 
 export const readReviewInbox = Atom.family(
-  (connections: readonly RuntimeConnection[]) =>
-    Atom.readable((get) => {
-      const entries: NavigatorEntry[] = [];
-      const inventories = connectionInventories(get, connections);
-      const messages = [...inventories.messages];
-      for (const { connection, inventory } of inventories.reads) {
-        for (const project of inventory?.projects ?? []) {
-          const answer = get(
-            readProjectReviewEntries({
-              connection,
-              projectId: project.id,
-              older: false,
-            }),
-          );
-          entries.push(...answer.entries);
-          messages.push(...answer.messages);
-        }
-      }
+  (connections: readonly RuntimeConnection[]) => {
+    const reviews = navigator(connections, 'inbox');
+    return Atom.readable((get) => {
+      const { filter } = get(worktreeNavigatorState);
+      const result = get(reviews);
       return {
-        inbox: reviewInbox(entries),
-        loading: inventories.loading,
-        messages: [...new Set(messages)],
+        inbox: reviewInbox(
+          result.projects.flatMap((project) => project.entries),
+          filter.older,
+        ),
+        filters: result.filters,
+        loading: result.loading,
+        messages: result.messages,
       };
-    }),
+    });
+  },
 );

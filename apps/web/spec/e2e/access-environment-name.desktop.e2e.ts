@@ -151,7 +151,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
   ).toBeVisible();
 });
 
-test('computer labels return when the worktree navigator is widened', async ({
+test('computer labels remain visible when the worktree navigator is narrowed and widened', async ({
   pairedPage: page,
   app,
   world,
@@ -219,6 +219,6 @@ test('computer labels return when the worktree navigator is widened', async ({
     await expect
       .poll(async () => Math.round((await navigator.boundingBox())?.width ?? 0))
       .toBe(width);
-    await expect(badge).toHaveText(width === 420 ? 'Desk' : '');
+    await expect(badge).toHaveText('Desk');
   }
 });

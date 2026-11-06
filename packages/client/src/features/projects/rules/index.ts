@@ -23,8 +23,8 @@ export {
   emptyNavigatorFilter,
   navigatorCardReviewLabel,
   navigatorCardChangesLabel,
+  navigatorChangesLabel,
   navigatorChecksLabel,
-  navigatorDiffSummary,
   navigatorEntryLabel,
   navigatorEntrySelected,
   type NavigatorStatusNotice,
@@ -32,7 +32,7 @@ export {
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
-export type { ReviewInboxRow, ReviewInboxStatus } from './review-inbox.ts';
+export type { ReviewInboxRow } from './review-inbox.ts';
 export { searchReviewInbox } from './review-inbox.ts';
 
 export {

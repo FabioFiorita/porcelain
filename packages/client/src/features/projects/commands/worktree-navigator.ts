@@ -1,21 +1,23 @@
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Effect, Option } from 'effect';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import {
-  readGitStatus,
-  readWorktreeSummary,
-} from '../../changes/queries/changes.ts';
+import { readGitStatus } from '../../changes/queries/changes.ts';
 import {
   readProjectReviews,
   readReviewPullChecks,
   readReview,
-  readReviewMarks,
 } from '../../reviews/queries/project-reviews.ts';
-import { readWorktreeNavigator } from '../queries/worktree-navigator.ts';
+import { readPublishedReview } from '../../reviews/queries/publication.ts';
 import { refreshInventory } from './projects.ts';
 import { readInventory } from '../queries/inventory.ts';
-import { worktreeStatusNotices } from '../store/worktree-navigator.ts';
-import type { NavigatorStatusNotice } from '../rules/worktree-navigator.ts';
+import {
+  worktreeStatusNotices,
+  worktreeNavigatorState,
+} from '../store/worktree-navigator.ts';
+import {
+  navigatorProjectVisible,
+  type NavigatorStatusNotice,
+} from '../rules/worktree-navigator.ts';
 
 function changeFailures(
   get: Atom.FnContext,
@@ -110,18 +112,48 @@ export const refreshWorktreeNavigator = Atom.family(
             get.setResult(refreshInventory(connection), undefined),
           { concurrency: 'unbounded' },
         );
-        const view = get(readWorktreeNavigator(connections));
-        for (const source of view.projects) {
-          if (!source.expanded) continue;
+        const state = get(worktreeNavigatorState);
+        const sources = connections.flatMap((connection) => {
+          const inventory = Option.getOrUndefined(
+            AsyncResult.value(get(readInventory(connection))),
+          );
+          return (inventory?.projects ?? []).map((project) => ({
+            connection,
+            project,
+            key: `${connection.environmentId}/${project.id}`,
+          }));
+        });
+        for (const source of sources) {
+          if (
+            !navigatorProjectVisible(
+              source.key,
+              source.connection.environmentId,
+              state.filter,
+            )
+          )
+            continue;
           const projectRead = readProjectReviews({
             connection: source.connection,
             projectId: source.project.id,
           });
+          if (
+            !state.query.trim() &&
+            state.expanded[source.key] === false &&
+            !get.registry.getNodes().has(projectRead)
+          )
+            continue;
           const records = Option.getOrUndefined(
             AsyncResult.value(get(projectRead)),
           );
           get.refresh(projectRead);
           for (const record of records ?? []) {
+            if (record.pullRequest)
+              get.refresh(
+                readReviewPullChecks({
+                  connection: source.connection,
+                  reviewId: record.reviewId,
+                }),
+              );
             if (record.state !== 'open' || record.archived) continue;
             if (
               !source.project.worktrees.some(
@@ -137,51 +169,26 @@ export const refreshWorktreeNavigator = Atom.family(
               }),
             );
           }
-          for (const entry of source.entries) {
-            if (entry.worktreeId && entry.available) {
-              if (
-                entry.changes.state === 'available' &&
-                entry.changes.count > 0
-              )
-                get.refresh(
-                  readWorktreeSummary({
-                    connection: source.connection,
-                    scope: {
-                      projectId: entry.projectId,
-                      worktreeId: entry.worktreeId,
-                    },
-                  }),
-                );
+          for (const worktree of source.project.worktrees) {
+            if (source.project.available && worktree.available) {
+              get.refresh(
+                readPublishedReview({
+                  connection: source.connection,
+                  scope: {
+                    projectId: source.project.id,
+                    worktreeId: worktree.id,
+                  },
+                }),
+              );
               get.refresh(
                 readGitStatus({
                   connection: source.connection,
                   scope: {
-                    projectId: entry.projectId,
-                    worktreeId: entry.worktreeId,
+                    projectId: source.project.id,
+                    worktreeId: worktree.id,
                   },
                 }),
               );
-            }
-            if (
-              entry.review.state === 'available' &&
-              entry.review.pullRequestNumber
-            )
-              get.refresh(
-                readReviewPullChecks({
-                  connection: source.connection,
-                  reviewId: entry.review.reviewId,
-                }),
-              );
-            if (
-              entry.kind === 'worktree' &&
-              entry.review.state === 'available' &&
-              !entry.review.closed
-            ) {
-              const input = {
-                connection: source.connection,
-                reviewId: entry.review.reviewId,
-              };
-              get.refresh(readReviewMarks(input));
             }
           }
         }

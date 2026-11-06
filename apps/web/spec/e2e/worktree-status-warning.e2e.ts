@@ -69,6 +69,12 @@ for (const width of [1440, 414]) {
       await expect(
         sidebar.getByText('Changes unavailable', { exact: true }),
       ).not.toBeAttached();
+      await expect(
+        sidebar.getByRole('img', {
+          name: 'Local uncommitted changes: Changes unavailable',
+          exact: true,
+        }),
+      ).toHaveCount(2);
       const path = app.address().path;
       const currentProject = await server.project();
       const expectedWorktrees = currentProject.worktrees
