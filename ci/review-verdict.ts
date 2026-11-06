@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { strictJsonSchema } from './openai.ts';
 
 export const ReviewFinding = Schema.Struct({
   title: Schema.String,
@@ -16,9 +17,7 @@ export const Review = Schema.Struct({
 });
 export type Review = typeof Review.Type;
 
-export const reviewJsonSchema = Schema.toJsonSchemaDocument(Review, {
-  onExcessProperty: 'error',
-}).schema;
+export const reviewJsonSchema = strictJsonSchema(Review);
 
 export type PullRequest = {
   repository: string;

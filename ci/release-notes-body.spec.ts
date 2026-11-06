@@ -20,10 +20,10 @@ describe('pullRequestNumbers', () => {
 });
 
 describe('whatAndWhy', () => {
-  it('reads only the first section of a pull request written from the template', () => {
+  it('reads only what and why from a pull request written from the template', () => {
     expect(
       whatAndWhy(
-        '## What and why\n\nThe watcher froze; now it restarts.\n\n## Verified\n\nRan the server.',
+        '## What and why\n\n<!-- Two or three sentences. -->\nThe watcher froze; now it restarts.\n\nSurfaces: server only, driven locally.\n\n## Verified\n\nRan the server.',
       ),
     ).toBe('The watcher froze; now it restarts.');
   });
@@ -42,7 +42,7 @@ describe('releaseBody', () => {
           },
           {
             kind: 'new',
-            items: [{ text: 'Review handoffs.', pulls: [669] }],
+            items: [{ text: 'Review handoffs.', pulls: [669, 9999] }],
           },
         ],
       },
@@ -53,6 +53,9 @@ describe('releaseBody', () => {
     expect(body).not.toContain('### Improved');
     expect(body).toContain(
       '- The watcher recovers. ([#668](https://github.com/owner/repo/pull/668))',
+    );
+    expect(body).toContain(
+      '- Review handoffs. ([#669](https://github.com/owner/repo/pull/669))',
     );
     expect(body).toContain('* Add handoffs by @someone');
   });

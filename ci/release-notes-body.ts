@@ -16,11 +16,6 @@ export const ReleaseNotes = Schema.Struct({
 });
 export type ReleaseNotes = typeof ReleaseNotes.Type;
 
-export const releaseNotesJsonSchema = Schema.toJsonSchemaDocument(
-  ReleaseNotes,
-  { onExcessProperty: 'error' },
-).schema;
-
 const headings: Record<(typeof NoteSection.Type)['kind'], string> = {
   new: 'New',
   improved: 'Improved',
@@ -46,7 +41,10 @@ export function whatAndWhy(body: string): string {
   const section = /^## What and why\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(
     body,
   )?.[1];
-  return (section ?? body).trim().slice(0, whatAndWhyCharacters);
+  const text = (section ?? body)
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .split(/^Surfaces:/m)[0];
+  return (text ?? '').trim().slice(0, whatAndWhyCharacters);
 }
 
 export function releaseBody(
@@ -55,6 +53,7 @@ export function releaseBody(
   generated: string,
   model: string,
 ): string {
+  const released = new Set(pullRequestNumbers(repository, generated));
   const sections = order.flatMap((kind) => {
     const items = notes.sections
       .filter((section) => section.kind === kind)
@@ -62,6 +61,7 @@ export function releaseBody(
     if (items.length === 0) return [];
     const lines = items.map((item) => {
       const links = item.pulls
+        .filter((number) => released.has(number))
         .map(
           (number) =>
             `[#${number}](https://github.com/${repository}/pull/${number})`,

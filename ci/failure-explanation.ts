@@ -16,10 +16,6 @@ export const Explanation = Schema.Struct({
 });
 export type Explanation = typeof Explanation.Type;
 
-export const explanationJsonSchema = Schema.toJsonSchemaDocument(Explanation, {
-  onExcessProperty: 'error',
-}).schema;
-
 export type FailedJob = {
   name: string;
   url: string;
