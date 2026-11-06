@@ -75,7 +75,11 @@ const jobs = pages(
 ).flatMap((page) => page.jobs);
 const failed: FailedJob[] = await Promise.all(
   jobs
-    .filter((job) => job.conclusion === 'failure' && job.name !== 'checks')
+    .filter(
+      (job) =>
+        (job.conclusion === 'failure' || job.conclusion === 'timed_out') &&
+        job.name !== 'checks',
+    )
     .map(async (job) => ({
       name: job.name,
       url: job.html_url,
