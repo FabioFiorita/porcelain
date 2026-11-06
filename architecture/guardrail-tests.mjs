@@ -194,6 +194,7 @@ function ciSelectionFixture(entry) {
         'apps/*/package.json',
         'packages/*/package.json',
         '.agents/skills/package.json',
+        'ci/package.json',
       ],
       { cwd: repository },
     );
