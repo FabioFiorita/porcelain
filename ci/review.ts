@@ -58,6 +58,7 @@ async function endSession(client: OpenAI, id: string): Promise<void> {
 async function runReview(
   client: OpenAI,
   repository: string,
+  number: string,
   view: typeof PullRequestView.Type,
 ): Promise<Review> {
   let sessionId: string | undefined;
@@ -81,7 +82,7 @@ async function runReview(
           network: { access: 'restricted', allowed_domains: ['github.com'] },
           setup_commands: [
             {
-              command: `git init -q . && git remote add origin https://github.com/${repository}.git && git fetch -q --filter=blob:none origin ${view.baseRefOid} ${view.headRefOid} && git checkout -q ${view.headRefOid}`,
+              command: `git init -q . && git remote add origin https://github.com/${repository}.git && git fetch -q --filter=blob:none origin ${view.baseRefOid} pull/${number}/head && git checkout -q ${view.headRefOid}`,
             },
           ],
         },
@@ -166,7 +167,7 @@ const view = Schema.decodeUnknownSync(Schema.fromJsonString(PullRequestView))(
   ]),
 );
 const changed = pages(ChangedFile, `repos/${repository}/pulls/${number}/files`);
-const review = await runReview(client, repository, view);
+const review = await runReview(client, repository, number, view);
 const pullRequest: PullRequest = {
   repository,
   headSha: view.headRefOid,

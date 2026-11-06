@@ -1,7 +1,7 @@
 name: Agent review
 
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled, synchronize]
 
 permissions:
@@ -11,7 +11,6 @@ permissions:
 jobs:
   review:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'agent-review') &&
       (github.event.action != 'labeled' || github.event.label.name == 'agent-review')
     concurrency:
@@ -21,6 +20,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@24.20.0
