@@ -119,6 +119,10 @@ export default {
       ],
       project: ['**/*.ts'],
     },
+    ci: {
+      entry: ['review.ts', '*.spec.ts'],
+      project: ['*.ts'],
+    },
     'apps/desktop': {
       entry: [
         'src/{main,preload,server}.ts',
