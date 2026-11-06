@@ -27,7 +27,7 @@ jobs:
         github.event.label.name == 'hold') ||
       (github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review')
     concurrency:
-      group: agent-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
+      group: agent-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
