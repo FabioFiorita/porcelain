@@ -464,19 +464,26 @@ try {
       step: nextStep(assessment, review !== undefined, now),
     };
   };
-  const first = judge(current);
-  upsertComment(
-    repository,
-    number,
-    reviewCommentMarker,
-    reviewComment(pullRequest, triage, review, first.assessment, state),
-  );
-  changeLabels(repository, number, first.step.add, first.step.remove);
-  const latest = readView(repository, number);
-  const settled =
+  const unchanged = (latest: PullRequestView) =>
     latest.headRefOid === view.headRefOid &&
     latest.baseRefName === landingBranch &&
-    latest.state === 'OPEN'
+    latest.state === 'OPEN';
+  const before = readView(repository, number);
+  const first = unchanged(before)
+    ? judge(new Set(before.labels.map((label) => label.name)))
+    : undefined;
+  if (first) {
+    upsertComment(
+      repository,
+      number,
+      reviewCommentMarker,
+      reviewComment(pullRequest, triage, review, first.assessment, state),
+    );
+    changeLabels(repository, number, first.step.add, first.step.remove);
+  }
+  const latest = readView(repository, number);
+  const settled =
+    first && unchanged(latest)
       ? judge(
           new Set([
             ...latest.labels.map((label) => label.name),
