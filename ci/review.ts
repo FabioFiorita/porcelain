@@ -25,6 +25,7 @@ import {
   findComment,
   gh,
   isAncestor,
+  labeledAfterPush,
   pages,
   required,
   setStatus,
@@ -415,7 +416,19 @@ try {
     throw new Error(
       'Doorkeeper declined to judge whether this is a one-way door',
     );
-  const approvedHead = approvedNow ? headSha : saved?.approvedHead;
+  const approvedHead = approvedNow
+    ? headSha
+    : (saved?.approvedHead ??
+      (current.has(labels.approved) &&
+      labeledAfterPush(
+        repository,
+        number,
+        labels.approved,
+        view.headRefOid,
+        'CI',
+      )
+        ? view.headRefOid
+        : undefined));
   const state: ReviewState = {
     ...(review
       ? { reviewed: { sha: view.headRefOid, review } }

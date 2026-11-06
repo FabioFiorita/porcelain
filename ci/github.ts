@@ -186,3 +186,42 @@ export function changeLabels(
       console.log(`The ${label} label was already gone`);
     }
 }
+
+const IssueEvent = Schema.Struct({
+  event: Schema.String,
+  created_at: Schema.String,
+  label: Schema.optional(Schema.Struct({ name: Schema.String })),
+});
+const WorkflowRuns = Schema.Struct({
+  workflow_runs: Schema.Array(
+    Schema.Struct({ name: Schema.String, created_at: Schema.String }),
+  ),
+});
+
+export function labeledAfterPush(
+  repository: string,
+  number: number,
+  label: string,
+  sha: string,
+  workflow: string,
+): boolean {
+  const labeled = pages(
+    Schema.Array(IssueEvent),
+    `repos/${repository}/issues/${number}/events`,
+  )
+    .flat()
+    .filter((event) => event.event === 'labeled' && event.label?.name === label)
+    .map((event) => Date.parse(event.created_at));
+  const pushed = pages(
+    WorkflowRuns,
+    `repos/${repository}/actions/runs?head_sha=${sha}&event=pull_request`,
+  )
+    .flatMap((page) => page.workflow_runs)
+    .filter((run) => run.name === workflow)
+    .map((run) => Date.parse(run.created_at));
+  return (
+    labeled.length > 0 &&
+    pushed.length > 0 &&
+    Math.max(...labeled) > Math.min(...pushed)
+  );
+}
