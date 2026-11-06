@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  approvalHolds,
   assess,
   needsReview,
   nextStep,
@@ -37,16 +38,19 @@ function review(findings: readonly ReviewFinding[]): Review {
 const product = ['apps/web/src/features/reviews/store.ts'];
 const none = new Set<string>();
 
+const owner = { approved: false, trusted: true };
+
 function step(
   paths: readonly string[],
   findings: readonly ReviewFinding[] | undefined,
   oneWay: number,
   labels: ReadonlySet<string> = none,
   body?: string,
+  access = { approved: labels.has('approved'), trusted: true },
 ) {
   const reviewed = findings === undefined ? undefined : review(findings);
   return nextStep(
-    assess(pullRequest(paths, body), reviewed, oneWay, labels),
+    assess(pullRequest(paths, body), reviewed, oneWay, labels, access),
     reviewed !== undefined,
     labels,
   );
@@ -128,12 +132,52 @@ describe('nextStep', () => {
     ).toBe('needs-fixes');
   });
 
+  it('sends a stranger’s clean pull request to the owner', () => {
+    expect(
+      step(product, [], 0.01, new Set(['agent-review']), undefined, {
+        approved: false,
+        trusted: false,
+      }),
+    ).toMatchObject({ verdict: 'needs-owner', merge: false });
+  });
+
+  it('drops an approval that was given for an earlier commit', () => {
+    expect(
+      step(
+        ['package.json'],
+        undefined,
+        0.99,
+        new Set(['decision', 'approved']),
+        undefined,
+        {
+          approved: false,
+          trusted: true,
+        },
+      ),
+    ).toMatchObject({
+      verdict: 'needs-owner',
+      remove: ['approved'],
+      merge: false,
+    });
+  });
+
   it('passes the check but does not merge while the hold label is on', () => {
     expect(step(product, [], 0.01, new Set(['hold']))).toMatchObject({
       status: 'success',
       description: 'Ready, but the hold label keeps it from merging',
       merge: false,
     });
+  });
+});
+
+describe('approvalHolds', () => {
+  it('counts the approved label only for the commit it was given on', () => {
+    const labels = new Set(['approved']);
+    expect([
+      approvalHolds(labels, headSha, headSha),
+      approvalHolds(labels, headSha, 'an-earlier-commit'),
+      approvalHolds(new Set<string>(), headSha, headSha),
+    ]).toEqual([true, false, false]);
   });
 });
 
@@ -159,12 +203,15 @@ describe('needsReview', () => {
 
 describe('reviewComment', () => {
   it('saves the review so the next push is reviewed from where it stopped', () => {
-    const saved = { reviewed: headSha, review: review([finding(2)]) };
+    const saved = {
+      reviewed: { sha: headSha, review: review([finding(2)]) },
+      approvedHead: headSha,
+    };
     const comment = reviewComment(
       pullRequest(product),
       { reviewProbability: 0.97, requested: false },
-      saved.review,
-      assess(pullRequest(product), saved.review, 0.01, none),
+      saved.reviewed.review,
+      assess(pullRequest(product), saved.reviewed.review, 0.01, none, owner),
       saved,
     );
     expect(savedState(comment)).toEqual(saved);
@@ -175,7 +222,7 @@ describe('reviewComment', () => {
       pullRequest(product),
       { reviewProbability: 0.97, requested: false },
       review([finding(2)]),
-      assess(pullRequest(product), review([finding(2)]), 0.01, none),
+      assess(pullRequest(product), review([finding(2)]), 0.01, none, owner),
       undefined,
     );
     expect(comment).toContain(
@@ -188,7 +235,7 @@ describe('reviewComment', () => {
       pullRequest(['README.md']),
       { reviewProbability: 0.08, requested: false },
       undefined,
-      assess(pullRequest(['README.md']), undefined, 0.02, none),
+      assess(pullRequest(['README.md']), undefined, 0.02, none, owner),
       undefined,
     );
     expect(comment).toContain(

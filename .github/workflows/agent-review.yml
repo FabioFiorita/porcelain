@@ -5,7 +5,7 @@ on:
     workflows: [CI]
     types: [completed]
   pull_request_target:
-    types: [labeled, unlabeled]
+    types: [labeled, unlabeled, ready_for_review]
 
 permissions:
   contents: read
@@ -23,9 +23,10 @@ jobs:
       (github.event_name == 'pull_request_target' && github.event.action == 'labeled' &&
         contains(fromJSON('["agent-review", "approved"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'unlabeled' &&
-        github.event.label.name == 'hold')
+        github.event.label.name == 'hold') ||
+      (github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review')
     concurrency:
-      group: agent-review-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
+      group: agent-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -47,4 +48,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          TRIGGER_ACTION: ${{ github.event.action }}
+          TRIGGER_LABEL: ${{ github.event.label.name }}
         run: exec node ci/review.ts

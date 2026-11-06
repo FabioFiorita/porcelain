@@ -39,6 +39,7 @@ export type Assessment = {
   declaredDoor: 'two-way' | 'one-way' | undefined;
   markedDecision: boolean;
   approved: boolean;
+  trusted: boolean;
 };
 
 export const labels = {
@@ -49,9 +50,12 @@ export const labels = {
   hold: 'hold',
 } as const;
 
+const ReviewedCommit = Schema.Struct({ sha: Schema.String, review: Review });
+export type ReviewedCommit = typeof ReviewedCommit.Type;
+
 export const ReviewState = Schema.Struct({
-  reviewed: Schema.String,
-  review: Review,
+  reviewed: Schema.optional(ReviewedCommit),
+  approvedHead: Schema.optional(Schema.String),
 });
 export type ReviewState = typeof ReviewState.Type;
 
@@ -108,11 +112,20 @@ function declaredDoor(body: string): Assessment['declaredDoor'] {
   return door === 'two-way' || door === 'one-way' ? door : undefined;
 }
 
+export function approvalHolds(
+  current: ReadonlySet<string>,
+  head: string,
+  approvedHead: string | undefined,
+): boolean {
+  return current.has(labels.approved) && approvedHead === head;
+}
+
 export function assess(
   pullRequest: PullRequest,
   review: Review | undefined,
   oneWayProbability: number,
   current: ReadonlySet<string>,
+  access: { approved: boolean; trusted: boolean },
 ): Assessment {
   const findings = review?.findings ?? [];
   return {
@@ -122,7 +135,8 @@ export function assess(
     oneWayProbability,
     declaredDoor: declaredDoor(pullRequest.body),
     markedDecision: current.has(labels.decision),
-    approved: current.has(labels.approved),
+    approved: access.approved,
+    trusted: access.trusted,
   };
 }
 
@@ -132,7 +146,8 @@ function verdict(assessment: Assessment): Verdict {
     assessment.protectedPaths.length > 0 ||
     assessment.oneWayProbability >= oneWayThreshold ||
     assessment.declaredDoor === 'one-way' ||
-    assessment.markedDecision;
+    assessment.markedDecision ||
+    !assessment.trusted;
   return ownerDecides && !assessment.approved ? 'needs-owner' : 'ready';
 }
 
@@ -160,10 +175,14 @@ export function nextStep(
     status: result === 'ready' ? 'success' : 'failure',
     description: descriptions[result],
     add: wanted.filter((label) => !current.has(label)),
-    remove:
-      result !== 'needs-fixes' && current.has(labels.fixes)
+    remove: [
+      ...(result !== 'needs-fixes' && current.has(labels.fixes)
         ? [labels.fixes]
-        : [],
+        : []),
+      ...(current.has(labels.approved) && !assessment.approved
+        ? [labels.approved]
+        : []),
+    ],
     merge: result === 'ready' && !held,
   };
 }
@@ -226,6 +245,9 @@ function ownerReasons(assessment: Assessment): string[] {
         ]
       : []),
     ...(assessment.markedDecision ? ['It carries the `decision` label'] : []),
+    ...(assessment.trusted
+      ? []
+      : ['Its author has no write access to the repository']),
   ];
 }
 

@@ -17,10 +17,18 @@ export function required(name: string): string {
   return value;
 }
 
-export function gh(args: readonly string[], input?: string): string {
+export function gh(
+  args: readonly string[],
+  input?: string,
+  token?: string,
+): string {
   return execFileSync('gh', [...args], {
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
     ...(input === undefined ? {} : { input }),
+    ...(token === undefined
+      ? {}
+      : { env: { ...process.env, GH_TOKEN: token } }),
   });
 }
 
@@ -124,7 +132,7 @@ export function setStatus(
   repository: string,
   sha: string,
   status: {
-    state: 'pending' | 'success' | 'failure';
+    state: 'pending' | 'success' | 'failure' | 'error';
     context: string;
     description: string;
     url: string;
@@ -167,10 +175,14 @@ export function changeLabels(
       JSON.stringify({ labels: add }),
     );
   for (const label of remove)
-    gh([
-      'api',
-      '--method',
-      'DELETE',
-      `repos/${repository}/issues/${number}/labels/${encodeURIComponent(label)}`,
-    ]);
+    try {
+      gh([
+        'api',
+        '--method',
+        'DELETE',
+        `repos/${repository}/issues/${number}/labels/${encodeURIComponent(label)}`,
+      ]);
+    } catch {
+      console.log(`The ${label} label was already gone`);
+    }
 }
