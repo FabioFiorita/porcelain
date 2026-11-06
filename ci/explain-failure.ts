@@ -7,7 +7,7 @@ import {
   failureExcerpt,
   type FailedJob,
 } from './failure-explanation.ts';
-import { gh, pages, required, upsertComment } from './github.ts';
+import { gh, pages, required, trustedAuthor, upsertComment } from './github.ts';
 import { structuredAnswer, summaryModel } from './openai.ts';
 
 const Job = Schema.Struct({
@@ -87,7 +87,9 @@ const failed: FailedJob[] = await Promise.all(
       excerpt: failureExcerpt(await jobLog(repository, token, job.id)),
     })),
 );
-const numbers = pullRequestNumbers(repository, headSha, given);
+const numbers = pullRequestNumbers(repository, headSha, given).filter(
+  (number) => trustedAuthor(repository, number),
+);
 if (failed.length > 0 && numbers.length > 0) {
   const explanation = await structuredAnswer(client, {
     name: 'failure_explanation',

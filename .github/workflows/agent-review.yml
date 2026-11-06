@@ -2,7 +2,7 @@ name: Agent review
 
 on:
   pull_request_target:
-    types: [labeled, synchronize]
+    types: [opened, reopened, ready_for_review, labeled, synchronize]
 
 permissions:
   contents: read
@@ -11,8 +11,11 @@ permissions:
 jobs:
   review:
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'agent-review') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'agent-review')
+      (contains(fromJSON('["opened", "reopened", "ready_for_review"]'), github.event.action) &&
+        !github.event.pull_request.draft &&
+        contains(fromJSON('["OWNER", "COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'agent-review') ||
+      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'agent-review'))
     concurrency:
       group: agent-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -29,7 +32,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
-      - name: Review the pull request and publish the verdict
+      - name: Triage, review and publish the verdict
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
