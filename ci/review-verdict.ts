@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { strictJsonSchema } from './openai.ts';
+import { decisionModel, reviewModel, strictJsonSchema } from './openai.ts';
 
 export const ReviewFinding = Schema.Struct({
   title: Schema.String,
@@ -24,6 +24,11 @@ export type PullRequest = {
   headSha: string;
   body: string;
   paths: readonly string[];
+};
+
+export type Triage = {
+  reviewProbability: number;
+  requested: boolean;
 };
 
 export type Assessment = {
@@ -54,6 +59,11 @@ const protectedFolders = [
 ];
 const instructionFiles = new Set(['AGENTS.md', 'CLAUDE.md']);
 const oneWayThreshold = 0.5;
+const reviewThreshold = 0.5;
+
+export function needsReview(triage: Triage): boolean {
+  return triage.requested || triage.reviewProbability >= reviewThreshold;
+}
 
 function isProtectedPath(path: string): boolean {
   const name = path.split('/').at(-1) ?? path;
@@ -71,12 +81,13 @@ function declaredDoor(body: string): Assessment['declaredDoor'] {
 
 export function assess(
   pullRequest: PullRequest,
-  review: Review,
+  review: Review | undefined,
   oneWayProbability: number,
 ): Assessment {
+  const findings = review?.findings ?? [];
   return {
-    fixes: review.findings.filter((finding) => finding.priority <= 2),
-    notes: review.findings.filter((finding) => finding.priority === 3),
+    fixes: findings.filter((finding) => finding.priority <= 2),
+    notes: findings.filter((finding) => finding.priority === 3),
     protectedPaths: pullRequest.paths.filter(isProtectedPath),
     oneWayProbability,
     declaredDoor: declaredDoor(pullRequest.body),
@@ -117,37 +128,57 @@ function ownerReasons(assessment: Assessment): string[] {
           `Changes protected paths: ${assessment.protectedPaths.map((path) => `\`${path}\``).join(', ')}`,
         ]
       : []),
-    ...(oneWay
-      ? [
-          `Reads as a one-way door (probability ${assessment.oneWayProbability.toFixed(2)})`,
-        ]
-      : []),
+    ...(oneWay ? ['Doorkeeper reads it as a one-way door'] : []),
     ...(assessment.declaredDoor === 'one-way'
       ? ['The description declares a one-way door']
       : []),
     ...(assessment.declaredDoor === 'two-way' && oneWay
       ? [
-          'The description declares a two-way door, but the change reads as one-way',
+          'The description declares a two-way door, but Doorkeeper reads it as one-way',
         ]
       : []),
   ];
 }
 
+function probability(value: number): string {
+  return `probability ${value.toFixed(2)}`;
+}
+
+function triageLine(triage: Triage): string {
+  const odds = probability(triage.reviewProbability);
+  if (triage.requested)
+    return `- **Triage:** the \`agent-review\` label asked for a review (Triage alone: ${odds}).`;
+  return needsReview(triage)
+    ? `- **Triage:** needs a review (${odds}).`
+    : `- **Triage:** no review needed (${odds}). Add the \`agent-review\` label to review it anyway.`;
+}
+
+function doorkeeperLine(assessment: Assessment): string {
+  const door =
+    assessment.oneWayProbability >= oneWayThreshold ? 'one-way' : 'two-way';
+  return `- **Doorkeeper:** ${door} door (${probability(assessment.oneWayProbability)}).`;
+}
+
 export function reviewComment(
   pullRequest: PullRequest,
-  review: Review,
+  triage: Triage,
+  review: Review | undefined,
   assessment: Assessment,
-  model: string,
 ): string {
   const reasons = ownerReasons(assessment);
   const findings = [...assessment.fixes, ...assessment.notes];
+  const reviewer = review
+    ? [
+        `- **Reviewer:** reviewed \`${pullRequest.headSha.slice(0, 12)}\`. ${review.summary}`,
+      ]
+    : [];
   return [
     reviewCommentMarker,
-    `### Agent review: ${headlines[verdict(assessment)]}`,
-    `Reviewed \`${pullRequest.headSha.slice(0, 12)}\` with \`${model}\`. ${review.summary}`,
+    `### ${headlines[verdict(assessment)]}`,
+    [triageLine(triage), ...reviewer, doorkeeperLine(assessment)].join('\n'),
     ...(findings.length > 0
       ? [
-          '#### Findings',
+          '#### Reviewer findings',
           findings
             .map((finding) => findingLine(pullRequest, finding))
             .join('\n'),
@@ -159,5 +190,6 @@ export function reviewComment(
           reasons.map((reason) => `- ${reason}`).join('\n'),
         ]
       : []),
+    `<sub>Triage and Doorkeeper: \`${decisionModel}\` on the OpenAI Decisions API. Reviewer: \`${reviewModel}\` on the OpenAI Agents API.</sub>`,
   ].join('\n\n');
 }

@@ -62,8 +62,8 @@ export function explanationComment(
   const jobUrls = new Map(run.jobs.map((job) => [job.name, job.url]));
   return [
     failureCommentMarker,
-    `### Why CI failed on \`${run.headSha.slice(0, 12)}\``,
-    `[The run](${run.url}), explained by \`${model}\` from its failed job logs. ${explanation.summary}`,
+    `### CI Explainer: why CI failed on \`${run.headSha.slice(0, 12)}\``,
+    `[The run](${run.url}), explained from its failed job logs. ${explanation.summary}`,
     explanation.jobs
       .map((job) => {
         const url = jobUrls.get(job.job);
@@ -72,5 +72,6 @@ export function explanationComment(
         return `- **${name}**${flaky}: ${job.failing}\n\n  ${job.cause} ${job.next_step}\n\n  \`${job.log_line.replaceAll('`', "'")}\``;
       })
       .join('\n'),
+    `<sub>CI Explainer: \`${model}\` on the OpenAI Responses API.</sub>`,
   ].join('\n\n');
 }

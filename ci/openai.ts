@@ -2,6 +2,8 @@ import type OpenAI from 'openai';
 import { Schema } from 'effect';
 
 export const summaryModel = 'gpt-6.1-terra';
+export const reviewModel = 'gpt-6.1-sol';
+export const decisionModel = 'gpt-6-luna';
 
 export function strictJsonSchema<A>(
   schema: Schema.Codec<A, unknown>,

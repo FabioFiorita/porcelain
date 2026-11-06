@@ -87,7 +87,7 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 Work on your own branch from `main`, in your own worktree, one concern per pull request. Before opening it, get one fresh-context review of the diff and fix the real bugs it finds; never start a second round. Open it into `main` from the template. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
-When a pull request changes behavior, add the `agent-review` label to it (`gh pr edit --add-label agent-review`); skip it for releases and documentation-only changes. A CI job then reviews the pull request with an OpenAI agent and keeps one verdict comment up to date on every push. Adding labels needs write access to the repository: without it, open the pull request as usual and the maintainer adds the label.
+A CI job triages every ready pull request opened by someone with write access: Triage (the OpenAI Decisions API) decides whether it needs a review, the Reviewer (an OpenAI agent) reviews it when it does, and Doorkeeper judges whether it is a one-way door. One verdict comment shows who decided what. The `agent-review` label asks for a review regardless and repeats it on every push while it stays; only people with write access can add labels, so pull requests from others are reviewed once the maintainer adds it.
 
 Name its door under Risks, and prepare it for landing by it:
 

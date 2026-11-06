@@ -4,15 +4,16 @@ import { Schema } from 'effect';
 import {
   Review,
   assess,
+  needsReview,
   reviewComment,
   reviewCommentMarker,
   reviewJsonSchema,
   type PullRequest,
+  type Triage,
 } from './review-verdict.ts';
 import { gh, pages, required, upsertComment } from './github.ts';
+import { decisionModel, reviewModel } from './openai.ts';
 
-const reviewModel = 'gpt-6.1-sol';
-const decisionModel = 'gpt-6-luna';
 const reviewDeadlineMs = 15 * 60 * 1000;
 
 const PullRequestView = Schema.Struct({
@@ -113,12 +114,20 @@ async function runReview(
   }
 }
 
-async function oneWayProbability(
+function probability(decision: OpenAI.Decision, name: string): number {
+  const answer = decision.answers.find((candidate) => candidate.name === name);
+  if (answer?.type !== 'predicate')
+    throw new Error(
+      `The Decisions API answered ${answer?.type ?? 'nothing'} to ${name} instead of a probability`,
+    );
+  return answer.probability;
+}
+
+async function decide(
   client: OpenAI,
   view: typeof PullRequestView.Type,
   changed: readonly ChangedFile[],
-  review: Review,
-): Promise<number> {
+): Promise<{ review: number; oneWay: number }> {
   const files = changed
     .map((file) => `${file.filename} (+${file.additions}/-${file.deletions})`)
     .join('\n');
@@ -130,12 +139,18 @@ async function oneWayProbability(
         content: [
           {
             type: 'input_text',
-            text: `Pull request title: ${view.title}\n\nDescription:\n${view.body}\n\nChanged files:\n${files}\n\nReview summary: ${review.summary}`,
+            text: `Pull request title: ${view.title}\n\nDescription:\n${view.body}\n\nChanged files:\n${files}`,
           },
         ],
       },
     ],
     questions: [
+      {
+        type: 'predicate',
+        name: 'needs_review',
+        instructions:
+          'The pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
+      },
       {
         type: 'predicate',
         name: 'one_way',
@@ -144,12 +159,10 @@ async function oneWayProbability(
       },
     ],
   });
-  const answer = decision.answers[0];
-  if (answer?.type !== 'predicate')
-    throw new Error(
-      `The Decisions API answered ${answer?.type ?? 'nothing'} instead of a probability`,
-    );
-  return answer.probability;
+  return {
+    review: probability(decision, 'needs_review'),
+    oneWay: probability(decision, 'one_way'),
+  };
 }
 
 const repository = required('GITHUB_REPOSITORY');
@@ -170,7 +183,14 @@ const changed = pages(
   Schema.Array(ChangedFile),
   `repos/${repository}/pulls/${number}/files`,
 ).flat();
-const review = await runReview(client, repository, number, view);
+const decision = await decide(client, view, changed);
+const triage: Triage = {
+  reviewProbability: decision.review,
+  requested: required('REVIEW_REQUESTED') === 'true',
+};
+const review = needsReview(triage)
+  ? await runReview(client, repository, number, view)
+  : undefined;
 const pullRequest: PullRequest = {
   repository,
   headSha: view.headRefOid,
@@ -181,14 +201,10 @@ const pullRequest: PullRequest = {
       : [file.filename],
   ),
 };
-const assessment = assess(
-  pullRequest,
-  review,
-  await oneWayProbability(client, view, changed, review),
-);
+const assessment = assess(pullRequest, review, decision.oneWay);
 upsertComment(
   repository,
   Number(number),
   reviewCommentMarker,
-  reviewComment(pullRequest, review, assessment, reviewModel),
+  reviewComment(pullRequest, triage, review, assessment),
 );

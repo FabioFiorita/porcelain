@@ -7,6 +7,9 @@ const IssueComment = Schema.Struct({
   user: Schema.NullOr(Schema.Struct({ type: Schema.String })),
 });
 
+const PullRequestAuthor = Schema.Struct({ author_association: Schema.String });
+const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+
 export function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value)
@@ -65,4 +68,11 @@ export function upsertComment(
         ],
     JSON.stringify({ body }),
   );
+}
+
+export function trustedAuthor(repository: string, number: number): boolean {
+  const pull = Schema.decodeUnknownSync(
+    Schema.fromJsonString(PullRequestAuthor),
+  )(gh(['api', `repos/${repository}/pulls/${number}`]));
+  return trustedAssociations.has(pull.author_association);
 }
