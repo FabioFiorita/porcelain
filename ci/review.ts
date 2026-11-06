@@ -166,7 +166,10 @@ const view = Schema.decodeUnknownSync(Schema.fromJsonString(PullRequestView))(
     'title,body,baseRefOid,headRefOid',
   ]),
 );
-const changed = pages(ChangedFile, `repos/${repository}/pulls/${number}/files`);
+const changed = pages(
+  Schema.Array(ChangedFile),
+  `repos/${repository}/pulls/${number}/files`,
+).flat();
 const review = await runReview(client, repository, number, view);
 const pullRequest: PullRequest = {
   repository,
