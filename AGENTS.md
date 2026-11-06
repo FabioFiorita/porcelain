@@ -85,16 +85,16 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 ## Pull requests
 
-Work on your own branch from `main`, in your own worktree, one concern per pull request. Before opening it, get one fresh-context review of the diff and fix the real bugs it finds; never start a second round. Open it into `main` from the template. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
+Work on your own branch from `main`, in your own worktree, one concern per pull request. Do not run a review of your own: the CI Reviewer described below is the one review, and it checks every push. Open it into `main` from the template. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
-A CI job triages every ready pull request opened by the owner or a collaborator: Triage (the OpenAI Decisions API) decides whether it needs a review, the Reviewer (an OpenAI agent) reviews it when it does, and Doorkeeper judges whether it is a one-way door. One verdict comment shows who decided what. The `agent-review` label asks for a review regardless and repeats it on every push while it stays; only people with write access can add labels, so pull requests from others are reviewed once the maintainer adds it.
+Every pull request lands through one loop. When CI passes on a push to a pull request opened by the owner or a collaborator, Triage (the OpenAI Decisions API) decides from the patch whether it needs a review; the Reviewer (an OpenAI agent) reviews it when it does, and then every later green push from where it stopped; Doorkeeper decides whether it is a one-way door. One verdict comment shows who decided what, the `Agent verdict` check records it on the commit, and a ready pull request merges itself. Labels carry the state: `agent-review` (the Reviewer stays on it), `agent-fixes` (fix the findings and push), `decision` (the owner decides), `approved` and `hold`. When your pull request gets `decision`, ask the owner in your conversation, naming the pull request and why it needs them, and add `approved` (`gh pr edit <number> --add-label approved`) only after they say yes. `hold` keeps a ready pull request from merging. Only people with write access can add labels, so a pull request from anyone else waits until the maintainer adds `agent-review`.
 
 Name its door under Risks, and prepare it for landing by it:
 
-- A two-way door, easy to revert, is ready when its own head commit has green required checks; it does not need the latest `main`. Never run `gh pr update-branch`.
-- A one-way door, such as data loss, a migration, a public contract, a rule change or a release, opens the body with what needs deciding and requires the owner's approval before landing.
+- A two-way door, easy to revert, lands when its own head commit has green required checks and a ready verdict; it does not need the latest `main`. Never run `gh pr update-branch`.
+- A one-way door, such as data loss, a migration, a public contract, a rule change or a release, opens the body with what needs deciding and lands only after the owner approves it through `approved`.
 
-Workers open the pull request, wait for green CI, fix failures, then stop and hand off its URL and full head commit. Never enable auto-merge.
+Workers open the pull request, fix CI failures and `agent-fixes` findings until it merges or gets `decision`, then hand off its URL and full head commit. Never enable GitHub auto-merge or merge around the loop.
 
 When `main` turns red after a pull request merges, fix it forward with a follow-up pull request instead of reverting.
 

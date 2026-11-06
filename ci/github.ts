@@ -17,10 +17,18 @@ export function required(name: string): string {
   return value;
 }
 
-export function gh(args: readonly string[], input?: string): string {
+export function gh(
+  args: readonly string[],
+  input?: string,
+  token?: string,
+): string {
   return execFileSync('gh', [...args], {
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
     ...(input === undefined ? {} : { input }),
+    ...(token === undefined
+      ? {}
+      : { env: { ...process.env, GH_TOKEN: token } }),
   });
 }
 
@@ -33,13 +41,12 @@ export function pages<A>(
   );
 }
 
-export function upsertComment(
+export function findComment(
   repository: string,
   number: number,
   marker: string,
-  body: string,
-): void {
-  const existing = pages(
+): { id: number; body: string } | undefined {
+  return pages(
     Schema.Array(IssueComment),
     `repos/${repository}/issues/${number}/comments`,
   )
@@ -48,6 +55,15 @@ export function upsertComment(
       (comment) =>
         comment.user?.type === 'Bot' && comment.body.startsWith(marker),
     );
+}
+
+export function upsertComment(
+  repository: string,
+  number: number,
+  marker: string,
+  body: string,
+): void {
+  const existing = findComment(repository, number, marker);
   gh(
     existing
       ? [
@@ -75,4 +91,137 @@ export function trustedAuthor(repository: string, number: number): boolean {
     Schema.fromJsonString(PullRequestAuthor),
   )(gh(['api', `repos/${repository}/pulls/${number}`]));
   return trustedAssociations.has(pull.author_association);
+}
+
+const CheckRuns = Schema.Struct({
+  check_runs: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      status: Schema.String,
+      conclusion: Schema.NullOr(Schema.String),
+    }),
+  ),
+});
+
+export function checkPassed(
+  repository: string,
+  sha: string,
+  name: string,
+): boolean {
+  return pages(CheckRuns, `repos/${repository}/commits/${sha}/check-runs`)
+    .flatMap((page) => page.check_runs)
+    .some((run) => run.name === name && run.conclusion === 'success');
+}
+
+export function isAncestor(
+  repository: string,
+  ancestor: string,
+  sha: string,
+): boolean {
+  try {
+    const status = Schema.decodeUnknownSync(
+      Schema.fromJsonString(Schema.Struct({ status: Schema.String })),
+    )(gh(['api', `repos/${repository}/compare/${ancestor}...${sha}`]));
+    return status.status === 'ahead';
+  } catch {
+    return false;
+  }
+}
+
+export function setStatus(
+  repository: string,
+  sha: string,
+  status: {
+    state: 'pending' | 'success' | 'failure' | 'error';
+    context: string;
+    description: string;
+    url: string;
+  },
+): void {
+  gh(
+    [
+      'api',
+      '--method',
+      'POST',
+      `repos/${repository}/statuses/${sha}`,
+      '--input',
+      '-',
+    ],
+    JSON.stringify({
+      state: status.state,
+      context: status.context,
+      description: status.description.slice(0, 140),
+      target_url: status.url,
+    }),
+  );
+}
+
+export function changeLabels(
+  repository: string,
+  number: number,
+  add: readonly string[],
+  remove: readonly string[],
+): void {
+  if (add.length > 0)
+    gh(
+      [
+        'api',
+        '--method',
+        'POST',
+        `repos/${repository}/issues/${number}/labels`,
+        '--input',
+        '-',
+      ],
+      JSON.stringify({ labels: add }),
+    );
+  for (const label of remove)
+    try {
+      gh([
+        'api',
+        '--method',
+        'DELETE',
+        `repos/${repository}/issues/${number}/labels/${encodeURIComponent(label)}`,
+      ]);
+    } catch {
+      console.log(`The ${label} label was already gone`);
+    }
+}
+
+const IssueEvent = Schema.Struct({
+  event: Schema.String,
+  created_at: Schema.String,
+  label: Schema.optional(Schema.Struct({ name: Schema.String })),
+});
+const WorkflowRuns = Schema.Struct({
+  workflow_runs: Schema.Array(
+    Schema.Struct({ name: Schema.String, created_at: Schema.String }),
+  ),
+});
+
+export function labeledAfterPush(
+  repository: string,
+  number: number,
+  label: string,
+  sha: string,
+  workflow: string,
+): boolean {
+  const labeled = pages(
+    Schema.Array(IssueEvent),
+    `repos/${repository}/issues/${number}/events`,
+  )
+    .flat()
+    .filter((event) => event.event === 'labeled' && event.label?.name === label)
+    .map((event) => Date.parse(event.created_at));
+  const pushed = pages(
+    WorkflowRuns,
+    `repos/${repository}/actions/runs?head_sha=${sha}&event=pull_request`,
+  )
+    .flatMap((page) => page.workflow_runs)
+    .filter((run) => run.name === workflow)
+    .map((run) => Date.parse(run.created_at));
+  return (
+    labeled.length > 0 &&
+    pushed.length > 0 &&
+    Math.max(...labeled) > Math.max(...pushed)
+  );
 }
