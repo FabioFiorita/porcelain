@@ -42,6 +42,7 @@ const protectedFiles = new Set([
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
   '.oxlintrc.json',
+  '.oxfmtrc.json',
   'scripts/architecture.ts',
   'scripts/style.ts',
 ]);
