@@ -15,6 +15,7 @@ import { gh, pages, required, upsertComment } from './github.ts';
 import { decisionModel, reviewModel } from './openai.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
+const triagePatchCharacters = 100_000;
 
 const PullRequestView = Schema.Struct({
   title: Schema.String,
@@ -115,6 +116,14 @@ async function runReview(
   }
 }
 
+function patchOf(repository: string, number: string): string | undefined {
+  try {
+    return gh(['pr', 'diff', number, '--repo', repository]);
+  } catch {
+    return undefined;
+  }
+}
+
 async function ask(
   client: OpenAI,
   evidence: string,
@@ -153,13 +162,19 @@ const changed = pages(
 const evidence = `Pull request title: ${view.title}\n\nDescription:\n${view.body}\n\nChanged files:\n${changed
   .map((file) => `${file.filename} (+${file.additions}/-${file.deletions})`)
   .join('\n')}`;
+const patch = patchOf(repository, number);
 const triage: Triage = {
-  reviewProbability: await ask(
-    client,
-    evidence,
-    'needs_review',
-    'The pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
-  ),
+  reviewProbability:
+    patch === undefined
+      ? undefined
+      : await ask(
+          client,
+          patch.length > triagePatchCharacters
+            ? `${evidence}\n\nPatch, cut at ${triagePatchCharacters} characters:\n${patch.slice(0, triagePatchCharacters)}`
+            : `${evidence}\n\nPatch:\n${patch}`,
+          'needs_review',
+          'Judged from the patch, not the description: the pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
+        ),
   requested: view.labels.some((label) => label.name === 'agent-review'),
 };
 const review = needsReview(triage)

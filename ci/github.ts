@@ -8,7 +8,7 @@ const IssueComment = Schema.Struct({
 });
 
 const PullRequestAuthor = Schema.Struct({ author_association: Schema.String });
-const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const trustedAssociations = new Set(['OWNER', 'COLLABORATOR']);
 
 export function required(name: string): string {
   const value = process.env[name]?.trim();

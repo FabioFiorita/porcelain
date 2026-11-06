@@ -151,7 +151,7 @@ function probability(value: number): string {
 function triageLine(triage: Triage): string {
   const odds =
     triage.reviewProbability === undefined
-      ? 'Triage declined to answer'
+      ? 'Triage could not judge it'
       : probability(triage.reviewProbability);
   if (triage.requested)
     return `- **Triage:** the \`agent-review\` label asked for a review (Triage alone: ${odds}).`;

@@ -13,7 +13,7 @@ jobs:
     if: >-
       (contains(fromJSON('["opened", "reopened", "ready_for_review"]'), github.event.action) &&
         !github.event.pull_request.draft &&
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+        contains(fromJSON('["OWNER", "COLLABORATOR"]'), github.event.pull_request.author_association)) ||
       (github.event.action == 'labeled' && github.event.label.name == 'agent-review') ||
       (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'agent-review'))
     concurrency:
