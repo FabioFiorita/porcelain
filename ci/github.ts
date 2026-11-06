@@ -22,12 +22,12 @@ export function gh(args: readonly string[], input?: string): string {
 }
 
 export function pages<A>(
-  item: Schema.Codec<A, unknown>,
+  page: Schema.Codec<A, unknown>,
   path: string,
 ): readonly A[] {
-  return Schema.decodeUnknownSync(
-    Schema.fromJsonString(Schema.Array(Schema.Array(item))),
-  )(gh(['api', '--paginate', '--slurp', path])).flat();
+  return Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Array(page)))(
+    gh(['api', '--paginate', '--slurp', path]),
+  );
 }
 
 export function upsertComment(
@@ -37,12 +37,14 @@ export function upsertComment(
   body: string,
 ): void {
   const existing = pages(
-    IssueComment,
+    Schema.Array(IssueComment),
     `repos/${repository}/issues/${number}/comments`,
-  ).find(
-    (comment) =>
-      comment.user?.type === 'Bot' && comment.body.startsWith(marker),
-  );
+  )
+    .flat()
+    .find(
+      (comment) =>
+        comment.user?.type === 'Bot' && comment.body.startsWith(marker),
+    );
   gh(
     existing
       ? [

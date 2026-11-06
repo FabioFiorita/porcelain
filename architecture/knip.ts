@@ -120,7 +120,7 @@ export default {
       project: ['**/*.ts'],
     },
     ci: {
-      entry: ['review.ts', '*.spec.ts'],
+      entry: ['review.ts', 'explain-failure.ts', '*.spec.ts'],
       project: ['*.ts'],
     },
     'apps/desktop': {
