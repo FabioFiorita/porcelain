@@ -5,6 +5,24 @@ export const summaryModel = 'gpt-6.1-terra';
 export const reviewModel = 'gpt-6.1-sol';
 export const decisionModel = 'gpt-6-luna';
 
+export const dollarsPerMillionTokens = {
+  [reviewModel]: { input: 2, cached: 0.1, output: 10 },
+  [decisionModel]: { input: 0.1, cached: 0.01, output: 0 },
+} as const;
+
+export function dollars(
+  model: keyof typeof dollarsPerMillionTokens,
+  usage: { input: number; cached: number; output: number },
+): number {
+  const price = dollarsPerMillionTokens[model];
+  return (
+    ((usage.input - usage.cached) * price.input +
+      usage.cached * price.cached +
+      usage.output * price.output) /
+    1_000_000
+  );
+}
+
 export function strictJsonSchema<A>(
   schema: Schema.Codec<A, unknown>,
 ): Record<string, unknown> {

@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Option, Schema } from 'effect';
 import { decisionModel, reviewModel, strictJsonSchema } from './openai.ts';
 
 export const ReviewFinding = Schema.Struct({
@@ -37,9 +37,34 @@ export type Assessment = {
   protectedPaths: readonly string[];
   oneWayProbability: number;
   declaredDoor: 'two-way' | 'one-way' | undefined;
+  markedDecision: boolean;
+  approved: boolean;
 };
 
-export type Verdict = 'ready' | 'needs-fixes' | 'needs-owner';
+export const labels = {
+  review: 'agent-review',
+  fixes: 'agent-fixes',
+  decision: 'decision',
+  approved: 'approved',
+  hold: 'hold',
+} as const;
+
+export const ReviewState = Schema.Struct({
+  reviewed: Schema.String,
+  review: Review,
+});
+export type ReviewState = typeof ReviewState.Type;
+
+export type Step = {
+  verdict: Verdict;
+  status: 'success' | 'failure';
+  description: string;
+  add: readonly string[];
+  remove: readonly string[];
+  merge: boolean;
+};
+
+type Verdict = 'ready' | 'needs-fixes' | 'needs-owner';
 
 const protectedFiles = new Set([
   'package.json',
@@ -87,6 +112,7 @@ export function assess(
   pullRequest: PullRequest,
   review: Review | undefined,
   oneWayProbability: number,
+  current: ReadonlySet<string>,
 ): Assessment {
   const findings = review?.findings ?? [];
   return {
@@ -95,22 +121,80 @@ export function assess(
     protectedPaths: pullRequest.paths.filter(isProtectedPath),
     oneWayProbability,
     declaredDoor: declaredDoor(pullRequest.body),
+    markedDecision: current.has(labels.decision),
+    approved: current.has(labels.approved),
   };
 }
 
-export function verdict(assessment: Assessment): Verdict {
+function verdict(assessment: Assessment): Verdict {
   if (assessment.fixes.length > 0) return 'needs-fixes';
   const ownerDecides =
     assessment.protectedPaths.length > 0 ||
     assessment.oneWayProbability >= oneWayThreshold ||
-    assessment.declaredDoor === 'one-way';
-  return ownerDecides ? 'needs-owner' : 'ready';
+    assessment.declaredDoor === 'one-way' ||
+    assessment.markedDecision;
+  return ownerDecides && !assessment.approved ? 'needs-owner' : 'ready';
+}
+
+export function nextStep(
+  assessment: Assessment,
+  reviewed: boolean,
+  current: ReadonlySet<string>,
+): Step {
+  const result = verdict(assessment);
+  const held = current.has(labels.hold);
+  const wanted = [
+    ...(reviewed ? [labels.review] : []),
+    ...(result === 'needs-fixes' ? [labels.fixes] : []),
+    ...(result === 'needs-owner' ? [labels.decision] : []),
+  ];
+  const descriptions: Record<Verdict, string> = {
+    ready: held
+      ? 'Ready, but the hold label keeps it from merging'
+      : 'Ready: merging once CI is green',
+    'needs-fixes': `${assessment.fixes.length} finding(s) to fix before merging`,
+    'needs-owner': 'Needs the owner: add the approved label to merge',
+  };
+  return {
+    verdict: result,
+    status: result === 'ready' ? 'success' : 'failure',
+    description: descriptions[result],
+    add: wanted.filter((label) => !current.has(label)),
+    remove:
+      result !== 'needs-fixes' && current.has(labels.fixes)
+        ? [labels.fixes]
+        : [],
+    merge: result === 'ready' && !held,
+  };
+}
+
+const stateLine = /^<!-- porcelain-agent-state ([A-Za-z0-9+/=]+) -->$/m;
+
+export function savedState(
+  comment: string | undefined,
+): ReviewState | undefined {
+  const encoded =
+    comment === undefined ? undefined : stateLine.exec(comment)?.[1];
+  if (encoded === undefined) return undefined;
+  return Option.getOrUndefined(
+    Schema.decodeUnknownOption(Schema.fromJsonString(ReviewState))(
+      Buffer.from(encoded, 'base64').toString('utf8'),
+    ),
+  );
+}
+
+function stateComment(state: ReviewState | undefined): string[] {
+  return state
+    ? [
+        `<!-- porcelain-agent-state ${Buffer.from(JSON.stringify(state)).toString('base64')} -->`,
+      ]
+    : [];
 }
 
 export const reviewCommentMarker = '<!-- porcelain-agent-review -->';
 
 const headlines: Record<Verdict, string> = {
-  ready: 'Ready to merge once CI is green',
+  ready: 'Ready to merge',
   'needs-fixes': 'Needs fixes before merging',
   'needs-owner': 'Needs the owner’s decision',
 };
@@ -141,6 +225,7 @@ function ownerReasons(assessment: Assessment): string[] {
           'The description declares a two-way door, but Doorkeeper reads it as one-way',
         ]
       : []),
+    ...(assessment.markedDecision ? ['It carries the `decision` label'] : []),
   ];
 }
 
@@ -149,15 +234,15 @@ function probability(value: number): string {
 }
 
 function triageLine(triage: Triage): string {
+  if (triage.requested)
+    return '- **Triage:** skipped; the `agent-review` label keeps the Reviewer on every push.';
   const odds =
     triage.reviewProbability === undefined
       ? 'Triage could not judge it'
       : probability(triage.reviewProbability);
-  if (triage.requested)
-    return `- **Triage:** the \`agent-review\` label asked for a review (Triage alone: ${odds}).`;
   return needsReview(triage)
     ? `- **Triage:** needs a review (${odds}).`
-    : `- **Triage:** no review needed (${odds}). Add the \`agent-review\` label to review it anyway.`;
+    : `- **Triage:** no review needed (${odds}).`;
 }
 
 function doorkeeperLine(assessment: Assessment): string {
@@ -171,12 +256,14 @@ export function reviewComment(
   triage: Triage,
   review: Review | undefined,
   assessment: Assessment,
+  state: ReviewState | undefined,
 ): string {
   const reasons = ownerReasons(assessment);
   const findings = [...assessment.fixes, ...assessment.notes];
   const reviewer = review ? [`- **Reviewer:** ${review.summary}`] : [];
   return [
     reviewCommentMarker,
+    ...stateComment(state),
     `### ${headlines[verdict(assessment)]}`,
     `Judged commit \`${pullRequest.headSha.slice(0, 12)}\`.`,
     [triageLine(triage), ...reviewer, doorkeeperLine(assessment)].join('\n'),
@@ -190,7 +277,9 @@ export function reviewComment(
       : []),
     ...(reasons.length > 0
       ? [
-          '#### Why the owner decides',
+          assessment.approved
+            ? '#### The owner approved it despite'
+            : '#### Why the owner decides',
           reasons.map((reason) => `- ${reason}`).join('\n'),
         ]
       : []),

@@ -1,23 +1,31 @@
 name: Agent review
 
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
   pull_request_target:
-    types: [opened, reopened, ready_for_review, labeled, synchronize]
+    types: [labeled, unlabeled]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
+  statuses: write
+  checks: read
 
 jobs:
   review:
     if: >-
-      (contains(fromJSON('["opened", "reopened", "ready_for_review"]'), github.event.action) &&
-        !github.event.pull_request.draft &&
-        contains(fromJSON('["OWNER", "COLLABORATOR"]'), github.event.pull_request.author_association)) ||
-      (github.event.action == 'labeled' && github.event.label.name == 'agent-review') ||
-      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'agent-review'))
+      (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'pull_request_target' && github.event.action == 'labeled' &&
+        contains(fromJSON('["agent-review", "approved"]'), github.event.label.name)) ||
+      (github.event_name == 'pull_request_target' && github.event.action == 'unlabeled' &&
+        github.event.label.name == 'hold')
     concurrency:
-      group: agent-review-${{ github.event.pull_request.number }}
+      group: agent-review-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -32,9 +40,11 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
-      - name: Triage, review and publish the verdict
+      - name: Triage, review, judge and merge
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MERGE_TOKEN: ${{ secrets.AGENT_MERGE_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: exec node ci/review.ts
