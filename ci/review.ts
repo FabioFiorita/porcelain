@@ -21,6 +21,7 @@ const PullRequestView = Schema.Struct({
   body: Schema.String,
   baseRefOid: Schema.String,
   headRefOid: Schema.String,
+  labels: Schema.Array(Schema.Struct({ name: Schema.String })),
 });
 
 const ChangedFile = Schema.Struct({
@@ -114,20 +115,19 @@ async function runReview(
   }
 }
 
-function probability(decision: OpenAI.Decision, name: string): number {
+function probability(
+  decision: OpenAI.Decision,
+  name: string,
+): number | undefined {
   const answer = decision.answers.find((candidate) => candidate.name === name);
-  if (answer?.type !== 'predicate')
-    throw new Error(
-      `The Decisions API answered ${answer?.type ?? 'nothing'} to ${name} instead of a probability`,
-    );
-  return answer.probability;
+  return answer?.type === 'predicate' ? answer.probability : undefined;
 }
 
 async function decide(
   client: OpenAI,
   view: typeof PullRequestView.Type,
   changed: readonly ChangedFile[],
-): Promise<{ review: number; oneWay: number }> {
+): Promise<{ review: number | undefined; oneWay: number }> {
   const files = changed
     .map((file) => `${file.filename} (+${file.additions}/-${file.deletions})`)
     .join('\n');
@@ -159,10 +159,12 @@ async function decide(
       },
     ],
   });
-  return {
-    review: probability(decision, 'needs_review'),
-    oneWay: probability(decision, 'one_way'),
-  };
+  const oneWay = probability(decision, 'one_way');
+  if (oneWay === undefined)
+    throw new Error(
+      'Doorkeeper declined to judge whether this is a one-way door',
+    );
+  return { review: probability(decision, 'needs_review'), oneWay };
 }
 
 const repository = required('GITHUB_REPOSITORY');
@@ -176,7 +178,7 @@ const view = Schema.decodeUnknownSync(Schema.fromJsonString(PullRequestView))(
     '--repo',
     repository,
     '--json',
-    'title,body,baseRefOid,headRefOid',
+    'title,body,baseRefOid,headRefOid,labels',
   ]),
 );
 const changed = pages(
@@ -186,7 +188,7 @@ const changed = pages(
 const decision = await decide(client, view, changed);
 const triage: Triage = {
   reviewProbability: decision.review,
-  requested: required('REVIEW_REQUESTED') === 'true',
+  requested: view.labels.some((label) => label.name === 'agent-review'),
 };
 const review = needsReview(triage)
   ? await runReview(client, repository, number, view)

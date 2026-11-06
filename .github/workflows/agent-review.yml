@@ -37,5 +37,4 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          REVIEW_REQUESTED: ${{ contains(github.event.pull_request.labels.*.name, 'agent-review') }}
         run: exec node ci/review.ts

@@ -84,6 +84,12 @@ describe('needsReview', () => {
     );
   });
 
+  it('reviews when Triage declines to answer', () => {
+    expect(
+      needsReview({ reviewProbability: undefined, requested: false }),
+    ).toBe(true);
+  });
+
   it('reviews whenever the label asks, whatever Triage thinks', () => {
     expect(needsReview({ reviewProbability: 0.08, requested: true })).toBe(
       true,
@@ -124,7 +130,7 @@ describe('reviewComment', () => {
       assess(pullRequest(['README.md']), undefined, 0.02),
     );
     expect(comment).toContain(
-      '- **Triage:** no review needed (probability 0.08). Add the `agent-review` label to review it anyway.\n- **Doorkeeper:** two-way door (probability 0.02).',
+      `### Ready to merge once CI is green\n\nJudged commit \`${headSha.slice(0, 12)}\`.\n\n- **Triage:** no review needed (probability 0.08). Add the \`agent-review\` label to review it anyway.\n- **Doorkeeper:** two-way door (probability 0.02).`,
     );
     expect(comment).not.toContain('**Reviewer:**');
   });

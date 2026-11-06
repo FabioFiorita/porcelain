@@ -27,7 +27,7 @@ export type PullRequest = {
 };
 
 export type Triage = {
-  reviewProbability: number;
+  reviewProbability: number | undefined;
   requested: boolean;
 };
 
@@ -62,7 +62,11 @@ const oneWayThreshold = 0.5;
 const reviewThreshold = 0.5;
 
 export function needsReview(triage: Triage): boolean {
-  return triage.requested || triage.reviewProbability >= reviewThreshold;
+  return (
+    triage.requested ||
+    triage.reviewProbability === undefined ||
+    triage.reviewProbability >= reviewThreshold
+  );
 }
 
 function isProtectedPath(path: string): boolean {
@@ -145,7 +149,10 @@ function probability(value: number): string {
 }
 
 function triageLine(triage: Triage): string {
-  const odds = probability(triage.reviewProbability);
+  const odds =
+    triage.reviewProbability === undefined
+      ? 'Triage declined to answer'
+      : probability(triage.reviewProbability);
   if (triage.requested)
     return `- **Triage:** the \`agent-review\` label asked for a review (Triage alone: ${odds}).`;
   return needsReview(triage)
@@ -167,14 +174,11 @@ export function reviewComment(
 ): string {
   const reasons = ownerReasons(assessment);
   const findings = [...assessment.fixes, ...assessment.notes];
-  const reviewer = review
-    ? [
-        `- **Reviewer:** reviewed \`${pullRequest.headSha.slice(0, 12)}\`. ${review.summary}`,
-      ]
-    : [];
+  const reviewer = review ? [`- **Reviewer:** ${review.summary}`] : [];
   return [
     reviewCommentMarker,
     `### ${headlines[verdict(assessment)]}`,
+    `Judged commit \`${pullRequest.headSha.slice(0, 12)}\`.`,
     [triageLine(triage), ...reviewer, doorkeeperLine(assessment)].join('\n'),
     ...(findings.length > 0
       ? [
