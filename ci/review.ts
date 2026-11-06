@@ -13,6 +13,7 @@ import {
   reviewCommentMarker,
   reviewJsonSchema,
   savedState,
+  withState,
   type PullRequest,
   type ReviewState,
   type ReviewedCommit,
@@ -304,9 +305,20 @@ if (number === undefined) {
 }
 const view = readView(repository, number);
 const current = new Set(view.labels.map((label) => label.name));
-const saved = savedState(
-  findComment(repository, number, reviewCommentMarker)?.body,
-);
+const existing = findComment(repository, number, reviewCommentMarker);
+const saved = savedState(existing?.body);
+const approvedNow =
+  process.env.TRIGGER_ACTION === 'labeled' &&
+  process.env.TRIGGER_LABEL === labels.approved &&
+  headSha !== undefined &&
+  view.headRefOid === headSha;
+if (approvedNow && view.state === 'OPEN')
+  upsertComment(
+    repository,
+    number,
+    reviewCommentMarker,
+    withState(existing?.body, { ...saved, approvedHead: headSha }),
+  );
 const trusted = trustedAuthor(repository, number);
 const requested = current.has(labels.review) || saved?.reviewed !== undefined;
 const skip =
@@ -403,10 +415,7 @@ try {
     throw new Error(
       'Doorkeeper declined to judge whether this is a one-way door',
     );
-  const approvedNow =
-    process.env.TRIGGER_ACTION === 'labeled' &&
-    process.env.TRIGGER_LABEL === labels.approved;
-  const approvedHead = approvedNow ? view.headRefOid : saved?.approvedHead;
+  const approvedHead = approvedNow ? headSha : saved?.approvedHead;
   const state: ReviewState = {
     ...(review
       ? { reviewed: { sha: view.headRefOid, review } }

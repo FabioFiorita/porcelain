@@ -210,6 +210,23 @@ function stateComment(state: ReviewState | undefined): string[] {
     : [];
 }
 
+export function withState(
+  comment: string | undefined,
+  state: ReviewState,
+): string {
+  const line = stateComment(state).join('');
+  if (comment === undefined)
+    return [
+      reviewCommentMarker,
+      line,
+      '### Waiting for CI',
+      'The owner’s approval is saved for this commit; the verdict comes when CI passes.',
+    ].join('\n\n');
+  return stateLine.test(comment)
+    ? comment.replace(stateLine, line)
+    : comment.replace(reviewCommentMarker, `${reviewCommentMarker}\n\n${line}`);
+}
+
 export const reviewCommentMarker = '<!-- porcelain-agent-review -->';
 
 const headlines: Record<Verdict, string> = {

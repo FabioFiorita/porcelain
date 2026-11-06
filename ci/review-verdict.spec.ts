@@ -6,6 +6,7 @@ import {
   nextStep,
   reviewComment,
   savedState,
+  withState,
   type PullRequest,
   type Review,
   type ReviewFinding,
@@ -178,6 +179,22 @@ describe('approvalHolds', () => {
       approvalHolds(labels, headSha, 'an-earlier-commit'),
       approvalHolds(new Set<string>(), headSha, headSha),
     ]).toEqual([true, false, false]);
+  });
+});
+
+describe('withState', () => {
+  it('keeps an approval given while CI was still running', () => {
+    const earlier = reviewComment(
+      pullRequest(product),
+      { reviewProbability: 0.97, requested: false },
+      review([]),
+      assess(pullRequest(product), review([]), 0.9, none, owner),
+      { reviewed: { sha: 'an-earlier-commit', review: review([]) } },
+    );
+    expect([
+      savedState(withState(earlier, { approvedHead: headSha })),
+      savedState(withState(undefined, { approvedHead: headSha })),
+    ]).toEqual([{ approvedHead: headSha }, { approvedHead: headSha }]);
   });
 });
 
