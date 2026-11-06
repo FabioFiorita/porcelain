@@ -41,20 +41,17 @@ async function jobLog(
       },
     },
   );
-  if (!response.ok)
-    throw new Error(
-      `GitHub answered ${response.status} for the log of job ${id}`,
-    );
-  return response.text();
+  return response.ok
+    ? response.text()
+    : `The log was unavailable: GitHub answered ${response.status}.`;
 }
 
 function pullRequestNumbers(
   repository: string,
   headSha: string,
-  event: string,
   given: readonly number[],
 ): readonly number[] {
-  if (given.length > 0 || event !== 'push') return given;
+  if (given.length > 0) return given;
   return Schema.decodeUnknownSync(
     Schema.fromJsonString(Schema.Array(PullRequestNumber)),
   )(gh(['api', `repos/${repository}/commits/${headSha}/pulls`])).map(
@@ -67,7 +64,6 @@ const token = required('GH_TOKEN');
 const runId = required('RUN_ID');
 const runUrl = required('RUN_URL');
 const headSha = required('HEAD_SHA');
-const event = required('RUN_EVENT');
 const given = Schema.decodeUnknownSync(
   Schema.fromJsonString(Schema.Array(Schema.Int)),
 )(required('PULL_REQUESTS'));
@@ -79,7 +75,7 @@ const jobs = pages(
 ).flatMap((page) => page.jobs);
 const failed: FailedJob[] = await Promise.all(
   jobs
-    .filter((job) => job.conclusion === 'failure')
+    .filter((job) => job.conclusion === 'failure' && job.name !== 'checks')
     .map(async (job) => ({
       name: job.name,
       url: job.html_url,
@@ -89,7 +85,7 @@ const failed: FailedJob[] = await Promise.all(
       excerpt: failureExcerpt(await jobLog(repository, token, job.id)),
     })),
 );
-const numbers = pullRequestNumbers(repository, headSha, event, given);
+const numbers = pullRequestNumbers(repository, headSha, given);
 if (failed.length > 0 && numbers.length > 0) {
   const response = await client.responses.create({
     model,

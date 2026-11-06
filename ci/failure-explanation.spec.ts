@@ -4,7 +4,8 @@ import { explanationComment, failureExcerpt } from './failure-explanation.ts';
 describe('failureExcerpt', () => {
   it('keeps an early assertion from a long log along with its end, without timestamps or colors', () => {
     const log = [
-      '2026-11-05T21:15:37.6546997Z \u001b[31m##[error]AssertionError: expected 499 to be 583\u001b[39m',
+      '\uFEFF2026-11-05T21:15:37.6390022Z \u001b[31m FAIL  spec/integration/read-more.test.tsx > keeps its diffs\u001b[39m',
+      '2026-11-05T21:15:37.6546997Z AssertionError: expected 499 to be 583',
       ...Array.from(
         { length: 500 },
         (_, index) => `2026-11-05T21:15:38.0000000Z progress ${index}`,
@@ -12,9 +13,10 @@ describe('failureExcerpt', () => {
       '2026-11-05T21:15:39.0000000Z ##[error]Process completed with exit code 1.',
     ].join('\n');
     const excerpt = failureExcerpt(log);
-    expect(excerpt.split('\n')[0]).toBe(
-      '##[error]AssertionError: expected 499 to be 583',
-    );
+    expect(excerpt.split('\n').slice(0, 2)).toEqual([
+      ' FAIL  spec/integration/read-more.test.tsx > keeps its diffs',
+      'AssertionError: expected 499 to be 583',
+    ]);
     expect(excerpt).not.toContain('progress 100\n');
     expect(
       excerpt.endsWith('##[error]Process completed with exit code 1.'),

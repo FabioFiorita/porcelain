@@ -36,10 +36,10 @@ export type FailedRun = {
 const tailLines = 200;
 const excerptCharacters = 40_000;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z /;
-const failureLine = /##\[error\]|\bFAIL\b|\bError\b/;
+const failureLine = /##\[error\]|\bFAIL\b|Error\b|\berror\b/;
 
 export function failureExcerpt(log: string): string {
-  const lines = stripVTControlCharacters(log)
+  const lines = stripVTControlCharacters(log.replace(/^\uFEFF/, ''))
     .split('\n')
     .map((line) => line.replace(timestamp, '').trimEnd());
   const tailStart = Math.max(0, lines.length - tailLines);
