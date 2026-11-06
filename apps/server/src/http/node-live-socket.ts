@@ -6,12 +6,12 @@ import { Context, Effect } from 'effect';
 export class NodeLiveSockets extends Context.Service<
   NodeLiveSockets,
   {
-    readonly get: (request: IncomingMessage) => WebSocket | undefined;
+    readonly get: (request: object) => WebSocket | undefined;
   }
 >()('@porcelain/server/NodeLiveSockets') {}
 
 export function nodeLiveSockets(maxPayload: number) {
-  const sockets = new WeakMap<IncomingMessage, WebSocket>();
+  const sockets = new WeakMap<object, WebSocket>();
   class LiveServer extends WebSocketServer {
     override handleUpgrade(
       request: IncomingMessage,
@@ -28,7 +28,7 @@ export function nodeLiveSockets(maxPayload: number) {
   const server = new LiveServer({ noServer: true, maxPayload });
   return {
     server,
-    get: (request: IncomingMessage) => sockets.get(request),
+    get: (request: object) => sockets.get(request),
     close: Effect.callback<void>((resume) => {
       for (const socket of server.clients) socket.close(1001);
       server.close(() => resume(Effect.void));

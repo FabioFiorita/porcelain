@@ -34,7 +34,7 @@ export function errorResponse(
   const failure = requestFailure(error, statusCode, {
     id: crypto.randomUUID(),
     method: request.method,
-    url: request.originalUrl,
+    url: request.url,
     abandoned:
       request.source instanceof Object &&
       'aborted' in request.source &&

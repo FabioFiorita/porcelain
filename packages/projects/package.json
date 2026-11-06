@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "@porcelain/kernel": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.1.2"
   }
 }

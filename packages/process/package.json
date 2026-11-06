@@ -10,7 +10,7 @@
     "test": "pnpm --dir ../.. test --project @porcelain/process"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.1",
-    "effect": "4.0.1"
+    "@effect/platform-node": "4.1.2",
+    "effect": "4.1.2"
   }
 }

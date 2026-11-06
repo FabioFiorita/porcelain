@@ -122,7 +122,7 @@ const findStaticFile = Effect.fn('StaticFiles.find')(function* (
 export function staticFiles(files: WebRootReader) {
   const answer = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    const urlPath = request.originalUrl;
+    const urlPath = request.url;
     const file = yield* findStaticFile(files, urlPath);
     if (file === null)
       return yield* Effect.die(

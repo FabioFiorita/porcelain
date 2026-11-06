@@ -39,7 +39,7 @@
     "@porcelain/effects": "workspace:*",
     "@porcelain/files": "workspace:*",
     "@porcelain/kernel": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.1.2"
   },
   "devDependencies": {
     "@porcelain/server": "workspace:*"

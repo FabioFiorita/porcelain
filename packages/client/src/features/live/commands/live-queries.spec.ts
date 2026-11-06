@@ -10,7 +10,8 @@ import {
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences, readInventory } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Crypto, Equal, Layer, Scope } from 'effect';
+import { Equal, Layer, Scope } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 import { Effect } from 'effect';
@@ -68,11 +69,8 @@ async function setup(
     Layer.merge(
       Layer.succeed(OperationStore, operations),
       Layer.succeed(
-        Crypto.Crypto,
-        Crypto.make({
-          randomBytes: (size) => new Uint8Array(size),
-          digest: (_, bytes) => Effect.succeed(bytes),
-        }),
+        SecureRandom.SecureRandom,
+        SecureRandom.make((size) => new Uint8Array(size)),
       ),
     ),
   );
