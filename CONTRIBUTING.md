@@ -4,19 +4,23 @@ Porcelain is built by one developer working with coding agents, and it moves qui
 
 [AGENTS.md](AGENTS.md) is the full development guide, for people and agents alike. It covers how a feature crosses the repository, testing, verification and pull requests.
 
+## How a pull request lands
+
+An automated loop reviews and lands pull requests into `main`. Once CI passes, an OpenAI model decides whether the change needs a review, an OpenAI agent reviews it when it does, and another model judges whether the change is easy to undo. A comment on your pull request shows each verdict, and findings are labelled `agent-fixes`: push fixes and the loop looks again. A pull request from someone without write access waits until the maintainer adds the `agent-review` label, and it always needs the maintainer's approval before it lands.
+
 ## Architecture and decisions
 
 Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server owns repositories and persistent state; the clients present that state and send commands.
 
-| Path | Responsibility |
-| --- | --- |
-| [apps/server](apps/server) | HTTP, WebSocket and MCP entry points, server use cases, CLI and installer |
-| [apps/web](apps/web) | React and Vite browser views |
-| [apps/desktop](apps/desktop) | Electron host around the web app |
-| [apps/mobile](apps/mobile) | Expo native client |
-| [packages/contracts](packages/contracts) | Schemas for data crossing the wire |
-| [packages/client](packages/client) | Shared client queries, commands, stores and rules |
-| Domain packages under [packages](packages) | Access, changes, files, projects, reviews and Git actions |
+| Path                                       | Responsibility                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| [apps/server](apps/server)                 | HTTP, WebSocket and MCP entry points, server use cases, CLI and installer |
+| [apps/web](apps/web)                       | React and Vite browser views                                              |
+| [apps/desktop](apps/desktop)               | Electron host around the web app                                          |
+| [apps/mobile](apps/mobile)                 | Expo native client                                                        |
+| [packages/contracts](packages/contracts)   | Schemas for data crossing the wire                                        |
+| [packages/client](packages/client)         | Shared client queries, commands, stores and rules                         |
+| Domain packages under [packages](packages) | Access, changes, files, projects, reviews and Git actions                 |
 
 - **The agent supplies the explanation.** The [MCP toolkit](packages/contracts/src/reviews/review-toolkit.ts) defines review publication and feedback; the [review guide](apps/server/src/http/mcp/review-guide.ts) tells agents how to explain their work.
 - **Browser pairing and local agent access have different paths.** Browser devices pair with single-use links. The [MCP bridge](apps/server/src/cli/mcp-bridge.ts) relays an agent's standard input/output through a [local owner socket](apps/server/src/config/owner-socket-settings.ts), carrying its working directory.
