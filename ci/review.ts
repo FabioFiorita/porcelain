@@ -474,7 +474,9 @@ try {
   changeLabels(repository, number, first.step.add, first.step.remove);
   const latest = readView(repository, number);
   const settled =
-    latest.headRefOid === view.headRefOid
+    latest.headRefOid === view.headRefOid &&
+    latest.baseRefName === landingBranch &&
+    latest.state === 'OPEN'
       ? judge(
           new Set([
             ...latest.labels.map((label) => label.name),
@@ -483,8 +485,8 @@ try {
         ).step
       : undefined;
   if (!settled) {
-    outcome = 'a newer commit arrived; it is judged when its CI passes';
-    report('failure', 'A newer commit arrived before this verdict');
+    outcome = 'the pull request changed while it was judged';
+    report('failure', 'The head, target or state changed before this verdict');
   } else {
     report(settled.status, settled.description);
     const mergeError = settled.merge ? merge(repository, view) : undefined;
