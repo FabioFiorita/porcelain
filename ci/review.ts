@@ -38,6 +38,7 @@ const reviewDeadlineMs = 15 * 60 * 1000;
 const triagePatchCharacters = 100_000;
 const statusContext = 'Agent verdict';
 const ciCheck = 'checks';
+const landingBranch = 'main';
 
 const PullRequestView = Schema.Struct({
   number: Schema.Int,
@@ -45,6 +46,7 @@ const PullRequestView = Schema.Struct({
   body: Schema.String,
   state: Schema.String,
   isDraft: Schema.Boolean,
+  baseRefName: Schema.String,
   baseRefOid: Schema.String,
   headRefOid: Schema.String,
   labels: Schema.Array(Schema.Struct({ name: Schema.String })),
@@ -60,8 +62,8 @@ const ChangedFile = Schema.Struct({
 
 const CommitPull = Schema.Struct({
   number: Schema.Int,
-  state: Schema.String,
   head: Schema.Struct({ sha: Schema.String }),
+  base: Schema.Struct({ ref: Schema.String }),
 });
 
 const costs: { step: string; dollars: number }[] = [];
@@ -239,7 +241,9 @@ function pullRequestNumber(
     `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
   )
     .flat()
-    .find((pull) => pull.head.sha === headSha)?.number;
+    .find(
+      (pull) => pull.head.sha === headSha && pull.base.ref === landingBranch,
+    )?.number;
 }
 
 function readView(repository: string, number: number): PullRequestView {
@@ -251,7 +255,7 @@ function readView(repository: string, number: number): PullRequestView {
       '--repo',
       repository,
       '--json',
-      'number,title,body,state,isDraft,baseRefOid,headRefOid,labels',
+      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,labels',
     ]),
   );
 }
@@ -325,15 +329,17 @@ const requested = current.has(labels.review) || saved?.reviewed !== undefined;
 const skip =
   view.state !== 'OPEN'
     ? 'it is not open'
-    : view.isDraft
-      ? 'it is a draft'
-      : headSha && view.headRefOid !== headSha
-        ? 'a newer commit will be judged when its CI passes'
-        : !checkPassed(repository, view.headRefOid, ciCheck)
-          ? 'CI has not passed on its head yet'
-          : !trusted && !current.has(labels.review)
-            ? 'its author has no write access and nobody asked for a review'
-            : undefined;
+    : view.baseRefName !== landingBranch
+      ? `it targets ${view.baseRefName}, and only pull requests into ${landingBranch} land through the loop`
+      : view.isDraft
+        ? 'it is a draft'
+        : headSha && view.headRefOid !== headSha
+          ? 'a newer commit will be judged when its CI passes'
+          : !checkPassed(repository, view.headRefOid, ciCheck)
+            ? 'CI has not passed on its head yet'
+            : !trusted && !current.has(labels.review)
+              ? 'its author has no write access and nobody asked for a review'
+              : undefined;
 if (skip) {
   console.log(`Skipping #${number}: ${skip}`);
   process.exit(0);
