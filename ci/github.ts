@@ -222,6 +222,6 @@ export function labeledAfterPush(
   return (
     labeled.length > 0 &&
     pushed.length > 0 &&
-    Math.max(...labeled) > Math.min(...pushed)
+    Math.max(...labeled) > Math.max(...pushed)
   );
 }

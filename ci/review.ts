@@ -418,17 +418,18 @@ try {
     );
   const approvedHead = approvedNow
     ? headSha
-    : (saved?.approvedHead ??
-      (current.has(labels.approved) &&
-      labeledAfterPush(
-        repository,
-        number,
-        labels.approved,
-        view.headRefOid,
-        'CI',
-      )
+    : saved?.approvedHead === view.headRefOid
+      ? saved.approvedHead
+      : current.has(labels.approved) &&
+          labeledAfterPush(
+            repository,
+            number,
+            labels.approved,
+            view.headRefOid,
+            'CI',
+          )
         ? view.headRefOid
-        : undefined));
+        : undefined;
   const state: ReviewState = {
     ...(review
       ? { reviewed: { sha: view.headRefOid, review } }
