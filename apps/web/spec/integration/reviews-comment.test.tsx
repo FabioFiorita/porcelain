@@ -159,11 +159,6 @@ test('a reply sent with the keyboard survives resolving and reopening its thread
     .getByRole('button', { name: 'Reopen', exact: true })
     .click();
   await expect
-    .poll(async () =>
-      (await server.commentThreads()).map((entry) => entry.resolved),
-    )
-    .toEqual([false]);
-  await expect
     .element(
       thread.getByText(
         'Please keep the original identity after reconnecting.',
@@ -173,6 +168,11 @@ test('a reply sent with the keyboard survives resolving and reopening its thread
       ),
     )
     .toBeVisible();
+  await expect
+    .poll(async () =>
+      (await server.commentThreads()).map((entry) => entry.resolved),
+    )
+    .toEqual([false]);
 });
 
 test('a saved comment with a lost response keeps its draft and retry identity after another file-comment click', async ({
