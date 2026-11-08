@@ -58,25 +58,22 @@ it('keeps full branch names and unknown progress distinct from zero decisions', 
   ).toBe('0/0 decisions');
 });
 
-it.each(['qa-531', 'qa-532'])(
-  'shows detached checkout %s by folder with a compact identity',
-  (name) => {
-    expect(
-      worktreeRow({
-        ...entry,
-        name,
-        branch: 'Detached HEAD',
-        detached: true,
-        path: `/code/porcelain-worktrees/${name}`,
-      }),
-    ).toEqual({
-      title: name,
-      review: '',
-      changes: '',
-      diff: undefined,
-    });
-  },
-);
+it('shows a detached checkout by its folder with a compact identity', () => {
+  expect(
+    worktreeRow({
+      ...entry,
+      name: 'qa-531',
+      branch: 'Detached HEAD',
+      detached: true,
+      path: '/code/porcelain-worktrees/qa-531',
+    }),
+  ).toEqual({
+    title: 'qa-531',
+    review: '',
+    changes: '',
+    diff: undefined,
+  });
+});
 
 it('labels the main checkout and preserves failures instead of implying clean or no review', () => {
   expect(

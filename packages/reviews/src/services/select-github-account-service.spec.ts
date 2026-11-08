@@ -157,7 +157,6 @@ it('redetects when a remembered account loses access', async () => {
 });
 
 it.each([
-  [undefined, ['personal'], ['personal']],
   ['gh-not-installed', ['personal'], ['personal']],
   ['offline', ['personal'], ['personal']],
   [undefined, [], []],

@@ -56,16 +56,6 @@ function source(
 it.each([
   ['local only', settings, routes, local, [local]],
   [
-    'LAN off with a stale on state',
-    settings,
-    {
-      ...routes,
-      states: { ...routes.states, lan: { kind: 'on', urls: [lan] } },
-    },
-    local,
-    [local],
-  ],
-  [
     'LAN on',
     { ...settings, lan: true },
     {

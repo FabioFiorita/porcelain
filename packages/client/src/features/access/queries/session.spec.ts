@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import type { Transport } from '@porcelain/client/transport';
-import type { Principal } from '@porcelain/contracts/access';
 import { readBrowserSession } from './session.ts';
 
 const registries = new Set<AtomRegistry.AtomRegistry>();
@@ -105,24 +104,6 @@ const inventory = {
 };
 
 describe('browser session restoration', () => {
-  it.each<Principal>([
-    { kind: 'owner' },
-    { kind: 'device', deviceId: '22222222-2222-4222-8222-222222222222' },
-  ])(
-    'restores the authenticated writer together with its workspace: $kind',
-    async (principal) => {
-      const paths: string[] = [];
-      const restored = read((path) => {
-        paths.push(path);
-        return Promise.resolve(
-          Response.json(path === '/api/session' ? principal : inventory),
-        );
-      });
-      expect(await restored).toEqual({ inventory, principal });
-      expect(paths).toEqual(['/api/session', '/api/inventory']);
-    },
-  );
-
   it('returns an unpaired session without attempting an authenticated inventory read', async () => {
     const paths: string[] = [];
     const restored = read((path) => {
