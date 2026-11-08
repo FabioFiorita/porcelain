@@ -306,7 +306,7 @@ export function WorktreeNavigator({
                           }
                           accessibilityLabel={[
                             navigatorEntryLabel(entry),
-                            review ? navigatorChecksLabel(checks) : undefined,
+                            number ? navigatorChecksLabel(checks) : undefined,
                             selected ? 'current' : undefined,
                           ]
                             .filter(Boolean)
