@@ -31,6 +31,7 @@ const required = [
   '@porcelain/desktop',
   '@porcelain/server',
   '@porcelain/verification',
+  '@porcelain/ci',
   ...packages.filter(decides).map((name) => `@porcelain/${name}`),
 ];
 
@@ -88,6 +89,14 @@ export default defineConfig({
             '.agents/skills/*/scripts/*.spec.ts',
             '.agents/skills/verify-core/*.spec.ts',
           ],
+          expect: { requireAssertions: true },
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/ci',
+          root,
+          include: ['ci/*.spec.ts'],
           expect: { requireAssertions: true },
         },
       },

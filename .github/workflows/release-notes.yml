@@ -1,0 +1,36 @@
+name: Release notes
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  notes:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          save-cache: false
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
+      - name: Write the release notes from its pull requests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.workflow_run.head_branch }}
+        run: exec node ci/release-notes.ts

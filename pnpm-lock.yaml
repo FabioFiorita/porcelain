@@ -616,6 +616,15 @@ importers:
         specifier: 8.2.2
         version: 8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
 
+  ci:
+    dependencies:
+      effect:
+        specifier: 4.1.2
+        version: 4.1.2
+      openai:
+        specifier: 7.51.0
+        version: 7.51.0(undici@8.11.2)(ws@8.21.3)(zod@4.5.4)
+
   packages/access:
     dependencies:
       '@porcelain/kernel':
@@ -6551,6 +6560,33 @@ packages:
   open@8.4.2:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
+
+  openai@7.51.0:
+    resolution: {integrity: sha512-Ibu1d3ilmMbXRS8Y3WUPNTKk96p0rg1/BSlqASnvKy6i8efKjliUZGSfUTTCRcZJNGQ3xXMdita2REQOlH68JA==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      google-auth-library: '>=9.15.1 <12'
+      undici: '>=5 <9'
+      ws: ^8.21.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      google-auth-library:
+        optional: true
+      undici:
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   ora@3.4.0:
     resolution: {integrity: sha512-eNwHudNbO1folBP3JsZ19v9azXWtQZjICdr3Q0TDPIaeBQ3mXLrh54wM+er0+hSp+dWKf+Z8KM58CYzEyIYxYg==}
@@ -13809,6 +13845,12 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  openai@7.51.0(undici@8.11.2)(ws@8.21.3)(zod@4.5.4):
+    optionalDependencies:
+      undici: 8.11.2
+      ws: 8.21.3
+      zod: 4.5.4
 
   ora@3.4.0:
     dependencies:

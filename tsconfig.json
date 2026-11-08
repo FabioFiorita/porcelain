@@ -44,6 +44,7 @@
     "vitest.integration.config.ts",
     ".agents/skills/spec/**/*.ts",
     "scripts/**/*.ts",
+    "ci/**/*.ts",
     ".agents/skills/server-verify/scripts/**/*.ts",
     ".agents/skills/verify-core/**/*.ts",
     ".agents/skills/web-verify/scripts/**/*.ts",

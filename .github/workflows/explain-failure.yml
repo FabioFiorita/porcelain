@@ -1,0 +1,40 @@
+name: Explain CI failure
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  explain:
+    if: github.event.workflow_run.conclusion == 'failure'
+    concurrency:
+      group: explain-failure-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          save-cache: false
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
+      - name: Explain the failed jobs on their pull request
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PULL_REQUESTS: ${{ toJSON(github.event.workflow_run.pull_requests.*.number) }}
+        run: exec node ci/explain-failure.ts
