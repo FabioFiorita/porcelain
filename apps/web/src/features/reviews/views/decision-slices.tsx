@@ -18,6 +18,7 @@ import {
   createPierreFileOptions,
   PIERRE_DECISION_CSS,
   PIERRE_THEME,
+  PIERRE_HIGHLIGHTER,
 } from '@/shared/lib/pierre';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -183,6 +184,7 @@ function Slice({
         patch={patch}
         options={{
           theme: PIERRE_THEME,
+          preferredHighlighter: PIERRE_HIGHLIGHTER,
           themeType: dark ? 'dark' : 'light',
           diffStyle: 'unified',
           overflow: 'wrap',

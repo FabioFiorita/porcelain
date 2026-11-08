@@ -37,7 +37,7 @@ import { shortOid } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/features/preferences/index';
-import { PIERRE_THEME } from '@/shared/lib/pierre';
+import { PIERRE_THEME, PIERRE_HIGHLIGHTER } from '@/shared/lib/pierre';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Tooltip,
@@ -538,6 +538,7 @@ function PullRequestTimelineItem({
               }}
               options={{
                 theme: PIERRE_THEME,
+                preferredHighlighter: PIERRE_HIGHLIGHTER,
                 themeType: dark ? 'dark' : 'light',
                 disableFileHeader: true,
                 disableLineNumbers: true,

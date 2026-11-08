@@ -45,6 +45,7 @@ import {
   PIERRE_MARGIN_THREAD_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
+  PIERRE_HIGHLIGHTER,
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -406,6 +407,7 @@ function CodeSurface({
   }
   const paddingBottom = fullHeight || footer ? 12 : 160;
   const options: CodeViewReactOptions<Note, undefined> = {
+    preferredHighlighter: PIERRE_HIGHLIGHTER,
     theme:
       decision || column || compactThreads || framed
         ? PIERRE_DECISION_THEME
