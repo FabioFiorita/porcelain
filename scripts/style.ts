@@ -54,6 +54,7 @@ export async function checkStyle(
     'packages/storage/scripts',
     'architecture',
     'scripts',
+    'ci',
     'vitest.config.ts',
     'vitest.integration.config.ts',
     '.agents/skills/server-verify/scripts',

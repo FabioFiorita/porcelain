@@ -56,6 +56,7 @@ const sourceRoots = [
   '.agents/skills/desktop-verify/scripts',
   'apps/mobile/spec',
   '.agents/skills/mobile-verify/scripts',
+  'ci',
 ].filter((root) => existsSync(join(repositoryRoot, root)));
 const mobileRoots = ['apps/mobile/src'];
 const mobileConfig = 'apps/mobile/app.config.ts';

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - .agents/skills
+  - ci
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true

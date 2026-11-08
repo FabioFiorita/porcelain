@@ -16,11 +16,20 @@ const SWEEP_CASE_MS = 10 * 60_000;
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
 const pages = {
   'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<h1>Page not found</h1><p>Fits every width.</p><pre>Computer unavailable</pre><span data-slot="breadcrumb-page" aria-current="page">Computer unavailable</span>`,
-  'sweep-not-found.html': `<!doctype html><title>Not found</title>${themed}<section data-slot="state-notice"><h2>Page not found</h2></section>`,
-  'sweep-unavailable.html': `<!doctype html><title>Unavailable</title>${themed}<div role="alert" data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>`,
-  'sweep-error.html': `<!doctype html><title>Sweep error</title>${themed}<script>throw new Error('sweep fixture page error');</script>`,
-  'sweep-crash-text.html': `<!doctype html><title>Sweep crash text</title>${themed}<p>Fits every width.</p><script>if (innerWidth === 414) console.error('Target crashed: the review socket has been closed');</script>`,
-  'sweep-overflow.html': `<!doctype html><title>Sweep overflow</title><style>body{margin:0}</style>${themed}<div aria-label="Too wide" style="width:2000px">Wide</div>`,
+  'sweep-error.html': `<!doctype html><title>Sweep errors</title><style>body{margin:0}</style>${themed}<body><p>Fits every width.</p><script>
+if (!media.matches) {
+  if (innerWidth === 1440) throw new Error('sweep fixture page error');
+  if (innerWidth === 1080) console.error('sweep fixture console error');
+  if (innerWidth === 414) {
+    const wide = document.createElement('div');
+    wide.setAttribute('aria-label', 'Too wide');
+    wide.style.width = '2000px';
+    wide.textContent = 'Wide';
+    document.body.append(wide);
+  }
+} else if (innerWidth === 414) console.error('Target crashed: the review socket has been closed');
+</script>`,
+  'sweep-unavailable.html': `<!doctype html><title>Unavailable</title>${themed}<style>@media(prefers-color-scheme:dark){[data-slot="state-notice"]{display:none}}@media(prefers-color-scheme:light){[data-unavailable-page]{display:none}}</style><section data-slot="state-notice"><h2>Page not found</h2></section><div role="alert" data-unavailable-page="Computer unavailable">This computer is no longer saved on this app.</div>`,
 };
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -102,9 +111,6 @@ test(
     const failing = await web(
       'sweep',
       '/sweep-error.html',
-      '/sweep-crash-text.html',
-      '/sweep-overflow.html',
-      '/sweep-not-found.html',
       '/sweep-unavailable.html',
     );
     const failingIndex = /read (\S+)\n$/.exec(failing.stderr)?.[1] ?? '';
@@ -115,13 +121,14 @@ test(
       ),
     );
     const shots = list(failedRecord.shots).map(record);
-    const crashText = shots.filter(
-      (shot) => shot.entry === '/sweep-crash-text.html',
+    const errors = shots.filter((shot) => shot.entry === '/sweep-error.html');
+    const unavailable = shots.filter(
+      (shot) => shot.entry === '/sweep-unavailable.html',
     );
 
     expect(failing.code).toBe(1);
     expect(failing.stderr).toMatch(
-      /^The sweep found \d+ problems in 90 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
+      /^The sweep found \d+ problems in 36 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
     );
     expect(failedRecord.states).toStrictEqual([
       'as-left',
@@ -132,38 +139,107 @@ test(
       'States in order: as-left, long-text, many-items. An earlier sweep already seeded this instance',
     );
     expect(
-      (await filesUnder(failingIndex.replace(/\/index\.md$/, ''))).filter(
-        (file) => file.startsWith('02-sweep-crash-text.html/'),
-      ),
-    ).toStrictEqual(captures('02-sweep-crash-text.html', 'as-left').toSorted());
+      await filesUnder(failingIndex.replace(/\/index\.md$/, '')),
+    ).toStrictEqual(
+      [
+        'index.md',
+        ...captures('01-sweep-error.html', 'as-left'),
+        ...captures('02-sweep-unavailable.html', 'as-left'),
+      ].toSorted(),
+    );
     expect(failed).toContain(
       '- `/sweep-error.html` as-left light 1440: page error: sweep fixture page error\n',
     );
     expect(failed).toContain(
-      '- `/sweep-overflow.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
+      '- `/sweep-error.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
     );
     expect(failed).toContain(
-      '`/sweep-not-found.html` as-left light 1440: unavailable page: Page not found',
+      '`/sweep-unavailable.html` as-left light 1440: unavailable page: Page not found',
     );
     expect(failed).toContain(
-      '`/sweep-unavailable.html` as-left light 1440: unavailable page: Computer unavailable',
+      '`/sweep-unavailable.html` as-left dark 1440: unavailable page: Computer unavailable',
     );
     expect(failed).not.toContain('`/sweep-fixture.html`');
     expect(failed).not.toContain('## Retries');
     expect(
-      crashText.map((shot) => [shot.width, list(shot.problems), shot.retried]),
+      errors.map((shot) => [
+        shot.state,
+        shot.theme,
+        shot.width,
+        list(shot.problems),
+        shot.retried,
+      ]),
     ).toStrictEqual(
-      Array.from({ length: 6 }, () => [1440, 1080, 414]).flatMap((widths) =>
-        widths.map((width) => [
-          width,
-          width === 414
-            ? [
-                'console error: Target crashed: the review socket has been closed',
-              ]
-            : [],
+      ['as-left', 'long-text', 'many-items'].flatMap((state) => [
+        [
+          state,
+          'light',
+          1440,
+          ['page error: sweep fixture page error'],
           undefined,
-        ]),
-      ),
+        ],
+        [
+          state,
+          'light',
+          1080,
+          ['console error: sweep fixture console error'],
+          undefined,
+        ],
+        [
+          state,
+          'light',
+          414,
+          [
+            'overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)',
+          ],
+          undefined,
+        ],
+        [state, 'dark', 1440, [], undefined],
+        [state, 'dark', 1080, [], undefined],
+        [
+          state,
+          'dark',
+          414,
+          ['console error: Target crashed: the review socket has been closed'],
+          undefined,
+        ],
+      ]),
+    );
+    expect(
+      unavailable.map((shot) => [
+        shot.state,
+        shot.theme,
+        shot.width,
+        list(shot.problems),
+        shot.retried,
+      ]),
+    ).toStrictEqual(
+      ['as-left', 'long-text', 'many-items'].flatMap((state) => [
+        [state, 'light', 1440, ['unavailable page: Page not found'], undefined],
+        [state, 'light', 1080, ['unavailable page: Page not found'], undefined],
+        [state, 'light', 414, ['unavailable page: Page not found'], undefined],
+        [
+          state,
+          'dark',
+          1440,
+          ['unavailable page: Computer unavailable'],
+          undefined,
+        ],
+        [
+          state,
+          'dark',
+          1080,
+          ['unavailable page: Computer unavailable'],
+          undefined,
+        ],
+        [
+          state,
+          'dark',
+          414,
+          ['unavailable page: Computer unavailable'],
+          undefined,
+        ],
+      ]),
     );
     expect(
       list(failedRecord.seeds)
@@ -175,13 +251,7 @@ test(
         .filter((shot) => list(shot.problems).length > 0)
         .map((shot) => text(shot.entry))
         .filter((entry, at, all) => all.indexOf(entry) === at),
-    ).toStrictEqual([
-      '/sweep-error.html',
-      '/sweep-crash-text.html',
-      '/sweep-overflow.html',
-      '/sweep-not-found.html',
-      '/sweep-unavailable.html',
-    ]);
+    ).toStrictEqual(['/sweep-error.html', '/sweep-unavailable.html']);
     expect(list(printed(await web('server', 'comment-threads')))).toHaveLength(
       31,
     );
