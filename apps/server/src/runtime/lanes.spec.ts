@@ -1092,7 +1092,12 @@ describe.each(
               protectedExit.cause.reasons,
           ).toEqual([
             ...(failure === 'work' || failure === 'both'
-              ? [Cause.fail(workError).reasons[0]]
+              ? [
+                  (failure === 'both'
+                    ? Cause.die(workError)
+                    : Cause.fail(workError)
+                  ).reasons[0],
+                ]
               : []),
             ...(failure === 'cleanup' || failure === 'both'
               ? [Cause.die(cleanupError).reasons[0]]
