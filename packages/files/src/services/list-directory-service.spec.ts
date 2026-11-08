@@ -99,7 +99,9 @@ describe('ListDirectoryService', () => {
       Effect.runPromise(
         withReadLease(worktreeId, service.execute({ worktreeId, path: 'src' })),
       ),
-    ).resolves.toMatchObject({
+    ).resolves.toEqual({
+      worktreeId,
+      path: 'src',
       entries: [
         { name: 'app.log', kind: 'file', ignored: true },
         { name: 'app.ts', kind: 'file' },

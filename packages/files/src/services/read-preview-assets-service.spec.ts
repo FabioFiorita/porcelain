@@ -34,7 +34,12 @@ function serviceWith(files: Record<string, FileRead>, options = roomy) {
 
 describe('ReadPreviewAssetsService', () => {
   it('answers every reference in request order as an asset or unavailable', async () => {
-    const service = serviceWith({ 'a.png': file(3), 'notes.txt': file(4) });
+    const service = serviceWith({
+      'a.png': file(3),
+      'notes.txt': file(4),
+      '../outside.png': file(3),
+      '.git/x.png': file(3),
+    });
     await expect(
       Effect.runPromise(
         withReadLease(

@@ -81,15 +81,15 @@ describe('SqliteGitActionReceiptStore collection', () => {
       Layer.Success<ReturnType<typeof storageLayer>>,
       never
     >;
-    close: () => void;
+    close: () => Promise<void>;
   };
 
   beforeEach(async () => {
     opened = await openScoped('project', ['collected', 'kept']);
   });
 
-  afterEach(() => {
-    opened.close();
+  afterEach(async () => {
+    await opened.close();
   });
 
   it('removes the receipts of a worktree when the worktree is collected, and keeps the others', async () => {

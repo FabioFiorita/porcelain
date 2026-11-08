@@ -17,11 +17,19 @@ const sides: Omit<TrackedComparison, 'scope'> = {
 };
 
 describe('isTracked', () => {
-  it('counts staged and unstaged comparisons as tracked', () => {
+  it('counts only staged and unstaged comparisons as tracked', () => {
     const comparisons: ChangeComparison[] = [
       { scope: 'staged', ...sides },
       { scope: 'unstaged', ...sides },
+      { scope: 'untracked', path: 'a.md' },
+      {
+        scope: 'unmerged',
+        path: 'a.md',
+        conflict: 'both-modified',
+        modes: ['100644', '100644', '100644', '100644'],
+        oids: ['base', 'ours', 'theirs'],
+      },
     ];
-    expect(comparisons.map(isTracked)).toEqual([true, true]);
+    expect(comparisons.map(isTracked)).toEqual([true, true, false, false]);
   });
 });

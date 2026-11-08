@@ -3,7 +3,6 @@ import {
   PairingAttemptBudgetStore,
   TakePairingAttemptOptions,
 } from '@porcelain/access/ports';
-import type { Context } from 'effect';
 import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { TooManyPairingAttemptsError } from '@porcelain/access/errors';
@@ -38,23 +37,11 @@ async function setup() {
   );
 }
 
-function exhaust(
-  service: Context.Service.Shape<typeof TakePairingAttemptService>,
-  input: { peer: string; crossOrigin: boolean },
-) {
-  for (;;)
-    try {
-      Effect.runSync(service.execute(input));
-    } catch (error) {
-      if (error instanceof TooManyPairingAttemptsError) return;
-      throw error;
-    }
-}
-
 describe('TakePairingAttemptService', () => {
   it('keeps pages on other origins that exhaust their attempts from starving pairing from the same peer', async () => {
     const service = await setup();
-    exhaust(service, { peer, crossOrigin: true });
+    for (let attempt = 0; attempt < 2; attempt += 1)
+      Effect.runSync(service.execute({ peer, crossOrigin: true }));
     expect(() =>
       Effect.runSync(service.execute({ peer, crossOrigin: true })),
     ).toThrow(TooManyPairingAttemptsError);
@@ -65,7 +52,11 @@ describe('TakePairingAttemptService', () => {
 
   it('keeps exhausted same-origin attempts from blocking a cross-origin redemption', async () => {
     const service = await setup();
-    exhaust(service, { peer, crossOrigin: false });
+    for (let attempt = 0; attempt < 10; attempt += 1)
+      Effect.runSync(service.execute({ peer, crossOrigin: false }));
+    expect(() =>
+      Effect.runSync(service.execute({ peer, crossOrigin: false })),
+    ).toThrow(TooManyPairingAttemptsError);
     expect(() =>
       Effect.runSync(service.execute({ peer, crossOrigin: true })),
     ).not.toThrow();

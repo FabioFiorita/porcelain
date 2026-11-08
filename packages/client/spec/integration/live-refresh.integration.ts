@@ -347,6 +347,10 @@ test.for([
       ).toBe(revision);
       held.resolve(stale);
       await settle();
+      expect(
+        (await readClientAtom(subject.registry, readReview(aInput))).review
+          ?.lastSeenRevision,
+      ).toBe(revision);
       expect(metadataReads()).toBe(beforeHeld + 2);
       expect(counts(b.reviewId)).toEqual(bReads);
       expect(counts(c.reviewId)).toEqual(cReads);
