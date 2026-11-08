@@ -191,10 +191,15 @@ describe('withState', () => {
       assess(pullRequest(product), review([]), 0.9, none, owner),
       { reviewed: { sha: 'an-earlier-commit', review: review([]) } },
     );
-    expect([
-      savedState(withState(earlier, { approvedHead: headSha })),
-      savedState(withState(undefined, { approvedHead: headSha })),
-    ]).toEqual([{ approvedHead: headSha }, { approvedHead: headSha }]);
+    const updated = withState(earlier, { approvedHead: headSha });
+    const initial = withState(undefined, { approvedHead: headSha });
+    expect([savedState(updated), savedState(initial)]).toEqual([
+      { approvedHead: headSha },
+      { approvedHead: headSha },
+    ]);
+    expect(updated).toContain('### Needs the owner’s decision');
+    expect(updated).toContain('- **Reviewer:** Checked the diff.');
+    expect(initial).toContain('### Waiting for CI');
   });
 });
 
