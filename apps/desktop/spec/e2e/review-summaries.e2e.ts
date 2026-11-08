@@ -106,6 +106,18 @@ async function focusSummaryLink(
     .toEqual({ focused: true, href });
 }
 
+async function releaseSummaryEnter(page: Page) {
+  const review = page
+    .getByRole('tablist', { name: 'Open documents', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true });
+  await test.step('Focus the parent Review tab before releasing Enter', async () => {
+    await review.focus();
+    await expect(review).toBeFocused();
+  });
+  await test.step('Send Enter keyup from the focused Review tab', () =>
+    page.keyboard.up('Enter'));
+}
+
 async function publishSummary(page: Page, repository: string, title: string) {
   const project = Schema.decodeUnknownSync(registerProjectResponseSchema)(
     await appRequest(page, 'POST', '/api/projects', { path: repository }),
@@ -251,7 +263,9 @@ for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
     if (activation === 'pointer') {
       await hoverSummaryLink(page, link, '#layer-1');
       await link.click();
-    } else await page.keyboard.press('Enter');
+    } else
+      await test.step('Send Enter keydown in the focused summary', () =>
+        page.keyboard.down('Enter'));
     await expect
       .poll(() => summaryActivations(page))
       .toEqual([
@@ -267,6 +281,7 @@ for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
         exact: true,
       }),
     ).toBeVisible();
+    if (activation !== 'pointer') await releaseSummaryEnter(page);
     expect(await summaryActivations(page)).toEqual([
       { trusted: true, href: '#layer-1', focused: true },
     ]);
@@ -422,12 +437,7 @@ test('a remote computer summary survives document renewal, stays isolated and ca
       exact: true,
     }),
   ).toBeVisible();
-  const layerTab = page
-    .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByRole('tab', { name: 'Review', exact: true });
-  await layerTab.focus();
-  await expect(layerTab).toBeFocused();
-  await page.keyboard.up('Enter');
+  await releaseSummaryEnter(page);
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("script-src 'self'");
   expect(policy).toContain("frame-src 'self' blob:");
