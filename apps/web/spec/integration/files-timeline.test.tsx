@@ -5,12 +5,7 @@ test('a paginated timeline returns from an older commit with its loaded rows, se
   repo,
   reviewLayout,
 }) => {
-  await repo.write('notes.txt', 'Oldest\n');
-  await repo.commit('Timeline oldest');
-  for (let index = 1; index <= 101; index++) {
-    await repo.write('notes.txt', `Note ${index}\n`);
-    await repo.commit(`Timeline note ${index}`);
-  }
+  await repo.paginatedTimeline();
   const workspace = await render.workspace();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
