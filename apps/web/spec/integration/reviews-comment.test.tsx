@@ -176,6 +176,7 @@ test('a reply sent with the keyboard survives resolving and reopening its thread
 });
 
 test('a saved comment with a lost response keeps its draft and retry identity after another file-comment click', async ({
+  collectGarbage,
   render,
   repo,
   server,
@@ -195,6 +196,7 @@ test('a saved comment with a lost response keeps its draft and retry identity af
   const post = workspace.getByRole('button', { name: 'Comment', exact: true });
   const body = 'Retry this feedback without posting it twice.';
   await comment.fill(body);
+  await collectGarbage();
   refresh.arm();
   await post.click();
   await expect.element(workspace.getByRole('alert')).toBeVisible();

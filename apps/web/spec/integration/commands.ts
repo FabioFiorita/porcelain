@@ -13,6 +13,7 @@ import type {
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainCollectGarbage: () => Promise<void>;
     porcelainReplaceEditorContent: (
       selector: string,
       text: string,
