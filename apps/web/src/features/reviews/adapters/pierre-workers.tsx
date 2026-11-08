@@ -1,7 +1,7 @@
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import type { ReactNode } from 'react';
 import { PIERRE_WORKER_POOL_SIZE } from '@/config/limits';
-import { PIERRE_THEME } from '@/shared/lib/pierre';
+import { PIERRE_HIGHLIGHTER, PIERRE_THEME } from '@/shared/lib/pierre';
 
 export function PierreWorkers({ children }: { children: ReactNode }) {
   return (
@@ -14,7 +14,10 @@ export function PierreWorkers({ children }: { children: ReactNode }) {
             { type: 'module' },
           ),
       }}
-      highlighterOptions={{ theme: PIERRE_THEME }}
+      highlighterOptions={{
+        theme: PIERRE_THEME,
+        preferredHighlighter: PIERRE_HIGHLIGHTER,
+      }}
     >
       {children}
     </WorkerPoolContextProvider>

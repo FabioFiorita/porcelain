@@ -194,6 +194,7 @@ function ciSelectionFixture(entry) {
         'apps/*/package.json',
         'packages/*/package.json',
         '.agents/skills/package.json',
+        'ci/package.json',
       ],
       { cwd: repository },
     );
@@ -564,6 +565,44 @@ export async function runGuardrailCases(named = []) {
           'utf8',
         ),
       );
+      const installs = Object.entries(workflow.jobs).flatMap(([name, job]) =>
+        (job.steps ?? [])
+          .filter((step) => step.uses?.startsWith('pnpm/setup@'))
+          .map((step) => ({ name, step, setup: step.with })),
+      );
+      deepStrictEqual(
+        installs
+          .filter(({ setup }) => setup.cache)
+          .map(({ name }) => name)
+          .toSorted((left, right) => left.localeCompare(right)),
+        [entry.dependencyStoreWriter, ...entry.dependencyStoreReaders].toSorted(
+          (left, right) => left.localeCompare(right),
+        ),
+        'Every Linux dependency-store reader keeps restoring the cache',
+      );
+      deepStrictEqual(
+        installs
+          .filter(({ setup }) => setup.cache && (setup['save-cache'] ?? true))
+          .map(({ name }) => name),
+        [entry.dependencyStoreWriter],
+        'Only the full Linux unit install publishes the dependency store',
+      );
+      const writer = workflow.jobs[entry.dependencyStoreWriter];
+      strictEqual(writer['runs-on'], 'ubuntu-latest');
+      strictEqual(writer.if, undefined);
+      strictEqual(writer.needs, undefined);
+      strictEqual(writer.strategy, undefined);
+      strictEqual(
+        installs.find(({ name }) => name === entry.dependencyStoreWriter).step
+          .if,
+        undefined,
+      );
+      for (const { name, setup } of installs) {
+        strictEqual(setup['require-lockfile'], true, name);
+        strictEqual(setup.install ?? true, true, name);
+        strictEqual(setup['working-directory'] ?? '.', '.', name);
+        strictEqual(setup['package-json-file'], undefined, name);
+      }
       strictEqual(
         workflow.jobs.units.steps.find((step) =>
           step.run?.includes('run test --affected'),
@@ -571,16 +610,27 @@ export async function runGuardrailCases(named = []) {
         entry.unitCommand,
         'CI runs unit projects through affected task selection',
       );
-      deepStrictEqual(
-        workflow.jobs['web-e2e'].strategy.matrix.shard,
-        entry.webE2eShards,
-      );
-      strictEqual(
-        workflow.jobs['web-e2e'].steps.find((step) =>
-          step.run?.includes('test:e2e --shard='),
-        )?.run,
-        entry.webE2eCommand,
-      );
+      for (const [name, shards, command] of [
+        [
+          'web-integration',
+          entry.webIntegrationShards,
+          entry.webIntegrationCommand,
+        ],
+        ['web-e2e', entry.webE2eShards, entry.webE2eCommand],
+      ]) {
+        deepStrictEqual(
+          workflow.jobs[name].strategy.matrix.shard,
+          shards,
+          name,
+        );
+        strictEqual(
+          workflow.jobs[name].steps.find((step) =>
+            step.run?.includes('--shard='),
+          )?.run,
+          command,
+          name,
+        );
+      }
       const gate = workflow.jobs.checks;
       deepStrictEqual(
         gate.needs.toSorted(),

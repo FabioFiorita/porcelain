@@ -4,6 +4,10 @@ Porcelain is built by one developer working with coding agents, and it moves qui
 
 [AGENTS.md](AGENTS.md) is the full development guide, for people and agents alike. It covers how a feature crosses the repository, testing, verification and pull requests.
 
+## How a pull request lands
+
+An automated loop reviews and lands pull requests into `main`. Once CI passes, an OpenAI model decides whether the change needs a review, an OpenAI agent reviews it when it does, and another model judges whether the change is easy to undo. A comment on your pull request shows each verdict, and findings are labelled `agent-fixes`: push fixes and the loop looks again. A pull request from someone without write access waits until the maintainer adds the `agent-review` label, and it always needs the maintainer's approval before it lands.
+
 ## Architecture and decisions
 
 Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server owns repositories and persistent state; the clients present that state and send commands.
@@ -28,6 +32,8 @@ Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server 
 ## Develop from source
 
 Use the Node version in [.node-version](.node-version) and the pnpm version named by `packageManager` in [package.json](package.json). Disposable server development also needs Git and either Linux with bubblewrap (`bwrap`) or macOS with `sandbox-exec`.
+
+The private Agent review, Explain CI failure and Release notes workflows retain Node 24.20.0 because their OpenAI SDK currently declares support for Node 22 and 24, with Node 26 forward-tested. Their runtime pins can move after the SDK's supported matrix includes Node 26 and their CI paths are qualified on it. This exception does not change the development or published server runtime range.
 
 ```sh
 git clone https://github.com/FabioFiorita/porcelain.git

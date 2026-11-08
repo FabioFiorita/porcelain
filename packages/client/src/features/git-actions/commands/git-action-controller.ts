@@ -1,6 +1,7 @@
 import { OperationStore } from '../ports/operation-store.ts';
 import type { GitConnection } from '../ports/git-connection.ts';
-import { Context, Crypto, Effect, Layer, Schema, Semaphore } from 'effect';
+import { Context, Effect, Layer, Schema, Semaphore } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { Atom, AtomRegistry } from 'effect/reactivity';
 import type {
   RunGitActionRequest,
@@ -11,7 +12,6 @@ import { porcelainClient } from '../../../shared/api/client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { isTerminal, operationKey } from '../store/operations.ts';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
 import { readGitReceipt } from '../queries/read-receipt.ts';
 
@@ -52,7 +52,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
 }: Selection) {
   const client = yield* porcelainClient(connection);
   const operations = yield* OperationStore;
-  const crypto = yield* Crypto.Crypto;
+  const random = yield* SecureRandom.SecureRandom;
   const refresh = yield* GitReceiptRefresh;
   const admission = yield* Semaphore.make(1);
   const key = operationKey(scope, action);
@@ -121,15 +121,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
                 );
               const request = {
                 ...input,
-                requestId: yield* crypto.randomUUIDv4.pipe(
-                  Effect.mapError(
-                    (cause) =>
-                      new ConnectionError({
-                        message: 'Could not create a Git recovery identity.',
-                        cause,
-                      }),
-                  ),
-                ),
+                requestId: yield* random.uuidV4(),
               };
               yield* operations.set(key, {
                 ...scope,

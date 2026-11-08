@@ -5,6 +5,17 @@ import {
   CONTENT_VERSION_HASH_PRIME,
 } from '@/config/limits';
 
+function preferredHighlighter(): 'highlights' | 'shiki-js' {
+  try {
+    new WebAssembly.Module(Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0));
+    return 'highlights';
+  } catch {
+    return 'shiki-js';
+  }
+}
+
+export const PIERRE_HIGHLIGHTER = preferredHighlighter();
+
 export const PIERRE_THEME: ThemesType = {
   light: 'pierre-light',
   dark: 'pierre-dark',
@@ -148,6 +159,7 @@ export function createPierreFileOptions(
   display: Pick<PierreDisplayOptions, 'overflow'> = {},
 ): FileOptions<undefined, undefined> {
   return {
+    preferredHighlighter: PIERRE_HIGHLIGHTER,
     theme: PIERRE_THEME,
     themeType,
     overflow: display.overflow ?? 'scroll',

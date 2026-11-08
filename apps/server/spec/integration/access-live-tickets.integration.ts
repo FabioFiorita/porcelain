@@ -35,7 +35,7 @@ async function ticketFor(session: Session, credential?: string) {
 function upgradeWith(
   session: Session,
   ticket: string,
-  origin: string | undefined = APP,
+  origin: string | undefined,
   auth: HttpRequest['auth'] = 'none',
 ): HttpRequest {
   const headers = Object.fromEntries(
@@ -161,7 +161,7 @@ test('a ticket works once', async ({ session }) => {
   const connection = await session.live({ ticket, origin: APP });
   await connection.next((notice) => notice.type === 'ready');
 
-  const fromApp = await session.send(upgradeWith(session, ticket));
+  const fromApp = await session.send(upgradeWith(session, ticket, APP));
   const withoutOrigin = await session.send(
     upgradeWith(session, ticket, undefined),
   );
@@ -174,7 +174,7 @@ test('a ticket expires', async ({ session, server }) => {
   const { ticket } = await ticketFor(session);
   await server.advanceTime(session.fixture.liveTicketLifetimeMs + 100);
 
-  const response = await session.send(upgradeWith(session, ticket));
+  const response = await session.send(upgradeWith(session, ticket, APP));
 
   expect(response.status).toBe(401);
   expect(response.body).toStrictEqual(unauthenticated);
@@ -190,7 +190,7 @@ test('the ticket of a revoked device is refused', async ({ session }) => {
     body: { id: device.deviceId },
   });
 
-  const response = await session.send(upgradeWith(session, ticket));
+  const response = await session.send(upgradeWith(session, ticket, APP));
 
   expect(response.status).toBe(401);
   expect(response.body).toStrictEqual(unauthenticated);

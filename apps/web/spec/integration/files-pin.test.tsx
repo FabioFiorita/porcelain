@@ -103,7 +103,24 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
   await expect
     .element(workspace.getByRole('menuitem', { name: 'Pin file', exact: true }))
     .not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace.getByRole('menu', {
+        name: `${path} actions`,
+        exact: true,
+        includeHidden: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect.element(workspace.getByRole('menu')).toHaveFocus();
   await userEvent.keyboard('{Escape}');
+
+  await expect.element(workspace.getByRole('menu')).not.toBeInTheDocument();
+  await expect
+    .element(
+      workspace.getByRole('dialog', { name: 'Worktree review', exact: true }),
+    )
+    .toBeVisible();
 
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })

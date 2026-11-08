@@ -1,6 +1,7 @@
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
-import { Crypto, Equal, Exit, Layer } from 'effect';
+import { Equal, Exit, Layer } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 
 import type { Context } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
@@ -72,18 +73,15 @@ function setup(
     Layer.merge(
       Layer.succeed(OperationStore, operations),
       Layer.succeed(
-        Crypto.Crypto,
-        Crypto.make({
-          randomBytes: () => {
-            ids++;
-            return new Uint8Array(
-              requestId
-                .replaceAll('-', '')
-                .match(/../g)
-                ?.map((part) => parseInt(part, 16)) ?? [],
-            );
-          },
-          digest: (_, bytes) => Effect.succeed(bytes),
+        SecureRandom.SecureRandom,
+        SecureRandom.make(() => {
+          ids++;
+          return new Uint8Array(
+            requestId
+              .replaceAll('-', '')
+              .match(/../g)
+              ?.map((part) => parseInt(part, 16)) ?? [],
+          );
         }),
       ),
     ),
@@ -163,11 +161,16 @@ it('retains the original request after an unanswered write and reads its receipt
     await expect(subject.run()).rejects.toThrow('Check the existing receipt');
     expect(sent).toHaveLength(1);
     await expect(subject.recover()).resolves.toEqual(receipt);
-    expect(sent).toEqual([
-      JSON.stringify(
-        Schema.encodeSync(runGitActionRequestSchema)({ ...input, requestId }),
-      ),
-    ]);
+    expect(await new Response(sent[0]).json()).toEqual({
+      requestId,
+      input: { action: 'commit', message: 'Save changes', paths: ['file.ts'] },
+      expected: {
+        headOid: null,
+        branch: null,
+        inProgress: null,
+        mergeHeadOid: null,
+      },
+    });
     expect(reads).toHaveLength(1);
     expect(reads[0]).toContain(`/git/receipts/${requestId}`);
     expect(subject.ids()).toBe(1);

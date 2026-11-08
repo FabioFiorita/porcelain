@@ -6216,8 +6216,21 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-required-checks',
+    dependencyStoreWriter: 'units',
+    dependencyStoreReaders: [
+      'affected',
+      'static',
+      'package',
+      'server-integration',
+      'web-integration',
+      'web-e2e',
+      'migrations',
+    ],
     unitCommand:
       'pnpm exec turbo run test --affected --concurrency=1 --continue',
+    webIntegrationShards: [1, 2, 3, 4],
+    webIntegrationCommand:
+      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4',
     webE2eShards: [1, 2, 3, 4],
     webE2eCommand:
       'pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4',

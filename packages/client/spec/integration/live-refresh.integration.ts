@@ -144,7 +144,10 @@ test.for([
         },
       },
       undefined,
-      Layer.merge(NodeCrypto.layer, Layer.succeed(OperationStore, operations)),
+      Layer.merge(
+        NodeCrypto.layerSecureRandom,
+        Layer.succeed(OperationStore, operations),
+      ),
     );
     const subject = { ...lifetime, registry: AtomRegistry.make() };
     let callbacks: Parameters<LiveUpdatePort['connect']>[0] | undefined;
@@ -344,11 +347,16 @@ test.for([
       ).toBe(revision);
       held.resolve(stale);
       await settle();
+      expect(
+        (await readClientAtom(subject.registry, readReview(aInput))).review
+          ?.lastSeenRevision,
+      ).toBe(revision);
       expect(metadataReads()).toBe(beforeHeld + 2);
       expect(counts(b.reviewId)).toEqual(bReads);
       expect(counts(c.reviewId)).toEqual(cReads);
       const beforeRecovery = counts(c.reviewId).length;
       callbacks?.onReconnect();
+      callbacks?.onNotice({ type: 'ready' });
       await expect
         .poll(() => counts(c.reviewId).length)
         .toBeGreaterThan(beforeRecovery);

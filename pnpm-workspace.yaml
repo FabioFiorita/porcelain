@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - .agents/skills
+  - ci
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
@@ -14,7 +15,7 @@ packageExtensions:
 # beta.6 pins theming 1.0.0, whose theme peer excludes the 2.x version used by
 # current Pierre packages. The compatible patch release widens that peer.
 overrides:
-  '@pierre/trees>@pierre/theming': 1.0.1
+  '@pierre/trees>@pierre/theming': 1.0.2
 patchedDependencies:
-  '@pierre/diffs@1.6.1': patches/@pierre__diffs@1.6.1.patch
+  '@pierre/diffs@1.6.4': patches/@pierre__diffs@1.6.4.patch
   uniwind@1.12.1: patches/uniwind@1.12.1.patch

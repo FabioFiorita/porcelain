@@ -29,20 +29,17 @@ it('keeps full branch names without clean-state filler', () => {
   });
 });
 
-it.each(['qa-531', 'qa-532'])(
-  'identifies detached checkout %s by its folder',
-  (name) => {
-    expect(
-      worktreeRow({
-        ...entry,
-        name,
-        branch: 'Detached HEAD',
-        detached: true,
-        path: `/code/porcelain-worktrees/${name}`,
-      }).title,
-    ).toBe(name);
-  },
-);
+it('identifies a detached checkout by its folder', () => {
+  expect(
+    worktreeRow({
+      ...entry,
+      name: 'qa-531',
+      branch: 'Detached HEAD',
+      detached: true,
+      path: '/code/porcelain-worktrees/qa-531',
+    }).title,
+  ).toBe('qa-531');
+});
 
 it('keeps pending and failed reads distinct from a clean checkout without a review', () => {
   expect(

@@ -27,7 +27,7 @@ It is free, open source and has no account, and Porcelain never sends your code 
 
 **Mac app.** Download it from [GitHub Releases](https://github.com/FabioFiorita/porcelain/releases). It runs on Apple silicon.
 
-**Server and browser.** On the Linux or Mac machine that holds your repositories, with Git and Node 24:
+**Server and browser.** On the Linux or Mac machine that holds your repositories, with Git and Node 24 (24.20+) or Node 26 (26.13+). Official Node 26 binaries on Linux also need the distribution’s `libatomic` runtime:
 
 ```sh
 npx @fabiofiorita/porcelain@latest serve

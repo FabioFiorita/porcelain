@@ -29,8 +29,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - name: Find affected runtime checks
@@ -61,8 +62,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -81,8 +83,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -97,12 +100,17 @@ jobs:
     if: ${{ needs.affected.outputs.package == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24.20.0', '26.13.0']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@${{ matrix.node }}
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:package
@@ -121,8 +129,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -140,15 +149,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -156,7 +166,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/3
+      - run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
@@ -178,8 +188,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
@@ -205,8 +216,9 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
+          save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:check
@@ -226,7 +238,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile

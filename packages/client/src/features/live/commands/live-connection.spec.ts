@@ -1,15 +1,8 @@
 import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { expect, it } from 'vitest';
-import {
-  Redacted,
-  Crypto,
-  Effect,
-  Exit,
-  Fiber,
-  Layer,
-  ManagedRuntime,
-} from 'effect';
+import { Redacted, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { AtomRegistry } from 'effect/reactivity';
 import { FileDrafts, retainFileDraft } from '@porcelain/client/files';
 import { OperationStorage, operationKey } from '@porcelain/client/git-actions';
@@ -33,11 +26,8 @@ it('adopts a replacement remote connection without releasing application drafts 
       },
       Layer.merge(
         Layer.succeed(
-          Crypto.Crypto,
-          Crypto.make({
-            randomBytes: (length) => new Uint8Array(length),
-            digest: (_, bytes) => Effect.succeed(bytes),
-          }),
+          SecureRandom.SecureRandom,
+          SecureRandom.make((length) => new Uint8Array(length)),
         ),
         Layer.succeed(OperationStorage, {
           read: () => Effect.succeed(null),
@@ -134,14 +124,11 @@ it('closes the journal and interrupts receipt waits in the same lifetime as requ
     idleLiveConnectionInput('environment', 'https://machine.example'),
     Layer.merge(
       Layer.effect(
-        Crypto.Crypto,
+        SecureRandom.SecureRandom,
         Effect.acquireRelease(
           Effect.sync(() => {
             events.push('open');
-            return Crypto.make({
-              randomBytes: (length) => new Uint8Array(length),
-              digest: (_, bytes) => Effect.succeed(bytes),
-            });
+            return SecureRandom.make((length) => new Uint8Array(length));
           }),
           () =>
             Effect.sync(() => {
@@ -181,8 +168,8 @@ it('closes the journal and interrupts receipt waits in the same lifetime as requ
     },
   };
   try {
-    const crypto = connection.runtime.runSync(Crypto.Crypto);
-    expect(connection.runtime.runSync(Crypto.Crypto)).toBe(crypto);
+    const random = connection.runtime.runSync(SecureRandom.SecureRandom);
+    expect(connection.runtime.runSync(SecureRandom.SecureRandom)).toBe(random);
     await connection.runtime.runPromise(
       connection.operations.set(key, { ...scope, requestId, request }),
     );

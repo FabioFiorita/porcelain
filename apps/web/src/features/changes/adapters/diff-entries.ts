@@ -28,10 +28,9 @@ export function diffEntry(
 ): DiffEntry | null {
   if (!showsWorktreeDiff(content)) return null;
   const version = contentVersion(content.patch);
-  const files = parsePatchFiles(
-    content.patch,
-    `${changeId(change)}:${version}`,
-  ).flatMap((group) => group.files);
+  const files = parsePatchFiles(content.patch, {
+    cacheKeyPrefix: `${changeId(change)}:${version}`,
+  }).flatMap((group) => group.files);
   const fileDiff = files.length === 1 ? files[0] : undefined;
   if (!fileDiff) return null;
   return {
@@ -56,10 +55,9 @@ export function commitEntry(
   const path = commitDiffPath(file, content);
   if (!path || content?.kind !== 'text') return null;
   const patchVersion = contentVersion(content.patch);
-  const files = parsePatchFiles(
-    content.patch,
-    `${oid}:${path}:${patchVersion}`,
-  ).flatMap((group) => group.files);
+  const files = parsePatchFiles(content.patch, {
+    cacheKeyPrefix: `${oid}:${path}:${patchVersion}`,
+  }).flatMap((group) => group.files);
   const fileDiff = files[0];
   if (!fileDiff) return null;
   return {

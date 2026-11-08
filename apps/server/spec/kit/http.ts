@@ -3,7 +3,7 @@ import { connect } from 'node:net';
 import {
   NodeHttpServerRequest,
   NodeHttpServer,
-  NodeSocket,
+  NodeWS,
 } from '@effect/platform-node';
 import { NodeLiveSockets } from '../../src/http/node-live-socket.ts';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
@@ -165,7 +165,7 @@ export function liveSocketRoute(pong: { resolve(): void }) {
 }
 
 export function liveClient(address: string) {
-  return new NodeSocket.NodeWS.WebSocket(address.replace('http:', 'ws:'));
+  return new NodeWS.WebSocket(address.replace('http:', 'ws:'));
 }
 
 export async function stalledUpgrade(address: string) {

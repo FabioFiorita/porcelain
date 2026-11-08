@@ -51,9 +51,9 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
 7. Press `Escape`
    Expect: the menu is gone; dialog "Worktree review" still shows.
 8. Right-click button `guide.md`
-   Expect: the same menuitems as step 6, with "Unpin file" and without "Pin file".
+   Expect: the same menuitems as step 6, with "Unpin file" and without "Pin file". The pinned menu keeps keyboard focus when the earlier tree menu finishes closing.
 9. Press `Escape`
-   Expect: the menu is gone.
+   Expect: the menu is gone and dialog "Worktree review" still shows.
 10. Click treeitem `README.md`
     Expect: the dialog is gone and the text "A change to review." shows (README's file document).
 11. Click button `Review`

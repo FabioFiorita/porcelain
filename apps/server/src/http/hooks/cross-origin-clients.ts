@@ -12,7 +12,7 @@ function crossOriginClients(options: { maxAgeSeconds: number }) {
   return Effect.gen(function* () {
     const context = yield* RequestContext;
     const request = context.request;
-    const path = request.originalUrl.split('?', 1)[0] ?? '';
+    const path = request.url.split('?', 1)[0] ?? '';
     const requested = request.headers['access-control-request-headers'];
     const bearerPreflight =
       requested
@@ -63,7 +63,7 @@ export function crossOriginHeaders(
   return Effect.gen(function* () {
     const context = yield* RequestContext;
     const { route } = yield* HttpRouter.RouteContext;
-    const path = context.request.originalUrl.split('?', 1)[0] ?? '';
+    const path = context.request.url.split('?', 1)[0] ?? '';
     return path.startsWith('/api/') &&
       ((path === HEALTH_PATH && HEALTH_METHODS.has(context.request.method)) ||
         (path === PAIRING_PATH &&

@@ -113,6 +113,10 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   ) {
     if (notice.type === 'git-action')
       return yield* refresh.refresh(notice.receipt);
+    if (notice.type === 'ready')
+      return yield* reactivity.invalidate([
+        queryKeys.environment(connection.environmentId),
+      ]);
     if (notice.type === 'inventory')
       yield* reactivity.invalidate([
         queryKeys.inventory(connection.environmentId),
@@ -180,15 +184,8 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         );
       },
       onReconnect: () => {
-        if (!connection.isClosed() && scope.state._tag !== 'Closed') {
+        if (!connection.isClosed() && scope.state._tag !== 'Closed')
           connection.onStatusChange?.();
-          run(
-            Symbol(),
-            reactivity.invalidate([
-              queryKeys.environment(connection.environmentId),
-            ]),
-          );
-        }
       },
       onUnauthorized: () => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;

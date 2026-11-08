@@ -11,16 +11,16 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.1",
+    "@effect/platform-node": "4.1.2",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/server": "workspace:*",
-    "effect": "4.0.1",
-    "electron": "44.4.5",
-    "electron-updater": "6.8.9",
+    "effect": "4.1.2",
+    "electron": "45.2.3",
+    "electron-updater": "6.8.12",
     "fix-path": "5.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.64.1"
   }
 }

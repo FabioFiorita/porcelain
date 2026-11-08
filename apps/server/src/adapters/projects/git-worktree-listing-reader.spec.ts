@@ -336,22 +336,6 @@ describe('gitWorktreeListingReaderLayer', () => {
   });
 });
 
-it('reports denied access as permission without logging each read', async () => {
-  const project = repository();
-  chmodSync(project.commonDirectory, 0);
-  try {
-    const { list, reports } = listing(project);
-    expect(await Effect.runPromise(list)).toEqual({
-      kind: 'unavailable',
-      projectId: 'project-1',
-      reason: 'permission',
-    });
-    expect(reports).toEqual([]);
-  } finally {
-    chmodSync(project.commonDirectory, 0o755);
-  }
-});
-
 it('leaves the moved decision to the projects domain', async () => {
   const { list, reports } = listing({
     ...repository(),

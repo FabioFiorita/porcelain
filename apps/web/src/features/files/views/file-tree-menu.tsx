@@ -14,6 +14,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
+import { useElement } from '@/shared/hooks/use-element';
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -56,8 +57,10 @@ export function FileTreeMenu({
   hidden,
   onAction,
 }: Props) {
+  const popup = useElement<HTMLDivElement>();
   return (
     <ContextMenuContent
+      ref={(element) => popup.attach(element)}
       aria-label={`${path} actions`}
       className="w-max max-w-[calc(100vw-2rem)] whitespace-nowrap"
       onKeyDownCapture={(event: KeyboardEvent<HTMLDivElement>) => {
@@ -69,7 +72,12 @@ export function FileTreeMenu({
         event.stopPropagation();
         first.focus();
       }}
-      finalFocus={finalFocus}
+      finalFocus={() => {
+        const active = document.activeElement;
+        const stayed =
+          active === document.body || popup.element?.contains(active);
+        return stayed ? finalFocus() : false;
+      }}
     >
       <FileTreeMenuList actions={actions} hidden={hidden} onAction={onAction} />
     </ContextMenuContent>

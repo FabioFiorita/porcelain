@@ -228,7 +228,7 @@ export function requestBoundary(options: {
         id: context.requestId,
         method: request.method,
         route: route.route.path,
-        path: request.originalUrl.split('?', 1)[0],
+        path: request.url.split('?', 1)[0],
         kit: request.headers['x-porcelain-journey'] === 'kit',
       });
       const answer = yield* options.observability.measure(
