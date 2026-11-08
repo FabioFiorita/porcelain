@@ -234,6 +234,7 @@ const readStoredReviewEntries = Atom.family(
                 );
                 return {
                   worktree,
+                  pending: AsyncResult.isInitial(published),
                   reviewId: AsyncResult.isSuccess(published)
                     ? published.value?.reviewId
                     : undefined,
@@ -244,6 +245,16 @@ const readStoredReviewEntries = Atom.family(
         .filter(
           (record) =>
             input.older || (record.state === 'open' && !record.archived),
+        )
+        .filter(
+          (record) =>
+            record.state !== 'open' ||
+            record.archived ||
+            !checkouts.some(
+              (entry) =>
+                entry.pending &&
+                worktreeLabel(entry.worktree.branch) === record.branch,
+            ),
         )
         .map((record): NavigatorEntry => {
           const checkout = checkouts.find(
@@ -274,7 +285,9 @@ const readStoredReviewEntries = Atom.family(
         messages: AsyncResult.isFailure(result)
           ? [`Reviews for ${project.name} could not be read.`]
           : [],
-        loading: AsyncResult.isInitial(result),
+        loading:
+          AsyncResult.isInitial(result) ||
+          checkouts.some((entry) => entry.pending),
         statusFailures,
       };
     }).pipe(Atom.setIdleTTL(0)),

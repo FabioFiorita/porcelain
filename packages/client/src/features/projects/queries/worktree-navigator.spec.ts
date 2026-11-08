@@ -705,6 +705,81 @@ it.each([
   }
 });
 
+it('waits for a candidate checkout association while keeping unrelated saved reviews reachable', async () => {
+  const requested = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<Response>();
+  const records = [
+    record(),
+    { ...record(closedReviewId), branch: 'deleted-branch' },
+  ];
+  const subject = create(
+    (path) => {
+      if (path.endsWith('/review')) {
+        requested.resolve();
+        return released.promise;
+      }
+      return navigatorResponse(path, inventory(), records);
+    },
+    undefined,
+    1000,
+    environmentId,
+  );
+  const list = readReviewNavigator([subject.connection]);
+  const inbox = readReviewInbox([subject.connection]);
+  const stopList = subject.registry.mount(list);
+  const stopInbox = subject.registry.mount(inbox);
+  try {
+    await requested.promise;
+    await idleClientAtoms(subject.registry);
+    expect(
+      subject.registry
+        .get(list)
+        .projects.flatMap((project) =>
+          project.entries.map((entry) => entry.key),
+        ),
+    ).toEqual([`${environmentId}/${closedReviewId}`]);
+    expect(
+      subject.registry
+        .get(inbox)
+        .inbox.decisions.map((row) => row.review.reviewId),
+    ).toEqual([closedReviewId]);
+    expect(subject.registry.get(inbox).loading).toBe(true);
+    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
+    await expect
+      .poll(() =>
+        subject.registry
+          .get(list)
+          .projects.flatMap((project) =>
+            project.entries.map((entry) => [
+              entry.key,
+              entry.worktreeId,
+              entry.path,
+            ]),
+          ),
+      )
+      .toEqual([
+        [`${environmentId}/${reviewId}`, topicId, '/code/topic'],
+        [`${environmentId}/${closedReviewId}`, undefined, undefined],
+      ]);
+    expect(
+      subject.registry
+        .get(inbox)
+        .inbox.decisions.map((row) => [
+          row.review.reviewId,
+          row.entry.worktreeId,
+        ]),
+    ).toEqual([
+      [reviewId, topicId],
+      [closedReviewId, undefined],
+    ]);
+    expect(subject.registry.get(inbox).loading).toBe(false);
+  } finally {
+    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
+    stopList();
+    stopInbox();
+  }
+});
+
 it('links only the exact current publication to an available checkout', async () => {
   const subject = observeReviews([record(), record(closedReviewId)]);
   try {
