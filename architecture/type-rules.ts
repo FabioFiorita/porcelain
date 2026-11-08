@@ -1,11 +1,11 @@
 import { join } from 'node:path';
-import { API, type Project } from 'typescript/unstable/sync';
+import { API, type Project } from 'typescript/sync';
 import {
   SyntaxKind,
   type MethodSignatureDeclaration,
   type Node,
   type SourceFile,
-} from 'typescript/unstable/ast';
+} from 'typescript/ast';
 import {
   isArrayLiteralExpression,
   isArrowFunction,
@@ -22,7 +22,7 @@ import {
   isStringLiteral,
   isTypeAliasDeclaration,
   isVariableDeclaration,
-} from 'typescript/unstable/ast/is';
+} from 'typescript/ast/is';
 import { domainPackages, type ArchRule } from './policy.ts';
 
 export type TypeFinding = { rule: ArchRule; from: string; to: string };
@@ -142,7 +142,7 @@ function executeMethods(file: SourceFile) {
 }
 
 function ownerDeclaration(project: Project, value: Node): Node | undefined {
-  let declaration = project.checker
+  let declaration: Node | undefined = project.checker
     .getTypeAtLocation(value)
     ?.getSymbol()
     ?.declarations[0]?.resolve(project);
@@ -582,12 +582,12 @@ export function typeRuleFindings(root: string): TypeFinding[] {
       ),
       join(root, 'apps/server/tsconfig.json'),
     ];
-    const snapshot = api.updateSnapshot({ openProjects: configs });
+    const snapshot = api.createSnapshot({ openProjects: configs });
     const findings: TypeFinding[] = [];
     const checked = new Set<string>();
     const writerCache = new Map<Node, boolean>();
     for (const config of configs) {
-      const project = snapshot.getProject(config);
+      const project = snapshot.getConfiguredProject(config);
       if (!project) throw new Error(`TypeScript did not open ${config}`);
       for (const name of project.program.getSourceFileNames()) {
         if (!name.startsWith(root) || name.includes('/node_modules/')) continue;

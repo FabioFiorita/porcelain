@@ -33,7 +33,7 @@
     "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/client-integration"
   },
   "dependencies": {
-    "@pierre/diffs": "1.6.1",
+    "@pierre/diffs": "1.6.4",
     "@porcelain/access": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/effects": "workspace:*",

@@ -31,7 +31,7 @@ export function readDiff(patch: string): ReadDiff {
     const input = source[0]?.startsWith('@@')
       ? `diff --git a/excerpt b/excerpt\n${patch}`
       : patch;
-    const files = parsePatchFiles(input, undefined, true).flatMap(
+    const files = parsePatchFiles(input, { throwOnError: true }).flatMap(
       (parsed) => parsed.files,
     );
     const file = files[0];
