@@ -33,6 +33,8 @@ Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server 
 
 Use the Node version in [.node-version](.node-version) and the pnpm version named by `packageManager` in [package.json](package.json). Disposable server development also needs Git and either Linux with bubblewrap (`bwrap`) or macOS with `sandbox-exec`.
 
+The private Agent review, Explain CI failure and Release notes workflows retain Node 24.20.0 because their OpenAI SDK currently declares support for Node 22 and 24, with Node 26 forward-tested. Their runtime pins can move after the SDK's supported matrix includes Node 26 and their CI paths are qualified on it. This exception does not change the development or published server runtime range.
+
 ```sh
 git clone https://github.com/FabioFiorita/porcelain.git
 cd porcelain

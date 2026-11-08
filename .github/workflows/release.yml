@@ -56,7 +56,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
@@ -155,14 +155,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
         with:
-          runtime: node@24.20.0
+          runtime: node@26.13.0
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:package
       - uses: actions/setup-node@v7
         with:
-          node-version: 24.20.0
+          node-version: 26.13.0
       - name: Use an npm that publishes through trusted publishing
         run: |
           set -euo pipefail
@@ -193,7 +193,7 @@ jobs:
     steps:
       - uses: actions/setup-node@v7
         with:
-          node-version: 24.20.0
+          node-version: 26.13.0
       - name: Install the published package from a clean folder
         env:
           VERSION: ${{ needs.version.outputs.version }}
