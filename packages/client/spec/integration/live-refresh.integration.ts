@@ -352,6 +352,7 @@ test.for([
       expect(counts(c.reviewId)).toEqual(cReads);
       const beforeRecovery = counts(c.reviewId).length;
       callbacks?.onReconnect();
+      callbacks?.onNotice({ type: 'ready' });
       await expect
         .poll(() => counts(c.reviewId).length)
         .toBeGreaterThan(beforeRecovery);
