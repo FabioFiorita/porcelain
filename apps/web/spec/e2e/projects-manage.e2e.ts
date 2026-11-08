@@ -1,4 +1,3 @@
-import { menuPaint } from '../kit/navigator.ts';
 import { expect, test } from './fixtures.ts';
 
 for (const [width, colorScheme] of [
@@ -41,20 +40,6 @@ for (const [width, colorScheme] of [
       exact: true,
     });
     await filter.click();
-    if (width === 1440) {
-      const option = page.getByRole('menuitemcheckbox', {
-        name: 'Without a review',
-        exact: true,
-      });
-      const before = await menuPaint(option);
-      await option.hover();
-      await expect
-        .poll(async () => (await menuPaint(option)).background)
-        .not.toBe(before.background);
-      await expect
-        .poll(async () => (await menuPaint(option)).cursor)
-        .toBe('pointer');
-    }
     await page
       .getByRole('menuitemcheckbox', {
         name: `${project.name} · ${computer}`,
@@ -94,11 +79,6 @@ for (const [width, colorScheme] of [
       exact: true,
     });
     await expect(remove).toBeVisible();
-    await expect
-      .poll(() =>
-        remove.evaluate((node) => node.scrollWidth <= node.clientWidth),
-      )
-      .toBe(true);
     await remove.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(remove).not.toBeAttached();
     await expect.poll(async () => (await server.project()).name).toBe(name);

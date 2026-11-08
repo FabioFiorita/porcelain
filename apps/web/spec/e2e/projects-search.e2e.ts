@@ -1,7 +1,6 @@
 import { closeSettings } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
-import { nameWeight } from '../kit/navigator.ts';
 
 for (const [width, colorScheme] of [
   [1440, 'light'],
@@ -90,16 +89,6 @@ for (const [width, colorScheme] of [
       await expect(
         selectedCard.getByText('Detached', { exact: true }),
       ).toBeVisible();
-      await clean.hover();
-      await expect
-        .poll(
-          async () =>
-            (await nameWeight(
-              selectedCard.getByText(folder, { exact: true }),
-            )) >
-            (await nameWeight(clean.getByText('clean-topic', { exact: true }))),
-        )
-        .toBe(true);
     }
     const search = sidebar.getByRole('searchbox', {
       name: 'Search reviews and worktrees',

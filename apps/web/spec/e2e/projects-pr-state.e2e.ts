@@ -37,6 +37,9 @@ for (const width of [1440, 414]) {
       await expect(
         page.getByText(/GitHub rate limit reached[.]/),
       ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Try again', exact: true }),
+      ).toBeEnabled();
       fixture.setGitHubFailure(undefined);
       await page
         .getByRole('button', { name: 'Try again', exact: true })
@@ -57,6 +60,9 @@ for (const width of [1440, 414]) {
         .toMatchObject({
           pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
         });
+      await expect(
+        page.getByRole('button', { name: 'Try again', exact: true }),
+      ).toBeEnabled();
       fixture.setGitHubFailure(undefined);
       await page
         .getByRole('button', { name: 'Try again', exact: true })
