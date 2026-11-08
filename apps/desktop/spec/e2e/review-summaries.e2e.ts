@@ -172,7 +172,7 @@ async function publishSummary(page: Page, repository: string, title: string) {
 for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
   test(`a local signed summary renders through the app origin in its sandbox, keeps the theme and opens its layer link (${activation})`, async ({
     desktop,
-  }) => {
+  }, testInfo) => {
     const app = await desktop.launch();
     const page = await app.window();
     await expect(
@@ -194,12 +194,75 @@ for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
     await expect(
       page.getByRole('tab', { name: 'Walkthrough', exact: true }),
     ).toHaveAttribute('aria-selected', 'true');
-    if (activation !== 'renewal') await watchSummaryActivations(page);
-    await page.getByRole('tab', { name: 'Agent summary', exact: true }).click();
+    const observation =
+      activation !== 'renewal'
+        ? await watchSummaryActivations(page)
+        : undefined;
+    let sequence = 0;
+    const nextEvent = observation?.nextEvent ?? (() => ++sequence);
+    const frameIds = new Map<ReturnType<Page['mainFrame']>, number>();
+    const frameState = (frame: ReturnType<Page['mainFrame']>) => {
+      if (!frameIds.has(frame)) frameIds.set(frame, frameIds.size + 1);
+      const url = frame.url();
+      return {
+        id: frameIds.get(frame),
+        child: frame.parentFrame() !== null,
+        summary: url.startsWith('porcelain://app/review-summaries/'),
+      };
+    };
+    const frames: unknown[] = [];
+    const attached = (frame: ReturnType<Page['mainFrame']>) =>
+      frames.push({
+        order: nextEvent(),
+        phase: 'attached',
+        ...frameState(frame),
+      });
+    const navigated = (frame: ReturnType<Page['mainFrame']>) =>
+      frames.push({
+        order: nextEvent(),
+        phase: 'navigated',
+        ...frameState(frame),
+      });
+    const detached = (frame: ReturnType<Page['mainFrame']>) =>
+      frames.push({
+        order: nextEvent(),
+        phase: 'detached',
+        ...frameState(frame),
+      });
+    page.on('frameattached', attached);
+    page.on('framenavigated', navigated);
+    page.on('framedetached', detached);
     const summary = page.frameLocator('iframe[title="Review summary"]');
-    await expect(
-      summary.getByRole('heading', { name: 'Local summary', exact: true }),
-    ).toBeVisible();
+    let started: number | undefined;
+    try {
+      await page
+        .getByRole('tab', { name: 'Agent summary', exact: true })
+        .click();
+      started = nextEvent();
+      await expect(
+        summary.getByRole('heading', { name: 'Local summary', exact: true }),
+      ).toBeVisible();
+    } catch (cause) {
+      const failed = nextEvent();
+      const topology = page.frames().map(frameState);
+      const observed = observation?.documents();
+      await Promise.allSettled([
+        testInfo.attach('summary-frame-lifecycle.json', {
+          body: JSON.stringify({ started, failed, frames, topology }, null, 2),
+          contentType: 'application/json',
+        }),
+        observed &&
+          testInfo.attach('summary-documents.json', {
+            body: JSON.stringify(observed, null, 2),
+            contentType: 'application/json',
+          }),
+      ]);
+      throw cause;
+    } finally {
+      page.off('frameattached', attached);
+      page.off('framenavigated', navigated);
+      page.off('framedetached', detached);
+    }
     expect(await responsePolicy(page, here.summaryUrl)).toBe(
       `sandbox ${sandbox}`,
     );
