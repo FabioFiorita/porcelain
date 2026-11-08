@@ -26,16 +26,17 @@ export type PullRequest = {
   paths: readonly string[];
 };
 
-export type Triage = {
-  reviewProbability: number | undefined;
-  requested: boolean;
-};
+export type Triage =
+  | { source: 'requested' }
+  | { source: 'continued' }
+  | { source: 'oversized' }
+  | { source: 'decision'; reviewProbability: number | undefined };
 
 export type Assessment = {
   fixes: readonly ReviewFinding[];
   notes: readonly ReviewFinding[];
   protectedPaths: readonly string[];
-  oneWayProbability: number;
+  ownerApprovalProbability: number;
   declaredDoor: 'two-way' | 'one-way' | undefined;
   markedDecision: boolean;
   approved: boolean;
@@ -87,12 +88,12 @@ const protectedFolders = [
   'packages/storage/drizzle/',
 ];
 const instructionFiles = new Set(['AGENTS.md', 'CLAUDE.md']);
-const oneWayThreshold = 0.5;
+const ownerApprovalThreshold = 0.5;
 const reviewThreshold = 0.5;
 
 export function needsReview(triage: Triage): boolean {
   return (
-    triage.requested ||
+    triage.source !== 'decision' ||
     triage.reviewProbability === undefined ||
     triage.reviewProbability >= reviewThreshold
   );
@@ -123,7 +124,7 @@ export function approvalHolds(
 export function assess(
   pullRequest: PullRequest,
   review: Review | undefined,
-  oneWayProbability: number,
+  ownerApprovalProbability: number,
   current: ReadonlySet<string>,
   access: { approved: boolean; trusted: boolean },
 ): Assessment {
@@ -132,7 +133,7 @@ export function assess(
     fixes: findings.filter((finding) => finding.priority <= 2),
     notes: findings.filter((finding) => finding.priority === 3),
     protectedPaths: pullRequest.paths.filter(isProtectedPath),
-    oneWayProbability,
+    ownerApprovalProbability,
     declaredDoor: declaredDoor(pullRequest.body),
     markedDecision: current.has(labels.decision),
     approved: access.approved,
@@ -144,7 +145,7 @@ function verdict(assessment: Assessment): Verdict {
   if (assessment.fixes.length > 0) return 'needs-fixes';
   const ownerDecides =
     assessment.protectedPaths.length > 0 ||
-    assessment.oneWayProbability >= oneWayThreshold ||
+    assessment.ownerApprovalProbability >= ownerApprovalThreshold ||
     assessment.declaredDoor === 'one-way' ||
     assessment.markedDecision ||
     !assessment.trusted;
@@ -245,20 +246,21 @@ function findingLine(pullRequest: PullRequest, finding: ReviewFinding): string {
 }
 
 function ownerReasons(assessment: Assessment): string[] {
-  const oneWay = assessment.oneWayProbability >= oneWayThreshold;
+  const ownerApproval =
+    assessment.ownerApprovalProbability >= ownerApprovalThreshold;
   return [
     ...(assessment.protectedPaths.length > 0
       ? [
           `Changes protected paths: ${assessment.protectedPaths.map((path) => `\`${path}\``).join(', ')}`,
         ]
       : []),
-    ...(oneWay ? ['Doorkeeper reads it as a one-way door'] : []),
+    ...(ownerApproval ? ['Doorkeeper requires the owner’s approval'] : []),
     ...(assessment.declaredDoor === 'one-way'
       ? ['The description declares a one-way door']
       : []),
-    ...(assessment.declaredDoor === 'two-way' && oneWay
+    ...(assessment.declaredDoor === 'two-way' && ownerApproval
       ? [
-          'The description declares a two-way door, but Doorkeeper reads it as one-way',
+          'The description declares a two-way door, but Doorkeeper still requires the owner’s approval',
         ]
       : []),
     ...(assessment.markedDecision ? ['It carries the `decision` label'] : []),
@@ -272,22 +274,28 @@ function probability(value: number): string {
   return `probability ${value.toFixed(2)}`;
 }
 
-function triageLine(triage: Triage): string {
-  if (triage.requested)
-    return '- **Triage:** skipped; the `agent-review` label keeps the Reviewer on every push.';
+export function reviewReason(triage: Triage): string {
+  if (triage.source === 'requested')
+    return 'review explicitly requested with the agent-review label';
+  if (triage.source === 'continued')
+    return 'continuing review from an earlier reviewed push';
+  if (triage.source === 'oversized')
+    return 'review required because the patch exceeds Triage’s size limit';
   const odds =
     triage.reviewProbability === undefined
       ? 'Triage could not judge it'
       : probability(triage.reviewProbability);
   return needsReview(triage)
-    ? `- **Triage:** needs a review (${odds}).`
-    : `- **Triage:** no review needed (${odds}).`;
+    ? `needs a review (${odds})`
+    : `no review needed (${odds})`;
 }
 
 function doorkeeperLine(assessment: Assessment): string {
-  const door =
-    assessment.oneWayProbability >= oneWayThreshold ? 'one-way' : 'two-way';
-  return `- **Doorkeeper:** ${door} door (${probability(assessment.oneWayProbability)}).`;
+  const decision =
+    assessment.ownerApprovalProbability >= ownerApprovalThreshold
+      ? 'owner approval required'
+      : 'no owner approval required';
+  return `- **Doorkeeper:** ${decision} (${probability(assessment.ownerApprovalProbability)}).`;
 }
 
 export function reviewComment(
@@ -305,7 +313,11 @@ export function reviewComment(
     ...stateComment(state),
     `### ${headlines[verdict(assessment)]}`,
     `Judged commit \`${pullRequest.headSha.slice(0, 12)}\`.`,
-    [triageLine(triage), ...reviewer, doorkeeperLine(assessment)].join('\n'),
+    [
+      `- **Triage:** ${reviewReason(triage)}.`,
+      ...reviewer,
+      doorkeeperLine(assessment),
+    ].join('\n'),
     ...(findings.length > 0
       ? [
           '#### Reviewer findings',
