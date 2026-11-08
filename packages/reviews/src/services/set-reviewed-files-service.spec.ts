@@ -139,7 +139,10 @@ describe('SetReviewedFilesService', () => {
       Effect.runSync(
         service.execute({
           worktreeId,
-          files: [{ path: 'missing.txt', fingerprint: 'fm' }],
+          files: [
+            { path: 'a.txt', fingerprint: 'fa' },
+            { path: 'missing.txt', fingerprint: 'fm' },
+          ],
           changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
           onConflict: 'refuse',
         }),

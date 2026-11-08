@@ -107,13 +107,6 @@ describe('parseCommitRecord', () => {
       '',
     ].map((value, index) => overrides[index] ?? value);
 
-  it('keeps HEAD distinct from the branch it points at', () => {
-    expect(parseCommitRecord(fields({}), gitLimits).refs).toEqual([
-      { kind: 'head', name: 'HEAD' },
-      { kind: 'local-branch', name: 'main' },
-    ]);
-  });
-
   it.each([
     ['HEAD', [{ kind: 'head', name: 'HEAD' }]],
     [

@@ -10,7 +10,8 @@ import {
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences, readInventory } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Crypto, Equal, Layer, Scope } from 'effect';
+import { Equal, Layer, Scope } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 import { Effect } from 'effect';
@@ -68,11 +69,8 @@ async function setup(
     Layer.merge(
       Layer.succeed(OperationStore, operations),
       Layer.succeed(
-        Crypto.Crypto,
-        Crypto.make({
-          randomBytes: (size) => new Uint8Array(size),
-          digest: (_, bytes) => Effect.succeed(bytes),
-        }),
+        SecureRandom.SecureRandom,
+        SecureRandom.make((size) => new Uint8Array(size)),
       ),
     ),
   );
@@ -402,12 +400,13 @@ it('a project preference notice refreshes its preferences while leaving inventor
   }
 });
 
-it('native file reads subscribe their paths, refresh from a live notice and release their watches on unmount', async () => {
+it('native file reads catch up when ready, refresh from notices and release their watches on unmount', async () => {
   const worktreeId = '0123456789abcdef0123456789abcdef';
   const followed = Promise.withResolvers<void>();
   const released = Promise.withResolvers<void>();
   let watched = false;
   let reads = 0;
+  let contents = 'First';
   const subject = await setup(
     (path) => {
       if (path.endsWith('/text?path=README.md')) {
@@ -417,8 +416,8 @@ it('native file reads subscribe their paths, refresh from a live notice and rele
             worktreeId,
             path: 'README.md',
             encoding: 'utf-8',
-            byteLength: 5,
-            text: reads === 1 ? 'First' : 'After',
+            byteLength: contents.length,
+            text: contents,
           }),
         );
       }
@@ -459,11 +458,19 @@ it('native file reads subscribe their paths, refresh from a live notice and rele
   try {
     await followed.promise;
     expect(await read()).toMatchObject({ text: 'First' });
+    contents = 'After connection';
+    subject.live()?.onNotice({ type: 'ready' });
+    expect(await read()).toMatchObject({ text: 'After connection' });
+    contents = 'After';
     subject
       .live()
       ?.onNotice({ type: 'worktree', projectId, worktreeId, change: 'files' });
     expect(await read()).toMatchObject({ text: 'After' });
-    expect(reads).toBe(2);
+    expect(reads).toBe(3);
+    contents = 'Later';
+    subject.live()?.onNotice({ type: 'heartbeat' });
+    expect(await read()).toMatchObject({ text: 'After' });
+    expect(reads).toBe(3);
     stop();
     await released.promise;
     expect(subject.sent.at(-1)?.worktrees).toEqual([]);
@@ -621,6 +628,7 @@ it('refreshes mounted durable reviews, project lists and comments after another 
     ).toBe(2);
     revision = 3;
     subject.live()?.onReconnect();
+    subject.live()?.onNotice({ type: 'ready' });
     expect(
       (await readClientAtom(subject.registry, latest)).review?.latestRevision,
     ).toBe(3);

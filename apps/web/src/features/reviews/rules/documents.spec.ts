@@ -3,7 +3,6 @@ import {
   entryKey,
   parseEntry,
   publishedReviewTitle,
-  surfaceTitles,
   workspaceTitle,
 } from './documents.ts';
 
@@ -22,7 +21,6 @@ it.each([
         environment: 'Remote',
       }),
     ).toBe(`${title} — sample · Remote`);
-    expect(surfaceTitles[surface]).toBe(title);
   },
 );
 

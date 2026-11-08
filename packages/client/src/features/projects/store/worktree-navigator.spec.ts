@@ -1,6 +1,5 @@
 import { AtomRegistry } from 'effect/reactivity';
 import { expect, it } from 'vitest';
-import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import { worktreeNavigatorState } from './worktree-navigator.ts';
 
 it('retains search, combined filters and independent project expansion across navigator unmounts', () => {
@@ -48,7 +47,12 @@ it('starts an independent client session with all projects and review choices an
     });
     expect(next.get(worktreeNavigatorState)).toEqual({
       query: '',
-      filter: emptyNavigatorFilter,
+      filter: {
+        projects: undefined,
+        environments: undefined,
+        reviews: undefined,
+        older: false,
+      },
       expanded: {},
     });
   } finally {

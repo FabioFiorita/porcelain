@@ -49,9 +49,10 @@ describe('RemoveProjectService', () => {
     expect(Effect.runSync(service.execute({ projectId: 'unknown' }))).toEqual({
       deleted: false,
     });
-    expect((await Effect.runPromise(inventory.read())).projects).toHaveLength(
-      2,
-    );
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
+      project('api', 1),
+      project('web', 2),
+    ]);
   });
 
   it('reports nothing deleted when the same project is removed again', () => {

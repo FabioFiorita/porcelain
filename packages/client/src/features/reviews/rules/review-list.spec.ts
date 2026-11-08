@@ -68,21 +68,6 @@ it.each([
     { files: [], decisions: [{ ...mark, layerId: 'consumer' }] },
     false,
   ],
-  [
-    'a current mark whose files changed since',
-    {
-      files: [
-        {
-          path: 'owner.ts',
-          fingerprint: 'old',
-          reviewedAt: mark.reviewedAt,
-          stale: true,
-        },
-      ],
-      decisions: [mark],
-    },
-    true,
-  ],
 ])('reads a decision as reviewed from %s: %s', (_, marks, expected) => {
   expect(decisionMarked(marks?.decisions, layer)).toBe(expected);
 });

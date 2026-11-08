@@ -5,7 +5,7 @@
   },
   "build": {
     "development": {
-      "node": "24.20.0",
+      "node": "26.13.0",
       "pnpm": "12.3.4",
       "developmentClient": true,
       "distribution": "internal",
@@ -15,7 +15,7 @@
       "env": { "APP_VARIANT": "development" }
     },
     "preview": {
-      "node": "24.20.0",
+      "node": "26.13.0",
       "pnpm": "12.3.4",
       "distribution": "internal",
       "environment": "preview",
@@ -24,7 +24,7 @@
       "env": { "APP_VARIANT": "preview" }
     },
     "production": {
-      "node": "24.20.0",
+      "node": "26.13.0",
       "pnpm": "12.3.4",
       "distribution": "store",
       "environment": "production",

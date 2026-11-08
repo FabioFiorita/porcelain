@@ -41,23 +41,22 @@ export function reviewMcp(options: {
   useCases: ReviewMcpUseCases;
   limits: Limits['http'];
 }) {
-  return Layer.mergeAll(
-    reviewMcpHandlers(options.useCases),
-    McpServer.layerHttp({
-      name: 'porcelain',
-      version: '1.0.0',
-      path: endpoint.path,
-      instructions:
-        'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
-      protocols: [
-        McpProtocol.v2026_07_28,
-        McpProtocol.v2025_11_25,
-        McpProtocol.v2025_06_18,
-        McpProtocol.v2025_03_26,
-        McpProtocol.v2024_11_05,
-      ],
-    }).pipe(Layer.orDie),
-  ).pipe(
+  return McpServer.layerHttp({
+    registrations: reviewMcpHandlers(options.useCases),
+    name: 'porcelain',
+    version: '1.0.0',
+    path: endpoint.path,
+    instructions:
+      'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
+    protocols: [
+      McpProtocol.v2026_07_28,
+      McpProtocol.v2025_11_25,
+      McpProtocol.v2025_06_18,
+      McpProtocol.v2025_03_26,
+      McpProtocol.v2024_11_05,
+    ],
+  }).pipe(
+    Layer.orDie,
     Layer.provide(requestBody.layer),
     Layer.provide(requestBodyLimit(endpoint, options.limits.reviewBodyBytes)),
     Layer.provide(invocationPolicy.combine(handlerAudit).layer),

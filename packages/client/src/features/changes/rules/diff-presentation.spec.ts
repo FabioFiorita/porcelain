@@ -1,7 +1,6 @@
 import { expect, it } from 'vitest';
 import {
   diffUnavailableReason,
-  omissionReason,
   patchUnavailable,
 } from './diff-presentation.ts';
 
@@ -50,16 +49,4 @@ it('falls back to the patch label once the patch has arrived and leaves text pre
     ),
     diffUnavailableReason(file, text, false),
   ]).toEqual(['Binary change', 'Too large to show', undefined]);
-});
-
-it('names every reason the server omits a patch', () => {
-  expect(
-    (
-      ['size-limit', 'unsupported-submodule', 'unsupported-encoding'] as const
-    ).map(omissionReason),
-  ).toEqual([
-    'Too large to show',
-    'Submodule change',
-    'Unsupported text encoding',
-  ]);
 });

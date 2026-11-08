@@ -20,6 +20,14 @@ test.for(['handoff', 'change:long.txt'])(
     await app.navigate(
       `${app.location().split('?')[0]}?entry=${encodeURIComponent(entry)}`,
     );
+    await expect
+      .element(
+        app.page.getByRole('tab', {
+          name: entry === 'handoff' ? 'Changes' : path,
+          exact: true,
+        }),
+      )
+      .toHaveAttribute('aria-selected', 'true');
     const code = app.page.getByRole('region', {
       name: 'Code content',
       exact: true,

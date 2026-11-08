@@ -322,8 +322,8 @@ describe('reviewToggle', () => {
 describe('inChunks', () => {
   it('asks for more marks than one request holds in consecutive requests', () => {
     const files = Array.from({ length: 4001 }, (_, index) => index);
-    expect(inChunks(files, 2000).map((chunk) => chunk.length)).toEqual([
-      2000, 2000, 1,
-    ]);
+    const chunks = inChunks(files, 2000);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([2000, 2000, 1]);
+    expect(chunks.flat()).toEqual(files);
   });
 });

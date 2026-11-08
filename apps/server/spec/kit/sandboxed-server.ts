@@ -19,7 +19,7 @@ import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { mkdir, symlink, unlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { dirname, join } from 'node:path';
-import { promisify } from 'node:util';
+import { inspect, promisify } from 'node:util';
 import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader.ts';
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
@@ -473,7 +473,10 @@ try {
   await symlink('../credential.json', join(web, fixture.web.escape));
   const desktopCredential = randomBytes(32).toString('base64url');
   await writeFile(pushFile, '');
-  const pushService = await startRecordingPushService(pushFile);
+  const pushService = await startRecordingPushService(
+    pushFile,
+    sample === 'startup-bind-conflict' ? port : 0,
+  );
   closePushService = pushService.close;
   const settings = readServerSettings({
     pushEndpoint: pushService.endpoint,
@@ -612,9 +615,7 @@ try {
     );
 } catch (error) {
   if (!shutdown.signal.aborted) {
-    process.stderr.write(
-      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
-    );
+    process.stderr.write(`${inspect(error)}\n`);
     process.exitCode = 1;
   }
 } finally {

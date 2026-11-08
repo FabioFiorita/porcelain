@@ -49,6 +49,7 @@ describe('releaseBody', () => {
       generated,
       'gpt-6.1-terra',
     );
+    expect(body).toContain('### New');
     expect(body.indexOf('### New')).toBeLessThan(body.indexOf('### Fixed'));
     expect(body).not.toContain('### Improved');
     expect(body).toContain(
@@ -57,6 +58,8 @@ describe('releaseBody', () => {
     expect(body).toContain(
       '- Review handoffs. ([#669](https://github.com/owner/repo/pull/669))',
     );
-    expect(body).toContain('* Add handoffs by @someone');
+    expect(body).toContain(
+      `<details>\n<summary>Every pull request</summary>\n\n${generated}\n\n</details>`,
+    );
   });
 });

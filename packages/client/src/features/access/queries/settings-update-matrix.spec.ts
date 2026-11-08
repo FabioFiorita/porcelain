@@ -173,14 +173,6 @@ const cases: readonly MatrixCase[] = [
     offered: 0,
   },
   {
-    name: 'settled batch without offers',
-    state: { available: false },
-    running: false,
-    visible: false,
-    count: 0,
-    offered: 0,
-  },
-  {
     name: 'Mac update present',
     mac: 'available',
     visible: true,

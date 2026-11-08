@@ -1,5 +1,6 @@
 import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
-import { Redacted, Crypto, Effect, Layer, ManagedRuntime } from 'effect';
+import { Redacted, Effect, Layer, ManagedRuntime } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { expect, it } from 'vitest';
 import {
   AccessSession,
@@ -47,13 +48,10 @@ function fixture(
       idleLiveConnectionInput(environmentId, address),
       Layer.merge(
         Layer.effect(
-          Crypto.Crypto,
+          SecureRandom.SecureRandom,
           Effect.acquireRelease(
             Effect.succeed(
-              Crypto.make({
-                randomBytes: (length) => new Uint8Array(length),
-                digest: (_, bytes) => Effect.succeed(bytes),
-              }),
+              SecureRandom.make((length) => new Uint8Array(length)),
             ),
             () =>
               Effect.gen(function* () {

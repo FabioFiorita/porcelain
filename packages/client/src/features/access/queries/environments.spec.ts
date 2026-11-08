@@ -183,10 +183,10 @@ const remote = {
   credential: Redacted.make('original-credential'),
 };
 const registries = new Set<AtomRegistry.AtomRegistry>();
-afterEach(() => {
+afterEach(async () => {
   for (const registry of registries) registry.dispose();
   registries.clear();
-  for (const runtime of testRuntimes.splice(0)) void runtime.dispose();
+  for (const runtime of testRuntimes.splice(0)) await runtime.dispose();
 });
 function registryFixture() {
   const registry = AtomRegistry.make();

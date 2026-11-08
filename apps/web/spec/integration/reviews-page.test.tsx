@@ -110,7 +110,7 @@ test.for([
   title,
   'Keep packages/reviews/src/services/retainEveryPublishedRevisionAfterThePublishingWorktreeHasBeenRemovedAndNeverLoseItsDecisionHistory.ts readable',
 ])(
-  'the briefing continue button fits a 390 px viewport with a long decision: %s',
+  'the briefing continue button fits a 390 px viewport with a long decision (%#)',
   async (decision, { repo, render, reviewLayout }) => {
     await page.viewport(390, 844);
     try {

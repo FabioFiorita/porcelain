@@ -148,7 +148,9 @@ describe('RegisterProjectService', () => {
   });
 
   it('reports a change when registering again makes an unavailable project available', () => {
-    const { service } = setup([registered({ available: false })]);
+    const { service } = setup([
+      registered({ available: false, commonDirectory: '/srv/api/.git' }),
+    ]);
     expect(
       Effect.runSync(service.execute({ repository, originUrl: undefined }))
         .changed,

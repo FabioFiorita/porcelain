@@ -14,7 +14,7 @@ import {
   parseHotkey,
   useHotkey,
 } from '@tanstack/react-hotkeys';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 import type { Sheet } from '@/components/ui/sheet';
 import { StateNotice } from '@/shared/views/state-notice';
@@ -124,6 +124,7 @@ export function ConnectedWorkspace({
     },
   };
   const navigate = useNavigate();
+  const router = useRouter();
   const local = useConnectedContext();
   const localInventory = useInventory(local.connection);
   const recovery = selectedWorktreeInProject(
@@ -219,8 +220,14 @@ export function ConnectedWorkspace({
   };
   const onSearch: SetWorkspaceSearch = (update, options) => {
     if (!shown) return;
+    const destination = worktreeLocation(shown);
+    if (
+      router.buildLocation({}).pathname !==
+      router.buildLocation(destination).pathname
+    )
+      return;
     void navigate({
-      ...worktreeLocation(shown),
+      ...destination,
       search: (previous) => ({ ...previous, ...update }),
       ...options,
     });

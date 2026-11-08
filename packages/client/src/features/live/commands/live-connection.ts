@@ -3,7 +3,8 @@ import type { AtomRef } from 'effect/reactivity';
 import type { StatusActivity } from '../../access/ports/status-activity.ts';
 import { createRouteTransport } from '../../access/store/route-transport.ts';
 import type { ConnectionRoute } from '../../access/rules/remotes.ts';
-import { Equal, Layer, type Crypto } from 'effect';
+import { Equal, Layer } from 'effect';
+import type { SecureRandom } from 'effect/crypto';
 import { OperationStore } from '../../git-actions/ports/operation-store.ts';
 import type { OperationStorage } from '../../git-actions/ports/operation-storage.ts';
 import { FileDrafts } from '../../files/store.ts';
@@ -22,7 +23,7 @@ export function openLiveConnection(
     readonly liveUpdates: LiveConnection['liveUpdates'];
     readonly onStatusChange?: (() => void) | undefined;
   },
-  platform: Layer.Layer<OperationStorage | Crypto.Crypto>,
+  platform: Layer.Layer<OperationStorage | SecureRandom.SecureRandom>,
   memoMap: Layer.MemoMap,
 ): LiveConnection & { readonly address: string } {
   const services = Layer.merge(
@@ -59,7 +60,7 @@ export function openRemoteConnection(
     readonly socket: Parameters<typeof remoteLiveUpdates>[2];
     readonly timeoutMs: number;
   },
-  platform: Layer.Layer<OperationStorage | Crypto.Crypto>,
+  platform: Layer.Layer<OperationStorage | SecureRandom.SecureRandom>,
   memoMap: Layer.MemoMap,
 ) {
   const routing = createRouteTransport({ ...input, name: '' }, input.send);
