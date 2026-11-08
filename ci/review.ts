@@ -32,6 +32,7 @@ import {
 } from './github.ts';
 import { decisionModel, dollars, reviewModel } from './openai.ts';
 import { judgeReview } from './review-judgment.ts';
+import { readReviewPatch } from './review-patch.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
 const statusContext = 'Agent verdict';
@@ -188,14 +189,6 @@ async function runReview(
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
     await end();
-  }
-}
-
-function patchOf(repository: string, number: number): string | undefined {
-  try {
-    return gh(['pr', 'diff', String(number), '--repo', repository]);
-  } catch {
-    return undefined;
   }
 }
 
@@ -387,7 +380,14 @@ try {
   const { triage, review, ownerApprovalProbability } = await judgeReview(
     {
       evidence,
-      patch: patchOf(repository, number),
+      patch: readReviewPatch(
+        {
+          remote: `https://github.com/${repository}.git`,
+          baseSha: view.baseRefOid,
+          headSha: view.headRefOid,
+        },
+        () => gh(['pr', 'diff', String(number), '--repo', repository]),
+      ),
       requested: current.has(labels.review),
       previous,
       headSha: view.headRefOid,
