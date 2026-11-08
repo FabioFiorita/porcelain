@@ -130,6 +130,7 @@ export default defineConfig({
           include: [
             'apps/web/src/features/*/rules/*.spec.ts',
             'apps/web/spec/kit/failures.spec.ts',
+            'apps/web/spec/kit/browser-shards.spec.ts',
           ],
           expect: { requireAssertions: true },
         },
