@@ -19,10 +19,15 @@ test('returning to a visited review reuses warm content and a later publication 
   await agent.publishReview('Main cache decision');
   const published = (await server.publishedReview()).review;
   if (!published?.reviewId) throw new Error('Missing main review');
-  await expireNextReviewLink(page, main.id, published.summary.expires, () =>
-    world.server.advanceTime(60_000),
+  const initialReview = await expireNextReviewLink(
+    page,
+    main.id,
+    published.reviewId,
+    published.summary.expires,
+    () => world.server.advanceTime(60_000),
   );
   await app.reload();
+  await initialReview.ready();
   await page.setViewportSize({ width: 1440, height: 896 });
   const sidebar = page.getByRole('navigation', {
     name: 'Projects and worktrees',
