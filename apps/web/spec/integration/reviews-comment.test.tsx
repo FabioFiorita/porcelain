@@ -181,6 +181,7 @@ test('a saved comment with a lost response keeps its draft and retry identity af
   server,
   fetchGate,
 }) => {
+  const refresh = fetchGate.holdNextCommentsRead();
   fetchGate.loseNextPostResponse('/comments');
   const workspace = await render.workspace();
   const header = workspace.getByRole('button', {
@@ -194,6 +195,7 @@ test('a saved comment with a lost response keeps its draft and retry identity af
   const post = workspace.getByRole('button', { name: 'Comment', exact: true });
   const body = 'Retry this feedback without posting it twice.';
   await comment.fill(body);
+  refresh.arm();
   await post.click();
   await expect.element(workspace.getByRole('alert')).toBeVisible();
   await expect.element(comment).toHaveValue(body);
@@ -202,6 +204,15 @@ test('a saved comment with a lost response keeps its draft and retry identity af
       thread.messages.map((message) => message.body),
     );
   await expect.poll(saved).toEqual([[body]]);
+  refresh.release();
+  await expect
+    .element(
+      workspace
+        .getByRole('article', { name: 'Comment thread', exact: true })
+        .getByText(body, { exact: true }),
+    )
+    .toBeVisible();
+  await expect.element(workspace.getByRole('alert')).toBeVisible();
   await header.click();
   await expect.element(comment).toHaveValue(body);
   await post.click();
