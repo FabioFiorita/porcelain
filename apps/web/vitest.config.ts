@@ -26,6 +26,7 @@ export default defineConfig({
       enabled: true,
       provider: playwright(),
       headless: true,
+      trace: 'retain-on-failure',
       screenshotDirectory: 'test-results/integration/screenshots',
       instances: [
         {
