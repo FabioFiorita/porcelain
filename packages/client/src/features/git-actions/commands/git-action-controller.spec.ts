@@ -1,6 +1,7 @@
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
-import { Crypto, Equal, Exit, Layer } from 'effect';
+import { Equal, Exit, Layer } from 'effect';
+import { SecureRandom } from 'effect/crypto';
 
 import type { Context } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
@@ -72,18 +73,15 @@ function setup(
     Layer.merge(
       Layer.succeed(OperationStore, operations),
       Layer.succeed(
-        Crypto.Crypto,
-        Crypto.make({
-          randomBytes: () => {
-            ids++;
-            return new Uint8Array(
-              requestId
-                .replaceAll('-', '')
-                .match(/../g)
-                ?.map((part) => parseInt(part, 16)) ?? [],
-            );
-          },
-          digest: (_, bytes) => Effect.succeed(bytes),
+        SecureRandom.SecureRandom,
+        SecureRandom.make(() => {
+          ids++;
+          return new Uint8Array(
+            requestId
+              .replaceAll('-', '')
+              .match(/../g)
+              ?.map((part) => parseInt(part, 16)) ?? [],
+          );
         }),
       ),
     ),

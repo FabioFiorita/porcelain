@@ -13,7 +13,7 @@
     "@porcelain/mobile": "workspace:*",
     "@porcelain/server": "workspace:*",
     "@porcelain/web": "workspace:*",
-    "effect": "4.0.1",
+    "effect": "4.1.2",
     "playwright": "1.63.0"
   }
 }

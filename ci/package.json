@@ -7,7 +7,7 @@
     "test": "pnpm --dir .. test --project @porcelain/ci"
   },
   "dependencies": {
-    "effect": "4.0.1",
+    "effect": "4.1.2",
     "openai": "7.51.0"
   }
 }
