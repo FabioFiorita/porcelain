@@ -10,18 +10,18 @@ import {
   idleClientAtoms,
   readClientAtom,
 } from '../../../../spec/kit/client-fixture.ts';
+import { readPublishedReview } from '../../reviews/queries/publication.ts';
 import { readReview } from '../../reviews/queries/project-reviews.ts';
+import type { ReviewRecord } from '../../reviews/rules/review.ts';
 import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
-import {
-  emptyNavigatorFilter,
-  navigatorReviewLabel,
-} from '../rules/worktree-navigator.ts';
+import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import {
   worktreeNavigatorState,
   worktreeStatusNotices,
 } from '../store/worktree-navigator.ts';
 import {
   readReviewInbox,
+  readReviewNavigator,
   readWorktreeNavigator,
 } from './worktree-navigator.ts';
 
@@ -183,23 +183,108 @@ function wireReview(answer = review()) {
 function navigatorResponse(
   path: string,
   snapshot = inventory(),
-  records = [record()],
+  records: readonly ReviewRecord[] = [record()],
+  checks: 'passed' | 'failed' = 'passed',
+  publishedReviewId: string | null = reviewId,
 ) {
   return Promise.resolve(
     Response.json(
       path.startsWith('/api/inventory')
         ? snapshot
-        : path.endsWith('/pull-request/checks')
-          ? { kind: 'available', number: 42, checks: 'passed' }
-          : path.endsWith('/reviews')
-            ? records
-            : path.endsWith('/marks')
-              ? { files: [], decisions: [] }
-              : path.endsWith(reviewId)
-                ? wireReview()
-                : status(path),
+        : path.endsWith('/review')
+          ? {
+              review:
+                publishedReviewId === null
+                  ? null
+                  : {
+                      ...wireReview().revision?.content,
+                      reviewId: publishedReviewId,
+                    },
+            }
+          : path.endsWith('/pull-request/checks')
+            ? { kind: 'available', number: 42, checks }
+            : path.endsWith('/reviews')
+              ? records
+              : path.endsWith('/marks')
+                ? { files: [], decisions: [] }
+                : path.endsWith(reviewId)
+                  ? wireReview()
+                  : status(path),
     ),
   );
+}
+
+function recordedNavigator(
+  records: readonly ReviewRecord[] = [record()],
+  checks: 'passed' | 'failed' = 'passed',
+  publishedReviewId: string | null = reviewId,
+) {
+  const paths: string[] = [];
+  const subject = create(
+    (path) => {
+      paths.push(path);
+      return navigatorResponse(
+        path,
+        inventory(),
+        records,
+        checks,
+        publishedReviewId,
+      );
+    },
+    undefined,
+    1000,
+    environmentId,
+  );
+  return {
+    ...subject,
+    paths,
+    setChecks: (next: 'passed' | 'failed') => {
+      checks = next;
+    },
+  };
+}
+
+function observeReviews(records = [record()]) {
+  const subject = recordedNavigator(records);
+  const list = readReviewNavigator([subject.connection]);
+  return {
+    ...subject,
+    stop: subject.registry.mount(list),
+    view: () => subject.registry.get(list),
+  };
+}
+
+function observeInbox(
+  records: readonly ReviewRecord[] = [record()],
+  checks: 'passed' | 'failed' = 'passed',
+) {
+  const subject = recordedNavigator(records, checks);
+  const inbox = readReviewInbox([subject.connection]);
+  return {
+    ...subject,
+    stop: subject.registry.mount(inbox),
+    view: () => subject.registry.get(inbox),
+  };
+}
+
+function checkoutReads(paths: readonly string[]) {
+  return paths.filter(
+    (path) =>
+      path.endsWith('/git/status') ||
+      path.endsWith('/marks') ||
+      path.endsWith('/summary'),
+  );
+}
+
+function navigatorReviewIds(
+  registry: AtomRegistry.AtomRegistry,
+  list: ReturnType<typeof readReviewNavigator>,
+) {
+  return registry
+    .get(list)
+    .projects[0]?.entries.map((entry) =>
+      entry.review.state === 'available' ? entry.review.reviewId : undefined,
+    );
 }
 
 function identityResponse(
@@ -374,7 +459,9 @@ it.each(['inventory', 'environment', 'durableReview'] as const)(
         .poll(() => navigator.view().projects[0]?.entries[1]?.review)
         .toMatchObject({
           state: 'available',
-          progress: { reviewed: 0, total: 1 },
+          timing: 'decision',
+          latestRevision: 1,
+          lastSeenRevision: 0,
         });
       const subscriptions = () =>
         navigator.connection.runtime.runPromise(
@@ -482,43 +569,276 @@ it('publishes main-first usable cards while review and changes reads are pending
   }
 });
 
-it('lists the open review of each checkout for the inbox without reading Git status or pull request checks', async () => {
-  const paths: string[] = [];
+it.each([
+  {
+    name: 'the current checkout',
+    records: [record()],
+    expected: [['topic', reviewId, 'Decision review · New revision']],
+  },
+  {
+    name: 'a deleted checkout',
+    records: [record(), { ...record(closedReviewId), branch: 'removed' }],
+    expected: [
+      ['topic', reviewId, 'Decision review · New revision'],
+      ['removed', closedReviewId, 'Decision review · New revision'],
+    ],
+  },
+])(
+  'lists open publications for $name in the inbox without Git status, marks or diff summaries',
+  async ({ records, expected }) => {
+    const subject = recordedNavigator(records);
+    const inbox = readReviewInbox([subject.connection]);
+    const stop = subject.registry.mount(inbox);
+    try {
+      await expect
+        .poll(() =>
+          subject.registry
+            .get(inbox)
+            .inbox.decisions.map((row) => [
+              row.entry.branch,
+              row.review.reviewId,
+              row.label,
+            ]),
+        )
+        .toEqual(expected);
+      expect(subject.registry.get(inbox).inbox.projects).toEqual([]);
+      expect(checkoutReads(subject.paths)).toEqual([]);
+      expect(subject.paths).not.toContain(`/api/reviews/${closedReviewId}`);
+    } finally {
+      stop();
+    }
+  },
+);
+
+it.each(['', 'unrelated-worktree'])(
+  'shares inbox checks and filters independently of Worktrees search %s and collapsed groups',
+  async (query) => {
+    const subject = recordedNavigator();
+    const inbox = readReviewInbox([subject.connection]);
+    subject.registry.set(worktreeNavigatorState, {
+      query,
+      filter: emptyNavigatorFilter,
+      expanded: { [projectKey]: false },
+    });
+    const stop = subject.registry.mount(inbox);
+    try {
+      await expect
+        .poll(
+          () => subject.registry.get(inbox).inbox.decisions[0]?.review.checks,
+        )
+        .toEqual({ state: 'available', result: 'passed' });
+      expect(subject.registry.get(inbox)).toMatchObject({
+        filters: [
+          { key: 'reviews' },
+          {
+            key: 'environments',
+            items: [{ id: environmentId, checked: true }],
+          },
+          { key: 'projects', items: [{ id: projectKey, checked: true }] },
+        ],
+      });
+      subject.setChecks('failed');
+      const refresh = refreshWorktreeNavigator([subject.connection]);
+      subject.registry.set(refresh, undefined);
+      await readClientAtom(subject.registry, refresh);
+      await expect
+        .poll(
+          () => subject.registry.get(inbox).inbox.decisions[0]?.review.checks,
+        )
+        .toEqual({ state: 'available', result: 'failed' });
+      expect(checkoutReads(subject.paths)).toEqual([]);
+    } finally {
+      stop();
+    }
+  },
+);
+
+it.each(['passed', 'failed'] as const)(
+  'supplies %s PR checks to inbox rows',
+  async (checks) => {
+    const subject = observeInbox([record()], checks);
+    try {
+      await expect
+        .poll(() => subject.view().inbox.decisions[0]?.review.checks)
+        .toEqual({ state: 'available', result: checks });
+    } finally {
+      subject.stop();
+    }
+  },
+);
+
+it('leaves checks absent for a publication without a PR', async () => {
+  const subject = observeInbox([{ ...record(), pullRequest: undefined }]);
+  try {
+    await expect.poll(() => subject.view().inbox.decisions.length).toBe(1);
+    expect(subject.view().inbox.decisions[0]?.review.checks).toBeUndefined();
+    expect(
+      subject.paths.some((path) => path.endsWith('/pull-request/checks')),
+    ).toBe(false);
+  } finally {
+    subject.stop();
+  }
+});
+
+it.each([
+  { name: 'project', filter: { ...emptyNavigatorFilter, projects: [] } },
+  {
+    name: 'environment',
+    filter: { ...emptyNavigatorFilter, environments: [] },
+  },
+  {
+    name: 'publication',
+    filter: { ...emptyNavigatorFilter, reviews: ['without-review'] },
+  },
+])('applies the $name filter to the review inbox', async ({ filter }) => {
+  const subject = observeInbox();
+  try {
+    await expect.poll(() => subject.view().inbox.decisions.length).toBe(1);
+    subject.registry.set(worktreeNavigatorState, {
+      query: '',
+      filter,
+      expanded: {},
+    });
+    expect(subject.view().inbox.decisions).toEqual([]);
+  } finally {
+    subject.stop();
+  }
+});
+
+it('waits for a candidate checkout association while keeping unrelated saved reviews reachable', async () => {
+  const requested = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<Response>();
+  const records = [
+    record(),
+    { ...record(closedReviewId), branch: 'deleted-branch' },
+  ];
   const subject = create(
     (path) => {
-      paths.push(path);
-      return navigatorResponse(path);
+      if (path.endsWith('/review')) {
+        requested.resolve();
+        return released.promise;
+      }
+      return navigatorResponse(path, inventory(), records);
     },
     undefined,
     1000,
     environmentId,
   );
+  const list = readReviewNavigator([subject.connection]);
   const inbox = readReviewInbox([subject.connection]);
-  const stop = subject.registry.mount(inbox);
+  const stopList = subject.registry.mount(list);
+  const stopInbox = subject.registry.mount(inbox);
   try {
+    await requested.promise;
+    await idleClientAtoms(subject.registry);
+    expect(
+      subject.registry
+        .get(list)
+        .projects.flatMap((project) =>
+          project.entries.map((entry) => entry.key),
+        ),
+    ).toEqual([`${environmentId}/${closedReviewId}`]);
+    expect(
+      subject.registry
+        .get(inbox)
+        .inbox.decisions.map((row) => row.review.reviewId),
+    ).toEqual([closedReviewId]);
+    expect(subject.registry.get(inbox).loading).toBe(true);
+    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
     await expect
       .poll(() =>
         subject.registry
-          .get(inbox)
-          .inbox.needsYou.map((row) => [
-            row.entry.worktreeId,
-            row.review.reviewId,
-            row.label,
+          .get(list)
+          .projects.flatMap((project) =>
+            project.entries.map((entry) => [
+              entry.key,
+              entry.worktreeId,
+              entry.path,
+            ]),
+          ),
+      )
+      .toEqual([
+        [`${environmentId}/${reviewId}`, topicId, '/code/topic'],
+        [`${environmentId}/${closedReviewId}`, undefined, undefined],
+      ]);
+    expect(
+      subject.registry
+        .get(inbox)
+        .inbox.decisions.map((row) => [
+          row.review.reviewId,
+          row.entry.worktreeId,
+        ]),
+    ).toEqual([
+      [reviewId, topicId],
+      [closedReviewId, undefined],
+    ]);
+    expect(subject.registry.get(inbox).loading).toBe(false);
+  } finally {
+    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
+    stopList();
+    stopInbox();
+  }
+});
+
+it('links only the exact current publication to an available checkout', async () => {
+  const subject = observeReviews([record(), record(closedReviewId)]);
+  try {
+    await expect
+      .poll(() =>
+        subject
+          .view()
+          .projects[0]?.entries.map((entry) => [
+            entry.review.state === 'available' ? entry.review.reviewId : '',
+            entry.worktreeId,
+            entry.path,
           ]),
       )
-      .toEqual([[topicId, reviewId, '0/1 decisions']]);
-    expect(subject.registry.get(inbox).inbox.projects).toEqual([]);
-    expect(
-      paths.filter(
-        (path) =>
-          !path.startsWith('/api/inventory') &&
-          !path.endsWith('/reviews') &&
-          !path.endsWith('/marks') &&
-          !path.endsWith(reviewId),
-      ),
-    ).toEqual([]);
+      .toEqual([
+        [reviewId, topicId, '/code/topic'],
+        [closedReviewId, undefined, undefined],
+      ]);
+    expect(subject.paths.some((path) => path.endsWith('/git/status'))).toBe(
+      false,
+    );
   } finally {
-    stop();
+    subject.stop();
+  }
+});
+
+it.each([null, closedReviewId])(
+  'does not link a saved review when the checkout publishes %s instead',
+  async (publishedReviewId) => {
+    const subject = recordedNavigator([record()], 'passed', publishedReviewId);
+    const list = readReviewNavigator([subject.connection]);
+    const stop = subject.registry.mount(list);
+    try {
+      await readClientAtom(
+        subject.registry,
+        readPublishedReview({
+          connection: subject.connection,
+          scope: { projectId, worktreeId: topicId },
+        }),
+      );
+      await idleClientAtoms(subject.registry);
+      expect(
+        subject.registry.get(list).projects[0]?.entries[0]?.worktreeId,
+      ).toBeUndefined();
+    } finally {
+      stop();
+    }
+  },
+);
+
+it('refreshes a review-only navigator without mounting hidden checkout reads', async () => {
+  const subject = observeReviews();
+  try {
+    await expect.poll(() => subject.view().projects[0]?.entries.length).toBe(1);
+    const refresh = refreshWorktreeNavigator([subject.connection]);
+    subject.registry.set(refresh, undefined);
+    await readClientAtom(subject.registry, refresh);
+    expect(checkoutReads(subject.paths)).toEqual([]);
+  } finally {
+    subject.stop();
   }
 });
 
@@ -616,7 +936,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
   }
 });
 
-it('requires both checkout path and identity before associating progress or a PR, and reveals retained reviews only on request', async () => {
+it('requires checkout path and identity before associating a PR, and keeps closed publications in Reviews history', async () => {
   let answer = review(mainId);
   const subject = create(
     (path) =>
@@ -682,32 +1002,32 @@ it('requires both checkout path and identity before associating progress or a PR
       state: 'available',
       reviewId,
       pullRequestNumber: 42,
-      progress: { reviewed: 1, total: 1 },
+      timing: 'decision',
+      latestRevision: 1,
+      lastSeenRevision: 0,
     });
-    subject.registry.set(worktreeNavigatorState, {
-      query: '',
-      filter: { ...emptyNavigatorFilter, older: true },
-      expanded: {},
-    });
-    await expect
-      .poll(() =>
+    const reviews = readReviewNavigator(connections);
+    const stopReviews = subject.registry.mount(reviews);
+    try {
+      await expect
+        .poll(() => navigatorReviewIds(subject.registry, reviews))
+        .toEqual([reviewId]);
+      subject.registry.set(worktreeNavigatorState, {
+        query: '',
+        filter: { ...emptyNavigatorFilter, older: true },
+        expanded: {},
+      });
+      await expect
+        .poll(() => navigatorReviewIds(subject.registry, reviews))
+        .toEqual([reviewId, closedReviewId]);
+      expect(
         subject.registry
           .get(list)
-          .projects[0]?.entries.filter((entry) => entry.kind === 'review')
-          .map((entry) => entry.review),
-      )
-      .toEqual([
-        {
-          state: 'available',
-          reviewId: closedReviewId,
-          closed: true,
-          archived: false,
-          pullRequestNumber: 42,
-          progress: undefined,
-          retained: true,
-          checks: { state: 'available', result: 'passed' },
-        },
-      ]);
+          .projects[0]?.entries.map((entry) => entry.kind),
+      ).toEqual(['worktree', 'worktree']);
+    } finally {
+      stopReviews();
+    }
     expect(subject.registry.get(list).projects[0]?.entries[0]?.name).toBe(
       'main',
     );
@@ -744,7 +1064,9 @@ it.each(['records', 'review'])(
         .toMatchObject({
           state: 'available',
           reviewId,
-          progress: { reviewed: 0, total: 1 },
+          timing: 'decision',
+          latestRevision: 1,
+          lastSeenRevision: 0,
         });
       expect(navigator.view().messages).toEqual([]);
     } finally {
@@ -772,7 +1094,9 @@ it('keeps a readable review reachable when its checkout is unavailable without e
         review: {
           state: 'available',
           reviewId,
-          progress: { reviewed: 0, total: 1 },
+          timing: 'decision',
+          latestRevision: 1,
+          lastSeenRevision: 0,
         },
       });
     expect(reads.some((path) => path.includes(topicId))).toBe(false);
@@ -781,52 +1105,49 @@ it('keeps a readable review reachable when its checkout is unavailable without e
   }
 });
 
-it('settles an open retained review without a permanent progress skeleton or heavy detail reads', async () => {
-  const reads: string[] = [];
-  const navigator = observeNavigator((path) => {
-    reads.push(path);
-    return navigatorResponse(path, inventory(), [
-      { ...record(), branch: 'removed-checkout' },
-    ]);
-  });
+it('keeps open publications independent of live checkout branches and preserves multiple reviews of one checkout', async () => {
+  const records = [
+    record(),
+    record(closedReviewId),
+    {
+      ...record('80000000-0000-4000-8000-000000000001'),
+      branch: 'removed-checkout',
+    },
+  ];
+  const subject = observeReviews(records);
   try {
     await expect
-      .poll(() => navigator.view().projects[0]?.entries[1]?.review.state)
-      .toBe('none');
-    navigator.registry.set(worktreeNavigatorState, {
-      query: '',
-      filter: { ...emptyNavigatorFilter, older: true },
-      expanded: {},
-    });
-    const retained = navigator.view().projects[0]?.entries[2];
-    expect(retained?.kind).toBe('review');
-    expect(navigatorReviewLabel(retained!.review)).toBe('Retained review');
-    expect(
-      reads.some(
-        (path) =>
-          path === `/api/reviews/${reviewId}` ||
-          path.endsWith('/marks') ||
-          path.endsWith('/pull-request'),
-      ),
-    ).toBe(false);
+      .poll(() =>
+        subject
+          .view()
+          .projects[0]?.entries.map((entry) => [
+            entry.kind,
+            entry.branch,
+            entry.review.state === 'available'
+              ? entry.review.reviewId
+              : undefined,
+          ]),
+      )
+      .toEqual([
+        ['review', 'topic', reviewId],
+        ['review', 'topic', closedReviewId],
+        ['review', 'removed-checkout', '80000000-0000-4000-8000-000000000001'],
+      ]);
+    expect(checkoutReads(subject.paths)).toEqual([]);
   } finally {
-    navigator.stop();
+    subject.stop();
   }
 });
 
-it('loads lightweight summaries after useful cards and excludes filtered cards from heavier reads', async () => {
+it('loads checks after useful cards without computing diff summaries or reading hidden cards', async () => {
   let releaseStatus = () => {};
   let releaseReviews = () => {};
-  let releaseSummary = (_: Response) => {};
   let releaseChecks = (_: Response) => {};
   const statusReady = new Promise<void>((resolve) => {
     releaseStatus = resolve;
   });
   const reviewsReady = new Promise<void>((resolve) => {
     releaseReviews = resolve;
-  });
-  const summary = new Promise<Response>((resolve) => {
-    releaseSummary = resolve;
   });
   const checks = new Promise<Response>((resolve) => {
     releaseChecks = resolve;
@@ -839,8 +1160,6 @@ it('loads lightweight summaries after useful cards and excludes filtered cards f
         return Promise.resolve(Response.json(inventory()));
       if (path.endsWith('/reviews'))
         return reviewsReady.then(() => Response.json([record()]));
-      if (path.endsWith('/summary'))
-        return summary.then((response) => response.clone());
       if (path.endsWith('/pull-request/checks'))
         return checks.then((response) => response.clone());
       if (path.endsWith('/git/status'))
@@ -880,37 +1199,18 @@ it('loads lightweight summaries after useful cards and excludes filtered cards f
         changes: {
           state: 'available',
           count: 1,
-          summary: { state: 'loading' },
         },
         review: { state: 'available', checks: { state: 'loading' } },
       });
-    expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([
-      `/api/worktrees/${topicId}/summary`,
-    ]);
+    expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
     expect(reads.some((path) => path.endsWith('/pull-request'))).toBe(false);
-    releaseSummary(
-      Response.json({
-        environmentId,
-        worktreeId: topicId,
-        additions: 4,
-        deletions: 2,
-        binaryFiles: 1,
-      }),
-    );
     releaseChecks(
       Response.json({ kind: 'available', number: 42, checks: 'running' }),
     );
     await expect
       .poll(() => subject.registry.get(list).projects[0]?.entries[0])
       .toMatchObject({
-        changes: {
-          summary: {
-            state: 'available',
-            additions: 4,
-            deletions: 2,
-            binaryFiles: 1,
-          },
-        },
+        changes: { state: 'available', count: 1 },
         review: { checks: { state: 'available', result: 'running' } },
       });
     const refresh = refreshWorktreeNavigator([subject.connection]);
@@ -922,61 +1222,43 @@ it('loads lightweight summaries after useful cards and excludes filtered cards f
           reads.filter((path) => path.endsWith('/pull-request/checks')).length,
       )
       .toBe(2);
-    await expect
-      .poll(() => reads.filter((path) => path.endsWith('/summary')).length)
-      .toBe(2);
+    expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
   } finally {
     stop();
   }
 });
 
-it.each([
-  { environmentId, worktreeId: mainId },
-  { environmentId: secondEnvironmentId, worktreeId: topicId },
-])(
-  'refuses diff summaries from another scope and checks for another PR number: %j',
-  async (identity) => {
-    const navigator = observeNavigator((path) => {
-      if (path.endsWith('/summary'))
-        return Promise.resolve(
-          Response.json({
-            ...identity,
-            additions: 999,
-            deletions: 999,
-            binaryFiles: 0,
-          }),
-        );
-      if (path.endsWith('/pull-request/checks'))
-        return Promise.resolve(
-          Response.json({ kind: 'available', number: 99, checks: 'passed' }),
-        );
-      if (path.endsWith('/git/status'))
-        return Promise.resolve(
-          Response.json({
-            ...status(path),
-            changes: path.includes(topicId)
-              ? [{ scope: 'untracked', path: 'pending.txt' }]
-              : [],
-          }),
-        );
-      return navigatorResponse(path);
-    });
-    try {
-      await expect
-        .poll(() => navigator.view().projects[0]?.entries[1])
-        .toMatchObject({
-          changes: {
-            state: 'available',
-            count: 1,
-            summary: { state: 'unavailable' },
-          },
-          review: { checks: { state: 'unavailable' } },
-        });
-    } finally {
-      navigator.stop();
-    }
-  },
-);
+it('refuses checks for another pull request without reading a diff summary', async () => {
+  const paths: string[] = [];
+  const navigator = observeNavigator((path) => {
+    paths.push(path);
+    if (path.endsWith('/pull-request/checks'))
+      return Promise.resolve(
+        Response.json({ kind: 'available', number: 99, checks: 'passed' }),
+      );
+    if (path.endsWith('/git/status'))
+      return Promise.resolve(
+        Response.json({
+          ...status(path),
+          changes: path.includes(topicId)
+            ? [{ scope: 'untracked', path: 'pending.txt' }]
+            : [],
+        }),
+      );
+    return navigatorResponse(path);
+  });
+  try {
+    await expect
+      .poll(() => navigator.view().projects[0]?.entries[1])
+      .toMatchObject({
+        changes: { state: 'available', count: 1 },
+        review: { checks: { state: 'unavailable' } },
+      });
+    expect(paths.filter((path) => path.endsWith('/summary'))).toEqual([]);
+  } finally {
+    navigator.stop();
+  }
+});
 
 it('groups status failures by computer and retries only that computer after inventory reconciliation', async () => {
   let fail = true;
@@ -1052,22 +1334,10 @@ it('groups status failures by computer and retries only that computer after inve
         {
           state: 'available',
           count: 0,
-          summary: {
-            state: 'available',
-            additions: 0,
-            deletions: 0,
-            binaryFiles: 0,
-          },
         },
         {
           state: 'available',
           count: 0,
-          summary: {
-            state: 'available',
-            additions: 0,
-            deletions: 0,
-            binaryFiles: 0,
-          },
         },
       ]);
     expect(registry.get(list).messages).toEqual([]);

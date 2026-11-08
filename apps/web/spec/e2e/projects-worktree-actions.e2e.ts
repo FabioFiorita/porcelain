@@ -181,15 +181,9 @@ test('Delete choices reset from saved settings on each opening and detached chec
     .poll(async () => (await fixture.readReview())?.archived ?? false)
     .toBe(false);
   await expect.poll(() => server.reviewGitSettings()).toEqual(before);
+  await sidebar.getByRole('tab', { name: 'Reviews', exact: true }).click();
   await sidebar
-    .getByRole('button', { name: 'Filter worktrees', exact: true })
-    .click();
-  await page
-    .getByRole('menuitemcheckbox', { name: 'Show older reviews', exact: true })
-    .click();
-  await page.keyboard.press('Escape');
-  await sidebar
-    .getByRole('link', { name: /^archive-fixture,.*Retained review/ })
+    .getByRole('link', { name: /^archive-fixture,.*Decision review/ })
     .click();
   await expect
     .poll(() => app.address().path)

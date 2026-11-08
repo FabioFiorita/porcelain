@@ -19,6 +19,9 @@ export {
   commitCommentTarget,
 } from './rules/document-comment';
 
-export { LinkedReviewScreen } from './views/linked-review-screen';
+export {
+  LinkedReviewScreen,
+  LinkedReviewPane,
+} from './views/linked-review-screen';
 
 export { PullRequestScreen } from './views/pull-request-screen';

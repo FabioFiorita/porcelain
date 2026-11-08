@@ -20,6 +20,8 @@ const symbols = {
   code: { ios: 'chevron.left.forwardslash.chevron.right', android: 'code' },
   image: { ios: 'photo', android: 'image' },
   folder: { ios: 'folder', android: 'folder' },
+  home: { ios: 'house', android: 'home' },
+  branch: { ios: 'arrow.triangle.branch', android: 'fork_right' },
   openFolder: { ios: 'folder.fill', android: 'folder_open' },
   files: { ios: 'folder', android: 'folder' },
   review: { ios: 'plus.minus.capsule', android: 'compare_arrows' },

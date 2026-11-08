@@ -61,6 +61,7 @@ export async function reviewReturnProbe(page: Page, reviewId: string) {
 export async function expireNextReviewLink(
   page: Page,
   worktreeId: string,
+  reviewId: string,
   expires: string,
   advance: () => Promise<void>,
 ) {
@@ -74,4 +75,16 @@ export async function expireNextReviewLink(
     },
     { times: 1 },
   );
+  const initialRead = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname === `/api/reviews/${reviewId}` &&
+      response.ok(),
+  );
+  return {
+    ready: async () => {
+      const failure = await (await initialRead).finished();
+      if (failure) throw failure;
+    },
+  };
 }

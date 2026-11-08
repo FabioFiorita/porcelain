@@ -19,6 +19,7 @@ export type ServerRead = {
 
 export type RepoStep =
   | { kind: 'closing-places-fixture' }
+  | { kind: 'paginated-timeline-fixture' }
   | {
       kind: 'review-fixture';
       operation:

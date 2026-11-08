@@ -1,5 +1,4 @@
 import { Cause } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { useAtom } from '@effect/atom-react';
 import { type ChangeEvent, type KeyboardEvent, type Ref, useId } from 'react';
 import { ArrowUpIcon } from 'lucide-react';
@@ -78,11 +77,20 @@ export function InlineComposer({
       messageId: crypto.randomUUID(),
       ...(scope.review ? { reviewRevision: scope.review.revision } : {}),
     }));
-    setDraft({ ...draft, pending: intent });
-    mutation.send(intent, () => {
-      setDraft({ body: '', pending: undefined });
-      if (form.isConnected) onClose();
-    });
+    setDraft({ ...draft, pending: intent, error: undefined });
+    mutation.send(
+      intent,
+      () => {
+        setDraft({ body: '', pending: undefined });
+        if (form.isConnected) onClose();
+      },
+      (cause) =>
+        setDraft({
+          ...draft,
+          pending: intent,
+          error: reviewErrorMessage(Cause.squash(cause)),
+        }),
+    );
   };
   const answer = variant === 'answer';
   const field = {
@@ -146,9 +154,9 @@ export function InlineComposer({
           placeholder="Share feedback…"
         />
       )}
-      {AsyncResult.isFailure(mutation.result) && (
+      {draft.error && (
         <p role="alert" className="text-xs text-destructive">
-          {reviewErrorMessage(Cause.squash(mutation.result.cause))}
+          {draft.error}
         </p>
       )}
       {answer ? (

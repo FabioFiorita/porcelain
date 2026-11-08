@@ -158,6 +158,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  await pairedPage.getByRole('tab', { name: 'Reviews', exact: true }).click();
   await pairedPage
     .getByRole('button', { name: 'Filter worktrees', exact: true })
     .click();

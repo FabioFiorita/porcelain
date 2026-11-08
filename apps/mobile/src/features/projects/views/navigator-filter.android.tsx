@@ -8,6 +8,7 @@ import type {
 } from './navigator-filter-props';
 
 export function NavigatorFilter({
+  view,
   sections,
   filter,
   onChange,
@@ -20,18 +21,29 @@ export function NavigatorFilter({
         onPress: () => onChange({ ...filter, [section.key]: option.next }),
       })),
     ),
-    {
-      id: 'older',
-      label: `${filter.older ? '✓ ' : ''}Show older reviews`,
-      onPress: () => onChange({ ...filter, older: !filter.older }),
-    },
+    ...(view === 'reviews'
+      ? [
+          {
+            id: 'older',
+            label: `${filter.older ? '✓ ' : ''}Show older reviews`,
+            onPress: () => onChange({ ...filter, older: !filter.older }),
+          },
+        ]
+      : []),
     {
       id: 'clear',
       label: 'Clear filters',
       onPress: () => onChange(emptyNavigatorFilter),
     },
   ];
-  return <NavigatorMenu actions={actions} />;
+  return (
+    <NavigatorMenu
+      actions={actions}
+      accessibilityLabel={
+        view === 'reviews' ? 'Filter reviews' : 'Filter worktrees'
+      }
+    />
+  );
 }
 
 export function NavigatorScopePicker({
@@ -63,9 +75,11 @@ export function NavigatorScopePicker({
 
 function NavigatorMenu({
   label,
+  accessibilityLabel = 'Filter worktrees',
   actions,
 }: {
   label?: string;
+  accessibilityLabel?: string;
   actions: readonly { id: string; label: string; onPress: () => void }[];
 }) {
   return (
@@ -76,7 +90,7 @@ function NavigatorMenu({
         ) : (
           <IconButton
             icon="filter"
-            accessibilityLabel="Filter worktrees"
+            accessibilityLabel={accessibilityLabel}
             onPress={open}
           />
         )

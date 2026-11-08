@@ -25,6 +25,26 @@ test('consecutive right-clicks position the menu at the second row for every fil
     const target = await row(second).boundingBox();
     if (!target) throw new Error('The second row must be visible');
     await page.mouse.click(target.x + 31, target.y + 12, { button: 'right' });
+    const folder = ['alpha', 'beta'].includes(second);
+    const currentMenu = page.getByRole('menu', {
+      name: `${second}${folder ? '/' : ''} actions`,
+      exact: true,
+    });
+    await expect(currentMenu).toBeVisible();
+    await expect(
+      currentMenu.getByRole('menuitem', {
+        name: folder ? 'New file' : 'Duplicate',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(row(second)).toHaveAttribute('aria-haspopup', 'menu');
+    if (first !== second)
+      await expect(
+        page.getByRole('menu', {
+          name: `${first}${first === 'alpha' || first === 'beta' ? '/' : ''} actions`,
+          exact: true,
+        }),
+      ).toHaveCount(0);
     await expect
       .poll(async () => {
         const popup = await page.getByRole('menu').boundingBox();

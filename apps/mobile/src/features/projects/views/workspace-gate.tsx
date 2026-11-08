@@ -13,12 +13,14 @@ export function WorkspaceGate({
   title,
   expectedWorkspace,
   changed,
+  unavailable,
   frame = 'screen',
   children,
 }: {
   title: string;
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
+  unavailable?: ReactNode;
   frame?: 'screen' | 'pane';
   children: (workspace: Workspace) => ReactNode;
 }) {
@@ -44,18 +46,20 @@ export function WorkspaceGate({
         );
       case 'unavailable':
         return (
-          <Empty
-            title="Workspace unavailable"
-            description={state.reason}
-            action={
-              remote
-                ? { label: 'Read again', onPress: read }
-                : {
-                    label: 'Open Settings',
-                    onPress: () => router.push('/settings'),
-                  }
-            }
-          />
+          unavailable ?? (
+            <Empty
+              title="Workspace unavailable"
+              description={state.reason}
+              action={
+                remote
+                  ? { label: 'Read again', onPress: read }
+                  : {
+                      label: 'Open Settings',
+                      onPress: () => router.push('/settings'),
+                    }
+              }
+            />
+          )
         );
       case 'none':
         return (

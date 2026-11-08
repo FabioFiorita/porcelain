@@ -94,7 +94,15 @@ export function requestDocumentLeave(leave: () => void, scope?: string) {
   );
 }
 
-export const reviewPaneOpen = Atom.make(false).pipe(Atom.keepAlive);
+export type OpenedReview = {
+  reviewId: string;
+  environmentId: string;
+  workspace?: string | undefined;
+};
+
+export const openedReview = Atom.make<OpenedReview | undefined>(undefined).pipe(
+  Atom.keepAlive,
+);
 
 export type WorktreeDetails = {
   title: string;

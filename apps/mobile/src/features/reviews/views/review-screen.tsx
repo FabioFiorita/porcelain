@@ -24,7 +24,9 @@ import { Separator } from '../../../components/ui/separator';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { StatusDot } from '../../../components/ui/status-dot';
-import type { Workspace } from '../../projects';
+import type { Workspace, OpenedReview } from '../../projects';
+import { useWorkspaceReview } from '../queries/linked-review';
+import { LinkedReviewPane } from './linked-review-screen';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
@@ -40,28 +42,38 @@ import { PublishedWalkthrough } from './published-walkthrough';
 
 export function ReviewScreen({
   workspace,
+  review,
 }: {
   workspace?: string | undefined;
+  review?: OpenedReview | undefined;
 }) {
   return (
     <Screen layout="fixed">
-      <ReviewPane workspace={workspace} />
+      <ReviewPane workspace={workspace} review={review} />
     </Screen>
   );
 }
 
-export function ReviewPane({ workspace }: { workspace?: string | undefined }) {
+export function ReviewPane({
+  workspace,
+  review,
+}: {
+  workspace?: string | undefined;
+  review?: OpenedReview | undefined;
+}) {
   const focused = useIsFocused();
   if (!focused) return null;
+  const saved = review ? <LinkedReviewPane review={review} /> : undefined;
   return (
     <WorkspaceGate
       title="Review"
       expectedWorkspace={workspace}
       frame="pane"
+      unavailable={saved}
       {...(workspace === undefined
         ? {}
         : {
-            changed: (
+            changed: saved ?? (
               <Empty
                 title="Workspace changed"
                 description="Another worktree is selected now. Open Review again from the worktree you want."
@@ -69,8 +81,44 @@ export function ReviewPane({ workspace }: { workspace?: string | undefined }) {
             ),
           })}
     >
-      {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
+      {(selected) =>
+        review ? (
+          <CurrentReview
+            key={selected.key}
+            workspace={selected}
+            review={review}
+          />
+        ) : (
+          <PhoneReview key={selected.key} workspace={selected} />
+        )
+      }
     </WorkspaceGate>
+  );
+}
+
+function CurrentReview({
+  workspace,
+  review,
+}: {
+  workspace: Workspace;
+  review: OpenedReview;
+}) {
+  const publication = useWorkspaceReview(workspace);
+  if (
+    !AsyncResult.isSuccess(publication.published) ||
+    publication.published.waiting
+  )
+    return (
+      <ReviewReadState
+        result={publication.published}
+        refresh={publication.refreshPublished}
+      />
+    );
+  return workspace.connection.environmentId === review.environmentId &&
+    publication.published.value?.reviewId === review.reviewId ? (
+    <PhoneReview workspace={workspace} />
+  ) : (
+    <LinkedReviewPane review={review} />
   );
 }
 

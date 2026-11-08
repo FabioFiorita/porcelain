@@ -54,6 +54,7 @@ export function commentDraftKey(
 export const newCommentDraftState = Atom.family((_target: string) =>
   Atom.make<{
     body: string;
+    error?: string | undefined;
     pending?:
       | (CreateCommentThreadRequest & { threadId: string; messageId: string })
       | undefined;

@@ -67,6 +67,8 @@ Publish a decision with changed code and an unchanged context step (`agent publi
 
 Repeat at 1440 and 414 in light and dark. A failed request keeps the draft and retry posts one thread. Ordinary worktree branch comments retain their existing matching behavior.
 
+When the server saves a comment but its response is lost, its live read may still display the saved thread. The draft must keep its error and retry identity through that update and another click on the file comment control. Retry clears the draft and error after confirmation and leaves exactly one saved thread.
+
 ## Gotchas
 
 - Use full Comment on README.md (unstaged · modified); Comment alone is the submit control. C is ignored in text fields and only the active pane listens.

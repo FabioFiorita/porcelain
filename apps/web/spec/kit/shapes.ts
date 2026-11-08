@@ -63,6 +63,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     removeReviewWorktree: () =>
       step({ kind: 'review-fixture', operation: 'remove-worktree', title: '' }),
     closingPlaces: () => step({ kind: 'closing-places-fixture' }),
+    paginatedTimeline: () => step({ kind: 'paginated-timeline-fixture' }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
     remove: (path: string) => step({ kind: 'remove', path }),
     rename: (from: string, to: string) => step({ kind: 'rename', from, to }),

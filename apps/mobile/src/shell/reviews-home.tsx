@@ -1,24 +1,43 @@
 import { useAtomValue } from '@effect/atom-react';
 import { Empty } from '../components/ui/empty';
 import { ListDetail } from '../components/ui/list-detail';
-import { ReviewInbox, reviewPaneOpen } from '../features/projects';
-import { ReviewPane } from '../features/reviews';
+import {
+  ReviewInbox,
+  openedReview,
+  type OpenedReview,
+} from '../features/projects';
+import { LinkedReviewPane, ReviewPane } from '../features/reviews';
 
 export function ReviewsHome() {
-  const open = useAtomValue(reviewPaneOpen);
+  const review = useAtomValue(openedReview);
   return (
     <ListDetail
       list={(mode) => <ReviewInbox mode={mode} />}
-      detail={
-        open ? (
-          <ReviewPane />
-        ) : (
-          <Empty
-            title="Select a review"
-            description="Choose a review on the left to read it here."
-          />
-        )
-      }
+      detail={<ReviewDetail review={review} />}
+    />
+  );
+}
+
+function ReviewDetail({ review }: { review: OpenedReview | undefined }) {
+  if (!review)
+    return (
+      <Empty
+        title="Select a review"
+        description="Choose a review on the left to read it here."
+      />
+    );
+  if (review.workspace)
+    return (
+      <ReviewPane
+        key={`${review.environmentId}:${review.reviewId}`}
+        workspace={review.workspace}
+        review={review}
+      />
+    );
+  return (
+    <LinkedReviewPane
+      key={`${review.environmentId}:${review.reviewId}`}
+      review={review}
     />
   );
 }

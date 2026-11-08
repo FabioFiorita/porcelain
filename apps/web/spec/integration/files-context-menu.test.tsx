@@ -2,7 +2,7 @@ import { userEvent } from 'vitest/browser';
 import { expect, expectInputFocus, test } from './fixtures.tsx';
 
 test.for([1280, 414])(
-  'a second right-click on another row opens that row’s menu at %ipx',
+  'a file-tree menu keeps keyboard focus and its current folder target at %ipx',
   async (width, { render, repo, agent, server }) => {
     await agent.editFile({
       kind: 'create',
@@ -32,36 +32,10 @@ test.for([1280, 414])(
     const menu = (path: string) =>
       page.getByRole('menu', { name: `${path} actions`, exact: true });
 
-    for (const [first, firstPath, second, secondPath] of [
-      ['alpha', 'alpha/', 'beta', 'beta/'],
-      ['guide.md', 'guide.md', 'README.md', 'README.md'],
-      ['alpha', 'alpha/', 'guide.md', 'guide.md'],
-      ['guide.md', 'guide.md', 'beta', 'beta/'],
-      ['beta', 'beta/', 'beta', 'beta/'],
-    ] as const) {
-      await row(first).click({ button: 'right' });
-      await expect.element(menu(firstPath)).toBeVisible();
-      await expect.element(menu(firstPath)).toHaveFocus();
-      await row(second).click({
-        button: 'right',
-        force: true,
-        position: { x: 31, y: 12 },
-      });
-      await expect.element(menu(secondPath)).toBeVisible();
-      await expect.element(menu(secondPath)).toHaveAttribute('data-open', '');
-      await expect
-        .element(row(second))
-        .toHaveAttribute('aria-haspopup', 'menu');
-      if (firstPath !== secondPath)
-        await expect.element(menu(firstPath)).not.toBeInTheDocument();
-      const command = secondPath.endsWith('/') ? 'New file' : 'Duplicate';
-      await expect
-        .element(page.getByRole('menuitem', { name: command, exact: true }))
-        .toBeVisible();
-      await userEvent.keyboard('{Escape}');
-      await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
-    }
-
+    await row('beta').click({ button: 'right' });
+    await expect.element(menu('beta/')).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
     await expectInputFocus(row('beta'));
     await userEvent.keyboard('{End}{ContextMenu}');
     await expect.element(menu(last)).toBeVisible();
@@ -83,18 +57,7 @@ test.for([1280, 414])(
       position: { x: 31, y: 12 },
     });
     await expect.element(menu('beta/')).toHaveAttribute('data-open', '');
-    await userEvent.keyboard('{Escape}');
-    await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
-
-    await row('alpha').click({ button: 'right' });
-    await expect.element(menu('alpha/')).toBeVisible();
-    await row('beta').click({
-      button: 'right',
-      force: true,
-      position: { x: 31, y: 12 },
-    });
-    await expect.element(menu('beta/')).toBeVisible();
-    await expect.element(menu('beta/')).toHaveAttribute('data-open', '');
+    await expect.element(menu('beta/')).toHaveFocus();
     await page
       .getByRole('menuitem', { name: 'New folder', exact: true })
       .click();

@@ -53,25 +53,3 @@ export const readGitStatus = Atom.family((selection: WorktreeSelection) =>
     clientRuntime(selection.connection),
   ).pipe(retainRead),
 );
-
-export const readWorktreeSummary = Atom.family((selection: WorktreeSelection) =>
-  worktreeRead(
-    selection.connection,
-    selection.scope,
-    ['git-status'],
-    Effect.gen(function* () {
-      const answer = yield* requestApi(selection.connection, (api) =>
-        api.changes.readWorktreeSummary({
-          params: { worktreeId: selection.scope.worktreeId },
-        }),
-      );
-      yield* currentAnswerEffect(
-        selection.connection,
-        answer.environmentId === selection.connection.environmentId &&
-          answer.worktreeId === selection.scope.worktreeId,
-      );
-      return answer;
-    }),
-    clientRuntime(selection.connection),
-  ).pipe(retainRead),
-);

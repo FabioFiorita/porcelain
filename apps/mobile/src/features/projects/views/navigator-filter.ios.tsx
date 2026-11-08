@@ -7,12 +7,16 @@ import type {
 } from './navigator-filter-props';
 
 export function NavigatorFilter({
+  view,
   sections,
   filter,
   onChange,
 }: NavigatorFilterProps) {
   return (
-    <ContentMenu label="Filter worktrees" icon="filter">
+    <ContentMenu
+      label={view === 'reviews' ? 'Filter reviews' : 'Filter worktrees'}
+      icon="filter"
+    >
       {sections.flatMap((section) =>
         section.items.map((option) => (
           <Toggle
@@ -25,11 +29,13 @@ export function NavigatorFilter({
           />
         )),
       )}
-      <Toggle
-        label="Show older reviews"
-        isOn={filter.older}
-        onIsOnChange={() => onChange({ ...filter, older: !filter.older })}
-      />
+      {view === 'reviews' ? (
+        <Toggle
+          label="Show older reviews"
+          isOn={filter.older}
+          onIsOnChange={() => onChange({ ...filter, older: !filter.older })}
+        />
+      ) : null}
       <Button
         label="Clear filters"
         onPress={() => onChange(emptyNavigatorFilter)}

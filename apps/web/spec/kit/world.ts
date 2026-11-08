@@ -3,6 +3,7 @@ import {
   detachWorktreeFixture,
   durableReviewFixture,
 } from './review-fixture.ts';
+import { paginatedTimelineFixture } from './history-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { agentActs } from '@porcelain/server/kit/agent';
@@ -145,6 +146,8 @@ export class World {
     }
     if (step.kind === 'closing-places-fixture')
       return closingPlacesFixture(repository);
+    if (step.kind === 'paginated-timeline-fixture')
+      return paginatedTimelineFixture(repository);
     if (step.kind === 'review-fixture')
       return durableReviewFixture(
         repository,
