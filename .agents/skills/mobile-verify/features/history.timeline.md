@@ -21,7 +21,7 @@ Files opens the selected file's commit timeline without changing worktrees or lo
 ## How to get to it
 
 - Worktrees → worktree → Files → file row menu → Show timeline.
-- An open file → Timeline control. Phones and tablets push it in the current tab's stack.
+- An open file → the Timeline top-bar action (under More actions when four actions apply). Phones and tablets push it in the current tab's stack.
 
 ## Driving it with agent-device
 

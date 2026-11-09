@@ -11,6 +11,17 @@ const symbols = {
   compareParent: 'arrow.triangle.merge',
   resolve: 'checkmark.circle',
   reopen: 'arrow.uturn.backward',
+  timeline: 'clock.arrow.circlepath',
+  comments: 'bubble.left.and.bubble.right',
+  hideComments: 'bubble.left.and.bubble.right.fill',
+  comment: 'plus.bubble',
+  clearSelection: 'xmark.circle',
+  markReviewed: 'checkmark.circle',
+  unmarkReviewed: 'checkmark.circle.fill',
+  comparison: 'arrow.left.arrow.right',
+  showSource: 'chevron.left.forwardslash.chevron.right',
+  showRendered: 'doc.richtext',
+  more: 'ellipsis',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function headerIcon(name: HeaderIconName) {

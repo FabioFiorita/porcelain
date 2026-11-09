@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import { Box } from '../../../components/ui/box';
+import type { DocumentAction } from '../../../components/ui/document-header';
 import { useAtom } from '@effect/atom-react';
 import {
   reviewedCommandFailure,
@@ -21,15 +23,11 @@ import {
   type ReviewSnapshot,
 } from '../rules/comparison';
 
-export function ReviewedAction({
-  workspace,
-  snapshot,
-  file,
-}: {
-  workspace: Workspace;
-  snapshot: ReviewSnapshot;
-  file: ReviewFile;
-}) {
+export function useReviewedAction(
+  workspace: Workspace,
+  snapshot: ReviewSnapshot,
+  file: ReviewFile,
+): { action: DocumentAction | undefined; notice: ReactNode } {
   const commands = reviewedCommands({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -39,18 +37,45 @@ export function ReviewedAction({
   const [unmark, remove] = useAtom(commands.remove);
   const pending = mark.waiting || unmark.waiting;
   const error = reviewedCommandFailure(mark, unmark);
-  return (
-    <ReviewToggle
-      file={file}
-      pending={pending}
-      error={error}
-      onPress={() => {
-        if (!file.fingerprint) return;
-        if (file.reviewStatus === 'reviewed') remove(file.path);
-        else set({ path: file.path, fingerprint: file.fingerprint });
-      }}
-    />
-  );
+  const { fingerprint } = file;
+  return {
+    action: fingerprint
+      ? {
+          kind: 'button',
+          id: 'reviewed',
+          label: reviewedButtonLabel(file.reviewStatus),
+          icon:
+            file.reviewStatus === 'reviewed'
+              ? 'unmarkReviewed'
+              : 'markReviewed',
+          disabled: pending,
+          onPress: () => {
+            if (pending) return;
+            if (file.reviewStatus === 'reviewed') remove(file.path);
+            else set({ path: file.path, fingerprint });
+          },
+        }
+      : undefined,
+    notice:
+      fingerprint && !error ? null : (
+        <Box paddingX={4} paddingY={2} gap={2}>
+          {fingerprint ? null : (
+            <Text variant="caption" tone="muted">
+              {unavailableReviewText([file.path])}
+            </Text>
+          )}
+          {error ? (
+            <Text
+              variant="caption"
+              tone="destructive"
+              accessibilityRole="alert"
+            >
+              {reviewErrorMessage(error)}
+            </Text>
+          ) : null}
+        </Box>
+      ),
+  };
 }
 
 export function RevisionReviewedAction({

@@ -3,7 +3,7 @@ import { diffSelection } from '@porcelain/client/changes/rules';
 import { commitPaths } from '@porcelain/client/history/rules';
 import { Box } from '../../../components/ui/box';
 import { usePreferences } from '../../preferences/index';
-import { Stack, useIsFocused, useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -14,29 +14,27 @@ import {
 import { readTextFile } from '@porcelain/client/files';
 import { selectionKey, type Change } from '@porcelain/client/changes/rules';
 import {
-  type CommentAnchor,
   type CommentTarget,
   commentIsStale,
   matchesCommentTarget,
 } from '@porcelain/client/reviews/rules';
-import {
-  DocumentComments,
-  type DocumentCodeSelection,
-} from './document-comments';
+import type { DocumentCodeSelection } from './document-comments';
 import { documentCommentAnchor } from '../rules/document-comment';
 import { Empty } from '../../../components/ui/empty';
 import { Text } from '../../../components/ui/text';
-import { Button } from '../../../components/ui/button';
 import { DiffView } from '../../../components/ui/diff-view';
 import { CodeView } from '../../../components/ui/code-view';
-import { FileHeader } from '../../../components/ui/file-header';
-import { ChangeComparisonMenu } from './change-comparison-menu';
+import {
+  DocumentHeader,
+  DocumentScreen,
+  type DocumentAction,
+} from '../../../components/ui/document-header';
+import { Screen } from '../../../components/ui/screen';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
-  commentTarget,
   documentReviewTarget,
   type ReviewFile,
   type ReviewSnapshot,
@@ -44,7 +42,7 @@ import {
 import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
 import { diffPresentation } from '../rules/diff-presentation';
 import { ReviewReadState } from './read-state';
-import { ReviewedAction } from './review-actions';
+import { useReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { documentSelectionState } from '../store';
@@ -65,30 +63,24 @@ export function ReviewFileScreen({
       description="Return to Review and select a worktree and changed file."
     />
   );
+  if (!path) return <Screen layout="fixed">{changed}</Screen>;
   return (
-    <>
-      <Stack.Screen
-        options={{ title: path?.split('/').at(-1) ?? 'Changed file' }}
-      />
+    <DocumentScreen path={path}>
       <WorkspaceGate
         title="Review"
         expectedWorkspace={workspaceKey ?? ''}
         changed={changed}
       >
-        {(workspace) =>
-          path ? (
-            <ReviewFileContent
-              key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
-              workspace={workspace}
-              path={path}
-              comparison={comparison}
-            />
-          ) : (
-            changed
-          )
-        }
+        {(workspace) => (
+          <ReviewFileContent
+            key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
+            workspace={workspace}
+            path={path}
+            comparison={comparison}
+          />
+        )}
       </WorkspaceGate>
-    </>
+    </DocumentScreen>
   );
 }
 
@@ -96,8 +88,6 @@ type ReviewFileContentProps = {
   workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
-  inlineComments?: boolean | undefined;
-  leaveScope?: string | undefined;
 };
 
 function ReviewFileContent(props: ReviewFileContentProps) {
@@ -109,21 +99,9 @@ function FocusedReviewFileContent({
   workspace,
   path,
   comparison,
-  inlineComments = false,
-  leaveScope,
 }: ReviewFileContentProps) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
-  const [comparisonScope, setComparisonScope] = useAtom(
-    reviewFileScope(
-      JSON.stringify([workspace.key, reviewFileDocumentKey(path, comparison)]),
-    ),
-  );
-  const target = documentReviewTarget(
-    AsyncResult.isSuccess(result) ? result.value : undefined,
-    path,
-    comparisonScope,
-  );
-  const content = (codeSelection?: DocumentCodeSelection) => (
+  return (
     <Box className="flex-1" surface="background">
       {AsyncResult.isSuccess(result) ? (
         <ReviewedFile
@@ -131,28 +109,11 @@ function FocusedReviewFileContent({
           snapshot={result.value}
           path={path}
           comparison={comparison}
-          inlineComments={inlineComments}
-          codeSelection={codeSelection}
-          comparisonScope={comparisonScope}
-          onComparisonScopeChange={setComparisonScope}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
       )}
     </Box>
-  );
-  return inlineComments ? (
-    <DocumentComments
-      workspace={workspace}
-      path={path}
-      document={reviewFileDocumentKey(path, comparison)}
-      target={target}
-      leaveScope={leaveScope}
-    >
-      {(codeSelection) => content(codeSelection)}
-    </DocumentComments>
-  ) : (
-    content()
   );
 }
 
@@ -161,19 +122,11 @@ function ReviewedFile({
   snapshot,
   path,
   comparison,
-  inlineComments,
-  codeSelection,
-  comparisonScope,
-  onComparisonScopeChange,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   path: string;
   comparison: ReviewComparison;
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
-  comparisonScope?: string | undefined;
-  onComparisonScopeChange: (scope: string) => void;
 }) {
   const marks = useReviewMarks(workspace, snapshot);
   if (!AsyncResult.isSuccess(marks.result))
@@ -189,45 +142,149 @@ function ReviewedFile({
       />
     );
   return (
+    <ChangedFile
+      workspace={workspace}
+      snapshot={snapshot}
+      file={file}
+      comparison={comparison}
+    />
+  );
+}
+
+function ChangedFile({
+  workspace,
+  snapshot,
+  file,
+  comparison,
+}: {
+  workspace: Workspace;
+  snapshot: ReviewSnapshot;
+  file: ReviewFile;
+  comparison: ReviewComparison;
+}) {
+  const router = useRouter();
+  const documentKey = reviewFileDocumentKey(file.path, comparison);
+  const [comparisonScope, setComparisonScope] = useAtom(
+    reviewFileScope(JSON.stringify([workspace.key, documentKey])),
+  );
+  const changes =
+    snapshot.kind === 'worktree'
+      ? (snapshot.answer.changes.find((entry) => entry.path === file.path)
+          ?.comparisons ?? [])
+      : [];
+  const change =
+    changes.find((entry) => entry.scope === comparisonScope) ?? changes[0];
+  const target = documentReviewTarget(snapshot, file.path, change?.scope);
+  const [selected, setSelected] = useAtom(
+    documentSelectionState({
+      environmentId: workspace.connection.environmentId,
+      ...workspace.scope,
+      document: documentKey,
+      comparison: target?.comparison,
+    }),
+  );
+  const selection = selected?.range;
+  const anchor = documentCommentAnchor(selected?.target ?? target, selection);
+  const stale =
+    anchor &&
+    target &&
+    (commentIsStale(anchor, target) || !matchesCommentTarget(anchor, target));
+  const reviewed = useReviewedAction(workspace, snapshot, file);
+  const actions: DocumentAction[] = [
+    ...(reviewed.action ? [reviewed.action] : []),
+    {
+      kind: 'button',
+      id: 'comment',
+      label: selection ? 'Comment on selected lines' : 'Comment on file',
+      icon: 'comment',
+      disabled: !anchor,
+      onPress: () => {
+        if (anchor)
+          router.navigate({
+            pathname: '/review-comments',
+            params: {
+              ...reviewParams(workspace.key, comparison),
+              path: anchor.filePath,
+              anchor: JSON.stringify(anchor),
+              compose: 'true',
+            },
+          });
+      },
+    },
+    ...(selection
+      ? [
+          {
+            kind: 'button' as const,
+            id: 'clear-selection',
+            label: 'Clear selection',
+            icon: 'clearSelection' as const,
+            onPress: () => setSelected(undefined),
+          },
+        ]
+      : []),
+    ...(changes.length > 1
+      ? [
+          {
+            kind: 'choice' as const,
+            id: 'comparison',
+            label: `Comparison: ${change?.scope ?? 'None'}`,
+            icon: 'comparison' as const,
+            choices: changes.map((entry) => ({
+              label: entry.scope,
+              selected: entry.scope === change?.scope,
+              onPress: () => setComparisonScope(entry.scope),
+            })),
+          },
+        ]
+      : []),
+  ];
+  const fileProps = {
+    workspace,
+    file,
+    comparison,
+    target,
+    codeSelection: {
+      selection,
+      onSelect: target
+        ? (range: ReviewRange) => setSelected({ range, target })
+        : undefined,
+    },
+  };
+  return (
     <View className="flex-1">
-      <FileHeader
-        path={path}
-        documentToolbar={inlineComments}
-        status={file.note}
-        reviewed={file.reviewStatus === 'reviewed'}
-        actions={
-          <ReviewedAction
-            workspace={workspace}
-            snapshot={snapshot}
-            file={file}
-          />
-        }
+      <DocumentHeader
+        path={file.path}
+        details={[file.note, reviewStatusDetail(file.reviewStatus)]}
+        actions={actions}
       />
-      {snapshot.kind === 'worktree' ? (
-        <WorktreeFile
-          workspace={workspace}
+      {reviewed.notice}
+      {stale ? (
+        <Box paddingX={4} paddingY={2}>
+          <Text variant="caption" tone="muted">
+            Code changed since selection. Clear it and select the current saved
+            code to update the target.
+          </Text>
+        </Box>
+      ) : null}
+      {snapshot.kind === 'branch' ? (
+        <BranchFile {...fileProps} snapshot={snapshot} />
+      ) : null}
+      {snapshot.kind === 'worktree' && change ? (
+        <WorktreeComparison
+          key={change.scope}
+          {...fileProps}
           snapshot={snapshot}
-          file={file}
-          comparison={comparison}
-          inlineComments={inlineComments}
-          codeSelection={codeSelection}
-          comparisonScope={comparisonScope}
-          onComparisonScopeChange={onComparisonScopeChange}
+          change={change}
         />
-      ) : (
-        <BranchFile
-          workspace={workspace}
-          snapshot={snapshot}
-          file={file}
-          comparison={comparison}
-          inlineComments={inlineComments}
-          codeSelection={codeSelection}
-          comparisonScope={comparisonScope}
-          onComparisonScopeChange={onComparisonScopeChange}
-        />
-      )}
+      ) : null}
     </View>
   );
+}
+
+function reviewStatusDetail(status: ReviewFile['reviewStatus']) {
+  if (status === 'reviewed') return 'Reviewed';
+  if (status === 'stale') return 'Changed since review';
+  return undefined;
 }
 
 type FileProps = {
@@ -235,38 +292,9 @@ type FileProps = {
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
-  comparisonScope?: string | undefined;
-  onComparisonScopeChange?: ((scope: string) => void) | undefined;
+  target: CommentTarget | undefined;
+  codeSelection: DocumentCodeSelection;
 };
-
-function WorktreeFile(
-  props: FileProps & {
-    snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }>;
-  },
-) {
-  const changes =
-    props.snapshot.answer.changes.find((file) => file.path === props.file.path)
-      ?.comparisons ?? [];
-  const change =
-    changes.find((entry) => entry.scope === props.comparisonScope) ??
-    changes[0];
-  return (
-    <View className="flex-1">
-      {changes.length > 1 ? (
-        <ChangeComparisonMenu
-          current={change?.scope}
-          scopes={changes.map((entry) => entry.scope)}
-          onScope={(scope) => props.onComparisonScopeChange?.(scope)}
-        />
-      ) : null}
-      {change ? (
-        <WorktreeComparison key={change.scope} {...props} change={change} />
-      ) : null}
-    </View>
-  );
-}
 
 function WorktreeComparison(
   props: FileProps & {
@@ -293,18 +321,13 @@ function WorktreeComparison(
   return <WorktreeDiff {...props} change={change} />;
 }
 
-function WorktreeDiff({
-  workspace,
-  snapshot,
-  file,
-  comparison,
-  inlineComments,
-  codeSelection,
-  change,
-}: FileProps & {
-  snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }>;
-  change: Change;
-}) {
+function WorktreeDiff(
+  props: FileProps & {
+    snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }>;
+    change: Change;
+  },
+) {
+  const { workspace, snapshot, file, change } = props;
   const selection = diffSelection(change);
   const query = readChangeDiffWindow({
     connection: workspace.connection,
@@ -319,35 +342,21 @@ function WorktreeDiff({
   const refresh = useAtomRefresh(query);
   if (!AsyncResult.isSuccess(window.result))
     return <ReviewReadState result={window.result} refresh={refresh} />;
-  const content = selection
-    ? window.result.value.get(selectionKey(selection))
-    : undefined;
-  return content ? (
+  return (
     <DiffContentView
-      content={content}
-      path={file.path}
-      workspace={workspace}
-      comparison={comparison}
-      inlineComments={inlineComments}
-      codeSelection={codeSelection}
-      target={commentTarget(snapshot, file, selection?.scope)}
-    />
-  ) : (
-    <Empty
-      title="Diff unavailable"
-      description="This comparison did not return a diff. Return to Review and choose the current change."
+      {...props}
+      content={
+        selection ? window.result.value.get(selectionKey(selection)) : undefined
+      }
+      missing="This comparison did not return a diff. Return to Review and choose the current change."
     />
   );
 }
 
-function BranchFile({
-  workspace,
-  snapshot,
-  file,
-  comparison,
-  inlineComments,
-  codeSelection,
-}: FileProps & { snapshot: Extract<ReviewSnapshot, { kind: 'branch' }> }) {
+function BranchFile(
+  props: FileProps & { snapshot: Extract<ReviewSnapshot, { kind: 'branch' }> },
+) {
+  const { snapshot, file } = props;
   const entry = snapshot.answer.files.find((item) => item.path === file.path);
   if (!entry || !snapshot.answer.mergeBaseOid)
     return (
@@ -358,12 +367,7 @@ function BranchFile({
     );
   return (
     <BranchDiff
-      workspace={workspace}
-      snapshot={snapshot}
-      file={file}
-      comparison={comparison}
-      inlineComments={inlineComments}
-      codeSelection={codeSelection}
+      {...props}
       paths={commitPaths(entry)}
       baseOid={snapshot.answer.mergeBaseOid}
     />
@@ -371,19 +375,15 @@ function BranchFile({
 }
 
 function BranchDiff({
-  workspace,
-  snapshot,
-  file,
-  comparison,
-  inlineComments,
-  codeSelection,
   paths,
   baseOid,
+  ...props
 }: FileProps & {
   snapshot: Extract<ReviewSnapshot, { kind: 'branch' }>;
   paths: string[];
   baseOid: string;
 }) {
+  const { workspace, snapshot } = props;
   const query = readBranchDiffs({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -393,33 +393,17 @@ function BranchDiff({
   const refresh = useAtomRefresh(query);
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;
-  const content = result.value.diffs[0]?.content;
-  return content ? (
+  return (
     <DiffContentView
-      content={content}
-      path={file.path}
-      workspace={workspace}
-      comparison={comparison}
-      inlineComments={inlineComments}
-      codeSelection={codeSelection}
-      target={commentTarget(snapshot, file)}
-    />
-  ) : (
-    <Empty
-      title="Diff unavailable"
-      description="This comparison did not return a diff."
+      {...props}
+      content={result.value.diffs[0]?.content}
+      missing="This comparison did not return a diff."
     />
   );
 }
 
-function UntrackedFile({
-  workspace,
-  snapshot,
-  file,
-  comparison,
-  inlineComments,
-  codeSelection,
-}: FileProps & { snapshot: Extract<ReviewSnapshot, { kind: 'worktree' }> }) {
+function UntrackedFile(props: FileProps) {
+  const { workspace, file } = props;
   const query = readTextFile({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -430,58 +414,28 @@ function UntrackedFile({
   if (!AsyncResult.isSuccess(result))
     return <ReviewReadState result={result} refresh={refresh} />;
   if ('kind' in result.value)
-    return (
-      <View className="flex-1">
-        <FileCommentAction
-          workspace={workspace}
-          comparison={comparison}
-          inlineComments={inlineComments}
-          target={commentTarget(snapshot, file, 'untracked')}
-        />
-        <Empty title="File unavailable" description={result.value.reason} />
-      </View>
-    );
-  return (
-    <SelectableContent
-      path={file.path}
-      workspace={workspace}
-      comparison={comparison}
-      inlineComments={inlineComments}
-      codeSelection={codeSelection}
-      target={commentTarget(snapshot, file, 'untracked')}
-      source={result.value.text}
-    />
-  );
+    return <Empty title="File unavailable" description={result.value.reason} />;
+  return <SelectableContent {...props} source={result.value.text} />;
 }
 
 function DiffContentView({
   content,
+  missing,
   ...props
-}: {
-  content: DiffContent;
-  path: string;
-  workspace: Workspace;
-  comparison: ReviewComparison;
-  target?: CommentTarget | undefined;
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
-}) {
+}: FileProps & { content: DiffContent | undefined; missing: string }) {
   const { preferences } = usePreferences();
+  if (!content) return <Empty title="Diff unavailable" description={missing} />;
   const presentation = diffPresentation(content);
   if (presentation.kind === 'notice')
     return (
-      <View className="flex-1">
-        <FileCommentAction {...props} />
-        <Empty
-          title={presentation.title}
-          description={presentation.description}
-        />
-      </View>
+      <Empty
+        title={presentation.title}
+        description={presentation.description}
+      />
     );
   if (presentation.kind === 'metadata')
     return (
       <View className="flex-1">
-        <FileCommentAction {...props} />
         <Text variant="caption" tone="muted">
           Metadata only · no text lines changed
         </Text>
@@ -497,160 +451,38 @@ function DiffContentView({
 
 function SelectableContent({
   workspace,
+  file,
   comparison,
   target,
   source,
   lines,
-  inlineComments,
   codeSelection,
-  path,
-}: {
-  workspace: Workspace;
-  path: string;
-  comparison: ReviewComparison;
-  target?: CommentTarget | undefined;
+}: FileProps & {
   source?: string;
   lines?: Parameters<typeof DiffView>[0]['lines'];
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
 }) {
   const { preferences } = usePreferences();
-  const document = reviewFileDocumentKey(path, comparison);
   const reading = useDocumentReadingLine(
     workspace.key,
-    JSON.stringify([document, target?.comparison]),
+    JSON.stringify([
+      reviewFileDocumentKey(file.path, comparison),
+      target?.comparison,
+    ]),
     target?.contentFingerprint ?? source ?? '',
   );
-  const [selected, setSelected] = useAtom(
-    documentSelectionState({
-      environmentId: workspace.connection.environmentId,
-      ...workspace.scope,
-      document,
-      comparison: target?.comparison,
-    }),
-  );
-  const selection = selected?.range;
-  const select = target
-    ? (range: ReviewRange) => setSelected({ range, target })
-    : undefined;
-  const anchor = documentCommentAnchor(selected?.target ?? target, selection);
-  const stale =
-    anchor &&
-    target &&
-    (commentIsStale(anchor, target) || !matchesCommentTarget(anchor, target));
-  if (inlineComments)
-    return lines ? (
-      <DiffView
-        {...reading}
-        lines={lines}
-        wrap={preferences.lineOverflow === 'wrap'}
-        {...codeSelection}
-      />
-    ) : (
-      <CodeView
-        {...reading}
-        source={source ?? ''}
-        wrap={preferences.lineOverflow === 'wrap'}
-        {...codeSelection}
-      />
-    );
-  return (
-    <View className="flex-1">
-      <Box className="flex-row items-center" gap={2} paddingX={4} paddingY={2}>
-        <CommentAction
-          workspace={workspace}
-          comparison={comparison}
-          anchor={anchor ?? undefined}
-          label={selection ? 'Comment on selected lines' : 'Comment on file'}
-        />
-        {selection ? (
-          <Button
-            label="Clear selection"
-            variant="plain"
-            onPress={() => setSelected(undefined)}
-          />
-        ) : null}
-      </Box>
-      {stale ? (
-        <Box paddingX={4} paddingY={2}>
-          <Text variant="caption" tone="muted">
-            Code changed since selection. Clear it and select the current saved
-            code to update the target.
-          </Text>
-        </Box>
-      ) : null}
-      {lines ? (
-        <DiffView
-          {...reading}
-          lines={lines}
-          wrap={preferences.lineOverflow === 'wrap'}
-          selection={selection}
-          onSelect={select}
-        />
-      ) : (
-        <CodeView
-          {...reading}
-          source={source ?? ''}
-          wrap={preferences.lineOverflow === 'wrap'}
-          selection={selection}
-          onSelect={select}
-        />
-      )}
-    </View>
-  );
-}
-
-function FileCommentAction({
-  target,
-  inlineComments,
-  ...props
-}: {
-  workspace: Workspace;
-  comparison: ReviewComparison;
-  target?: CommentTarget | undefined;
-  inlineComments?: boolean | undefined;
-}) {
-  if (inlineComments) return null;
-  return (
-    <Box paddingX={4} paddingY={2}>
-      <CommentAction
-        {...props}
-        anchor={target ? { ...target, kind: 'file' } : undefined}
-        label="Comment on file"
-      />
-    </Box>
-  );
-}
-
-function CommentAction({
-  workspace,
-  comparison,
-  anchor,
-  label,
-}: {
-  workspace: Workspace;
-  comparison: ReviewComparison;
-  anchor?: CommentAnchor | undefined;
-  label: string;
-}) {
-  const router = useRouter();
-  return (
-    <Button
-      label={label}
-      variant="tonal"
-      disabled={!anchor}
-      onPress={() => {
-        if (anchor)
-          router.navigate({
-            pathname: '/review-comments',
-            params: {
-              ...reviewParams(workspace.key, comparison),
-              ...(anchor.kind === 'change' ? {} : { path: anchor.filePath }),
-              anchor: JSON.stringify(anchor),
-              compose: 'true',
-            },
-          });
-      }}
+  return lines ? (
+    <DiffView
+      {...reading}
+      lines={lines}
+      wrap={preferences.lineOverflow === 'wrap'}
+      {...codeSelection}
+    />
+  ) : (
+    <CodeView
+      {...reading}
+      source={source ?? ''}
+      wrap={preferences.lineOverflow === 'wrap'}
+      {...codeSelection}
     />
   );
 }

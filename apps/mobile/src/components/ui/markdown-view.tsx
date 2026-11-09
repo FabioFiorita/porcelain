@@ -14,35 +14,57 @@ const NativeMarkdown = requireNativeView<{
   onLink: (event: NativeSyntheticEvent<{ url: string }>) => void;
   style: { flex: number };
 }>('PorcelainRenderer', 'MarkdownSurface');
+export type MarkdownMode = 'reader' | 'source';
+
+export function markdownModeToggle(mode: MarkdownMode) {
+  return mode === 'source'
+    ? { label: 'Show rendered', mode: 'reader' as const }
+    : { label: 'Show source', mode: 'source' as const };
+}
+
 export function MarkdownView({
-  source,
-  onLink,
   initialMode = 'reader',
-  wrap = true,
-  selection,
-  onSelect,
-}: {
-  source: string;
-  onLink?: (url: string) => void;
-  initialMode?: 'reader' | 'source';
-  wrap?: boolean;
-  selection?: ReviewRange | undefined;
-  onSelect?: ((range: ReviewRange) => void) | undefined;
-}) {
-  const data = JSON.stringify(parseMarkdown(source));
-  const tokens = useRenderTokens();
-  const [raw, setRaw] = useState(initialMode === 'source');
+  ...props
+}: Omit<MarkdownContentProps, 'mode'> & { initialMode?: MarkdownMode }) {
+  const [mode, setMode] = useState(initialMode);
+  const toggle = markdownModeToggle(mode);
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row justify-end border-b border-border p-2">
         <Button
-          label={raw ? 'Show rendered' : 'Show source'}
+          label={toggle.label}
           size="sm"
           variant="plain"
-          onPress={() => setRaw(!raw)}
+          onPress={() => setMode(toggle.mode)}
         />
       </View>
-      {raw ? (
+      <MarkdownContent {...props} mode={mode} />
+    </View>
+  );
+}
+
+type MarkdownContentProps = {
+  source: string;
+  mode: MarkdownMode;
+  onLink?: ((url: string) => void) | undefined;
+  wrap?: boolean;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
+};
+
+export function MarkdownContent({
+  source,
+  mode,
+  onLink,
+  wrap = true,
+  selection,
+  onSelect,
+}: MarkdownContentProps) {
+  const data = JSON.stringify(parseMarkdown(source));
+  const tokens = useRenderTokens();
+  return (
+    <View className="flex-1 bg-background">
+      {mode === 'source' ? (
         <CodeView
           source={source}
           language="markdown"

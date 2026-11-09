@@ -9,4 +9,15 @@ export type HeaderIconName =
   | 'compareParent'
   | 'add'
   | 'resolve'
-  | 'reopen';
+  | 'reopen'
+  | 'timeline'
+  | 'comments'
+  | 'hideComments'
+  | 'comment'
+  | 'clearSelection'
+  | 'markReviewed'
+  | 'unmarkReviewed'
+  | 'comparison'
+  | 'showSource'
+  | 'showRendered'
+  | 'more';

@@ -2,6 +2,8 @@
 screen: /file
 selectors:
   - 'Show source'
+  - 'Timeline'
+  - 'More actions'
   - 'Workspace changed'
   - 'Comments'
   - 'Clear selection'
@@ -26,11 +28,13 @@ Files opens read-only source, document and image previews for the selected workt
 
 ## Driving it with agent-device
 
+The native top bar is the only header: it shows the file name with its folder and status on a smaller second line, and its right side holds the document actions as icons named by their accessibility labels. When more than three actions apply, the first two stay visible and the rest sit under More actions. On iOS the bar is opaque, content starts below it and nothing is drawn under the status bar; no second row of path or buttons sits beneath it.
+
 Preconditions: [surface baseline](README.md).
 
-1. In Settings → General, choose Documents open as → Source. Open Markdown and HTML from Files/search: both start in Source. Choose Rendered and reopen: Markdown starts in Reader and HTML in Preview; code stays source in both cases. Open code, a raster image and a small SVG from Files/search. Expect filename/path and content; SVG shows literal source. Binary, oversized, symlink, submodule and unavailable files explain why unavailable without following disk links. Return by Back/swipe.
+1. In Settings → General, choose Documents open as → Source. Open Markdown and HTML from Files/search: both start in Source. Choose Rendered and reopen: Markdown starts in Reader and HTML in Preview; code stays source in both cases. Open code, a raster image and a small SVG from Files/search. Expect the file name as the title, its folder beneath it and the content below the bar; Show source / Show rendered (HTML: Show preview) is a top-bar action; SVG shows literal source. Binary, oversized, symlink, submodule and unavailable files explain why unavailable without following disk links. Return by Back/swipe.
 2. Switch workspace with a file open (select another worktree from the Worktrees tab while the file stays in another stack). The old route says Workspace changed and never displays another worktree's content.
-3. From the compact path toolbar tap a source line, another to extend, Clear selection and reselect. Post/cancel through Comments with code visible. Read source fingerprint/range independently. Native Back guards unsent drafts.
+3. Tap a source line, another to extend, then Clear selection from the top bar (under More actions when four actions apply) and reselect. Post/cancel through the Comments top-bar action with code visible; Timeline opens the file timeline. Read source fingerprint/range independently. Native Back guards unsent drafts.
 4. General → Long lines → Scroll. Open text with a short first line and longer later line; drag horizontally and release: position stays within content, without springing to the start. Scroll vertically to another long line; horizontal range must not depend on the first visible row. Rotate the tablet between landscape and portrait and repeat. Wrap reflows within current width.
 5. Repeat scrolling/wrapping on Review and History diffs with gutters, merge parents, styled tokens, Unicode and tabs.
 6. Seed a disposable `wide/` folder with 2,001 visible entries, including a small `target.txt` and decodable `target.png`. Confirm that listing `wide/` is refused while the individual text and asset reads succeed. Search for each exact path and open it, then repeat from a saved pin and a direct file link without expanding the folder. Expect content and native Back to the entry surface despite the directory limit. Repeat with a normal-size parent and an empty text file. Remove the target or replace it with a symlink, directory or submodule: reopen and expect the server's not-found or refusal reason, never the linked contents. Restore a regular file and retry; content recovers. Repeat light and dark.
