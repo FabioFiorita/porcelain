@@ -8,9 +8,10 @@ import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { LIMITS } from '../../config/limits.ts';
 import { githubEvidenceReaderLayer } from './github-evidence-reader.ts';
 
-const source = 'https://github.com/user-attachments/assets/screenshot';
+const source =
+  'https://github.com/user-attachments/assets/f52cbae9-dae7-4fa4-8905-9ef69d8718c0';
 const image =
-  'https://private-user-images.githubusercontent.com/screenshot.png';
+  'https://github-production-user-asset-6210df.s3.amazonaws.com/49520710/699206213-f52cbae9-dae7-4fa4-8905-9ef69d8718c0.png?X-Amz-Signature=fixture';
 const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const job: WalkthroughJob = {
   run: {
@@ -113,6 +114,9 @@ it.each([
   'https://private-user-images.githubusercontent.com.evil.example/private.png',
   'http://private-user-images.githubusercontent.com/private.png',
   'https://github.com/other/private.png',
+  'https://unrelated.s3.amazonaws.com/private.png',
+  'https://github-production-user-asset-6210df.s3.amazonaws.com.evil.example/private.png',
+  'https://github-production-user-asset-6210df.evil.example/private.png',
 ])(
   'refuses a redirect outside the image allowlist: %s',
   async (destination) => {

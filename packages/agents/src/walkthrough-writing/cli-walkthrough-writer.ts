@@ -68,6 +68,26 @@ export const cliWalkthroughWriterLayer = (options: {
                 )
                 .join('\n'),
             );
+            const command = options.command ?? input.run.writer.provider;
+            const codexConfigArgs = [
+              '-c',
+              'features.hooks=false',
+              '--disable',
+              'plugins',
+              '--disable',
+              'apps',
+              '--disable',
+              'multi_agent',
+            ];
+            const env = {
+              ...process.env,
+              GIT_NO_LAZY_FETCH: '1',
+              GIT_CONFIG_COUNT: '2',
+              GIT_CONFIG_KEY_0: 'core.hooksPath',
+              GIT_CONFIG_VALUE_0: '/dev/null',
+              GIT_CONFIG_KEY_1: 'core.fsmonitor',
+              GIT_CONFIG_VALUE_1: 'false',
+            };
             let sessionId = input.run.sessionId ?? randomUUID();
             let costUsd: number | undefined = undefined;
             let answer: unknown;
@@ -117,16 +137,8 @@ export const cliWalkthroughWriterLayer = (options: {
                   ? ['exec', '--sandbox', 'read-only']
                   : ['exec', 'resume', '-c', 'sandbox_mode="read-only"'];
               codexArgs.push(
-                '-c',
-                'features.hooks=false',
-                '--ignore-user-config',
+                ...codexConfigArgs,
                 '--ignore-rules',
-                '--disable',
-                'plugins',
-                '--disable',
-                'apps',
-                '--disable',
-                'multi_agent',
                 '--json',
                 '--model',
                 input.run.writer.model,
@@ -135,6 +147,64 @@ export const cliWalkthroughWriterLayer = (options: {
                 '--output-last-message',
                 answerPath,
               );
+              if (input.run.writer.provider === 'codex') {
+                const mcpOverrides: string[] = [];
+                for (let check = 0; check < 2; check++) {
+                  const servers = yield* runProvider({
+                    command,
+                    args: [
+                      'mcp',
+                      'list',
+                      '--json',
+                      ...codexConfigArgs,
+                      ...mcpOverrides,
+                    ],
+                    cwd: input.worktreePath,
+                    env,
+                    prompt: '',
+                    maxBytes: 4 * 1024 * 1024,
+                    timeoutMs: Math.min(options.deadlineMs ?? 10000, 10000),
+                    processGroup: options.processGroup,
+                  }).pipe(
+                    Effect.provideService(
+                      ChildProcessSpawner.ChildProcessSpawner,
+                      spawner,
+                    ),
+                    Effect.flatMap(
+                      Schema.decodeUnknownEffect(
+                        Schema.fromJsonString(
+                          Schema.Array(
+                            Schema.Struct({
+                              name: Schema.String,
+                              enabled: Schema.Boolean,
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Effect.mapError((error) =>
+                      failure(
+                        error._tag === 'ProviderProcessFailedError' &&
+                          error.cause !== undefined
+                          ? 'agent_not_installed'
+                          : 'other',
+                        'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
+                      ),
+                    ),
+                  );
+                  if (check === 0)
+                    mcpOverrides.push(
+                      '-c',
+                      `mcp_servers={${servers.map((server) => `${JSON.stringify(server.name)}={enabled=false}`).join(',')}}`,
+                    );
+                  else if (servers.some((server) => server.enabled))
+                    return yield* failure(
+                      'other',
+                      'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
+                    );
+                }
+                codexArgs.push(...mcpOverrides);
+              }
               if (pass === 1) codexArgs.push(sessionId);
               codexArgs.push('-');
               if (pass === 1)
@@ -142,21 +212,13 @@ export const cliWalkthroughWriterLayer = (options: {
               if (input.run.writer.provider === 'claude')
                 yield* input.recordSession(sessionId);
               const output = yield* runProvider({
-                command: options.command ?? input.run.writer.provider,
+                command,
                 args:
                   input.run.writer.provider === 'claude'
                     ? claudeArgs
                     : codexArgs,
                 cwd: input.worktreePath,
-                env: {
-                  ...process.env,
-                  GIT_NO_LAZY_FETCH: '1',
-                  GIT_CONFIG_COUNT: '2',
-                  GIT_CONFIG_KEY_0: 'core.hooksPath',
-                  GIT_CONFIG_VALUE_0: '/dev/null',
-                  GIT_CONFIG_KEY_1: 'core.fsmonitor',
-                  GIT_CONFIG_VALUE_1: 'false',
-                },
+                env,
                 prompt: pass === 0 ? prompts.first : prompts.second,
                 maxBytes: 4 * 1024 * 1024,
                 timeoutMs: options.deadlineMs ?? 20 * 60 * 1000,

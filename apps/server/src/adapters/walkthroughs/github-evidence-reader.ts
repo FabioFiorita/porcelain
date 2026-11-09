@@ -17,6 +17,7 @@ function allowedImageUrl(url: URL): boolean {
     [
       'private-user-images.githubusercontent.com',
       'user-images.githubusercontent.com',
+      'github-production-user-asset-6210df.s3.amazonaws.com',
       'github.com',
     ].includes(url.hostname) &&
     (url.hostname !== 'github.com' ||

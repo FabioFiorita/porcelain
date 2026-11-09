@@ -1,9 +1,9 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
 import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
 import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { cliWalkthroughWriterLayer } from './cli-walkthrough-writer.ts';
@@ -184,7 +184,7 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
     onTestFinished,
   );
   const result = await test.result({ provider: 'codex', model: 'gpt-5.5' });
@@ -199,16 +199,12 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   expect(calls).toContain('features.hooks=false');
   expect(calls).toContain('codex-session');
 });
-it('ignores inherited Codex MCP configuration and disables plugin and app tools on both passes', async ({
+it('disables every effective Codex MCP server on each pass, including system and managed configuration', async ({
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); process.env.CODEX_HOME=process.cwd(); const config = fs.readFileSync(process.env.CODEX_HOME+'/config.toml','utf8'); fs.appendFileSync('calls',JSON.stringify({args,config})+'\\n'); const answer=JSON.stringify(args.includes('resume') ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:answer}}));`,
+    `const fs=require('fs'); const args=process.argv.slice(2); const prompt=fs.readFileSync(0,'utf8'); fs.appendFileSync('calls',JSON.stringify({args,prompt})+'\\n'); if(args[0]==='mcp'){const override=args.find(arg=>arg.startsWith('mcp_servers='));let names;if(override){names=JSON.parse(fs.readFileSync('names','utf8'))}else{const second=fs.existsSync('listed');fs.writeFileSync('listed','yes');names=['user-inherited',second?'managed.layer':'system-inherited'];fs.writeFileSync('names',JSON.stringify(names))}const expected='mcp_servers={'+names.map(name=>JSON.stringify(name)+'={enabled=false}').join(',')+'}';console.log(JSON.stringify(names.map(name=>({name,enabled:override!==expected}))));process.exit(0)} const pass=args.includes('resume');const expected='mcp_servers={"user-inherited"={enabled=false},'+JSON.stringify(pass?'managed.layer':'system-inherited')+'={enabled=false}}';if(!args.includes(expected)){process.stderr.write('Inherited MCP servers remain enabled');process.exit(1)} const answer=JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]});fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer);console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
     onTestFinished,
-  );
-  await writeFile(
-    join(test.folder, 'config.toml'),
-    '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
   );
   expect(
     await test.result({ provider: 'codex', model: 'gpt-5.5' }),
@@ -221,39 +217,84 @@ it('ignores inherited Codex MCP configuration and disables plugin and app tools 
         Schema.fromJsonString(
           Schema.Struct({
             args: Schema.Array(Schema.String),
-            config: Schema.String,
+            prompt: Schema.String,
           }),
         ),
       )(line),
     );
-  expect(calls).toHaveLength(2);
+  expect(calls.map(({ args }) => args.slice(0, 2))).toEqual([
+    ['mcp', 'list'],
+    ['mcp', 'list'],
+    ['exec', '--sandbox'],
+    ['mcp', 'list'],
+    ['mcp', 'list'],
+    ['exec', 'resume'],
+  ]);
   expect(
-    calls.map(({ args, config }) => ({
-      config,
-      ignoreUser: args.includes('--ignore-user-config'),
-      ignoreRules: args.includes('--ignore-rules'),
-      hooksDisabled: args.includes('features.hooks=false'),
-      disabled: args.filter((_, index) => args[index - 1] === '--disable'),
-    })),
+    calls.filter(({ args }) => args[0] === 'mcp').map(({ prompt }) => prompt),
+  ).toEqual(['', '', '', '']);
+  expect(
+    calls
+      .filter(({ args }) => args[0] === 'exec')
+      .map(({ args }) => ({
+        ignoreRules: args.includes('--ignore-rules'),
+        hooksDisabled: args.includes('features.hooks=false'),
+        disabled: args.filter((_, index) => args[index - 1] === '--disable'),
+        servers: args
+          .filter((_, index) => args[index - 1] === '-c')
+          .filter((value) => value.startsWith('mcp_servers=')),
+      })),
   ).toEqual([
     {
-      config:
-        '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
-      ignoreUser: true,
       ignoreRules: true,
       hooksDisabled: true,
       disabled: ['plugins', 'apps', 'multi_agent'],
+      servers: [
+        'mcp_servers={"user-inherited"={enabled=false},"system-inherited"={enabled=false}}',
+      ],
     },
     {
-      config:
-        '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
-      ignoreUser: true,
       ignoreRules: true,
       hooksDisabled: true,
       disabled: ['plugins', 'apps', 'multi_agent'],
+      servers: [
+        'mcp_servers={"user-inherited"={enabled=false},"managed.layer"={enabled=false}}',
+      ],
     },
   ]);
 });
+it.each([
+  {
+    name: 'failed command',
+    script:
+      "process.stderr.write('Configuration could not be read');process.exit(1)",
+  },
+  { name: 'invalid JSON', script: "console.log('not JSON')" },
+  { name: 'invalid server list', script: "console.log('[{}]')" },
+  {
+    name: 'managed server that remains enabled',
+    script: 'console.log(\'[{"name":"required","enabled":true}]\')',
+  },
+])(
+  'starts no writer when Codex MCP discovery returns $name',
+  async ({ script }) => {
+    const test = await fixture(
+      `const fs=require('fs');if(process.argv[2]==='mcp'){${script}}else{fs.writeFileSync('agent-started','yes')}`,
+      onTestFinished,
+    );
+    expect(
+      await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+    ).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        kind: 'other',
+        message:
+          'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
+      },
+    });
+    expect(await readdir(test.folder)).not.toContain('agent-started');
+  },
+);
 it('surfaces a missing executable as agent not installed', async ({
   onTestFinished,
 }) => {
