@@ -92,51 +92,25 @@ jobs:
           restore-keys: turbo-units-${{ runner.os }}-
       - run: pnpm exec turbo run test --affected --concurrency=1 --continue
 
-  package-build:
+  package:
     needs: affected
     if: ${{ needs.affected.outputs.package == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24.20.0', '26.13.0']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
-          runtime: node@26.13.0
+          runtime: node@${{ matrix.node }}
           cache: true
           save-cache: false
           require-lockfile: true
       - run: pnpm build:package
-      - name: Pack, install and run the release package on Node 26
-        run: |
-          VERSION=$(node -p "require('./package.json').version") bash scripts/check-package.sh
-      - name: Preserve the distribution for runtime compatibility checks
-        run: tar -czf "$RUNNER_TEMP/package.tar.gz" dist-porcelain
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: release-package
-          path: ${{ runner.temp }}/package.tar.gz
-          if-no-files-found: error
-          retention-days: 1
-
-  package:
-    needs: [affected, package-build]
-    if: ${{ needs.affected.outputs.package == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
-        with:
-          runtime: node@24.20.0
-          install: false
-          require-lockfile: true
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: release-package
-          path: ${{ runner.temp }}/release-package
-      - name: Unpack the distribution built on Node 26
-        run: tar -xzf "$RUNNER_TEMP/release-package/package.tar.gz"
-      - name: Pack, install and run the release package on Node 24
+      - name: Pack, install and run the release package
         run: |
           VERSION=$(node -p "require('./package.json').version") bash scripts/check-package.sh
 
@@ -297,7 +271,6 @@ jobs:
         affected,
         static,
         units,
-        package-build,
         package,
         server-integration,
         web-integration,
@@ -312,7 +285,6 @@ jobs:
         run: |
           if ! jq -e -n --argjson needs "$NEEDS" '
             {
-              "package-build": "package",
               "package": "package",
               "server-integration": "server",
               "web-integration": "web-integration",

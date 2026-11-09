@@ -140,7 +140,7 @@
         ".*/*/package.json",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
-        ".github/workflows/ci.yml",
+        ".github/workflows/*.yml",
         "turbo.json",
         "apps/server/spec/kit/route-coverage.ts",
         "apps/server/src/ports/lane-options.ts",

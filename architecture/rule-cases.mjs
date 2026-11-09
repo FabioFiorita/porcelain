@@ -6200,6 +6200,13 @@ export const guardrailCases = [
         selected: [],
         rules: true,
       },
+      ...['release.yml', 'agent-review.yml'].map((name) => ({
+        name: `${name} selects its workflow guard fixtures`,
+        path: `.github/workflows/${name}`,
+        source: 'name: CI fixture',
+        selected: ['package'],
+        rules: true,
+      })),
       {
         name: 'web view leaves rules cached',
         rules: false,
@@ -6377,7 +6384,7 @@ export const guardrailCases = [
           'affected',
           'static',
           'units',
-          'package-build',
+          'package',
           'server-integration',
           'web-integration',
           'web-e2e',
@@ -6385,17 +6392,24 @@ export const guardrailCases = [
           'desktop-e2e',
         ],
         filtered: [],
-        runtime: ['package'],
+        runtime: [],
       },
       'agent-review.yml': { full: [], filtered: ['review'], runtime: [] },
       'explain-failure.yml': { full: [], filtered: ['explain'], runtime: [] },
       'release-notes.yml': { full: [], filtered: ['notes'], runtime: [] },
-      'release.yml': { full: ['mac', 'npm'], filtered: [], runtime: [] },
+      'release.yml': {
+        full: ['mac', 'npm-package'],
+        filtered: [],
+        runtime: [],
+      },
     },
   },
   {
-    rule: 'ci-package-artifact',
-    versions: ['24.20.0', '26.13.0'],
+    rule: 'ci-release-preparation',
+    cases: [
+      { name: 'unpublished version', published: false, publishes: true },
+      { name: 'already published version', published: true, publishes: false },
+    ],
   },
   {
     rule: 'ci-required-checks',
@@ -6403,7 +6417,7 @@ export const guardrailCases = [
     dependencyStoreReaders: [
       'affected',
       'static',
-      'package-build',
+      'package',
       'server-integration',
       'web-integration',
       'web-e2e',
@@ -6431,7 +6445,6 @@ export const guardrailCases = [
       },
       static: { result: 'success' },
       units: { result: 'success' },
-      'package-build': { result: 'success' },
       package: { result: 'success' },
       'server-integration': { result: 'success' },
       'web-integration': { result: 'success' },
@@ -6440,7 +6453,6 @@ export const guardrailCases = [
       'desktop-e2e': { result: 'success' },
     },
     optional: [
-      ['package-build', 'package'],
       ['package', 'package'],
       ['server-integration', 'server'],
       ['web-integration', 'web-integration'],
@@ -6454,7 +6466,6 @@ export const guardrailCases = [
         status: 0,
       },
       ...[
-        ['package-build', 'package'],
         ['package', 'package'],
         ['server-integration', 'server'],
         ['web-integration', 'web-integration'],
@@ -6519,7 +6530,6 @@ export const guardrailCases = [
         'affected',
         'static',
         'units',
-        'package-build',
         'package',
         'server-integration',
         'web-integration',
@@ -6538,7 +6548,6 @@ export const guardrailCases = [
       {
         name: 'nothing selected',
         results: {
-          'package-build': 'skipped',
           package: 'skipped',
           'server-integration': 'skipped',
           'web-integration': 'skipped',

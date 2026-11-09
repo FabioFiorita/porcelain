@@ -2,14 +2,15 @@ import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for([
-  { renamed: 'a.md', clipped: false },
+  { name: 'short name', renamed: 'a.md', clipped: false },
   {
+    name: 'clipped name',
     renamed:
       'a-very-long-renamed-document-with-a-complete-name-that-must-stay-readable-in-the-discarded-menu.md',
     clipped: true,
   },
 ])(
-  'one Escape closes the discarded rename menu for $renamed and returns focus to Git actions',
+  'one Escape closes the discarded rename menu ($name)',
   async ({ renamed, clipped }, { render, repo }) => {
     const original = 'original-document.md';
     await repo.write(original, 'A document to rename\n');
@@ -53,6 +54,13 @@ test.for([
     await expect.element(opener).toHaveFocus();
     await opener.click();
     await restore.click();
+    await expect
+      .element(
+        app.page.getByText(`Restored the discarded rename of ${renamed}`, {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
     await expect.poll(() => repo.read(renamed)).toBe('A document to rename\n');
   },
 );

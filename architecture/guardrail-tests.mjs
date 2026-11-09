@@ -701,77 +701,138 @@ export async function runGuardrailCases(named = []) {
         }
         process.stdout.write(`PASS ci-dependency-installation: ${file}\n`);
       }
-    } else if (entry.rule === 'ci-package-artifact') {
+    } else if (entry.rule === 'ci-release-preparation') {
       const workflow = parse(
         readFileSync(
-          new URL('../.github/workflows/ci.yml', import.meta.url),
+          new URL('../.github/workflows/release.yml', import.meta.url),
           'utf8',
         ),
       );
-      const producer = workflow.jobs['package-build'];
-      const consumer = workflow.jobs.package;
-      strictEqual(producer.needs, 'affected');
-      strictEqual(producer.strategy, undefined);
+      const prepare = workflow.jobs['npm-package'];
+      const publish = workflow.jobs.npm;
       strictEqual(
-        producer.steps.find((step) => step.uses?.startsWith('pnpm/setup@')).with
-          .runtime,
-        'node@26.13.0',
+        prepare.needs,
+        'version',
+        'Package preparation overlaps the independent Mac build',
       );
-      deepStrictEqual(
-        Object.entries(workflow.jobs).flatMap(([name, job]) =>
-          (job.steps ?? [])
-            .filter((step) => step.run === 'pnpm build:package')
-            .map(() => name),
-        ),
-        ['package-build'],
+      deepStrictEqual(workflow.jobs.release.needs, ['version', 'mac']);
+      deepStrictEqual(publish.needs, ['version', 'release', 'npm-package']);
+      deepStrictEqual(workflow.jobs['npm-check'].needs, ['version', 'npm']);
+      for (const job of [prepare, publish, workflow.jobs['npm-check']])
+        strictEqual(job.if, "${{ needs.version.outputs.publish == 'true' }}");
+      strictEqual(prepare.permissions?.['id-token'], undefined);
+      strictEqual(publish.permissions['id-token'], 'write');
+      const build = prepare.steps.findIndex(
+        (step) => step.run === 'pnpm build:package',
       );
-      strictEqual(
-        producer.steps.find((step) => step.run?.startsWith('tar -czf'))?.run,
-        'tar -czf "$RUNNER_TEMP/package.tar.gz" dist-porcelain',
+      const checked = prepare.steps.findIndex(
+        (step) => step.run === 'bash scripts/check-package.sh',
       );
-      const upload = producer.steps.find((step) =>
+      const upload = prepare.steps.findIndex((step) =>
         step.uses?.startsWith('actions/upload-artifact@'),
-      ).with;
-      strictEqual(upload.name, 'release-package');
-      strictEqual(upload.path, '${{ runner.temp }}/package.tar.gz');
-      strictEqual(upload['if-no-files-found'], 'error');
-      deepStrictEqual(consumer.needs, ['affected', 'package-build']);
-      strictEqual(consumer.strategy, undefined);
-      deepStrictEqual(
-        [
-          consumer.steps.find((step) => step.uses?.startsWith('pnpm/setup@'))
-            .with.runtime,
-          producer.steps.find((step) => step.uses?.startsWith('pnpm/setup@'))
-            .with.runtime,
-        ],
-        entry.versions.map((version) => `node@${version}`),
+      );
+      strictEqual(build >= 0 && checked > build && upload > checked, true);
+      strictEqual(
+        prepare.steps[checked].env.VERSION,
+        '${{ needs.version.outputs.version }}',
       );
       strictEqual(
-        producer.steps.find((step) =>
-          step.run?.includes('bash scripts/check-package.sh'),
-        )?.run,
-        consumer.steps.find((step) =>
-          step.run?.includes('bash scripts/check-package.sh'),
-        )?.run,
+        prepare.steps[checked].env.PACKAGE_TARBALL_DIRECTORY,
+        '${{ runner.temp }}/checked-package',
       );
-      const download = consumer.steps.find((step) =>
+      strictEqual(
+        prepare.steps[upload].with.path,
+        '${{ steps.package.outputs.tarball }}',
+      );
+      strictEqual(prepare.steps[upload].with['if-no-files-found'], 'error');
+      strictEqual(
+        prepare.outputs.filename,
+        '${{ steps.package-file.outputs.filename }}',
+      );
+      const filename = prepare.steps.find((step) => step.id === 'package-file');
+      strictEqual(filename.env.TARBALL, '${{ steps.package.outputs.tarball }}');
+      strictEqual(
+        filename.run,
+        'printf \'filename=%s\\n\' "$(basename "$TARBALL")" >> "$GITHUB_OUTPUT"',
+      );
+      const download = publish.steps.find((step) =>
         step.uses?.startsWith('actions/download-artifact@'),
       ).with;
-      strictEqual(download.name, upload.name);
-      strictEqual(download.path, '${{ runner.temp }}/release-package');
+      strictEqual(download.name, prepare.steps[upload].with.name);
+      strictEqual(download.path, '${{ runner.temp }}/checked-package');
       strictEqual(
-        consumer.steps.find((step) => step.run?.startsWith('tar -xzf'))?.run,
-        'tar -xzf "$RUNNER_TEMP/release-package/package.tar.gz"',
+        publish.steps.some(
+          (step) =>
+            step.run?.includes('build:package') ||
+            step.run?.includes('npm pack'),
+        ),
+        false,
+      );
+      for (const job of [prepare, workflow.jobs.mac])
+        strictEqual(
+          job.steps.find((step) =>
+            step.uses?.startsWith('actions/upload-artifact@'),
+          ).with['compression-level'],
+          0,
+        );
+      const publication = publish.steps.find(
+        (step) => step.name === 'Publish with npm trusted publishing',
       );
       strictEqual(
-        consumer.steps.find((step) =>
-          step.run?.includes('bash scripts/check-package.sh'),
-        )?.run,
-        'VERSION=$(node -p "require(\'./package.json\').version") bash scripts/check-package.sh\n',
+        publication.env.VERSION,
+        '${{ needs.version.outputs.version }}',
       );
-      process.stdout.write(
-        'PASS ci-package-artifact: build once, check both runtimes\n',
+      strictEqual(
+        publication.env.TARBALL,
+        '${{ runner.temp }}/checked-package/${{ needs.npm-package.outputs.filename }}',
       );
+      const root = fixtureRoot('porcelain-release-publication-');
+      try {
+        const executable = join(root, 'bin', 'npm');
+        writeFiles(root, {
+          'bin/npm':
+            '#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\nif [ "$1" = view ]; then exit "$PUBLISHED"; fi\nif [ "$1" = publish ] && [ -f "$2" ]; then exit 0; fi\nexit 9\n',
+        });
+        chmodSync(executable, 0o755);
+        const tarball = join(root, 'checked-package.tgz');
+        writeFileSync(tarball, 'checked artifact');
+        for (const fixture of entry.cases) {
+          const calls = join(root, 'calls');
+          rmSync(calls, { force: true });
+          const result = spawnSync(
+            'bash',
+            ['-e', '-o', 'pipefail', '-c', publication.run],
+            {
+              cwd: root,
+              encoding: 'utf8',
+              env: {
+                ...process.env,
+                PATH: `${join(root, 'bin')}:${process.env.PATH}`,
+                CALLS: calls,
+                PUBLISHED: fixture.published ? '0' : '1',
+                VERSION: '1.2.3',
+                TARBALL: tarball,
+              },
+            },
+          );
+          strictEqual(result.status, 0, result.stdout + result.stderr);
+          deepStrictEqual(
+            readFileSync(calls, 'utf8').trim().split('\n'),
+            [
+              'view --prefer-online @fabiofiorita/porcelain@1.2.3 version',
+              ...(fixture.publishes
+                ? [`publish ${tarball} --provenance --access public`]
+                : []),
+            ],
+            fixture.name,
+          );
+          process.stdout.write(
+            `PASS ci-release-preparation: ${fixture.name}\n`,
+          );
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(
@@ -813,7 +874,7 @@ export async function runGuardrailCases(named = []) {
       );
       for (const { name, setup } of installs) {
         strictEqual(setup['require-lockfile'], true, name);
-        strictEqual(setup.install ?? true, name !== 'package', name);
+        strictEqual(setup.install ?? true, true, name);
         strictEqual(setup['working-directory'] ?? '.', '.', name);
         strictEqual(setup['package-json-file'], undefined, name);
       }

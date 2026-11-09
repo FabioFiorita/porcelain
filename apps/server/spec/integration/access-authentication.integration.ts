@@ -1,4 +1,6 @@
 import { expect } from 'vitest';
+import { PorcelainClientApi } from '@porcelain/contracts/shared';
+import { HttpApi } from 'effect/http-api';
 import { unauthenticated, UNKNOWN_UUID, unknownOid } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
@@ -14,8 +16,6 @@ const unpairedRoutes = new Set([
   'POST /api/live/tickets',
   'POST /api/pair',
 ]);
-
-const PAIRED_ROUTES = 100;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -70,7 +70,13 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
     const before = await inventory(session);
     const routes = pairedRoutes(server.routes);
     const answers = [];
-    expect(routes).toHaveLength(PAIRED_ROUTES);
+    const declared: string[] = [];
+    HttpApi.reflect(PorcelainClientApi, {
+      onGroup: () => undefined,
+      onEndpoint: ({ endpoint }) =>
+        declared.push(`${endpoint.method} ${endpoint.path}`),
+    });
+    expect(routes.toSorted()).toEqual(pairedRoutes(declared).toSorted());
     expect(routes).toEqual(
       expect.arrayContaining([
         'POST /api/access/management-permission',
