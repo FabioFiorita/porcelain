@@ -3,6 +3,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
+import { Toml } from 'effect/encoding';
 import { ChildProcessSpawner } from 'effect/process';
 import { runProvider } from '../commit-planning/commands/run-provider.ts';
 import { readBoundedText } from '../commit-planning/commands/read-bounded-text.ts';
@@ -124,6 +125,31 @@ export const cliWalkthroughWriterLayer = (options: {
               GIT_CONFIG_KEY_1: 'core.fsmonitor',
               GIT_CONFIG_VALUE_1: 'false',
             };
+            if (input.run.writer.provider === 'codex') {
+              const credentialsStore = yield* fs
+                .readFileString(join(env.CODEX_HOME, 'config.toml'))
+                .pipe(
+                  Effect.flatMap((text) => Effect.fromResult(Toml.parse(text))),
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Struct({
+                        cli_auth_credentials_store: Schema.Literals([
+                          'file',
+                          'keyring',
+                          'auto',
+                        ]),
+                      }),
+                    ),
+                  ),
+                  Effect.map((config) => config.cli_auth_credentials_store),
+                  Effect.catch(() => Effect.succeed(undefined)),
+                );
+              if (credentialsStore !== undefined)
+                codexConfigArgs.push(
+                  '-c',
+                  `cli_auth_credentials_store=${JSON.stringify(credentialsStore)}`,
+                );
+            }
             let sessionId = input.run.sessionId ?? randomUUID();
             let costUsd: number | undefined = undefined;
             let answer: unknown;

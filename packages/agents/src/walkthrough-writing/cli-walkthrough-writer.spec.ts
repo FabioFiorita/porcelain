@@ -202,6 +202,68 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   expect(calls).toContain('features.hooks=false');
   expect(calls).toContain('codex-session');
 });
+it.each([
+  { configured: 'keyring', expected: ['cli_auth_credentials_store="keyring"'] },
+  { configured: 'file', expected: ['cli_auth_credentials_store="file"'] },
+  { configured: 'auto', expected: ['cli_auth_credentials_store="auto"'] },
+  { configured: 'invalid', expected: [] },
+])(
+  'carries only a valid Codex credential store into both isolated passes: $configured',
+  async ({ configured, expected }) => {
+    const test = await fixture(
+      `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log('[]');process.exit(0)}fs.appendFileSync('calls',JSON.stringify({args})+'\\n');const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+      onTestFinished,
+    );
+    const previous = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = test.folder;
+    onTestFinished(() => {
+      if (previous === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = previous;
+    });
+    await writeFile(
+      join(test.folder, 'config.toml'),
+      `cli_auth_credentials_store = '${configured}'\nnotify = ["inherited-notifier"]\n[profiles.unused]\ncli_auth_credentials_store = "file"\n`,
+    );
+    expect(
+      await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+    ).toMatchObject({ _tag: 'Success' });
+    const calls = (await readFile(join(test.folder, 'calls'), 'utf8'))
+      .trim()
+      .split('\n')
+      .map(
+        (line) =>
+          Schema.decodeUnknownSync(
+            Schema.fromJsonString(
+              Schema.Struct({ args: Schema.Array(Schema.String) }),
+            ),
+          )(line).args,
+      );
+    expect(
+      calls.map((args) => ({
+        store: args.filter((arg) =>
+          arg.startsWith('cli_auth_credentials_store='),
+        ),
+        isolated: args.includes('--ignore-user-config'),
+        notifierDisabled: args.includes('notify=[]'),
+        inheritedNotifier: args.includes('inherited-notifier'),
+      })),
+    ).toEqual([
+      {
+        store: expected,
+        isolated: true,
+        notifierDisabled: true,
+        inheritedNotifier: false,
+      },
+      {
+        store: expected,
+        isolated: true,
+        notifierDisabled: true,
+        inheritedNotifier: false,
+      },
+    ]);
+    expect(test.sessions).toEqual(['codex-session', 'codex-session']);
+  },
+);
 it('disables every effective Codex MCP server on each pass, including system and managed configuration', async ({
   onTestFinished,
 }) => {
