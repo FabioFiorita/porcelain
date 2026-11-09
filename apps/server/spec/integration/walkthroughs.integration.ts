@@ -1,3 +1,11 @@
+import { DatabaseSync } from 'node:sqlite';
+import { join } from 'node:path';
+import type {
+  WalkthroughJob,
+  WalkthroughRun,
+} from '@porcelain/walkthroughs/models';
+import { apiError } from '../kit/answers.ts';
+import { handlerCoverage } from '../kit/route-coverage.ts';
 import { expect } from 'vitest';
 import { Schema } from 'effect';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
@@ -44,4 +52,145 @@ test('reads the latest attempt and reports when its pinned head is out of date',
   );
   expect(returned.outOfDate).toBe(true);
   expect(returned.walkthrough?.id).toBe(text(updated.id));
+});
+
+test('serves stored evidence bytes for a finished walkthrough and refuses assets outside the requested run', async ({
+  session,
+  server,
+}) => {
+  await session.writeFile('evidence-fixture.txt', 'First evidence state.\n');
+  await session.git('add', 'evidence-fixture.txt');
+  await session.git('commit', '-m', 'Prepare first evidence state');
+  const firstHead = (await session.git('rev-parse', 'HEAD')).trim();
+  await session.git('branch', 'walkthrough-evidence-base');
+  await session.writeFile('evidence-fixture.txt', 'Second evidence state.\n');
+  await session.git('add', 'evidence-fixture.txt');
+  await session.git('commit', '-m', 'Prepare second evidence state');
+  const secondHead = (await session.git('rev-parse', 'HEAD')).trim();
+  const firstId = 'finished-evidence-one';
+  const secondId = 'finished-evidence-two';
+  const bytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWZkAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const run: WalkthroughRun = {
+    id: firstId,
+    projectId: session.projectId,
+    worktreeId: session.worktreeId,
+    baseOid: firstHead,
+    headOid: firstHead,
+    writer: { provider: 'claude', model: 'fixture' },
+    createdAt: '2026-11-09T00:00:00.000Z',
+    state: {
+      status: 'ready',
+      writtenAt: '2026-11-09T00:00:00.000Z',
+      durationMs: 1,
+      content: {
+        outcome: 'nothing',
+        title: 'Finished evidence fixture',
+        summary: 'A completed walkthrough.',
+        growth: [],
+        stops: [],
+        onlyInTranscript: [],
+        stillUnclear: [],
+      },
+    },
+  };
+  const job: WalkthroughJob = {
+    run,
+    worktreePath: session.repository,
+    files: [],
+  };
+  const other: WalkthroughJob = {
+    ...job,
+    run: { ...run, id: secondId, headOid: secondHead },
+  };
+  const database = new DatabaseSync(
+    join(
+      session.projectHome,
+      session.fixture.folders.state,
+      'inventory.sqlite',
+    ),
+  );
+  try {
+    const insert = database.prepare(
+      'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
+    );
+    insert.run(
+      firstId,
+      session.worktreeId,
+      firstHead,
+      'ready',
+      JSON.stringify(job),
+    );
+    insert.run(
+      secondId,
+      session.worktreeId,
+      secondHead,
+      'ready',
+      JSON.stringify(other),
+    );
+    database
+      .prepare(
+        'INSERT INTO walkthrough_evidence (run_id, asset_id, media_type, caption, bytes) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(firstId, 'first-image', 'image/png', 'Existing screenshot', bytes);
+  } finally {
+    database.close();
+  }
+  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+  const accepted = await read(session, {
+    method: 'POST',
+    path,
+    body: { base: 'refs/heads/walkthrough-evidence-base' },
+  });
+  expect(accepted.id).toBe(secondId);
+  const finished = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+    await read(session, { method: 'GET', path }),
+  );
+  expect(finished.walkthrough?.state.status).toBe('ready');
+  expect(finished.walkthrough?.id).toBe(secondId);
+  const response = await fetch(
+    `${session.address}${path}/${firstId}/assets/first-image`,
+    {
+      headers: {
+        authorization: `Bearer ${server.credential}`,
+        origin: session.address,
+      },
+    },
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get('content-type')).toBe('image/png');
+  expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+  const elsewhere = await session.send({
+    method: 'GET',
+    path: `${path}/${secondId}/assets/first-image`,
+  });
+  expect(elsewhere.status).toBe(404);
+  expect(elsewhere.headers['content-type']).toContain('application/json');
+  expect(elsewhere.body).toEqual(
+    apiError(404, 'Not Found', 'Walkthrough evidence asset not found'),
+  );
+  const missing = await session.send({
+    method: 'GET',
+    path: `${path}/${firstId}/assets/missing-image`,
+  });
+  expect(missing.status).toBe(404);
+  expect(missing.body).toEqual(
+    apiError(404, 'Not Found', 'Walkthrough evidence asset not found'),
+  );
+  const registered = server.routes.filter((route) =>
+    route.includes('/walkthrough'),
+  );
+  expect(registered.toSorted()).toEqual([
+    'GET /api/worktrees/:worktreeId/walkthrough',
+    'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
+    'POST /api/worktrees/:worktreeId/walkthrough',
+  ]);
+  const requested = await server.requestedRoutes();
+  expect(() =>
+    handlerCoverage([
+      { registered, requested, registeredTools: [], invokedTools: [] },
+    ]),
+  ).not.toThrow();
 });

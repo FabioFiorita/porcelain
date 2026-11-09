@@ -39,11 +39,9 @@ export function walkthroughsRoutes(useCases: {
           ({ params }) =>
             useCases.asset.execute(params).pipe(
               Effect.map((asset) =>
-                asset
-                  ? HttpServerResponse.uint8Array(asset.bytes, {
-                      contentType: asset.mediaType,
-                    })
-                  : HttpServerResponse.empty({ status: 404 }),
+                HttpServerResponse.uint8Array(asset.bytes, {
+                  contentType: asset.mediaType,
+                }),
               ),
             ),
           { uninterruptible: false },

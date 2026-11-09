@@ -5,7 +5,10 @@ import {
   walkthroughContentSchema as domainContentSchema,
   writerSchema,
 } from '@porcelain/walkthroughs/models';
-import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
+import {
+  WalkthroughFailedError,
+  WalkthroughAssetNotFoundError,
+} from '@porcelain/walkthroughs/errors';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { porcelainApi } from '../shared/http-api.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
@@ -107,7 +110,10 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: walkthroughAssetParamsSchema,
           success: Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array()),
-          error: [...worktreeFailures],
+          error: [
+            ...worktreeFailures,
+            httpFailure(WalkthroughAssetNotFoundError, 'NotFound'),
+          ],
         },
       ),
     )
