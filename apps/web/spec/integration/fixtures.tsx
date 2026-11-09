@@ -561,6 +561,7 @@ export const test = base
   })
   .extend('refChips', () => refChips)
   .extend('reviewLayout', () => reviewLayout)
+  .extend('collectGarbage', () => () => host.porcelainCollectGarbage())
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
     onCleanup(() => gate.restore());

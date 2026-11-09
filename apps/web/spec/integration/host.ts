@@ -185,7 +185,11 @@ const porcelainReplaceEditorContent: BrowserCommand<[string, string], void> = (
   text,
 ) => replaceEditorContent(context.iframe.locator(selector), text);
 
+const porcelainCollectGarbage: BrowserCommand<[], void> = (context) =>
+  context.page.requestGC();
+
 export const hostCommands = {
+  porcelainCollectGarbage,
   porcelainReplaceEditorContent,
   porcelainStart,
   porcelainStop,
