@@ -6,7 +6,6 @@ selectors:
   - 'Read again'
   - 'Review'
   - 'Select a worktree'
-  - 'worktree-review'
   - 'No changes'
   - 'Changed files'
   - 'review-comments'
@@ -70,7 +69,7 @@ Review is the overview of the selected worktree: the agent's published briefing 
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → Review (`worktree-review`) on the [Worktree](projects.worktree.md) screen.
+- Worktrees tab → worktree → Changes in the [Worktree](projects.worktree.md) page's segmented control.
 - `porcelain.dev://review` for the selected worktree; Reviews remains the default launch destination.
 
 ## Driving it with agent-device
@@ -80,8 +79,8 @@ Preconditions: [surface baseline](README.md). Use the [bounded document gesture]
 1. With no worktree (`porcelain.dev://review`) expect Select a worktree with Choose a worktree in Worktrees to continue to Review. Pair/select the focused sample in Worktrees, open Review; expect Review README.md. Open it, then Back returns. Comments → Close (iOS sheet X, Android Back) returns to the same screen. The opaque header keeps content from sliding under it on iOS 26.
 2. Expect a visible, naturally sized Uncommitted menu beside the Changed files heading, below the walkthrough. An ordinary tap opens the menu on Android and iOS; dismiss with Back/outside and reopen. Choose Branch, an explicit local/remote base, then Uncommitted: every choice closes the menu, the Branch trigger names its actual base, and the file set matches that comparison. Long base names/many choices and larger text must remain reachable without horizontal page overflow. Check tablets in landscape and portrait. Open a changed file: it captures that comparison. Switch worktrees/back: each restores its comparison.
 3. A cold base read says Reading branches; an in-flight refresh says Refreshing branches while retaining available choices. Uncommitted and default Branch remain available. A successful empty list says No base branches available; a refused read says Base branches could not be read and offers Read branches again. For refusal proof, keep the workspace selected and refuse only GET /api/worktrees/:worktreeId/branch-bases in the disposable transport; record the injection used. Restore that read and select Read branches again: the choices recover. Moving .git tests workspace availability instead and does not prove this isolated retry. Do not interpret an error as an empty list.
-4. Scroll a many-file list, open a diff and return: same comparison and list offset. Go back to the Worktree screen, open Files or History and return, then another worktree and back. Added/untracked dots are green, modified amber, deleted red, renamed blue; accessible rows are named `Review <full path>, <change type>, <comparison note>, <review state>`. Reviewed names have strikethrough; unreviewed/changed-since-review names remain normal. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes. Closed/hidden navigators release their live reads; returning performs a fresh read without losing comparison/place.
-5. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again. Open Files from the Worktree screen and back, then cold-launch through Metro: selected workspace stays.
+4. Scroll a many-file list, open a diff and return: same comparison and list offset. Switch to Files or History in the Worktree page and return, then another worktree and back. Added/untracked dots are green, modified amber, deleted red, renamed blue; accessible rows are named `Review <full path>, <change type>, <comparison note>, <review state>`. Reviewed names have strikethrough; unreviewed/changed-since-review names remain normal. Independently change content: live list/marks update, prior fingerprint becomes Changed since review, clean worktree says No changes. Closed/hidden navigators release their live reads; returning performs a fresh read without losing comparison/place.
+5. Stop/revoke the fixture: error/unavailable state permits no old-workspace writes. Recover through Read again. Switch to Files in the Worktree page and back, then cold-launch through Metro: selected workspace stays.
 
 ### Overview and walkthrough
 
@@ -117,7 +116,7 @@ Automated coverage: `workspace-selection.spec.ts`, `pointer-source.spec.ts`, `pu
 
 ### Published progress versus live comparisons
 
-Publish a committed eight-file review with one unrelated uncommitted file. The workspace walkthrough, bottom Continue/decision bar and Worktree screen Review progress must use the same selected revision files and durable marks, including removed files. Mark its first decision and independently read every owned published blob mark followed by its decision mark; no worktree reviewed-file write occurs. Commit or dirty the checkout without republishing: publication progress stays the same. Publish changed excerpt bytes: changed decision becomes unfinished, unchanged marks remain readable. Not explained and Specs render the selected revision diffs and durable file controls; live Uncommitted/Branch changed-file lists retain their separate comparison controls and marks. Respect the computer's Spec files setting for ownership allocation. Failed/pending reads never appear complete; a partial refused write retains successful marks without advancing. Leave the view before a delayed successful write: persistence completes but navigation stays where the reader went. Retained linked screens remain read-only.
+Publish a committed eight-file review with one unrelated uncommitted file. The workspace walkthrough, bottom Continue/decision bar and Worktree page Changes must use the same selected revision files and durable marks, including removed files. Mark its first decision and independently read every owned published blob mark followed by its decision mark; no worktree reviewed-file write occurs. Commit or dirty the checkout without republishing: publication progress stays the same. Publish changed excerpt bytes: changed decision becomes unfinished, unchanged marks remain readable. Not explained and Specs render the selected revision diffs and durable file controls; live Uncommitted/Branch changed-file lists retain their separate comparison controls and marks. Respect the computer's Spec files setting for ownership allocation. Failed/pending reads never appear complete; a partial refused write retains successful marks without advancing. Leave the view before a delayed successful write: persistence completes but navigation stays where the reader went. Retained linked screens remain read-only.
 
 ## Optional handoff fields
 

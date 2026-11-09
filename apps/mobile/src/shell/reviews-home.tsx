@@ -1,8 +1,3 @@
-import {
-  LinkedReviewPane as SavedReviewPane,
-  CurrentWorkspaceReview,
-  WorkspacePublishedOverview,
-} from '../features/reviews/index';
 import { useAtomValue } from '@effect/atom-react';
 import { Empty } from '../components/ui/empty';
 import { ListDetail } from '../components/ui/list-detail';
@@ -12,7 +7,7 @@ import {
   type OpenedReview,
 } from '../features/projects/index';
 import { LinkedReviewPane } from '../features/reviews/index';
-import { ReviewPane } from '../features/workspace/index';
+import { WorkspaceReviewPane } from './workspace-review-pane';
 
 export function ReviewsHome() {
   const review = useAtomValue(openedReview);
@@ -34,10 +29,7 @@ function ReviewDetail({ review }: { review: OpenedReview | undefined }) {
     );
   if (review.workspace)
     return (
-      <ReviewPane
-        linkedReview={SavedReviewPane}
-        currentReview={CurrentWorkspaceReview}
-        publishedOverview={WorkspacePublishedOverview}
+      <WorkspaceReviewPane
         key={`${review.environmentId}:${review.reviewId}`}
         workspace={review.workspace}
         review={review}

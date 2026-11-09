@@ -15,6 +15,7 @@ import {
 } from '../../shared/application/store';
 
 import { Atom, AtomRef } from 'effect/reactivity';
+import type { WorktreeSection } from './rules/worktree-section';
 
 export function useProjectSelection() {
   return useAtomRef(selectionState);
@@ -112,9 +113,14 @@ export type WorktreeDetails = {
   projectId: string;
   worktreeId: string;
   review: string;
+  opening: WorktreeSection;
   reviewId?: string | undefined;
   number?: string | undefined;
 };
+
+export const worktreeSection = Atom.family((_workspace: string) =>
+  Atom.make<WorktreeSection | undefined>(undefined).pipe(Atom.keepAlive),
+);
 
 export const openedWorktree = Atom.make<WorktreeDetails | undefined>(
   undefined,

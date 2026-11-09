@@ -5,6 +5,7 @@ import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { useFileNavigation } from '../store';
 import { Stack, useIsFocused, useRouter } from 'expo-router';
+import type { SearchBarCommands } from 'react-native-screens';
 import { Alert } from 'react-native';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -40,13 +41,13 @@ import { useFilePreferences } from '../queries/file-preferences';
 import { useSetFilePreference } from '../commands/file-preferences';
 import { pinnedNavigationRows } from '../rules/file-navigation';
 
+export type FilesSearchPlacement = 'top-bar' | 'content';
+
 export function FilesScreen({
-  onOpen,
-  onOpenTimeline,
+  search,
   workspace,
 }: {
-  onOpen: (path: string, workspace: string) => void;
-  onOpenTimeline: (path: string, workspace: string) => void;
+  search: FilesSearchPlacement;
   workspace?: string | undefined;
 }) {
   return (
@@ -64,18 +65,29 @@ export function FilesScreen({
         <FilesNavigation
           key={selected.key}
           selected={selected}
-          onOpen={onOpen}
-          onOpenTimeline={onOpenTimeline}
+          search={search}
         />
       )}
     </WorkspaceGate>
   );
 }
 
+function restoringSearchBar(query: string) {
+  let bar: SearchBarCommands | null = null;
+  return {
+    get current() {
+      return bar;
+    },
+    set current(next: SearchBarCommands | null) {
+      bar = next;
+      if (query) next?.setText(query);
+    },
+  };
+}
+
 type FilesNavigationProps = {
   selected: Workspace;
-  onOpen: (path: string, workspace: string) => void;
-  onOpenTimeline: (path: string, workspace: string) => void;
+  search: FilesSearchPlacement;
 };
 
 function FilesNavigation(props: FilesNavigationProps) {
@@ -85,11 +97,7 @@ function FilesNavigation(props: FilesNavigationProps) {
   ) : null;
 }
 
-function FilesNavigationView({
-  selected,
-  onOpen,
-  onOpenTimeline,
-}: FilesNavigationProps) {
+function FilesNavigationView({ selected, search }: FilesNavigationProps) {
   const review = useFileReview(selected, { kind: 'worktree' });
   const preferences = {
     read: useFilePreferences(selected.connection, selected.scope.projectId),
@@ -134,6 +142,7 @@ function FilesNavigationView({
       ],
     );
   const [refreshRequested, setRefreshRequested] = useState(false);
+  const [searchBar] = useState(() => restoringSearchBar(query));
   const preferenceData = Option.getOrUndefined(
     AsyncResult.value(preferences.read.result),
   );
@@ -175,7 +184,10 @@ function FilesNavigationView({
   const searching = Boolean(query.trim());
   const open = (path: string) => {
     setSelectedPath(path);
-    onOpen(path, selected.key);
+    router.push({
+      pathname: '/file',
+      params: { path, workspace: selected.key },
+    });
   };
   const nodes = mergeFileTreeEntries(data);
   const preferenceEntries = filePreferenceEntries({
@@ -226,7 +238,10 @@ function FilesNavigationView({
             open(path);
             break;
           case 'timeline':
-            onOpenTimeline(path, selected.key);
+            router.push({
+              pathname: '/timeline',
+              params: { path, workspace: selected.key },
+            });
             break;
           case 'rename':
             openAction({ kind: 'move', path });
@@ -244,33 +259,39 @@ function FilesNavigationView({
       },
     }));
   };
+  const collapseAll = (
+    <IconButton
+      icon="collapse"
+      accessibilityLabel={
+        searching ? 'Clear search and collapse all' : 'Collapse all'
+      }
+      onPress={() => {
+        setQuery('');
+        searchBar.current?.setText('');
+        setExpanded(new Set());
+      }}
+    />
+  );
   const header = (
     <Box gap={2} paddingY={2}>
-      <Box className="flex-row items-center" gap={2}>
-        <Box className="min-w-0 flex-1">
-          <Input
-            accessibilityLabel="Search files"
-            placeholder="Search files"
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => {
-              if (knownPath) open(knownPath);
-            }}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+      {search === 'content' ? (
+        <Box className="flex-row items-center" gap={2}>
+          <Box className="min-w-0 flex-1">
+            <Input
+              accessibilityLabel="Search files"
+              placeholder="Search files"
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={() => {
+                if (knownPath) open(knownPath);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </Box>
+          {collapseAll}
         </Box>
-        <IconButton
-          icon="collapse"
-          accessibilityLabel={
-            searching ? 'Clear search and collapse all' : 'Collapse all'
-          }
-          onPress={() => {
-            setQuery('');
-            setExpanded(new Set());
-          }}
-        />
-      </Box>
+      ) : null}
       {knownPath ? (
         <ButtonSurface
           variant="tonal"
@@ -305,6 +326,7 @@ function FilesNavigationView({
             </Text>
           </ButtonSurface>
         ) : null}
+        {search === 'top-bar' ? collapseAll : null}
       </Box>
       {review.unavailable ? (
         <ErrorState
@@ -433,6 +455,19 @@ function FilesNavigationView({
         if (view) reconcileDirectories(confirmed);
       }}
     >
+      {search === 'top-bar' ? (
+        <Stack.SearchBar
+          ref={searchBar}
+          placeholder="Search files"
+          autoCapitalize="none"
+          hideWhenScrolling={false}
+          onChangeText={(event) => setQuery(event.nativeEvent.text)}
+          onCancelButtonPress={() => setQuery('')}
+          onSearchButtonPress={() => {
+            if (knownPath) open(knownPath);
+          }}
+        />
+      ) : null}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={headerIcon('add')}

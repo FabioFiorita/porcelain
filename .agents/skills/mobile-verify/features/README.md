@@ -58,7 +58,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
 - [projects.archive-review](projects.archive-review.md) — Archive a merged or closed review from its pull request.
 - [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.
-- [projects.worktree](projects.worktree.md) — A selected worktree's Review, Files, History and pull request.
+- [projects.worktree](projects.worktree.md) — A selected worktree's Changes, Files and History under one native segmented control.
 - [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
 - [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.

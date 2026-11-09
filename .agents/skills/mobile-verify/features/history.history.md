@@ -6,7 +6,6 @@ selectors:
   - 'Read again'
   - 'History'
   - 'Select a worktree'
-  - 'worktree-history'
   - 'No commits yet'
   - "Couldn't load history"
   - 'No upstream'
@@ -30,7 +29,7 @@ History is read-only. It shows the selected branch's ahead/behind counts against
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → History (`worktree-history`), or `porcelain.dev://history` for the selected worktree.
+- Worktrees tab → worktree → History in the [Worktree](projects.worktree.md) page's segmented control, or `porcelain.dev://history` for the selected worktree.
 
 ## Driving it with agent-device
 

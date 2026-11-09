@@ -5,6 +5,7 @@ export type { OpenedReview } from './store';
 export { ReviewInbox } from './views/review-inbox';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeScreen, WorktreeDetail } from './views/worktree-screen';
+export type { WorktreeSectionContent } from './views/worktree-screen';
 
 export { useOpenPullRequest } from './views/open-pull-request';
 export { PullRequestArchive } from './views/archive-review';

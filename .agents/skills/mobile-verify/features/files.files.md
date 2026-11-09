@@ -8,7 +8,6 @@ selectors:
   - 'Read again'
   - 'Files'
   - 'Select a worktree'
-  - 'worktree-files'
   - 'Search files'
   - 'Open path'
   - 'Create file or folder'
@@ -58,8 +57,8 @@ Files browses and searches the selected worktree, manages entries and preference
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → Files (`worktree-files`) on the [Worktree](projects.worktree.md) screen, or `porcelain.dev://files` for the selected worktree.
-- Header + (Create file or folder) on the right; hold a row for file/folder actions.
+- Worktrees tab → worktree → Files in the [Worktree](projects.worktree.md) page's segmented control, or `porcelain.dev://files` for the selected worktree.
+- Top bar + (Create file or folder) on the right; hold a row for file/folder actions. Search files is the native search field in the top bar; on a tablet beside the worktree list, where that field belongs to the list, it sits at the top of the Files column.
 
 ## Driving it with agent-device
 

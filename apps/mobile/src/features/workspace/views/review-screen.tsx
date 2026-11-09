@@ -1,7 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
-import { Screen } from '../../../components/ui/screen';
 import { useIsFocused, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Fragment, useState, type ComponentProps } from 'react';
@@ -38,7 +37,7 @@ import { ReviewReadState } from './read-state';
 import { phoneReviewComparison, useReviewListOffset } from '../store';
 import { ComparisonMenu } from './comparison-menu';
 
-export type ReviewScreenProps = {
+export type ReviewPaneProps = {
   workspace?: string | undefined;
   review?: OpenedReview | undefined;
   linkedReview: ComponentType<{ review: OpenedReview }>;
@@ -49,21 +48,13 @@ export type ReviewScreenProps = {
   }>;
   publishedOverview: ComponentType<{ workspace: Workspace; bar?: boolean }>;
 };
-export function ReviewScreen(props: ReviewScreenProps) {
-  return (
-    <Screen layout="fixed">
-      <ReviewPane {...props} />
-    </Screen>
-  );
-}
-
 export function ReviewPane({
   workspace,
   review,
   linkedReview: LinkedReviewPane,
   currentReview: CurrentReview,
   publishedOverview,
-}: ReviewScreenProps) {
+}: ReviewPaneProps) {
   const focused = useIsFocused();
   if (!focused) return null;
   const saved = review ? <LinkedReviewPane review={review} /> : undefined;
@@ -113,7 +104,7 @@ function PhoneReview({
   publishedOverview,
 }: {
   workspace: Workspace;
-  publishedOverview: ReviewScreenProps['publishedOverview'];
+  publishedOverview: ReviewPaneProps['publishedOverview'];
 }) {
   const router = useRouter();
   const [comparison, setComparison] = useAtom(
@@ -136,7 +127,7 @@ function PhoneReview({
 }
 
 type ReviewNavigationProps = {
-  publishedOverview: ReviewScreenProps['publishedOverview'];
+  publishedOverview: ReviewPaneProps['publishedOverview'];
   workspace: Workspace;
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
