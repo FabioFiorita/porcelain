@@ -3,6 +3,7 @@ import {
   summaryActivations,
   resetSummaryActivations,
 } from '../kit/summary-activations.ts';
+import type { TestInfo } from '@playwright/test';
 import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -53,10 +54,76 @@ declare const document: {
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
 
-async function renewSummary(frame: ReturnType<Page['frames']>[number]) {
+async function renewSummary(
+  frame: ReturnType<Page['frames']>[number],
+  testInfo: TestInfo,
+) {
+  const page = frame.page();
+  const safeUrl = (input: string) => {
+    const url = new URL(input);
+    url.searchParams.delete('signature');
+    return url.href;
+  };
+  const initial = safeUrl(frame.url());
+  const events: unknown[] = [];
+  const navigated = (entry: ReturnType<Page['frames']>[number]) =>
+    events.push({
+      event: 'navigated',
+      targetFrame: entry === frame,
+      url: safeUrl(entry.url()),
+    });
+  const detached = (entry: ReturnType<Page['frames']>[number]) =>
+    events.push({
+      event: 'detached',
+      targetFrame: entry === frame,
+      url: safeUrl(entry.url()),
+    });
+  const session = await page.context().newCDPSession(page);
+  await session.send('Page.enable');
+  session.on('Page.frameRequestedNavigation', (entry) =>
+    events.push({ event: 'requestedNavigation', ...entry }),
+  );
+  session.on('Page.frameStartedNavigating', (entry) =>
+    events.push({ event: 'startedNavigating', ...entry }),
+  );
+  page.on('framenavigated', navigated);
+  page.on('framedetached', detached);
   const url = new URL(frame.url());
   url.search = new URLSearchParams([...url.searchParams].reverse()).toString();
-  await frame.goto(url.href, { waitUntil: 'load' });
+  let completed = false;
+  try {
+    await frame.goto(url.href, { waitUntil: 'load' });
+    completed = true;
+  } finally {
+    page.off('framenavigated', navigated);
+    page.off('framedetached', detached);
+    await session.detach();
+    const sources = await page
+      .locator('iframe[title="Review summary"]')
+      .evaluateAll(
+        (elements: readonly { getAttribute(name: string): string | null }[]) =>
+          elements.map((element) => element.getAttribute('src')),
+      );
+    await testInfo.attach('remote-summary-renewal.json', {
+      body: JSON.stringify(
+        {
+          completed,
+          initial,
+          requested: safeUrl(url.href),
+          current: safeUrl(frame.url()),
+          detached: frame.isDetached(),
+          sources: sources.map((source) =>
+            source === null ? null : safeUrl(source),
+          ),
+          events,
+        },
+        (key, value: unknown) =>
+          key === 'url' && typeof value === 'string' ? safeUrl(value) : value,
+        2,
+      ),
+      contentType: 'application/json',
+    });
+  }
 }
 
 async function hoverSummaryLink(
@@ -456,7 +523,7 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   if (frame === undefined)
     throw new Error('The remote summary did not load through the app');
   await frame.waitForLoadState('load');
-  await renewSummary(frame);
+  await renewSummary(frame, testInfo);
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
