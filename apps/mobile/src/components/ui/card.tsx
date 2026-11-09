@@ -1,4 +1,4 @@
-import { Children, Fragment, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import type { ViewProps } from 'react-native';
 import { Box, type BoxProps } from './box';
 import { Separator } from './separator';
@@ -30,7 +30,7 @@ export function CardRows({ children }: { children: ReactNode }) {
   return (
     <Card>
       {Children.toArray(children).map((row, index) => (
-        <Fragment key={index}>
+        <Fragment key={isValidElement(row) ? row.key : index}>
           {index > 0 ? <Separator /> : null}
           {row}
         </Fragment>
