@@ -13,7 +13,7 @@ api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments
 tests:
-  - apps/mobile/src/features/reviews/rules/document-comment.spec.ts
+  - apps/mobile/src/features/workspace/rules/document-comment.spec.ts
 ---
 
 # history.diff

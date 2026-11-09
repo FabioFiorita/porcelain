@@ -6,7 +6,7 @@ import {
 } from '../../../../spec/kit/client-fixture.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { readReviewComments } from './project-reviews.ts';
-import { readCommentThreads } from './comments.ts';
+import { readCommentThreads } from '../../workspace/queries/comments.ts';
 
 const create = clientFixtures('00000000-0000-4000-8000-000000000001');
 const reviewId = '10000000-0000-4000-8000-000000000001';

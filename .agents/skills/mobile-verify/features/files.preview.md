@@ -8,7 +8,7 @@ selectors:
 tests:
   - packages/client/src/features/files/queries/text.spec.ts
   - packages/client/src/features/files/queries/asset.spec.ts
-  - apps/mobile/src/features/reviews/rules/document-comment.spec.ts
+  - apps/mobile/src/features/workspace/rules/document-comment.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - GET /api/worktrees/:worktreeId/asset

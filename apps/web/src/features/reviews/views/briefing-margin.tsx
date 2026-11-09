@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { refLabel } from '@porcelain/client/history/rules';
+import { counted } from '@porcelain/client/reviews/rules';
 import {
-  counted,
   verdictSections,
   type DurableReviewRead,
   type ReviewRevision,

@@ -20,7 +20,7 @@ tests:
   - apps/mobile/src/features/reviews/store.spec.ts
   - packages/client/src/features/reviews/commands/decisions.spec.ts
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
-  - apps/mobile/src/features/reviews/rules/thread-folds.spec.ts
+  - apps/mobile/src/features/workspace/rules/thread-folds.spec.ts
 api:
   - GET /api/reviews/:reviewId/marks
   - PUT /api/reviews/:reviewId/marks

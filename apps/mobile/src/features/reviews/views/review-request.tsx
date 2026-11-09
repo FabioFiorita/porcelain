@@ -6,10 +6,10 @@ import { reviewCommands } from '@porcelain/client/reviews';
 import {
   changeAnchor,
   reviewErrorMessage,
-  type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewRevision } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
-import { useCommentWrite } from '../commands/comments';
+import { useCommentWrite } from '../../workspace/index';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { Box } from '../../../components/ui/box';

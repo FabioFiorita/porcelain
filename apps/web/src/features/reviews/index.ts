@@ -1,8 +1,11 @@
-export * from './rules/documents';
-export * from './rules/tab-strip';
-
-export { PierreWorkers } from './adapters/pierre-workers';
-export { ReviewWorkspace } from './views/review-workspace';
-
 export { ReviewPage, ReviewMissing } from './views/review-page';
-export { reviewRouteSearch } from './rules/review-route';
+
+export { ReviewFileDocument } from './views/review-file-document';
+
+export { AgentNote } from './views/agent-note';
+
+export { useFirstTabCount } from './queries/first-tab-count';
+
+export { HandoffDocument } from './views/branch-review-page';
+
+export { WorkspaceReviewIndex } from './views/workspace-review-index';

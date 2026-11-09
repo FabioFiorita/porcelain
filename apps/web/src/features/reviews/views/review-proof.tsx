@@ -1,14 +1,13 @@
+import { counted, type ReviewScope } from '@porcelain/client/reviews/rules';
 import {
-  counted,
   publishedLabel,
   verdictSections,
   type ReviewRevision,
-  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { ProofList } from './proof-list';
 import { StateNotice } from '@/shared/views/state-notice';
-import { SectionHeading } from './section-heading';
+import { SectionHeading } from '../../workspace/index';
 
 export function ReviewProof({
   revision,

@@ -5,8 +5,8 @@ import { readReviewSummary } from '@porcelain/client/reviews';
 import {
   reviewSummaryUrl,
   type ReviewResponse,
-  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
 import { summaryTransport } from '@/shared/api/summary-transport';

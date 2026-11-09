@@ -13,8 +13,8 @@ selectors:
   - 'Thread unavailable'
 tests:
   - packages/client/src/features/reviews/rules/comments.spec.ts
-  - packages/client/src/features/reviews/commands/comments.spec.ts
-  - packages/client/src/features/reviews/queries/comments.spec.ts
+  - packages/client/src/features/workspace/commands/comments.spec.ts
+  - packages/client/src/features/workspace/queries/comments.spec.ts
   - packages/client/src/features/reviews/queries/review-comments.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/comments

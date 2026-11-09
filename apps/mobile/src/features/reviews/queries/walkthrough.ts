@@ -8,7 +8,7 @@ import {
   type ReviewRevision,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
-import type { Workspace } from '../../projects';
+import type { Workspace } from '../../projects/index';
 
 export function useWalkthroughProgress(
   workspace: Workspace,

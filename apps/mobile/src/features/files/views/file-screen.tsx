@@ -6,10 +6,13 @@ import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import { WorkspaceGate, type Workspace } from '../../projects';
-import { DocumentComments, savedFileCommentTarget } from '../../reviews';
+import { WorkspaceGate, type Workspace } from '../../projects/index';
+import {
+  DocumentComments,
+  savedFileCommentTarget,
+} from '../../workspace/index';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
-import { usePreferences } from '../../preferences';
+import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { useFileAsset } from '../queries/asset';

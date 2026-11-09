@@ -8,7 +8,7 @@ selectors:
   - 'Archive'
 tests:
   - apps/mobile/src/shared/rules/markdown.spec.ts
-  - apps/mobile/src/features/reviews/rules/pull-request-document.spec.ts
+  - apps/mobile/src/features/workspace/rules/pull-request-document.spec.ts
 api:
   - GET /api/reviews/:reviewId/pull-request
   - POST /api/reviews/:reviewId/archive

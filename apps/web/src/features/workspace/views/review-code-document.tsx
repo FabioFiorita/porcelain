@@ -1,0 +1,534 @@
+import type { ComponentProps } from 'react';
+import { cn } from '@/shared/lib/utils';
+import { TruncatedText } from '@/shared/views/truncated-text';
+import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
+import { type ReactNode, useState } from 'react';
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { CheckIcon, SquareIcon, MessageSquarePlusIcon } from 'lucide-react';
+import { BarAction } from '@/shared/workspace/bar-action';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { toast } from '@/components/ui/toast';
+import { useToggleReviewed } from '../commands/reviewed';
+import { Badge } from '@/components/ui/badge';
+import { isImagePath } from '@porcelain/client/files/rules';
+import { Button } from '@/components/ui/button';
+import { changeId, selectionKey } from '@porcelain/client/changes/rules';
+import {
+  diffEntry,
+  useChangeDiffs,
+  useChanges,
+} from '@/features/changes/index';
+import { ImagePreview, useTextContents } from '@/features/files/index';
+import { type CodeEntry, fileEntry } from '../adapters/code-entries';
+import type { AgentCodeNote } from '../rules/code-notes';
+import { omittedReasonText } from '../rules/omitted-reasons';
+import { useComments } from '../queries/comments';
+import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
+import type { DocumentInteraction } from '../rules/documents';
+import { focusPatch, type LineSpan } from '@porcelain/client/changes/rules';
+import {
+  type Change,
+  type DiffContent,
+  orderReviewChanges,
+  type ReviewChangeItem,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
+import { CodeDocument, type CodeHeaderControls } from './code-document';
+import { InlineComposer } from './inline-composer';
+import { fileReviewControl, ReviewedControl } from './reviewed-control';
+import { ThreadCard } from './thread-card';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+
+export function ReviewCodeDocument({
+  agentNote,
+  scope,
+  context,
+  interaction,
+  paths,
+  files = [],
+  focus,
+  header,
+  headerActions,
+  headerLeading,
+  commentRequest,
+  toolbar,
+  agentNotes,
+  footer,
+  column = false,
+}: {
+  agentNote?: ComponentProps<typeof CodeDocument>['agentNote'] | undefined;
+  agentNotes?: Readonly<Record<string, readonly AgentCodeNote[]>>;
+  footer?: () => ReactNode;
+  scope: ReviewScope;
+  context: ConnectionContext;
+  interaction: DocumentInteraction;
+  paths?: readonly string[];
+  files?: readonly { path: string; note?: string }[];
+  focus?: Readonly<Record<string, readonly LineSpan[]>>;
+  header?: (controls: CodeHeaderControls) => ReactNode;
+  column?: boolean;
+  headerActions?: ReactNode;
+  headerLeading?: ReactNode;
+  commentRequest?: number;
+  toolbar?: (collapseControl: ReactNode) => ReactNode;
+}) {
+  const { connection } = context;
+  const [omittedComment, setOmittedComment] = useState(0);
+  const [pendingOmittedPath, setPendingOmittedPath] = useState<string>();
+  const focusOmitted = (path: string, target: HTMLLIElement) => {
+    if (pendingOmittedPath !== path) return;
+    setPendingOmittedPath(undefined);
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start' });
+  };
+  usePrefetchReviewed(scope, context);
+  const changes = useChanges(scope, connection);
+  const items = orderReviewChanges(
+    useReviewChangeItems(scope, context, changes, paths),
+    files,
+  );
+  const statusToken = items[0]?.statusToken ?? '';
+  const diffs = useChangeDiffs(
+    scope,
+    connection,
+    statusToken,
+    items.flatMap((item) =>
+      item.comparisons.some(
+        (change) => change.scope === 'staged' || change.scope === 'unstaged',
+      )
+        ? [{ path: item.path, fingerprint: item.fingerprint }]
+        : [],
+    ),
+    items.flatMap((item) =>
+      item.comparisons.flatMap((change) => {
+        const selection = diffSelection(change);
+        return selection ? [selection] : [];
+      }),
+    ),
+  );
+  const untracked = useTextContents(
+    connection,
+    scope,
+    items.flatMap((item) =>
+      item.comparisons.flatMap((change) =>
+        change.scope === 'untracked' ? [change.path] : [],
+      ),
+    ),
+  );
+  const patchOf = (change: Change): DiffContent | undefined => {
+    const selection = diffSelection(change);
+    return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
+  };
+  const loading = diffs.pending || untracked.pending;
+  const failed = diffs.failed || untracked.failed;
+  const notes = new Map(files.map((file) => [file.path, file.note]));
+  const unrenderable = items.flatMap((item) => {
+    const reasons = item.comparisons.flatMap((change) => {
+      if (change.scope === 'unmerged') return ['Conflict'];
+      if (change.scope === 'untracked')
+        return untracked.contents.has(change.path) ? [] : ['Not readable'];
+      if (!change.supported) return ['Unsupported comparison'];
+      const content = patchOf(change);
+      if (!content) return [];
+      if (content.kind === 'binary') return ['Binary change'];
+      if (content.kind === 'omitted')
+        return [`Content omitted: ${omissionReason(content.reason)}`];
+      return diffEntry(change, content) ? [] : ['No single-file textual patch'];
+    });
+    return reasons.length > 0 ? [{ item, reasons }] : [];
+  });
+  const entries = items.flatMap((item): CodeEntry[] =>
+    item.comparisons.flatMap((change): CodeEntry[] => {
+      const review = fileReviewControl(scope, context, item);
+      if (change.scope === 'untracked') {
+        const text = untracked.contents.get(change.path);
+        if (text === undefined) return [];
+        return [
+          {
+            ...fileEntry(
+              changeId(change),
+              item.path,
+              text,
+              notes.get(item.path) ?? 'untracked',
+            ),
+            review,
+            comment: {
+              filePath: item.path,
+              comparison: { kind: 'worktree', scope: 'untracked' },
+              ...(item.fingerprint
+                ? { contentFingerprint: item.fingerprint }
+                : {}),
+            },
+          },
+        ];
+      }
+      if (change.scope === 'unmerged' || !change.supported) return [];
+      const content = focusedDiff(patchOf(change), focus?.[item.path]);
+      const entry = content ? diffEntry(change, content) : null;
+      const note = notes.get(item.path);
+      return entry
+        ? [
+            {
+              ...entry,
+              ...(note ? { note } : {}),
+              review,
+              comment: {
+                filePath: item.path,
+                comparison: { kind: 'worktree', scope: change.scope },
+                ...(item.fingerprint
+                  ? { contentFingerprint: item.fingerprint }
+                  : {}),
+              },
+            },
+          ]
+        : [];
+    }),
+  );
+  for (const [path, notes] of Object.entries(agentNotes ?? {})) {
+    const candidates = entries.filter((entry) => entry.path === path);
+    const target =
+      candidates.find(
+        (entry) =>
+          entry.comment?.comparison?.kind === 'worktree' &&
+          entry.comment.comparison.scope === 'unstaged',
+      ) ?? candidates[0];
+    if (!target) continue;
+    for (const note of notes) {
+      const atLine =
+        target.kind === 'file'
+          ? note.line <= target.contents.split('\n').length
+          : target.fileDiff.hunks.some(
+              (hunk) =>
+                note.line >= hunk.additionStart &&
+                note.line < hunk.additionStart + hunk.additionCount,
+            );
+      target.agentNotes = [
+        ...(target.agentNotes ?? []),
+        { ...note, line: atLine ? note.line : 0 },
+      ];
+    }
+  }
+  const renderedPaths = new Set(entries.map((entry) => entry.path));
+  const paneFile =
+    interaction.toolbarTarget !== undefined &&
+    /^(file|change|branch):/.test(interaction.entry);
+  const omittedFile =
+    paneFile && entries.length === 0 && items.length === 1
+      ? unrenderable[0]?.item
+      : undefined;
+  const documentHeader =
+    header || loading || failed || unrenderable.length > 0
+      ? (controls: CodeHeaderControls) => (
+          <>
+            {header?.({
+              ...controls,
+              open: (path) => {
+                setPendingOmittedPath(undefined);
+                if (!renderedPaths.has(path)) {
+                  setPendingOmittedPath(path);
+                } else controls.open(path);
+              },
+            })}
+            {(loading || failed) && (
+              <ContentState
+                failed={failed}
+                retry={() => {
+                  diffs.retry();
+                  untracked.retry();
+                }}
+              />
+            )}
+            {unrenderable.length > 0 && (
+              <OmittedChanges
+                changes={unrenderable}
+                column={column}
+                onTarget={(path, target) => {
+                  if (target) {
+                    focusOmitted(path, target);
+                  }
+                }}
+                renderedPaths={renderedPaths}
+                scope={scope}
+                context={context}
+                paneFile={Boolean(omittedFile)}
+                {...(entries.length === 0 &&
+                (commentRequest !== undefined || omittedComment > 0)
+                  ? { commentRequest: (commentRequest ?? 0) + omittedComment }
+                  : {})}
+              />
+            )}
+          </>
+        )
+      : undefined;
+
+  return (
+    <CodeDocument
+      agentNote={agentNote}
+      emptyActions={
+        omittedFile ? (
+          <OmittedActions
+            scope={scope}
+            context={context}
+            item={omittedFile}
+            active={interaction.active}
+            onComment={() => setOmittedComment((value) => value + 1)}
+          >
+            {headerActions}
+          </OmittedActions>
+        ) : undefined
+      }
+      scope={scope}
+      context={context}
+      interaction={interaction}
+      {...(commentRequest !== undefined ? { commentRequest } : {})}
+      entries={entries}
+      column={column}
+      {...(footer ? { footer } : {})}
+      {...(documentHeader ? { header: documentHeader } : {})}
+      {...(headerActions ? { headerActions } : {})}
+      {...(headerLeading ? { headerLeading } : {})}
+      {...(toolbar ? { toolbar } : {})}
+    />
+  );
+}
+
+const focusedPatches = new WeakMap<object, Map<string, DiffContent>>();
+
+function focusedDiff(
+  content: DiffContent | undefined,
+  spans: readonly LineSpan[] | undefined,
+): DiffContent | undefined {
+  if (!content || !spans?.length || content.kind !== 'text') return content;
+  const key = spans
+    .map((span) => `${span.startLine}-${span.endLine}`)
+    .join(',');
+  let cached = focusedPatches.get(content);
+  const hit = cached?.get(key);
+  if (hit) return hit;
+  const patch = focusPatch(content.patch, spans);
+  const next = patch ? { ...content, patch } : content;
+  cached ??= new Map();
+  cached.set(key, next);
+  focusedPatches.set(content, cached);
+  return next;
+}
+
+function ContentState({
+  failed,
+  retry,
+}: {
+  failed: boolean;
+  retry: () => void;
+}) {
+  return (
+    <section
+      className="mx-4 mt-3 flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground"
+      aria-live="polite"
+    >
+      {failed ? (
+        <>
+          <span>The changes in this document could not be read.</span>
+          <Button size="xs" variant="outline" onClick={retry}>
+            Load the changes again
+          </Button>
+        </>
+      ) : (
+        <span>Loading changes…</span>
+      )}
+    </section>
+  );
+}
+
+function OmittedChanges({
+  changes,
+  column,
+  onTarget,
+  renderedPaths,
+  scope,
+  context,
+  commentRequest,
+  paneFile,
+}: {
+  paneFile: boolean;
+  column: boolean;
+  onTarget: (path: string, target: HTMLLIElement | null) => void;
+  changes: ReadonlyArray<{
+    item: ReviewChangeItem;
+    reasons: readonly string[];
+  }>;
+  commentRequest?: number;
+  renderedPaths: ReadonlySet<string>;
+  scope: ReviewScope;
+  context: ConnectionContext;
+}) {
+  return (
+    <section
+      className={cn(
+        'mt-3 rounded-lg border bg-muted/40 px-4 py-3',
+        !column && 'mx-4',
+      )}
+    >
+      <p className="text-xs font-medium">Non-text content</p>
+      <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
+        {changes.map(({ item, reasons }) => (
+          <li
+            key={item.path}
+            aria-label={`${item.path}: ${omittedReasonText(reasons)}`}
+            tabIndex={-1}
+            ref={(target) => onTarget(item.path, target)}
+            className="flex min-w-0 scroll-mt-3 flex-wrap items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <TruncatedText className="min-w-0 basis-full" text={item.path} />
+            {isImagePath(item.path) && (
+              <>
+                <span>Current worktree image</span>
+                <ImagePreview
+                  scope={scope}
+                  path={item.path}
+                  connection={context.connection}
+                />
+              </>
+            )}
+            <Badge
+              variant="outline"
+              className="h-auto max-w-full text-left whitespace-normal"
+            >
+              {omittedReasonText(reasons)}
+            </Badge>
+            {!paneFile && !renderedPaths.has(item.path) && (
+              <ReviewedControl
+                scope={scope}
+                context={context}
+                path={item.path}
+                fingerprint={item.fingerprint}
+                status={item.reviewStatus}
+                compact={Boolean(item.fingerprint)}
+              />
+            )}
+            {!renderedPaths.has(item.path) && (
+              <OmittedDiscussion
+                scope={scope}
+                context={context}
+                path={item.path}
+                paneFile={paneFile}
+                {...(commentRequest !== undefined ? { commentRequest } : {})}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function OmittedDiscussion({
+  scope,
+  context,
+  path,
+  commentRequest,
+  paneFile,
+}: {
+  paneFile: boolean;
+  scope: ReviewScope;
+  context: ConnectionContext;
+  path: string;
+  commentRequest?: number;
+}) {
+  const { threads } = useComments(scope, context);
+  const [compose, setCompose] = useState(false);
+  const [handled, setHandled] = useState<number>();
+  if (commentRequest !== undefined && handled !== commentRequest) {
+    setHandled(commentRequest);
+    setCompose(true);
+  }
+  const visible = threads.filter(
+    (thread) =>
+      thread.anchor.kind === 'file' &&
+      thread.anchor.filePath === path &&
+      !thread.anchor.revision,
+  );
+  return (
+    <>
+      {!paneFile && (
+        <Button
+          size="xs"
+          variant="ghost"
+          className="h-auto max-w-full text-left whitespace-normal"
+          onClick={() => setCompose(true)}
+        >
+          Comment on {path}
+        </Button>
+      )}
+      {(visible.length > 0 || compose) && (
+        <div className="w-full space-y-2">
+          {visible.map((thread) => (
+            <ThreadCard
+              key={thread.id}
+              scope={scope}
+              context={context}
+              thread={thread}
+            />
+          ))}
+          {compose && (
+            <InlineComposer
+              scope={scope}
+              context={context}
+              anchor={{ kind: 'file', filePath: path }}
+              onClose={() => setCompose(false)}
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function OmittedActions({
+  scope,
+  context,
+  item,
+  active,
+  onComment,
+  children,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  item: ReviewChangeItem;
+  active: boolean;
+  onComment: () => void;
+  children: ReactNode;
+}) {
+  const review = useToggleReviewed(scope, context, (notice) =>
+    toast.add(notice),
+  );
+  const target = fileReviewControl(scope, context, item);
+  const toggle = () => review.toggle(target);
+  useHotkey(SHORTCUTS.toggleReviewed, toggle, {
+    enabled: active,
+    ignoreInputs: true,
+  });
+  useHotkey(SHORTCUTS.commentOnFile, onComment, {
+    enabled: active,
+    ignoreInputs: true,
+  });
+  return (
+    <>
+      <BarAction
+        label="Reviewed"
+        variant="outline"
+        icon={target.reviewed ? CheckIcon : SquareIcon}
+        shortcut={SHORTCUTS.toggleReviewed}
+        disabled={!target.fingerprint}
+        pressed={target.reviewed}
+        onClick={toggle}
+      />
+      <BarAction
+        label="Comment"
+        icon={MessageSquarePlusIcon}
+        shortcut={SHORTCUTS.commentOnFile}
+        onClick={onComment}
+      />
+      {children}
+    </>
+  );
+}

@@ -1,4 +1,4 @@
-import { reviewErrorMessage } from '../rules/review.ts';
+import { reviewErrorMessage } from '../../reviews/rules/review.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';

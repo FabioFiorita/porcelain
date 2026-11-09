@@ -15,15 +15,17 @@ import {
   counted,
   plural,
   changeAnchor,
+  threadCounts,
+  type CommentThread,
+  type ReviewChangeItem,
+} from '@porcelain/client/reviews/rules';
+import {
   filesReviewed,
   type reviewListStatus,
   stopTitle,
-  threadCounts,
   verdictSections,
   proofStatus,
-  type CommentThread,
   type DurableReviewRead,
-  type ReviewChangeItem,
   type ReviewRevision,
   type WalkthroughKey,
   type WalkthroughStop,
@@ -31,8 +33,8 @@ import {
 import { ArchiveReview } from '@/features/projects/index';
 import { cn } from '@/shared/lib/utils';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { InlineComposer } from './inline-composer';
-import { MarginRow } from './margin-row';
+import { InlineComposer } from '../../workspace/index';
+import { MarginRow } from '../../workspace/index';
 import type { WalkthroughProps } from './walkthrough-props';
 import { AgentFeedback } from './agent-feedback';
 

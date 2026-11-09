@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
+import { changeAnchor } from '@porcelain/client/reviews/rules';
 import {
-  changeAnchor,
   type ReviewResponse,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
-import type { Workspace } from '../../projects';
-import { commentReviewParams, reviewParams } from '../rules/navigation';
+import type { Workspace } from '../../projects/index';
+import { commentReviewParams, reviewParams } from '../../workspace/index';
 
 export function useWalkthroughRoutes(workspace: Workspace) {
   const router = useRouter();

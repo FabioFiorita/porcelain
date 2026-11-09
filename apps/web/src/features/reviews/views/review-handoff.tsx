@@ -1,6 +1,6 @@
 import { CheckIcon, ExternalLinkIcon } from 'lucide-react';
 import type { ReviewRevision } from '@porcelain/client/reviews/rules';
-import { SectionHeading } from './section-heading';
+import { SectionHeading } from '../../workspace/index';
 
 export function ReviewHandoff({ revision }: { revision: ReviewRevision }) {
   const { tryIt, coverage } = revision.verdict;

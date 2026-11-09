@@ -2,12 +2,12 @@ import { QuestionOptions } from './question-options';
 import { Button } from '@/components/ui/button';
 import { CircleHelpIcon, MessageSquareIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { changeAnchor } from '@porcelain/client/reviews/rules';
 import {
-  changeAnchor,
   type ReviewRevision,
   type SystemPart,
 } from '@porcelain/client/reviews/rules';
-import { InlineComposer } from './inline-composer';
+import { InlineComposer } from '../../workspace/index';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type QuestionProps = {

@@ -1,5 +1,6 @@
 import { useAtom } from '@effect/atom-react';
-import { commentWriteBinding, reviewCommands } from '@porcelain/client/reviews';
+import { commentWriteBinding } from '@porcelain/client/workspace';
+import { reviewCommands } from '@porcelain/client/reviews';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 export function useReviewDeletion(
   reviewId: string,

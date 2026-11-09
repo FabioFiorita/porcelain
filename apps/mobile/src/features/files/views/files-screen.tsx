@@ -1,6 +1,6 @@
 import { Box } from '../../../components/ui/box';
-import { WorkspaceGate, type Workspace } from '../../projects';
-import { useFileReview } from '../../reviews';
+import { WorkspaceGate, type Workspace } from '../../projects/index';
+import { useFileReview } from '../../workspace/index';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { useFileNavigation } from '../store';

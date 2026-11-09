@@ -10,7 +10,8 @@ import {
   completeDecision,
 } from '@porcelain/client/reviews';
 import { text } from '@porcelain/server/kit/session';
-import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
+import { commentCommands } from '@porcelain/client/workspace';
+import { reviewedCommands } from '@porcelain/client/reviews';
 import { expect } from 'vitest';
 import { test } from '@porcelain/server/kit/server-test';
 import {
@@ -20,7 +21,7 @@ import {
   worktreePath,
 } from '@porcelain/server/kit/requests';
 import { readPublishedReview } from '@porcelain/client/reviews';
-import { readCommentThreads } from '@porcelain/client/reviews';
+import { readCommentThreads } from '@porcelain/client/workspace';
 import { readReviewedFiles } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
 import { readChangeDiffs } from '@porcelain/client/changes';

@@ -18,8 +18,8 @@ import {
   readReviewMarks,
   reviewCommands,
 } from '@porcelain/client/reviews';
+import { counted } from '@porcelain/client/reviews/rules';
 import {
-  counted,
   filesReviewed,
   revisionDecisionStates,
   revisionReviewItems,
@@ -42,9 +42,9 @@ import {
   useReviewRevisionSelection,
   useReviewFileOrigins,
 } from '../store';
-import { type OpenDocument, ALL_CHANGES } from '../rules/documents';
-import { SidebarDocumentRow } from './sidebar-section';
-import { SidebarActionMenu } from './sidebar-action-menu';
+import { type OpenDocument, ALL_CHANGES } from '../../workspace/index';
+import { SidebarDocumentRow } from '../../workspace/index';
+import { SidebarActionMenu } from '../../workspace/index';
 
 export function ReviewNavigation({
   review,

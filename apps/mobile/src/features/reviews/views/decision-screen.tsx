@@ -17,7 +17,7 @@ import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
-import { WorkspaceGate } from '../../projects';
+import { WorkspaceGate } from '../../projects/index';
 import { ListDetail } from '../../../components/ui/list-detail';
 import { WalkthroughColumn } from './walkthrough-stop-list';
 import { stopScreenTitle } from '../rules/briefing';

@@ -5,7 +5,7 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { readCommentThreads } from './comments.ts';
+import { readCommentThreads } from '../../workspace/queries/comments.ts';
 import { requestApi, type PorcelainApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';

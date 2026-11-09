@@ -5,8 +5,8 @@ import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   commentCommands,
   readCommentThreads,
-  readReviewComments,
-} from '@porcelain/client/reviews';
+} from '@porcelain/client/workspace';
+import { readReviewComments } from '@porcelain/client/reviews';
 import { threadWriteTarget } from '@porcelain/client/reviews/rules';
 import { text } from '@porcelain/server/kit/session';
 import { test } from '@porcelain/server/kit/server-test';

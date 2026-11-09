@@ -1,1 +1,1 @@
-export { PullRequestScreen as default } from '../../../features/reviews';
+export { PullRequestScreen as default } from '../../../features/workspace/index';

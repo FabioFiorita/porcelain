@@ -4,7 +4,7 @@ import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { reviewCommands } from '../commands/project-reviews.ts';
 import { agentFeedbackPresentation } from '../rules/agent-feedback.ts';
-import { reviewErrorMessage } from '../rules/review.ts';
+import { reviewErrorMessage } from '../../reviews/rules/review.ts';
 import { readReview, readReviewAgentFeedback } from './project-reviews.ts';
 
 export type AgentFeedbackInput = {

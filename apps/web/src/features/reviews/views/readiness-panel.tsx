@@ -2,8 +2,8 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { CheckIcon, CircleAlertIcon, CircleXIcon } from 'lucide-react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { readReview, readReviewMarks } from '@porcelain/client/reviews';
+import { counted } from '@porcelain/client/reviews/rules';
 import {
-  counted,
   revisionDecisionProgress,
   type ReviewMarks,
 } from '@porcelain/client/reviews/rules';
@@ -13,7 +13,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { useSpecsApart } from '@/features/preferences/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
-import { useReviewedMarks } from '../queries/reviewed';
+import { useReviewedMarks } from '../../workspace/index';
 import { ProgressMeter } from './progress-meter';
 import type { CommentThread } from '@porcelain/client/reviews/rules';
 import {
@@ -24,10 +24,10 @@ import {
 } from '@porcelain/client/reviews/rules';
 import {
   mergeBranchChanges,
-  type ReviewResponse,
   type ReviewScope,
   type ReviewStatus,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewResponse } from '@porcelain/client/reviews/rules';
 import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 

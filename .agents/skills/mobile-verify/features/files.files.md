@@ -38,7 +38,7 @@ tests:
   - packages/client/src/features/files/rules/file-preferences.spec.ts
   - apps/mobile/src/features/files/rules/file-navigation.spec.ts
   - apps/mobile/src/features/files/store.spec.ts
-  - apps/mobile/src/features/reviews/rules/comparison.spec.ts
+  - apps/mobile/src/features/workspace/rules/comparison.spec.ts
   - packages/client/src/features/files/rules/change-marks.spec.ts
 api:
   - GET /api/inventory

@@ -9,7 +9,7 @@ selectors:
   - 'Comparison:'
   - 'Code changed since selection.'
 tests:
-  - apps/mobile/src/features/reviews/reading-place.spec.ts
+  - apps/mobile/src/features/workspace/reading-place.spec.ts
   - apps/mobile/src/shared/application/document-reading.spec.ts
 api:
   - POST /api/worktrees/:worktreeId/changes/diffs

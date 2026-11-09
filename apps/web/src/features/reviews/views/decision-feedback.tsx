@@ -4,8 +4,8 @@ import {
   type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
 import { ReviewRequest } from './review-request';
-import { ThreadCard } from './thread-card';
-import { useComments } from '../queries/comments';
+import { ThreadCard } from '../../workspace/index';
+import { useComments } from '../../workspace/index';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function DecisionFeedback({
