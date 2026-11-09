@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Effect, Layer } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { GitHubReader, GitHubAccountStore } from '@porcelain/reviews/ports';
 import { EvidenceReader } from '@porcelain/walkthroughs/ports';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
@@ -7,6 +8,21 @@ import type { EvidenceAsset } from '@porcelain/walkthroughs/models';
 import { captureGitPlatform, readOriginUrl } from '@porcelain/git/discovery';
 import type { Limits } from '../../config/limits.ts';
 
+function allowedImageUrl(url: URL): boolean {
+  return (
+    url.protocol === 'https:' &&
+    url.username === '' &&
+    url.password === '' &&
+    url.port === '' &&
+    [
+      'private-user-images.githubusercontent.com',
+      'user-images.githubusercontent.com',
+      'github.com',
+    ].includes(url.hostname) &&
+    (url.hostname !== 'github.com' ||
+      url.pathname.startsWith('/user-attachments/assets/'))
+  );
+}
 function githubImageUrls(html: string): string[] {
   return [
     ...new Set(
@@ -14,17 +30,7 @@ function githubImageUrls(html: string): string[] {
         .map((match) => (match[1] ?? '').replaceAll('&amp;', '&'))
         .filter((value) => {
           try {
-            const url = new URL(value);
-            return (
-              url.protocol === 'https:' &&
-              [
-                'private-user-images.githubusercontent.com',
-                'user-images.githubusercontent.com',
-                'github.com',
-              ].includes(url.hostname) &&
-              (url.hostname !== 'github.com' ||
-                url.pathname.startsWith('/user-attachments/assets/'))
-            );
+            return allowedImageUrl(new URL(value));
           } catch {
             return false;
           }
@@ -36,6 +42,7 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
   Layer.effect(
     EvidenceReader,
     Effect.gen(function* () {
+      const fetch = yield* FetchHttpClient.Fetch;
       const github = yield* GitHubReader;
       const accounts = yield* GitHubAccountStore;
       const provideGit = yield* captureGitPlatform();
@@ -96,10 +103,22 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
             for (const url of githubImageUrls(pr.bodyHTML ?? '')) {
               const asset = yield* Effect.tryPromise({
                 try: async () => {
-                  const response = await fetch(url, {
-                    signal: AbortSignal.timeout(15000),
-                    redirect: 'error',
-                  });
+                  const signal = AbortSignal.timeout(15000);
+                  let destination = new URL(url);
+                  let response: Response;
+                  for (let redirects = 0; ; redirects++) {
+                    if (!allowedImageUrl(destination)) return undefined;
+                    response = await fetch(destination, {
+                      signal,
+                      redirect: 'manual',
+                    });
+                    if (![301, 302, 303, 307, 308].includes(response.status))
+                      break;
+                    await response.body?.cancel();
+                    const location = response.headers.get('location');
+                    if (!location || redirects === 5) return undefined;
+                    destination = new URL(location, destination);
+                  }
                   const mediaType =
                     (response.headers.get('content-type') ?? '').split(
                       ';',

@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Clock, Effect, Layer, Schema } from 'effect';
+import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
 import { runProvider } from '../commit-planning/commands/run-provider.ts';
+import { readBoundedText } from '../commit-planning/commands/read-bounded-text.ts';
 import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
 import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
@@ -21,12 +22,6 @@ const envelopeSchema = Schema.Struct({
 const eventSchema = Schema.Struct({
   type: Schema.String,
   thread_id: Schema.optional(Schema.String),
-  item: Schema.optional(
-    Schema.Struct({
-      type: Schema.String,
-      text: Schema.optional(Schema.String),
-    }),
-  ),
 });
 const failure = (kind: WalkthroughFailedError['kind'], message: string) =>
   new WalkthroughFailedError({ kind, message });
@@ -38,6 +33,7 @@ export const cliWalkthroughWriterLayer = (options: {
   Layer.effect(
     WalkthroughWriter,
     Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
       return WalkthroughWriter.of({
         write: Effect.fn('WalkthroughWriter.write')(
@@ -80,6 +76,7 @@ export const cliWalkthroughWriterLayer = (options: {
                 pass === 0 ? firstPassSchema : walkthroughContentSchema,
               ).schema;
               const schemaPath = join(folder, `schema-${pass}.json`);
+              const answerPath = join(folder, `answer-${pass}.json`);
               yield* Effect.tryPromise(() =>
                 writeFile(schemaPath, JSON.stringify(schema)),
               );
@@ -122,13 +119,21 @@ export const cliWalkthroughWriterLayer = (options: {
               codexArgs.push(
                 '-c',
                 'features.hooks=false',
-                '-c',
-                'mcp_servers={}',
+                '--ignore-user-config',
+                '--ignore-rules',
+                '--disable',
+                'plugins',
+                '--disable',
+                'apps',
+                '--disable',
+                'multi_agent',
                 '--json',
                 '--model',
                 input.run.writer.model,
                 '--output-schema',
                 schemaPath,
+                '--output-last-message',
+                answerPath,
               );
               if (pass === 1) codexArgs.push(sessionId);
               codexArgs.push('-');
@@ -229,15 +234,14 @@ export const cliWalkthroughWriterLayer = (options: {
                   );
                   if (event.type === 'thread.started' && event.thread_id)
                     sessionId = event.thread_id;
-                  if (
-                    event.type === 'item.completed' &&
-                    event.item?.type === 'agent_message' &&
-                    event.item.text
-                  )
-                    answer = yield* Schema.decodeUnknownEffect(
-                      Schema.fromJsonString(Schema.Unknown),
-                    )(event.item.text);
                 }
+                const text = yield* readBoundedText(
+                  answerPath,
+                  4 * 1024 * 1024,
+                ).pipe(Effect.provideService(FileSystem.FileSystem, fs));
+                answer = yield* Schema.decodeUnknownEffect(
+                  Schema.fromJsonString(Schema.Unknown),
+                )(text);
               }
               yield* input.recordSession(sessionId);
               if (pass === 0)

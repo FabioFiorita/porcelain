@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it } from 'vitest';
 import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
@@ -88,7 +88,41 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   const calls = await readFile(join(test.folder, 'calls'), 'utf8');
   expect(calls).toContain('disableAllHooks');
   expect(calls).toContain('dontAsk');
-  expect(calls).toContain('--strict-mcp-config');
+  const invocations = calls
+    .trim()
+    .split('\n')
+    .map((line) =>
+      Schema.decodeUnknownSync(
+        Schema.fromJsonString(
+          Schema.Struct({ args: Schema.Array(Schema.String) }),
+        ),
+      )(line),
+    );
+  expect(invocations).toHaveLength(2);
+  expect(
+    invocations.map(({ args }) => ({
+      strictMcp: args.includes('--strict-mcp-config'),
+      mcp: args[args.indexOf('--mcp-config') + 1],
+      settings: args[args.indexOf('--setting-sources') + 1],
+      commandsDisabled: args.includes('--disable-slash-commands'),
+      tools: args[args.indexOf('--tools') + 1],
+    })),
+  ).toEqual([
+    {
+      strictMcp: true,
+      mcp: '{"mcpServers":{}}',
+      settings: '',
+      commandsDisabled: true,
+      tools: 'Read,Grep,Glob,Bash',
+    },
+    {
+      strictMcp: true,
+      mcp: '{"mcpServers":{}}',
+      settings: '',
+      commandsDisabled: true,
+      tools: 'Read,Grep,Glob,Bash',
+    },
+  ]);
   expect(calls).toContain('--session-id');
   expect(calls).toContain('--resume');
   expect(calls).toContain('fixture-image.png');
@@ -146,21 +180,79 @@ it('rejects unusable structured output', async ({ onTestFinished }) => {
   });
 });
 
-it('keeps Codex read-only on both passes and resumes its recorded session', async ({
+it('uses only the Codex final answer despite progress messages and resumes its read-only session', async ({
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]})}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
     onTestFinished,
   );
   const result = await test.result({ provider: 'codex', model: 'gpt-5.5' });
-  expect(result._tag).toBe('Success');
+  expect(result).toMatchObject({
+    _tag: 'Success',
+    success: { content: { outcome: 'nothing', title: 'A small change' } },
+  });
   expect(test.sessions).toEqual(['codex-session', 'codex-session']);
   const calls = await readFile(join(test.folder, 'calls'), 'utf8');
   expect(calls).toContain('read-only');
   expect(calls).toContain('sandbox_mode=');
   expect(calls).toContain('features.hooks=false');
   expect(calls).toContain('codex-session');
+});
+it('ignores inherited Codex MCP configuration and disables plugin and app tools on both passes', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); process.env.CODEX_HOME=process.cwd(); const config = fs.readFileSync(process.env.CODEX_HOME+'/config.toml','utf8'); fs.appendFileSync('calls',JSON.stringify({args,config})+'\\n'); const answer=JSON.stringify(args.includes('resume') ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:answer}}));`,
+    onTestFinished,
+  );
+  await writeFile(
+    join(test.folder, 'config.toml'),
+    '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+  ).toMatchObject({ _tag: 'Success' });
+  const calls = (await readFile(join(test.folder, 'calls'), 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) =>
+      Schema.decodeUnknownSync(
+        Schema.fromJsonString(
+          Schema.Struct({
+            args: Schema.Array(Schema.String),
+            config: Schema.String,
+          }),
+        ),
+      )(line),
+    );
+  expect(calls).toHaveLength(2);
+  expect(
+    calls.map(({ args, config }) => ({
+      config,
+      ignoreUser: args.includes('--ignore-user-config'),
+      ignoreRules: args.includes('--ignore-rules'),
+      hooksDisabled: args.includes('features.hooks=false'),
+      disabled: args.filter((_, index) => args[index - 1] === '--disable'),
+    })),
+  ).toEqual([
+    {
+      config:
+        '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
+      ignoreUser: true,
+      ignoreRules: true,
+      hooksDisabled: true,
+      disabled: ['plugins', 'apps', 'multi_agent'],
+    },
+    {
+      config:
+        '[mcp_servers.inherited]\ncommand="inherited-server"\n[features]\nplugins=true\napps=true\n',
+      ignoreUser: true,
+      ignoreRules: true,
+      hooksDisabled: true,
+      disabled: ['plugins', 'apps', 'multi_agent'],
+    },
+  ]);
 });
 it('surfaces a missing executable as agent not installed', async ({
   onTestFinished,
