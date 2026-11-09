@@ -64,10 +64,44 @@
       "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#format:server:check": {
-      "inputs": ["$TURBO_DEFAULT$"]
+      "inputs": [
+        "apps/mobile/{src,spec}/**",
+        "apps/mobile/app.config.ts",
+        "apps/mobile/metro.config.cjs",
+        "apps/mobile/babel.config.js",
+        "apps/desktop/{src,spec}/**",
+        "apps/desktop/playwright.config.ts",
+        "apps/server/{src,spec}/**",
+        "packages/*/{src,spec}/**",
+        "packages/storage/scripts/**",
+        "architecture/**",
+        "scripts/**",
+        "ci/**",
+        "vitest.config.ts",
+        "vitest.integration.config.ts",
+        ".agents/skills/*-verify/scripts/**",
+        ".agents/skills/spec/**",
+        ".agents/skills/verify-core/**",
+        ".oxfmtrc.json",
+        "pnpm-lock.yaml",
+        "!apps/mobile/src/config/uniwind-types.d.ts"
+      ]
     },
     "//#format:web:check": {
-      "inputs": ["$TURBO_DEFAULT$"]
+      "inputs": [
+        "apps/web/{src,spec}/**",
+        "apps/web/vite.config.ts",
+        "apps/web/dev-pair.ts",
+        "apps/web/vitest.config.ts",
+        "apps/web/playwright.config.ts",
+        "apps/marketing/astro.config.ts",
+        "scripts/style.ts",
+        "architecture/policy.ts",
+        "architecture/shadcn-pins.ts",
+        "architecture/duplicate-policy.ts",
+        ".oxfmtrc.json",
+        "pnpm-lock.yaml"
+      ]
     },
     "//#arch:check": {
       "inputs": ["$TURBO_DEFAULT$"]
@@ -264,6 +298,10 @@
         "tsconfig.json",
         "pnpm-workspace.yaml",
         "pnpm-lock.yaml",
+        "!apps/server/spec/**",
+        "!apps/server/**/*.{spec,test}.{ts,tsx}",
+        "!packages/*/spec/**",
+        "!packages/**/*.{spec,test}.{ts,tsx}",
         "!apps/web/spec/**",
         "!apps/web/**/*.{spec,test}.{ts,tsx}"
       ],

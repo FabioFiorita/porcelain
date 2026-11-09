@@ -27,7 +27,8 @@ jobs:
           cache: true
           save-cache: false
           require-lockfile: true
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts --prod --filter @porcelain/ci
       - name: Write the release notes from its pull requests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

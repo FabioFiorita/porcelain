@@ -41,7 +41,8 @@ jobs:
           cache: true
           save-cache: false
           require-lockfile: true
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts --prod --filter @porcelain/ci
       - name: Triage, review, judge and merge
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

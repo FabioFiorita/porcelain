@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { domainPackages } from './policy.ts';
@@ -170,6 +170,96 @@ function duplicateFixture(entry, source) {
         ].toSorted((left, right) => left.localeCompare(right)),
       ),
     };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function ciFormatterFixture(entry) {
+  const root = fixtureRoot('porcelain-ci-formatters-');
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const commands = ['format:server:check', 'format:web:check'];
+  const run = (command, args, env = {}) => {
+    const result = spawnSync(command, args, {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+    });
+    if (result.error) throw result.error;
+    strictEqual(result.status, 0, result.stdout + result.stderr);
+    return result.stdout;
+  };
+  const tasks = (affected) =>
+    JSON.parse(
+      run(
+        join(repository, 'node_modules/.bin/turbo'),
+        ['run', ...commands, '--dry=json', ...(affected ? ['--affected'] : [])],
+        { TURBO_SCM_BASE: 'HEAD', TURBO_SCM_HEAD: 'HEAD' },
+      ),
+    ).tasks;
+  try {
+    for (const path of [
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+      'turbo.json',
+    ])
+      writeFiles(root, {
+        [path]: readFileSync(join(repository, path), 'utf8'),
+      });
+    for (const fixture of entry.cases)
+      writeFiles(root, { [fixture.path]: 'original\n' });
+    run('git', ['init', '--quiet']);
+    run('git', ['add', '.']);
+    run('git', [
+      '-c',
+      'user.name=CI fixture',
+      '-c',
+      'user.email=ci-fixture@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--quiet',
+      '-m',
+      'Create formatter fixture',
+    ]);
+    const hashes = new Map(
+      tasks(false).map((task) => [task.taskId, task.hash]),
+    );
+    for (const fixture of entry.cases) {
+      for (const operation of fixture.add
+        ? ['edit', 'delete', 'add']
+        : ['edit', 'delete']) {
+        const path = join(
+          root,
+          operation === 'add'
+            ? join(dirname(fixture.path), `added-${basename(fixture.path)}`)
+            : fixture.path,
+        );
+        if (operation === 'delete') rmSync(path);
+        else writeFileSync(path, `${operation}\n`);
+        const expected = fixture.selected
+          .map((target) => `//#format:${target}:check`)
+          .sort();
+        const affected = tasks(true);
+        deepStrictEqual(
+          affected.map((task) => task.taskId).sort(),
+          expected,
+          `${fixture.path} ${operation}: affected formatters`,
+        );
+        deepStrictEqual(
+          tasks(false)
+            .filter((task) => task.hash !== hashes.get(task.taskId))
+            .map((task) => task.taskId)
+            .sort(),
+          expected,
+          `${fixture.path} ${operation}: formatter cache hashes`,
+        );
+        if (operation === 'add') rmSync(path);
+        else writeFileSync(path, 'original\n');
+      }
+      process.stdout.write(`PASS ci-formatter-inputs: ${fixture.path}\n`);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -556,8 +646,132 @@ export async function runGuardrailCases(named = []) {
         'ci.yml must pin every third-party action and reusable workflow to a full commit SHA.',
       );
       process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
+    } else if (entry.rule === 'ci-formatter-inputs') {
+      ciFormatterFixture(entry);
     } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-dependency-installation') {
+      for (const [file, modes] of Object.entries(entry.workflows)) {
+        const workflow = parse(
+          readFileSync(
+            new URL(`../.github/workflows/${file}`, import.meta.url),
+            'utf8',
+          ),
+        );
+        const jobs = Object.entries(workflow.jobs).filter(([, job]) =>
+          job.steps?.some((step) => step.uses?.startsWith('pnpm/setup@')),
+        );
+        deepStrictEqual(
+          jobs
+            .map(([name]) => name)
+            .toSorted((left, right) => left.localeCompare(right)),
+          Object.values(modes)
+            .flat()
+            .toSorted((left, right) => left.localeCompare(right)),
+          file,
+        );
+        for (const [name, job] of jobs) {
+          const setups = job.steps.filter((step) =>
+            step.uses?.startsWith('pnpm/setup@'),
+          );
+          strictEqual(setups.length, 1, `${file}/${name}`);
+          const setup = setups[0].with;
+          const installs = job.steps.filter((step) =>
+            /\bpnpm install\b/.test(step.run ?? ''),
+          );
+          strictEqual(
+            setup['require-lockfile'],
+            true,
+            `${file}/${name}: frozen install`,
+          );
+          strictEqual(
+            setup.install ?? true,
+            modes.full.includes(name),
+            `${file}/${name}: implicit install`,
+          );
+          deepStrictEqual(
+            installs.map((step) => step.run),
+            modes.filtered.includes(name)
+              ? [
+                  'pnpm install --frozen-lockfile --ignore-scripts --prod --filter @porcelain/ci',
+                ]
+              : [],
+            `${file}/${name}: explicit installs`,
+          );
+        }
+        process.stdout.write(`PASS ci-dependency-installation: ${file}\n`);
+      }
+    } else if (entry.rule === 'ci-package-artifact') {
+      const workflow = parse(
+        readFileSync(
+          new URL('../.github/workflows/ci.yml', import.meta.url),
+          'utf8',
+        ),
+      );
+      const producer = workflow.jobs['package-build'];
+      const consumer = workflow.jobs.package;
+      strictEqual(producer.needs, 'affected');
+      strictEqual(producer.strategy, undefined);
+      strictEqual(
+        producer.steps.find((step) => step.uses?.startsWith('pnpm/setup@')).with
+          .runtime,
+        'node@26.13.0',
+      );
+      deepStrictEqual(
+        Object.entries(workflow.jobs).flatMap(([name, job]) =>
+          (job.steps ?? [])
+            .filter((step) => step.run === 'pnpm build:package')
+            .map(() => name),
+        ),
+        ['package-build'],
+      );
+      strictEqual(
+        producer.steps.find((step) => step.run?.startsWith('tar -czf'))?.run,
+        'tar -czf "$RUNNER_TEMP/package.tar.gz" dist-porcelain',
+      );
+      const upload = producer.steps.find((step) =>
+        step.uses?.startsWith('actions/upload-artifact@'),
+      ).with;
+      strictEqual(upload.name, 'release-package');
+      strictEqual(upload.path, '${{ runner.temp }}/package.tar.gz');
+      strictEqual(upload['if-no-files-found'], 'error');
+      deepStrictEqual(consumer.needs, ['affected', 'package-build']);
+      strictEqual(consumer.strategy, undefined);
+      deepStrictEqual(
+        [
+          consumer.steps.find((step) => step.uses?.startsWith('pnpm/setup@'))
+            .with.runtime,
+          producer.steps.find((step) => step.uses?.startsWith('pnpm/setup@'))
+            .with.runtime,
+        ],
+        entry.versions.map((version) => `node@${version}`),
+      );
+      strictEqual(
+        producer.steps.find((step) =>
+          step.run?.includes('bash scripts/check-package.sh'),
+        )?.run,
+        consumer.steps.find((step) =>
+          step.run?.includes('bash scripts/check-package.sh'),
+        )?.run,
+      );
+      const download = consumer.steps.find((step) =>
+        step.uses?.startsWith('actions/download-artifact@'),
+      ).with;
+      strictEqual(download.name, upload.name);
+      strictEqual(download.path, '${{ runner.temp }}/release-package');
+      strictEqual(
+        consumer.steps.find((step) => step.run?.startsWith('tar -xzf'))?.run,
+        'tar -xzf "$RUNNER_TEMP/release-package/package.tar.gz"',
+      );
+      strictEqual(
+        consumer.steps.find((step) =>
+          step.run?.includes('bash scripts/check-package.sh'),
+        )?.run,
+        'VERSION=$(node -p "require(\'./package.json\').version") bash scripts/check-package.sh\n',
+      );
+      process.stdout.write(
+        'PASS ci-package-artifact: build once, check both runtimes\n',
+      );
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(
@@ -599,7 +813,7 @@ export async function runGuardrailCases(named = []) {
       );
       for (const { name, setup } of installs) {
         strictEqual(setup['require-lockfile'], true, name);
-        strictEqual(setup.install ?? true, true, name);
+        strictEqual(setup.install ?? true, name !== 'package', name);
         strictEqual(setup['working-directory'] ?? '.', '.', name);
         strictEqual(setup['package-json-file'], undefined, name);
       }
