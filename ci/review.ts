@@ -7,7 +7,6 @@ import {
   approvalHolds,
   assess,
   labels,
-  needsReview,
   nextStep,
   reviewComment,
   reviewCommentMarker,
@@ -17,7 +16,6 @@ import {
   type PullRequest,
   type ReviewState,
   type ReviewedCommit,
-  type Triage,
 } from './review-verdict.ts';
 import {
   changeLabels,
@@ -33,9 +31,10 @@ import {
   upsertComment,
 } from './github.ts';
 import { decisionModel, dollars, reviewModel } from './openai.ts';
+import { judgeReview } from './review-judgment.ts';
+import { readReviewPatch } from './review-patch.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
-const triagePatchCharacters = 100_000;
 const statusContext = 'Agent verdict';
 const ciCheck = 'checks';
 const landingBranch = 'main';
@@ -193,14 +192,6 @@ async function runReview(
   }
 }
 
-function patchOf(repository: string, number: number): string | undefined {
-  try {
-    return gh(['pr', 'diff', String(number), '--repo', repository]);
-  } catch {
-    return undefined;
-  }
-}
-
 async function ask(
   client: OpenAI,
   step: string,
@@ -325,7 +316,6 @@ if (approvedNow && view.state === 'OPEN')
     withState(existing?.body, { ...saved, approvedHead: headSha }),
   );
 const trusted = trustedAuthor(repository, number);
-const requested = current.has(labels.review) || saved?.reviewed !== undefined;
 const skip =
   view.state !== 'OPEN'
     ? 'it is not open'
@@ -349,13 +339,15 @@ const runUrl = `${required('GITHUB_SERVER_URL')}/${repository}/actions/runs/${re
 const report = (
   state: 'pending' | 'success' | 'failure' | 'error',
   description: string,
-) =>
+) => {
+  console.log(description);
   setStatus(repository, view.headRefOid, {
     state,
     context: statusContext,
     description,
     url: runUrl,
   });
+};
 let failed = false;
 let summarized = false;
 const fail = (reason: string) => {
@@ -372,7 +364,7 @@ process.once('exit', (code) => {
   fail(`exit code ${code}`);
   if (!summarized) writeSummary(number, `stopped with exit code ${code}`);
 });
-report('pending', 'Triage, Reviewer and Doorkeeper are judging this commit');
+report('pending', 'Triage: checking whether this commit needs review');
 
 let outcome = 'stopped before a verdict';
 try {
@@ -384,44 +376,43 @@ try {
   const evidence = `Pull request title: ${view.title}\n\nDescription:\n${view.body}\n\nChanged files:\n${changed
     .map((file) => `${file.filename} (+${file.additions}/-${file.deletions})`)
     .join('\n')}`;
-  const patch = requested ? undefined : patchOf(repository, number);
-  const triage: Triage = {
-    reviewProbability:
-      requested || patch === undefined || patch.length > triagePatchCharacters
-        ? undefined
-        : await ask(
-            client,
-            'Triage',
-            `${evidence}\n\nPatch:\n${patch}`,
-            'needs_review',
-            'Judged from the patch, not the description: the pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
-          ),
-    requested,
-  };
   const previous = saved?.reviewed;
-  const review = !needsReview(triage)
-    ? undefined
-    : previous?.sha === view.headRefOid
-      ? previous.review
-      : await runReview(
+  const { triage, review, ownerApprovalProbability } = await judgeReview(
+    {
+      evidence,
+      patch: readReviewPatch(
+        {
+          remote: `https://github.com/${repository}.git`,
+          baseSha: view.baseRefOid,
+          headSha: view.headRefOid,
+        },
+        () => gh(['pr', 'diff', String(number), '--repo', repository]),
+      ),
+      requested: current.has(labels.review),
+      previous,
+      headSha: view.headRefOid,
+    },
+    {
+      decide: (question) =>
+        ask(
+          client,
+          question.stage,
+          question.evidence,
+          question.name,
+          question.instructions,
+        ),
+      review: () =>
+        runReview(
           client,
           repository,
           view,
           previous && isAncestor(repository, previous.sha, view.headRefOid)
             ? previous
             : undefined,
-        );
-  const oneWay = await ask(
-    client,
-    'Doorkeeper',
-    review ? `${evidence}\n\nReviewer's summary: ${review.summary}` : evidence,
-    'one_way',
-    'This pull request is hard to undo once merged or affects people outside the repository: it can lose data, migrates a database, changes a public contract or wire schema, changes lint, architecture or review rules, changes CI permissions or secrets, or releases a version. Ordinary bug fixes, features, refactors, tests and documentation are easy to revert and do not count.',
+        ),
+      report: (description) => report('pending', description),
+    },
   );
-  if (oneWay === undefined)
-    throw new Error(
-      'Doorkeeper declined to judge whether this is a one-way door',
-    );
   const approvedHead = approvedNow
     ? headSha
     : saved?.approvedHead === view.headRefOid
@@ -455,10 +446,16 @@ try {
     ),
   };
   const judge = (now: ReadonlySet<string>) => {
-    const assessment = assess(pullRequest, review, oneWay, now, {
-      approved: approvalHolds(now, view.headRefOid, approvedHead),
-      trusted,
-    });
+    const assessment = assess(
+      pullRequest,
+      review,
+      ownerApprovalProbability,
+      now,
+      {
+        approved: approvalHolds(now, view.headRefOid, approvedHead),
+        trusted,
+      },
+    );
     return {
       assessment,
       step: nextStep(assessment, review !== undefined, now),

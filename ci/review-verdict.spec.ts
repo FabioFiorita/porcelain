@@ -44,14 +44,14 @@ const owner = { approved: false, trusted: true };
 function step(
   paths: readonly string[],
   findings: readonly ReviewFinding[] | undefined,
-  oneWay: number,
+  ownerApproval: number,
   labels: ReadonlySet<string> = none,
   body?: string,
   access = { approved: labels.has('approved'), trusted: true },
 ) {
   const reviewed = findings === undefined ? undefined : review(findings);
   return nextStep(
-    assess(pullRequest(paths, body), reviewed, oneWay, labels, access),
+    assess(pullRequest(paths, body), reviewed, ownerApproval, labels, access),
     reviewed !== undefined,
     labels,
   );
@@ -102,7 +102,7 @@ describe('nextStep', () => {
     );
   });
 
-  it('waits for the owner when Doorkeeper reads a one-way door', () => {
+  it('waits for the owner when Doorkeeper requires approval for a reversible architectural decision', () => {
     expect(step(product, [], 0.9).verdict).toBe('needs-owner');
   });
 
@@ -186,7 +186,7 @@ describe('withState', () => {
   it('keeps an approval given while CI was still running', () => {
     const earlier = reviewComment(
       pullRequest(product),
-      { reviewProbability: 0.97, requested: false },
+      { reviewProbability: 0.97, source: 'decision' },
       review([]),
       assess(pullRequest(product), review([]), 0.9, none, owner),
       { reviewed: { sha: 'an-earlier-commit', review: review([]) } },
@@ -205,21 +205,19 @@ describe('withState', () => {
 
 describe('needsReview', () => {
   it('skips the review when Triage finds nothing to read', () => {
-    expect(needsReview({ reviewProbability: 0.08, requested: false })).toBe(
+    expect(needsReview({ reviewProbability: 0.08, source: 'decision' })).toBe(
       false,
     );
   });
 
   it('reviews when Triage could not judge the patch', () => {
     expect(
-      needsReview({ reviewProbability: undefined, requested: false }),
+      needsReview({ reviewProbability: undefined, source: 'decision' }),
     ).toBe(true);
   });
 
   it('keeps reviewing every push once the label is on', () => {
-    expect(needsReview({ reviewProbability: 0.08, requested: true })).toBe(
-      true,
-    );
+    expect(needsReview({ source: 'requested' })).toBe(true);
   });
 });
 
@@ -231,7 +229,7 @@ describe('reviewComment', () => {
     };
     const comment = reviewComment(
       pullRequest(product),
-      { reviewProbability: 0.97, requested: false },
+      { reviewProbability: 0.97, source: 'decision' },
       saved.reviewed.review,
       assess(pullRequest(product), saved.reviewed.review, 0.01, none, owner),
       saved,
@@ -242,7 +240,7 @@ describe('reviewComment', () => {
   it('links each finding to its lines at the reviewed commit', () => {
     const comment = reviewComment(
       pullRequest(product),
-      { reviewProbability: 0.97, requested: false },
+      { reviewProbability: 0.97, source: 'decision' },
       review([finding(2)]),
       assess(pullRequest(product), review([finding(2)]), 0.01, none, owner),
       undefined,
@@ -255,13 +253,13 @@ describe('reviewComment', () => {
   it('says who decided what when Triage skips the review', () => {
     const comment = reviewComment(
       pullRequest(['README.md']),
-      { reviewProbability: 0.08, requested: false },
+      { reviewProbability: 0.08, source: 'decision' },
       undefined,
       assess(pullRequest(['README.md']), undefined, 0.02, none, owner),
       undefined,
     );
     expect(comment).toContain(
-      `### Ready to merge\n\nJudged commit \`${headSha.slice(0, 12)}\`.\n\n- **Triage:** no review needed (probability 0.08).\n- **Doorkeeper:** two-way door (probability 0.02).`,
+      `### Ready to merge\n\nJudged commit \`${headSha.slice(0, 12)}\`.\n\n- **Triage:** no review needed (probability 0.08).\n- **Doorkeeper:** no owner approval required (probability 0.02).`,
     );
     expect(comment).not.toContain('**Reviewer:**');
   });
