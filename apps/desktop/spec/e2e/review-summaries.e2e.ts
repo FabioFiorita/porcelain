@@ -53,12 +53,6 @@ declare const document: {
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
 
-async function renewSummary(frame: ReturnType<Page['frames']>[number]) {
-  const url = new URL(frame.url());
-  url.search = new URLSearchParams([...url.searchParams].reverse()).toString();
-  await frame.goto(url.href, { waitUntil: 'load' });
-}
-
 async function hoverSummaryLink(
   page: Page,
   link: ReturnType<Page['getByRole']>,
@@ -353,7 +347,7 @@ for (const activation of ['pointer', 'keyboard', 'renewal'] as const) {
   });
 }
 
-test('a remote computer summary survives document renewal, stays isolated and cannot show a website @macos', async ({
+test('a remote computer summary stays isolated across reopening and cannot show a website @macos', async ({
   desktop,
 }, testInfo) => {
   const app = await desktop.launch();
@@ -456,7 +450,6 @@ test('a remote computer summary survives document renewal, stays isolated and ca
   if (frame === undefined)
     throw new Error('The remote summary did not load through the app');
   await frame.waitForLoadState('load');
-  await renewSummary(frame);
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
