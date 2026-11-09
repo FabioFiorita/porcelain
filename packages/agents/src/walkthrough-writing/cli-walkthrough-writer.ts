@@ -12,8 +12,8 @@ import type { ProcessGroupLimits } from '@porcelain/process';
 import { firstPassSchema, writingPrompts } from './writing-prompts.ts';
 
 const envelopeSchema = Schema.Struct({
-  structured_output: Schema.Unknown,
-  session_id: Schema.String,
+  structured_output: Schema.optional(Schema.Unknown),
+  session_id: Schema.optional(Schema.String),
   total_cost_usd: Schema.optional(Schema.Number),
   is_error: Schema.optional(Schema.Boolean),
   result: Schema.optional(Schema.String),
@@ -211,7 +211,7 @@ export const cliWalkthroughWriterLayer = (options: {
                       ? 'Sign in again to the selected agent CLI.'
                       : 'The selected agent CLI could not finish the walkthrough.',
                   );
-                sessionId = envelope.session_id;
+                sessionId = envelope.session_id ?? sessionId;
                 if (envelope.total_cost_usd !== undefined)
                   costUsd = (costUsd ?? 0) + envelope.total_cost_usd;
                 answer = envelope.structured_output;

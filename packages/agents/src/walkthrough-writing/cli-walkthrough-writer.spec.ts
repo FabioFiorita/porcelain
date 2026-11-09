@@ -111,6 +111,17 @@ it('surfaces ended sign-in as signed out', async ({ onTestFinished }) => {
         'Sign in again to the selected agent CLI, then write a walkthrough for the next head.',
     },
   });
+  const envelope = await fixture(
+    `console.log(JSON.stringify({is_error:true,result:'OAuth token expired. Please sign in again'}));`,
+    onTestFinished,
+  );
+  expect(await envelope.result()).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'signed_out',
+      message: 'Sign in again to the selected agent CLI.',
+    },
+  });
 });
 it('returns timed out when a CLI never finishes', async ({
   onTestFinished,
