@@ -160,18 +160,23 @@ test('restarts the HTTP server during an active writer, drains its process and r
     expect(before.walkthrough?.state.status).toBe('running');
     const image = Buffer.from('89504e470d0a1a0a', 'hex');
     const sql = new DatabaseSync(join(state, 'inventory.sqlite'));
-    sql
-      .prepare(
-        'INSERT INTO walkthrough_evidence (run_id, asset_id, media_type, caption, bytes) VALUES (?, ?, ?, ?, ?)',
-      )
-      .run(
-        before.walkthrough?.id ?? '',
-        'fixture-image',
-        'image/png',
-        'Existing proof',
-        image,
-      );
-    sql.close();
+    try {
+      sql.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
+      sql
+        .prepare(
+          'INSERT INTO walkthrough_evidence (run_id, asset_id, media_type, caption, bytes) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(
+          before.walkthrough?.id ?? '',
+          'fixture-image',
+          'image/png',
+          'Existing proof',
+          image,
+        );
+      sql.exec('COMMIT');
+    } finally {
+      sql.close();
+    }
     const pid = Number(await readFile(join(root, 'writer-started'), 'utf8'));
     if (application) await runtime.runPromise(application.close());
     application = undefined;

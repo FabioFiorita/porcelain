@@ -113,6 +113,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     ),
   );
   try {
+    database.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
     const insert = database.prepare(
       'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
     );
@@ -135,6 +136,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
         'INSERT INTO walkthrough_evidence (run_id, asset_id, media_type, caption, bytes) VALUES (?, ?, ?, ?, ?)',
       )
       .run(firstId, 'first-image', 'image/png', 'Existing screenshot', bytes);
+    database.exec('COMMIT');
   } finally {
     database.close();
   }
