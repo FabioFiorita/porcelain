@@ -100,18 +100,7 @@ export type ReviewWorkspaceProps = {
   navigationTrigger: ElementTarget<HTMLButtonElement>;
 } & ReviewContentProps;
 
-export function ReviewWorkspace(props: ReviewWorkspaceProps) {
-  return (
-    <ReviewBoundary
-      connection={props.context.connection}
-      scope={{ projectId: props.projectId, worktreeId: props.worktree.id }}
-    >
-      <ReviewWorkspaceContent {...props} />
-    </ReviewBoundary>
-  );
-}
-
-function ReviewWorkspaceContent({
+export function ReviewWorkspace({
   worktree,
   projectId,
   search,
