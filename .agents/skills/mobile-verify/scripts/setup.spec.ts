@@ -105,6 +105,25 @@ it('refuses to pair when the iOS runner preparation fails', async () => {
   expect(await commands()).toEqual(['open', 'prepare', 'close']);
 });
 
+it('leaves a session supplied by the caller open after pairing', async () => {
+  const { driver, commands } = await deviceDriver(
+    false,
+    false,
+    false,
+    'android',
+  );
+  pairClient(driver, 'http://localhost:5183', 'setup', false);
+  expect(await commands()).not.toContain('close');
+});
+
+it('leaves a session supplied by the caller open when pairing fails', async () => {
+  const { driver, commands } = await deviceDriver(true, false);
+  expect(() =>
+    pairClient(driver, 'http://localhost:5183', 'setup', false),
+  ).toThrow('COMMAND_FAILED: development client could not open');
+  expect(await commands()).toEqual(['open']);
+});
+
 it('does not hand over a paired client when its setup session fails to close', async () => {
   const { driver, commands } = await deviceDriver(false, true);
 

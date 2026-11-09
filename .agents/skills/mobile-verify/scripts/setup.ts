@@ -201,9 +201,13 @@ export function pairClient(
   driver: Driver,
   metro: string,
   session: string,
+  ownsSession = true,
 ): void {
   const run = (args: string[], optional = false) =>
     setupCommand(driver, args, session, optional);
+  const closeOwnedSession = () => {
+    if (ownsSession) run(['close']);
+  };
   const ios =
     driver.targetArgs[driver.targetArgs.indexOf('--platform') + 1] === 'ios';
   try {
@@ -223,12 +227,12 @@ export function pairClient(
     run(['wait', 'text', 'Online', '30000']);
   } catch (error) {
     try {
-      run(['close']);
+      closeOwnedSession();
     } catch (cleanupError) {
       if (error instanceof Error && cleanupError instanceof Error)
         error.message += `\nSetup cleanup also failed: ${cleanupError.message}`;
     }
     throw error;
   }
-  run(['close']);
+  closeOwnedSession();
 }

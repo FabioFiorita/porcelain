@@ -82,7 +82,8 @@ export function serve(folder: string): Promise<void> {
         hubUrl(hub),
       ]);
     life.onStop(() => {
-      setupCommand(agent, ['close'], undefined, true);
+      if (options.agentSession === undefined)
+        setupCommand(agent, ['close'], undefined, true);
       if (hub !== null) setupCommand(agent, ['disconnect']);
     });
     const ports = host === null ? [] : await freeHostPorts(host, 2);
@@ -159,7 +160,12 @@ export function serve(folder: string): Promise<void> {
         '--foreground',
       ]);
     } else {
-      pairClient(agent, metro.url, setupSession);
+      pairClient(
+        agent,
+        metro.url,
+        setupSession,
+        options.agentSession === undefined,
+      );
     }
     const devices = await environment.devices();
     if (
@@ -191,7 +197,7 @@ export function serve(folder: string): Promise<void> {
       .evidence()
       .note(
         'handoff.txt',
-        `${options.manualPairing ? 'manual pairing; app left for developer' : 'setup session closed'}\npaired devices ${JSON.stringify(devices)}\n`,
+        `${options.manualPairing ? 'manual pairing; app left for developer' : options.agentSession === undefined ? 'setup session closed' : 'setup finished; supplied session left open'}\npaired devices ${JSON.stringify(devices)}\n`,
       );
     return {
       ...options,
