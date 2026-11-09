@@ -84,6 +84,7 @@ import {
   startApplication,
   type OpenServer,
 } from '../runtime/start-application.ts';
+import { composeWalkthroughs } from './compose-walkthroughs.ts';
 import { composeAccess } from './compose-access.ts';
 import { composeChanges } from './compose-changes.ts';
 import { type ComposeContext } from './compose-context.ts';
@@ -356,7 +357,20 @@ function serverResources(
           commitDraftSource: Context.get(plannerContext, CommitDraftSource),
           commitModelReader: Context.get(plannerContext, CommitModelReader),
         });
+        const walkthroughs = yield* composeWalkthroughs(
+          context,
+          shared,
+          stores,
+          checkWorktree,
+        );
         const jobs: readonly Job[] = [
+          yield* makeIntervalJob(
+            'recover-walkthroughs',
+            { execute: walkthroughs.workflow.recover },
+            { atStart: true },
+            logger,
+            observability,
+          ),
           yield* makeIntervalJob(
             'recover-interrupted-git-actions',
             { execute: gitActions.gitActionWorkflow.recover },
@@ -424,6 +438,7 @@ function serverResources(
           changes: changes.routes,
           reviews: reviews.routes,
           gitActions: gitActions.routes,
+          walkthroughs: walkthroughs.routes,
         };
         const network = createNetworkServer({
           application: {
@@ -454,6 +469,7 @@ function serverResources(
               routeListenerRunner.close({ route: 'tailnet' }),
               worktreeWatches.close(),
               liveConnections.close(),
+              walkthroughs.workflow.stop(),
               lanes.close(),
               gitActions.gitActionWorkflow.stop(),
             ]),

@@ -10,7 +10,8 @@
     "./reviews": "./src/reviews/index.ts",
     "./files": "./src/files/index.ts",
     "./git-actions": "./src/git-actions/index.ts",
-    "./access": "./src/access/index.ts"
+    "./access": "./src/access/index.ts",
+    "./walkthroughs": "./src/walkthroughs/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -25,6 +26,7 @@
     "@porcelain/kernel": "workspace:*",
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
-    "effect": "4.1.2"
+    "effect": "4.1.2",
+    "@porcelain/walkthroughs": "workspace:*"
   }
 }

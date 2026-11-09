@@ -469,6 +469,9 @@ importers:
       '@porcelain/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@porcelain/walkthroughs':
+        specifier: workspace:*
+        version: link:../../packages/walkthroughs
       effect:
         specifier: 4.1.2
         version: 4.1.2
@@ -639,6 +642,12 @@ importers:
       '@porcelain/process':
         specifier: workspace:*
         version: link:../process
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@porcelain/walkthroughs':
+        specifier: workspace:*
+        version: link:../walkthroughs
       effect:
         specifier: 4.1.2
         version: 4.1.2
@@ -719,6 +728,9 @@ importers:
       '@porcelain/reviews':
         specifier: workspace:*
         version: link:../reviews
+      '@porcelain/walkthroughs':
+        specifier: workspace:*
+        version: link:../walkthroughs
       effect:
         specifier: 4.1.2
         version: 4.1.2
@@ -824,11 +836,29 @@ importers:
       '@porcelain/reviews':
         specifier: workspace:*
         version: link:../reviews
+      '@porcelain/walkthroughs':
+        specifier: workspace:*
+        version: link:../walkthroughs
       effect:
         specifier: 4.1.2
         version: 4.1.2
 
   packages/theme: {}
+
+  packages/walkthroughs:
+    dependencies:
+      '@porcelain/effects':
+        specifier: workspace:*
+        version: link:../effects
+      '@porcelain/git':
+        specifier: workspace:*
+        version: link:../git
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      effect:
+        specifier: 4.1.2
+        version: 4.1.2
 
 packages:
 

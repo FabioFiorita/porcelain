@@ -1,3 +1,4 @@
+import { WalkthroughsApi } from '../walkthroughs/api.ts';
 import { AccessApi } from '../access/api.ts';
 import { ChangesApi } from '../changes/api.ts';
 import { FilesApi } from '../files/api.ts';
@@ -8,6 +9,7 @@ import { ReviewSummaryApi } from '../reviews/summary-api.ts';
 import { porcelainApi } from './http-api.ts';
 
 export class PorcelainClientApi extends porcelainApi
+  .addHttpApi(WalkthroughsApi)
   .addHttpApi(AccessApi)
   .addHttpApi(ProjectsApi)
   .addHttpApi(FilesApi)

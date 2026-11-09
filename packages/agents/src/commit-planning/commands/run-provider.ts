@@ -4,6 +4,7 @@ import { ProviderProcessFailedError } from '../errors/provider-process-failed-er
 
 type ProviderCommand = {
   readonly command: string;
+  readonly env?: NodeJS.ProcessEnv;
   readonly args: readonly string[];
   readonly cwd: string;
   readonly prompt: string;
@@ -19,6 +20,7 @@ export const runProvider = Effect.fn('Provider.run')(function* (
     command: input.command,
     args: input.args,
     cwd: input.cwd,
+    env: input.env,
     stdin: input.prompt,
     timeoutMs: input.timeoutMs,
     maxBytes: input.maxBytes,
@@ -28,9 +30,14 @@ export const runProvider = Effect.fn('Provider.run')(function* (
   );
   if (
     output.exitCode === 0 &&
-    output.stopped !== 'output-limit' &&
+    output.stopped === undefined &&
     output.groupStopped
   )
     return output.stdout.toString('utf8');
-  return yield* Effect.fail(new ProviderProcessFailedError());
+  return yield* Effect.fail(
+    new ProviderProcessFailedError({
+      reason: output.stopped === 'deadline' ? 'deadline' : 'exit',
+      detail: output.stderr.toString('utf8') + output.stdout.toString('utf8'),
+    }),
+  );
 });

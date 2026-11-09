@@ -34,7 +34,8 @@
     "effect": "4.1.2",
     "qrcode-terminal": "0.12.0",
     "trash": "10.1.1",
-    "ws": "8.21.3"
+    "ws": "8.21.3",
+    "@porcelain/walkthroughs": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

@@ -33,6 +33,7 @@ export type PairedUseCases = {
   changes: HttpApplication;
   reviews: HttpApplication;
   gitActions: HttpApplication;
+  walkthroughs: HttpApplication;
 };
 export function pairedScope(options: {
   boundary: RequestBoundary;
@@ -70,6 +71,7 @@ export function pairedScope(options: {
     Layer.mergeAll(
       application.access.routes.session,
       application.access.routes.pushRegistration,
+      application.walkthroughs,
       application.gitActions,
       application.reviews,
       application.files,

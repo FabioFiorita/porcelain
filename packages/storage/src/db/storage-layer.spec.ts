@@ -190,6 +190,7 @@ describe('Native storage adoption', () => {
         { migration_id: 8, name: 'review_agent_feedback' },
         { migration_id: 9, name: 'push_registrations' },
         { migration_id: 10, name: 'review_timing' },
+        { migration_id: 11, name: 'walkthroughs' },
       ]);
     } finally {
       database.close();
@@ -574,6 +575,7 @@ describe('Native storage adoption', () => {
         { migration_id: 8, name: 'review_agent_feedback' },
         { migration_id: 9, name: 'push_registrations' },
         { migration_id: 10, name: 'review_timing' },
+        { migration_id: 11, name: 'walkthroughs' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -633,6 +635,7 @@ describe('Native storage adoption', () => {
           { migration_id: 8, name: 'review_agent_feedback' },
           { migration_id: 9, name: 'push_registrations' },
           { migration_id: 10, name: 'review_timing' },
+          { migration_id: 11, name: 'walkthroughs' },
         ]);
         expect(
           stored

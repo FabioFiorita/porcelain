@@ -5,6 +5,7 @@ export const domainPackages = [
   'files',
   'git-actions',
   'access',
+  'walkthroughs',
 ] as const;
 
 export const webDomains = [

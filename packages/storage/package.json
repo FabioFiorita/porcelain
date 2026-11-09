@@ -17,7 +17,8 @@
     "@porcelain/git-actions": "workspace:*",
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
-    "effect": "4.1.2"
+    "effect": "4.1.2",
+    "@porcelain/walkthroughs": "workspace:*"
   },
   "devDependencies": {}
 }

@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { unauthenticated, UNKNOWN_UUID, unknownOid } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
+import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import type { HttpRequest, Session } from '../kit/session.ts';
 
@@ -15,7 +16,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 100;
+const PAIRED_ROUTES = 103;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -31,7 +32,8 @@ function parameter(session: Session, name: string, route: string): string {
   if (name === 'reviewId') return UNKNOWN_UUID;
   if (name === 'revision') return '1';
   if (name === 'oid') return unknownOid;
-  if (name === 'threadId' || name === 'requestId') return UNKNOWN_UUID;
+  if (['threadId', 'requestId', 'runId', 'assetId'].includes(name))
+    return UNKNOWN_UUID;
   throw new Error(`${route} has a parameter the sweep cannot fill: ${name}`);
 }
 
@@ -68,6 +70,11 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
   'every paired route refuses a request with $credential with a Bearer challenge and changes nothing',
   async ({ auth }, { session, server }) => {
     const before = await inventory(session);
+    const walkthrough = {
+      method: 'GET',
+      path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+    } as const;
+    const beforeWalkthrough = await read(session, walkthrough);
     const routes = pairedRoutes(server.routes);
     const answers = [];
     expect(routes).toHaveLength(PAIRED_ROUTES);
@@ -86,6 +93,9 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'POST /api/reviews/:reviewId/archive',
         'GET /api/worktrees/:worktreeId/summary',
         'POST /api/worktrees/:worktreeId/delete',
+        'POST /api/worktrees/:worktreeId/walkthrough',
+        'GET /api/worktrees/:worktreeId/walkthrough',
+        'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
         'GET /api/projects/:projectId/pull-requests',
         'GET /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/github-account',
@@ -115,5 +125,6 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
       })),
     );
     expect(await inventory(session)).toStrictEqual(before);
+    expect(await read(session, walkthrough)).toStrictEqual(beforeWalkthrough);
   },
 );

@@ -32,6 +32,12 @@ export const liveNoticeSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('heartbeat') }),
   Schema.Struct({ type: Schema.Literal('inventory') }),
   Schema.Struct({
+    type: Schema.Literal('walkthrough'),
+    change: Schema.Literal('run'),
+    projectId: Schema.String,
+    worktreeId: worktreeIdSchema,
+  }),
+  Schema.Struct({
     type: Schema.Literal('git-action'),
     projectId: Schema.String.check(Schema.isUUID()),
     worktreeId: worktreeIdSchema,

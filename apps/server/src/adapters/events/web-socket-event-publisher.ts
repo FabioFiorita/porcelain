@@ -30,12 +30,21 @@ export const webSocketEventPublisherLayer = Layer.effect(
         }),
       ),
       worktreeChanged: Effect.fn('EventPublisher.worktreeChanged')((input) =>
-        connectionsCapability.toWorktree(input.worktreeId, (projectId) => ({
-          type: 'worktree',
-          projectId,
-          worktreeId: input.worktreeId,
-          change: input.change,
-        })),
+        connectionsCapability.toWorktree(input.worktreeId, (projectId) =>
+          input.change === 'walkthrough'
+            ? {
+                type: 'walkthrough',
+                change: 'run',
+                projectId,
+                worktreeId: input.worktreeId,
+              }
+            : {
+                type: 'worktree',
+                projectId,
+                worktreeId: input.worktreeId,
+                change: input.change,
+              },
+        ),
       ),
       filesChanged: Effect.fn('EventPublisher.filesChanged')((input) =>
         connectionsCapability.toWorktree(input.worktreeId, (projectId) => ({

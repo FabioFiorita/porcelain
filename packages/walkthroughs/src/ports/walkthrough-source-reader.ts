@@ -1,0 +1,19 @@
+import { Context, type Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
+import type { DiffFile } from '../models/walkthrough.ts';
+export interface WalkthroughSourceReader {
+  readonly read: (input: {
+    worktreeId: string;
+    base: string | undefined;
+  }) => Effect.Effect<
+    { baseOid: string; headOid: string; files: readonly DiffFile[] },
+    GitIoFailure | WalkthroughFailedError,
+    WorktreeRead
+  >;
+}
+export const WalkthroughSourceReader = Context.Service<
+  '@porcelain/walkthroughs/WalkthroughSourceReader',
+  WalkthroughSourceReader
+>('@porcelain/walkthroughs/WalkthroughSourceReader');
