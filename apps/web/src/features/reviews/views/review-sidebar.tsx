@@ -106,7 +106,7 @@ export function SidePanel({
       aria-label="Review sidebar"
       data-testid="review-sidebar"
       className={cn(
-        'flex h-full min-h-0 flex-col overflow-hidden rounded-paper bg-background shadow-paper',
+        'flex h-full min-h-0 flex-col overflow-hidden rounded-paper bg-card shadow-paper',
         layout === 'docked' &&
           'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-1 duration-150',
       )}
