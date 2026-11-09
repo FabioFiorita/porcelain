@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -14,15 +13,14 @@ import {
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
-import { Card } from '../../../components/ui/card';
+import { CardRows } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
+import { GroupHeader } from '../../../components/ui/group-header';
 import { Item } from '../../../components/ui/item';
-import { Separator } from '../../../components/ui/separator';
-import { Switch } from '../../../components/ui/switch';
 import { Text } from '../../../components/ui/text';
 import { openNotificationSettings } from '../../../shared/adapters/push-notifications';
 import { remoteConnectionState } from '../../../shared/application/store';
-import { usePreferences } from '../../preferences';
+import { PreferenceSwitch, usePreferences } from '../../preferences';
 import { pushTokenState, refreshPushToken } from '../store';
 
 const switches = [
@@ -106,39 +104,25 @@ export function NotificationsSettings() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Box
-        className="w-full max-w-2xl self-center"
-        gap={6}
-        paddingX={6}
-        paddingY={8}
-      >
+      <Box className="w-full max-w-2xl self-center" gap={6} padding={4}>
         <Box gap={2}>
-          <Card>
-            {switches.map(({ key, testID, title, description }, index) => (
-              <Fragment key={key}>
-                {index > 0 ? <Separator inset="content" /> : null}
-                <Item
-                  testID={testID}
-                  title={title}
-                  description={description}
-                  trailing={
-                    <Switch
-                      label={title}
-                      checked={notifications[key]}
-                      disabled={disabled}
-                      onCheckedChange={(value) => turn(key, value)}
-                    />
-                  }
-                />
-              </Fragment>
+          <CardRows>
+            {switches.map(({ key, testID, title, description }) => (
+              <PreferenceSwitch
+                key={key}
+                testID={testID}
+                label={title}
+                description={description}
+                checked={notifications[key]}
+                disabled={disabled}
+                onChange={(value) => turn(key, value)}
+              />
             ))}
-          </Card>
-          <Box paddingX={4}>
-            <Text variant="caption" tone="muted">
-              Each paired computer sends these to this phone through Expo’s
-              notification service, with the project and a short line of text.
-            </Text>
-          </Box>
+          </CardRows>
+          <Text variant="caption" tone="muted">
+            Each paired computer sends these to this phone through Expo’s
+            notification service, with the project and a short line of text.
+          </Text>
         </Box>
         {message ? <ErrorState message={message} /> : null}
         {on && token.kind === 'denied' ? (
@@ -149,20 +133,18 @@ export function NotificationsSettings() {
           />
         ) : null}
         {on && computers.length > 0 ? (
-          <Box gap={3}>
-            <Text variant="headline">Computers</Text>
-            <Card>
-              {computers.map(({ remote, connection }, index) => (
-                <Fragment key={remote.environmentId}>
-                  {index > 0 ? <Separator inset="content" /> : null}
-                  <ComputerRegistration
-                    connection={connection}
-                    name={remote.name}
-                    waiting={token.kind !== 'ready'}
-                  />
-                </Fragment>
+          <Box>
+            <GroupHeader variant="section" label="Computers" />
+            <CardRows>
+              {computers.map(({ remote, connection }) => (
+                <ComputerRegistration
+                  key={remote.environmentId}
+                  connection={connection}
+                  name={remote.name}
+                  waiting={token.kind !== 'ready'}
+                />
               ))}
-            </Card>
+            </CardRows>
           </Box>
         ) : null}
       </Box>

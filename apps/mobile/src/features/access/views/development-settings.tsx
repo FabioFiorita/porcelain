@@ -1,7 +1,8 @@
 import { DevelopmentCredentials } from './development-credentials';
 import { Box } from '../../../components/ui/box';
+import { Card } from '../../../components/ui/card';
+import { GroupHeader } from '../../../components/ui/group-header';
 import { Item } from '../../../components/ui/item';
-import { Text } from '../../../components/ui/text';
 
 export default function DevelopmentSettingsSection({
   onOpenComponentLibrary,
@@ -10,14 +11,16 @@ export default function DevelopmentSettingsSection({
 }) {
   return (
     <Box gap={3}>
-      <Text variant="headline" tone="muted">
-        Development
-      </Text>
-      <Item
-        title="Component library"
-        description="Preview Porcelain’s controls and native components."
-        onPress={onOpenComponentLibrary}
-      />
+      <Box>
+        <GroupHeader variant="section" label="Development" />
+        <Card>
+          <Item
+            title="Component library"
+            description="Preview Porcelain’s controls and native components."
+            onPress={onOpenComponentLibrary}
+          />
+        </Card>
+      </Box>
       <DevelopmentCredentials />
     </Box>
   );

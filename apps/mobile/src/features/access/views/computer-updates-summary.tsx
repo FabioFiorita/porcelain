@@ -25,7 +25,7 @@ export function ComputerUpdatesSummary() {
         disabled={running || checking}
         onPress={refresh}
       />
-      <Separator inset="leading" />
+      <Separator />
       <UpdateAllButton />
     </Card>
   );

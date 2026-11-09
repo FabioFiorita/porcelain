@@ -3,9 +3,22 @@ import type { WorktreeCleanupPlan } from '@porcelain/contracts/projects';
 import type { ReviewGitSettings } from '@porcelain/contracts/access';
 import type { ListBranchBasesResponse } from '@porcelain/contracts/changes';
 export const archiveSettings = [
-  { key: 'archiveDeleteWorktree', label: 'Delete local worktree' },
-  { key: 'archiveDeleteLocalBranch', label: 'Delete local branch' },
-  { key: 'archiveDeleteRemoteBranch', label: 'Delete remote branch' },
+  {
+    key: 'archiveDeleteWorktree',
+    label: 'Delete local worktree',
+    description:
+      'Removes the review’s folder. The main checkout is never deleted.',
+  },
+  {
+    key: 'archiveDeleteLocalBranch',
+    label: 'Delete local branch',
+    description: 'Deletes the review branch from this clone.',
+  },
+  {
+    key: 'archiveDeleteRemoteBranch',
+    label: 'Delete remote branch',
+    description: 'Deletes the branch on origin if it still exists.',
+  },
 ] as const;
 export function archiveOptions(preferences: {
   archiveDeleteWorktree: boolean;

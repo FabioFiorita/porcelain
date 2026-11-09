@@ -107,7 +107,7 @@ function ServiceUpdateAction({ target }: { target: ServiceUpdateTarget }) {
   if (!version) return null;
   return (
     <>
-      <Separator inset="leading" />
+      <Separator />
       <Item
         title={`Update to ${version}`}
         leading={<Icon name="refresh" tone="brand" />}
@@ -129,7 +129,7 @@ function TrustInstructions({
   const refresh = useAtomRefresh(readServiceUpdate(target.connection));
   return (
     <>
-      <Separator inset="leading" />
+      <Separator />
       <Item
         title={expanded ? 'Hide trust instructions' : trust.label}
         leading={<Icon name="lock" tone="muted" />}
