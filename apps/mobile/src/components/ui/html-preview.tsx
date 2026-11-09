@@ -18,62 +18,61 @@ const NativeHtml = requireNativeView<{
   onError: (event: NativeSyntheticEvent<{ message: string }>) => void;
   style: { flex: number };
 }>('PorcelainRenderer', 'HtmlSurface');
-export function HtmlPreview({
-  html,
-  onLink,
-  initialMode = 'preview',
-  wrap = true,
-  selection,
-  onSelect,
-}: {
-  html: string;
-  onLink?: (url: string) => void;
-  initialMode?: 'preview' | 'source';
-  wrap?: boolean;
-  selection?: ReviewRange | undefined;
-  onSelect?: ((range: ReviewRange) => void) | undefined;
-}) {
-  return (
-    <HtmlContent
-      key={html}
-      html={html}
-      onLink={onLink}
-      initialMode={initialMode}
-      wrap={wrap}
-      selection={selection}
-      onSelect={onSelect}
-    />
-  );
+export type HtmlMode = 'preview' | 'source';
+
+export function htmlModeToggle(mode: HtmlMode) {
+  return mode === 'source'
+    ? { label: 'Show preview', mode: 'preview' as const }
+    : { label: 'Show source', mode: 'source' as const };
 }
-function HtmlContent({
-  html,
-  onLink,
-  initialMode,
-  wrap,
-  selection,
-  onSelect,
-}: {
-  html: string;
-  onLink?: ((url: string) => void) | undefined;
-  initialMode: 'preview' | 'source';
-  wrap: boolean;
-  selection?: ReviewRange | undefined;
-  onSelect?: ((range: ReviewRange) => void) | undefined;
-}) {
-  const [source, setSource] = useState(initialMode === 'source');
-  const [error, setError] = useState('');
-  const { fontScale } = useWindowDimensions();
+
+export function HtmlPreview({
+  initialMode = 'preview',
+  ...props
+}: Omit<HtmlContentProps, 'mode'> & { initialMode?: HtmlMode }) {
+  const [mode, setMode] = useState(initialMode);
+  const toggle = htmlModeToggle(mode);
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row justify-end border-b border-border p-2">
         <Button
-          label={source ? 'Show preview' : 'Show source'}
+          label={toggle.label}
           variant="plain"
           size="sm"
-          onPress={() => setSource(!source)}
+          onPress={() => setMode(toggle.mode)}
         />
       </View>
-      {source ? (
+      <HtmlContent {...props} mode={mode} />
+    </View>
+  );
+}
+
+type HtmlContentProps = {
+  html: string;
+  mode: HtmlMode;
+  onLink?: ((url: string) => void) | undefined;
+  wrap?: boolean;
+  selection?: ReviewRange | undefined;
+  onSelect?: ((range: ReviewRange) => void) | undefined;
+};
+
+export function HtmlContent(props: HtmlContentProps) {
+  return <HtmlDocument key={props.html} {...props} />;
+}
+
+function HtmlDocument({
+  html,
+  mode,
+  onLink,
+  wrap = true,
+  selection,
+  onSelect,
+}: HtmlContentProps) {
+  const [error, setError] = useState('');
+  const { fontScale } = useWindowDimensions();
+  return (
+    <View className="flex-1 bg-background">
+      {mode === 'source' ? (
         <CodeView
           source={html}
           language="html"

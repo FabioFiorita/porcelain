@@ -10,7 +10,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { Box } from '../../../components/ui/box';
-import { Button } from '../../../components/ui/button';
+import type { DocumentAction } from '../../../components/ui/document-header';
 import { Text } from '../../../components/ui/text';
 import { documentCommentAnchor } from '../rules/document-comment';
 import { CommentThreads } from './review-comments-screen';
@@ -22,12 +22,17 @@ export type DocumentCodeSelection = {
   onSelect: ((range: ReviewRange) => void) | undefined;
 };
 
+export type DocumentCommentActions = {
+  comments: DocumentAction;
+  clearSelection: DocumentAction | undefined;
+};
+
 export function DocumentComments({
   workspace,
   path,
   document,
   target,
-  renderToolbar,
+  header,
   children,
   selectable = true,
   leaveScope,
@@ -38,7 +43,7 @@ export function DocumentComments({
   target?: CommentTarget | undefined;
   selectable?: boolean;
   leaveScope?: string | undefined;
-  renderToolbar?: ((actions: ReactNode) => ReactNode) | undefined;
+  header: (actions: DocumentCommentActions) => ReactNode;
   children: (props: DocumentCodeSelection) => ReactNode;
 }) {
   const [selected, setSelected] = useAtom(
@@ -60,39 +65,28 @@ export function DocumentComments({
       : selected?.range;
   const [showComments, setShowComments] = useState(selected !== undefined);
   const anchor = documentCommentAnchor(selected?.target ?? target, selection);
-  const actions = (
-    <>
-      <Button
-        label={showComments ? 'Hide comments' : 'Comments'}
-        variant="tonal"
-        size="sm"
-        onPress={() => setShowComments(!showComments)}
-      />
-      {selection ? (
-        <Button
-          label="Clear selection"
-          variant="plain"
-          size="sm"
-          disabled={composing !== undefined}
-          onPress={() => setSelected(undefined)}
-        />
-      ) : null}
-    </>
-  );
+  const actions: DocumentCommentActions = {
+    comments: {
+      kind: 'button',
+      id: 'comments',
+      label: showComments ? 'Hide comments' : 'Comments',
+      icon: showComments ? 'hideComments' : 'comments',
+      onPress: () => setShowComments(!showComments),
+    },
+    clearSelection: selection
+      ? {
+          kind: 'button',
+          id: 'clear-selection',
+          label: 'Clear selection',
+          icon: 'clearSelection',
+          disabled: composing !== undefined,
+          onPress: () => setSelected(undefined),
+        }
+      : undefined,
+  };
   return (
     <View className="flex-1">
-      {renderToolbar ? (
-        renderToolbar(actions)
-      ) : (
-        <Box
-          className="flex-row flex-wrap items-center"
-          gap={2}
-          paddingX={4}
-          paddingY={2}
-        >
-          {actions}
-        </Box>
-      )}
+      {header(actions)}
       {!target ? (
         <Box paddingX={4} paddingY={2}>
           <Text variant="caption" tone="muted">

@@ -6,5 +6,5 @@ export default function FileRoute() {
     path?: string;
     workspace?: string;
   }>();
-  return <FileScreen path={path} workspace={workspace} inlineComments />;
+  return <FileScreen path={path} workspace={workspace} />;
 }

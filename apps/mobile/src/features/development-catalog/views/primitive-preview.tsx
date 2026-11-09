@@ -1,6 +1,6 @@
 import { Box } from '../../../components/ui/box';
 import { useState, lazy, Suspense } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { Text } from '../../../components/ui/text';
 import { IconButton } from '../../../components/ui/icon-button';
 import { Input } from '../../../components/ui/input';
@@ -13,8 +13,6 @@ import { StatusTile } from '../../../components/ui/status-tile';
 import { Empty } from '../../../components/ui/empty';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Button } from '../../../components/ui/button';
-import { FileHeader } from '../../../components/ui/file-header';
 import { FileNotice } from '../../../components/ui/file-notice';
 import { FileTree } from '../../../components/ui/file-tree';
 import { ReviewAnnotation } from '../../../components/ui/review-annotation';
@@ -216,23 +214,6 @@ export function PrimitivePreview({ name }: { name: string }) {
         ) : null}
         {name === 'Files' ? (
           <>
-            <View className="-mx-4">
-              <FileHeader
-                path="apps/mobile/src/components/ui/button.tsx"
-                status="Modified"
-                additions={12}
-                deletions={4}
-                reviewed
-                actions={
-                  <Button
-                    label="File action"
-                    size="sm"
-                    variant="plain"
-                    onPress={() => setActions(actions + 1)}
-                  />
-                }
-              />
-            </View>
             <FileNotice kind="binary" />
             <FileNotice kind="unsupported" />
             <FileNotice kind="unavailable" />

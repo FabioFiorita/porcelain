@@ -1,4 +1,5 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { DocumentScreen } from '../../../components/ui/document-header';
 import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
 import { DiffContent } from './diff-content';
@@ -27,30 +28,26 @@ export function CommitDiffScreen({
     />
   );
   return (
-    <WorkspaceGate
-      title="History"
-      expectedWorkspace={workspace}
-      changed={changed}
-    >
-      {(current) =>
-        Number.isInteger(parent) && parent > 0 ? (
-          <>
-            <Stack.Screen
-              options={{ title: path.split('/').at(-1) ?? 'Diff' }}
-            />
+    <DocumentScreen path={path}>
+      <WorkspaceGate
+        title="History"
+        expectedWorkspace={workspace}
+        changed={changed}
+      >
+        {(current) =>
+          Number.isInteger(parent) && parent > 0 ? (
             <DiffContent
               key={`${current.key}:${oid}:${parent}:${path}`}
               selection={current}
               oid={oid}
               parent={parent}
               path={path}
-              inlineComments
             />
-          </>
-        ) : (
-          changed
-        )
-      }
-    </WorkspaceGate>
+          ) : (
+            changed
+          )
+        }
+      </WorkspaceGate>
+    </DocumentScreen>
   );
 }

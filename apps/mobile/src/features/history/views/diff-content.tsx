@@ -11,7 +11,7 @@ import type { CommitFile } from '@porcelain/client/history/rules';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { FileHeader } from '../../../components/ui/file-header';
+import { DocumentHeader } from '../../../components/ui/document-header';
 import { DiffView } from '../../../components/ui/diff-view';
 import { diffLines } from '@porcelain/client/changes/rules';
 import { usePreferences } from '../../preferences/index';
@@ -31,55 +31,48 @@ export function DiffContent({
   oid,
   parent,
   path,
-  inlineComments,
   leaveScope,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   path: string;
-  inlineComments?: boolean | undefined;
   leaveScope?: string | undefined;
 }) {
   const commit = useCommit(selection, oid, parent);
   const file = commit.value?.files.find(
     (candidate) => commitPath(candidate) === path,
   );
-  const content = (codeSelection?: DocumentCodeSelection) => (
-    <CommitReadState commit={commit}>
-      {(value) => (
-        <CommitFileContent
-          selection={selection}
-          oid={oid}
-          parent={parent}
-          path={path}
-          files={value.files}
-          inlineComments={inlineComments}
-          codeSelection={codeSelection}
-        />
-      )}
-    </CommitReadState>
-  );
-  return inlineComments ? (
+  return (
     <DocumentComments
       workspace={selection}
       leaveScope={leaveScope}
       path={path}
       document={JSON.stringify(['commit-diff', oid, parent, path])}
       target={commitCommentTarget(path, oid, parent)}
-      renderToolbar={(actions) => (
-        <FileHeader
+      header={({ comments, clearSelection }) => (
+        <DocumentHeader
           path={path}
-          documentToolbar
-          {...(file ? { status: file.status } : {})}
-          actions={actions}
+          details={[file?.status]}
+          actions={[comments, ...(clearSelection ? [clearSelection] : [])]}
         />
       )}
     >
-      {(codeSelection) => content(codeSelection)}
+      {(codeSelection) => (
+        <CommitReadState commit={commit}>
+          {(value) => (
+            <CommitFileContent
+              selection={selection}
+              oid={oid}
+              parent={parent}
+              path={path}
+              files={value.files}
+              codeSelection={codeSelection}
+            />
+          )}
+        </CommitReadState>
+      )}
     </DocumentComments>
-  ) : (
-    content()
   );
 }
 
@@ -89,7 +82,6 @@ function CommitFileContent({
   parent,
   path,
   files,
-  inlineComments,
   codeSelection,
 }: {
   selection: HistorySelection;
@@ -97,20 +89,19 @@ function CommitFileContent({
   parent: number;
   path: string;
   files: readonly CommitFile[];
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
+  codeSelection: DocumentCodeSelection;
 }) {
   const file = files.find((candidate) => commitPath(candidate) === path);
   return (
     <Box className="flex-1" surface="background">
       {file ? (
-        <FilePatch
+        <FilePatchContent
           selection={selection}
           oid={oid}
           parent={parent}
           file={file}
-          inlineComments={inlineComments}
-          codeSelection={codeSelection}
+          selectionRange={codeSelection.selection}
+          onSelect={codeSelection.onSelect}
         />
       ) : (
         <Empty
@@ -119,38 +110,6 @@ function CommitFileContent({
         />
       )}
     </Box>
-  );
-}
-
-function FilePatch({
-  selection,
-  oid,
-  parent,
-  file,
-  inlineComments,
-  codeSelection,
-}: {
-  selection: HistorySelection;
-  oid: string;
-  parent: number;
-  file: CommitFile;
-  inlineComments?: boolean | undefined;
-  codeSelection?: DocumentCodeSelection | undefined;
-}) {
-  return (
-    <>
-      {!inlineComments ? (
-        <FileHeader path={commitPath(file)} status={file.status} />
-      ) : null}
-      <FilePatchContent
-        selection={selection}
-        oid={oid}
-        parent={parent}
-        file={file}
-        selectionRange={codeSelection?.selection}
-        onSelect={codeSelection?.onSelect}
-      />
-    </>
   );
 }
 
