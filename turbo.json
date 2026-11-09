@@ -263,7 +263,9 @@
         "package.json",
         "tsconfig.json",
         "pnpm-workspace.yaml",
-        "pnpm-lock.yaml"
+        "pnpm-lock.yaml",
+        "!apps/web/spec/**",
+        "!apps/web/**/*.{spec,test}.{ts,tsx}"
       ],
       "outputs": ["dist-porcelain/**"]
     },
@@ -277,7 +279,8 @@
         "*/scripts/**",
         "verify-core/**",
         "package.json",
-        "!**/*.spec.ts"
+        "!**/*.spec.ts",
+        "$TURBO_ROOT$/apps/web/spec/kit/**"
       ]
     },
     "@porcelain/verification#test:integration": {
@@ -286,8 +289,34 @@
         "*/scripts/**",
         "verify-core/**",
         "spec/integration/**",
-        "$TURBO_ROOT$/vitest.integration.config.ts"
+        "$TURBO_ROOT$/vitest.integration.config.ts",
+        "$TURBO_ROOT$/apps/web/spec/kit/**"
       ]
+    },
+    "@porcelain/web#transit": {
+      "dependsOn": ["^transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.{spec,test,e2e,integration}.{ts,tsx}",
+        "!spec/**"
+      ]
+    },
+    "@porcelain/web#test:integration": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!spec/e2e/**", "!**/*.spec.{ts,tsx}"]
+    },
+    "@porcelain/web#test:e2e": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!spec/integration/**",
+        "!**/*.spec.{ts,tsx}"
+      ],
+      "cache": false
+    },
+    "@porcelain/web#build": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!spec/**", "!**/*.{spec,test}.{ts,tsx}"]
     }
   },
   "globalDependencies": [

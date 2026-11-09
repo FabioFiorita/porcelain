@@ -3,6 +3,7 @@ import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import { hostCommands, serverProxy } from './spec/integration/host.ts';
 import web from './vite.config.ts';
+import { BrowserShardSequencer } from './spec/kit/browser-shards.ts';
 
 export default defineConfig({
   ...web,
@@ -20,6 +21,7 @@ export default defineConfig({
       Math.min(4, Math.floor(availableParallelism() / 4)),
     ),
     retry: 0,
+    sequence: { sequencer: BrowserShardSequencer },
     attachmentsDir: 'test-results/integration/attachments',
     expect: { requireAssertions: true },
     browser: {
