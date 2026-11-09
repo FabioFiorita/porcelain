@@ -14,7 +14,8 @@ import { nativeHttpRules } from './native-http-rules.mjs';
 import { hollowTests, testSource } from './hollow-tests.mjs';
 import { findVariable } from './scope.mjs';
 
-const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
+const domainPackage =
+  '(?:projects|changes|reviews|files|git-actions|access|walkthroughs)';
 const domainSource = new RegExp(
   `/packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/`,
 );
@@ -26,7 +27,7 @@ const useCaseValueModule = new RegExp(
   `^@porcelain/(?:${domainPackage}|kernel)/(?:rules|errors)$`,
 );
 const modelsSource =
-  /\/(?:packages\/(?:access|changes|files|git-actions|projects|reviews|kernel)\/src\/(?:models|ports)|apps\/server\/src\/ports)\/.+\.ts$/;
+  /\/(?:packages\/(?:access|changes|files|git-actions|projects|reviews|walkthroughs|kernel)\/src\/(?:models|ports)|apps\/server\/src\/ports)\/.+\.ts$/;
 const composeSource =
   /\/apps\/server\/src\/bootstrap\/(?:.+\/)?(?:compose-[^/]+|main)\.ts$/;
 const typedPackageSource =
@@ -2013,7 +2014,7 @@ export default {
           if (source === undefined) return;
           if (
             path === 'scripts/feature-api-routes.ts' &&
-            /^@porcelain\/contracts\/(?:access|changes|files|git-actions|projects|reviews|shared)$/.test(
+            /^@porcelain\/contracts\/(?:access|changes|files|git-actions|projects|reviews|walkthroughs|shared)$/.test(
               source,
             )
           )

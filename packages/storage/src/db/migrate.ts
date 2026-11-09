@@ -36,6 +36,26 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '011_walkthroughs': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_runs (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      worktree_id TEXT NOT NULL,
+      head_oid TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'ready', 'failed')),
+      payload TEXT NOT NULL CHECK(json_valid(payload)),
+      UNIQUE(worktree_id, head_oid)
+    )`;
+    yield* sql`CREATE TABLE walkthrough_evidence (
+      run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
+      asset_id TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      caption TEXT NOT NULL,
+      bytes BLOB NOT NULL,
+      PRIMARY KEY(run_id, asset_id)
+    )`;
+  }),
   '010_review_timing': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE review_revisions ADD COLUMN timing TEXT NOT NULL DEFAULT 'decision' CHECK(timing IN ('decision', 'record'))`;

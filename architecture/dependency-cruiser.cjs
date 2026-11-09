@@ -11,7 +11,7 @@ const sourceFolders = [
   '^apps/server/src/use-cases/[^/]+/[^/]+\\.ts$',
   '^apps/server/src/(?:runtime|ports)/.+\\.ts$',
   '^apps/server/src/(?:bootstrap|config|cli|installer|adapters)/.+\\.ts$',
-  '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel)/src/(?:services|rules|models|ports|errors)/[^/]+\\.ts$',
+  '^packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|kernel)/src/(?:services|rules|models|ports|errors)/[^/]+\\.ts$',
   '^packages/contracts/src/[^/]+/[^/]+\\.ts$',
   '^packages/client/src/(?:features/[^/]+/(?:[^/]+\\.ts|(?:rules|queries|commands|ports|store)/[^/]+\\.ts)|shared/api/[^/]+\\.ts|config/[^/]+\\.ts)$',
   '^packages/(?:git/src/(?:discovery|inspection|history|actions|shared)/|agents/src/[^/]+/|(?:process|storage|effects)/src/).+\\.ts$',
@@ -67,9 +67,9 @@ module.exports = {
         pathNot: ['\\.spec\\.ts$', '^apps/server/src/http/status-policy\\.ts$'],
       },
       to: {
-        path: '^(?:apps/server/src/(?:adapters|bootstrap|runtime)/|packages/(?:(?:access|changes|files|git-actions|projects|reviews)|git|agents|storage|process)/src/)',
+        path: '^(?:apps/server/src/(?:adapters|bootstrap|runtime)/|packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|git|agents|storage|process)/src/)',
         pathNot: [
-          '^packages/(?:access|changes|files|git-actions|projects|reviews)/src/errors/index\\.ts$',
+          '^packages/(?:access|changes|files|git-actions|projects|reviews|walkthroughs)/src/errors/index\\.ts$',
           '^apps/server/src/runtime/(?:errors/|observability\\.ts$)',
         ],
       },
@@ -150,7 +150,7 @@ module.exports = {
         'Use a platform port for Node capabilities, because domain decisions and shared clients run outside Node; only node:crypto in domain/kernel rules retains the existing hashing exception.',
       severity: 'error',
       from: {
-        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel|contracts|client)/src/',
+        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|kernel|contracts|client)/src/',
         pathNot: '\\.spec\\.tsx?$',
       },
       to: {
@@ -164,10 +164,10 @@ module.exports = {
         'Only pure hashing rules use the existing Node crypto exception so other portable folders cannot acquire Node capabilities.',
       severity: 'error',
       from: {
-        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel|contracts|client)/src/',
+        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|kernel|contracts|client)/src/',
         pathNot: [
           '\\.spec\\.tsx?$',
-          '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel)/src/rules/',
+          '^packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|kernel)/src/rules/',
         ],
       },
       to: {
@@ -180,7 +180,7 @@ module.exports = {
         'Portable packages receive platform implementations through ports so Node, Electron and native mobile capabilities stay in their owners.',
       severity: 'error',
       from: {
-        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews)|kernel|contracts|client)/src/',
+        path: '^packages/(?:(?:access|changes|files|git-actions|projects|reviews|walkthroughs)|kernel|contracts|client)/src/',
         pathNot: '\\.spec\\.tsx?$',
       },
       to: {
@@ -197,7 +197,7 @@ module.exports = {
         'Domains own their decisions and depend on kernel types so cross-domain decisions belong in server use cases.',
       severity: 'error',
       from: {
-        path: '^packages/((?:access|changes|files|git-actions|projects|reviews))/src/',
+        path: '^packages/((?:access|changes|files|git-actions|projects|reviews|walkthroughs))/src/',
         pathNot: '\\.spec\\.ts$',
       },
       to: {

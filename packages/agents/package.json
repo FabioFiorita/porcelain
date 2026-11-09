@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     "./commit-planning": "./src/commit-planning/index.ts",
-    "./feedback": "./src/feedback/t3-session.ts"
+    "./feedback": "./src/feedback/t3-session.ts",
+    "./walkthrough-writing": "./src/walkthrough-writing/cli-walkthrough-writer.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -12,7 +13,9 @@
   },
   "dependencies": {
     "@porcelain/process": "workspace:*",
-    "effect": "4.1.2"
+    "effect": "4.1.2",
+    "@porcelain/walkthroughs": "workspace:*",
+    "@porcelain/contracts": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-node": "4.1.2",

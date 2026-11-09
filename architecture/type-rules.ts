@@ -44,6 +44,7 @@ const tableLanes: Readonly<
   Record<string, Readonly<Record<string, readonly string[]>>>
 > = {
   GitActionReceiptStore: { any: ['receipts', 'repository'] },
+  WalkthroughStore: { any: ['walkthroughs', 'repository'] },
   ReviewStore: { any: repositoryTables },
   AgentFeedbackStore: { any: repositoryTables },
   ReviewedFileStore: { any: repositoryTables },

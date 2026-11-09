@@ -1,0 +1,21 @@
+{
+  "name": "@porcelain/walkthroughs",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./models": "./src/models/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./services": "./src/services/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm --dir ../.. test --project @porcelain/walkthroughs"
+  },
+  "dependencies": {
+    "@porcelain/effects": "workspace:*",
+    "@porcelain/git": "workspace:*",
+    "@porcelain/kernel": "workspace:*",
+    "effect": "4.1.2"
+  }
+}

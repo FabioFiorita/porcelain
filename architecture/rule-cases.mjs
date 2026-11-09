@@ -3570,6 +3570,13 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
   },
   {
     rule: 'no-node-globals',
+    path: 'packages/walkthroughs/src/rules/probe-stamp.ts',
+    valid: 'export function probeStamp(instant: string) { return instant; }',
+    invalid: 'export function probeStamp() { return process.env.HOME; }',
+    errors: 1,
+  },
+  {
+    rule: 'no-node-globals',
     path: 'packages/projects/src/rules/probe-stamp.ts',
     valid:
       'export function probeStamp(instant: string, id: string) { return {instant, id}; }',

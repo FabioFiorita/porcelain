@@ -11,6 +11,7 @@ const FILESYSTEM = 'filesystem';
 export class LaneKeys extends Context.Service<
   LaneKeys,
   {
+    readonly walkthroughs: () => string;
     readonly access: () => string;
     readonly remoteAccess: () => string;
     readonly serviceUpdate: () => string;
@@ -25,6 +26,9 @@ export class LaneKeys extends Context.Service<
   static readonly layer = Layer.effect(
     LaneKeys,
     Effect.sync(() => {
+      function walkthroughs(): string {
+        return 'walkthroughs';
+      }
       function access(): string {
         return ACCESS;
       }
@@ -53,6 +57,7 @@ export class LaneKeys extends Context.Service<
         return worktree.repositoryId;
       }
       return {
+        walkthroughs,
         access,
         remoteAccess,
         serviceUpdate,
