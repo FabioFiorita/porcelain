@@ -102,6 +102,7 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   expect(
     invocations.map(({ args }) => ({
       strictMcp: args.includes('--strict-mcp-config'),
+      safeMode: args.includes('--safe-mode'),
       mcp: args[args.indexOf('--mcp-config') + 1],
       settings: args[args.indexOf('--setting-sources') + 1],
       commandsDisabled: args.includes('--disable-slash-commands'),
@@ -110,6 +111,7 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   ).toEqual([
     {
       strictMcp: true,
+      safeMode: true,
       mcp: '{"mcpServers":{}}',
       settings: '',
       commandsDisabled: true,
@@ -117,6 +119,7 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
     },
     {
       strictMcp: true,
+      safeMode: true,
       mcp: '{"mcpServers":{}}',
       settings: '',
       commandsDisabled: true,
@@ -203,7 +206,7 @@ it('disables every effective Codex MCP server on each pass, including system and
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs=require('fs'); const args=process.argv.slice(2); const prompt=fs.readFileSync(0,'utf8'); fs.appendFileSync('calls',JSON.stringify({args,prompt})+'\\n'); if(args[0]==='mcp'){const override=args.find(arg=>arg.startsWith('mcp_servers='));let names;if(override){names=JSON.parse(fs.readFileSync('names','utf8'))}else{const second=fs.existsSync('listed');fs.writeFileSync('listed','yes');names=['user-inherited',second?'managed.layer':'system-inherited'];fs.writeFileSync('names',JSON.stringify(names))}const expected='mcp_servers={'+names.map(name=>JSON.stringify(name)+'={enabled=false}').join(',')+'}';console.log(JSON.stringify(names.map(name=>({name,enabled:override!==expected}))));process.exit(0)} const pass=args.includes('resume');const expected='mcp_servers={"user-inherited"={enabled=false},'+JSON.stringify(pass?'managed.layer':'system-inherited')+'={enabled=false}}';if(!args.includes(expected)){process.stderr.write('Inherited MCP servers remain enabled');process.exit(1)} const answer=JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]});fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer);console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+    `const fs=require('fs'); const args=process.argv.slice(2); const prompt=fs.readFileSync(0,'utf8'); fs.appendFileSync('calls',JSON.stringify({args,prompt})+'\\n'); if(args[0]==='mcp'){const override=args.find(arg=>arg.startsWith('mcp_servers='));let names;if(override){names=JSON.parse(fs.readFileSync('names','utf8'))}else{const second=fs.existsSync('listed');fs.writeFileSync('listed','yes');names=['user-inherited',second?'managed.layer':'system-inherited'];fs.writeFileSync('names',JSON.stringify(names))}const expected='mcp_servers={'+names.map(name=>JSON.stringify(name)+'={enabled=false,'+(names.indexOf(name)===0?'command="fixture-mcp"':'url="https://fixture.invalid/mcp"')+'}').join(',')+'}';console.log(JSON.stringify(names.map((name,index)=>({name,enabled:override!==expected,transport:index===0?{type:'stdio',command:'fixture-mcp'}:{type:'streamable_http',url:'https://fixture.invalid/mcp'}}))));process.exit(0)} const pass=args.includes('resume');const expected='mcp_servers={"user-inherited"={enabled=false,command="fixture-mcp"},'+JSON.stringify(pass?'managed.layer':'system-inherited')+'={enabled=false,url="https://fixture.invalid/mcp"}}';if(!args.includes(expected)){process.stderr.write('Inherited MCP servers remain enabled');process.exit(1)} const answer=JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]});fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer);console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
     onTestFinished,
   );
   expect(
@@ -237,6 +240,7 @@ it('disables every effective Codex MCP server on each pass, including system and
     calls
       .filter(({ args }) => args[0] === 'exec')
       .map(({ args }) => ({
+        ignoreUser: args.includes('--ignore-user-config'),
         ignoreRules: args.includes('--ignore-rules'),
         hooksDisabled: args.includes('features.hooks=false'),
         disabled: args.filter((_, index) => args[index - 1] === '--disable'),
@@ -246,19 +250,43 @@ it('disables every effective Codex MCP server on each pass, including system and
       })),
   ).toEqual([
     {
+      ignoreUser: true,
       ignoreRules: true,
       hooksDisabled: true,
-      disabled: ['plugins', 'apps', 'multi_agent'],
+      disabled: [
+        'shell_snapshot',
+        'shell_snapshot_v2',
+        'browser_use',
+        'computer_use',
+        'image_generation',
+        'plugins',
+        'apps',
+        'multi_agent',
+        'multi_agent_v2',
+        'skill_mcp_dependency_install',
+      ],
       servers: [
-        'mcp_servers={"user-inherited"={enabled=false},"system-inherited"={enabled=false}}',
+        'mcp_servers={"user-inherited"={enabled=false,command="fixture-mcp"},"system-inherited"={enabled=false,url="https://fixture.invalid/mcp"}}',
       ],
     },
     {
+      ignoreUser: true,
       ignoreRules: true,
       hooksDisabled: true,
-      disabled: ['plugins', 'apps', 'multi_agent'],
+      disabled: [
+        'shell_snapshot',
+        'shell_snapshot_v2',
+        'browser_use',
+        'computer_use',
+        'image_generation',
+        'plugins',
+        'apps',
+        'multi_agent',
+        'multi_agent_v2',
+        'skill_mcp_dependency_install',
+      ],
       servers: [
-        'mcp_servers={"user-inherited"={enabled=false},"managed.layer"={enabled=false}}',
+        'mcp_servers={"user-inherited"={enabled=false,command="fixture-mcp"},"managed.layer"={enabled=false,url="https://fixture.invalid/mcp"}}',
       ],
     },
   ]);
@@ -273,7 +301,8 @@ it.each([
   { name: 'invalid server list', script: "console.log('[{}]')" },
   {
     name: 'managed server that remains enabled',
-    script: 'console.log(\'[{"name":"required","enabled":true}]\')',
+    script:
+      'console.log(\'[{"name":"required","enabled":true,"transport":{"type":"stdio","command":"required"}}]\')',
   },
 ])(
   'starts no writer when Codex MCP discovery returns $name',
@@ -295,6 +324,33 @@ it.each([
     expect(await readdir(test.folder)).not.toContain('agent-started');
   },
 );
+it('does not run a configured Codex notify command outside the worktree on either pass', async ({
+  onTestFinished,
+}) => {
+  const notifications = await mkdtemp(join(tmpdir(), 'walkthrough-notify-'));
+  onTestFinished(() => rm(notifications, { recursive: true, force: true }));
+  const test = await fixture(
+    `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log('[]');process.exit(0)}const notify=JSON.parse(fs.readFileSync('config.toml','utf8').slice('notify = '.length));if(!args.includes('notify=[]')&&!args.includes('--ignore-user-config'))require('child_process').execFileSync(notify[0],notify.slice(1));const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+    onTestFinished,
+  );
+  await writeFile(
+    join(test.folder, 'config.toml'),
+    'notify = ' +
+      JSON.stringify([
+        process.execPath,
+        '-e',
+        `require('fs').writeFileSync(${JSON.stringify(join(notifications, 'executed'))},'outside sandbox')`,
+      ]),
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+  ).toMatchObject({
+    _tag: 'Success',
+    success: { content: { outcome: 'nothing' } },
+  });
+  expect(test.sessions).toEqual(['codex-session', 'codex-session']);
+  expect(await readdir(notifications)).toEqual([]);
+});
 it('surfaces a missing executable as agent not installed', async ({
   onTestFinished,
 }) => {

@@ -15,3 +15,24 @@ Run `apps/server/spec/integration/walkthroughs.integration.ts` and `apps/server/
 The default sandbox intentionally has no installed agent, sign-in or network. A real writer proof needs the host CLI through a bounded, owned verification bridge, using a public Porcelain change and the same read-only flags. Retain timing and cost from the ready state; never copy transcripts or credentials to evidence.
 
 The walkthrough integration spec uses the built server and real SQLite, reaches all three walkthrough routes with valid credentials, and passes their actual validated-handler log through the unchanged route-coverage guard. This focused check establishes coverage of these routes; the global teardown guard is judged only by a full integration run.
+
+## Configuration execution audit
+
+Checked Codex 0.167.0 against its [configuration reference](https://developers.openai.com/codex/config-reference) and [matching source](https://github.com/openai/codex/tree/rust-v0.167.0/codex-rs), and Claude Code 2.1.321 against its installed source and [settings reference](https://code.claude.com/docs/en/settings-reference). Recheck this list when changing CLI versions or launch settings.
+
+| Surface | Control on both passes |
+| --- | --- |
+| Codex `notify` | `notify=[]` and `--ignore-user-config`; a configured external notifier must never run. |
+| Codex lifecycle hooks, plugin hooks and exec rules | User config and user/project rules are ignored; `features.hooks=false`, plugins, apps, both multi-agent variants and skill MCP dependency installation are disabled. |
+| Codex provider bearer-token commands, AWS refresh/export and GCP command authentication | Provider declarations from user config are ignored. Native sign-in storage stays at the original `CODEX_HOME`. |
+| Codex shell snapshots, profile capture and login shells | Both snapshot features, profile capture and login shells are off; the process has an isolated home. |
+| Codex user environment/SSH execution configuration | `exec --ignore-user-config` selects the environment-only loader instead of loading user-owned environment definitions. |
+| Codex stdio/HTTP MCP, plugin MCP and HTTP header helpers | Discover and explicitly disable every server, retaining only the required transport field so ignoring user config cannot create an invalid transport. Verify effective disablement before each pass. Auth-status discovery does not execute HTTP header helpers. An enabled managed MCP server fails closed. |
+| Codex browser, computer, image generation and web tools | Explicitly disabled, alongside apps, plugins and multi-agent tools. |
+| Codex TUI status rows, external editor/file opener and old undo snapshots | Status rows are data; editor/file opener entry points are interactive, not `exec`; the undo snapshot feature is removed in 0.167.0. |
+| Claude hooks, status lines, subagent status lines and file suggestions | Empty setting sources, safe mode and `disableAllHooks` exclude user/repository commands. |
+| Claude API-key/proxy helpers, AWS refresh/export, GCP refresh and telemetry-header helpers | User/repository settings are not loaded. The original `CLAUDE_CONFIG_DIR` preserves sign-in and session storage. |
+| Claude plugin command sources, marketplace/header helpers, LSP servers, monitors, skills and workflows | Safe mode, empty setting sources and disabled slash commands exclude inherited user/repository customizations; strict empty MCP config excludes their model-callable servers. Only Read, Grep, Glob and restricted Git Bash tools are exposed. |
+| Shell startup and launch wrappers | An isolated home and `ZDOTDIR` prevent user profile discovery. `BASH_ENV`, `ENV`, Claude shell/prefix/plugin-directory/process-wrapper settings and Node/Bun preload options are cleared. Worktree cwd and pinned commit range are unchanged. |
+
+Administrator-enforced hooks and callbacks are trusted; user/repository command configuration is isolated, and model-callable MCP servers that cannot be disabled cause the walkthrough to fail.

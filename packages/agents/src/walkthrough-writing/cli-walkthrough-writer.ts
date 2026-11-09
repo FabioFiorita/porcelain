@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
@@ -71,6 +71,24 @@ export const cliWalkthroughWriterLayer = (options: {
             const command = options.command ?? input.run.writer.provider;
             const codexConfigArgs = [
               '-c',
+              'notify=[]',
+              '-c',
+              'allow_login_shell=false',
+              '-c',
+              'shell_environment_policy.experimental_use_profile=false',
+              '-c',
+              'web_search="disabled"',
+              '--disable',
+              'shell_snapshot',
+              '--disable',
+              'shell_snapshot_v2',
+              '--disable',
+              'browser_use',
+              '--disable',
+              'computer_use',
+              '--disable',
+              'image_generation',
+              '-c',
               'features.hooks=false',
               '--disable',
               'plugins',
@@ -78,9 +96,27 @@ export const cliWalkthroughWriterLayer = (options: {
               'apps',
               '--disable',
               'multi_agent',
+              '--disable',
+              'multi_agent_v2',
+              '--disable',
+              'skill_mcp_dependency_install',
             ];
             const env = {
               ...process.env,
+              HOME: folder,
+              CODEX_HOME: process.env.CODEX_HOME ?? join(homedir(), '.codex'),
+              CLAUDE_CONFIG_DIR:
+                process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
+              BASH_ENV: '',
+              ENV: '',
+              ZDOTDIR: folder,
+              CLAUDE_CODE_SHELL: '',
+              CLAUDE_CODE_PLUGIN_DIRS: '',
+              CLAUDE_CODE_SHELL_PREFIX: '',
+              CLAUDE_CODE_PROCESS_WRAPPER: '',
+              CLAUDE_CODE_SHELL_LAUNCHER_SCRIPT: '',
+              NODE_OPTIONS: '',
+              BUN_OPTIONS: '',
               GIT_NO_LAZY_FETCH: '1',
               GIT_CONFIG_COUNT: '2',
               GIT_CONFIG_KEY_0: 'core.hooksPath',
@@ -102,6 +138,7 @@ export const cliWalkthroughWriterLayer = (options: {
               );
               const claudeArgs = [
                 '-p',
+                '--safe-mode',
                 '--model',
                 input.run.writer.model,
                 '--effort',
@@ -138,6 +175,7 @@ export const cliWalkthroughWriterLayer = (options: {
                   : ['exec', 'resume', '-c', 'sandbox_mode="read-only"'];
               codexArgs.push(
                 ...codexConfigArgs,
+                '--ignore-user-config',
                 '--ignore-rules',
                 '--json',
                 '--model',
@@ -177,6 +215,16 @@ export const cliWalkthroughWriterLayer = (options: {
                             Schema.Struct({
                               name: Schema.String,
                               enabled: Schema.Boolean,
+                              transport: Schema.Union([
+                                Schema.Struct({
+                                  type: Schema.Literal('stdio'),
+                                  command: Schema.String,
+                                }),
+                                Schema.Struct({
+                                  type: Schema.Literal('streamable_http'),
+                                  url: Schema.String,
+                                }),
+                              ]),
                             }),
                           ),
                         ),
@@ -195,7 +243,7 @@ export const cliWalkthroughWriterLayer = (options: {
                   if (check === 0)
                     mcpOverrides.push(
                       '-c',
-                      `mcp_servers={${servers.map((server) => `${JSON.stringify(server.name)}={enabled=false}`).join(',')}}`,
+                      `mcp_servers={${servers.map((server) => `${JSON.stringify(server.name)}={enabled=false,${server.transport.type === 'stdio' ? `command=${JSON.stringify(server.transport.command)}` : `url=${JSON.stringify(server.transport.url)}`}}`).join(',')}}`,
                     );
                   else if (servers.some((server) => server.enabled))
                     return yield* failure(
