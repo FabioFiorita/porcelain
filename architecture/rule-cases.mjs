@@ -6180,6 +6180,7 @@ export const guardrailCases = [
         'architecture/shadcn-pins.ts',
         'architecture/duplicate-policy.ts',
         '.oxfmtrc.json',
+        '.editorconfig',
       ].map((path) => ({ path, selected: ['server', 'web'] })),
       ...[
         'apps/marketing/src/ci-fixture.astro',

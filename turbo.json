@@ -83,6 +83,7 @@
         ".agents/skills/spec/**",
         ".agents/skills/verify-core/**",
         ".oxfmtrc.json",
+        ".editorconfig",
         "pnpm-lock.yaml",
         "!apps/mobile/src/config/uniwind-types.d.ts"
       ]
@@ -100,6 +101,7 @@
         "architecture/shadcn-pins.ts",
         "architecture/duplicate-policy.ts",
         ".oxfmtrc.json",
+        ".editorconfig",
         "pnpm-lock.yaml"
       ]
     },
