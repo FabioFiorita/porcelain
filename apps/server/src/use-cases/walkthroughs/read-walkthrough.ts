@@ -28,10 +28,7 @@ export class ReadWalkthroughUseCase extends Context.Service<
           return yield* access.read(input.worktreeId, () =>
             Effect.gen(function* () {
               const head = yield* status.execute(input);
-              const walkthrough = yield* store.execute({
-                ...input,
-                headOid: head.headOid,
-              });
+              const walkthrough = yield* store.execute(input);
               return {
                 walkthrough: walkthrough,
                 outOfDate:

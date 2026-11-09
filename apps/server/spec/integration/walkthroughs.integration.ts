@@ -5,7 +5,7 @@ import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
 import { text } from '../kit/session.ts';
 
-test('starts one walkthrough per committed head and reports when that pinned head is out of date', async ({
+test('reads the latest attempt and reports when its pinned head is out of date', async ({
   session,
 }) => {
   await session.git('branch', 'walkthrough-base');
@@ -18,12 +18,6 @@ test('starts one walkthrough per committed head and reports when that pinned hea
     path,
     body: { base: 'refs/heads/walkthrough-base' },
   });
-  const second = await read(session, {
-    method: 'POST',
-    path,
-    body: { base: 'refs/heads/walkthrough-base' },
-  });
-  expect(text(second.id)).toBe(text(first.id));
   const initial = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, { method: 'GET', path }),
   );
@@ -48,6 +42,6 @@ test('starts one walkthrough per committed head and reports when that pinned hea
   const returned = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, { method: 'GET', path }),
   );
-  expect(returned.outOfDate).toBe(false);
-  expect(returned.walkthrough?.id).toBe(text(first.id));
+  expect(returned.outOfDate).toBe(true);
+  expect(returned.walkthrough?.id).toBe(text(updated.id));
 });

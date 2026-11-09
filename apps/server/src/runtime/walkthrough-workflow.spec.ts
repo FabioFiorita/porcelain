@@ -8,8 +8,9 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Effect, Deferred, Layer, ManagedRuntime } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
+import { SqlClient } from 'effect/sql';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
 import { storageLayer } from '@porcelain/storage';
 import {
   WalkthroughStore,
@@ -25,7 +26,7 @@ import { cliWalkthroughWriterLayer } from '@porcelain/agents/walkthrough-writing
 import { AnnounceWalkthroughUseCasePort } from '../ports/announce-walkthrough-use-case-port.ts';
 import { WalkthroughWorkflow } from './walkthrough-workflow.ts';
 const processGroup = { lingerMs: 20, cleanupMs: 1000, pollMs: 5 };
-it('accepts one durable run per head, serializes writers, drains foreign processes and defines restart recovery without losing evidence', async ({
+it('accepts one durable active run per head, serializes writers, drains foreign processes and defines restart recovery without losing evidence', async ({
   onTestFinished,
 }) => {
   const folder = await mkdtemp(join(tmpdir(), 'walkthrough-durable-'));
@@ -225,7 +226,181 @@ it('accepts one durable run per head, serializes writers, drains foreign process
   );
   expect(queuedAfterRestart?.state.status).toBe('running');
   expect(recovered.otherAsset).toBeUndefined();
-  expect(recovered.duplicate.id).toBe('first');
-  expect(recovered.duplicate.sessionId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(recovered.duplicate.id).toBe('third');
+  expect(recovered.duplicate.sessionId).toBeUndefined();
   expect(notices).toContain('worktree');
 });
+
+it.each(['signed_out', 'other'] as const)(
+  'starts a new attempt after %s failure and shares queued, running and ready attempts for that head',
+  async (kind) => {
+    const folder = await mkdtemp(join(tmpdir(), 'walkthrough-retry-'));
+    onTestFinished(() => rm(folder, { recursive: true, force: true }));
+    const repo = join(folder, 'repository');
+    execFileSync('git', ['init', '-q', repo]);
+    execFileSync('git', [
+      '-C',
+      repo,
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      '-c',
+      'core.hooksPath=/dev/null',
+      'commit',
+      '-qm',
+      'Initial',
+      '--allow-empty',
+    ]);
+    const headOid = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+    const job: WalkthroughJob = {
+      run: {
+        id: 'failed',
+        projectId: 'project',
+        worktreeId: 'worktree',
+        baseOid: headOid,
+        headOid,
+        writer: { provider: 'claude', model: 'fixture' },
+        createdAt: '2026-11-09T00:00:00Z',
+        state: { status: 'queued' },
+      },
+      worktreePath: repo,
+      files: [],
+    };
+    const command = join(folder, 'writer');
+    await writeFile(
+      command,
+      '#!/usr/bin/env node\n' +
+        `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const resumed = args.includes('--resume'); const session = args[args.indexOf(resumed ? '--resume' : '--session-id') + 1]; fs.appendFileSync('calls', resumed ? 'second\\n' : 'first\\n'); console.log(JSON.stringify({session_id:session,structured_output:resumed ? {outcome:'nothing',title:'A small change',summary:'The retry finished.',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'A small change',could_not_tell:[]}}));`,
+      { mode: 0o700 },
+    );
+    const runtime = ManagedRuntime.make(
+      Layer.mergeAll(
+        BeginWalkthroughService.layer,
+        WriteWalkthroughService.layer,
+      ).pipe(
+        Layer.provideMerge(
+          Layer.mergeAll(
+            storageLayer(join(folder, 'data'), {
+              worktreeIdLength: 32,
+              busyTimeoutMs: 5000,
+            }).pipe(Layer.provide(NodeServices.layer)),
+            cliWalkthroughWriterLayer({ processGroup, command }).pipe(
+              Layer.provide(NodeServices.layer),
+            ),
+            Layer.succeed(TranscriptReader, { read: () => Effect.succeed('') }),
+            Layer.succeed(EvidenceReader, {
+              read: () =>
+                Effect.succeed({
+                  title: '',
+                  body: '',
+                  checks: undefined,
+                  assets: [],
+                }),
+            }),
+          ),
+        ),
+      ),
+    );
+    onTestFinished(() => runtime.dispose());
+    await runtime.runPromise(
+      Effect.gen(function* () {
+        const store = yield* WalkthroughStore;
+        yield* store.accept(job);
+        yield* store.save({
+          ...job.run,
+          state: {
+            status: 'failed',
+            failure: {
+              kind,
+              message:
+                kind === 'signed_out'
+                  ? 'Sign in again.'
+                  : 'The server interrupted the writer.',
+            },
+          },
+        });
+      }),
+    );
+    const queued = await runtime.runPromise(
+      Effect.gen(function* () {
+        const store = yield* WalkthroughStore;
+        return yield* Effect.all(
+          [
+            store.accept({ ...job, run: { ...job.run, id: 'retry' } }),
+            store.accept({
+              ...job,
+              run: { ...job.run, id: 'duplicate-queued' },
+            }),
+          ],
+          { concurrency: 2 },
+        );
+      }),
+    );
+    expect(queued.map((run) => run.id)).toEqual(['retry', 'retry']);
+    expect(queued.map((run) => run.state.status)).toEqual(['queued', 'queued']);
+    const latestQueued = await runtime.runPromise(
+      Effect.gen(function* () {
+        const store = yield* WalkthroughStore;
+        return yield* store.read('worktree');
+      }),
+    );
+    expect(latestQueued?.id).toBe('retry');
+    const running = await runtime.runPromise(
+      Effect.gen(function* () {
+        const begin = yield* BeginWalkthroughService;
+        yield* begin.execute('retry');
+        const store = yield* WalkthroughStore;
+        return yield* Effect.all(
+          [
+            store.accept({
+              ...job,
+              run: { ...job.run, id: 'duplicate-running' },
+            }),
+            store.accept({ ...job, run: { ...job.run, id: 'another-press' } }),
+          ],
+          { concurrency: 2 },
+        );
+      }),
+    );
+    expect(running.map((run) => run.id)).toEqual(['retry', 'retry']);
+    expect(running.map((run) => run.state.status)).toEqual([
+      'running',
+      'running',
+    ]);
+    const ready = await runtime.runPromise(
+      Effect.gen(function* () {
+        const writer = yield* WriteWalkthroughService;
+        yield* writer.execute({ ...job, run: { ...job.run, id: 'retry' } });
+        const store = yield* WalkthroughStore;
+        return {
+          attempts: yield* (yield* SqlClient.SqlClient)<{
+            id: string;
+            status: string;
+          }>`SELECT id, status FROM walkthrough_runs ORDER BY sequence`.pipe(
+            Effect.orDie,
+          ),
+          latest: yield* store.read('worktree'),
+          repeated: yield* store.accept({
+            ...job,
+            run: { ...job.run, id: 'after-ready' },
+          }),
+        };
+      }),
+    );
+    expect(ready.attempts).toEqual([
+      { id: 'failed', status: 'failed' },
+      { id: 'retry', status: 'ready' },
+    ]);
+    expect(ready.latest?.id).toBe('retry');
+    expect(ready.latest?.state).toMatchObject({
+      status: 'ready',
+      content: { outcome: 'nothing', summary: 'The retry finished.' },
+    });
+    expect(ready.repeated.id).toBe('retry');
+    expect(ready.repeated.state.status).toBe('ready');
+    expect(await readFile(join(repo, 'calls'), 'utf8')).toBe('first\nsecond\n');
+  },
+);

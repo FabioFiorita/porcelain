@@ -44,9 +44,9 @@ export const nativeMigrations = Migrator.fromRecord({
       worktree_id TEXT NOT NULL,
       head_oid TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'ready', 'failed')),
-      payload TEXT NOT NULL CHECK(json_valid(payload)),
-      UNIQUE(worktree_id, head_oid)
+      payload TEXT NOT NULL CHECK(json_valid(payload))
     )`;
+    yield* sql`CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id, head_oid) WHERE status != 'failed'`;
     yield* sql`CREATE TABLE walkthrough_evidence (
       run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
       asset_id TEXT NOT NULL,

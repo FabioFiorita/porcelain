@@ -2,8 +2,8 @@
 
 The contract is `packages/contracts/src/walkthroughs/api.ts`. All three routes require the paired fixture credential and its Origin.
 
-1. Commit a small fixture change on a branch and keep its base branch. POST `/api/worktrees/:worktreeId/walkthrough` with `{ "base": "refs/heads/main" }`. The response is the durable run, initially queued. Repeat the same request: the id must match and no second writer may start.
-2. GET the same path to observe running, then ready content or a failed state with a plain message. Subscribe to the worktree live channel: changes use `type: "walkthrough", change: "run"`.
+1. Commit a small fixture change on a branch and keep its base branch. POST `/api/worktrees/:worktreeId/walkthrough` with `{ "base": "refs/heads/main" }`. The response is the durable run, initially queued. Repeat the same request while the attempt is queued, running or ready: the id must match and no second writer may start. After a failed attempt, an explicit start creates a new attempt; concurrent presses share that new attempt. Earlier failures remain stored.
+2. GET the same path to observe the latest attempt, running then ready content or a failed state with a plain message. Subscribe to the worktree live channel: changes use `type: "walkthrough", change: "run"`.
 3. Make a new commit. GET reports `outOfDate: true`; the retained walkthrough keeps its original base/head. Starting at the new head queues a new run.
 4. Existing PR evidence is addressed by GET `/api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId`; verify its media type and bytes. No PR means no PR evidence.
 5. Stop and reopen the application with the same disposable database while a writer is active. Running work becomes failed with an interruption message, queued work is dispatched, finished content and evidence remain readable. Shutdown drains the writer process group before persistence closes.

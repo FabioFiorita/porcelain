@@ -142,7 +142,7 @@ it('upgrades legacy unassigned coverage to a neutral ownerless gap before readin
       }),
     );
     database.exec(
-      'ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE migration_id = 10;',
+      'DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE migration_id IN (10, 11);',
     );
     database.close();
     const store = await next.runPromise(ReviewStore);

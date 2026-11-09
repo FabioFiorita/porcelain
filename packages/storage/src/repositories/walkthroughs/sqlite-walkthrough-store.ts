@@ -20,20 +20,17 @@ export const sqliteWalkthroughStoreLayer = Layer.effect(
         job: WalkthroughJob,
       ) {
         return yield* Effect.gen(function* () {
-          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid) DO NOTHING`;
+          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid) WHERE status != 'failed' DO NOTHING`;
           const rows = yield* sql<{
             payload: string;
-          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid}`;
+          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid} ORDER BY sequence DESC LIMIT 1`;
           return decode(rows[0]?.payload).run;
         }).pipe(sql.withTransaction, Effect.orDie);
       }),
-      read: Effect.fn('WalkthroughStore.read')(function* (
-        worktreeId: string,
-        headOid?: string,
-      ) {
+      read: Effect.fn('WalkthroughStore.read')(function* (worktreeId: string) {
         const rows = yield* sql<{
           payload: string;
-        }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${worktreeId} ORDER BY CASE WHEN head_oid = ${headOid ?? ''} THEN 0 ELSE 1 END, sequence DESC LIMIT 1`.pipe(
+        }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${worktreeId} ORDER BY sequence DESC LIMIT 1`.pipe(
           Effect.orDie,
         );
         return rows[0] === undefined ? undefined : decode(rows[0].payload).run;

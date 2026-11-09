@@ -107,8 +107,7 @@ it('surfaces ended sign-in as signed out', async ({ onTestFinished }) => {
     _tag: 'Failure',
     failure: {
       kind: 'signed_out',
-      message:
-        'Sign in again to the selected agent CLI, then write a walkthrough for the next head.',
+      message: 'Sign in again to the selected agent CLI, then try again.',
     },
   });
   const envelope = await fixture(

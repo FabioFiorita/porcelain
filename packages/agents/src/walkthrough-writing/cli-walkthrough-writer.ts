@@ -174,7 +174,7 @@ export const cliWalkthroughWriterLayer = (options: {
                   )
                     return failure(
                       'signed_out',
-                      'Sign in again to the selected agent CLI, then write a walkthrough for the next head.',
+                      'Sign in again to the selected agent CLI, then try again.',
                     );
                   if (error.cause !== undefined)
                     return failure(
