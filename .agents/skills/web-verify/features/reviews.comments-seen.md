@@ -9,8 +9,8 @@ selectors:
   - "Agent replied"
 tests:
   - apps/web/spec/integration/reviews-comments-seen.test.tsx
-  - packages/client/src/features/reviews/commands/comments.spec.ts
-  - packages/client/src/features/reviews/queries/comments.spec.ts
+  - packages/client/src/features/workspace/commands/comments.spec.ts
+  - packages/client/src/features/workspace/queries/comments.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/comments
   - POST /api/worktrees/:worktreeId/comments/seen

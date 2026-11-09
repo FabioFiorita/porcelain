@@ -8,11 +8,11 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import type { Workspace } from '../../projects';
-import { useWorkspaceReview } from '../queries/linked-review';
-import { useReviewSnapshot } from '../queries/review';
+import type { Workspace } from '../../projects/index';
+import { useWorkspaceReview } from '../../workspace/index';
+import { useReviewSnapshot } from '../../workspace/index';
 import { useWalkthroughProgress } from '../queries/walkthrough';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 
 export type PublishedWalkthroughState = {
   workspace: Workspace;

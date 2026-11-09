@@ -1,4 +1,5 @@
-import { PullRequestBlock } from './pull-request-block';
+import { AgentFeedback } from './agent-feedback';
+import { PullRequestBlock } from '../../workspace/index';
 import { RevisionNavigation } from './review-navigation';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useState } from 'react';
@@ -15,16 +16,18 @@ import { FileTreeIcon } from '@/features/files/index';
 import {
   basename,
   type CommentThread,
+  type ReviewScope,
+  threadCounts,
+} from '@porcelain/client/reviews/rules';
+import {
   type ReviewMarks,
   type ReviewRevision,
-  type ReviewScope,
   revisionReviewItems,
   type ReviewStep,
-  threadCounts,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { ChangeStatusIcon } from './change-row';
+import { ChangeStatusIcon } from '../../workspace/index';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -32,9 +35,9 @@ import {
   CommentsView,
   ReviewViews,
   WholeChangeComment,
-} from './comments-view';
+} from '../../workspace/index';
 import { ChangeReadiness } from './readiness-panel';
-import { SidebarDocumentRow, SidebarGroup } from './sidebar-section';
+import { SidebarDocumentRow, SidebarGroup } from '../../workspace/index';
 
 export function RevisionPanel({
   revision,
@@ -179,6 +182,14 @@ export function RevisionPanel({
       )}
       {view === 'comments' && (
         <CommentsView
+          feedback={
+            <AgentFeedback
+              connection={context.connection}
+              reviewId={revision.reviewId}
+              reviewRevision={revision.revision}
+              writable
+            />
+          }
           scope={scope}
           context={context}
           threads={threads}

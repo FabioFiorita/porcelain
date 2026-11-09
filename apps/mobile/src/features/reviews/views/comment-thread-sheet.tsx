@@ -3,22 +3,22 @@ import { ScrollView } from 'react-native';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
-import {
-  readCommentThreads,
-  readPublishedReview,
-} from '@porcelain/client/reviews';
+import { readCommentThreads } from '@porcelain/client/workspace';
+import { readPublishedReview } from '@porcelain/client/reviews';
 import {
   anchorLabel,
   anchorPath,
-  decisionKey,
   decisionMentions,
   messageRevision,
-  publishedLabel,
   reviewErrorMessage,
   threadStateLabel,
   threadWriteTarget,
   type CommentMessage,
   type CommentThread,
+} from '@porcelain/client/reviews/rules';
+import {
+  decisionKey,
+  publishedLabel,
   type ReviewLayer,
 } from '@porcelain/client/reviews/rules';
 import { Box } from '../../../components/ui/box';
@@ -30,12 +30,12 @@ import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { KeyboardDock } from '../../../components/ui/keyboard-dock';
 import { Separator } from '../../../components/ui/separator';
-import type { Workspace } from '../../projects';
-import { useResolveThread, useVisibleComments } from '../commands/comments';
-import { useLinkedReview } from '../queries/linked-review';
+import type { Workspace } from '../../projects/index';
+import { useResolveThread, useVisibleComments } from '../../workspace/index';
+import { useLinkedReview } from '../../workspace/index';
 import { useWalkthroughRoutes } from './walkthrough-routes';
-import { ReviewReadState } from './read-state';
-import { useCommentDraft } from './comment-draft';
+import { ReviewReadState } from '../../workspace/index';
+import { useCommentDraft } from '../../workspace/index';
 
 export function CommentThreadSheet({
   workspace,

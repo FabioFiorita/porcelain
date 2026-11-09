@@ -1,3 +1,5 @@
+import { ReviewFileDocument } from './review-file-document';
+import { AgentNote } from './agent-note';
 import { cn } from '@/shared/lib/utils';
 import { createPortal } from 'react-dom';
 import {
@@ -23,8 +25,8 @@ import {
 import { useElement } from '@/shared/hooks/use-element';
 import type { Surface } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { counted } from '@porcelain/client/reviews/rules';
 import {
-  counted,
   neighbourStop,
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
@@ -61,9 +63,9 @@ import {
   walkthroughStops,
   revisionReviewItems,
   type ReviewRevision,
-  type ReviewScope,
   type WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewScope } from '@porcelain/client/reviews/rules';
 import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
@@ -75,11 +77,10 @@ import { reviewListTitle } from '@porcelain/client/reviews/rules';
 import { useReviewSummary } from '../queries/summary';
 import {
   useReviewPanelOpen,
-  useWalkthroughPlace,
   usePullRequestLinkFocus,
-  useReviewFileOrigins,
   useTabLayoutStore,
-} from '../store';
+} from '../../workspace/index';
+import { useWalkthroughPlace, useReviewFileOrigins } from '../store';
 import { ProgressMeter } from './progress-meter';
 import { BriefingMargin } from './briefing-margin';
 import { WalkthroughSpine } from './walkthrough-spine';
@@ -87,13 +88,13 @@ import { WalkthroughBriefing } from './walkthrough-briefing';
 import { DecisionPage } from './walkthrough-stop';
 import { DecisionSlices } from './decision-slices';
 import { ClosingPage } from './closing-page';
-import { MarginRow } from './margin-row';
+import { MarginRow } from '../../workspace/index';
 import { SummaryFrame } from './summary-frame';
 import { WalkthroughDock } from './walkthrough-dock';
-import { useComments } from '../queries/comments';
-import { ReviewDocumentWorkspace } from './review-document-workspace';
-import { entryKey, type OpenDocument } from '../rules/documents';
-import { useTabLayout } from '../adapters/tab-layout';
+import { useComments } from '../../workspace/index';
+import { ReviewDocumentWorkspace } from '../../workspace/index';
+import { entryKey, type OpenDocument } from '../../workspace/index';
+import { useTabLayout } from '../../workspace/index';
 import type {
   WorkspaceSearch,
   SetWorkspaceSearch,
@@ -105,12 +106,12 @@ import {
   StateNotice,
   StateSkeleton,
 } from '@/shared/views/state-notice';
-import { ReviewBoundary } from './review-boundary';
-import { ReviewPullRequestChip } from './review-pull-request-chip';
+import { ReviewBoundary } from '../../workspace/index';
+import { ReviewPullRequestChip } from '../../workspace/index';
 import { RevisionPanel } from './revision-panel';
-import { SidePanel, surfaceNames } from './review-sidebar';
-import { SideRail } from './side-rail';
-import { useDesktopReview } from '../adapters/desktop-review';
+import { SidePanel, surfaceNames } from '../../workspace/index';
+import { SideRail } from '../../workspace/index';
+import { useDesktopReview } from '../../workspace/index';
 
 type ReviewPageProps = {
   onOpen?: OpenDocument | undefined;
@@ -1072,6 +1073,8 @@ function ReviewRevisionPage({
       <PanelKeys onShow={showPanel} onToggle={togglePanel} />
       <div className="flex min-h-0 min-w-0 flex-1">
         <ReviewDocumentWorkspace
+          reviewFile={ReviewFileDocument}
+          agentNote={AgentNote}
           revision={revision}
           context={context}
           navigation={navigation}

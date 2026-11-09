@@ -1,10 +1,11 @@
+import { CommentThreadSheet, AgentFeedback } from '../features/reviews/index';
 import { useLocalSearchParams } from 'expo-router';
+import { ReviewCommentsScreen } from '../features/workspace/index';
 import {
-  ReviewCommentsScreen,
   decodeCommentAnchor,
   decodeCommentReview,
   reviewComparison,
-} from '../features/reviews';
+} from '../features/workspace/index';
 
 function ReviewCommentsRoute() {
   const params = useLocalSearchParams<{
@@ -23,6 +24,8 @@ function ReviewCommentsRoute() {
   }>();
   return (
     <ReviewCommentsScreen
+      threadSheet={CommentThreadSheet}
+      feedback={AgentFeedback}
       workspaceKey={params.workspace}
       path={params.path}
       anchor={decodeCommentAnchor(params.anchor)}

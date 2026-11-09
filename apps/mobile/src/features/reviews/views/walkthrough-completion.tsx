@@ -15,9 +15,9 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
-import type { Workspace } from '../../projects';
+import type { Workspace } from '../../projects/index';
 import type { useWalkthroughProgress } from '../queries/walkthrough';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 import { reviewContinuation } from '../store';
 
 type Progress = ReturnType<typeof useWalkthroughProgress>;

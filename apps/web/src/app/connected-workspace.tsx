@@ -41,11 +41,8 @@ import {
   type WorktreeTarget,
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
-import {
-  ReviewWorkspace,
-  entryKey,
-  workspaceTitle,
-} from '@/features/reviews/index';
+import { WorkspaceReview } from './workspace-review';
+import { entryKey, workspaceTitle } from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import {
   useOpenProjectOnThisComputer,
@@ -266,7 +263,7 @@ export function ConnectedWorkspace({
       >
         {content ??
           (review ? (
-            <ReviewWorkspace
+            <WorkspaceReview
               key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
               navigationTrigger={navigationTrigger}
               worktree={review.selection.worktree}

@@ -42,8 +42,8 @@ tests:
   - packages/client/src/features/reviews/rules/revision.spec.ts
   - packages/client/src/features/reviews/rules/walkthrough.spec.ts
   - apps/mobile/src/features/reviews/rules/briefing.spec.ts
-  - apps/mobile/src/features/reviews/rules/thread-folds.spec.ts
-  - apps/mobile/src/features/reviews/reading-place.spec.ts
+  - apps/mobile/src/features/workspace/rules/thread-folds.spec.ts
+  - apps/mobile/src/features/workspace/reading-place.spec.ts
   - apps/mobile/src/shared/application/document-reading.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/text

@@ -7,7 +7,7 @@ import {
   type ReviewableItem,
   type ReviewNotice,
 } from '../rules/reviewed.ts';
-import { reviewErrorMessage } from '../rules/review.ts';
+import { reviewErrorMessage } from '../../reviews/rules/review.ts';
 import { reviewCommands } from './project-reviews.ts';
 
 type Decision = { layerId: string; fingerprint: string };

@@ -3,7 +3,7 @@ import {
   DocumentComments,
   commitCommentTarget,
   type DocumentCodeSelection,
-} from '../../reviews';
+} from '../../workspace/index';
 import { CommitReadState } from './commit-state';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';
@@ -14,7 +14,7 @@ import { Loading } from '../../../components/ui/loading';
 import { FileHeader } from '../../../components/ui/file-header';
 import { DiffView } from '../../../components/ui/diff-view';
 import { diffLines } from '@porcelain/client/changes/rules';
-import { usePreferences } from '../../preferences';
+import { usePreferences } from '../../preferences/index';
 import {
   useCommit,
   useCommitPatch,

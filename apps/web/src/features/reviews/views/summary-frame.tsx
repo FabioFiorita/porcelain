@@ -11,7 +11,7 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/reviews/rules';
 import { bindSummaryLayerRequests } from '../adapters/summary-messages';
-import { MarginRow } from './margin-row';
+import { MarginRow } from '../../workspace/index';
 
 export function SummaryFrame({
   revision,

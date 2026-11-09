@@ -3,23 +3,25 @@ import { ProofAsset } from './review-briefing';
 import { useState } from 'react';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
+import { readCommentThreads } from '@porcelain/client/workspace';
 import {
-  readCommentThreads,
   readReviewComments,
   readReviewRevisionDiffs,
 } from '@porcelain/client/reviews';
 import {
   anchorPath,
+  questionAnswer,
+  type CommentThread,
+} from '@porcelain/client/reviews/rules';
+import {
   decisionKey,
   decisionLinks,
   decisionQuestions,
   decisionRoute,
   filesReviewed,
-  questionAnswer,
   teachRequest,
   optionRequest,
   guardRequest,
-  type CommentThread,
   type ReviewResponse,
   type ReviewRevision,
   type WalkthroughKey,
@@ -35,20 +37,20 @@ import { Icon } from '../../../components/ui/icon';
 import { DiffView } from '../../../components/ui/diff-view';
 import { DECISION_DIFF_FILES } from '../../../config/limits';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
-import { usePreferences } from '../../preferences';
-import type { Workspace } from '../../projects';
+import { usePreferences } from '../../preferences/index';
+import type { Workspace } from '../../projects/index';
 import type { useWalkthroughProgress } from '../queries/walkthrough';
-import { diffPresentation } from '../rules/diff-presentation';
+import { diffPresentation } from '../../workspace/index';
 import {
   foldThreads,
   foldedThread,
   threadOnRevision,
   threadSummary,
-} from '../rules/thread-folds';
-import { FileActionMenu } from './file-action-menu';
+} from '../../workspace/index';
+import { FileActionMenu } from '../../workspace/index';
 import type { WalkthroughRoutes } from './walkthrough-routes';
-import { ReviewReadState } from './read-state';
-import { RevisionReviewedAction } from './review-actions';
+import { ReviewReadState } from '../../workspace/index';
+import { RevisionReviewedAction } from '../../workspace/index';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;
 type Progress = ReturnType<typeof useWalkthroughProgress>;

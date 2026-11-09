@@ -7,10 +7,10 @@ import { readReviewRevisionFile } from '@porcelain/client/reviews';
 import type { ReviewMarks } from '@porcelain/client/reviews/rules';
 import type {
   ReviewRevision,
-  ReviewScope,
   ReviewStep,
   WalkthroughKey,
 } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { commitEntry } from '@/features/changes/index';
 import { diffUnavailableReason } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RevisionFileMark } from './revision-file-mark';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import { fileEntry } from '../adapters/code-entries';
-import { CodeDocument } from './code-document';
-import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
+import { fileEntry } from '../../workspace/index';
+import { CodeDocument } from '../../workspace/index';
+import { decisionNotes, gapNotes, mergeNotes } from '../../workspace/index';
 import { AgentNote } from './agent-note';
 import { useRevisionDiffs } from '../queries/revision-diffs';
-import { retainedCommentTarget } from '../rules/retained-comments';
+import { retainedCommentTarget } from '../../workspace/index';
 
 export function RevisionCode({
   revision,
@@ -232,6 +232,7 @@ function RevisionDiffs({
       )}
       {entries.length > 0 && (
         <CodeDocument
+          agentNote={AgentNote}
           scope={scope}
           context={context}
           interaction={{
@@ -353,6 +354,7 @@ function RevisionFile({
       )}
       {entry ? (
         <CodeDocument
+          agentNote={AgentNote}
           compactHeight={compact}
           decision={compact}
           scope={scope}

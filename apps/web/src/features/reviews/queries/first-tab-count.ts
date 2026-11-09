@@ -5,13 +5,13 @@ import { readReview, readReviewMarks } from '@porcelain/client/reviews';
 import {
   revisionDecisionProgress,
   type ReviewResponse,
-  type ReviewScope,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewScope } from '@porcelain/client/reviews/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import type { ReviewTitle } from '../rules/documents';
-import { changesTabCount, reviewTabCount } from '../rules/tab-strip';
+import type { ReviewTitle } from '../../workspace/index';
+import { changesTabCount, reviewTabCount } from '../../workspace/index';
 import { useReviewRevisionSelection } from '../store';
 
 const inactiveReview = Atom.make<Atom.Type<ReturnType<typeof readReview>>>(

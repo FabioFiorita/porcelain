@@ -26,7 +26,7 @@ import { useRevisionDiffs } from '../queries/revision-diffs';
 import type { WalkthroughProps } from './walkthrough-props';
 import { RevisionFileMark } from './revision-file-mark';
 import { GuardRequest } from './guard-request';
-import { focusedPatch } from '../rules/focused-patch';
+import { focusedPatch } from '../../workspace/index';
 
 export function DecisionSlices({
   revision,

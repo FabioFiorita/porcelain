@@ -1,3 +1,4 @@
+import { AgentNote } from './agent-note';
 import { Button } from '@/components/ui/button';
 import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
@@ -10,10 +11,8 @@ import {
   readReviewRevisionDiffs,
   reviewCommands,
 } from '@porcelain/client/reviews';
-import {
-  type ReviewRevision,
-  type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+import { type ReviewRevision } from '@porcelain/client/reviews/rules';
+import { type ReviewScope } from '@porcelain/client/reviews/rules';
 import { BarAction } from '@/shared/workspace/bar-action';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import {
@@ -23,17 +22,17 @@ import {
 } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { commitEntry } from '@/features/changes/index';
-import { fileEntry } from '../adapters/code-entries';
+import { fileEntry } from '../../workspace/index';
 import type {
   DocumentInteraction,
   DocumentRef,
   OpenDocument,
-} from '../rules/documents';
-import { retainedCommentTarget } from '../rules/retained-comments';
-import { retainedDiffPaths, reviewFilePosition } from '../rules/review-file';
+} from '../../workspace/index';
+import { retainedCommentTarget } from '../../workspace/index';
+import { retainedDiffPaths, reviewFilePosition } from '../../workspace/index';
 import { useWalkthroughPlace, useReviewFileOrigins } from '../store';
-import { CodeDocument } from './code-document';
-import { FileHeading } from './file-heading';
+import { CodeDocument } from '../../workspace/index';
+import { FileHeading } from '../../workspace/index';
 
 type ReviewFileRef = Extract<
   DocumentRef,
@@ -263,6 +262,7 @@ function RetainedFile({
       )}
       {entry ? (
         <CodeDocument
+          agentNote={AgentNote}
           scope={scope}
           context={context}
           interaction={interaction}

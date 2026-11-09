@@ -1,11 +1,14 @@
-import type { OpenDocument } from '../rules/documents';
+import type { OpenDocument } from '../../workspace/index';
 import { Option } from 'effect';
-import { PlainChangesDocument, type DocumentProps } from './documents';
+import {
+  PlainChangesDocument,
+  type DocumentProps,
+} from '../../workspace/index';
 import { useState } from 'react';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { usePublishedReview } from '../queries/published-review';
+import { usePublishedReview } from '../../workspace/index';
 import { useReviewRevisionSelection } from '../store';
 import { ReviewPage } from './review-page';
 import {

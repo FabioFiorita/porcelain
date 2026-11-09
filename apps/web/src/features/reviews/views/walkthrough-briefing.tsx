@@ -12,13 +12,15 @@ import { relativeTime } from '@/shared/lib/relative-time';
 import { cn } from '@/shared/lib/utils';
 import {
   counted,
+  type ReviewChangeItem,
+} from '@porcelain/client/reviews/rules';
+import {
   briefingTitle,
   decisionKey,
   type DecisionState,
   decisionRoute,
   filesReviewed,
   type ReviewRevision,
-  type ReviewChangeItem,
   type SystemPart,
   stopName,
   stopTitle,
@@ -31,9 +33,9 @@ import { ReviewVerdict } from './review-verdict';
 import { BriefingRemoved, BriefingNotProven } from './briefing-margin';
 import { ReviewProof } from './review-proof';
 import { AnswerableQuestion } from './walkthrough-question';
-import { MarginRow } from './margin-row';
+import { MarginRow } from '../../workspace/index';
 import { SystemMap } from './system-map';
-import { SectionHeading } from './section-heading';
+import { SectionHeading } from '../../workspace/index';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function WalkthroughBriefing({

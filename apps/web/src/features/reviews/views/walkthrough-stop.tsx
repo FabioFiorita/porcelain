@@ -17,6 +17,9 @@ import { LONG_DECISION_SUMMARY } from '@/config/limits';
 import {
   counted,
   basename,
+  type ReviewChangeItem,
+} from '@porcelain/client/reviews/rules';
+import {
   checkResultLabel,
   decisionKey,
   decisionQuestions,
@@ -26,7 +29,6 @@ import {
   proofOnLayer,
   stepMarker,
   type DecisionState,
-  type ReviewChangeItem,
   type ReviewLayer,
   type ReviewRevision,
   type ReviewStep,
@@ -36,7 +38,7 @@ import {
 import { MarginQuestion } from './walkthrough-question';
 import { ProofMedia } from './proof-list';
 import { SystemMap } from './system-map';
-import { MarginRow } from './margin-row';
+import { MarginRow } from '../../workspace/index';
 import type { WalkthroughProps } from './walkthrough-props';
 
 type DecisionStop = Extract<WalkthroughStop, { kind: 'decision' }>;

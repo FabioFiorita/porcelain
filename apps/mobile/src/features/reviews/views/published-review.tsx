@@ -18,17 +18,17 @@ import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { headerIcon } from '../../../shared/icons/header-icon';
-import { WorkspaceGate } from '../../projects';
+import { WorkspaceGate } from '../../projects/index';
 import { briefingContinuation } from '../rules/briefing';
 import { AgentFeedback, SendFeedbackButton } from './agent-feedback';
-import { PullRequestState } from './pull-request-state';
+import { PullRequestState } from '../../workspace/index';
 import {
   PublishedWalkthrough,
   type PublishedWalkthroughState,
 } from './published-walkthrough';
 import { BriefingContinue } from './briefing-continue';
 import { ReviewBriefing } from './review-briefing';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 import { WalkthroughProgress } from './walkthrough-completion';
 import { useWalkthroughRoutes } from './walkthrough-routes';
 import { WalkthroughStopList } from './walkthrough-stop-list';

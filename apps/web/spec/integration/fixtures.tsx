@@ -31,7 +31,7 @@ import {
   ThemeProvider,
 } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
-import { ReviewWorkspace } from '@/features/reviews/index';
+import { WorkspaceReview as ReviewWorkspace } from '@/app/workspace-review';
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';

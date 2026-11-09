@@ -22,7 +22,7 @@ import { ImageView } from '../../../components/ui/image-view';
 import { ErrorState } from '../../../components/ui/error-state';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { ReviewHandoff } from './review-handoff';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 import { ProofChecks } from './proof-checks';
 
 type Navigation = { go: (key: WalkthroughKey) => void };

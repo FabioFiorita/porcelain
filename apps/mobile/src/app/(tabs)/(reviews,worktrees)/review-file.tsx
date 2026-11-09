@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ReviewFileScreen, reviewComparison } from '../../../features/reviews';
+import { ReviewFileScreen } from '../../../features/workspace/index';
+import { reviewComparison } from '../../../features/workspace/index';
 
 function ReviewFileRoute() {
   const params = useLocalSearchParams<{

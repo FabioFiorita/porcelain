@@ -2,7 +2,7 @@ import { useAtomValue } from '@effect/atom-react';
 import { readReviewRevisionDiffs } from '@porcelain/client/reviews';
 import type { ReviewRevision } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { retainedDiffPaths } from '../rules/review-file';
+import { retainedDiffPaths } from '../../workspace/index';
 
 export function useRevisionDiffs(
   revision: ReviewRevision,

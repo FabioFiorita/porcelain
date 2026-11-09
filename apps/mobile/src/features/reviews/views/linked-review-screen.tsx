@@ -1,4 +1,4 @@
-import { PullRequestState } from './pull-request-state';
+import { PullRequestState } from '../../workspace/index';
 import { useState } from 'react';
 import {
   Stack,
@@ -19,6 +19,9 @@ import {
 import { AsyncResult } from 'effect/reactivity';
 import {
   parseReviewAppLink,
+  type ReviewAppLink,
+} from '@porcelain/client/reviews/rules';
+import {
   walkthroughStops,
   currentStop,
   neighbourStop,
@@ -27,25 +30,27 @@ import {
   revisionReviewItems,
   revisionDecisionStates,
   type WalkthroughKey,
-  type ReviewAppLink,
 } from '@porcelain/client/reviews/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { readReviewMarks } from '@porcelain/client/reviews';
 import { specsApart } from '@porcelain/client/preferences/rules';
-import { useReviewGitSettings } from '../../preferences';
-import type { LinkedRevision } from '../queries/linked-review';
-import type { OpenedReview } from '../../projects';
+import { useReviewGitSettings } from '../../preferences/index';
+import type { LinkedRevision } from '../../workspace/index';
+import type { OpenedReview } from '../../projects/index';
 import {
   openReview,
   selectReviewEnvironment,
   useLinkedReview,
-} from '../queries/linked-review';
+} from '../../workspace/index';
 import {
   remoteConnectionState,
   selectionState,
 } from '../../../shared/application/store';
-import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
-import { PairEnvironmentForm } from '../../access';
+import {
+  useEnvironments,
+  useEnvironmentStorageStatus,
+} from '../../access/index';
+import { PairEnvironmentForm } from '../../access/index';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
@@ -61,7 +66,7 @@ import {
   WalkthroughStopList,
 } from './walkthrough-stop-list';
 import { ListDetail } from '../../../components/ui/list-detail';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 import { AgentFeedback } from './agent-feedback';
 import { ReviewBottomBar } from './review-bottom-bar';
 import { IconButton } from '../../../components/ui/icon-button';

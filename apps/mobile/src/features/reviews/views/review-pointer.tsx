@@ -6,14 +6,14 @@ import {
   reviewStepLines,
   type ReviewStep,
 } from '@porcelain/client/reviews/rules';
-import type { Workspace } from '../../projects';
+import type { Workspace } from '../../projects/index';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { DiffView } from '../../../components/ui/diff-view';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
-import { ReviewReadState } from './read-state';
+import { ReviewReadState } from '../../workspace/index';
 import { pointerSource } from '../rules/pointer-source';
 
 export function ReviewPointer({

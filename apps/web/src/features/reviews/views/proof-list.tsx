@@ -20,7 +20,8 @@ import {
   type ProofCheck,
   type ReviewProof,
 } from '@porcelain/client/reviews/rules';
-import type { ReviewLayer, ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewLayer } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import {
   Dialog,

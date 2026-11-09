@@ -1,4 +1,4 @@
-import { reviewRouteSearch } from '@/features/reviews/index';
+import { reviewRouteSearch } from '@/features/workspace/index';
 import { createFileRoute } from '@tanstack/react-router';
 import { ReviewRoute } from '@/app/review-route';
 export const Route = createFileRoute(

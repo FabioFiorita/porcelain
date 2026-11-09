@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import {
   changeAnchor,
   reviewErrorMessage,
-  type ReviewRevision,
 } from '@porcelain/client/reviews/rules';
+import { type ReviewRevision } from '@porcelain/client/reviews/rules';
 import { useAtom } from '@effect/atom-react';
-import { reviewCommands, commentWriteBinding } from '@porcelain/client/reviews';
+import { reviewCommands } from '@porcelain/client/reviews';
+import { commentWriteBinding } from '@porcelain/client/workspace';
 import type { WalkthroughProps } from './walkthrough-props';
 
 export function ReviewRequest({

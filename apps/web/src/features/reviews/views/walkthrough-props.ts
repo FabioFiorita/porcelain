@@ -1,9 +1,7 @@
-import type {
-  ReviewResponse,
-  ReviewScope,
-} from '@porcelain/client/reviews/rules';
+import type { ReviewResponse } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import type { DocumentInteraction, OpenDocument } from '../rules/documents';
+import type { DocumentInteraction, OpenDocument } from '../../workspace/index';
 
 export type WalkthroughProps = {
   review: ReviewResponse;
