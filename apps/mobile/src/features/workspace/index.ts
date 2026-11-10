@@ -1,6 +1,7 @@
 export { ReviewPane } from './views/review-screen';
 export type { ReviewPaneProps } from './views/review-screen';
 export { ReviewFileScreen } from './views/review-file-screen';
+export { ChangesPageScreen } from './views/changes-page';
 export { ReviewCommentsScreen } from './views/review-comments-screen';
 export { useFileReview } from './queries/review';
 export {
@@ -18,6 +19,14 @@ export { PullRequestState } from './views/pull-request-state';
 export { useReviewSnapshot } from './queries/review';
 
 export { diffPresentation } from './rules/diff-presentation';
+export { diffBody, diffChunk } from './rules/diff-page';
+export {
+  DiffPage,
+  DiffPagePart,
+  type DiffPageFile,
+  type DiffPagePartProps,
+  type DiffPageState,
+} from './views/diff-page';
 
 export {
   foldThreads,

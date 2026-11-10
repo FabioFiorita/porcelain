@@ -14,6 +14,7 @@ class PorcelainRendererModule : Module() {
       Prop("data") { view: CodeSurface, value: String -> view.state.updateData(value) }
       Prop("wrap") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(wrap = value) }
       Prop("lineNumbers") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(lineNumbers = value) }
+      Prop("fit") { view: CodeSurface, value: Boolean -> view.state.options = view.state.options.copy(fit = value) }
       Prop("selectable") { view: CodeSurface, value: Boolean -> view.state.selectable = value }
       Prop("foreground") { view: CodeSurface, value: Long -> view.state.options = view.state.options.copy(foreground = Color(value.toInt())) }
       Prop("background") { view: CodeSurface, value: Long -> view.state.options = view.state.options.copy(background = Color(value.toInt())) }

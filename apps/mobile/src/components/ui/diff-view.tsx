@@ -11,6 +11,7 @@ export function DiffView({
   lines,
   language,
   wrap = true,
+  fit = false,
   selection,
   onSelect,
   onExpand,
@@ -20,6 +21,7 @@ export function DiffView({
   lines: readonly RenderLine[];
   language?: string | undefined;
   wrap?: boolean;
+  fit?: boolean;
   selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
@@ -37,6 +39,7 @@ export function DiffView({
           : undefined
       }
       wrap={wrap}
+      fit={fit}
       selection={selection}
       onSelect={onSelect}
       onExpand={onExpand}

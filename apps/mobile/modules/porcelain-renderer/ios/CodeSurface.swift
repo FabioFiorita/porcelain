@@ -9,6 +9,7 @@ final class CodeSurface: ExpoView {
   let onExpand = EventDispatcher()
   let onReadingLine = EventDispatcher()
   private var host: UIHostingController<CodeContent>?
+  private var fittedHeight: CGFloat = -1
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -25,6 +26,18 @@ final class CodeSurface: ExpoView {
       self?.onReadingLine(["line": line])
     }, copy: { text in
       UIPasteboard.general.string = text
+    }, fit: { [weak self] height in
+      guard let self else { return }
+      let rounded = ceil(height)
+      guard rounded != fittedHeight else { return }
+      fittedHeight = rounded
+      // A negative width leaves the width to the parent layout.
+      setViewSize(CGSize(width: -1, height: rounded))
     }))
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    if model.viewportWidth != bounds.width { model.viewportWidth = bounds.width }
   }
 }

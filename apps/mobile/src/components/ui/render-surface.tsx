@@ -14,6 +14,7 @@ type SurfaceProps = {
   tokens: string;
   wrap: boolean;
   lineNumbers: boolean;
+  fit: boolean;
   foreground: number;
   background: number;
   muted: number;
@@ -25,7 +26,7 @@ type SurfaceProps = {
   onExpand?:
     | ((event: NativeSyntheticEvent<{ id: string }>) => void)
     | undefined;
-  style: { flex: number };
+  style: { flex: number } | undefined;
 };
 const NativeSurface = requireNativeView<SurfaceProps>(
   'PorcelainRenderer',
@@ -36,6 +37,7 @@ export function RenderSurface({
   documentKey,
   wrap = true,
   lineNumbers = true,
+  fit = false,
   selection,
   onSelect,
   onExpand,
@@ -44,6 +46,7 @@ export function RenderSurface({
 }: {
   lines: readonly RenderLine[] | undefined;
   documentKey?: string | undefined;
+  fit?: boolean;
   initialLine?: number | undefined;
   onReadingLine?: ((line: number) => void) | undefined;
   wrap?: boolean;
@@ -75,6 +78,7 @@ export function RenderSurface({
       tokens={JSON.stringify(tokens)}
       wrap={wrap}
       lineNumbers={lineNumbers}
+      fit={fit}
       foreground={tokens.foreground}
       background={tokens.background}
       muted={tokens.muted}
@@ -84,7 +88,7 @@ export function RenderSurface({
       onExpand={
         onExpand ? (event) => onExpand(event.nativeEvent.id) : undefined
       }
-      style={{ flex: 1 }}
+      style={fit ? undefined : { flex: 1 }}
     />
   );
 }

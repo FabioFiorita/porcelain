@@ -43,6 +43,7 @@ function TabRoutes({ segment }: { segment: string }) {
       />
       <Stack.Screen name="linked-decision" options={{ title: 'Decision' }} />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
+      <Stack.Screen name="review-changes" options={{ title: 'All changes' }} />
       <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}

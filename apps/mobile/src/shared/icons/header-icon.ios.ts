@@ -21,6 +21,7 @@ const symbols = {
   comparison: 'arrow.left.arrow.right',
   showSource: 'chevron.left.forwardslash.chevron.right',
   showRendered: 'doc.richtext',
+  files: 'list.bullet',
   more: 'ellipsis',
   showList: 'sidebar.left',
   hideList: 'sidebar.left',

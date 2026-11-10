@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate, type Workspace } from '../../projects';
-import { shortOid } from '@porcelain/client/history/rules';
-import { CommitContent } from './commit-content';
+import { Screen } from '../../../components/ui/screen';
+import { CommitPage } from './commit-page';
 
 export function CommitScreen({
   diffRoute = '/history/commit/[oid]/diff',
@@ -55,9 +55,8 @@ function CommitDetail({
   const [parent, setParent] = useState(1);
   const router = useRouter();
   return (
-    <>
-      <Stack.Screen options={{ title: shortOid(oid) }} />
-      <CommitContent
+    <Screen layout="fixed">
+      <CommitPage
         key={parent}
         selection={current}
         oid={oid}
@@ -76,6 +75,6 @@ function CommitDetail({
           })
         }
       />
-    </>
+    </Screen>
   );
 }

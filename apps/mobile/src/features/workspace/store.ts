@@ -20,6 +20,11 @@ export const reviewFileScope = Atom.family((_owner: string) =>
   Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );
 
+export const chooseReviewFileScope = Atom.fnSync(
+  (input: { owner: string; scope: string }, get) =>
+    get.set(reviewFileScope(input.owner), input.scope),
+);
+
 const initialReviewListOffset = Atom.family((owner: string) =>
   Atom.make((get) => get.once(reviewListOffset(owner))).pipe(
     Atom.setIdleTTL(0),

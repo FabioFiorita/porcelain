@@ -122,6 +122,12 @@ function PhoneReview({
           params: { ...reviewParams(workspace.key, comparison), path },
         })
       }
+      onAll={() =>
+        router.push({
+          pathname: '/review-changes',
+          params: reviewParams(workspace.key, comparison),
+        })
+      }
     />
   );
 }
@@ -132,6 +138,7 @@ type ReviewNavigationProps = {
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
   onFile: (path: string) => void;
+  onAll: () => void;
 };
 
 function ReviewNavigation({
@@ -140,6 +147,7 @@ function ReviewNavigation({
   comparison,
   onComparison,
   onFile,
+  onAll,
 }: ReviewNavigationProps) {
   const [comparisonWidth, setComparisonWidth] = useState<number>();
   const snapshotRead = useReviewSnapshot(workspace, comparison);
@@ -238,6 +246,7 @@ function ReviewNavigation({
             workspace={workspace}
             snapshotRead={snapshotRead}
             onFile={onFile}
+            onAll={onAll}
           />
         </Box>
       </ScrollView>
@@ -306,10 +315,12 @@ function ChangedFiles({
   workspace,
   snapshotRead,
   onFile,
+  onAll,
 }: {
   workspace: Workspace;
   snapshotRead: ReturnType<typeof useReviewSnapshot>;
   onFile: (path: string) => void;
+  onAll: () => void;
 }) {
   const snapshot = AsyncResult.isSuccess(snapshotRead.result)
     ? snapshotRead.result.value
@@ -347,9 +358,17 @@ function ChangedFiles({
         />
       ) : (
         <Card>
-          {files.map((file, index) => (
+          <Item
+            title="All changes"
+            description={`${files.length} ${files.length === 1 ? 'file' : 'files'} on one page`}
+            leading={<Icon name="code" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            testID="review-all-changes"
+            onPress={onAll}
+          />
+          {files.map((file) => (
             <Fragment key={file.path}>
-              {index > 0 ? <Separator inset="leading" /> : null}
+              <Separator inset="leading" />
               <Item
                 title={file.path}
                 titleDecoration={

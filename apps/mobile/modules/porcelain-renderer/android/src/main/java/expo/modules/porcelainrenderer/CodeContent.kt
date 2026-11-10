@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -28,7 +30,7 @@ private fun CodeLine.columns() = text.sumOf { char -> (if (char == '\t') 4 else 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (CodeLine, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit, initialLine: Int?, reading: (Int) -> Unit) {
+internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: RenderTokens, selection: ReviewSelection?, selectable: Boolean, location: (CodeLine) -> CodeLocation?, choose: (CodeLine, Boolean) -> Unit, expand: (String) -> Unit, copy: (String) -> Unit, initialLine: Int?, reading: (Int) -> Unit, fit: (Float) -> Unit) {
   val listState = rememberLazyListState()
   var restored by remember { mutableStateOf(false) }
   LaunchedEffect(initialLine, lines.isEmpty()) {
@@ -63,8 +65,7 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
     // Rows in a horizontal scroller get unbounded width, so fillMaxWidth alone stops each background at its own text.
     val rowWidth = if (options.wrap) Modifier.fillMaxWidth() else Modifier.widthIn(min = contentWidth)
     Box(Modifier.then(scrolling)) {
-    LazyColumn(Modifier.fillMaxHeight().then(rowWidth), state = listState) {
-      items(lines, key = { it.id }) { line ->
+    val row: @Composable (CodeLine) -> Unit = { line ->
         if (line.kind == "gap") {
           TextButton(onClick = { expand(line.id) }) { Text(line.text, color = options.muted, fontFamily = sansFamily) }
         } else {
@@ -98,7 +99,21 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
           }
         }
       }
+    if (options.fit) FittedColumn(fit, rowWidth) { lines.forEach { line -> key(line.id) { row(line) } } }
+    else LazyColumn(Modifier.fillMaxHeight().then(rowWidth), state = listState) {
+      items(lines, key = { it.id }) { line -> row(line) }
     }
   }
 }
+}
+
+// A page of diffs scrolls vertically itself, so a fitted surface composes every row and reports its height to its layout node.
+@Composable
+private fun FittedColumn(fit: (Float) -> Unit, modifier: Modifier, content: @Composable () -> Unit) {
+  val density = LocalDensity.current.density
+  Layout(content = { Column { content() } }, modifier = modifier) { measurables, constraints ->
+    val placeable = measurables.first().measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+    fit(placeable.height / density)
+    layout(placeable.width, placeable.height.coerceAtMost(constraints.maxHeight)) { placeable.place(0, 0) }
+  }
 }
