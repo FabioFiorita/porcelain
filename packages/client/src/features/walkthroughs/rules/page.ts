@@ -35,6 +35,8 @@ export function growthSign(growth: Growth) {
 
 const GROWTH_SHOWN = 4;
 const SHORT_OID = 7;
+export const WALKTHROUGH_STALE_TEXT =
+  'The work changed after this was written.';
 const NOT_SAID_SHOWN = 3;
 
 export function foldedGrowth(content: WalkthroughContent, open: boolean) {
@@ -74,7 +76,7 @@ export function walkthroughMeta(
       ? []
       : [`#${run.pullRequestNumber}`]),
     ...(files > 0 ? [files === 1 ? '1 file' : `${files} files`] : []),
-    `written for ${run.headOid.slice(0, SHORT_OID)}`,
+    `written for ${run.headOid.slice(0, SHORT_OID)}${run.includesUncommitted ? ' and uncommitted work' : ''}`,
   ].join(' · ');
 }
 

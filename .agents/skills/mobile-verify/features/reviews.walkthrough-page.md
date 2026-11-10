@@ -10,7 +10,7 @@ selectors:
   - 'See the code'
   - 'See every changed file'
   - 'See the change'
-  - 'New commits landed after this was written.'
+  - 'The work changed after this was written.'
   - 'Update walkthrough'
   - 'Updating…'
   - 'Try again'
@@ -50,7 +50,7 @@ api:
 
 # reviews.walkthrough-page
 
-A worktree with commits to explain opens on Walkthrough, which takes the first segment of its Worktree page in place of Changes (as the web's first tab does): the page a fresh agent wrote about the change, with the calls only the developer can make, how the system grew, one step per decision and what the code doesn't say. Under a call or a step the developer asks the Walkthrough agent and posts or copies the answer as a brief. Worktrees with nothing committed keep Changes first. On a walkthrough the top-bar Changes button pushes the plain [Changes list](projects.worktree-changes.md), with Uncommitted and Branch and the reviewed marks. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
+A worktree with commits to explain opens on Walkthrough, which takes the first segment of its Worktree page in place of Changes (as the web's first tab does): the page a fresh agent wrote about the change, with the calls only the developer can make, how the system grew, one step per decision and what the code doesn't say. Under a call or a step the developer asks the Walkthrough agent and posts or copies the answer as a brief. Uncommitted-only work keeps Changes first until a walkthrough run exists for the current branch. On a walkthrough the top-bar Changes button pushes the plain [Changes list](projects.worktree-changes.md), with Uncommitted and Branch and the reviewed marks. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
 
 On tablets with at least 700 units of content width the steps sit beside the page: All changes with its count, By step with each step's file count and a Your call dot, then Not in the walkthrough yet.
 
@@ -71,14 +71,15 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 1. Writing and reading
 
-1. Open the worktree. Expect segments Walkthrough, Files, History with Walkthrough selected, heading "No walkthrough yet." and button "Write walkthrough". The top-bar Changes button pushes the Changes list; Back returns. With no commits on the branch, the segments are Changes, Files, History.
+1. Open the worktree. Expect segments Walkthrough, Files, History with Walkthrough selected, heading "No walkthrough yet." and button "Write walkthrough". The top-bar Changes button pushes the Changes list; Back returns. With no commits and no walkthrough run, Changes opens first. An existing run opens Walkthrough, including an uncommitted-only run.
 2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Reading the change" under the `written for <sha>` line.
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", the call card ("Product call", "Step 1", the question, "Decide, or ask about this"), "How the system grew" with "1 more", the steps, "What the code doesn't say" with "2 more" and "See every changed file". Step 1 → scrolls to the step; Your call → back to the calls.
-4. Worktrees list: the row now leads with the walkthrough title and shows the branch as small text beneath it.
+4. Open See the code on an uncommitted-only ready walkthrough: the existing one-page diff reader shows its dirty file. Back → See every changed file shows the same file. With committed and dirty files, both entries show Branch first, then Uncommitted; each comparison appears once and opening a file preserves that comparison. The steps list includes dirty files, and All changes opens the same complete reader.
+   Worktrees list: the row now leads with the walkthrough title and shows the branch as small text beneath it.
 
 ### 2. Out of date, failure and the short page
 
-5. Commit another change in `$REPO`. Expect "New commits landed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
+5. Commit another change in `$REPO`. Expect "The work changed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
 6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer reads "Working…"; switching to `signed-out` fails it with Try again.
 7. `printf nothing > …`, write again. Expect a heading ending "Nothing needs you." and "See the change", which opens All changes.
 

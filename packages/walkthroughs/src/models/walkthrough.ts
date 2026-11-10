@@ -111,6 +111,9 @@ export const walkthroughRunSchema = Schema.Struct({
   ),
   baseOid: Schema.String,
   headOid: Schema.String,
+  contentTreeOid: Schema.String,
+  baseRef: Schema.String,
+  includesUncommitted: Schema.Boolean,
   branch: Schema.optional(Schema.String),
   writer: writerSchema,
   sessionId: Schema.optional(Schema.String),
@@ -147,6 +150,8 @@ export type DiffFile = {
 export const walkthroughJobSchema = Schema.Struct({
   run: walkthroughRunSchema,
   worktreePath: Schema.String,
+  patch: Schema.String,
+  omittedFiles: Schema.optional(Schema.Array(Schema.String)),
   files: Schema.Array(
     Schema.Struct({
       path: Schema.String,
@@ -165,6 +170,8 @@ export const walkthroughJobSchema = Schema.Struct({
 export type WalkthroughJob = {
   readonly run: WalkthroughRun;
   readonly worktreePath: string;
+  readonly patch: string;
+  readonly omittedFiles?: readonly string[] | undefined;
   readonly files: readonly DiffFile[];
 };
 export type EvidenceAsset = {

@@ -8,10 +8,19 @@ export type Pane = {
 
 export const emptyPane = (): Pane => ({ tabs: [], pinned: [] });
 
-export function primaryPane(pane: Pane): Pane {
+export function permanentTab(key: string) {
+  return key === 'handoff' || key === 'walkthrough';
+}
+
+export function primaryPane(
+  pane: Pane,
+  first: 'handoff' | 'walkthrough' = 'handoff',
+  companion = false,
+): Pane {
+  const leading = companion ? [first, 'walkthrough'] : [first];
   return {
-    tabs: ['handoff', ...pane.tabs.filter((key) => key !== 'handoff')],
-    pinned: pane.pinned.filter((key) => key !== 'handoff'),
+    tabs: [...leading, ...pane.tabs.filter((key) => !leading.includes(key))],
+    pinned: pane.pinned.filter((key) => !permanentTab(key)),
   };
 }
 
@@ -27,12 +36,12 @@ export function documentPane(
 
 export function orderedTabs(pane: Pane): string[] {
   return [
-    ...pane.tabs.filter((key) => key === 'handoff'),
+    ...['handoff', 'walkthrough'].filter((key) => pane.tabs.includes(key)),
     ...pane.pinned.filter(
-      (key) => key !== 'handoff' && pane.tabs.includes(key),
+      (key) => !permanentTab(key) && pane.tabs.includes(key),
     ),
     ...pane.tabs.filter(
-      (key) => key !== 'handoff' && !pane.pinned.includes(key),
+      (key) => !permanentTab(key) && !pane.pinned.includes(key),
     ),
   ];
 }
@@ -47,7 +56,7 @@ export function openInPane(
 }
 
 export function closeInPane(pane: Pane, key: string): Pane {
-  if (key === 'handoff') return pane;
+  if (permanentTab(key)) return pane;
   return {
     tabs: pane.tabs.filter((entry) => entry !== key),
     pinned: pane.pinned.filter((entry) => entry !== key),
@@ -59,7 +68,7 @@ export function closeOthersInPane(pane: Pane, key: string): Pane {
     ...pane,
     tabs: pane.tabs.filter(
       (entry) =>
-        entry === 'handoff' || entry === key || pane.pinned.includes(entry),
+        permanentTab(entry) || entry === key || pane.pinned.includes(entry),
     ),
   };
 }
@@ -68,13 +77,13 @@ export function closeUnpinnedInPane(pane: Pane): Pane {
   return {
     ...pane,
     tabs: pane.tabs.filter(
-      (entry) => entry === 'handoff' || pane.pinned.includes(entry),
+      (entry) => permanentTab(entry) || pane.pinned.includes(entry),
     ),
   };
 }
 
 export function togglePinInPane(pane: Pane, key: string): Pane {
-  if (key === 'handoff') return pane;
+  if (permanentTab(key)) return pane;
   return pane.pinned.includes(key)
     ? { ...pane, pinned: pane.pinned.filter((entry) => entry !== key) }
     : { ...pane, pinned: [...pane.pinned, key] };
@@ -94,7 +103,13 @@ export function neighbourAfterClose(
     ...order.slice(index + 1),
     ...order.slice(0, index).reverse(),
   ];
-  return candidates.find((candidate) => remaining.has(candidate)) ?? null;
+  return (
+    candidates.find(
+      (candidate) => remaining.has(candidate) && !permanentTab(candidate),
+    ) ??
+    before.tabs.find((candidate) => remaining.has(candidate)) ??
+    null
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

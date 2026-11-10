@@ -13,7 +13,7 @@ import { Text } from '../../../components/ui/text';
 import { documentHeading } from '../../../shared/rules/document-heading';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
-import { useBranchFiles } from '../queries/walkthrough';
+import { useWalkthroughFiles } from '../queries/walkthrough';
 
 const BRANCH = { kind: 'branch' } as const;
 
@@ -35,7 +35,12 @@ export function WalkthroughSteps({
   content: WalkthroughContent;
 }) {
   const router = useRouter();
-  const files = useBranchFiles(workspace);
+  const { branch, worktree } = useWalkthroughFiles(workspace);
+  const files = [
+    ...new Map(
+      [...branch, ...worktree].map((file) => [file.path, file]),
+    ).values(),
+  ];
   const grouped = groupFilesByStep(content, files);
   return (
     <ScrollView
@@ -56,7 +61,10 @@ export function WalkthroughSteps({
         onPress={() =>
           router.push({
             pathname: '/review-changes',
-            params: reviewParams(workspace.key, BRANCH),
+            params: {
+              ...reviewParams(workspace.key, BRANCH),
+              walkthrough: 'true',
+            },
           })
         }
       />
@@ -108,7 +116,12 @@ export function WalkthroughSteps({
                   router.push({
                     pathname: '/review-file',
                     params: {
-                      ...reviewParams(workspace.key, BRANCH),
+                      ...reviewParams(
+                        workspace.key,
+                        branch.some((committed) => committed.path === file.path)
+                          ? BRANCH
+                          : { kind: 'worktree' },
+                      ),
                       path: file.path,
                     },
                   })

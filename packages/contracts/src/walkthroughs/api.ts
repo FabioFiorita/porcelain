@@ -62,6 +62,9 @@ const readySchema = Schema.Struct({
 });
 const walkthroughRunSchema = Schema.Struct({
   ...domainRunSchema.fields,
+  contentTreeOid: Schema.String,
+  baseRef: Schema.String,
+  includesUncommitted: Schema.Boolean,
   pullRequestNumber: nullableAsUndefined(Schema.Int),
   sessionId: nullableAsUndefined(Schema.String),
   state: Schema.Union([

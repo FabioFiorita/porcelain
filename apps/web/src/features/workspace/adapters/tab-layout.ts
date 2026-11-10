@@ -13,6 +13,7 @@ import {
   orderedTabs,
   recentTabEntries,
   primaryPane,
+  permanentTab,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
@@ -37,6 +38,8 @@ export function useTabLayout({
   ready,
   focusBoundary,
   focusBoundaryOpen,
+  firstDocument,
+  companion,
 }: {
   worktreeId: string;
   entry: string | undefined;
@@ -48,6 +51,8 @@ export function useTabLayout({
   setFocused: (pane: PaneIndex) => void;
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
+  firstDocument: 'handoff' | 'walkthrough';
+  companion: boolean;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
@@ -79,14 +84,17 @@ export function useTabLayout({
   };
 
   const base: readonly Pane[] = [
-    primaryPane(stored?.[0] ?? emptyPane()),
+    primaryPane(stored?.[0] ?? emptyPane(), firstDocument, companion),
     ...(stored?.slice(1) ?? []),
   ];
+  const lastPrimary = orderedTabs(stored?.[0] ?? emptyPane()).at(-1);
+  const restoredPrimary =
+    lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : firstDocument;
   const actives: [string | null, string | null] = [
     current(0) ??
       (stored === null || stored === undefined
-        ? (fallback ?? 'handoff')
-        : (orderedTabs(base[0] ?? emptyPane()).at(-1) ?? null)),
+        ? (fallback ?? firstDocument)
+        : restoredPrimary),
     current(1) ??
       (current(0) !== undefined || base[1] === null || base[1] === undefined
         ? null

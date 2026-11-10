@@ -22,6 +22,7 @@ import {
 
 const legacy: WalkthroughJob = {
   worktreePath: '/fixture',
+  patch: '',
   files: [],
   run: {
     id: 'legacy',
@@ -29,13 +30,16 @@ const legacy: WalkthroughJob = {
     worktreeId: 'worktree',
     headOid: 'head',
     baseOid: 'base',
+    baseRef: 'refs/heads/main',
+    contentTreeOid: 'base',
+    includesUncommitted: false,
     pullRequestNumber: 42,
     writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     createdAt: '2026-11-09T00:00:00.000Z',
     state: { status: 'queued' },
   },
 };
-it('upgrades migration 012 runs to the saved high effort and preserves existing conversation messages in migration 013', async () => {
+it('drops commit-bound runs and conversations when upgrading migration 012 to content-based walkthroughs', async () => {
   const directory = mkdtempSync(
     join(tmpdir(), 'walkthrough-writer-migration-'),
   );
@@ -70,23 +74,13 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
     runtime = open();
     const reopened = await runtime.runPromise(WalkthroughStore);
     expect(
-      (await runtime.runPromise(reopened.readJob('legacy')))?.run.writer,
-    ).toEqual({ provider: 'claude', model: 'claude-opus-5-5', effort: 'high' });
+      await runtime.runPromise(reopened.readJob('legacy')),
+    ).toBeUndefined();
     expect(
       await runtime.runPromise(
         reopened.readMessage('worktree', 'legacy-comment'),
       ),
-    ).toEqual({
-      id: 'legacy-comment',
-      runId: 'legacy',
-      worktreeId: 'worktree',
-      stopTitle: undefined,
-      text: 'Keep this question',
-      createdAt: '2026-11-09T00:00:00.000Z',
-      post: { status: 'saved' },
-      answer: { status: 'answering' },
-      writer: undefined,
-    });
+    ).toBeUndefined();
     const after = new DatabaseSync(join(directory, 'inventory.sqlite'));
     try {
       expect(
@@ -99,6 +93,7 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
         { migration_id: 12, name: 'walkthrough_messages' },
         { migration_id: 13, name: 'automatic_walkthroughs' },
         { migration_id: 14, name: 'retire_review_push_kinds' },
+        { migration_id: 15, name: 'working_tree_walkthroughs' },
       ]);
     } finally {
       after.close();

@@ -48,12 +48,13 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import type { ChangeScope } from '@/shared/workspace/search';
 import { counted } from '@porcelain/client/reviews/rules';
 
-export type StepDocumentProps = DocumentProps & {
-  step: number;
-  changeScope: ChangeScope;
+export type WalkthroughCodeProps = DocumentProps & {
+  document: Extract<
+    DocumentRef,
+    { kind: 'walkthrough-step' | 'walkthrough-changes' }
+  >;
 };
 
 export type DocumentProps = {
@@ -81,12 +82,10 @@ export function DocumentView({
   base,
   toolbarTarget,
   walkthrough: Walkthrough,
-  stepDocument: StepDocument,
-  changeScope = 'uncommitted',
+  walkthroughCode: WalkthroughCode,
   singleHeader = false,
 }: {
-  stepDocument?: ComponentType<StepDocumentProps> | undefined;
-  changeScope?: ChangeScope | undefined;
+  walkthroughCode?: ComponentType<WalkthroughCodeProps> | undefined;
   singleHeader?: boolean | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -98,7 +97,10 @@ export function DocumentView({
   reveal?: RevealComment | undefined;
   base?: string | undefined;
 } & (
-  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; walkthrough?: never }
+  | {
+      document: Exclude<DocumentRef, { kind: 'handoff' | 'walkthrough' }>;
+      walkthrough?: never;
+    }
   | { document: DocumentRef; walkthrough: ComponentType<DocumentProps> }
 )) {
   const props = {
@@ -119,6 +121,8 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
+      return <PlainChangesDocument {...props} />;
+    case 'walkthrough':
       return Walkthrough ? <Walkthrough {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
@@ -135,12 +139,9 @@ export function DocumentView({
     case 'branch-file':
       return <BranchFileDocument {...props} path={document.path} />;
     case 'walkthrough-step':
-      return StepDocument ? (
-        <StepDocument
-          {...props}
-          step={document.step}
-          changeScope={changeScope}
-        />
+    case 'walkthrough-changes':
+      return WalkthroughCode ? (
+        <WalkthroughCode {...props} document={document} />
       ) : null;
     case 'timeline':
       return <TimelineDocument {...props} path={document.path} />;
@@ -312,10 +313,12 @@ export function PlainChangesDocument({
   specsOnly = false,
   only,
   heading,
+  fullHeight,
 }: DocumentProps & {
   specsOnly?: boolean;
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
@@ -378,6 +381,7 @@ export function PlainChangesDocument({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
+        fullHeight={fullHeight}
         scope={scope}
         context={context}
         interaction={interaction}

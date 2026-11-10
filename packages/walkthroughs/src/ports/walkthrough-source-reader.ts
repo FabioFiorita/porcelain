@@ -13,6 +13,11 @@ export interface WalkthroughSourceReader {
     {
       baseOid: string;
       headOid: string;
+      contentTreeOid: string;
+      baseRef: string;
+      includesUncommitted: boolean;
+      patch: string;
+      omittedFiles?: readonly string[] | undefined;
       branch?: string | undefined;
       files: readonly DiffFile[];
       githubRepository: { owner: string; repo: string } | undefined;

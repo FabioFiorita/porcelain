@@ -1,3 +1,5 @@
+import { UnsupportedGitFiltersError } from '@porcelain/git/errors';
+import { readWorkingTree } from '@porcelain/git/inspection';
 import { Effect, Layer } from 'effect';
 import { BranchRangeReader } from '@porcelain/changes/ports';
 import { WalkthroughSourceReader } from '@porcelain/walkthroughs/ports';
@@ -32,45 +34,50 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
               message:
                 'Choose a base branch with commits in common before writing a walkthrough.',
             });
-          const patches = yield* ranges.readBranchPatches({
-            worktreeId: input.worktreeId,
-            baseOid: range.mergeBaseOid,
-            headOid: range.head.oid,
-            paths: range.files.map((file) =>
-              [file.oldPath, file.newPath].filter(
-                (path): path is string => path !== undefined,
-              ),
+          const snapshot = yield* readWorkingTree(
+            input.worktreePath,
+            range.mergeBaseOid,
+            limits,
+          ).pipe(
+            provideGit,
+            Effect.mapError(
+              (error) =>
+                new WalkthroughFailedError({
+                  kind: 'other',
+                  message:
+                    error instanceof UnsupportedGitFiltersError
+                      ? 'This change uses Git conversion filters, which Porcelain will not execute.'
+                      : 'The working change could not be captured within the server limits.',
+                }),
             ),
-          });
-          if (patches.kind !== 'within-limit')
+          );
+          const files: DiffFile[] = [...snapshot.sections].map(
+            ([paths, content]) => {
+              const [oldPath, newPath] = paths.split('\0');
+              return {
+                path: newPath ?? oldPath ?? '',
+                oldPath,
+                hunks:
+                  content.kind === 'text'
+                    ? [
+                        ...content.patch.matchAll(
+                          /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm,
+                        ),
+                      ].map((match) => ({
+                        oldStart: Number(match[1]),
+                        oldEnd: Number(match[1]) + Number(match[2] ?? 1) - 1,
+                        newStart: Number(match[3]),
+                        newEnd: Number(match[3]) + Number(match[4] ?? 1) - 1,
+                      }))
+                    : [],
+              };
+            },
+          );
+          if (files.length === 0)
             return yield* new WalkthroughFailedError({
               kind: 'other',
-              message:
-                'The pinned diff could not be read within the server limits.',
+              message: 'There are no changes since the base branch to explain.',
             });
-          const files: DiffFile[] = range.files.map((file) => {
-            const patch = patches.patches.find((item) =>
-              item.paths.includes(file.newPath ?? file.oldPath ?? ''),
-            )?.content;
-            const hunks =
-              patch?.kind === 'text'
-                ? [
-                    ...patch.patch.matchAll(
-                      /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm,
-                    ),
-                  ].map((match) => ({
-                    oldStart: Number(match[1]),
-                    oldEnd: Number(match[1]) + Number(match[2] ?? 1) - 1,
-                    newStart: Number(match[3]),
-                    newEnd: Number(match[3]) + Number(match[4] ?? 1) - 1,
-                  }))
-                : [];
-            return {
-              path: file.newPath ?? file.oldPath ?? '',
-              oldPath: file.oldPath,
-              hunks,
-            };
-          });
 
           const origin = yield* readOriginUrl(input.worktreePath, limits).pipe(
             provideGit,
@@ -84,7 +91,12 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
           );
           return {
             baseOid: range.mergeBaseOid,
-            headOid: range.head.oid,
+            baseRef: range.base.ref,
+            contentTreeOid: snapshot.treeOid,
+            includesUncommitted: snapshot.treeOid !== snapshot.headTreeOid,
+            patch: snapshot.patch,
+            omittedFiles: snapshot.omittedFiles,
+            headOid: snapshot.headOid,
             branch: range.head.ref?.replace(/^refs\/heads\//, ''),
             files,
             githubRepository: githubRepository(origin),

@@ -30,8 +30,8 @@ export function sessionConversionFilters(
   );
 }
 
-const checkConversionFilters = Effect.fn('Git.checkConversionFilters')(
-  function* (checkout: string, limits: GitLimits) {
+export const checkConversionFilters = Effect.fn('Git.checkConversionFilters')(
+  function* (checkout: string, limits: GitLimits, includeUntracked = false) {
     const [config, valued] = yield* Effect.all(
       [
         runInspection(checkout, ['config', '--null', '--list'], limits, {
@@ -45,13 +45,25 @@ const checkConversionFilters = Effect.fn('Git.checkConversionFilters')(
     );
     const drivers = filterDrivers(config.toString('utf8'));
     if (
+      !includeUntracked &&
       valued.length === 0 &&
       ![...drivers.keys()].some((driver) => UNFILTERED.has(driver))
     )
       return disabledFilterConfig(drivers.keys());
-    const paths = yield* runInspection(checkout, ['ls-files', '-z'], limits, {
-      maxBytes: limits.inspection.filterPathsBytes,
-    });
+    const paths = yield* runInspection(
+      checkout,
+      [
+        'ls-files',
+        '-z',
+        ...(includeUntracked
+          ? ['--cached', '--others', '--exclude-standard']
+          : []),
+      ],
+      limits,
+      {
+        maxBytes: limits.inspection.filterPathsBytes,
+      },
+    );
     const attributes = yield* runInspection(
       checkout,
       ['check-attr', '-z', '--stdin', 'filter'],

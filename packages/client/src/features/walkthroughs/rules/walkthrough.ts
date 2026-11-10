@@ -2,6 +2,7 @@ import type {
   readWalkthroughResponseSchema,
   walkthroughContentSchema,
 } from '@porcelain/contracts/walkthroughs';
+import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 
 export type WalkthroughRead = typeof readWalkthroughResponseSchema.Type;
 export type WalkthroughRun = NonNullable<WalkthroughRead['walkthrough']>;
@@ -241,4 +242,42 @@ export function richParts(text: string): readonly RichPart[] {
         ? { kind: 'code', text: part.slice(1, -1) }
         : { kind: 'text', text: part },
     );
+}
+
+type CodeFile = ChangedFile & {
+  comparisons?:
+    | ReadChangesResponse['changes'][number]['comparisons']
+    | undefined;
+};
+
+export function walkthroughCodeScopes({
+  branch,
+  worktree,
+  only,
+}: {
+  branch: readonly CodeFile[];
+  worktree: readonly CodeFile[];
+  only?: readonly string[] | undefined;
+}) {
+  const paths = (files: readonly CodeFile[]) => [
+    ...new Set(
+      files
+        .filter(
+          (file) =>
+            only === undefined ||
+            only.includes(file.path) ||
+            (file.oldPath !== undefined && only.includes(file.oldPath)),
+        )
+        .map((file) => file.path),
+    ),
+  ];
+  const working = worktree.flatMap((file) => [
+    file,
+    ...(file.comparisons ?? []).flatMap((comparison) =>
+      'oldPath' in comparison
+        ? [{ path: file.path, oldPath: comparison.oldPath }]
+        : [],
+    ),
+  ]);
+  return { branch: paths(branch), worktree: paths(working) };
 }

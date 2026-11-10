@@ -1,3 +1,4 @@
+import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer, Schema } from 'effect';
 import { SqlClient } from 'effect/sql';
 import {
@@ -155,9 +156,17 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
         return yield* Effect.gen(function* () {
           if (automaticKey !== undefined) {
             const previous = yield* sql<{
-              payload: string;
-            }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey})`;
-            if (previous[0]) return decode(previous[0].payload).run;
+              payload: string | null;
+            }>`SELECT walkthrough_runs.payload FROM walkthrough_automatic LEFT JOIN walkthrough_runs ON walkthrough_runs.id = walkthrough_automatic.run_id WHERE pr_key = ${automaticKey}`;
+            if (previous[0]) {
+              if (previous[0].payload === null)
+                return yield* new WalkthroughFailedError({
+                  kind: 'other',
+                  message:
+                    'An automatic walkthrough was already requested for this pull request.',
+                });
+              return decode(previous[0].payload).run;
+            }
           }
           const latest = yield* sql<{
             payload: string;
@@ -167,7 +176,9 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           const same =
             current !== undefined &&
             current.state.status !== 'failed' &&
-            current.headOid === job.run.headOid &&
+            current.baseOid === job.run.baseOid &&
+            current.baseRef === job.run.baseRef &&
+            current.contentTreeOid === job.run.contentTreeOid &&
             current.pullRequestNumber === job.run.pullRequestNumber &&
             current.writer.provider === job.run.writer.provider &&
             current.writer.model === job.run.writer.model &&
@@ -178,7 +189,7 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           if (automaticKey !== undefined)
             yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id})`;
           return run;
-        }).pipe(sql.withTransaction, Effect.orDie);
+        }).pipe(sql.withTransaction, Effect.catchTag('SqlError', Effect.die));
       }),
       read: Effect.fn('WalkthroughStore.read')(function* (
         worktreeId: string,

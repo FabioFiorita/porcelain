@@ -100,6 +100,11 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     projectId: session.projectId,
     worktreeId: session.worktreeId,
     baseOid: firstHead,
+    baseRef: 'refs/heads/walkthrough-evidence-base',
+    contentTreeOid: (
+      await session.git('rev-parse', `${firstHead}^{tree}`)
+    ).trim(),
+    includesUncommitted: false,
     headOid: firstHead,
     writer: { provider: 'claude', model: 'fixture', effort: 'high' },
     createdAt: '2026-11-09T00:00:00.000Z',
@@ -124,11 +129,19 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   const job: WalkthroughJob = {
     run,
     worktreePath: session.repository,
+    patch: '',
     files: [],
   };
   const other: WalkthroughJob = {
     ...job,
-    run: { ...run, id: secondId, headOid: secondHead },
+    run: {
+      ...run,
+      id: secondId,
+      headOid: secondHead,
+      contentTreeOid: (
+        await session.git('rev-parse', `${secondHead}^{tree}`)
+      ).trim(),
+    },
   };
   const directory = join(session.projectHome, session.fixture.folders.state);
   seedStoredWalkthroughs(directory, {
@@ -168,7 +181,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     expect(retained.outOfDate).toBe(false);
   }
   await session.git('commit', '--allow-empty', '-m', 'Advance during update');
-  expect((await readState()).outOfDate).toBe(true);
+  expect((await readState()).outOfDate).toBe(false);
   await session.git('reset', '--hard', secondHead);
   await session.git('switch', '-c', 'no-walkthrough');
   expect((await readState()).walkthrough).toBeUndefined();
@@ -295,6 +308,9 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
       branch,
       pullRequestRepository: { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
+      baseRef: 'refs/heads/main',
+      contentTreeOid: head,
+      includesUncommitted: false,
       headOid: head,
       writer: { provider: 'claude', model: 'fixture', effort: 'high' },
       sessionId: 'writer-session',
@@ -315,6 +331,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
       },
     },
     worktreePath: session.repository,
+    patch: '',
     files: [],
   });
   const seed = async (job: WalkthroughJob) => {

@@ -25,7 +25,11 @@ it('names a walkthrough worktree after its first document until another tab is c
     workspaceTitle({ entry: undefined, surface: 'changes', ...walkthrough }),
   ).toBe('Add notes — sample');
   expect(
-    workspaceTitle({ entry: 'handoff', surface: undefined, ...walkthrough }),
+    workspaceTitle({
+      entry: 'walkthrough',
+      surface: undefined,
+      ...walkthrough,
+    }),
   ).toBe('Add notes — sample');
   expect(
     workspaceTitle({

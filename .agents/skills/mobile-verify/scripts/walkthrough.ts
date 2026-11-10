@@ -8,6 +8,7 @@ import {
 } from '@porcelain/server/kit/isolated-server';
 import {
   scriptedWalkthroughs,
+  captureWalkthroughFixture,
   seedStoredWalkthroughs,
 } from '@porcelain/server/kit/walkthrough-fixture';
 import type { ReadWalkthroughResult } from '@porcelain/contracts/walkthroughs';
@@ -183,6 +184,10 @@ export async function walkthroughCommand(
       bytes: screenshot([220, 38, 38]),
     },
   ];
+  const captured = await captureWalkthroughFixture(
+    session.repository,
+    run.baseOid,
+  );
   seedStoredWalkthroughs(
     join(session.projectHome, session.fixture.folders.state),
     {
@@ -209,6 +214,8 @@ export async function walkthroughCommand(
             },
           },
           worktreePath: session.repository,
+          patch: captured.patch,
+          omittedFiles: captured.omittedFiles,
           files: [],
         },
       ],

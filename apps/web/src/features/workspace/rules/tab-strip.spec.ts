@@ -256,3 +256,27 @@ describe('session tab activation order', () => {
     ]);
   });
 });
+
+it.each(['handoff', 'walkthrough'] as const)(
+  'closing a file returns to the %s default when both permanent tabs exist',
+  (first) => {
+    const before = primaryPane(
+      { tabs: ['handoff', 'file:notes.md'], pinned: [] },
+      first,
+      first === 'handoff',
+    );
+    expect(
+      neighbourAfterClose(
+        before,
+        'file:notes.md',
+        closeInPane(before, 'file:notes.md'),
+      ),
+    ).toBe(first);
+  },
+);
+
+it('keeps Changes before Walkthrough when writing changes the default document', () => {
+  const unwritten = primaryPane({ tabs: [], pinned: [] }, 'handoff', true);
+  const written = primaryPane(unwritten, 'walkthrough');
+  expect(orderedTabs(written)).toEqual(['handoff', 'walkthrough']);
+});

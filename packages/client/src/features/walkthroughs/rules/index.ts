@@ -1,5 +1,6 @@
 export {
   groupFilesByStep,
+  walkthroughCodeScopes,
   plainText,
   richParts,
   stopPaths,
@@ -48,4 +49,5 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  WALKTHROUGH_STALE_TEXT,
 } from './page.ts';

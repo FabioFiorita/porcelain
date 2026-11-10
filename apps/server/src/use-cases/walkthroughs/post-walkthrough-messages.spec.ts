@@ -58,6 +58,9 @@ const job = (
     pullRequestNumber,
     pullRequestRepository,
     baseOid: 'a'.repeat(40),
+    baseRef: 'refs/heads/main',
+    contentTreeOid: 'a'.repeat(40),
+    includesUncommitted: false,
     headOid: id === 'run' ? 'b'.repeat(40) : 'c'.repeat(40),
     writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: 'session',
@@ -88,6 +91,7 @@ const job = (
     },
   },
   worktreePath: '/repo',
+  patch: '',
   files: [],
 });
 

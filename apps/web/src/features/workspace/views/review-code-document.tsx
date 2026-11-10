@@ -52,6 +52,7 @@ export function ReviewCodeDocument({
   toolbar,
   footer,
   column = false,
+  fullHeight = false,
 }: {
   footer?: () => ReactNode;
   scope: ReviewScope;
@@ -62,6 +63,7 @@ export function ReviewCodeDocument({
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: (controls: CodeHeaderControls) => ReactNode;
   column?: boolean;
+  fullHeight?: boolean | undefined;
   headerActions?: ReactNode;
   headerLeading?: ReactNode;
   commentRequest?: number;
@@ -234,6 +236,7 @@ export function ReviewCodeDocument({
 
   return (
     <CodeDocument
+      fullHeight={fullHeight}
       emptyActions={
         omittedFile ? (
           <OmittedActions

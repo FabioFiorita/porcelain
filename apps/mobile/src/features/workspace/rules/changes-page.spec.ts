@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { changeEntries, changesSummary } from './changes-page';
+import {
+  changeEntries,
+  changesSummary,
+  walkthroughChangeEntries,
+} from './changes-page';
 import type { ReviewSnapshot } from './comparison';
 
 function edit(scope: 'staged' | 'unstaged', path: string, supported = true) {
@@ -63,13 +67,16 @@ const renamed = {
   fingerprint: 'content',
 } as const;
 
-function branchSnapshot(based: boolean): ReviewSnapshot {
+function branchSnapshot(
+  based: boolean,
+  ref = 'refs/heads/trunk',
+): ReviewSnapshot {
   return {
     kind: 'branch',
     answer: {
       worktreeId: 'tree',
       head: { branch: 'topic', oid: 'tip' },
-      base: based ? { ref: 'refs/heads/trunk', oid: 'base' } : undefined,
+      base: based ? { ref, oid: 'base' } : undefined,
       mergeBaseOid: based ? 'ancestor' : undefined,
       commits: 3,
       files: [renamed],
@@ -124,4 +131,67 @@ describe('all changes of a worktree', () => {
       title: 'No comparison base',
     });
   });
+});
+
+it('walkthrough code includes the dirty step and the whole change after committed code, with the file comparison retained', () => {
+  const branch = branchSnapshot(true);
+  expect(
+    walkthroughChangeEntries(branch, worktree, ['notes.md']).map((file) => [
+      file.path,
+      file.comparison.kind,
+      file.read.kind,
+    ]),
+  ).toEqual([['notes.md', 'worktree', 'untracked']]);
+  expect(
+    walkthroughChangeEntries(branch, worktree).map((file) => [
+      file.path,
+      file.comparison.kind,
+    ]),
+  ).toEqual([
+    ['lib/next.ts', 'branch'],
+    ['src/app.ts', 'worktree'],
+    ['src/app.ts', 'worktree'],
+    ['notes.md', 'worktree'],
+    ['merge.ts', 'worktree'],
+    ['image.bin', 'worktree'],
+  ]);
+});
+
+it('keeps a non-default branch base for walkthrough diffs and file navigation', () => {
+  expect(
+    walkthroughChangeEntries(
+      branchSnapshot(true, 'refs/heads/release'),
+      worktree,
+    )[0]?.comparison,
+  ).toEqual({
+    kind: 'branch',
+    base: 'refs/heads/release',
+  });
+});
+
+it('selects a renamed working file from its comparison records', () => {
+  const working: ReviewSnapshot = {
+    ...worktree,
+    answer: {
+      ...worktree.answer,
+      changes: [
+        {
+          path: 'renamed.ts',
+          fingerprint: 'renamed',
+          comparisons: [
+            {
+              ...edit('staged', 'renamed.ts'),
+              kind: 'renamed',
+              oldPath: 'original.ts',
+            },
+          ],
+        },
+      ],
+    },
+  };
+  expect(
+    walkthroughChangeEntries(branchSnapshot(true), working, [
+      'original.ts',
+    ]).map((file) => file.path),
+  ).toEqual(['renamed.ts']);
 });

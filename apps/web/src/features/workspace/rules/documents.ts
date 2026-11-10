@@ -7,7 +7,9 @@ import type {
 
 export type DocumentRef =
   | { kind: 'handoff' }
+  | { kind: 'walkthrough' }
   | { kind: 'all-changes' }
+  | { kind: 'walkthrough-changes' }
   | { kind: 'specs' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
@@ -34,8 +36,12 @@ export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'handoff':
       return 'handoff';
+    case 'walkthrough':
+      return 'walkthrough';
     case 'all-changes':
       return 'all-changes';
+    case 'walkthrough-changes':
+      return 'walkthrough-changes';
     case 'specs':
       return 'specs';
     case 'change':
@@ -62,7 +68,9 @@ export function entryKey(ref: DocumentRef): string {
 export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === null || entry === undefined || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
+  if (entry === 'walkthrough') return { kind: 'walkthrough' };
   if (entry === 'all-changes') return ALL_CHANGES;
+  if (entry === 'walkthrough-changes') return { kind: 'walkthrough-changes' };
   if (entry === 'specs') return SPECS;
   if (entry === 'branch') return BRANCH;
   if (entry === 'graph') return GRAPH;
@@ -153,7 +161,10 @@ function documentTitle(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'handoff':
       return 'Changes';
+    case 'walkthrough':
+      return 'Walkthrough';
     case 'all-changes':
+    case 'walkthrough-changes':
       return 'All changes';
     case 'specs':
       return 'Specs';
@@ -185,7 +196,7 @@ export function workspaceTitle(input: {
 }): string {
   const ref = parseEntry(input.entry);
   const first =
-    input.firstDocument !== undefined && (!ref || ref.kind === 'handoff')
+    input.firstDocument !== undefined && (!ref || ref.kind === 'walkthrough')
       ? input.firstDocument
       : undefined;
   const shown =

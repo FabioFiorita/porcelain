@@ -8,7 +8,7 @@ const WITH_WALKTHROUGH = [
   'walkthrough-conversations',
 ];
 const CHANGE_SURFACES = {
-  files: PUBLISHED,
+  files: [...PUBLISHED, 'walkthrough'],
   git: WITH_WALKTHROUGH,
   review: PUBLISHED,
   reviewed: ['reviewed', 'reviewed-layers'],

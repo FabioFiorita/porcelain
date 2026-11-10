@@ -1,4 +1,6 @@
 import { expect } from 'vitest';
+import { rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { Schema } from 'effect';
 import {
   readWalkthroughResponseSchema,
@@ -83,3 +85,158 @@ test('the verification fake answers the displayed ready walkthrough after a late
   const saved = await conversations();
   expect(await conversations()).toEqual(saved);
 });
+
+test('uncommitted content reaches ready, survives an identical commit and becomes stale only when content or base changes', async ({
+  session,
+}) => {
+  await session.installCodingTool();
+  await session.git('branch', 'working-base');
+  await session.writeFile('notes.md', 'first line\nsecond line\n');
+  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+  const start = () =>
+    read(session, {
+      method: 'POST',
+      path,
+      body: { base: 'refs/heads/working-base' },
+    });
+  const current = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await read(session, { method: 'GET', path }),
+    );
+  const accepted = await start();
+  await expect
+    .poll(
+      async () => {
+        const read = await current();
+        return read.walkthrough?.id === accepted.id
+          ? read.walkthrough?.state.status
+          : undefined;
+      },
+      {
+        timeout: 10000,
+      },
+    )
+    .toBe('ready');
+  expect((await current()).outOfDate).toBe(false);
+  expect((await current()).walkthrough?.includesUncommitted).toBe(true);
+  await session.git('add', '--all');
+  await session.git('commit', '-m', 'Commit explained content');
+  expect((await current()).outOfDate).toBe(false);
+  expect((await start()).id).toBe(accepted.id);
+  await session.writeFile('notes.md', 'first line\nsecond line\nnew edit\n');
+  expect((await current()).outOfDate).toBe(true);
+  const changed = await start();
+  expect(changed.id).not.toBe(accepted.id);
+  await expect
+    .poll(async () => (await current()).walkthrough?.id, { timeout: 10000 })
+    .toBe(changed.id);
+  await session.git('branch', '-f', 'working-base', 'HEAD');
+  expect((await current()).outOfDate).toBe(true);
+});
+
+test('edits during writing do not change the captured files or excerpt validation', async ({
+  session,
+}) => {
+  await session.installCodingTool();
+  await session.git('branch', 'capture-base');
+  await session.writeFile('notes.md', 'captured for this run\nsecond line\n');
+  await session.writeFile('.git/porcelain-fake-walkthrough', 'hold');
+  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+  const accepted = await read(session, {
+    method: 'POST',
+    path,
+    body: { base: 'refs/heads/capture-base' },
+  });
+  const current = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await read(session, { method: 'GET', path }),
+    );
+  await expect
+    .poll(
+      async () =>
+        (await current()).attempt?.state.status ??
+        (await current()).walkthrough?.state.status,
+      {
+        timeout: 10000,
+      },
+    )
+    .toBe('running');
+  await session.writeFile('notes.md', 'changed while writing\n');
+  await session.writeFile('later.md', 'not captured\n');
+  await session.writeFile('.git/porcelain-fake-walkthrough', 'ready');
+  await expect
+    .poll(async () => (await current()).walkthrough?.state.status, {
+      timeout: 10000,
+    })
+    .toBe('ready');
+  await expect
+    .poll(async () => (await current()).walkthrough?.id, { timeout: 10000 })
+    .toBe(accepted.id);
+  expect((await current()).outOfDate).toBe(true);
+});
+
+test.for(['conversion filter', 'empty nested repository'] as const)(
+  'a %s preserves the saved walkthrough when capture fails',
+  async (failure, { session }) => {
+    await session.installCodingTool();
+    await session.git(
+      'branch',
+      `filter-base-${failure === 'conversion filter' ? 'filter' : 'nested'}`,
+    );
+    const base = `refs/heads/filter-base-${failure === 'conversion filter' ? 'filter' : 'nested'}`;
+    await session.writeFile('notes.md', `Explain this ${failure} change.\n`);
+    const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+    const accepted = await read(session, {
+      method: 'POST',
+      path,
+      body: { base },
+    });
+    const current = async () =>
+      Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+        await read(session, { method: 'GET', path }),
+      );
+    await expect
+      .poll(
+        async () => {
+          const view = await current();
+          return view.walkthrough?.id === accepted.id
+            ? view.walkthrough?.state.status
+            : undefined;
+        },
+        { timeout: 10000 },
+      )
+      .toBe('ready');
+    const saved = (await current()).walkthrough;
+    if (failure === 'conversion filter') {
+      await session.writeFile('.gitattributes', '*.secret filter=example\n');
+      await session.writeFile('new.secret', 'keep this untracked\n');
+    } else {
+      execFileSync('git', ['init', '-q', `${session.repository}/nested`]);
+    }
+    expect((await current()).walkthrough).toEqual(saved);
+    expect((await current()).walkthrough?.id).toBe(accepted.id);
+    expect((await current()).outOfDate).toBe(true);
+    const refused = await read(
+      session,
+      {
+        method: 'POST',
+        path,
+        body: { base },
+      },
+      422,
+    );
+    rmSync(`${session.repository}/.gitattributes`, {
+      force: true,
+    });
+    rmSync(`${session.repository}/new.secret`, { force: true });
+    rmSync(`${session.repository}/nested`, {
+      recursive: true,
+      force: true,
+    });
+    expect(refused.message).toBe(
+      failure === 'conversion filter'
+        ? 'This change uses Git conversion filters, which Porcelain will not execute.'
+        : 'The working change could not be captured within the server limits.',
+    );
+  },
+);

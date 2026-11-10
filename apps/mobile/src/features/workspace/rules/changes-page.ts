@@ -1,3 +1,5 @@
+import { walkthroughCodeScopes } from '@porcelain/client/walkthroughs/rules';
+import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import {
   diffSelection,
   type Change,
@@ -81,4 +83,48 @@ export function changesSummary(snapshot: ReviewSnapshot, files: number) {
     subtitle: `Branch · ${refLabel(base.ref)}`,
     description: `${head.branch ?? 'Detached HEAD'} compared with ${base.ref} · ${commits} commits · ${count}`,
   };
+}
+
+export type ComparedEntry = ChangeEntry & {
+  comparison: ReviewComparison;
+  diffKey: string;
+};
+
+export function walkthroughChangeEntries(
+  branch: ReviewSnapshot,
+  working: ReviewSnapshot,
+  only?: readonly string[],
+): ComparedEntry[] {
+  const committed = changeEntries(branch);
+  const dirty = changeEntries(working);
+  const scopes = walkthroughCodeScopes({
+    branch: committed,
+    worktree: working.kind === 'worktree' ? working.answer.changes : dirty,
+    only,
+  });
+  return [
+    ...committed
+      .filter((file) => scopes.branch.includes(file.path))
+      .map((file) => ({
+        ...file,
+        diffKey: file.key,
+        key: `branch:${file.key}`,
+        details: ['Branch', ...file.details],
+        comparison: {
+          kind: 'branch' as const,
+          ...(branch.kind === 'branch' && branch.answer.base
+            ? { base: branch.answer.base.ref }
+            : {}),
+        },
+      })),
+    ...dirty
+      .filter((file) => scopes.worktree.includes(file.path))
+      .map((file) => ({
+        ...file,
+        diffKey: file.key,
+        key: `worktree:${file.key}`,
+        details: ['Uncommitted', ...file.details],
+        comparison: { kind: 'worktree' as const },
+      })),
+  ];
 }

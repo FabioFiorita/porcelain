@@ -246,6 +246,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
 
   await repo.write('notes.md', 'changed again\n');
   await repo.commit('Change the notes again');
+  const updatedHead = (await server.gitStatus()).headOid;
   await expect
     .element(
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
@@ -289,8 +290,13 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await repo.remove(SCENARIO);
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect
-    .poll(async () => (await server.walkthrough()).walkthrough?.id)
-    .not.toBe(firstId);
+    .element(
+      page.getByText(new RegExp(`written for ${updatedHead?.slice(0, 7)}`)),
+    )
+    .toBeVisible();
+  await expect(server.walkthrough()).resolves.not.toMatchObject({
+    walkthrough: { id: firstId },
+  });
   await expect
     .element(
       page.getByRole('heading', {
@@ -365,3 +371,175 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
     .element(page.getByRole('heading', { name: 'All changes', exact: true }))
     .toBeVisible();
 });
+
+test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fresh when its explained content is committed', async ({
+  repo,
+  codingTool,
+  render,
+  server,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await repo.branch('working-base');
+  await repo.branch('working-feature');
+  await repo.switch('working-feature');
+  await repo.write('notes.md', 'first line\nsecond line\n');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Fworking-base');
+  const page = app.page;
+  await expect
+    .element(page.getByRole('tab', { name: 'Changes', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      page.getByRole('heading', { name: '2 uncommitted changes', exact: true }),
+    )
+    .toBeVisible();
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await expect
+    .element(
+      page.getByRole('heading', { name: 'No walkthrough yet.', exact: true }),
+    )
+    .toBeVisible();
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  await expect
+    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText(/written for .* and uncommitted work/))
+    .toBeVisible();
+  const sidebar = page.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  await sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }).click();
+  await expect
+    .element(sidebar.getByText('By step', { exact: true }))
+    .toBeVisible();
+  const before = (await server.walkthrough()).walkthrough;
+  await repo.commit('Commit the explained content');
+  const committedHead = (await server.gitStatus()).headOid;
+  await expect(server.walkthrough()).resolves.toMatchObject({
+    outOfDate: false,
+  });
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Update walkthrough', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  await repo.write('notes.md', 'first line\nsecond line\nnew edit\n');
+  await expect
+    .element(
+      page.getByText('The work changed after this was written.', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect(server.walkthrough()).resolves.toMatchObject({
+    walkthrough: { id: before?.id },
+  });
+  await page
+    .getByRole('button', { name: 'Update walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      page.getByText(new RegExp(`written for ${committedHead?.slice(0, 7)}`)),
+    )
+    .toBeVisible();
+  await expect(server.walkthrough()).resolves.not.toMatchObject({
+    walkthrough: { id: before?.id },
+  });
+  await expect
+    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .toBeVisible();
+});
+
+for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
+  test(`a ${state} walkthrough opens the code in every scope the step owns`, async ({
+    repo,
+    codingTool,
+    render,
+  }) => {
+    await browserPage.viewport(1280, 896);
+    await repo.branch('code-base');
+    await repo.branch('code-feature');
+    await repo.switch('code-feature');
+    if (state !== 'uncommitted') await repo.commit('Commit the README change');
+    if (state === 'mixed')
+      await repo.write(
+        'README.md',
+        '# Sample repository\n\nA change to review.\nWorking line in the same step.\n',
+      );
+    await codingTool.install();
+    const app = await render.route('/?base=refs%2Fheads%2Fcode-base');
+    const page = app.page;
+    if (state === 'uncommitted')
+      await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Write walkthrough', exact: true })
+      .click();
+    await expect
+      .element(page.getByRole('heading', { name: /One call is yours/ }))
+      .toBeVisible();
+    await page
+      .getByRole('button', { name: 'See the code for step 1', exact: true })
+      .click();
+    const branch = page.getByRole('region', {
+      name: 'Branch code',
+      exact: true,
+    });
+    const working = page.getByRole('region', {
+      name: 'Uncommitted code',
+      exact: true,
+    });
+    if (state !== 'uncommitted') {
+      await expect.element(branch).toBeVisible();
+      await expect
+        .element(branch.getByText('A change to review.', { exact: true }))
+        .toBeVisible();
+    } else await expect.element(branch).not.toBeInTheDocument();
+    if (state !== 'committed') {
+      await expect.element(working).toBeVisible();
+      await expect
+        .element(
+          working.getByText(
+            state === 'mixed'
+              ? 'Working line in the same step.'
+              : 'A change to review.',
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+    } else await expect.element(working).not.toBeInTheDocument();
+    await expect
+      .element(
+        page
+          .getByRole('toolbar', { name: 'Document controls', exact: true })
+          .getByRole('button', { name: 'Comment', exact: true }),
+      )
+      .toBeVisible();
+    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'See every changed file', exact: true })
+      .click();
+    await expect
+      .element(page.getByRole('heading', { name: 'All changes', exact: true }))
+      .toBeVisible();
+    if (state !== 'uncommitted')
+      await expect
+        .element(branch.getByText('A change to review.', { exact: true }))
+        .toBeVisible();
+    if (state !== 'committed')
+      await expect
+        .element(
+          working.getByText(
+            state === 'mixed'
+              ? 'Working line in the same step.'
+              : 'A change to review.',
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+  });
+}

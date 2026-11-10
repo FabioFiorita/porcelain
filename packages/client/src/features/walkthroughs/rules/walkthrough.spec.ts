@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,
+  walkthroughCodeScopes,
   groupFilesByStep,
   plainText,
   richParts,
@@ -74,6 +76,9 @@ const run = (state: WalkthroughRun['state']): WalkthroughRun => ({
   worktreeId: 'worktree',
   pullRequestNumber: undefined,
   baseOid: 'a'.repeat(40),
+  baseRef: 'refs/heads/main',
+  contentTreeOid: 'a'.repeat(40),
+  includesUncommitted: false,
   headOid: 'b'.repeat(40),
   writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
   sessionId: undefined,
@@ -289,6 +294,28 @@ describe('firstDocument', () => {
     ).toBe('walkthrough');
   });
 
+  it.each([
+    { status: 'queued' },
+    { status: 'failed', failure: { kind: 'other', message: 'Stopped' } },
+    {
+      status: 'ready',
+      content: content(),
+      writtenAt: '2026-11-10T00:00:00Z',
+      durationMs: 1,
+      costUsd: undefined,
+    },
+  ] satisfies WalkthroughRun['state'][])(
+    'opens Walkthrough for an existing $status run even without branch commits',
+    (state) => {
+      expect(
+        firstDocument({
+          read: read(run(state)),
+          branchHasCommits: false,
+        }),
+      ).toBe('walkthrough');
+    },
+  );
+
   it('offers a walkthrough on a branch with commits and nothing published', () => {
     expect(
       firstDocument({
@@ -298,7 +325,7 @@ describe('firstDocument', () => {
     ).toBe('walkthrough');
   });
 
-  it('keeps the changes page when there is no committed change to explain', () => {
+  it('opens Changes for uncommitted-only work with no walkthrough run', () => {
     expect(
       firstDocument({
         read: read(undefined),
@@ -448,6 +475,7 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: true,
+      companion: false,
     });
   });
 
@@ -456,8 +484,24 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: false,
+      companion: false,
     });
     expect(settled(undefined, 0)).toMatchObject({ name: 'changes' });
+  });
+
+  it('keeps the mobile opening rule on Changes for uncommitted-only work and exposes its web companion tab', () => {
+    expect(
+      worktreeOpening({
+        walkthrough: { status: 'read', value: read(undefined) },
+        branchFiles: { status: 'read', value: 0 },
+        uncommittedFiles: { status: 'read', value: 1 },
+      }),
+    ).toEqual({
+      name: 'changes',
+      pending: false,
+      guided: false,
+      companion: true,
+    });
   });
 
   it('waits for both reads, and treats a failed read as settled', () => {
@@ -475,7 +519,12 @@ describe('worktreeOpening', () => {
         ),
         branchFiles: { status: 'failed' },
       }),
-    ).toEqual({ name: 'changes', pending: false, guided: false });
+    ).toEqual({
+      name: 'changes',
+      pending: false,
+      guided: false,
+      companion: false,
+    });
   });
 });
 
@@ -569,5 +618,85 @@ describe('walkthrough page rules', () => {
     expect(failureCopy(failure, undefined).title).toBe(
       "The walkthrough didn't finish.",
     );
+  });
+});
+
+it('describes captured uncommitted work in shared web and mobile metadata', () => {
+  expect(
+    walkthroughMeta({
+      ...run({ status: 'running' }),
+      includesUncommitted: true,
+    }),
+  ).toBe('written for bbbbbbb and uncommitted work');
+});
+
+describe('walkthrough code scopes', () => {
+  it.each([
+    {
+      label: 'uncommitted only',
+      branch: [],
+      worktree: [{ path: 'dirty.ts' }],
+      expected: { branch: [], worktree: ['dirty.ts'] },
+    },
+    {
+      label: 'mixed',
+      branch: [{ path: 'committed.ts' }, { path: 'both.ts' }],
+      worktree: [
+        { path: 'both.ts' },
+        { path: 'dirty.ts' },
+        { path: 'dirty.ts' },
+      ],
+      expected: {
+        branch: ['committed.ts', 'both.ts'],
+        worktree: ['both.ts', 'dirty.ts'],
+      },
+    },
+    {
+      label: 'committed only',
+      branch: [{ path: 'committed.ts' }],
+      worktree: [],
+      expected: { branch: ['committed.ts'], worktree: [] },
+    },
+  ])(
+    'selects $label files once in each comparison',
+    ({ branch, worktree, expected }) => {
+      expect(walkthroughCodeScopes({ branch, worktree })).toEqual(expected);
+    },
+  );
+  it('selects only step files and follows renames in both comparisons', () => {
+    const worktree = [
+      {
+        path: 'renamed-again.ts',
+        fingerprint: undefined,
+        comparisons: [
+          {
+            scope: 'staged',
+            kind: 'renamed',
+            oldPath: 'renamed.ts',
+            newPath: 'renamed-again.ts',
+            oldMode: '100644',
+            newMode: '100644',
+            oldOid: 'a'.repeat(40),
+            newOid: 'b'.repeat(40),
+            supported: true,
+          },
+        ],
+      },
+      {
+        path: 'outside.ts',
+        fingerprint: undefined,
+        comparisons: [{ scope: 'untracked', path: 'outside.ts' }],
+      },
+    ] satisfies ReadChangesResponse['changes'];
+    expect(
+      walkthroughCodeScopes({
+        branch: [
+          { path: 'renamed.ts', oldPath: 'old.ts' },
+          { path: 'outside.ts' },
+        ],
+        worktree,
+        only: ['old.ts', 'renamed.ts'],
+      }),
+    ).toEqual({ branch: ['renamed.ts'], worktree: ['renamed-again.ts'] });
   });
 });

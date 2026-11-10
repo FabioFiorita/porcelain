@@ -4,4 +4,4 @@ export {
 } from './queries/walkthrough';
 export { WalkthroughDocument } from './views/walkthrough-document';
 export { WalkthroughIndex } from './views/walkthrough-index';
-export { WalkthroughStepDocument } from './views/walkthrough-step-document';
+export { WalkthroughCodeDocument } from './views/walkthrough-code-document';

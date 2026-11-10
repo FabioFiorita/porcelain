@@ -35,10 +35,26 @@ export class ReadWalkthroughService extends Context.Service<
           const ready = readyRuns.at(-1);
           const walkthrough =
             latest?.state.status === 'ready' ? latest : (ready ?? latest);
+          const job =
+            walkthrough === undefined
+              ? undefined
+              : yield* store.readJob(walkthrough.id);
+          const identity =
+            job === undefined
+              ? undefined
+              : yield* heads
+                  .content({
+                    worktreeId: input.worktreeId,
+                    worktreePath: job.worktreePath,
+                    baseRef: job.run.baseRef,
+                  })
+                  .pipe(Effect.catch(() => Effect.succeed(undefined)));
           return {
             walkthrough,
             outOfDate:
-              walkthrough !== undefined && head.headOid !== walkthrough.headOid,
+              walkthrough !== undefined &&
+              (identity?.baseOid !== walkthrough.baseOid ||
+                identity?.contentTreeOid !== walkthrough.contentTreeOid),
             attempt:
               ready !== undefined &&
               latest !== undefined &&

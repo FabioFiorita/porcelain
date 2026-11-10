@@ -20,6 +20,9 @@ const job: WalkthroughJob = {
     worktreeId: 'worktree',
     pullRequestNumber: 702,
     baseOid: 'a'.repeat(40),
+    baseRef: 'refs/heads/main',
+    contentTreeOid: 'a'.repeat(40),
+    includesUncommitted: true,
     headOid: 'b'.repeat(40),
     writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: undefined,
@@ -27,6 +30,7 @@ const job: WalkthroughJob = {
     state: { status: 'running' },
   },
   worktreePath: '/unused',
+  patch: '',
   files: [],
 };
 const github = Layer.succeed(GitHubReader, {
@@ -78,7 +82,7 @@ const readEvidence = (fetch: typeof globalThis.fetch) =>
     ),
   );
 
-it('downloads exact image bytes after allowed GitHub attachment redirects', async () => {
+it('attaches PR evidence with a matching head even when the captured change includes uncommitted work', async () => {
   const requested: string[] = [];
   const redirects: (string | undefined)[] = [];
   const evidence = await Effect.runPromise(
