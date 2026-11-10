@@ -28,19 +28,18 @@ On tablets with at least 700 units of content width the page sits beside the wor
 
 ## How to get to it (user POV)
 
-- Worktrees tab → tap a worktree card.
+- Worktrees → tap a worktree card.
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
 1. In Worktrees tap a worktree: the page pushes with its two-line title and segmented control. A worktree with a walkthrough run opens on Walkthrough, Files, History; one without a run shows Changes, Walkthrough, Files, History. Independently read the saved selection: that worktree and computer are selected. Without a walkthrough run, even a clean worktree opens on Changes.
-2. Switch Changes, Files and History and back. Create file or folder and the search field exist only on Files; Refresh review and the Pull request #n row exist only on Changes. Expand a folder, type a search, scroll Changes: all three are as you left them after switching away and back, including the text in the native search field.
+2. Switch Changes, Files and History and back. Create file or folder and the search field exist only on Files; the Pull request #n row exists only on Changes. Expand a folder, type a search, scroll Changes: all three are as you left them after switching away and back, including the text in the native search field.
 3. Open a file from Files, a changed file from Changes and a commit from History; Back returns to the same section and position. Choose a section, go back to Worktrees and reopen: the same section shows.
 4. For a branch matched to a GitHub PR, `worktree-pull-request` reads Pull request #n and opens the [PR document](reviews.pull-request.md); without a matching PR it is absent.
 5. Back returns to Worktrees with its search, filters and expansion. Tap another worktree: the page and every section follow the new selection.
-6. With a worktree page open, select another worktree from the Reviews tab and return: Another worktree is selected offers Select this worktree, which restores the page.
-7. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list and rotating keeps the section and its state. Opening a file in Files folds the list (Show worktrees brings it back); see [Files](files.files.md) step 10. Check long names and larger text.
+6. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list and rotating keeps the section and its state. Opening a file in Files folds the list (Show worktrees brings it back); see [Files](files.files.md) step 10. Check long names and larger text.
 
 Automated coverage: `workspace-selection.spec.ts`, `worktree-section.spec.ts`.
 

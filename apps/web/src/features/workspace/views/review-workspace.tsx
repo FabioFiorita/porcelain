@@ -62,7 +62,6 @@ import {
   paneTabActions,
 } from '../adapters/tab-layout';
 import { useReviewPanelOpen, useTabLayoutStore } from '../store';
-import {} from '@porcelain/client/changes/rules';
 import {
   entryKey,
   type DocumentFileTarget,
