@@ -12,6 +12,7 @@ import { Item } from '../../../components/ui/item';
 import { ListDetail } from '../../../components/ui/list-detail';
 import { Loading } from '../../../components/ui/loading';
 import { documentHeading } from '../../../shared/rules/document-heading';
+import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { usePreferences } from '../../preferences/index';
 import {
   diffCountsLabel,
@@ -225,7 +226,7 @@ export function DiffPagePart({
   return part === 'heading' ? (
     <DiffPageHeading file={file} state={state} onOpen={onOpen} />
   ) : (
-    <DiffPageContent state={state} onOpen={onOpen} />
+    <DiffPageContent path={file.path} state={state} onOpen={onOpen} />
   );
 }
 
@@ -263,9 +264,11 @@ function DiffPageHeading({
 }
 
 function DiffPageContent({
+  path,
   state,
   onOpen,
 }: {
+  path: string;
   state: DiffPageState;
   onOpen: () => void;
 }) {
@@ -305,6 +308,7 @@ function DiffPageContent({
         <View collapsable={false}>
           <DiffView
             lines={state.lines}
+            language={sourceLanguage(path)}
             wrap={preferences.lineOverflow === 'wrap'}
             fit
           />
