@@ -7,6 +7,7 @@ import {
 } from '@porcelain/client/access/rules';
 import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
+import { useScrollReveal } from '../../../components/ui/scroll-reveal';
 import { Stack, useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
@@ -108,6 +109,7 @@ export function WorktreeNavigator({
       ? project.entries.filter((entry) => entry.kind === 'worktree')
       : [],
   );
+  const reveal = useScrollReveal();
   const cursor = useListCursor({
     rows: visibleEntries,
     selected: visibleEntries.find((entry) =>
@@ -148,6 +150,7 @@ export function WorktreeNavigator({
         onCancelButtonPress={() => setQuery('')}
       />
       <ScrollView
+        {...reveal.scroller}
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -259,7 +262,14 @@ export function WorktreeNavigator({
                         (entry.kind === 'worktree' &&
                           entry.changes.state === 'loading');
                       return (
-                        <Box key={entry.key} gap={1}>
+                        <Box
+                          key={entry.key}
+                          gap={1}
+                          collapsable={false}
+                          {...(cursor.highlighted === entry.key
+                            ? { ref: reveal.row }
+                            : {})}
+                        >
                           <Item
                             title={row.title}
                             {...(entry.detached ? { detail: 'Detached' } : {})}

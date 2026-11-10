@@ -7,6 +7,8 @@ type NavigationLevel = {
     | undefined;
 };
 
+const NESTED_SHEETS = new Set(['pair-computer', 'scan-pairing-link']);
+
 export function navigationExits(root: NavigationLevel | undefined): {
   back: boolean;
   close: string | undefined;
@@ -18,11 +20,10 @@ export function navigationExits(root: NavigationLevel | undefined): {
     const index = level.index ?? routes.length - 1;
     const current = routes[index];
     if (level.type === 'stack' && index > 0) back = true;
-    if (
+    const presented =
       routes.some((route) => route.name === '(tabs)') &&
-      current?.name !== '(tabs)'
-    )
-      close = level.key;
+      current?.name !== '(tabs)';
+    if (presented || NESTED_SHEETS.has(current?.name ?? '')) close = level.key;
     level = current?.state;
   }
   return { back, close };

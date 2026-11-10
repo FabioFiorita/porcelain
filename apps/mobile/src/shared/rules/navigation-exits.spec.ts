@@ -52,6 +52,31 @@ it('closes a presented sheet or Settings on the stack that holds the tabs', () =
   ).toEqual({ back: true, close: 'navigator:0' });
 });
 
+it('closes a sheet opened inside Settings before Settings itself', () => {
+  const settings = (stack: string[]) => ({
+    name: '(settings)',
+    state: {
+      key: 'navigator:settings',
+      type: 'stack',
+      index: stack.length - 1,
+      routes: stack.map((name) => ({ name })),
+    },
+  });
+  expect(
+    navigationExits(
+      app(1, [
+        tabs(['worktrees']),
+        settings(['settings', 'computers', 'pair-computer']),
+      ]),
+    ).close,
+  ).toBe('navigator:settings');
+  expect(
+    navigationExits(
+      app(1, [tabs(['worktrees']), settings(['settings', 'computers'])]),
+    ).close,
+  ).toBe('navigator:0');
+});
+
 it('is quiet before navigation is ready', () => {
   expect(navigationExits(undefined)).toEqual({ back: false, close: undefined });
   expect(navigationExits({ type: 'stack', index: 0 })).toEqual({
