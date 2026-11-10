@@ -3,6 +3,7 @@ import type {
   WalkthroughContent,
   WalkthroughEvidence,
   WalkthroughJob,
+  WalkthroughRun,
 } from '../models/walkthrough.ts';
 import type { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
 export interface WalkthroughWriter {
@@ -15,6 +16,21 @@ export interface WalkthroughWriter {
   ) => Effect.Effect<
     {
       readonly content: WalkthroughContent;
+      readonly sessionId: string;
+      readonly durationMs: number;
+      readonly costUsd: number | undefined;
+    },
+    WalkthroughFailedError
+  >;
+  readonly answer: (input: {
+    readonly run: WalkthroughRun;
+    readonly content: WalkthroughContent;
+    readonly worktreePath: string;
+    readonly stopTitle: string | undefined;
+    readonly text: string;
+  }) => Effect.Effect<
+    {
+      readonly text: string;
       readonly sessionId: string;
       readonly durationMs: number;
       readonly costUsd: number | undefined;

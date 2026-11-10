@@ -33,7 +33,7 @@ export const liveNoticeSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('inventory') }),
   Schema.Struct({
     type: Schema.Literal('walkthrough'),
-    change: Schema.Literal('run'),
+    change: Schema.Literals(['run', 'conversations']),
     projectId: Schema.String,
     worktreeId: worktreeIdSchema,
   }),

@@ -18,6 +18,17 @@ describe('noticeSurfaces', () => {
   });
 });
 
+describe('walkthrough notices', () => {
+  it.each(['run', 'conversations'] as const)(
+    'refreshes the walkthrough conversations after a %s notice',
+    (change) => {
+      expect(noticeSurfaces({ type: 'walkthrough', change, ...scope })).toEqual(
+        { scope, surfaces: new Set(['walkthrough-conversations']) },
+      );
+    },
+  );
+});
+
 describe('receiptSurfaces', () => {
   it('refreshes the published review and its layer marks after a commit', () => {
     expect(

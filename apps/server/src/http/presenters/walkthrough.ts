@@ -1,4 +1,5 @@
 import type { ReadWalkthroughResult } from '@porcelain/contracts/walkthroughs';
+import type { WalkthroughConversationsResult } from '@porcelain/contracts/walkthroughs';
 export function presentWalkthrough(run: ReadWalkthroughResult) {
   const fields = {
     ...run,
@@ -20,5 +21,30 @@ export function presentWalkthrough(run: ReadWalkthroughResult) {
         })),
       },
     },
+  };
+}
+type AnswerState = Extract<
+  WalkthroughConversationsResult['conversations'][number]['messages'][number],
+  { author: 'agent' }
+>['state'];
+function presentAnswerState(state: AnswerState) {
+  return state.status === 'answered'
+    ? { ...state, costUsd: state.costUsd }
+    : state;
+}
+export function presentWalkthroughConversations(
+  view: WalkthroughConversationsResult,
+) {
+  return {
+    runId: view.runId,
+    pullRequestNumber: view.pullRequestNumber,
+    conversations: view.conversations.map((conversation) => ({
+      ...conversation,
+      messages: conversation.messages.map((message) =>
+        message.author === 'developer'
+          ? message
+          : { ...message, state: presentAnswerState(message.state) },
+      ),
+    })),
   };
 }

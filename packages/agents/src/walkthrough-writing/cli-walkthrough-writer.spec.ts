@@ -29,9 +29,12 @@ async function fixture(
   const command = join(folder, 'writer');
   await writeFile(command, '#!/usr/bin/env node\n' + script, { mode: 0o700 });
   const runtime = ManagedRuntime.make(
-    cliWalkthroughWriterLayer({ processGroup, command, deadlineMs }).pipe(
-      Layer.provide(NodeServices.layer),
-    ),
+    cliWalkthroughWriterLayer({
+      processGroup,
+      command,
+      deadlineMs,
+      answerDeadlineMs: deadlineMs,
+    }).pipe(Layer.provide(NodeServices.layer)),
   );
   onTestFinished(async () => {
     await runtime.dispose();
@@ -69,7 +72,42 @@ async function fixture(
           .pipe(Effect.result);
       }),
     );
-  return { folder, result, sessions };
+  const answer = (
+    overrides: Partial<{
+      sessionId: string | undefined;
+      writer: WalkthroughJob['run']['writer'];
+    }> = {},
+  ) =>
+    runtime.runPromise(
+      Effect.gen(function* () {
+        const writer = yield* WalkthroughWriter;
+        return yield* writer
+          .answer({
+            run: {
+              ...run,
+              writer: overrides.writer ?? run.writer,
+              sessionId:
+                'sessionId' in overrides
+                  ? overrides.sessionId
+                  : 'writer-session',
+            },
+            content: {
+              outcome: 'nothing',
+              title: 'A small change',
+              summary: 'Before and after.',
+              growth: [],
+              stops: [],
+              onlyInTranscript: [],
+              stillUnclear: [],
+            },
+            worktreePath: folder,
+            stopTitle: 'Keep the retry local',
+            text: 'Why is the retry here?',
+          })
+          .pipe(Effect.result);
+      }),
+    );
+  return { folder, result, sessions, answer };
 }
 it('uses two passes in the same read-only session, disables hooks and pins both commits', async ({
   onTestFinished,
@@ -423,3 +461,141 @@ it('surfaces a missing executable as agent not installed', async ({
     failure: { kind: 'agent_not_installed' },
   });
 });
+
+const recordCalls = `const fs = require('fs'); const args = process.argv.slice(2); fs.appendFileSync('calls', JSON.stringify({args, prompt: fs.readFileSync(0, 'utf8')})+'\\n');`;
+const calls = async (folder: string) =>
+  (await readFile(join(folder, 'calls'), 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) =>
+      Schema.decodeUnknownSync(
+        Schema.Struct({
+          args: Schema.Array(Schema.String),
+          prompt: Schema.String,
+        }),
+      )(JSON.parse(line)),
+    );
+
+it('answers by resuming the writer session read-only, with hooks and tools off and no schema', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `${recordCalls} console.log(JSON.stringify({session_id:'writer-session', total_cost_usd:0.04, result:'It keeps the failure local.'}));`,
+    onTestFinished,
+  );
+  const result = await test.answer();
+  expect(result).toMatchObject({
+    _tag: 'Success',
+    success: {
+      text: 'It keeps the failure local.',
+      sessionId: 'writer-session',
+      costUsd: 0.04,
+    },
+  });
+  const [call, ...others] = await calls(test.folder);
+  expect(others).toEqual([]);
+  const args = call?.args ?? [];
+  expect(args).not.toContain('--json-schema');
+  expect(args[args.indexOf('--resume') + 1]).toBe('writer-session');
+  expect(args).toEqual(
+    expect.arrayContaining([
+      '--safe-mode',
+      '--strict-mcp-config',
+      '--disable-slash-commands',
+    ]),
+  );
+  expect(args[args.indexOf('--settings') + 1]).toBe('{"disableAllHooks":true}');
+  expect(args[args.indexOf('--mcp-config') + 1]).toBe('{"mcpServers":{}}');
+  expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
+  expect(args[args.indexOf('--tools') + 1]).toBe('Read,Grep,Glob,Bash');
+  expect(args[args.indexOf('--permission-mode') + 1]).toBe('dontAsk');
+  expect(call?.prompt).toContain('at most 4 sentences');
+  expect(call?.prompt).toContain('the step titled "Keep the retry local"');
+  expect(call?.prompt).toContain(
+    '<comment>\nWhy is the retry here?\n</comment>',
+  );
+});
+
+it('resumes Codex read-only with its isolation overrides and takes the last message', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `const fs = require('fs'); const args = process.argv.slice(2);
+    if (args[0] === 'mcp') { console.log('[]'); process.exit(0); }
+    fs.appendFileSync('calls', JSON.stringify({args, prompt: fs.readFileSync(0, 'utf8')})+'\\n');
+    fs.writeFileSync(args[args.indexOf('--output-last-message') + 1], 'Codex answer.');
+    console.log(JSON.stringify({type:'turn.completed'}));`,
+    onTestFinished,
+  );
+  const result = await test.answer({
+    writer: { provider: 'codex', model: 'gpt-5' },
+  });
+  expect(result).toMatchObject({
+    _tag: 'Success',
+    success: { text: 'Codex answer.', sessionId: 'writer-session' },
+  });
+  const [call] = await calls(test.folder);
+  const args = call?.args ?? [];
+  expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
+  expect(args).not.toContain('--output-schema');
+  expect(args).toEqual(
+    expect.arrayContaining([
+      'sandbox_mode="read-only"',
+      'notify=[]',
+      'features.hooks=false',
+      '--ignore-user-config',
+      '--ignore-rules',
+      'writer-session',
+    ]),
+  );
+});
+
+it('starts one fresh read-only session given the walkthrough when the stored session cannot be resumed, and keeps its id', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `${recordCalls} if (args.includes('--resume')) { console.error('No conversation found with session ID'); process.exit(1); }
+    console.log(JSON.stringify({session_id: args[args.indexOf('--session-id') + 1], total_cost_usd:0.1, result:'Answered from the walkthrough.'}));`,
+    onTestFinished,
+  );
+  const result = await test.answer();
+  const recorded = await calls(test.folder);
+  expect(recorded.length).toBe(2);
+  const fresh = recorded[1];
+  const freshId = fresh?.args[(fresh.args.indexOf('--session-id') ?? 0) + 1];
+  expect(fresh?.args).toEqual(
+    expect.arrayContaining(['--safe-mode', '--strict-mcp-config']),
+  );
+  expect(fresh?.args).not.toContain('--resume');
+  expect(fresh?.prompt).toContain('<walkthrough>');
+  expect(fresh?.prompt).toContain('Before and after.');
+  expect(fresh?.prompt).toContain('do not mention sessions');
+  expect(result).toMatchObject({
+    _tag: 'Success',
+    success: { text: 'Answered from the walkthrough.', sessionId: freshId },
+  });
+});
+
+it.for([
+  [
+    'signed out',
+    `console.error('Not logged in'); process.exit(1);`,
+    { kind: 'signed_out' },
+    5000,
+  ],
+  ['timed out', `setInterval(() => {}, 1000);`, { kind: 'timed_out' }, 100],
+] as const)(
+  'reports %s without starting a fresh session',
+  async ([, script, expected, deadlineMs], { onTestFinished }) => {
+    const test = await fixture(
+      `${recordCalls} ${script}`,
+      onTestFinished,
+      deadlineMs,
+    );
+    expect(await test.answer({ sessionId: 'writer-session' })).toMatchObject({
+      _tag: 'Failure',
+      failure: expected,
+    });
+    expect((await calls(test.folder)).length).toBe(1);
+  },
+);

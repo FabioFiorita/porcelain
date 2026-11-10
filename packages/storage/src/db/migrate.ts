@@ -36,6 +36,25 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '012_walkthrough_messages': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_messages (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
+      worktree_id TEXT NOT NULL,
+      stop_title TEXT,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      post_status TEXT NOT NULL DEFAULT 'none' CHECK(post_status IN ('none', 'saved', 'posted')),
+      post_url TEXT,
+      posted_at TEXT,
+      answer_status TEXT NOT NULL DEFAULT 'answering' CHECK(answer_status IN ('answering', 'answered', 'failed')),
+      answer TEXT NOT NULL CHECK(json_valid(answer))
+    )`;
+    yield* sql`CREATE INDEX walkthrough_messages_worktree ON walkthrough_messages(worktree_id, sequence)`;
+    yield* sql`CREATE INDEX walkthrough_messages_answering ON walkthrough_messages(sequence) WHERE answer_status = 'answering'`;
+  }),
   '011_walkthroughs': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE walkthrough_runs (
