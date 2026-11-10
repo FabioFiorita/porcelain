@@ -7,7 +7,11 @@ import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it, onTestFinished } from 'vitest';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
-import { listGitHubAccounts, readGitHubApi } from './github-read.ts';
+import {
+  listGitHubAccounts,
+  postGitHubIssueComment,
+  readGitHubApi,
+} from './github-read.ts';
 async function fixture(onCleanup: (fn: () => Promise<void> | void) => void) {
   const folder = await mkdtemp(join(tmpdir(), 'porcelain-gh-'));
   onCleanup(() => rm(folder, { recursive: true, force: true }));
@@ -34,6 +38,7 @@ const mode = fs.readFileSync(${JSON.stringify(state)}, 'utf8');
 fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify({ args, token: process.env.GH_TOKEN, debug: process.env.GH_DEBUG }) + '\\n');
 if (args[0] === 'auth' && args[1] === 'status') { console.log('["personal","work"]'); }
 else if (args[0] === 'auth') { console.log('secret-' + args.at(-1)); }
+else if (args.includes('repos/o/r/issues/7/comments')) { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"html_url":"https://github.com/o/r/pull/7#issuecomment-1"}'); }
 else if (mode === 'rate') { console.error('HTTP 403 API rate limit exceeded ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'offline') { console.error('dial tcp: network is unreachable ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'missing-pull') { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest) ' + process.env.GH_TOKEN); process.exitCode = 1; }
@@ -119,6 +124,25 @@ it.each([
   if (result._tag === 'Failure') expect(result.failure.reason).toBe(reason);
   expect(JSON.stringify(result)).not.toContain('secret-work');
 });
+it('sends a comment body over 128 KiB through stdin instead of the argument list', async ({
+  onTestFinished,
+}) => {
+  const f = await fixture(onTestFinished);
+  const body = '語'.repeat(60000);
+  expect(
+    await run(
+      postGitHubIssueComment(
+        { account: 'work', owner: 'o', repo: 'r', number: 7, body },
+        gitLimits,
+      ),
+    ),
+  ).toBe('https://github.com/o/r/pull/7#issuecomment-1');
+  expect(await readFile(join(f.folder, 'posted'), 'utf8')).toBe(
+    JSON.stringify({ body }),
+  );
+  expect(await readFile(f.calls, 'utf8')).not.toContain('語');
+});
+
 it('reports a missing gh executable without leaking a spawn error', async ({
   onTestFinished,
 }) => {

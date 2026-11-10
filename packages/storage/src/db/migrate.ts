@@ -36,8 +36,29 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
-  '012_automatic_walkthroughs': Effect.gen(function* () {
+  '012_walkthrough_messages': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_messages (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
+      worktree_id TEXT NOT NULL,
+      stop_title TEXT,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      post_status TEXT NOT NULL DEFAULT 'none' CHECK(post_status IN ('none', 'saved', 'posted')),
+      post_url TEXT,
+      posted_at TEXT,
+      answer_status TEXT NOT NULL DEFAULT 'answering' CHECK(answer_status IN ('answering', 'answered', 'failed')),
+      answer TEXT NOT NULL CHECK(json_valid(answer))
+    )`;
+    yield* sql`CREATE INDEX walkthrough_messages_worktree ON walkthrough_messages(worktree_id, sequence)`;
+    yield* sql`CREATE INDEX walkthrough_messages_answering ON walkthrough_messages(sequence) WHERE answer_status = 'answering'`;
+  }),
+  '013_automatic_walkthroughs': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE walkthrough_messages ADD COLUMN writer TEXT CHECK(writer IS NULL OR json_valid(writer))`;
+    yield* sql`UPDATE walkthrough_runs SET payload = json_set(payload, '$.run.writer.effort', 'high') WHERE json_extract(payload, '$.run.writer.effort') IS NULL`;
     yield* sql`CREATE TABLE walkthrough_default_writer (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), payload TEXT NOT NULL CHECK(json_valid(payload)))`;
     yield* sql`DROP INDEX walkthrough_runs_current_head`;
     yield* sql`CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id, head_oid, COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0), json_extract(payload, '$.run.writer.provider'), json_extract(payload, '$.run.writer.model'), json_extract(payload, '$.run.writer.effort')) WHERE status != 'failed'`;

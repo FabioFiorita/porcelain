@@ -6,4 +6,8 @@ export { corroborates, readGitdirPointer } from '../shared/commands/gitdir.ts';
 export { readHead } from './commands/read-head.ts';
 export { captureGitPlatform } from './capture-platform.ts';
 
-export { listGitHubAccounts, readGitHubApi } from './commands/github-read.ts';
+export {
+  listGitHubAccounts,
+  postGitHubIssueComment,
+  readGitHubApi,
+} from './commands/github-read.ts';

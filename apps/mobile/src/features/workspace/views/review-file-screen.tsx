@@ -41,6 +41,7 @@ import {
 } from '../rules/comparison';
 import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
 import { diffPresentation } from '../rules/diff-presentation';
+import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { ReviewReadState } from './read-state';
 import { useReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
@@ -474,6 +475,7 @@ function SelectableContent({
     <DiffView
       {...reading}
       lines={lines}
+      language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}
       {...codeSelection}
     />
@@ -481,6 +483,7 @@ function SelectableContent({
     <CodeView
       {...reading}
       source={source ?? ''}
+      language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}
       {...codeSelection}
     />

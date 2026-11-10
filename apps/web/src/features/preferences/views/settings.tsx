@@ -54,13 +54,6 @@ import { GitHubAccounts } from './github-accounts';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
 
-const archiveDescriptions = {
-  archiveDeleteWorktree:
-    'Removes the review’s folder. The main checkout is never deleted.',
-  archiveDeleteLocalBranch: 'Deletes the review branch from this clone.',
-  archiveDeleteRemoteBranch: 'Deletes the branch on origin if it still exists.',
-};
-
 type ChoiceName = {
   [K in keyof PreferenceChange]-?: NonNullable<
     PreferenceChange[K]
@@ -321,11 +314,11 @@ function ReviewGitSettingsForm({
       <FieldSet>
         <FieldLegend variant="label">When archiving a review</FieldLegend>
         <ItemGroup>
-          {archiveSettings.map(({ key, label }) => (
+          {archiveSettings.map(({ key, label, description }) => (
             <SwitchItem
               key={key}
               label={label}
-              description={archiveDescriptions[key]}
+              description={description}
               checked={settings?.[key] ?? false}
               disabled={!editable}
               onChange={(checked) => change({ [key]: checked })}

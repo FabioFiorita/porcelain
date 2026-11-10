@@ -12,7 +12,9 @@ export const readWalkthroughWriterSettings = Atom.family(
         ),
       )
       .pipe(
-        Atom.withReactivity([queryKeys.inventory(connection.environmentId)]),
+        connection.atoms.withReactivity([
+          queryKeys.inventory(connection.environmentId),
+        ]),
         Atom.setIdleTTL(0),
       ),
 );

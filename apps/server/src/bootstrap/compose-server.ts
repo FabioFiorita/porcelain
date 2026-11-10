@@ -368,6 +368,7 @@ function serverResources(
           projects.readInventory,
           reviews.listProjectPullRequests,
           adapters.githubReader,
+          reviews.resolveProjectGitHub,
         );
         yield* walkthroughs.workflow.recover();
         const jobs: readonly Job[] = [

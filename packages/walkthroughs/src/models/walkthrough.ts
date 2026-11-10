@@ -106,6 +106,9 @@ export const walkthroughRunSchema = Schema.Struct({
   projectId: Schema.String,
   worktreeId: Schema.String,
   pullRequestNumber: Schema.optional(Schema.Int),
+  pullRequestRepository: Schema.optional(
+    Schema.Struct({ owner: Schema.String, repo: Schema.String }),
+  ),
   baseOid: Schema.String,
   headOid: Schema.String,
   branch: Schema.optional(Schema.String),
@@ -129,6 +132,7 @@ export const walkthroughRunSchema = Schema.Struct({
   ]),
 });
 export type WalkthroughRun = typeof walkthroughRunSchema.Type;
+export type WalkthroughFailure = typeof walkthroughFailureSchema.Type;
 export type WalkthroughContent = typeof walkthroughContentSchema.Type;
 export type DiffFile = {
   readonly path: string;

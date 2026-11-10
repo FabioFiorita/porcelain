@@ -1,79 +1,81 @@
-import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
-import { Toml } from 'effect/encoding';
-import { ChildProcessSpawner } from 'effect/process';
-import { runProvider } from '../commit-planning/commands/run-provider.ts';
-import { readBoundedText } from '../commit-planning/commands/read-bounded-text.ts';
+import { Clock, Effect, Layer, Schema } from 'effect';
 import {
   WalkthroughModelReader,
   WalkthroughWriter,
 } from '@porcelain/walkthroughs/ports';
 import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
+import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
-import { firstPassSchema, writingPrompts } from './writing-prompts.ts';
+import {
+  agentTurns,
+  failure,
+  unavailableWriter,
+  type AgentTurnWording,
+} from './agent-turn.ts';
+import {
+  answerPrompts,
+  firstPassSchema,
+  writingPrompts,
+} from './writing-prompts.ts';
 
-const envelopeSchema = Schema.Struct({
-  structured_output: Schema.optional(Schema.Unknown),
-  session_id: Schema.optional(Schema.String),
-  total_cost_usd: Schema.optional(Schema.Number),
-  is_error: Schema.optional(Schema.Boolean),
-  result: Schema.optional(Schema.String),
+const WRITING: AgentTurnWording = {
+  timedOut: 'The walkthrough writer timed out after 20 minutes.',
+  stopped: 'The selected agent CLI stopped before finishing the walkthrough.',
+  unusable: 'The writer returned an unusable response.',
+};
+const ANSWERING: AgentTurnWording = {
+  timedOut: 'The agent took longer than 5 minutes to answer. Ask again.',
+  stopped: 'The selected agent CLI stopped before answering. Ask again.',
+  unusable: 'The agent returned an unusable answer. Ask again.',
+};
+const ANSWER_DEADLINE_MS = 5 * 60 * 1000;
+const MAX_ANSWER_LENGTH = 8000;
+const temporaryFolder = Effect.acquireRelease(
+  Effect.tryPromise(() => mkdtemp(join(tmpdir(), 'porcelain-walkthrough-'))),
+  (path) => Effect.promise(() => rm(path, { recursive: true, force: true })),
+);
+const usableAnswer = Effect.fnUntraced(function* (output: unknown) {
+  const text = typeof output === 'string' ? output.trim() : '';
+  if (text === '' || text.length > MAX_ANSWER_LENGTH)
+    return yield* failure('unusable_output', ANSWERING.unusable);
+  return text;
 });
-const eventSchema = Schema.Struct({
-  type: Schema.String,
-  thread_id: Schema.optional(Schema.String),
-});
-const failure = (kind: WalkthroughFailedError['kind'], message: string) =>
-  new WalkthroughFailedError({ kind, message });
-const unavailableWriter = (writer: WalkthroughWriterChoice) =>
-  failure(
-    'other',
-    `The walkthrough model ${writer.provider}/${writer.model} is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.`,
-  );
-const modelRefused = (detail: string) =>
-  /model.*(?:not.*(?:available|exist|found|support)|unavailable|no access)|no access.*model/i.test(
-    detail,
-  );
 export const cliWalkthroughWriterLayer = (options: {
   processGroup: ProcessGroupLimits;
   command?: string;
   deadlineMs?: number;
+  answerDeadlineMs?: number;
 }) =>
   Layer.effect(
     WalkthroughWriter,
     Effect.gen(function* () {
+      const turns = yield* agentTurns(options);
       const models = yield* WalkthroughModelReader;
-      const fs = yield* FileSystem.FileSystem;
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const validate = Effect.fn('WalkthroughWriter.validate')(function* (
+        writer: WalkthroughWriterChoice,
+      ) {
+        const available = (yield* models.read()).find(
+          (model) =>
+            model.provider === writer.provider && model.model === writer.model,
+        );
+        if (!available) return yield* unavailableWriter(writer);
+        if (!available.efforts.includes(writer.effort))
+          return yield* failure(
+            'other',
+            `The walkthrough model ${writer.model} does not support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+          );
+      });
       return WalkthroughWriter.of({
         write: Effect.fn('WalkthroughWriter.write')(
           function* (input) {
-            const available = (yield* models.read()).find(
-              (model) =>
-                model.provider === input.run.writer.provider &&
-                model.model === input.run.writer.model,
-            );
-            if (!available) return yield* unavailableWriter(input.run.writer);
-            if (!available.efforts.includes(input.run.writer.effort))
-              return yield* failure(
-                'other',
-                `The walkthrough model ${input.run.writer.model} does not support ${input.run.writer.effort} effort. Choose a supported effort in walkthrough settings.`,
-              );
+            yield* validate(input.run.writer);
             const started = yield* Clock.currentTimeMillis;
-            const folder = yield* Effect.acquireRelease(
-              Effect.tryPromise(() =>
-                mkdtemp(join(tmpdir(), 'porcelain-walkthrough-')),
-              ),
-              (path) =>
-                Effect.promise(() =>
-                  rm(path, { recursive: true, force: true }),
-                ),
-            );
+            const folder = yield* temporaryFolder;
             const images: string[] = [];
             for (const asset of input.evidence.assets) {
               const path = join(
@@ -94,322 +96,35 @@ export const cliWalkthroughWriterLayer = (options: {
                 )
                 .join('\n'),
             );
-            const command = options.command ?? input.run.writer.provider;
-            const codexConfigArgs = [
-              '-c',
-              'notify=[]',
-              '-c',
-              'allow_login_shell=false',
-              '-c',
-              'shell_environment_policy.experimental_use_profile=false',
-              '-c',
-              'web_search="disabled"',
-              '--disable',
-              'shell_snapshot',
-              '--disable',
-              'shell_snapshot_v2',
-              '--disable',
-              'browser_use',
-              '--disable',
-              'computer_use',
-              '--disable',
-              'image_generation',
-              '-c',
-              'features.hooks=false',
-              '--disable',
-              'plugins',
-              '--disable',
-              'apps',
-              '--disable',
-              'multi_agent',
-              '--disable',
-              'multi_agent_v2',
-              '--disable',
-              'skill_mcp_dependency_install',
-            ];
-            const env = {
-              ...process.env,
-              HOME: folder,
-              CODEX_HOME: process.env.CODEX_HOME ?? join(homedir(), '.codex'),
-              CLAUDE_CONFIG_DIR:
-                process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
-              BASH_ENV: '',
-              ENV: '',
-              ZDOTDIR: folder,
-              CLAUDE_CODE_SHELL: '',
-              CLAUDE_CODE_PLUGIN_DIRS: '',
-              CLAUDE_CODE_SHELL_PREFIX: '',
-              CLAUDE_CODE_PROCESS_WRAPPER: '',
-              CLAUDE_CODE_SHELL_LAUNCHER_SCRIPT: '',
-              NODE_OPTIONS: '',
-              BUN_OPTIONS: '',
-              GIT_NO_LAZY_FETCH: '1',
-              GIT_CONFIG_COUNT: '2',
-              GIT_CONFIG_KEY_0: 'core.hooksPath',
-              GIT_CONFIG_VALUE_0: '/dev/null',
-              GIT_CONFIG_KEY_1: 'core.fsmonitor',
-              GIT_CONFIG_VALUE_1: 'false',
-            };
-            if (input.run.writer.provider === 'codex') {
-              const credentialsStore = yield* fs
-                .readFileString(join(env.CODEX_HOME, 'config.toml'))
-                .pipe(
-                  Effect.flatMap((text) => Effect.fromResult(Toml.parse(text))),
-                  Effect.flatMap(
-                    Schema.decodeUnknownEffect(
-                      Schema.Struct({
-                        cli_auth_credentials_store: Schema.Literals([
-                          'file',
-                          'keyring',
-                          'auto',
-                        ]),
-                      }),
-                    ),
-                  ),
-                  Effect.map((config) => config.cli_auth_credentials_store),
-                  Effect.catch(() => Effect.succeed(undefined)),
-                );
-              if (credentialsStore !== undefined)
-                codexConfigArgs.push(
-                  '-c',
-                  `cli_auth_credentials_store=${JSON.stringify(credentialsStore)}`,
-                );
-            }
+            const { provider, model, effort } = input.run.writer;
             let sessionId = input.run.sessionId ?? randomUUID();
             let costUsd: number | undefined = undefined;
             let answer: unknown;
             for (let pass = 0; pass < 2; pass++) {
-              const schema = Schema.toJsonSchemaDocument(
-                pass === 0 ? firstPassSchema : walkthroughContentSchema,
-              ).schema;
-              const schemaPath = join(folder, `schema-${pass}.json`);
-              const answerPath = join(folder, `answer-${pass}.json`);
-              yield* Effect.tryPromise(() =>
-                writeFile(schemaPath, JSON.stringify(schema)),
-              );
-              const claudeArgs = [
-                '-p',
-                '--safe-mode',
-                '--model',
-                input.run.writer.model,
-                '--effort',
-                input.run.writer.effort,
-                '--output-format',
-                'json',
-                '--json-schema',
-                JSON.stringify(schema),
-                '--tools',
-                'Read,Grep,Glob,Bash',
-                '--allowedTools',
-                'Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*)',
-                '--disallowedTools',
-                'Bash(git * --output*),Bash(git * -o *)',
-                '--setting-sources',
-                '',
-                '--settings',
-                '{"disableAllHooks":true}',
-                '--strict-mcp-config',
-                '--mcp-config',
-                '{"mcpServers":{}}',
-                '--disable-slash-commands',
-                '--permission-mode',
-                'dontAsk',
-                pass === 0 && input.run.sessionId === undefined
-                  ? '--session-id'
-                  : '--resume',
-                sessionId,
-              ];
-              if (images.length) claudeArgs.push('--add-dir', folder);
-              const codexArgs =
-                pass === 0
-                  ? ['exec', '--sandbox', 'read-only']
-                  : ['exec', 'resume', '-c', 'sandbox_mode="read-only"'];
-              codexArgs.push(
-                ...codexConfigArgs,
-                '-c',
-                `model_reasoning_effort=${JSON.stringify(input.run.writer.effort)}`,
-                '--ignore-user-config',
-                '--ignore-rules',
-                '--json',
-                '--model',
-                input.run.writer.model,
-                '--output-schema',
-                schemaPath,
-                '--output-last-message',
-                answerPath,
-              );
-              if (input.run.writer.provider === 'codex') {
-                const mcpOverrides: string[] = [];
-                for (let check = 0; check < 2; check++) {
-                  const servers = yield* runProvider({
-                    command,
-                    args: [
-                      'mcp',
-                      'list',
-                      '--json',
-                      ...codexConfigArgs,
-                      ...mcpOverrides,
-                    ],
-                    cwd: input.worktreePath,
-                    env,
-                    prompt: '',
-                    maxBytes: 4 * 1024 * 1024,
-                    timeoutMs: Math.min(options.deadlineMs ?? 10000, 10000),
-                    processGroup: options.processGroup,
-                  }).pipe(
-                    Effect.provideService(
-                      ChildProcessSpawner.ChildProcessSpawner,
-                      spawner,
-                    ),
-                    Effect.flatMap(
-                      Schema.decodeUnknownEffect(
-                        Schema.fromJsonString(
-                          Schema.Array(
-                            Schema.Struct({
-                              name: Schema.String,
-                              enabled: Schema.Boolean,
-                              transport: Schema.Union([
-                                Schema.Struct({
-                                  type: Schema.Literal('stdio'),
-                                  command: Schema.String,
-                                }),
-                                Schema.Struct({
-                                  type: Schema.Literal('streamable_http'),
-                                  url: Schema.String,
-                                }),
-                              ]),
-                            }),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Effect.mapError((error) =>
-                      failure(
-                        error._tag === 'ProviderProcessFailedError' &&
-                          error.cause !== undefined
-                          ? 'agent_not_installed'
-                          : 'other',
-                        'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
-                      ),
-                    ),
-                  );
-                  if (check === 0)
-                    mcpOverrides.push(
-                      '-c',
-                      `mcp_servers={${servers.map((server) => `${JSON.stringify(server.name)}={enabled=false,${server.transport.type === 'stdio' ? `command=${JSON.stringify(server.transport.command)}` : `url=${JSON.stringify(server.transport.url)}`}}`).join(',')}}`,
-                    );
-                  else if (servers.some((server) => server.enabled))
-                    return yield* failure(
-                      'other',
-                      'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
-                    );
-                }
-                codexArgs.push(...mcpOverrides);
-              }
-              if (pass === 1) codexArgs.push(sessionId);
-              codexArgs.push('-');
-              if (pass === 1)
-                for (const path of images) codexArgs.push('-i', path);
-              if (input.run.writer.provider === 'claude')
-                yield* input.recordSession(sessionId);
-              const output = yield* runProvider({
-                command,
-                args:
-                  input.run.writer.provider === 'claude'
-                    ? claudeArgs
-                    : codexArgs,
-                cwd: input.worktreePath,
-                env,
+              if (provider === 'claude') yield* input.recordSession(sessionId);
+              const resumed =
+                pass === 1 ||
+                (provider === 'claude' && input.run.sessionId !== undefined);
+              const turn = yield* turns.run({
+                provider,
+                model,
+                effort,
+                worktreePath: input.worktreePath,
+                folder,
+                session: { kind: resumed ? 'resume' : 'new', id: sessionId },
+                label: String(pass),
+                schema: Schema.toJsonSchemaDocument(
+                  pass === 0 ? firstPassSchema : walkthroughContentSchema,
+                ).schema,
+                images,
                 prompt: pass === 0 ? prompts.first : prompts.second,
-                maxBytes: 4 * 1024 * 1024,
                 timeoutMs: options.deadlineMs ?? 20 * 60 * 1000,
-                processGroup: options.processGroup,
-              }).pipe(
-                Effect.provideService(
-                  ChildProcessSpawner.ChildProcessSpawner,
-                  spawner,
-                ),
-                Effect.mapError((error) => {
-                  if (error.reason === 'deadline')
-                    return failure(
-                      'timed_out',
-                      'The walkthrough writer timed out after 20 minutes.',
-                    );
-                  if (
-                    /not logged in|sign.?in|login|authentication|oauth|token.*expired|unauthorized/i.test(
-                      error.detail ?? '',
-                    )
-                  )
-                    return failure(
-                      'signed_out',
-                      'Sign in again to the selected agent CLI, then try again.',
-                    );
-                  if (modelRefused(error.detail ?? ''))
-                    return unavailableWriter(input.run.writer);
-                  if (error.cause !== undefined)
-                    return failure(
-                      'agent_not_installed',
-                      'The selected agent CLI could not be started. Check that it is installed.',
-                    );
-                  return failure(
-                    'other',
-                    'The selected agent CLI stopped before finishing the walkthrough.',
-                  );
-                }),
-              );
-              if (input.run.writer.provider === 'claude') {
-                const envelope = yield* Schema.decodeUnknownEffect(
-                  Schema.fromJsonString(envelopeSchema),
-                )(output).pipe(
-                  Effect.mapError(() =>
-                    failure(
-                      'unusable_output',
-                      'The writer returned an unusable response.',
-                    ),
-                  ),
-                );
-                if (envelope.is_error && modelRefused(envelope.result ?? ''))
-                  return yield* unavailableWriter(input.run.writer);
-                if (envelope.is_error)
-                  return yield* failure(
-                    /sign.?in|login|oauth|token.*expired|unauthorized/i.test(
-                      envelope.result ?? '',
-                    )
-                      ? 'signed_out'
-                      : 'other',
-                    /sign.?in|login|oauth|token.*expired|unauthorized/i.test(
-                      envelope.result ?? '',
-                    )
-                      ? 'Sign in again to the selected agent CLI.'
-                      : 'The selected agent CLI could not finish the walkthrough.',
-                  );
-                sessionId = envelope.session_id ?? sessionId;
-                if (envelope.total_cost_usd !== undefined)
-                  costUsd = (costUsd ?? 0) + envelope.total_cost_usd;
-                answer = envelope.structured_output;
-              } else {
-                for (const line of output.split('\n').filter(Boolean)) {
-                  const event = yield* Schema.decodeUnknownEffect(
-                    Schema.fromJsonString(eventSchema),
-                  )(line).pipe(
-                    Effect.mapError(() =>
-                      failure(
-                        'unusable_output',
-                        'The writer returned an unusable event.',
-                      ),
-                    ),
-                  );
-                  if (event.type === 'thread.started' && event.thread_id)
-                    sessionId = event.thread_id;
-                }
-                const text = yield* readBoundedText(
-                  answerPath,
-                  4 * 1024 * 1024,
-                ).pipe(Effect.provideService(FileSystem.FileSystem, fs));
-                answer = yield* Schema.decodeUnknownEffect(
-                  Schema.fromJsonString(Schema.Unknown),
-                )(text);
-              }
+                wording: WRITING,
+              });
+              sessionId = turn.sessionId;
+              if (turn.costUsd !== undefined)
+                costUsd = (costUsd ?? 0) + turn.costUsd;
+              answer = turn.output;
               yield* input.recordSession(sessionId);
               if (pass === 0)
                 yield* Schema.decodeUnknownEffect(firstPassSchema)(answer);
@@ -440,6 +155,87 @@ export const cliWalkthroughWriterLayer = (options: {
                   'unusable_output',
                   'The writer could not produce a usable walkthrough.',
                 ),
+          ),
+        ),
+        answer: Effect.fn('WalkthroughWriter.answer')(
+          function* (input) {
+            yield* validate(input.run.writer);
+            const started = yield* Clock.currentTimeMillis;
+            const folder = yield* temporaryFolder;
+            const deadline = options.answerDeadlineMs ?? ANSWER_DEADLINE_MS;
+            const prompts = answerPrompts(input);
+            const { provider, model, effort } = input.run.writer;
+            const ask = (
+              session: { kind: 'new' | 'resume'; id: string },
+              prompt: string,
+              timeoutMs: number,
+              label: string,
+            ) =>
+              turns
+                .run({
+                  provider,
+                  model,
+                  effort,
+                  worktreePath: input.worktreePath,
+                  folder,
+                  session,
+                  label,
+                  schema: undefined,
+                  images: [],
+                  prompt,
+                  timeoutMs,
+                  wording: ANSWERING,
+                })
+                .pipe(
+                  Effect.flatMap((turn) =>
+                    usableAnswer(turn.output).pipe(
+                      Effect.map((text) => ({ ...turn, text })),
+                    ),
+                  ),
+                );
+            const finish = (turn: {
+              sessionId: string;
+              costUsd: number | undefined;
+              text: string;
+            }) =>
+              Clock.currentTimeMillis.pipe(
+                Effect.map((now) => ({
+                  text: turn.text,
+                  sessionId: turn.sessionId,
+                  durationMs: now - started,
+                  costUsd: turn.costUsd,
+                })),
+              );
+            if (input.run.sessionId !== undefined) {
+              const resumed = yield* ask(
+                { kind: 'resume', id: input.run.sessionId },
+                prompts.resume,
+                deadline,
+                'resume',
+              ).pipe(Effect.result);
+              if (resumed._tag === 'Success')
+                return yield* finish(resumed.success);
+              if (
+                resumed.failure instanceof WalkthroughFailedError &&
+                !['other', 'unusable_output'].includes(resumed.failure.kind)
+              )
+                return yield* resumed.failure;
+            }
+            const elapsed = (yield* Clock.currentTimeMillis) - started;
+            return yield* finish(
+              yield* ask(
+                { kind: 'new', id: randomUUID() },
+                prompts.fresh,
+                Math.max(deadline - elapsed, 1000),
+                'fresh',
+              ),
+            );
+          },
+          Effect.scoped,
+          Effect.mapError((error) =>
+            error instanceof WalkthroughFailedError
+              ? error
+              : failure('other', ANSWERING.stopped),
           ),
         ),
       });

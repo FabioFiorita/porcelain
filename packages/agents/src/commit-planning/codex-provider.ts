@@ -34,11 +34,10 @@ export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
               ChildProcessSpawner.ChildProcessSpawner,
               spawner,
             ),
-          ))
-            .map((model) => ({
-              id: `${model.provider}:${model.model}`,
-              label: model.label,
-            }));
+          )).map((model) => ({
+            id: `${model.provider}:${model.model}`,
+            label: model.label,
+          }));
         });
         return {
           models,

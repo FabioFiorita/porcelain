@@ -31,10 +31,12 @@ export const webSocketEventPublisherLayer = Layer.effect(
       ),
       worktreeChanged: Effect.fn('EventPublisher.worktreeChanged')((input) =>
         connectionsCapability.toWorktree(input.worktreeId, (projectId) =>
-          input.change === 'walkthrough'
+          input.change === 'walkthrough' ||
+          input.change === 'walkthrough-conversations'
             ? {
                 type: 'walkthrough',
-                change: 'run',
+                change:
+                  input.change === 'walkthrough' ? 'run' : 'conversations',
                 projectId,
                 worktreeId: input.worktreeId,
               }

@@ -20,6 +20,13 @@ import {
   ResolveWalkthroughWriterService,
   ReadWalkthroughService,
   ReadWalkthroughAssetService,
+  ListWalkthroughConversationsService,
+  AddWalkthroughMessageService,
+  RetryWalkthroughAnswerService,
+  SaveWalkthroughMessageService,
+  AnswerWalkthroughMessageService,
+  PlanWalkthroughPostService,
+  PostWalkthroughMessagesService,
 } from '@porcelain/walkthroughs/services';
 import {
   WalkthroughStore,
@@ -51,6 +58,14 @@ import { githubEvidenceReaderLayer } from '../adapters/walkthroughs/github-evide
 import { StartWalkthroughUseCase } from '../use-cases/walkthroughs/start-walkthrough.ts';
 import { ReadWalkthroughUseCase } from '../use-cases/walkthroughs/read-walkthrough.ts';
 import { ReadWalkthroughAssetUseCase } from '../use-cases/walkthroughs/read-walkthrough-asset.ts';
+import { ListWalkthroughConversationsUseCase } from '../use-cases/walkthroughs/list-walkthrough-conversations.ts';
+import { AddWalkthroughMessageUseCase } from '../use-cases/walkthroughs/add-walkthrough-message.ts';
+import { RetryWalkthroughAnswerUseCase } from '../use-cases/walkthroughs/retry-walkthrough-answer.ts';
+import { SaveWalkthroughMessageUseCase } from '../use-cases/walkthroughs/save-walkthrough-message.ts';
+import { PostWalkthroughMessagesUseCase } from '../use-cases/walkthroughs/post-walkthrough-messages.ts';
+import { ReadWalkthroughBriefUseCase } from '../use-cases/walkthroughs/read-walkthrough-brief.ts';
+import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
+import { ghPullRequestCommenterLayer } from '../adapters/walkthroughs/gh-pull-request-commenter.ts';
 import { walkthroughsRoutes } from '../http/routes/walkthroughs/walkthroughs-api.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
@@ -63,6 +78,7 @@ export function composeWalkthroughs(
   inventory: Context.Service.Shape<typeof ReadInventoryUseCase>,
   pulls: Context.Service.Shape<typeof ListProjectPullRequestsUseCase>,
   githubReader: typeof ghPullRequestReaderLayer,
+  resolveProjectGitHub: ResolveProjectGitHubUseCasePort,
 ) {
   const modelReader = installedWalkthroughModelReaderLayer(
     context.settings.limits.agents,
@@ -86,9 +102,11 @@ export function composeWalkthroughs(
     Layer.succeed(BranchRangeReader, shared.branchRangeReader),
     Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
     Layer.succeed(EventPublisher, context.events),
+    Layer.succeed(ResolveProjectGitHubUseCasePort, resolveProjectGitHub),
+    ghPullRequestCommenterLayer(context.settings.limits.git),
     Layer.succeed(IdSource, context.ids),
     Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
-    gitWalkthroughSourceReaderLayer.pipe(
+    gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
     ),
     AnnounceWalkthroughUseCase.layer.pipe(
@@ -118,6 +136,16 @@ export function composeWalkthroughs(
     ),
     ReadWalkthroughService.layer,
     ReadWalkthroughAssetService.layer,
+    ListWalkthroughConversationsService.layer,
+    AddWalkthroughMessageService.layer,
+    RetryWalkthroughAnswerService.layer,
+    SaveWalkthroughMessageService.layer,
+    AnswerWalkthroughMessageService.layer.pipe(
+      Layer.provide(ResolveWalkthroughWriterService.layer),
+    ),
+    PostWalkthroughMessagesService.layer.pipe(
+      Layer.provideMerge(PlanWalkthroughPostService.layer),
+    ),
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
   ).pipe(Layer.provideMerge(ports));
   const engine = ClusterWorkflowEngine.layer.pipe(
@@ -135,6 +163,12 @@ export function composeWalkthroughs(
     QueueWalkthroughUseCase.layer,
     ReadWalkthroughUseCase.layer,
     ReadWalkthroughAssetUseCase.layer,
+    ListWalkthroughConversationsUseCase.layer,
+    AddWalkthroughMessageUseCase.layer,
+    RetryWalkthroughAnswerUseCase.layer,
+    SaveWalkthroughMessageUseCase.layer,
+    PostWalkthroughMessagesUseCase.layer,
+    ReadWalkthroughBriefUseCase.layer,
   ).pipe(Layer.provideMerge(workflow));
   const queued = Layer.effect(
     QueueWalkthroughUseCasePort,
@@ -165,6 +199,12 @@ export function composeWalkthroughs(
       start: Context.get(runtime, StartWalkthroughUseCase),
       read: Context.get(runtime, ReadWalkthroughUseCase),
       asset: Context.get(runtime, ReadWalkthroughAssetUseCase),
+      conversations: Context.get(runtime, ListWalkthroughConversationsUseCase),
+      addMessage: Context.get(runtime, AddWalkthroughMessageUseCase),
+      retryAnswer: Context.get(runtime, RetryWalkthroughAnswerUseCase),
+      saveMessage: Context.get(runtime, SaveWalkthroughMessageUseCase),
+      postMessages: Context.get(runtime, PostWalkthroughMessagesUseCase),
+      brief: Context.get(runtime, ReadWalkthroughBriefUseCase),
     };
     return {
       poll: Context.get(runtime, PollAutomaticWalkthroughsUseCase),

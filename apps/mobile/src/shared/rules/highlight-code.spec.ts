@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { highlightCode, sourceLanguage } from './highlight-code.ts';
+import {
+  highlightCode,
+  isHighlightable,
+  sourceLanguage,
+} from './highlight-code.ts';
 import { mergeDiffTokens } from './merge-diff-tokens.ts';
 
 describe('mobile source highlighting', () => {
@@ -98,6 +102,11 @@ describe('mobile source highlighting', () => {
       ),
     ).toEqual([{ text: 'actual source', color: 0xfffc2b73 }]);
   });
+});
+
+it('colours ordinary files and leaves very large ones plain', () => {
+  expect(isHighlightable('x'.repeat(64_000))).toBe(true);
+  expect(isHighlightable('x'.repeat(64_001))).toBe(false);
 });
 
 it.each([

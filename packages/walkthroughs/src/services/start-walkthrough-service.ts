@@ -50,6 +50,10 @@ export class StartWalkthroughService extends Context.Service<
                   projectId: input.projectId,
                   worktreeId: input.worktreeId,
                   pullRequestNumber: input.pullRequestNumber,
+                  pullRequestRepository:
+                    input.pullRequestNumber === undefined
+                      ? undefined
+                      : snapshot.githubRepository,
                   baseOid: snapshot.baseOid,
                   headOid: snapshot.headOid,
                   branch: snapshot.branch,

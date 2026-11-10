@@ -87,3 +87,49 @@ it('keeps old-side excerpts on renames and gives each file one stop', () => {
   ]);
   expect(result.stops[1]?.excerpts).toEqual([]);
 });
+it('merges the leftover files into a writer-supplied Everything else stop', () => {
+  const owned = { ...content.stops[0]!, excerpts: [], files: [] };
+  const result = qualifyWalkthrough(
+    {
+      ...content,
+      stops: [
+        { ...owned, title: 'One owner' },
+        {
+          ...owned,
+          title: 'Everything else',
+          files: [{ path: 'owner.ts', note: 'Writer note' }],
+        },
+      ],
+    },
+    files,
+    [],
+  );
+  expect(result.stops.map((stop) => stop.title)).toEqual([
+    'One owner',
+    'Everything else',
+  ]);
+  expect(result.stops[1]?.files).toEqual([
+    { path: 'owner.ts', note: 'Writer note' },
+    { path: 'support.ts', note: 'Supporting change' },
+  ]);
+});
+it('numbers repeated stop titles in order and never lands on a title the writer already used', () => {
+  const owned = { ...content.stops[0]!, excerpts: [], files: [] };
+  const result = qualifyWalkthrough(
+    {
+      ...content,
+      stops: ['Same', 'Same', 'Same (2)', 'Same'].map((title) => ({
+        ...owned,
+        title,
+      })),
+    },
+    [],
+    [],
+  );
+  expect(result.stops.map((stop) => stop.title)).toEqual([
+    'Same',
+    'Same (3)',
+    'Same (2)',
+    'Same (4)',
+  ]);
+});

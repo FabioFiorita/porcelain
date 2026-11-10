@@ -7,3 +7,4 @@ export { EvidenceReader } from './evidence-reader.ts';
 export { WalkthroughModelReader } from './walkthrough-model-reader.ts';
 
 export { WalkthroughInventoryReader } from './walkthrough-inventory-reader.ts';
+export { PullRequestCommenter } from './pull-request-commenter.ts';

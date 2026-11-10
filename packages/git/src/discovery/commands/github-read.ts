@@ -20,6 +20,7 @@ const output = Effect.fn('Git.githubOutput')(function* (
   args: readonly string[],
   limits: GitLimits,
   token?: Redacted.Redacted<string>,
+  stdin?: string,
 ) {
   const env = { ...process.env };
   for (const name of [
@@ -38,6 +39,7 @@ const output = Effect.fn('Git.githubOutput')(function* (
     command: 'gh',
     args,
     env,
+    stdin,
     maxBytes: Math.min(limits.outputBytes, 4 * 1024 * 1024),
     timeoutMs: limits.readTimeoutMs,
     processGroup: limits.processGroup,
@@ -99,6 +101,55 @@ export const listGitHubAccounts = Effect.fn('Git.listGitHubAccounts')(
         () => new GitHubCommandError({ reason: 'invalid-response' }),
       ),
     );
+  },
+);
+
+const githubCommentSchema = Schema.fromJsonString(
+  Schema.Struct({ html_url: Schema.String }),
+);
+
+export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
+  function* (
+    input: {
+      account: string;
+      owner: string;
+      repo: string;
+      number: number;
+      body: string;
+    },
+    limits: GitLimits,
+  ) {
+    const token = Redacted.make(
+      (yield* output(
+        ['auth', 'token', '--hostname', 'github.com', '--user', input.account],
+        limits,
+      )).trim(),
+    );
+    if (Redacted.value(token) === '')
+      return yield* new GitHubCommandError({ reason: 'no-access' });
+    const response = yield* output(
+      [
+        'api',
+        '--hostname',
+        'github.com',
+        `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues/${input.number}/comments`,
+        '--method',
+        'POST',
+        '--input',
+        '-',
+      ],
+      limits,
+      token,
+      JSON.stringify({ body: input.body }),
+    );
+    const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
+      response,
+    ).pipe(
+      Effect.mapError(
+        () => new GitHubCommandError({ reason: 'invalid-response' }),
+      ),
+    );
+    return decoded.html_url;
   },
 );
 

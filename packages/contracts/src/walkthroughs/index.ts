@@ -14,3 +14,13 @@ export {
 } from './api.ts';
 
 export { writerSchema } from '@porcelain/walkthroughs/models';
+export {
+  walkthroughConversationsResponseSchema,
+  type WalkthroughConversationsResponse,
+  type AddWalkthroughMessageRequest,
+  type SaveWalkthroughMessageRequest,
+  type WalkthroughMessageParams,
+  type WalkthroughPostInput,
+  type WalkthroughConversationsResult,
+  type WalkthroughPostResult,
+} from './conversations.ts';

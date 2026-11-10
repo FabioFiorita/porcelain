@@ -20,6 +20,7 @@ const config: ExpoConfig = {
     icon: './assets/porcelain.icon',
     bundleIdentifier: identity.bundleIdentifier,
     supportsTablet: true,
+    config: { usesNonExemptEncryption: false },
     associatedDomains: ['applinks:porcelain.fabiofiorita.com'],
     infoPlist: {
       NSAppTransportSecurity: { NSAllowsLocalNetworking: true },

@@ -452,6 +452,7 @@ export function composeReviews(
       };
       return {
         ...useCases,
+        resolveProjectGitHub: yield* ResolveProjectGitHubUseCasePort,
         routes: reviewsRoutes(useCases, context.settings.limits.http),
         summaryRoutes: summaryRoutes(useCases.readReviewSummary),
       };

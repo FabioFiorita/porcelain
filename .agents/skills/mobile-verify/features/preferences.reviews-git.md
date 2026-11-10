@@ -32,7 +32,7 @@ Reviews & Git edits the archive deletions, Spec files and pull strategy that a c
 
 Preconditions: [surface baseline](README.md).
 
-1. Open Reviews & Git against a fresh disposable computer. The switches and Pull strategy are disabled and show this app's earlier values; choose Use these settings for <computer name>. They enable; GET `/api/review-git-settings` answers `configured` with those values.
+1. Open Reviews & Git against a fresh disposable computer. Section headings and the archive rows' descriptions match the web; the page ends with where these settings are saved. The switches and Pull strategy are disabled and show this app's earlier values; choose Use these settings for <computer name>. They enable; GET `/api/review-git-settings` answers `configured` with those values.
 2. Toggle an archive deletion and choose Rebase. Read the setting from a browser on the same computer: it changed there too. Change a different setting from the browser and reopen the page: both changes stay.
 3. Pair a second disposable computer: the Computer choice lists both and each keeps its own values.
    After confirming both computers' settings, switch between them again: each computer's last confirmed values stay visible while its fresh read completes. Configured settings do not start a service-update permission check for this form. Unconfigured settings still require confirmed trust; Check again explicitly refreshes that confirmation.

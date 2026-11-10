@@ -32,7 +32,7 @@ Notifications has two switches, Reviews ready and Agent replies. Turning the fir
 Preconditions: [surface baseline](README.md). A fresh start clears app data, so permission is undetermined.
 
 1. Open Settings: the Notifications row says Off. Open it: both switches are off and the footer says what each computer sends through Expo.
-2. Turn on Reviews ready: Allow notifications? explains first; Not now leaves it off. Continue shows the system permission prompt; Allow. Without push credentials the screen shows "Notifications need the app's push key — they'll start working once it's configured." and the Computers card says each computer registers once the phone has a notification token.
+2. Turn on Reviews ready: Allow notifications? explains first; Not now leaves it off. Continue shows the system permission prompt; Allow. Without push credentials the screen shows "Notifications need the app's push key — they'll start working once it's configured." and the Computers section says each computer registers once the phone has a notification token.
 3. Turn on Agent replies, relaunch through the Metro URL in [driving](../references/driving.md) and reopen: both switches stay on, the Settings row says Reviews ready and agent replies and the push-key message returns without a new prompt.
 4. Revoke the notification permission (Android: `adb shell pm revoke <package> android.permission.POST_NOTIFICATIONS`, flag it user-fixed) and relaunch: the screen says notifications are off in the phone's settings and Open Settings opens the app's system settings. Grant it there and return: the push-key message replaces it.
 5. Turn both switches off: the computer receives `DELETE /api/push-registration` (204 in the instance's request log).

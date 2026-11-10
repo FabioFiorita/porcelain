@@ -2,6 +2,7 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import { Item } from '../../../components/ui/item';
+import { Switch } from '../../../components/ui/switch';
 
 export function PreferenceChoice<T extends string | boolean>({
   label,
@@ -37,5 +38,37 @@ export function PreferenceChoice<T extends string | boolean>({
         </Box>
       </Item>
     </Card>
+  );
+}
+
+export function PreferenceSwitch({
+  label,
+  description,
+  checked,
+  disabled,
+  testID,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  testID?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Item
+      {...(testID ? { testID } : {})}
+      title={label}
+      description={description}
+      trailing={
+        <Switch
+          label={label}
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onChange}
+        />
+      }
+    />
   );
 }

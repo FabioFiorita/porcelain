@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { useAtomRef } from '@effect/atom-react';
 import { archiveSettings } from '@porcelain/client/projects/rules';
 import {
@@ -11,12 +11,10 @@ import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
-import { Card } from '../../../components/ui/card';
+import { CardRows } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Item } from '../../../components/ui/item';
+import { GroupHeader } from '../../../components/ui/group-header';
 import { Loading } from '../../../components/ui/loading';
-import { Separator } from '../../../components/ui/separator';
-import { Switch } from '../../../components/ui/switch';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
 import {
@@ -25,7 +23,7 @@ import {
 } from '../queries/review-git-settings';
 import { useReviewGitSettingsCommands } from '../commands/review-git-settings';
 import { PreferencesPage } from './preferences-page';
-import { PreferenceChoice } from './preference-choice';
+import { PreferenceChoice, PreferenceSwitch } from './preference-choice';
 
 function ComputerReviewGitSettings({
   connection,
@@ -96,46 +94,35 @@ function ComputerReviewGitSettings({
         </Text>
       ) : null}
       {failure ? <ErrorState message={failure} /> : null}
-      <Box gap={3}>
-        <Text variant="headline">When archiving a review</Text>
-        <Card>
-          {archiveSettings.map(({ key, label }, index) => (
-            <Fragment key={key}>
-              {index > 0 ? <Separator inset="content" /> : null}
-              <Item
-                title={label}
-                trailing={
-                  <Switch
-                    label={label}
-                    checked={settings?.[key] ?? false}
-                    disabled={disabled}
-                    onCheckedChange={(value) => change({ [key]: value })}
-                  />
-                }
-              />
-            </Fragment>
+      <Box>
+        <GroupHeader variant="section" label="When archiving a review" />
+        <CardRows>
+          {archiveSettings.map(({ key, label, description }) => (
+            <PreferenceSwitch
+              key={key}
+              label={label}
+              description={description}
+              checked={settings?.[key] ?? false}
+              disabled={disabled}
+              onChange={(value) => change({ [key]: value })}
+            />
           ))}
-        </Card>
+        </CardRows>
       </Box>
-      <Box gap={3}>
-        <Text variant="headline">Reviews</Text>
-        <Card>
-          <Item
-            title="Spec files"
+      <Box>
+        <GroupHeader variant="section" label="Reviews" />
+        <CardRows>
+          <PreferenceSwitch
+            label="Spec files"
             description="Group specs separately in a review on the web and desktop."
-            trailing={
-              <Switch
-                label="Spec files"
-                checked={settings?.collapseSpecs ?? false}
-                disabled={disabled}
-                onCheckedChange={(collapseSpecs) => change({ collapseSpecs })}
-              />
-            }
+            checked={settings?.collapseSpecs ?? false}
+            disabled={disabled}
+            onChange={(collapseSpecs) => change({ collapseSpecs })}
           />
-        </Card>
+        </CardRows>
       </Box>
-      <Box gap={3}>
-        <Text variant="headline">Git</Text>
+      <Box>
+        <GroupHeader variant="section" label="Git" />
         <PreferenceChoice
           label="Pull strategy"
           description={`Used when pulling changes on ${computer}.`}
@@ -148,6 +135,10 @@ function ComputerReviewGitSettings({
           onChange={(pullStrategy) => change({ pullStrategy })}
         />
       </Box>
+      <Text variant="caption" tone="muted">
+        Saved on the computer, for every device connected to it. Archive and
+        pull run on the computer that holds the worktree.
+      </Text>
     </>
   );
 }
@@ -177,7 +168,7 @@ export function ReviewsGitSettings() {
             />
           ) : null}
           {computers.length === 1 && computer ? (
-            <Text variant="headline" numberOfLines={2}>
+            <Text variant="secondary" tone="muted" numberOfLines={2}>
               Settings for {computer.remote.name}
             </Text>
           ) : null}
