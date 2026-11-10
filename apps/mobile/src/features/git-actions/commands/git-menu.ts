@@ -6,6 +6,7 @@ import {
 } from '@effect/atom-react';
 import { readCurrentGitStatus, readGitStatus } from '@porcelain/client/changes';
 import {
+  operationKey,
   networkMenuFeedback,
   networkMenuNotice,
   readGitActionCommands,
@@ -25,6 +26,7 @@ import {
 } from '@porcelain/client/preferences/rules';
 import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
+import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { Workspace } from '../../projects';
 
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
@@ -53,14 +55,18 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const remember = (
     action: 'fetch' | 'pull',
     notice: Parameters<GitMenuControls['onResult']>[0],
-  ) =>
-    setNotice({
-      action,
-      notice,
-      operation: networkMenuFeedback(connection.operations.state.value, scope)
-        .selected?.operation,
-    });
-  const controlsFor = (action: 'fetch' | 'pull'): GitMenuControls => ({
+    input: RunGitActionRequest['input'] | undefined,
+  ) => {
+    const operation = connection.operations.state.value.operations.get(
+      operationKey(scope, action),
+    );
+    if (input && operation?.request.input !== input) return;
+    setNotice({ action, notice, operation: input ? operation : undefined });
+  };
+  const controlsFor = (
+    action: 'fetch' | 'pull',
+    requestInput: () => RunGitActionRequest['input'] | undefined,
+  ): GitMenuControls => ({
     details: {
       result: status,
       read: () =>
@@ -79,11 +85,11 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
             reviewGitSettingsBlock(settings) ??
             'Reviews & Git settings for this computer are unavailable.',
         },
-    notify: (notice) => remember(action, notice),
+    notify: (notice) => remember(action, notice, requestInput()),
     onProgress: (open) => {
       if (open) setNotice(null);
     },
-    onResult: (notice) => remember(action, notice),
+    onResult: (notice) => remember(action, notice, requestInput()),
   });
   const value = Option.getOrUndefined(AsyncResult.value(status));
   const blocker = (action: 'fetch' | 'pull') => {
@@ -102,10 +108,17 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const run = (action: 'fetch' | 'pull') => {
     const commands = runners[action];
     if (blocker(action) || !AsyncResult.isSuccess(commands)) return;
+    let input: RunGitActionRequest['input'] | undefined;
+    const runner = commands.value;
     Effect.runFork(
       runNetworkAction(
-        controlsFor(action),
-        commands.value,
+        controlsFor(action, () => input),
+        {
+          run: (next, expected) => {
+            input = next;
+            return runner.run(next, expected);
+          },
+        },
         action,
         value?.branch,
       ),
@@ -127,7 +140,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
       if (AsyncResult.isSuccess(commands))
         Effect.runFork(
           recoverNetworkAction(
-            controlsFor(running.action),
+            controlsFor(running.action, () => running.operation.request.input),
             commands.value,
             running.action,
           ),

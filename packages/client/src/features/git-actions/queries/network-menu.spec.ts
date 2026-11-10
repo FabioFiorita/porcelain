@@ -138,7 +138,9 @@ it.each(['succeeded', 'rejected'] as const)(
         state === 'rejected' ? 'Remote refused Pull' : 'Pulled one commit',
       type: state === 'rejected' ? 'error' : 'success',
     });
-    expect(returned.retryAction).toBe('pull');
+    expect(returned.retryAction).toBe(
+      state === 'rejected' ? 'pull' : undefined,
+    );
     expect(
       networkMenuFeedback(store.state.value, {
         ...scope,
@@ -174,4 +176,35 @@ it('replaces a retained recovery error when a later terminal receipt arrives', a
     description: 'Pulled one commit',
     type: 'success',
   });
+});
+
+it('keeps Check outcome success authoritative when the original Pull later rejects', async () => {
+  const store = await pendingPull();
+  await Effect.runPromise(
+    store.accept({
+      ...receipt,
+      state: 'succeeded',
+      message: 'Pulled one commit',
+    }),
+  );
+  const originalRequestError = {
+    action: 'pull' as const,
+    notice: {
+      title: 'Pull outcome not confirmed',
+      description: 'Original request disconnected',
+      type: 'error' as const,
+    },
+    operation: store.state.value.operations.get(operationKey(scope, 'pull')),
+  };
+  const history = networkMenuFeedback(
+    store.state.value,
+    scope,
+    originalRequestError,
+  );
+  expect(history.result).toEqual({
+    title: 'Pull',
+    description: 'Pulled one commit',
+    type: 'success',
+  });
+  expect(history.retryAction).toBeUndefined();
 });

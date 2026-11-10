@@ -37,17 +37,21 @@ export function networkMenuFeedback(
   const running =
     selected && (!receipt || !isTerminal(receipt)) ? selected : undefined;
   const fallback =
-    notice?.notice.type === 'error' && notice.operation === selected?.operation
+    notice?.notice.type === 'error' &&
+    notice.operation?.requestId === selected?.operation.requestId
       ? notice
       : undefined;
+  const result =
+    selected && receipt && !running
+      ? networkNotice(selected.action, receipt)
+      : (fallback?.notice ?? null);
   return {
     selected,
     running,
-    result:
-      fallback?.notice ??
-      (selected && receipt && !running
-        ? networkNotice(selected.action, receipt)
-        : null),
-    retryAction: fallback?.action ?? selected?.action,
+    result,
+    retryAction:
+      result?.type === 'error'
+        ? (selected?.action ?? fallback?.action)
+        : undefined,
   };
 }
