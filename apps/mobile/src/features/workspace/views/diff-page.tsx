@@ -87,6 +87,10 @@ export function DiffPage<F extends DiffPageFile>({
     setPending(headingRow(index));
     list?.scrollToIndex({ index: headingRow(index), animated: false });
   };
+  const aim = (index: number) =>
+    requestAnimationFrame(() =>
+      list?.scrollToIndex({ index, animated: false }),
+    );
   const rows = diffPageRows(files.length);
   const filesAction: DocumentAction = {
     kind: 'choice',
@@ -138,9 +142,14 @@ export function DiffPage<F extends DiffPageFile>({
               {...(initial > 0
                 ? { initialScrollIndex: headingRow(initial) }
                 : {})}
-              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              {...(pending === undefined
+                ? { maintainVisibleContentPosition: { minIndexForVisible: 0 } }
+                : {})}
               onViewableItemsChanged={onViewable}
               onScrollBeginDrag={() => setPending(undefined)}
+              onContentSizeChange={() => {
+                if (pending !== undefined) aim(pending);
+              }}
               onScrollToIndexFailed={(info) =>
                 list?.scrollToOffset({
                   offset: info.averageItemLength * info.index,
@@ -161,8 +170,7 @@ export function DiffPage<F extends DiffPageFile>({
                     collapsable={false}
                     {...(index === pending
                       ? {
-                          onLayout: () =>
-                            list?.scrollToIndex({ index, animated: false }),
+                          onLayout: () => aim(index),
                         }
                       : {})}
                   >
