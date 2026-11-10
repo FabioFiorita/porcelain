@@ -55,8 +55,15 @@ test('opening a repository with a linked worktree from the empty workspace after
   await expect(
     dialog.getByRole('navigation', { name: 'Folder path', exact: true }),
   ).toBeVisible();
+  await dialog
+    .getByRole('navigation', { name: 'Folder path', exact: true })
+    .getByRole('button', { name: '/', exact: true })
+    .click();
   for (const name of main.path.split('/').filter(Boolean))
-    await dialog.getByRole('button', { name, exact: true }).click();
+    await dialog
+      .getByLabel('Folders', { exact: true })
+      .getByRole('button', { name, exact: true })
+      .click();
   await dialog
     .getByRole('button', {
       name: `Open ${main.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`,
