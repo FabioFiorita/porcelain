@@ -27,7 +27,7 @@ Files opens read-only source, document and image previews for the selected workt
 
 - Worktrees → worktree → Files → tree or search → file. Native Back/swipe returns.
 - On a tablet with at least 700 units of content width the file opens beside the tree in the Worktrees tab instead (see [Files](files.files.md) step 10); its title, folder and actions still sit in the native top bar. A file pushed while the screen was narrow returns to that layout when the screen widens, and a file shown beside the tree is pushed again (above its worktree) when the screen narrows below 700, keeping the reading line.
-- A file link (`porcelain.dev://file?path=…&workspace=…` for the selected worktree) pushes the file on phones and narrow tablets; on a wide tablet it opens in the Worktrees tab beside the tree and leaves nothing pushed in Reviews. A file opened from a review or walkthrough stays pushed in that tab.
+- A file link (`porcelain.dev://file?path=…&workspace=…` for the selected worktree) pushes the file on phones and narrow tablets; on a wide tablet it opens in the Worktrees tab beside the tree and leaves nothing pushed in Reviews. A file opened from another pushed screen (a review decision, a commit) stays pushed in its tab; only a file directly above a tab root or its worktree page moves to the split.
 
 ## Driving it with agent-device
 

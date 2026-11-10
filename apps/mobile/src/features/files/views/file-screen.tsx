@@ -99,6 +99,8 @@ export function FilePane({
   );
 }
 
+const returnsBeside = new Set(['index', 'worktrees', 'worktree']);
+
 function ReturnBeside({
   path,
   workspace,
@@ -118,8 +120,9 @@ function ReturnBeside({
       className="flex-1"
       collapsable={false}
       onLayout={onBesideLayout(() => {
-        const fromLink = navigation.getState()?.index === 1;
-        if (returning || !(worktrees || fromLink)) return;
+        const state = navigation.getState();
+        const below = state?.routes[state.index - 1]?.name;
+        if (returning || !below || !returnsBeside.has(below)) return;
         setReturning(true);
         openBeside(path);
         if (worktrees) router.dismissTo('/worktrees');
