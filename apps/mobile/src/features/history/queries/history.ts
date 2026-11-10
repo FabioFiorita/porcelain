@@ -8,12 +8,12 @@ import {
 } from '@porcelain/client/history';
 import { readCommitDiffs, readGitStatus } from '@porcelain/client/changes';
 import type { HistoryScope } from '@porcelain/client/history/rules';
-import type { RuntimeConnection } from '@porcelain/client/transport';
+import type { EnvironmentConnection } from '@porcelain/client/access';
 import { Option } from 'effect';
 import { AsyncResult, type Atom } from 'effect/reactivity';
 
 export type HistorySelection = {
-  connection: RuntimeConnection;
+  connection: EnvironmentConnection;
   scope: HistoryScope;
 };
 

@@ -15,6 +15,10 @@ import { isTerminal, operationKey } from '../store/operations.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
 import { readGitReceipt } from '../queries/read-receipt.ts';
 
+type ActionAttempt = Pick<RunGitActionRequest, 'input' | 'expected'> & {
+  onRecorded?: ((request: RunGitActionRequest) => void) | undefined;
+};
+
 type Selection = {
   readonly connection: GitConnection;
   readonly scope: WorktreeScope;
@@ -100,7 +104,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
   });
   return {
     execute: Effect.fn('GitActionController.execute')(function* (
-      input: Pick<RunGitActionRequest, 'input' | 'expected'>,
+      input: ActionAttempt,
     ) {
       return yield* connection.request(
         Effect.gen(function* () {
@@ -120,7 +124,8 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
                   new GitOperationStateError({ reason: 'mismatch' }),
                 );
               const request = {
-                ...input,
+                input: input.input,
+                expected: input.expected,
                 requestId: yield* random.uuidV4(),
               };
               yield* operations.set(key, {
@@ -128,6 +133,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
                 requestId: request.requestId,
                 request,
               });
+              input.onRecorded?.(request);
               return request;
             }),
           );
@@ -203,7 +209,7 @@ const controllerRuntime = Atom.family((selection: Selection) =>
 );
 export const runGitAction = Atom.family((selection: Selection) =>
   controllerRuntime(selection).fn(
-    (input: Pick<RunGitActionRequest, 'input' | 'expected'>) =>
+    (input: ActionAttempt) =>
       GitActionController.use((controller) => controller.execute(input)),
     { concurrent: true },
   ),
@@ -235,8 +241,9 @@ export function gitActionCommands(
     run: Effect.fn('GitActions.run')(function* (
       input: RunGitActionRequest['input'],
       expected: RunGitActionRequest['expected'],
+      onRecorded?: (request: RunGitActionRequest) => void,
     ) {
-      registry.set(execute, { input, expected });
+      registry.set(execute, { input, expected, onRecorded });
       return yield* AtomRegistry.getResult(registry, execute, {
         suspendOnWaiting: true,
       });
