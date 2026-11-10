@@ -56,12 +56,12 @@ it('reads a section from a route parameter', () => {
   expect(worktreeSectionNamed(undefined)).toBe('changes');
 });
 
-it('offers Walkthrough first only when the worktree has or can get one', () => {
+it('puts Walkthrough in the first slot, instead of Changes, only when the worktree has or can get one', () => {
   expect(
     worktreeSectionChoices({ walkthrough: true, pending: false }).map(
       (section) => section.label,
     ),
-  ).toEqual(['Walkthrough', 'Changes', 'Files', 'History']);
+  ).toEqual(['Walkthrough', 'Files', 'History']);
   expect(
     worktreeSectionChoices({ walkthrough: false, pending: false }).map(
       (section) => section.label,

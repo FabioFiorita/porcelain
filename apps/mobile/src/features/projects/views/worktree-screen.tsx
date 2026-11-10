@@ -238,7 +238,7 @@ function WorktreeSections({
           </Box>
         ) : null}
         {opening === undefined ? null : (
-          <Box className={beside ? 'w-96 max-w-full' : ''}>
+          <Box className={beside ? 'w-80 max-w-full' : ''}>
             <SegmentedControl
               options={worktreeSectionChoices(guide)}
               selected={section}

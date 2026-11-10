@@ -1,7 +1,6 @@
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAtom } from '@effect/atom-react';
 import {
   attentionLabel,
   failureCopy,
@@ -31,7 +30,7 @@ import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import type { ConversationOwner } from '../queries/conversations';
-import { walkthroughReadingOffset } from '../store';
+import { useWalkthroughOffset } from '../store';
 import {
   EarlierComments,
   PostSaved,
@@ -67,8 +66,7 @@ function Column({
   children: (jump: Jump, place: Place) => ReactNode;
   onReady?: ReactNode;
 }) {
-  const [offset, setOffset] = useAtom(walkthroughReadingOffset(workspace.key));
-  const [initial] = useState(offset);
+  const { initial, remember } = useWalkthroughOffset(workspace.key);
   const [scroll, setScroll] = useState<ComponentRef<typeof ScrollView> | null>(
     null,
   );
@@ -92,7 +90,7 @@ function Column({
         keyboardDismissMode="interactive"
         contentOffset={{ x: 0, y: initial }}
         scrollEventThrottle={100}
-        onScroll={(event) => setOffset(event.nativeEvent.contentOffset.y)}
+        onScroll={(event) => remember(event.nativeEvent.contentOffset.y)}
         contentContainerClassName={[
           'w-full max-w-3xl self-center gap-8 px-4 pt-5',
           bottom ? 'pb-28' : 'pb-10',
@@ -439,29 +437,29 @@ function Written({
                     items={stop.evidence}
                   />
                 ) : null}
-                {stopPaths(stop).length > 0 ? (
-                  <Button
-                    label="See the code"
-                    variant="plain"
-                    size="sm"
-                    align="start"
-                    accessibilityLabel={`See the code for step ${step}`}
-                    className="-ml-3.5 self-start"
-                    onPress={() =>
-                      router.push({
-                        pathname: '/walkthrough-step',
-                        params: {
-                          workspace: workspace.key,
-                          step: String(step),
-                        },
-                      })
-                    }
-                  />
-                ) : null}
                 <WalkthroughConversation
                   owner={owner}
                   title={stop.title}
                   placement="step"
+                  lead={
+                    stopPaths(stop).length > 0 ? (
+                      <Button
+                        label="See the code"
+                        variant="plain"
+                        size="sm"
+                        accessibilityLabel={`See the code for step ${step}`}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/walkthrough-step',
+                            params: {
+                              workspace: workspace.key,
+                              step: String(step),
+                            },
+                          })
+                        }
+                      />
+                    ) : null
+                  }
                 />
               </Box>
             );

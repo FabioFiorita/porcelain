@@ -50,13 +50,13 @@ api:
 
 # reviews.walkthrough-page
 
-A worktree with commits to explain opens on Walkthrough, the first segment of its Worktree page: the page a fresh agent wrote about the change, with the calls only the developer can make, how the system grew, one step per decision and what the code doesn't say. Under a call or a step the developer asks the Walkthrough agent and posts or copies the answer as a brief. Worktrees with nothing committed keep Changes, Files and History only. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
+A worktree with commits to explain opens on Walkthrough, which takes the first segment of its Worktree page in place of Changes (as the web's first tab does): the page a fresh agent wrote about the change, with the calls only the developer can make, how the system grew, one step per decision and what the code doesn't say. Under a call or a step the developer asks the Walkthrough agent and posts or copies the answer as a brief. Worktrees with nothing committed keep Changes first. On a walkthrough the top-bar Changes button pushes the plain [Changes list](projects.worktree-changes.md), with Uncommitted and Branch and the reviewed marks. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
 
 On tablets with at least 700 units of content width the steps sit beside the page: All changes with its count, By step with each step's file count and a Your call dot, then Not in the walkthrough yet.
 
 ## How to get to it (user POV)
 
-- Worktrees tab → a worktree on a branch with commits. The page opens on Walkthrough; the segment is offered only when the worktree has a walkthrough or commits to explain.
+- Worktrees tab → a worktree on a branch with commits. The page opens on Walkthrough; the segment replaces Changes only when the worktree has a walkthrough or commits to explain.
 - Each step's See the code opens [the step's code](reviews.walkthrough-step.md); a screenshot on a step opens [the screenshot](reviews.walkthrough-screenshot.md); See every changed file and See the change open [All changes](reviews.all-changes.md) on Branch. Native Back returns to the same place on the page.
 
 ## Driving it with agent-device
@@ -71,7 +71,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 1. Writing and reading
 
-1. Open the worktree. Expect segment Walkthrough selected first, heading "No walkthrough yet." and button "Write walkthrough". With no commits on the branch, Walkthrough is absent and the page opens on Changes or Files.
+1. Open the worktree. Expect segments Walkthrough, Files, History with Walkthrough selected, heading "No walkthrough yet." and button "Write walkthrough". The top-bar Changes button pushes the Changes list; Back returns. With no commits on the branch, the segments are Changes, Files, History.
 2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Reading the change" under the `written for <sha>` line.
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", the call card ("Product call", "Step 1", the question, "Decide, or ask about this"), "How the system grew" with "1 more", the steps, "What the code doesn't say" with "2 more" and "See every changed file". Step 1 → scrolls to the step; Your call → back to the calls.
 4. Worktrees list: the row now leads with the walkthrough title and shows the branch as small text beneath it.

@@ -29,9 +29,8 @@ export function worktreeSectionNamed(name: string | undefined) {
 export type WorktreeGuide = { walkthrough: boolean; pending: boolean };
 
 export function worktreeSectionChoices(guide: WorktreeGuide) {
-  return worktreeSections.filter(
-    (section) => guide.walkthrough || section.id !== 'walkthrough',
-  );
+  const replaced = guide.walkthrough ? 'changes' : 'walkthrough';
+  return worktreeSections.filter((section) => section.id !== replaced);
 }
 
 export function shownWorktreeSection({
@@ -47,5 +46,6 @@ export function shownWorktreeSection({
     worktreeSectionChoices(guide).map((section) => section.id),
   );
   if (chosen !== undefined && shown.has(chosen)) return chosen;
-  return shown.has(opening) ? opening : 'changes';
+  if (shown.has(opening)) return opening;
+  return guide.walkthrough ? 'walkthrough' : 'changes';
 }

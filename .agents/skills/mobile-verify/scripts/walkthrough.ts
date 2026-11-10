@@ -138,7 +138,7 @@ export async function walkthroughCommand(
     .git('remote', 'add', 'origin', 'https://github.com/example/sample.git')
     .catch(() => undefined);
   await session.git('branch', '-f', 'walkthrough-sample-base');
-  await session.git('switch', '-C', 'walkthrough-sample');
+  await session.git('checkout', '-B', 'walkthrough-sample');
   await session.writeFile('retry-owner.txt', 'The owner retries.\n');
   await session.writeFile('retry-notes.txt', 'Why the owner retries.\n');
   await session.git('add', 'retry-owner.txt', 'retry-notes.txt');

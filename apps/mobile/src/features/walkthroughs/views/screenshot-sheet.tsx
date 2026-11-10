@@ -69,7 +69,32 @@ function ScreenshotReader({
   if (!ready || !item) return unavailable;
   return (
     <Box className="flex-1" paddingX={4} paddingBottom={8} gap={3}>
-      <RichText text={item.shows} variant="secondary" />
+      <Box className="flex-row items-center" gap={2}>
+        <Box className="min-w-0 flex-1">
+          <RichText text={item.shows} variant="secondary" />
+        </Box>
+        {items.length > 1 ? (
+          <Box className="flex-row items-center" gap={1}>
+            <IconButton
+              icon="previous"
+              size="sm"
+              accessibilityLabel="Previous screenshot"
+              disabled={shown === 0}
+              onPress={() => setShown(shown - 1)}
+            />
+            <Text variant="caption" tone="muted">
+              {shown + 1} of {items.length}
+            </Text>
+            <IconButton
+              icon="chevron"
+              size="sm"
+              accessibilityLabel="Next screenshot"
+              disabled={shown === items.length - 1}
+              onPress={() => setShown(shown + 1)}
+            />
+          </Box>
+        ) : null}
+      </Box>
       <Box className="flex-1" surface="panel">
         <EvidenceImage
           key={item.assetId}
@@ -79,25 +104,6 @@ function ScreenshotReader({
           label={`Screenshot ${shown + 1}`}
         />
       </Box>
-      {items.length > 1 ? (
-        <Box className="flex-row items-center justify-center" gap={3}>
-          <IconButton
-            icon="previous"
-            accessibilityLabel="Previous screenshot"
-            disabled={shown === 0}
-            onPress={() => setShown(shown - 1)}
-          />
-          <Text variant="secondary" tone="muted">
-            {shown + 1} of {items.length}
-          </Text>
-          <IconButton
-            icon="chevron"
-            accessibilityLabel="Next screenshot"
-            disabled={shown === items.length - 1}
-            onPress={() => setShown(shown + 1)}
-          />
-        </Box>
-      ) : null}
     </Box>
   );
 }

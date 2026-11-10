@@ -45,6 +45,7 @@ function TabRoutes({ segment }: { segment: string }) {
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
       <Stack.Screen name="review-changes" options={{ title: 'All changes' }} />
       <Stack.Screen name="walkthrough-step" options={{ title: 'Step' }} />
+      <Stack.Screen name="worktree-changes" options={{ title: 'Changes' }} />
       <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}

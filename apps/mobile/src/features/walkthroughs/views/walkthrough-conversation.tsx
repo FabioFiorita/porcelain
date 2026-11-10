@@ -75,7 +75,10 @@ function PostActions({
   const state = postControls(message);
   const labels = postLabels(pullRequest);
   return (
-    <Box gap={1}>
+    <Box
+      className={message ? '' : 'flex-row flex-wrap items-center'}
+      gap={message ? 1 : 2}
+    >
       {message?.post.status === 'posted' ? (
         <LinkButton
           label={postedCommentLabel(message.post.url)}
@@ -244,7 +247,12 @@ export function WalkthroughConversation({
   owner,
   title,
   placement,
-}: Props & { title: string; placement: 'call' | 'step' }) {
+  lead,
+}: Props & {
+  title: string;
+  placement: 'call' | 'step';
+  lead?: ReactNode;
+}) {
   const call = placement === 'call';
   const { view, failed, refresh } = useConversations(owner);
   const [asking, setAsking] = useAtom(
@@ -255,7 +263,15 @@ export function WalkthroughConversation({
   return (
     <Box gap={3}>
       {call ? null : (
-        <LinkButton label="Ask about this" onPress={() => setAsking(!asking)} />
+        <Box className="-ml-3.5 flex-row flex-wrap items-center">
+          {lead}
+          <Button
+            label="Ask about this"
+            variant="plain"
+            size="sm"
+            onPress={() => setAsking(!asking)}
+          />
+        </Box>
       )}
       {failed ? (
         <Box className="flex-row flex-wrap items-center" gap={2}>
