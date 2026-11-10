@@ -1,9 +1,15 @@
-import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
+import {
+  useAtom,
+  useAtomRef,
+  useAtomSet,
+  useAtomValue,
+} from '@effect/atom-react';
 import { readCurrentGitStatus, readGitStatus } from '@porcelain/client/changes';
 import {
-  isTerminal,
-  operationKey,
+  networkMenuFeedback,
+  networkMenuNotice,
   readGitActionCommands,
+  recoverGitAction,
   recoverNetworkAction,
   runNetworkAction,
   type GitMenuControls,
@@ -11,7 +17,6 @@ import {
 import {
   networkActionBlocker,
   gitErrorMessage,
-  type GitNotice,
 } from '@porcelain/client/git-actions/rules';
 import { readReviewGitSettingsView } from '@porcelain/client/preferences';
 import {
@@ -20,7 +25,6 @@ import {
 } from '@porcelain/client/preferences/rules';
 import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useState } from 'react';
 import type { Workspace } from '../../projects';
 
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
@@ -35,21 +39,28 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const pullCommands = useAtomValue(
     readGitActionCommands({ ...selection, action: 'pull' }),
   );
+  const fetching = useAtomValue(
+    recoverGitAction({ ...selection, action: 'fetch' }),
+  );
+  const pulling = useAtomValue(
+    recoverGitAction({ ...selection, action: 'pull' }),
+  );
   const operations = useAtomRef(connection.operations.state);
-  const [progress, setProgress] = useState(false);
-  const [result, setResult] = useState<GitNotice | null>(null);
-  const [last, setLast] = useState<'fetch' | 'pull'>('fetch');
+  const [notice, setNotice] = useAtom(networkMenuNotice({ connection, scope }));
+  const feedback = networkMenuFeedback(operations, scope, notice);
+  const running = feedback.running;
   const runners = { fetch: fetchCommands, pull: pullCommands };
-  const running = (['fetch', 'pull'] as const)
-    .map((action) => ({
+  const remember = (
+    action: 'fetch' | 'pull',
+    notice: Parameters<GitMenuControls['onResult']>[0],
+  ) =>
+    setNotice({
       action,
-      operation: operations.operations.get(operationKey(scope, action)),
-    }))
-    .find(
-      ({ operation }) =>
-        operation && (!operation.receipt || !isTerminal(operation.receipt)),
-    );
-  const controls: GitMenuControls = {
+      notice,
+      operation: networkMenuFeedback(connection.operations.state.value, scope)
+        .selected?.operation,
+    });
+  const controlsFor = (action: 'fetch' | 'pull'): GitMenuControls => ({
     details: {
       result: status,
       read: () =>
@@ -68,16 +79,15 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
             reviewGitSettingsBlock(settings) ??
             'Reviews & Git settings for this computer are unavailable.',
         },
-    notify: setResult,
+    notify: (notice) => remember(action, notice),
     onProgress: (open) => {
-      if (open) setResult(null);
-      setProgress(open);
+      if (open) setNotice(null);
     },
-    onResult: setResult,
-  };
+    onResult: (notice) => remember(action, notice),
+  });
   const value = Option.getOrUndefined(AsyncResult.value(status));
   const blocker = (action: 'fetch' | 'pull') => {
-    if (running || progress) return 'A Git action is in progress.';
+    if (running) return 'A Git action is in progress.';
     if (AsyncResult.isFailure(status))
       return 'Read Git status again before continuing.';
     if (!value) return 'Reading Git status…';
@@ -86,30 +96,41 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
     return networkActionBlocker(
       action,
       value,
-      controls.pull.kind === 'blocked' ? controls.pull.reason : undefined,
+      strategy ? undefined : reviewGitSettingsBlock(settings),
     );
   };
   const run = (action: 'fetch' | 'pull') => {
     const commands = runners[action];
     if (blocker(action) || !AsyncResult.isSuccess(commands)) return;
-    setLast(action);
     Effect.runFork(
-      runNetworkAction(controls, commands.value, action, value?.branch),
+      runNetworkAction(
+        controlsFor(action),
+        commands.value,
+        action,
+        value?.branch,
+      ),
     );
   };
   return {
     blocker,
     run,
     running,
-    progress,
-    result,
-    retry: () => run(last),
+    checking: running?.action === 'pull' ? pulling.waiting : fetching.waiting,
+    result: feedback.result,
+    retry: () => {
+      const action = feedback.retryAction;
+      if (action) run(action);
+    },
     checkOutcome: () => {
       if (!running) return;
       const commands = runners[running.action];
       if (AsyncResult.isSuccess(commands))
         Effect.runFork(
-          recoverNetworkAction(controls, commands.value, running.action),
+          recoverNetworkAction(
+            controlsFor(running.action),
+            commands.value,
+            running.action,
+          ),
         );
     },
   };

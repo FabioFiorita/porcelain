@@ -38,11 +38,9 @@ export function GitMenu({
           })}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
-      {menu.running || menu.progress ? (
+      {menu.running ? (
         <Box gap={2}>
-          <Loading
-            label={`${networkLabel(menu.running?.action ?? 'fetch')}…`}
-          />
+          <Loading label={`${networkLabel(menu.running.action)}…`} />
           {menu.running?.operation?.receipt?.progress
             .slice(-4)
             .map((line, index) => (
@@ -50,11 +48,12 @@ export function GitMenu({
                 {line}
               </Text>
             ))}
-          {menu.running && !menu.progress ? (
+          {menu.running ? (
             <Button
               label="Check outcome"
               variant="tonal"
               onPress={menu.checkOutcome}
+              pending={menu.checking}
             />
           ) : null}
         </Box>
@@ -67,7 +66,7 @@ export function GitMenu({
           retry={{
             label: menu.running ? 'Check outcome' : 'Retry',
             onPress: menu.running ? menu.checkOutcome : menu.retry,
-            pending: menu.progress,
+            pending: Boolean(menu.running) && menu.checking,
           }}
         />
       ) : null}

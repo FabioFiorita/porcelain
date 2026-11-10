@@ -32,3 +32,7 @@ export {
   type GitMenuControls,
 } from './commands/git-menu.ts';
 export { lookAgainGitAction, refreshGitLook } from './commands/action-form.ts';
+export {
+  networkMenuFeedback,
+  networkMenuNotice,
+} from './queries/network-menu.ts';
