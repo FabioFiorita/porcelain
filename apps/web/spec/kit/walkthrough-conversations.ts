@@ -25,7 +25,8 @@ export async function walkthroughConversationsFixture(
     | 'short-copy'
     | 'changed-pr'
     | 'running-update'
-    | 'failed-update',
+    | 'failed-update'
+    | 'two-branches',
 ): Promise<string> {
   const server = world.server;
   const project = await serverReaders({
@@ -114,6 +115,17 @@ export async function walkthroughConversationsFixture(
     base,
     ...(hasPr ? { pullRequestNumber: 423 } : {}),
   });
+  if (action === 'two-branches') {
+    const branchA = (await session.git('branch', '--show-current')).trim();
+    await writer.comment(run.id, 'Retry boundary', 'Only branch A', 'saved');
+    await session.git('checkout', '-b', 'conversation-branch-b');
+    const b = await writer.write(
+      { ...content, title: 'Decisions on branch B' },
+      { base, pullRequestNumber: 424 },
+    );
+    await writer.comment(b.id, 'Retry boundary', 'Only branch B', 'saved');
+    await session.git('checkout', branchA);
+  }
   if (action === 'running-update' || action === 'failed-update') {
     await writer.reply('The original boundary still matters.');
     await writer.comment(

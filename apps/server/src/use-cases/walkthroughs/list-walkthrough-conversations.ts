@@ -1,6 +1,6 @@
-import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WalkthroughTargetNotFoundError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { WalkthroughConversationParams } from '@porcelain/contracts/walkthroughs';
 import { ListWalkthroughConversationsService } from '@porcelain/walkthroughs/services';
 import type { WalkthroughConversationsView } from '@porcelain/walkthroughs/models';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -9,10 +9,10 @@ export class ListWalkthroughConversationsUseCase extends Context.Service<
   ListWalkthroughConversationsUseCase,
   {
     readonly execute: (
-      input: WorktreeParams,
+      input: WalkthroughConversationParams,
     ) => Effect.Effect<
       WalkthroughConversationsView,
-      WorktreeAccessFailure | GitIoFailure
+      WorktreeAccessFailure | WalkthroughTargetNotFoundError
     >;
   }
 >()('@porcelain/server/ListWalkthroughConversationsUseCase') {

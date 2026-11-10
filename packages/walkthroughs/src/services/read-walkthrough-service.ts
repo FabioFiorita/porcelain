@@ -11,7 +11,6 @@ export class ReadWalkthroughService extends Context.Service<
       {
         walkthrough: WalkthroughRun | undefined;
         attempt: WalkthroughRun | undefined;
-        readyRuns: readonly WalkthroughRun[];
         outOfDate: boolean;
       },
       GitIoFailure,
@@ -38,7 +37,6 @@ export class ReadWalkthroughService extends Context.Service<
             latest?.state.status === 'ready' ? latest : (ready ?? latest);
           return {
             walkthrough,
-            readyRuns,
             outOfDate:
               walkthrough !== undefined && head.headOid !== walkthrough.headOid,
             attempt:

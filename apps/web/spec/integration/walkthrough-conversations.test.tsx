@@ -292,3 +292,33 @@ for (const { scenario, notice } of [
       .toBeVisible();
   });
 }
+
+test('switching branches shows the displayed walkthrough conversations and never the previous branch comments', async ({
+  render,
+  repo,
+}) => {
+  await conversationFixture('two-branches');
+  await browserPage.viewport(1280, 896);
+  const { page } = await render.route('/');
+  await expect
+    .element(page.getByText('Only branch A', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch B', { exact: true }))
+    .not.toBeInTheDocument();
+  await repo.switch('conversation-branch-b');
+  await expect
+    .element(page.getByRole('heading', { name: /^Decisions on branch B/ }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch B', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch A', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Post together on #424', exact: true }),
+    )
+    .toBeVisible();
+});

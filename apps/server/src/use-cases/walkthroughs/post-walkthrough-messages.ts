@@ -1,4 +1,6 @@
-import type { GitIoFailure } from '@porcelain/git/errors';
+import { ReadRepositoryOriginService } from '@porcelain/projects/services';
+import { githubRepository } from '@porcelain/reviews/rules';
+import type { WalkthroughTargetNotFoundError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
 import {
   ListWalkthroughConversationsService,
@@ -28,7 +30,7 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
     ) => Effect.Effect<
       { outcome: PostResult; view: WalkthroughConversationsView },
       | WorktreeAccessFailure
-      | GitIoFailure
+      | WalkthroughTargetNotFoundError
       | WalkthroughMessageNotFoundError
       | WalkthroughPostFailedError
       | WalkthroughRepositoryChangedError
@@ -43,6 +45,7 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
       const post = yield* PostWalkthroughMessagesService;
       const conversations = yield* ListWalkthroughConversationsService;
       const github = yield* ResolveProjectGitHubUseCasePort;
+      const origins = yield* ReadRepositoryOriginService;
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('PostWalkthroughMessagesUseCase.execute')(
@@ -79,13 +82,16 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
                 view,
               };
             const resolved = yield* github.execute({ projectId });
-            const result = yield* access.write(input.worktreeId, () =>
+            const result = yield* access.write(input.worktreeId, (worktree) =>
               Effect.gen(function* () {
+                const currentOrigin = yield* origins.execute({
+                  path: worktree.commonDirectory,
+                });
                 return {
                   outcome: yield* post.execute({
                     worktreeId: input.worktreeId,
-                    selection,
-                    repository: resolved.repository,
+                    plan,
+                    repository: githubRepository(currentOrigin.originUrl),
                     account: resolved.selection.choice?.account,
                   }),
                   view: yield* conversations.execute(input),

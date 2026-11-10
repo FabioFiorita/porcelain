@@ -1,3 +1,5 @@
+import { ReadRepositoryOriginService } from '@porcelain/projects/services';
+import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
 import { gitWalkthroughHeadReaderLayer } from '../adapters/walkthroughs/git-walkthrough-head-reader.ts';
 import { ReadWalkthroughWriterSettingsUseCase } from '../use-cases/walkthroughs/read-walkthrough-writer-settings.ts';
 import { SaveDefaultWalkthroughWriterUseCase } from '../use-cases/walkthroughs/save-default-walkthrough-writer.ts';
@@ -20,6 +22,7 @@ import {
   StartWalkthroughService,
   ResolveWalkthroughWriterService,
   ReadWalkthroughService,
+  ReadWalkthroughTargetService,
   ReadWalkthroughAssetService,
   ListWalkthroughConversationsService,
   AddWalkthroughMessageService,
@@ -85,6 +88,11 @@ export function composeWalkthroughs(
   );
   const ports = Layer.mergeAll(
     modelReader,
+    ReadRepositoryOriginService.layer.pipe(
+      Layer.provide(
+        gitProjectRepositoryReaderLayer(context.settings.limits.git),
+      ),
+    ),
     gitWalkthroughHeadReaderLayer.pipe(
       Layer.provide(
         Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
@@ -152,6 +160,7 @@ export function composeWalkthroughs(
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
   ).pipe(
     Layer.provideMerge(ReadWalkthroughService.layer),
+    Layer.provideMerge(ReadWalkthroughTargetService.layer),
     Layer.provideMerge(ports),
   );
   const engine = ClusterWorkflowEngine.layer.pipe(

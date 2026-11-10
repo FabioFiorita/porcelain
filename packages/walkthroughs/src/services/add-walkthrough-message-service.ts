@@ -1,6 +1,4 @@
-import { ReadWalkthroughService } from './read-walkthrough-service.ts';
-import type { GitIoFailure } from '@porcelain/git/errors';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { ReadWalkthroughTargetService } from './read-walkthrough-target-service.ts';
 import { Context, DateTime, Effect, Layer } from 'effect';
 import { IdSource } from '@porcelain/kernel/ports';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
@@ -16,27 +14,20 @@ export class AddWalkthroughMessageService extends Context.Service<
       anchor: ConversationAnchor;
       text: string;
       writer?: WalkthroughRun['writer'] | undefined;
-    }) => Effect.Effect<
-      string,
-      WalkthroughTargetNotFoundError | GitIoFailure,
-      WorktreeRead
-    >;
+    }) => Effect.Effect<string, WalkthroughTargetNotFoundError>;
   }
 >()('@porcelain/walkthroughs/AddWalkthroughMessageService') {
   static readonly layer = Layer.effect(
     AddWalkthroughMessageService,
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
-      const current = yield* ReadWalkthroughService;
+      const current = yield* ReadWalkthroughTargetService;
       const ids = yield* IdSource;
       return {
         execute: Effect.fn('AddWalkthroughMessageService.execute')(
           function* (input) {
-            const { readyRuns } = yield* current.execute(input);
-            const run = readyRuns.find(
-              (candidate) => candidate.id === input.runId,
-            );
-            if (run === undefined || run.state.status !== 'ready')
+            const { target: run } = yield* current.execute(input);
+            if (run.state.status !== 'ready')
               return yield* new WalkthroughTargetNotFoundError();
             const { anchor } = input;
             if (

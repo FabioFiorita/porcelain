@@ -76,6 +76,12 @@ export type PostPlan =
   | { readonly kind: 'already-posted'; readonly url: string }
   | {
       readonly kind: 'write';
+      readonly target: WalkthroughRun;
+      readonly selection: PostSelection;
+      readonly snapshots: readonly Pick<
+        StoredWalkthroughMessage,
+        'id' | 'runId' | 'stopTitle' | 'text' | 'post'
+      >[];
       readonly pullRequestNumber: number | undefined;
       readonly repository: WalkthroughRun['pullRequestRepository'];
       readonly messageIds: readonly string[];

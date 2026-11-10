@@ -214,11 +214,9 @@ function Messages({
 
 function Composer({
   owner,
-  runId,
   anchor,
   placeholder,
 }: Props & {
-  runId: string;
   anchor: Conversation['anchor'];
   placeholder: string;
 }) {
@@ -227,7 +225,7 @@ function Composer({
   const send = () => {
     const text = draft.trim();
     if (!text || waiting) return;
-    submit({ runId, anchor, text }, () =>
+    submit({ anchor, text }, () =>
       setDraft((current) => (current === draft ? '' : current)),
     );
   };
@@ -285,9 +283,8 @@ function Composer({
 export function WalkthroughConversation({
   owner,
   title,
-  runId,
   call,
-}: Props & { title: string; runId: string; call: boolean }) {
+}: Props & { title: string; call: boolean }) {
   const { view, failed, refresh } = useConversations(owner);
   const [asking, setAsking] = useState(false);
   const conversations = view
@@ -333,7 +330,6 @@ export function WalkthroughConversation({
           )}
           <Composer
             owner={owner}
-            runId={runId}
             anchor={{ kind: 'stop', title }}
             placeholder={
               call ? 'Decide, or ask about this' : 'Ask about this step'

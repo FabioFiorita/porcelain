@@ -321,14 +321,14 @@ function Written({
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
 }) {
+  const owner = { ...props, runId: run.id };
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
       <WalkthroughConversation
         key={title}
-        owner={props}
+        owner={owner}
         title={title}
-        runId={run.id}
         call={kind === 'call'}
       />
     );
@@ -382,8 +382,8 @@ function Written({
             </Button>
           </div>
         </header>
-        <EarlierComments owner={props} titles={[]} />
-        <PostSaved owner={props} />
+        <EarlierComments owner={owner} titles={[]} />
+        <PostSaved owner={owner} />
       </Column>
     );
   return (
@@ -412,7 +412,7 @@ function Written({
       </ol>
       <NotSaid content={content} />
       <EarlierComments
-        owner={props}
+        owner={owner}
         titles={content.stops.map((stop) => stop.title)}
       />
       <footer className="border-t pt-5">
@@ -422,7 +422,7 @@ function Written({
           </Button>
         </div>
       </footer>
-      <PostSaved owner={props} />
+      <PostSaved owner={owner} />
     </Column>
   );
 }
@@ -558,6 +558,7 @@ export function WalkthroughDocument(props: DocumentProps) {
             : undefined;
         return (
           <Written
+            key={phase.run.id}
             run={phase.run}
             content={phase.content}
             outOfDate={phase.outOfDate}

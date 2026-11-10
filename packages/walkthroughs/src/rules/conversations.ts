@@ -145,8 +145,17 @@ export function sameRepository(left: Repository, right: Repository): boolean {
   );
 }
 
+export const messagePostSnapshot = (message: StoredWalkthroughMessage) => ({
+  id: message.id,
+  runId: message.runId,
+  stopTitle: message.stopTitle,
+  text: message.text,
+  post: message.post,
+});
+
 export function planPost(input: {
   readonly selection: PostSelection;
+  readonly target: WalkthroughRun;
   readonly readyRuns: readonly WalkthroughRun[];
   readonly messages: readonly StoredWalkthroughMessage[];
 }): PostPlan {
@@ -163,13 +172,16 @@ export function planPost(input: {
   if (first.post.status === 'posted')
     return { kind: 'already-posted', url: first.post.url };
   const runs = new Map(input.readyRuns.map((run) => [run.id, run]));
-  const repository = input.readyRuns.at(-1)?.pullRequestRepository;
+  const repository = input.target.pullRequestRepository;
   const eligible = selected.filter((message) =>
     sameRepository(runs.get(message.runId)?.pullRequestRepository, repository),
   );
   return {
     kind: 'write',
-    pullRequestNumber: input.readyRuns.at(-1)?.pullRequestNumber,
+    target: input.target,
+    selection: input.selection,
+    snapshots: selected.map(messagePostSnapshot),
+    pullRequestNumber: input.target.pullRequestNumber,
     repository,
     messageIds: eligible.map((message) => message.id),
     notPosted: selected

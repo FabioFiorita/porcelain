@@ -23,14 +23,14 @@ import { list, record, text } from '../kit/session.ts';
 const WALKTHROUGH_ROUTES = [
   'GET /api/worktrees/:worktreeId/walkthrough',
   'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
-  'GET /api/worktrees/:worktreeId/walkthrough/conversations',
-  'GET /api/worktrees/:worktreeId/walkthrough/conversations/brief',
+  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations',
+  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
   'POST /api/worktrees/:worktreeId/walkthrough',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/post',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/retry',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/post-saved',
-  'PUT /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/saved',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
+  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
 ].toSorted();
 
 test('reads the latest attempt and reports when its pinned head is out of date', async ({
@@ -273,7 +273,9 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   await session.git('add', 'conversation-base.txt');
   await session.git('commit', '-m', 'Prepare conversation fixture');
   const headA = (await session.git('rev-parse', 'HEAD')).trim();
-  const worktreeRoot = `/api/worktrees/${session.worktreeId}/walkthrough/conversations`;
+  let displayedRunId = '';
+  const worktreeRoot = (runId = displayedRunId) =>
+    `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/conversations`;
   const stop = (title: string, path: string) => ({
     title,
     explanation: 'Why it changed.',
@@ -357,9 +359,10 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
       undefined,
     ),
   );
+  displayedRunId = firstRunId;
   const conversations = async () =>
     Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
-      await read(session, { method: 'GET', path: worktreeRoot }),
+      await read(session, { method: 'GET', path: worktreeRoot() }),
     );
   const agentState = async (id: string) => {
     const view = await conversations();
@@ -385,9 +388,8 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     )(
       await read(session, {
         method: 'POST',
-        path: `${worktreeRoot}/messages`,
+        path: `${worktreeRoot(runId)}/messages`,
         body: {
-          runId,
           writer,
           anchor:
             title === undefined
@@ -418,7 +420,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   expect(await conversations()).toEqual(view);
   const missing = await session.send({
     method: 'PUT',
-    path: `${worktreeRoot}/messages/nope/saved`,
+    path: `${worktreeRoot()}/messages/nope/saved`,
     body: { saved: true },
   });
   expect(missing.status).toBe(404);
@@ -427,9 +429,8 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   );
   const unknownStop = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages`,
+    path: `${worktreeRoot(firstRunId)}/messages`,
     body: {
-      runId: firstRunId,
       anchor: { kind: 'stop', title: 'No such step' },
       text: 'Why?',
     },
@@ -437,19 +438,19 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   expect(unknownStop.status).toBe(404);
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${kept}/saved`,
+    path: `${worktreeRoot()}/messages/${kept}/saved`,
     body: { saved: true },
   });
   const brief = await read(session, {
     method: 'GET',
-    path: `${worktreeRoot}/brief?messageId=${kept}`,
+    path: `${worktreeRoot()}/brief?messageId=${kept}`,
   });
   expect(brief.text).toBe(
     "From the walkthrough of this change:\n\n> Why here?\n\n**Step:** Kept step (`src/kept.ts`)\n**Agent's answer:** It keeps the retry local.\n",
   );
   const noPull = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
   expect(noPull.outcome).toEqual({ status: 'brief', text: brief.text });
   await writeFile(agentFails, '');
@@ -460,7 +461,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   await rm(agentFails);
   await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${removed}/retry`,
+    path: `${worktreeRoot()}/messages/${removed}/retry`,
   });
   await expect
     .poll(() => agentState(removed), { timeout: 10000 })
@@ -472,6 +473,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   secondRunId = await seed(
     runJob(secondRunId, headB, [stop('Kept step', 'src/kept.ts')], 423),
   );
+  displayedRunId = secondRunId;
   const refreshed = await conversations();
   expect(refreshed.runId).toBe(secondRunId);
   expect(refreshed.pullRequestNumber).toBe(423);
@@ -491,12 +493,12 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   );
   const missingRepository = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${legacyMessage}/post`,
+    path: `${worktreeRoot()}/messages/${legacyMessage}/post`,
   });
   expect(missingRepository.status).toBe(409);
   const unbound = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${removed}/post`,
+    path: `${worktreeRoot()}/messages/${removed}/post`,
   });
   expect(unbound.status).toBe(200);
   expect(record(unbound.body).outcome).toEqual({
@@ -525,25 +527,25 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   expect(answerArgs).not.toContain('--resume');
   const first = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${onPull}/post`,
+    path: `${worktreeRoot()}/messages/${onPull}/post`,
   });
   const url =
     'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1';
   expect(first.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const second = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${onPull}/post`,
+    path: `${worktreeRoot()}/messages/${onPull}/post`,
   });
   expect(second.outcome).toEqual(first.outcome);
   const savedOnPull = await add(undefined, 'Saved on the pull', secondRunId);
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${savedOnPull}/saved`,
+    path: `${worktreeRoot()}/messages/${savedOnPull}/saved`,
     body: { saved: true },
   });
   const saved = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
   expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const calls = (await readFile(ghCalls, 'utf8'))
@@ -559,7 +561,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   );
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${branchA}/saved`,
+    path: `${worktreeRoot()}/messages/${branchA}/saved`,
     body: { saved: true },
   });
   await session.git('switch', '-c', 'conversation-branch-b');
@@ -572,6 +574,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
       'conversation-branch-b',
     ),
   );
+  displayedRunId = branchBRunId;
   const branchB = await add(
     undefined,
     'Only branch B should see this.',
@@ -579,10 +582,11 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   );
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${branchB}/saved`,
+    path: `${worktreeRoot()}/messages/${branchB}/saved`,
     body: { saved: true },
   });
   await session.git('switch', currentBranch);
+  displayedRunId = secondRunId;
   const branchRead = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, {
       method: 'GET',
@@ -594,50 +598,93 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   expect(onA.runId).toBe(secondRunId);
   expect(onA.pullRequestNumber).toBe(423);
   expect(JSON.stringify(onA)).not.toContain('Only branch B');
-  const wrongRun = await session.send({
-    method: 'POST',
-    path: `${worktreeRoot}/messages`,
-    body: {
-      runId: branchBRunId,
-      anchor: { kind: 'walkthrough' },
-      text: 'Wrong branch target',
-    },
+  const pinnedB = await read(session, {
+    method: 'GET',
+    path: worktreeRoot(branchBRunId),
   });
-  expect(wrongRun.status).toBe(404);
+  expect(pinnedB.runId).toBe(branchBRunId);
+  const foreign = runJob('foreign-run', headB, [], 999);
+  seedStoredWalkthroughs(
+    join(session.projectHome, session.fixture.folders.state),
+    {
+      jobs: [
+        { ...foreign, run: { ...foreign.run, worktreeId: 'f'.repeat(32) } },
+      ],
+    },
+  );
+  for (const request of [
+    { method: 'GET', path: worktreeRoot('foreign-run') },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages`,
+      body: { anchor: { kind: 'walkthrough' }, text: 'Foreign target' },
+    },
+    {
+      method: 'PUT',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/saved`,
+      body: { saved: true },
+    },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/retry`,
+    },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/post`,
+    },
+    { method: 'POST', path: `${worktreeRoot('foreign-run')}/post-saved` },
+    { method: 'GET', path: `${worktreeRoot('foreign-run')}/brief` },
+  ] as const) {
+    const refused = await session.send(request);
+    expect(refused.status).toBe(404);
+  }
   const branchBrief = await read(session, {
     method: 'GET',
-    path: `${worktreeRoot}/brief`,
+    path: `${worktreeRoot()}/brief`,
   });
   expect(branchBrief.text).toContain('Only branch A');
   expect(branchBrief.text).not.toContain('Only branch B');
   const wrongBrief = await session.send({
     method: 'GET',
-    path: `${worktreeRoot}/brief?messageId=${branchB}`,
+    path: `${worktreeRoot()}/brief?messageId=${branchB}`,
   });
   expect(wrongBrief.status).toBe(404);
   const wrongPost = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${branchB}/post`,
+    path: `${worktreeRoot()}/messages/${branchB}/post`,
   });
   expect(wrongPost.status).toBe(404);
+  for (const request of [
+    {
+      method: 'PUT',
+      path: `${worktreeRoot()}/messages/${branchB}/saved`,
+      body: { saved: false },
+    },
+    { method: 'POST', path: `${worktreeRoot()}/messages/${branchB}/retry` },
+  ] as const) {
+    const refused = await session.send(request);
+    expect(refused.status).toBe(404);
+  }
   const postedA = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
   expect(record(postedA.outcome).url).toBe(
     'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
   );
   expect(record(postedA.view).runId).toBe(secondRunId);
   await session.git('switch', 'conversation-branch-b');
+  displayedRunId = branchBRunId;
   const postedB = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
   expect(record(postedB.outcome).url).toBe(
     'https://github.com/FabioFiorita/porcelain/pull/424#issuecomment-1',
   );
   expect(record(postedB.view).runId).toBe(branchBRunId);
   await session.git('switch', currentBranch);
+  displayedRunId = secondRunId;
   const unposted = await add(undefined, 'A private decision', secondRunId);
   await expect
     .poll(() => agentState(unposted), { timeout: 10000 })
@@ -650,7 +697,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   );
   const refused = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${unposted}/post`,
+    path: `${worktreeRoot()}/messages/${unposted}/post`,
   });
   expect(refused.status).toBe(409);
   expect(refused.body).toEqual(
@@ -665,7 +712,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   ).toHaveLength(5);
   const offered = await read(session, {
     method: 'GET',
-    path: `${worktreeRoot}/brief?messageId=${unposted}`,
+    path: `${worktreeRoot()}/brief?messageId=${unposted}`,
   });
   expect(offered.text).toContain('A private decision');
   await session.git('branch', 'conversation-start-base');

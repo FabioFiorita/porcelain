@@ -163,7 +163,6 @@ else if (endpoint) {
 `,
     { mode: 0o755 },
   );
-  const root = `/api/worktrees/${session.worktreeId}/walkthrough/conversations`;
   return {
     reply: (answer: string) => writeFile(answerPath, JSON.stringify(answer)),
     comment: async (
@@ -172,6 +171,7 @@ else if (endpoint) {
       message: string,
       post: 'saved' | 'posted',
     ) => {
+      const root = `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/conversations`;
       const live = await session.live();
       try {
         await live.follow({
@@ -191,7 +191,7 @@ else if (endpoint) {
           await read(session, {
             method: 'POST',
             path: `${root}/messages`,
-            body: { runId, anchor: { kind: 'stop', title }, text: message },
+            body: { anchor: { kind: 'stop', title }, text: message },
           }),
         );
         const developer = added.conversations

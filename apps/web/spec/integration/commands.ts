@@ -25,7 +25,8 @@ declare module 'vitest/browser' {
         | 'short-copy'
         | 'changed-pr'
         | 'running-update'
-        | 'failed-update',
+        | 'failed-update'
+        | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
     porcelainReplaceEditorContent: (

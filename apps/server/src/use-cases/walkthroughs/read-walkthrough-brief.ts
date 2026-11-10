@@ -1,4 +1,4 @@
-import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WalkthroughTargetNotFoundError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
 import type { WalkthroughPostInput } from '@porcelain/contracts/walkthroughs';
 import { PlanWalkthroughPostService } from '@porcelain/walkthroughs/services';
@@ -12,7 +12,9 @@ export class ReadWalkthroughBriefUseCase extends Context.Service<
       input: WalkthroughPostInput,
     ) => Effect.Effect<
       string | undefined,
-      WorktreeAccessFailure | GitIoFailure | WalkthroughMessageNotFoundError
+      | WorktreeAccessFailure
+      | WalkthroughTargetNotFoundError
+      | WalkthroughMessageNotFoundError
     >;
   }
 >()('@porcelain/server/ReadWalkthroughBriefUseCase') {
@@ -27,6 +29,7 @@ export class ReadWalkthroughBriefUseCase extends Context.Service<
             plans
               .execute({
                 worktreeId: input.worktreeId,
+                runId: input.runId,
                 selection:
                   input.messageId === undefined
                     ? { kind: 'saved' }

@@ -86,3 +86,5 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations.test.tsx`, using its isolated fake CLI and fake GitHub against the real server. Its ready walkthrough is a synthetic fixture, with no external project content. Sweep at desktop and 414 × 896, light and dark.
 
 13. After a later walkthrough has outcome `nothing`, retained threads still appear under "Earlier comments" with Undo, copy/post controls and the saved bar. A posted link always labels its original comment destination, even when the current walkthrough names another PR; an unrecognized URL reads "Posted comment".
+
+14. With two ready walkthroughs on different branches in one checkout, read A’s comment and switch to B. B’s heading, comments and saved bar must name B; A’s comments disappear. Every conversation request includes the displayed ready run ID, so a pending A post remains targeted to A even if the branch switches.

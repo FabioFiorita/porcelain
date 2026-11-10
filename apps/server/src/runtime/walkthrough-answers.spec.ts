@@ -12,11 +12,10 @@ import {
   EvidenceReader,
   TranscriptReader,
   WalkthroughStore,
-  WalkthroughHeadReader,
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
-  ReadWalkthroughService,
+  ReadWalkthroughTargetService,
   ResolveWalkthroughWriterService,
   AnswerWalkthroughMessageService,
   BeginWalkthroughService,
@@ -109,14 +108,10 @@ async function fixture(
       RetryWalkthroughAnswerService.layer,
       ListWalkthroughConversationsService.layer,
     ).pipe(
-      Layer.provideMerge(ReadWalkthroughService.layer),
+      Layer.provideMerge(ReadWalkthroughTargetService.layer),
       Layer.provideMerge(
         Layer.mergeAll(
           database,
-          Layer.succeed(WalkthroughHeadReader, {
-            read: () =>
-              Effect.succeed({ branch: undefined, headOid: 'b'.repeat(40) }),
-          }),
           cliWalkthroughWriterLayer({ processGroup, command }).pipe(
             Layer.provide(
               Layer.succeed(WalkthroughModelReader, {
@@ -220,7 +215,7 @@ async function fixture(
         const service = yield* ListWalkthroughConversationsService;
         const view = yield* withReadLease(
           'worktree',
-          service.execute({ worktreeId: 'worktree' }),
+          service.execute({ worktreeId: 'worktree', runId: 'run' }),
         );
         return view.conversations.flatMap(
           (conversation) => conversation.messages,
@@ -267,6 +262,7 @@ async function fixture(
           const service = yield* RetryWalkthroughAnswerService;
           return yield* service.execute({
             worktreeId: 'worktree',
+            runId: 'run',
             messageId: id,
           });
         }),

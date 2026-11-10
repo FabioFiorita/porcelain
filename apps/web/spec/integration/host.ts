@@ -201,7 +201,8 @@ const porcelainWalkthroughConversations: BrowserCommand<
     | 'short-copy'
     | 'changed-pr'
     | 'running-update'
-    | 'failed-update',
+    | 'failed-update'
+    | 'two-branches',
   ],
   string
 > = (context, action) =>
