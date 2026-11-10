@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { DeviceType, deviceType } from 'expo-device';
 import { View, type LayoutChangeEvent } from 'react-native';
-import { useNavigation, useRoute } from 'expo-router';
+import { useFocusEffect, useNavigation, useRoute } from 'expo-router';
 import {
   listDetailMode,
+  layoutMove,
   listDetailModeChange,
   movesWithLayout,
+  type LayoutMove,
   type ListDetailMode,
 } from '../../shared/rules/list-detail';
 
@@ -15,6 +17,7 @@ const tablet = deviceType === DeviceType.TABLET;
 
 export type ListDetailLayout = {
   mode: ListDetailMode;
+  measured: ListDetailMode | undefined;
   onLayout: (event: LayoutChangeEvent) => void;
 };
 
@@ -24,6 +27,8 @@ export function useListDetailLayout(
   const [width, setWidth] = useState<number>();
   return {
     mode: listDetailMode({ tablet, width }),
+    measured:
+      width === undefined ? undefined : listDetailMode({ tablet, width }),
     onLayout: ({ nativeEvent }) => {
       const next = nativeEvent.layout.width;
       const change = listDetailModeChange({ tablet, from: width, to: next });
@@ -33,36 +38,42 @@ export function useListDetailLayout(
   };
 }
 
-export function useMovesWithLayout(): () => boolean {
+export function useLayoutMove({
+  place,
+  mode,
+  collapsing = false,
+  file,
+  onMove,
+}: {
+  place: 'root' | 'pushed';
+  mode: ListDetailMode | undefined;
+  collapsing?: boolean;
+  file?: string | undefined;
+  onMove: (move: Exclude<LayoutMove, { kind: 'none' }>) => void;
+}) {
   const navigation = useNavigation();
   const route = useRoute();
-  return () => {
+  const [returned, setReturned] = useState(false);
+  useFocusEffect(() => {
     const state = navigation.getState();
-    if (!state) return false;
-    return movesWithLayout({
-      routes: state.routes.map((entry) => entry.name),
-      index: state.index,
-      own: state.routes.findIndex((entry) => entry.key === route.key),
+    const move = layoutMove({
+      place,
+      mode,
+      focused: navigation.isFocused(),
+      onTop: state
+        ? movesWithLayout({
+            routes: state.routes.map((entry) => entry.name),
+            index: state.index,
+            own: state.routes.findIndex((entry) => entry.key === route.key),
+          })
+        : false,
+      collapsing,
+      file,
     });
-  };
-}
-
-export function useReturnBeside(
-  returnBeside: () => void,
-): (event: LayoutChangeEvent) => void {
-  const movesWithLayout = useMovesWithLayout();
-  const [returning, setReturning] = useState(false);
-  return ({ nativeEvent }) => {
-    if (
-      returning ||
-      listDetailMode({ tablet, width: nativeEvent.layout.width }) !==
-        'beside' ||
-      !movesWithLayout()
-    )
-      return;
-    setReturning(true);
-    returnBeside();
-  };
+    if (move.kind === 'none' || returned) return;
+    if (move.kind === 'return') setReturned(true);
+    onMove(move);
+  });
 }
 
 export function ListDetail({

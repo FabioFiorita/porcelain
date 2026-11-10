@@ -38,7 +38,10 @@ import {
 } from '../../../components/ui/html-preview';
 import { ImageView } from '../../../components/ui/image-view';
 import { Text } from '../../../components/ui/text';
-import { useReturnBeside } from '../../../components/ui/list-detail';
+import {
+  useLayoutMove,
+  useListDetailLayout,
+} from '../../../components/ui/list-detail';
 import { useOpenFileBeside } from '../commands/open-file';
 
 type ContentProps = {
@@ -106,16 +109,21 @@ function ReturnBeside({
   const router = useRouter();
   const worktrees = useSegments().some((segment) => segment === '(worktrees)');
   const openBeside = useOpenFileBeside(workspace);
-  const onLayout = useReturnBeside(() => {
-    openBeside(path);
-    if (worktrees) router.dismissTo('/worktrees');
-    else {
-      router.back();
-      router.navigate('/worktrees');
-    }
+  const layout = useListDetailLayout();
+  useLayoutMove({
+    place: 'pushed',
+    mode: layout.measured,
+    onMove: () => {
+      openBeside(path);
+      if (worktrees) router.dismissTo('/worktrees');
+      else {
+        router.back();
+        router.navigate('/worktrees');
+      }
+    },
   });
   return (
-    <View className="flex-1" collapsable={false} onLayout={onLayout}>
+    <View className="flex-1" collapsable={false} onLayout={layout.onLayout}>
       {children}
     </View>
   );

@@ -42,3 +42,31 @@ export function movesWithLayout({
   if (own !== index) return false;
   return own === 0 || layoutRoots.has(routes[own - 1] ?? '');
 }
+
+export type LayoutMove =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'push'; readonly file: string | undefined }
+  | { readonly kind: 'return' };
+
+export function layoutMove({
+  place,
+  mode,
+  focused,
+  onTop,
+  collapsing,
+  file,
+}: {
+  place: 'root' | 'pushed';
+  mode: ListDetailMode | undefined;
+  focused: boolean;
+  onTop: boolean;
+  collapsing: boolean;
+  file: string | undefined;
+}): LayoutMove {
+  if (!focused || !onTop || mode === undefined) return { kind: 'none' };
+  if (place === 'pushed')
+    return mode === 'beside' ? { kind: 'return' } : { kind: 'none' };
+  return mode === 'stack' && collapsing
+    ? { kind: 'push', file }
+    : { kind: 'none' };
+}

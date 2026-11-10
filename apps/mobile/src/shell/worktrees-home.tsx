@@ -1,11 +1,12 @@
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Stack, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { WorktreeSectionView } from './worktree-section-view';
 import { Empty } from '../components/ui/empty';
 import {
   ListDetail,
+  useLayoutMove,
   useListDetailLayout,
-  useMovesWithLayout,
 } from '../components/ui/list-detail';
 import { SettingsToolbar } from '../features/access';
 import { useOpenedFile } from '../features/files';
@@ -26,15 +27,23 @@ export function WorktreesHome() {
   const openedFile = useOpenedFile(workspace);
   const [hidden, setHidden] = useAtom(worktreeListHidden);
   const router = useRouter();
-  const movesWithLayout = useMovesWithLayout();
-  const layout = useListDetailLayout((mode) => {
-    if (mode !== 'stack' || !selected || !movesWithLayout()) return;
-    router.push({ pathname: '/worktree', params: selected });
-    if (workspace && section === 'files' && openedFile)
-      router.push({
-        pathname: '/file',
-        params: { path: openedFile, workspace },
-      });
+  const [collapsing, setCollapsing] = useState(false);
+  const layout = useListDetailLayout((mode) => setCollapsing(mode === 'stack'));
+  useLayoutMove({
+    place: 'root',
+    mode: layout.measured,
+    collapsing,
+    file: section === 'files' ? openedFile : undefined,
+    onMove: (move) => {
+      setCollapsing(false);
+      if (!selected || move.kind !== 'push') return;
+      router.push({ pathname: '/worktree', params: selected });
+      if (workspace && move.file)
+        router.push({
+          pathname: '/file',
+          params: { path: move.file, workspace },
+        });
+    },
   });
   const beside = layout.mode === 'beside' && selected !== undefined;
   return (

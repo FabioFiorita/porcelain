@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   listDetailMode,
+  layoutMove,
   listDetailModeChange,
   movesWithLayout,
 } from './list-detail';
@@ -143,3 +144,68 @@ it.each([
 ] as const)('$why', ({ routes, index, own, moves }) => {
   expect(movesWithLayout({ routes, index, own })).toBe(moves);
 });
+
+const collapsedRoot = {
+  place: 'root',
+  mode: 'stack',
+  focused: true,
+  onTop: true,
+  collapsing: true,
+  file: 'src/lib/long-reader.ts',
+} as const;
+
+it('a narrowed root in front pushes its worktree with the open file', () => {
+  expect(layoutMove(collapsedRoot)).toEqual({
+    kind: 'push',
+    file: 'src/lib/long-reader.ts',
+  });
+});
+
+it('a Worktrees root in a background tab does not navigate', () => {
+  expect(layoutMove({ ...collapsedRoot, focused: false })).toEqual({
+    kind: 'none',
+  });
+});
+
+it('a Worktrees root under the Settings sheet does not navigate', () => {
+  expect(layoutMove({ ...collapsedRoot, focused: false })).toEqual({
+    kind: 'none',
+  });
+});
+
+it('a collapse skipped under a pushed screen is applied on return, keeping the file', () => {
+  const underTimeline = layoutMove({ ...collapsedRoot, onTop: false });
+  const afterBack = layoutMove(collapsedRoot);
+  expect([underTimeline, afterBack]).toEqual([
+    { kind: 'none' },
+    { kind: 'push', file: 'src/lib/long-reader.ts' },
+  ]);
+});
+
+it('a narrow root with nothing collapsing stays on its list after Back', () => {
+  expect(layoutMove({ ...collapsedRoot, collapsing: false })).toEqual({
+    kind: 'none',
+  });
+});
+
+it.each([
+  { mode: 'beside', focused: true, onTop: true, kind: 'return' },
+  { mode: 'beside', focused: false, onTop: true, kind: 'none' },
+  { mode: 'beside', focused: true, onTop: false, kind: 'none' },
+  { mode: 'stack', focused: true, onTop: true, kind: 'none' },
+  { mode: undefined, focused: true, onTop: true, kind: 'none' },
+] as const)(
+  'a pushed screen measured $mode, focused $focused, on top $onTop: $kind',
+  ({ mode, focused, onTop, kind }) => {
+    expect(
+      layoutMove({
+        place: 'pushed',
+        mode,
+        focused,
+        onTop,
+        collapsing: false,
+        file: undefined,
+      }).kind,
+    ).toBe(kind);
+  },
+);
