@@ -11,6 +11,20 @@ export function useAppKeyCommands() {
   const navigation = useNavigationContainerRef();
   const root = useRootNavigationState();
   const exits = navigationExits(root);
+  const closeCommand = (target: string | undefined) =>
+    target === undefined
+      ? []
+      : [
+          {
+            binding: 'close' as const,
+            run: () =>
+              navigation.dispatch({
+                type: 'POP',
+                payload: { count: 1 },
+                target,
+              }),
+          },
+        ];
   useKeyCommands('app', [
     { binding: 'settings', run: () => router.navigate('/settings') },
     { binding: 'shortcuts', run: () => router.navigate('/keyboard-shortcuts') },
@@ -20,18 +34,6 @@ export function useAppKeyCommands() {
           { binding: 'backEscape' as const, run: () => router.back() },
         ]
       : []),
-    ...(exits.close
-      ? [
-          {
-            binding: 'close' as const,
-            run: () =>
-              navigation.dispatch({
-                type: 'POP',
-                payload: { count: 1 },
-                target: exits.close,
-              }),
-          },
-        ]
-      : []),
+    ...closeCommand(exits.close),
   ]);
 }
