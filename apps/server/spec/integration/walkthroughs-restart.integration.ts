@@ -1,9 +1,16 @@
 import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
-import { watch } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
-import { Effect, DateTime, Layer, ManagedRuntime, Scope, Schema } from 'effect';
+import {
+  Effect,
+  DateTime,
+  Layer,
+  ManagedRuntime,
+  Scope,
+  Schema,
+  ConfigProvider,
+} from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { storageLayer } from '@porcelain/storage';
 import { SqlClient } from 'effect/sql';
@@ -24,7 +31,7 @@ import { record, list, text } from '../kit/session.ts';
 
 async function automaticFixture(
   onTestFinished: (cleanup: () => Promise<void>) => void,
-  holdWriter = false,
+  writer: 'hold' | 'fail' | 'missing' = 'fail',
 ) {
   const root = await mkdtemp(
     join(scratchFolder(), 'porcelain-walkthrough-restart-'),
@@ -33,6 +40,10 @@ async function automaticFixture(
   const state = join(root, 'state');
   const bin = join(root, 'bin');
   await mkdir(bin);
+  const claudeHome = join(root, 'claude-config');
+  const codexHome = join(root, 'codex-config');
+  await mkdir(claudeHome);
+  await mkdir(codexHome);
   execFileSync('git', ['init', '-q', '-b', 'main', repo]);
   const git = (...args: string[]) =>
     execFileSync('git', [
@@ -55,13 +66,17 @@ async function automaticFixture(
   await writeFile(join(repo, 'change.txt'), 'A small change.\n');
   git('add', 'change.txt');
   git('commit', '-qm', 'Add change');
-  await writeFile(
-    join(bin, 'claude'),
-    '#!/usr/bin/env node\n' +
-      `if(process.argv[2]==='auth'){console.log(JSON.stringify({loggedIn:true}));process.exit(0)}require('fs').writeFileSync(${JSON.stringify(join(root, 'writer-started'))},String(process.pid));require('fs').appendFileSync(${JSON.stringify(join(root, 'writer-calls'))},'called'+String.fromCharCode(10));${holdWriter ? 'setInterval(()=>{},1000);' : "console.error('Fixture writer failed');process.exit(1);"}`,
-    { mode: 0o700 },
-  );
-  vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`);
+  if (writer !== 'missing')
+    await writeFile(
+      join(bin, 'claude'),
+      `#!${process.execPath}\n` +
+        `if(process.env.CLAUDE_CONFIG_DIR!==${JSON.stringify(claudeHome)}){console.error('The fixture CLI received a foreign configuration directory');process.exit(1)}if(process.argv[2]==='auth'){console.log(JSON.stringify({loggedIn:true}));process.exit(0)}require('fs').writeFileSync(${JSON.stringify(join(root, 'writer-started'))},String(process.pid));require('fs').appendFileSync(${JSON.stringify(join(root, 'writer-calls'))},'called'+String.fromCharCode(10));${writer === 'hold' ? 'setInterval(()=>{},1000);' : "console.error('Fixture writer failed');process.exit(1);"}`,
+      { mode: 0o700 },
+    );
+  const fixturePath = `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`;
+  vi.stubEnv('PATH', fixturePath);
+  vi.stubEnv('CLAUDE_CONFIG_DIR', claudeHome);
+  vi.stubEnv('CODEX_HOME', codexHome);
   let githubCalls = 0;
   const deviceId = randomUUID();
   const secret = randomBytes(32).toString('base64url');
@@ -84,24 +99,25 @@ async function automaticFixture(
     await database.dispose();
   }
   const runtime = ManagedRuntime.make(
-    Layer.merge(NodeServices.layer, Layer.effect(Scope.Scope, Effect.scope)),
+    Layer.mergeAll(
+      NodeServices.layer,
+      Layer.effect(Scope.Scope, Effect.scope),
+      ConfigProvider.layer(
+        ConfigProvider.fromUnknown({
+          PATH: fixturePath,
+          PORCELAIN_CODING_TOOL_DIRECTORY: bin,
+          CLAUDE_CONFIG_DIR: claudeHome,
+          CODEX_HOME: codexHome,
+        }),
+      ),
+    ),
   );
   let application: Runtime | undefined;
-  const watcher = watch(root);
-  const writerStarted = new Promise<void>((resolve) =>
-    watcher.on('change', (_event, name) => {
-      if (name === 'writer-started') {
-        watcher.close();
-        resolve();
-      }
-    }),
-  );
   const stop = async () => {
     if (application) await runtime.runPromise(application.close());
     application = undefined;
   };
   onTestFinished(async () => {
-    watcher.close();
     try {
       await stop();
     } finally {
@@ -198,6 +214,7 @@ async function automaticFixture(
         'content-type': 'application/json',
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(10000),
     });
     if (response.status !== 200)
       throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -218,18 +235,49 @@ async function automaticFixture(
     `/api/projects/${text(project.id)}/walkthrough-settings`,
     { mode: 'automatic' },
   );
+  const read = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await request('GET', path),
+    );
   return {
     root,
     state,
     targetBaseOid,
     git,
     path,
-    writerStarted,
-    githubCalls: () => githubCalls,
-    read: async () =>
-      Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
-        await request('GET', path),
+    waitForWriter: () =>
+      vi.waitUntil(
+        async () => {
+          const { walkthrough } = await read();
+          const started = await readFile(
+            join(root, 'writer-started'),
+            'utf8',
+          ).then(
+            (pid) => Number.isSafeInteger(Number(pid)) && Number(pid) > 0,
+            (error) => {
+              if (
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'ENOENT'
+              )
+                return false;
+              throw error;
+            },
+          );
+          if (started) return true;
+          if (walkthrough?.state.status === 'failed')
+            throw new Error(
+              `Automatic walkthrough writer did not start: ${walkthrough.state.failure.message}`,
+            );
+          return false;
+        },
+        {
+          timeout: 10000,
+          message: 'Waiting for the automatic walkthrough writer start marker',
+        },
       ),
+    githubCalls: () => githubCalls,
+    read,
     restart: async () => {
       await stop();
       await start();
@@ -245,6 +293,8 @@ async function automaticFixture(
         ...(signal === undefined ? {} : { signal }),
       });
     },
+    models: async () =>
+      (await request('GET', '/api/walkthrough-settings')).models,
     writerCalls: async () =>
       (await readFile(join(root, 'writer-calls'), 'utf8')).trim().split('\n'),
   };
@@ -255,7 +305,7 @@ test('pins an automatic walkthrough to the pull request target branch and inheri
 }) => {
   const fixture = await automaticFixture(onTestFinished);
   await fixture.restart();
-  await fixture.writerStarted;
+  await fixture.waitForWriter();
   expect((await fixture.read()).walkthrough).toMatchObject({
     pullRequestNumber: 42,
     baseOid: fixture.targetBaseOid,
@@ -266,9 +316,9 @@ test('pins an automatic walkthrough to the pull request target branch and inheri
 test('answers inventory while an automatic walkthrough writer is still running', async ({
   onTestFinished,
 }) => {
-  const fixture = await automaticFixture(onTestFinished, true);
+  const fixture = await automaticFixture(onTestFinished, 'hold');
   await fixture.restart();
-  await fixture.writerStarted;
+  await fixture.waitForWriter();
   expect((await fixture.read()).walkthrough?.state.status).toBe('running');
   const status = await fixture
     .fetch('/api/inventory', AbortSignal.timeout(1500))
@@ -282,9 +332,9 @@ test('answers inventory while an automatic walkthrough writer is still running',
 test('recovers an interrupted automatic walkthrough without losing evidence and drains its writer', async ({
   onTestFinished,
 }) => {
-  const fixture = await automaticFixture(onTestFinished, true);
+  const fixture = await automaticFixture(onTestFinished, 'hold');
   await fixture.restart();
-  await fixture.writerStarted;
+  await fixture.waitForWriter();
   const before = await fixture.read();
   const image = Buffer.from('89504e470d0a1a0a', 'hex');
   const sql = new DatabaseSync(join(fixture.state, 'inventory.sqlite'));
@@ -336,7 +386,7 @@ test('keeps a failed automatic PR handled across repeated startup polls and late
 }) => {
   const fixture = await automaticFixture(onTestFinished);
   await fixture.restart();
-  await fixture.writerStarted;
+  await fixture.waitForWriter();
   await expect
     .poll(async () => (await fixture.read()).walkthrough?.state.status, {
       timeout: 10000,
@@ -353,4 +403,26 @@ test('keeps a failed automatic PR handled across repeated startup polls and late
   expect(changed.outOfDate).toBe(true);
   expect(await fixture.writerCalls()).toEqual(['called']);
   expect(fixture.githubCalls()).toBeGreaterThanOrEqual(3);
+});
+
+test('fails a missing writer promptly and reports its saved failure instead of waiting for a start marker', async ({
+  onTestFinished,
+}) => {
+  const fixture = await automaticFixture(onTestFinished, 'missing');
+  expect(await fixture.models()).toEqual([]);
+  await fixture.restart();
+  await expect(fixture.waitForWriter()).rejects.toThrow(
+    'Automatic walkthrough writer did not start: The walkthrough model claude/claude-opus-5-5 is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.',
+  );
+  expect((await fixture.read()).walkthrough).toMatchObject({
+    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'low' },
+    state: {
+      status: 'failed',
+      failure: {
+        kind: 'other',
+        message:
+          'The walkthrough model claude/claude-opus-5-5 is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.',
+      },
+    },
+  });
 });
