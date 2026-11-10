@@ -23,6 +23,7 @@ const registered = async (session: Session, available: boolean) => ({
   id: session.projectId,
   name: session.fixture.folders.repository,
   available,
+  walkthroughSettings: { mode: 'manual', provider: 'claude' },
   worktrees: [
     {
       id: session.worktreeId,
@@ -164,7 +165,12 @@ test('removing a moved project lets the replacement repository be registered', a
     });
     expect(
       list(record((await session.read(inventory)).body).projects),
-    ).toStrictEqual([readded.body]);
+    ).toStrictEqual([
+      {
+        ...record(readded.body),
+        walkthroughSettings: { mode: 'manual', provider: 'claude' },
+      },
+    ]);
   } finally {
     if ((await session.entries(session.repository)).includes('.git'))
       await session.rename(
