@@ -36,17 +36,24 @@ type SpecialKey =
   | 'tab'
   | 'space';
 
-export type KeyInput = Letter | Digit | '[' | ']' | ',' | '/' | SpecialKey;
-export type KeyModifier = 'command' | 'shift' | 'option' | 'control';
+type KeyInput = Letter | Digit | '[' | ']' | ',' | '/' | SpecialKey;
+type KeyModifier = 'command' | 'shift' | 'option' | 'control';
 
-export const keyGroups = {
+const keyGroups = {
   navigate: 'Go',
   worktree: 'Worktree',
   list: 'List',
   document: 'Document',
 } as const;
 
-export type KeyGroup = keyof typeof keyGroups;
+type KeyGroup = keyof typeof keyGroups;
+
+const keyGroupOrder: readonly KeyGroup[] = [
+  'navigate',
+  'worktree',
+  'list',
+  'document',
+];
 
 type KeyBinding = {
   title: string;
@@ -156,17 +163,14 @@ const modifierOrder: readonly KeyModifier[] = [
   'command',
 ];
 
-export function keyCombo(binding: KeyBindingName) {
-  const { key, modifiers } = keyBindings[binding];
+export function keyCombo({ key, modifiers }: KeyBinding) {
   return [
-    ...modifierOrder.filter((modifier) =>
-      (modifiers as readonly KeyModifier[]).includes(modifier),
-    ),
+    ...modifierOrder.filter((modifier) => modifiers.includes(modifier)),
     key,
   ].join('+');
 }
 
-export type KeyCommandConflict = {
+type KeyCommandConflict = {
   combo: string;
   owners: readonly string[];
 };
@@ -177,7 +181,7 @@ export function activeKeyCommands(
   const claims = new Map<string, { owner: string; command: KeyCommand }[]>();
   for (const [owner, commands] of registrations)
     for (const command of commands) {
-      const combo = keyCombo(command.binding);
+      const combo = keyCombo(keyBindings[command.binding]);
       claims.set(combo, [...(claims.get(combo) ?? []), { owner, command }]);
     }
   const commands: KeyCommand[] = [];
@@ -232,26 +236,24 @@ const keyGlyphs: Partial<Record<KeyInput, string>> = {
   space: 'Space',
 };
 
-export function keyLabel(binding: KeyBindingName) {
-  const { key, modifiers } = keyBindings[binding];
+export function keyLabel({ key, modifiers }: KeyBinding) {
   return [
     ...modifierOrder
-      .filter((modifier) =>
-        (modifiers as readonly KeyModifier[]).includes(modifier),
-      )
+      .filter((modifier) => modifiers.includes(modifier))
       .map((modifier) => modifierGlyphs[modifier]),
     keyGlyphs[key] ?? key.toUpperCase(),
   ].join('');
 }
 
 export function keyShortcutSections() {
-  return (Object.keys(keyGroups) as KeyGroup[]).map((group) => {
+  return keyGroupOrder.map((group) => {
     const labels = new Map<string, string[]>();
-    for (const name of Object.keys(keyBindings) as KeyBindingName[])
-      if (keyBindings[name].group === group) {
-        const { title } = keyBindings[name];
-        labels.set(title, [...(labels.get(title) ?? []), keyLabel(name)]);
-      }
+    for (const binding of Object.values<KeyBinding>(keyBindings))
+      if (binding.group === group)
+        labels.set(binding.title, [
+          ...(labels.get(binding.title) ?? []),
+          keyLabel(binding),
+        ]);
     return {
       title: keyGroups[group],
       shortcuts: [...labels].map(([title, keys]) => ({ title, keys })),

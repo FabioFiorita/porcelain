@@ -8,7 +8,7 @@ export function moveCursor(
   rows: readonly CursorRow[],
   current: string | undefined,
   move: 'next' | 'previous',
-  selected?: string | undefined,
+  selected?: string,
 ) {
   const index = rows.findIndex((row) => row.key === current);
   if (index === -1) {

@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import {
   activeKeyCommands,
   keyBindings,
@@ -7,23 +7,33 @@ import {
   keyShortcutSections,
   nativeKeyCommand,
   pressKeyCommand,
-  type KeyBindingName,
+  type KeyCommand,
 } from './key-commands';
 
-const names = Object.keys(keyBindings) as KeyBindingName[];
+const bindings = Object.values(keyBindings);
 
 it('gives every shortcut in the app its own key combination', () => {
-  const combos = names.map(keyCombo);
+  const combos = bindings.map(keyCombo);
   expect(new Set(combos).size).toBe(combos.length);
 });
 
+function pressLog() {
+  const pressed: string[] = [];
+  return {
+    pressed,
+    command: (binding: KeyCommand['binding'], name: string): KeyCommand => ({
+      binding,
+      run: () => pressed.push(name),
+    }),
+  };
+}
+
 it('drops both owners of a doubled shortcut instead of letting one win', () => {
-  const first = vi.fn();
-  const second = vi.fn();
+  const log = pressLog();
   const registrations = new Map([
-    ['file', [{ binding: 'timeline' as const, run: first }]],
-    ['diff', [{ binding: 'timeline' as const, run: second }]],
-    ['shell', [{ binding: 'settings' as const, run: vi.fn() }]],
+    ['file', [log.command('timeline', 'file timeline')]],
+    ['diff', [log.command('timeline', 'diff timeline')]],
+    ['shell', [log.command('settings', 'settings')]],
   ]);
   const { commands, conflicts } = activeKeyCommands(registrations);
   expect(conflicts).toEqual([
@@ -31,21 +41,18 @@ it('drops both owners of a doubled shortcut instead of letting one win', () => {
   ]);
   expect(commands.map((command) => command.binding)).toEqual(['settings']);
   pressKeyCommand(registrations, 'timeline');
-  expect(first).not.toHaveBeenCalled();
-  expect(second).not.toHaveBeenCalled();
+  expect(log.pressed).toEqual([]);
 });
 
 it('runs the handler of the pressed live shortcut only', () => {
-  const back = vi.fn();
-  const next = vi.fn();
+  const log = pressLog();
   const registrations = new Map([
-    ['shell', [{ binding: 'back' as const, run: back }]],
-    ['list', [{ binding: 'next' as const, run: next }]],
+    ['shell', [log.command('back', 'back')]],
+    ['list', [log.command('next', 'next row')]],
   ]);
   pressKeyCommand(registrations, 'next');
   pressKeyCommand(registrations, 'timeline');
-  expect(next).toHaveBeenCalledTimes(1);
-  expect(back).not.toHaveBeenCalled();
+  expect(log.pressed).toEqual(['next row']);
 });
 
 it('tells the native menu which shortcuts still fire inside a text field', () => {
@@ -79,7 +86,7 @@ it.each([
   ['nextJ', 'J'],
   ['open', '↩'],
 ] as const)('labels %s as %s', (binding, label) => {
-  expect(keyLabel(binding)).toBe(label);
+  expect(keyLabel(keyBindings[binding])).toBe(label);
 });
 
 it('lists every shortcut once, grouped, with its alternative keys together', () => {
@@ -92,7 +99,7 @@ it('lists every shortcut once, grouped, with its alternative keys together', () 
   ]);
   expect(
     sections.flatMap((section) => section.shortcuts.flatMap((row) => row.keys)),
-  ).toHaveLength(names.length);
+  ).toHaveLength(bindings.length);
   expect(sections[0]?.shortcuts[0]).toEqual({
     title: 'Back',
     keys: ['⌘[', 'Esc'],

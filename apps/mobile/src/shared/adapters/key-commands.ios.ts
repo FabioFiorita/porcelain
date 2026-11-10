@@ -1,5 +1,4 @@
 import { requireNativeModule } from 'expo';
-import type { NativeKeyCommand } from '../rules/key-commands';
 
 type PorcelainKeyboard = {
   setCommands(json: string): Promise<void>;
@@ -13,12 +12,7 @@ const keyboard = requireNativeModule<PorcelainKeyboard>('PorcelainKeyboard');
 
 export const keyCommandsSupported = true;
 
-let sent: string | undefined;
-
-export function setNativeKeyCommands(commands: readonly NativeKeyCommand[]) {
-  const json = JSON.stringify(commands);
-  if (json === sent) return;
-  sent = json;
+export function setNativeKeyCommands(json: string) {
   void keyboard.setCommands(json);
 }
 

@@ -29,11 +29,15 @@ import {
   setNativeKeyCommands,
 } from '../adapters/key-commands';
 
-export const keyCommandSync = Atom.make((get) => {
+const nativeKeyPayload = Atom.make((get) => {
   const { commands, conflicts } = activeKeyCommands(get(keyRegistrations));
   if (conflicts.length > 0)
     console.error('Two live owners claim the same shortcut', conflicts);
-  setNativeKeyCommands(commands.map(nativeKeyCommand));
+  return JSON.stringify(commands.map(nativeKeyCommand));
+});
+
+export const keyCommandSync = Atom.make((get) => {
+  setNativeKeyCommands(get(nativeKeyPayload));
 });
 
 export const keyCommandRouting = Atom.make((get) => {
