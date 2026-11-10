@@ -19,7 +19,7 @@ data class CodeLine(val id: String, val text: String, val oldLine: Int?, val new
 }
 data class ReviewSelection(val side: String?, val startLine: Int, val endLine: Int)
 data class CodeLocation(val side: String?, val line: Int)
-data class CodeOptions(val wrap: Boolean = true, val lineNumbers: Boolean = true, val foreground: Color = Color.Black, val background: Color = Color.White, val muted: Color = Color.Gray)
+data class CodeOptions(val wrap: Boolean = true, val lineNumbers: Boolean = true, val foreground: Color = Color.Black, val background: Color = Color.White, val muted: Color = Color.Gray, val fit: Boolean = false)
 
 internal fun decodeCodeLines(value: String): List<CodeLine> {
   val array = JSONArray(value)

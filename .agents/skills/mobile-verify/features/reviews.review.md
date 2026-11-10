@@ -8,6 +8,7 @@ selectors:
   - 'Select a worktree'
   - 'No changes'
   - 'Changed files'
+  - 'review-all-changes'
   - 'review-comments'
   - 'You asked'
   - 'Try it'
@@ -65,7 +66,7 @@ api:
 
 # reviews.review
 
-Review is the overview of the selected worktree: the agent's published briefing and walkthrough, the review's Comments, and the Changed files list with independent Uncommitted and Branch comparisons. Each walkthrough stop opens its own [Decision](reviews.decision.md) screen.
+Review is the overview of the selected worktree: the agent's published briefing and walkthrough, the review's Comments, and the Changed files list with independent Uncommitted and Branch comparisons. The list's first row, All changes, opens [every diff as one page](reviews.all-changes.md) for the chosen comparison. Each walkthrough stop opens its own [Decision](reviews.decision.md) screen.
 
 ## How to get to it (user POV)
 

@@ -50,7 +50,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [files.file-action](files.file-action.md) — New file, New folder and Rename sheets; Move to trash alert.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.
-- [history.commit](history.commit.md) — Commit metadata, merge parents and file navigation.
+- [history.commit](history.commit.md) — Commit metadata, merge parents and every file's diff as one page.
 - [history.diff](history.diff.md) — Commit comparisons, unavailable patches and comments.
 - [history.history](history.history.md) — Commit browsing, pagination and live updates.
 - [preferences.appearance](preferences.appearance.md) — Theme, long lines, document defaults and persistence.
@@ -62,6 +62,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
 - [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
+- [reviews.all-changes](reviews.all-changes.md) — Every changed file of a comparison as one scrolling page.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
 - [reviews.inbox](reviews.inbox.md) — Open published reviews across paired computers.
 - [reviews.linked-review](reviews.linked-review.md) — Published and older reviews: verdicts, decisions and retained excerpts.

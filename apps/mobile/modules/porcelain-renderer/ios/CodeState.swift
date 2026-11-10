@@ -13,6 +13,8 @@ final class CodeState {
   var wrap = true
   var lineNumbers = true
   var selectable = false
+  var fit = false
+  var viewportWidth: CGFloat = 0
   var foreground = Color.primary
   var background = Color.clear
   var muted = Color.secondary

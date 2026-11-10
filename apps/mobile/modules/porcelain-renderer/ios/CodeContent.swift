@@ -6,6 +6,7 @@ struct CodeContent: View {
   let expand: (String) -> Void
   let reading: (Int) -> Void
   let copy: (String) -> Void
+  let fit: (CGFloat) -> Void
   @State private var topLine: String?
   @State private var restored = false
   @Environment(\.fontResolutionContext) private var fontContext
@@ -14,7 +15,40 @@ struct CodeContent: View {
   private var codeFont: Font { .custom("GeistMono-Regular", fixedSize: codeSize) }
   private var captionFont: Font { .system(size: model.tokens.captionSize * textScale) }
   var body: some View {
-    let gutterWidth = textWidth(AttributedString(String(repeating: "0", count: model.gutterDigits)), fallbackFont: codeFont) + model.tokens.inset
+    if model.fit { fitted } else { scrolling }
+  }
+  private var gutterWidth: CGFloat {
+    textWidth(AttributedString(String(repeating: "0", count: model.gutterDigits)), fallbackFont: codeFont) + model.tokens.inset
+  }
+  // A page of diffs scrolls vertically itself, so a fitted surface draws every row and reports its height to its layout node.
+  @ViewBuilder private var fitted: some View {
+    let gutterWidth = self.gutterWidth
+    let width = model.viewportWidth
+    if width > 0 {
+      let contentWidth = model.wrap ? width : model.lines.reduce(width) { width, line in
+        max(width, rowWidth(line, gutterWidth: gutterWidth))
+      }
+      let rows = VStack(alignment: .leading, spacing: 0) {
+        ForEach(model.lines) { line in lineView(line, gutterWidth: gutterWidth) }
+      }
+      .frame(width: contentWidth, alignment: .leading)
+      .padding(.vertical, model.tokens.spacing)
+      .fixedSize(horizontal: false, vertical: true)
+      .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fit($0) }
+      Group {
+        if model.wrap {
+          rows
+        } else {
+          ScrollView(.horizontal) { rows }.scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      .clipped()
+      .background(model.background)
+    }
+  }
+  @ViewBuilder private var scrolling: some View {
+    let gutterWidth = self.gutterWidth
     GeometryReader { viewport in
       // A lazy stack takes its ideal width from its first row, which can be much shorter than a later code line.
       let contentWidth = model.wrap ? viewport.size.width : model.lines.reduce(viewport.size.width) { width, line in
@@ -22,15 +56,7 @@ struct CodeContent: View {
       }
       ScrollView(model.wrap ? [.vertical] : [.vertical, .horizontal]) {
         LazyVStack(alignment: .leading, spacing: 0) {
-          ForEach(model.lines) { line in
-            if line.kind == "gap" {
-              Button(line.text) { expand(line.id) }
-                .font(captionFont).foregroundStyle(model.muted).padding(model.tokens.blockPadding)
-                .buttonStyle(.glass)
-            } else {
-              row(line, gutterWidth: gutterWidth)
-            }
-          }
+          ForEach(model.lines) { line in lineView(line, gutterWidth: gutterWidth) }
         }
         .scrollTargetLayout(isEnabled: model.initialLine != nil)
         .frame(width: contentWidth, alignment: .leading)
@@ -44,6 +70,15 @@ struct CodeContent: View {
       }
     }
     .background(model.background)
+  }
+  @ViewBuilder private func lineView(_ line: CodeLine, gutterWidth: CGFloat) -> some View {
+    if line.kind == "gap" {
+      Button(line.text) { expand(line.id) }
+        .font(captionFont).foregroundStyle(model.muted).padding(model.tokens.blockPadding)
+        .buttonStyle(.glass)
+    } else {
+      row(line, gutterWidth: gutterWidth)
+    }
   }
   private func restore() {
     guard !restored, !model.lines.isEmpty, let line = model.initialLine else { return }

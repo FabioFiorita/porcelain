@@ -12,10 +12,11 @@ class CodeSurface(context: Context, appContext: AppContext) : RendererHost(conte
   val onExpand by EventDispatcher()
   val onReadingLine by EventDispatcher()
   internal val state = CodeState()
+  private var fittedHeight = -1.0
 
   @Composable
   override fun RenderContent() {
-    CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy, state.initialLine, { line -> onReadingLine(mapOf("line" to line)) })
+    CodeContent(state.lines, state.options, state.tokens, state.selection, state.selectable, state::location, ::select, { id -> onExpand(mapOf("id" to id)) }, ::copy, state.initialLine, { line -> onReadingLine(mapOf("line" to line)) }, ::fit)
   }
 
   private fun select(line: CodeLine, reset: Boolean) {
@@ -25,6 +26,13 @@ class CodeSurface(context: Context, appContext: AppContext) : RendererHost(conte
     val range = mutableMapOf<String, Any>("startLine" to selection.startLine, "endLine" to selection.endLine)
     selection.side?.let { range["side"] = it }
     onCodeSelect(range)
+  }
+
+  private fun fit(height: Float) {
+    val rounded = kotlin.math.ceil(height.toDouble())
+    if (rounded == fittedHeight) return
+    fittedHeight = rounded
+    shadowNodeProxy.setViewSize(Double.NaN, rounded)
   }
 
   private fun copy(text: String) {

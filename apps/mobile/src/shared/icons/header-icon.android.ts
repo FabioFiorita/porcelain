@@ -19,6 +19,7 @@ import article from '@expo/material-symbols/article.xml';
 import moreVert from '@expo/material-symbols/more_vert.xml';
 import leftPanelOpen from '@expo/material-symbols/left_panel_open.xml';
 import leftPanelClose from '@expo/material-symbols/left_panel_close.xml';
+import formatListBulleted from '@expo/material-symbols/format_list_bulleted.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
@@ -42,6 +43,7 @@ const symbols = {
   comparison: compareArrows,
   showSource: code,
   showRendered: article,
+  files: formatListBulleted,
   more: moreVert,
   showList: leftPanelOpen,
   hideList: leftPanelClose,

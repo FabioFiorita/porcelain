@@ -1,10 +1,10 @@
 ---
 screen: /computers
 selectors:
-  - "Add computer"
-  - "pairing-link"
-  - "pair-environment"
-  - "Online"
+  - 'Add computer'
+  - 'pairing-link'
+  - 'pair-environment'
+  - 'Online'
 tests: []
 api:
   - POST /api/pair

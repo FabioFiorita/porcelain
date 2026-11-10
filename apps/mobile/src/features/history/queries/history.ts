@@ -67,8 +67,9 @@ export function useCommitPatch(
   oid: string,
   parent: number,
   paths: readonly string[],
+  chunk: readonly (readonly string[])[] = [paths],
 ) {
-  const query = readCommitDiffs({ ...selection, oid, parent, paths: [paths] });
+  const query = readCommitDiffs({ ...selection, oid, parent, paths: chunk });
   const result = useAtomValue(query);
   const value = Option.getOrUndefined(AsyncResult.value(result));
   return {
