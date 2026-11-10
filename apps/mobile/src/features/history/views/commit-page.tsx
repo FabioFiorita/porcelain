@@ -109,10 +109,10 @@ function CommitPageView({
                   description="This commit has no file changes against this comparison."
                 />
               }
-              onOpenFile={(file) => {
-                setPlace((current) => ({ ...current, selected: file.path }));
-                onOpenFile(file.path);
-              }}
+              onFocused={() =>
+                setPlace((current) => ({ ...current, selected: undefined }))
+              }
+              onOpenFile={(file) => onOpenFile(file.path)}
               part={(props: DiffPagePartProps<CommitPageFile>) => (
                 <CommitFilePart
                   {...props}

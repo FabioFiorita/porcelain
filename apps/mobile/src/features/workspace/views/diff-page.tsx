@@ -58,6 +58,7 @@ export function DiffPage<F extends DiffPageFile>({
   initialFile,
   part,
   onOpenFile,
+  onFocused,
 }: {
   page: string;
   title: string;
@@ -68,6 +69,7 @@ export function DiffPage<F extends DiffPageFile>({
   initialFile?: string | undefined;
   part: (props: DiffPagePartProps<F>) => ReactNode;
   onOpenFile: (file: F) => void;
+  onFocused?: (() => void) | undefined;
 }) {
   const reading = useAtomValue(diffPageOpening(page));
   const focused = files.findIndex((file) => file.key === initialFile);
@@ -128,7 +130,10 @@ export function DiffPage<F extends DiffPageFile>({
         detail={
           <View className="flex-1" collapsable={false}>
             <FlatList
-              ref={setList}
+              ref={(node) => {
+                setList(node);
+                if (node && focused >= 0) onFocused?.();
+              }}
               className="flex-1 bg-background"
               contentInsetAdjustmentBehavior="automatic"
               data={rows}
