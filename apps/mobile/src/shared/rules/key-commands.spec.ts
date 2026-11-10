@@ -84,7 +84,7 @@ it.each([
   ['backEscape', 'Esc'],
   ['next', '↓'],
   ['nextJ', 'J'],
-  ['open', '↩'],
+  ['open', '↩\uFE0E'],
 ] as const)('labels %s as %s', (binding, label) => {
   expect(keyLabel(keyBindings[binding])).toBe(label);
 });

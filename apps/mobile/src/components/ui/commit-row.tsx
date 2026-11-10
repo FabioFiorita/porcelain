@@ -19,12 +19,14 @@ export type HistoryEntry = {
 export function CommitRow({
   entry,
   selected = false,
+  highlighted = false,
   connected = false,
   last = false,
   onPress,
 }: {
   entry: HistoryEntry;
   selected?: boolean;
+  highlighted?: boolean;
   connected?: boolean;
   last?: boolean;
   onPress: () => void;
@@ -49,6 +51,7 @@ export function CommitRow({
           title={entry.subject}
           titleNumberOfLines={2}
           selected={selected}
+          highlighted={highlighted}
           onPress={onPress}
           accessibilityLabel={`${entry.graph?.merge ? 'Merge commit · ' : ''}${entry.subject} · ${entry.shortHash} · ${entry.author} · ${entry.time}${entry.change ? ` · ${entry.change}` : ''}${entry.refs?.length ? ` · ${entry.refs.map(commitRefLabel).join(', ')}` : ''}`}
           trailing={<Icon name="chevron" size="small" tone="muted" />}

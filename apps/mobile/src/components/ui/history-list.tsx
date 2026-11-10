@@ -7,10 +7,12 @@ import { Loading } from './loading';
 import { Text } from './text';
 import { Item } from './item';
 import { useListReadingOffset } from './list-reading-offset';
+import { useListReveal } from './list-reveal';
 
 export function HistoryList({
   entries,
   selected,
+  highlighted,
   loading = false,
   hasMore = false,
   onSelect,
@@ -25,6 +27,7 @@ export function HistoryList({
 }: {
   entries: readonly HistoryEntry[];
   selected?: string;
+  highlighted?: string | undefined;
   loading?: boolean;
   hasMore?: boolean;
   onSelect: (id: string) => void;
@@ -43,9 +46,18 @@ export function HistoryList({
     !loading && entries.length > 0,
     onScrollOffset,
   );
+  const reveal = useListReveal();
   return (
     <FlatList
       {...reading}
+      {...reveal.props}
+      ref={(list) => {
+        reading.ref(list);
+        reveal.attach(
+          list,
+          entries.findIndex((entry) => entry.id === highlighted),
+        );
+      }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={padding}
       ListHeaderComponent={
@@ -84,6 +96,7 @@ export function HistoryList({
         <CommitRow
           entry={item}
           selected={selected === item.id}
+          highlighted={highlighted === item.id}
           connected={index > 0 || Boolean(uncommitted)}
           last={index === entries.length - 1 && !hasMore}
           onPress={() => onSelect(item.id)}

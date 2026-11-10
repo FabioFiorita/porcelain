@@ -88,6 +88,12 @@ export const keyBindings = {
     key: '/',
     modifiers: ['command'],
   },
+  walkthrough: {
+    title: 'Walkthrough',
+    group: 'worktree',
+    key: '0',
+    modifiers: ['command'],
+  },
   changes: {
     title: 'Changes',
     group: 'worktree',
@@ -230,7 +236,7 @@ const keyGlyphs: Partial<Record<KeyInput, string>> = {
   down: '↓',
   left: '←',
   right: '→',
-  return: '↩',
+  return: '↩\uFE0E',
   escape: 'Esc',
   tab: '⇥',
   space: 'Space',

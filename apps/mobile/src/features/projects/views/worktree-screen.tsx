@@ -210,19 +210,27 @@ function WorktreeSections({
         }
       : undefined;
   const beside = mode === 'beside';
-  useScreenKeyCommands(
-    'worktree-sections',
-    (['changes', 'files', 'history'] as const).map((id) => ({
+  const shown = worktreeSectionChoices(guide).map((entry) => entry.id);
+  useScreenKeyCommands('worktree-sections', [
+    ...(['changes', 'files', 'history'] as const).map((id) => ({
       binding: id,
       run: () =>
-        id === 'changes' && guide.walkthrough
-          ? router.push({
+        shown.includes(id)
+          ? choose(id)
+          : router.push({
               pathname: '/worktree-changes',
               params: { workspace },
-            })
-          : choose(id),
+            }),
     })),
-  );
+    ...(shown.includes('walkthrough')
+      ? [
+          {
+            binding: 'walkthrough' as const,
+            run: () => choose('walkthrough'),
+          },
+        ]
+      : []),
+  ]);
   return (
     <Screen layout="fixed" testID="worktree-screen">
       <Box
