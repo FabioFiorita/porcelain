@@ -26,6 +26,20 @@ const documentTitleOwner = Atom.make(() => {
   };
 });
 
+export const firstDocumentTitle = Atom.family((_worktreeId: string) =>
+  Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
+);
+
+export const firstDocumentTitleOwner = Atom.family(
+  (input: { worktreeId: string; title: string | undefined }) =>
+    Atom.make((get) => {
+      get.set(firstDocumentTitle(input.worktreeId), input.title);
+      get.addFinalizer(() =>
+        get.set(firstDocumentTitle(input.worktreeId), undefined),
+      );
+    }),
+);
+
 export const documentTitle = Atom.family((title: string) =>
   Atom.make((get) => {
     get.addFinalizer(get(documentTitleOwner)(title));

@@ -104,6 +104,7 @@ type ReviewContentProps = {
 };
 
 export type UncommittedFileGrouping = ComponentType<{
+  base: string | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   paths: readonly string[];
@@ -260,6 +261,7 @@ export function ReviewIndex({
           threads={threads}
           grouping={grouping?.uncommitted}
           allChanges={allChanges}
+          base={base}
         />
       )}
       {view === 'comments' && (
@@ -321,7 +323,9 @@ function LayersView({
   threads,
   grouping: Grouping,
   allChanges,
+  base,
 }: WorkspaceChangesProps & {
+  base: string | undefined;
   allChanges: DocumentRef;
   grouping: UncommittedFileGrouping | undefined;
   reviewNavigation: ReviewContentProps['reviewNavigation'] | undefined;
@@ -350,6 +354,7 @@ function LayersView({
     if (Grouping)
       return (
         <Grouping
+          base={base}
           scope={scope}
           context={context}
           paths={paths}

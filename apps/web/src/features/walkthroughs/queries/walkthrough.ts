@@ -8,6 +8,7 @@ import {
 import {
   firstDocument,
   walkthroughPhase,
+  walkthroughTabTitle,
   type FirstDocument as FirstDocumentName,
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
@@ -48,6 +49,23 @@ export function useWalkthroughContent(
 ) {
   const { phase } = useWalkthrough(scope, context);
   return phase?.kind === 'ready' ? phase : undefined;
+}
+
+export function useBranchRenames(
+  scope: ReviewScope,
+  context: ConnectionContext,
+  base: string | undefined,
+) {
+  const branch = useBranchChanges(scope, context.connection, base).result;
+  return Option.getOrUndefined(AsyncResult.value(branch))?.files ?? [];
+}
+
+export function useWalkthroughTabTitle(
+  scope: ReviewScope,
+  context: ConnectionContext,
+) {
+  const { read } = useWalkthrough(scope, context);
+  return read ? walkthroughTabTitle(read) : 'Walkthrough';
 }
 
 export type WorktreeFirstDocument = {

@@ -304,6 +304,7 @@ function Written({
   props,
   onUpdate,
   updating,
+  updateFailure,
 }: {
   run: WalkthroughRun;
   content: WalkthroughContent;
@@ -311,6 +312,7 @@ function Written({
   props: DocumentProps;
   onUpdate: () => void;
   updating: boolean;
+  updateFailure: WalkthroughFailure | undefined;
 }) {
   const stale = (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
@@ -323,6 +325,12 @@ function Written({
       >
         Update walkthrough
       </Button>
+      {updateFailure && (
+        <span role="alert" className="basis-full text-destructive">
+          {walkthroughFailureCopy(updateFailure, run.writer).title}{' '}
+          {updateFailure.message}
+        </span>
+      )}
     </p>
   );
   if (content.outcome === 'nothing')
@@ -513,6 +521,7 @@ export function WalkthroughDocument(props: DocumentProps) {
             props={props}
             onUpdate={write.start}
             updating={write.waiting}
+            updateFailure={write.failure}
           />
         );
     }

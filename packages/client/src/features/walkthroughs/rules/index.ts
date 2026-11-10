@@ -8,6 +8,7 @@ export {
   walkthroughFailureCopy,
   walkthroughPullRequest,
   walkthroughStartFailure,
+  walkthroughTabTitle,
   walkthroughFileCount,
   walkthroughPhase,
   walkthroughVerdict,

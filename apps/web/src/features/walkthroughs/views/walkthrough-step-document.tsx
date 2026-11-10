@@ -8,7 +8,10 @@ import {
   type StepDocumentProps,
 } from '@/features/workspace/index';
 import { StateNotice } from '@/shared/views/state-notice';
-import { useWalkthroughContent } from '../queries/walkthrough';
+import {
+  useBranchRenames,
+  useWalkthroughContent,
+} from '../queries/walkthrough';
 import { RichText } from './rich-text';
 import { StepButton } from './step-button';
 
@@ -18,6 +21,7 @@ export function WalkthroughStepDocument({
   ...props
 }: StepDocumentProps) {
   const ready = useWalkthroughContent(props.scope, props.context);
+  const renames = useBranchRenames(props.scope, props.context, props.base);
   const stop = ready?.content.stops[step - 1];
   if (!ready || !stop)
     return (
@@ -64,7 +68,7 @@ export function WalkthroughStepDocument({
       </span>
     ),
   };
-  const only = stopPaths(stop);
+  const only = stopPaths(stop, renames);
   return changeScope === 'uncommitted' ? (
     <PlainChangesDocument {...props} only={only} heading={heading} />
   ) : (

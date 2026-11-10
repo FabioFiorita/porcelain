@@ -75,20 +75,27 @@ export function walkthroughVerdict(content: WalkthroughContent) {
   return `${CALL_WORDS[calls - 1] ?? calls} calls are yours.`;
 }
 
-export function stopPaths(stop: WalkthroughStop): readonly string[] {
-  return [
-    ...new Set([
-      ...stop.excerpts.map((excerpt) => excerpt.path),
-      ...stop.files.map((file) => file.path),
-    ]),
+type ChangedFile = { path: string; oldPath?: string | undefined };
+
+export function stopPaths(
+  stop: WalkthroughStop,
+  renames: readonly ChangedFile[] = [],
+): readonly string[] {
+  const cited = [
+    ...stop.excerpts.map((excerpt) => excerpt.path),
+    ...stop.files.map((file) => file.path),
   ];
+  const renamed = renames.flatMap((file) =>
+    file.oldPath !== undefined && cited.includes(file.oldPath)
+      ? [file.path]
+      : [],
+  );
+  return [...new Set([...cited, ...renamed])];
 }
 
 export function walkthroughFileCount(content: WalkthroughContent) {
-  return new Set(content.stops.flatMap(stopPaths)).size;
+  return new Set(content.stops.flatMap((stop) => stopPaths(stop))).size;
 }
-
-type ChangedFile = { path: string; oldPath?: string | undefined };
 
 function fileInPaths(paths: ReadonlySet<string>, file: ChangedFile) {
   return (
@@ -106,10 +113,11 @@ export type StepFiles<File> = {
 export function groupFilesByStep<File extends ChangedFile>(
   content: WalkthroughContent,
   files: readonly File[],
+  renames: readonly ChangedFile[] = [],
 ): { steps: readonly StepFiles<File>[]; outside: readonly File[] } {
   const owned = new Set<File>();
   const steps = content.stops.map((stop, index) => {
-    const paths = new Set(stopPaths(stop));
+    const paths = new Set(stopPaths(stop, renames));
     const inStep = files.filter((file) => fileInPaths(paths, file));
     for (const file of inStep) owned.add(file);
     return { stop, step: index + 1, files: inStep };
@@ -207,6 +215,13 @@ export function walkthroughPullRequest(
   return pulls.find(
     (pull) => pull.headBranch === branch && pull.state === 'open',
   )?.number;
+}
+
+export function walkthroughTabTitle(read: WalkthroughRead) {
+  const phase = walkthroughPhase(read);
+  return phase.kind === 'ready'
+    ? plainText(phase.content.title).replace(/\.$/, '')
+    : 'Walkthrough';
 }
 
 export function plainText(text: string) {

@@ -17,8 +17,11 @@ import {
   WalkthroughDocument,
   WalkthroughIndex,
   WalkthroughStepDocument,
+  useWalkthroughTabTitle,
   useWorktreeFirstDocument,
 } from '@/features/walkthroughs/index';
+import { useAtomMount } from '@effect/atom-react';
+import { firstDocumentTitleOwner } from '@/shared/store';
 
 type Props = Omit<
   ReviewWorkspaceProps,
@@ -62,6 +65,13 @@ function WorkspaceReviewContent(props: Props) {
     review: showsWalkthrough ? undefined : (review ?? undefined),
     reviewTitle,
   });
+  const walkthroughTitle = useWalkthroughTabTitle(scope, props.context);
+  useAtomMount(
+    firstDocumentTitleOwner({
+      worktreeId: props.worktree.id,
+      title: showsWalkthrough ? walkthroughTitle : undefined,
+    }),
+  );
   const firstDocument: FirstDocument = {
     title: reviewTitle,
     pending: worktreeFirstDocument.pending,

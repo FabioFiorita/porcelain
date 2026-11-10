@@ -208,11 +208,16 @@ export function workspaceTitle(input: {
   surface: Surface | undefined;
   project: string | undefined;
   environment?: string | undefined;
+  firstDocument?: string | undefined;
 }): string {
   const ref = parseEntry(input.entry);
-  const shown = ref
-    ? documentTitle(ref)
-    : surfaceTitles[input.surface ?? 'files'];
+  const first =
+    input.firstDocument !== undefined && (!ref || ref.kind === 'handoff')
+      ? input.firstDocument
+      : undefined;
+  const shown =
+    first ??
+    (ref ? documentTitle(ref) : surfaceTitles[input.surface ?? 'files']);
   const titled = input.project ? `${shown} — ${input.project}` : shown;
   return input.environment ? `${titled} · ${input.environment}` : titled;
 }

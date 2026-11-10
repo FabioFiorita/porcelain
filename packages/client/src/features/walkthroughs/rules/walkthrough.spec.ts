@@ -10,6 +10,7 @@ import {
   walkthroughPhase,
   walkthroughPullRequest,
   walkthroughStartFailure,
+  walkthroughTabTitle,
   walkthroughVerdict,
   type WalkthroughContent,
   type WalkthroughRead,
@@ -114,6 +115,52 @@ describe('stopPaths', () => {
         }),
       ),
     ).toEqual(['a.ts', 'b.ts']);
+  });
+});
+
+describe('stopPaths with the branch renames', () => {
+  it('adds the new name of a file the step cites by its old name', () => {
+    expect(
+      stopPaths(stop({ files: [{ path: 'old-name.ts', note: 'x' }] }), [
+        { path: 'new-name.ts', oldPath: 'old-name.ts' },
+        { path: 'other.ts', oldPath: 'elsewhere.ts' },
+      ]),
+    ).toEqual(['old-name.ts', 'new-name.ts']);
+  });
+
+  it('groups a local edit of a renamed file under the step citing its old name', () => {
+    const renamed = content({
+      stops: [stop({ excerpts: [excerpt('old-name.ts', 'old')] })],
+    });
+    const local = [{ path: 'new-name.ts' }];
+    expect(groupFilesByStep(renamed, local).outside).toEqual(local);
+    expect(
+      groupFilesByStep(renamed, local, [
+        { path: 'new-name.ts', oldPath: 'old-name.ts' },
+      ]).steps[0]?.files,
+    ).toEqual(local);
+  });
+});
+
+describe('walkthroughTabTitle', () => {
+  it('names the window after a written walkthrough, else Walkthrough', () => {
+    expect(
+      walkthroughTabTitle(
+        read(
+          run({
+            status: 'ready',
+            content: content({ title: 'Add `notes` to the sample.' }),
+            writtenAt: '2026-11-09T00:00:01.000Z',
+            durationMs: 1,
+            costUsd: undefined,
+          }),
+        ),
+      ),
+    ).toBe('Add notes to the sample');
+    expect(walkthroughTabTitle(read(undefined))).toBe('Walkthrough');
+    expect(walkthroughTabTitle(read(run({ status: 'running' })))).toBe(
+      'Walkthrough',
+    );
   });
 });
 

@@ -17,7 +17,10 @@ import {
   type UncommittedFileGrouping,
 } from '@/features/workspace/index';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { useWalkthroughContent } from '../queries/walkthrough';
+import {
+  useBranchRenames,
+  useWalkthroughContent,
+} from '../queries/walkthrough';
 
 type BranchSlot = ComponentProps<BranchFileGrouping>;
 type UncommittedSlot = ComponentProps<UncommittedFileGrouping>;
@@ -79,6 +82,24 @@ function StepList<File>({
   );
 }
 
+function NotInWalkthrough<File>({
+  files,
+  row,
+}: {
+  files: readonly File[];
+  row: (file: File) => ReactNode;
+}) {
+  if (files.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-col">
+      <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">
+        Not in the walkthrough yet
+      </p>
+      {files.map(row)}
+    </div>
+  );
+}
+
 function BranchSteps({
   scope,
   context,
@@ -89,25 +110,31 @@ function BranchSteps({
 }: BranchSlot) {
   const ready = useWalkthroughContent(scope, context);
   if (!ready || ready.content.stops.length === 0) return <>{items.map(row)}</>;
+  const grouped = groupFilesByStep(ready.content, items);
   return (
-    <StepList
-      steps={groupFilesByStep(ready.content, items).steps}
-      activeEntry={activeEntry}
-      onOpen={onOpen}
-      row={row}
-    />
+    <>
+      <StepList
+        steps={grouped.steps}
+        activeEntry={activeEntry}
+        onOpen={onOpen}
+        row={row}
+      />
+      <NotInWalkthrough files={grouped.outside} row={row} />
+    </>
   );
 }
 
 function UncommittedSteps({
   scope,
   context,
+  base,
   paths,
   row,
   activeEntry,
   onOpen,
 }: UncommittedSlot) {
   const ready = useWalkthroughContent(scope, context);
+  const renames = useBranchRenames(scope, context, base);
   if (paths.length === 0)
     return (
       <p className="p-3 text-sm text-muted-foreground">
@@ -138,7 +165,7 @@ function UncommittedSteps({
       </div>
     );
   const files = paths.map((path) => ({ path }));
-  const grouped = groupFilesByStep(ready.content, files);
+  const grouped = groupFilesByStep(ready.content, files, renames);
   const steps = grouped.steps.filter((entry) => entry.files.length > 0);
   return (
     <div className="flex flex-col">
@@ -151,14 +178,10 @@ function UncommittedSteps({
           row={(file) => row(file.path)}
         />
       )}
-      {grouped.outside.length > 0 && (
-        <div className="mt-1 flex flex-col">
-          <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">
-            Not in the walkthrough yet
-          </p>
-          {grouped.outside.map((file) => row(file.path))}
-        </div>
-      )}
+      <NotInWalkthrough
+        files={grouped.outside}
+        row={(file) => row(file.path)}
+      />
     </div>
   );
 }

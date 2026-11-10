@@ -27,6 +27,7 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
   await expect
     .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toBeVisible();
+  await expect.poll(() => app.title()).toMatch(/^Walkthrough — /);
   await expect
     .element(
       page.getByRole('heading', { name: 'No walkthrough yet.', exact: true }),
@@ -158,6 +159,67 @@ test('local edits group by step, and files the walkthrough never read stand apar
   await expect
     .element(sidebar.getByRole('button', { name: 'Step 2', exact: true }))
     .not.toBeInTheDocument();
+});
+
+test('a later commit lists its file outside the steps, and a refused Update says why', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await branchWithTwoFiles(repo);
+  await codingTool.install();
+  const app = await render.route('/');
+  const page = app.page;
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .poll(() => app.title())
+    .toMatch(/^Teach the sample to explain itself — /);
+
+  await repo.write('later.md', 'later\n');
+  await repo.commit('Add a later file');
+  const sidebar = page.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  await expect
+    .element(sidebar.getByText('Not in the walkthrough yet', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      sidebar.getByRole('button', { name: 'later.md · added', exact: true }),
+    )
+    .toBeVisible();
+
+  await app.navigate(
+    `${app.location().split('?')[0]}?base=refs%2Fheads%2Fmissing`,
+  );
+  await page
+    .getByRole('button', { name: 'Update walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      page.getByRole('alert').filter({
+        hasText: /^The walkthrough didn't finish\. Choose a base branch/,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+      }),
+    )
+    .toBeVisible();
 });
 
 test('a commit marks the walkthrough out of date and Update writes it again', async ({
