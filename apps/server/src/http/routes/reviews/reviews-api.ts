@@ -18,7 +18,7 @@ import { type ListProjectReviewsUseCase } from '../../../use-cases/reviews/list-
 import { type ReadReviewUseCase } from '../../../use-cases/reviews/read-review.ts';
 import { requestBody } from '../../hooks/request-body.ts';
 import { handlerAudit } from '../../diagnostics.ts';
-import { requestBodyLimit } from '../../hooks/request-body.ts';
+
 import { ReviewsApi } from '@porcelain/contracts/reviews';
 import { RequestCaller } from '@porcelain/contracts/shared';
 import type { Context } from 'effect';
@@ -33,7 +33,6 @@ import { type ListCommentThreadsUseCase } from '../../../use-cases/reviews/list-
 import { type ListReviewedFilesUseCase } from '../../../use-cases/reviews/list-reviewed-files.ts';
 import { type ListReviewedLayersUseCase } from '../../../use-cases/reviews/list-reviewed-layers.ts';
 import { type MarkCommentsSeenUseCase } from '../../../use-cases/reviews/mark-comments-seen.ts';
-import { type PublishReviewUseCase } from '../../../use-cases/reviews/publish-review.ts';
 import { type ReadProofFileUseCase } from '../../../use-cases/reviews/read-proof-file.ts';
 import { type ReadPublishedReviewUseCase } from '../../../use-cases/reviews/read-published-review.ts';
 import { type RemoveReviewedFilesUseCase } from '../../../use-cases/reviews/remove-reviewed-files.ts';
@@ -111,10 +110,6 @@ type ReviewsUseCases = {
     Context.Service.Shape<typeof MarkCommentsSeenUseCase>,
     'execute'
   >;
-  publishReview: Pick<
-    Context.Service.Shape<typeof PublishReviewUseCase>,
-    'execute'
-  >;
   readProofFile: Pick<
     Context.Service.Shape<typeof ReadProofFileUseCase>,
     'execute'
@@ -149,10 +144,7 @@ type ReviewsUseCases = {
   >;
 };
 
-export function reviewsRoutes(
-  useCases: ReviewsUseCases,
-  limits: { reviewBodyBytes: number },
-) {
+export function reviewsRoutes(useCases: ReviewsUseCases) {
   const handlers = HttpApiBuilder.group(ReviewsApi, 'reviews', (handlers) =>
     handlers
       .handle('compareReview', ({ params, query }) =>
@@ -239,14 +231,9 @@ export function reviewsRoutes(
         useCases.updateCommentThread.execute({ ...payload, ...params }),
       )
       .handle('readReviewAgentFeedback', ({ params }) =>
-        useCases.agentFeedback.execute({ kind: 'read', ...params }),
+        useCases.agentFeedback.execute(params),
       )
-      .handle('sendReviewAgentFeedback', ({ params, payload }) =>
-        useCases.agentFeedback.execute({ kind: 'send', ...params, ...payload }),
-      )
-      .handle('disconnectReviewAgentSession', ({ params }) =>
-        useCases.agentFeedback.execute({ kind: 'disconnect', ...params }),
-      )
+
       .handle('readReview', ({ params }) => useCases.readReview.execute(params))
       .handle('readReviewRevision', ({ params }) =>
         useCases.readReview.execute(params),
@@ -326,9 +313,7 @@ export function reviewsRoutes(
       .handle('deleteReview', ({ params }) =>
         useCases.deleteReview.execute(params),
       )
-      .handle('publishReview', ({ params, payload }) =>
-        useCases.publishReview.execute({ ...params, ...payload }),
-      )
+
       .handle('readProofFile', ({ params, query }) =>
         useCases.readProofFile.execute({ ...params, ...query }),
       )
@@ -370,18 +355,9 @@ export function reviewsRoutes(
         useCases.updateCommentThread.execute({ ...params, ...payload }),
       ),
   );
-  return HttpApiBuilder.layer(ReviewsApi)
-    .pipe(
-      Layer.provide(handlers),
-      Layer.provide(handlerAudit.layer),
-      Layer.provide(requestBody.layer),
-    )
-    .pipe(
-      Layer.provide(
-        requestBodyLimit(
-          ReviewsApi.groups.reviews.endpoints.publishReview,
-          limits.reviewBodyBytes,
-        ),
-      ),
-    );
+  return HttpApiBuilder.layer(ReviewsApi).pipe(
+    Layer.provide(handlers),
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
+  );
 }

@@ -115,7 +115,7 @@ describe('RevokeDeviceService', () => {
           deviceId,
           token: `ExponentPushToken[${deviceId}]`,
           platform: 'ios',
-          kinds: ['review-ready'],
+          kinds: [],
         }),
       );
     Effect.runSync(service.execute({ id: 'device' }));

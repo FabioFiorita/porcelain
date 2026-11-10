@@ -58,15 +58,15 @@ export const reviewProofSchema = Schema.Struct({
   assets: Schema.mutableKey(Schema.Array(proofAssetSchema)),
 });
 
-export type ProofTarget = typeof proofTargetSchema.Type;
+type ProofTarget = typeof proofTargetSchema.Type;
 
 type ProofCheck = typeof proofCheckSchema.Type;
 
-export type ProofFileKind = typeof proofFileKindSchema.Type;
+type ProofFileKind = typeof proofFileKindSchema.Type;
 
 export type ProofMediaType = typeof proofMediaTypeSchema.Type;
 
-export type ProofFileDraft = ProofTarget & {
+type ProofFileDraft = ProofTarget & {
   kind: ProofFileKind;
   title: string;
   path?: string | undefined;
@@ -82,7 +82,7 @@ export type ProofDraft = {
   assets?: readonly ProofAssetDraft[] | undefined;
 };
 
-export type ProofAsset = typeof proofAssetSchema.Type;
+type ProofAsset = typeof proofAssetSchema.Type;
 
 export type ReviewProof = typeof reviewProofSchema.Type;
 
@@ -96,11 +96,6 @@ export type ProofFile = {
   id: string;
   mediaType: ProofMediaType;
   bytes: Uint8Array;
-};
-
-export type ProofFileReads = {
-  files: ReadonlyMap<string, Uint8Array>;
-  tooLarge: readonly string[];
 };
 
 export type ProofLimits = {

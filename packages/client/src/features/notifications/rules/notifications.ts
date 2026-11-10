@@ -37,25 +37,16 @@ const credentialFailure =
   /firebase|google-services|fcm|aps-environment|apns|push key|credential|projectid/i;
 
 export function notificationKinds(
-  preferences: NotificationPreferences,
+  _preferences: NotificationPreferences,
 ): readonly PushKind[] {
-  return [
-    ...(preferences.reviewReady ? (['review-ready'] as const) : []),
-    ...(preferences.agentReply ? (['agent-reply'] as const) : []),
-  ];
+  return [];
 }
 
 export function pushRegistrationPlan(
-  preferences: NotificationPreferences,
-  token: PushTokenState,
+  _preferences: NotificationPreferences,
+  _token: PushTokenState,
 ): PushRegistrationPlan {
-  const kinds = notificationKinds(preferences);
-  if (kinds.length === 0) return { kind: 'clear' };
-  if (token.kind !== 'ready') return { kind: 'wait' };
-  return {
-    kind: 'register',
-    request: { token: token.token, platform: token.platform, kinds },
-  };
+  return { kind: 'clear' };
 }
 
 export function pushTokenFailure(message: string): PushTokenState {

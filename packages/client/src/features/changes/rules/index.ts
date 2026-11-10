@@ -1,7 +1,7 @@
 export { diffUnavailableReason, omissionReason } from './diff-presentation.ts';
 export { diffSelection } from './selection.ts';
 export { diffLines, type DiffLine } from './diff-lines.ts';
-export { focusPatch, spansLabel, type LineSpan } from './patch-focus.ts';
+export { focusPatch, type LineSpan } from './patch-focus.ts';
 export { changeId } from './change-id.ts';
 export {
   changePath,

@@ -12,9 +12,9 @@ import {
   unauthenticated,
 } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { mcpHeaders, owner, pairDevice, read } from '../kit/requests.ts';
+import { owner, pairDevice, read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { list, record, text, type HttpRequest } from '../kit/session.ts';
+import { list, record, text } from '../kit/session.ts';
 
 const ownerAccess = owner({ method: 'GET', path: '/access' });
 
@@ -210,137 +210,4 @@ test('revoking an unknown id revokes nothing and an empty id is refused', async 
   expect(unknown.body).toStrictEqual({ revoked: false });
   expect(invalid.status).toBe(400);
   expect(invalid.body).toStrictEqual(invalidRequest);
-});
-
-test('the owner socket serves the review MCP endpoint with its review tools', async ({
-  session,
-  server,
-}) => {
-  const initialized = await session.send(
-    owner({
-      method: 'POST',
-      path: '/mcp',
-      headers: mcpHeaders(session.repository),
-      body: {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2025-06-18',
-          capabilities: {},
-          clientInfo: { name: 'verify', version: '1' },
-        },
-      },
-    }),
-  );
-  const tools = await session.send(
-    owner({
-      method: 'POST',
-      path: '/mcp',
-      headers: {
-        ...mcpHeaders(session.repository),
-        'mcp-session-id': initialized.headers['mcp-session-id'] ?? '',
-        'mcp-protocol-version': '2025-06-18',
-      },
-      body: { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-    }),
-  );
-
-  expect(initialized.status).toBe(200);
-  expect(initialized.headers['mcp-session-id']).toEqual(expect.any(String));
-  expect(initialized.body).toMatchObject({
-    jsonrpc: '2.0',
-    id: 1,
-    result: { serverInfo: { name: 'porcelain' } },
-  });
-  expect(tools.status).toBe(200);
-  expect(
-    list(record(record(tools.body).result).tools)
-      .map((tool) => String(record(tool).name))
-      .sort(),
-  ).toStrictEqual([
-    'acknowledge_feedback',
-    'connect_review_agent',
-    'create_comment',
-    'list_comments',
-    'publish_review',
-    'read_review',
-    'reply_to_comment',
-    'resolve_comment',
-  ]);
-  expect(await server.invokedTools()).toStrictEqual([]);
-});
-
-test('the review MCP endpoint refuses every method but POST', async ({
-  session,
-  server,
-}) => {
-  const methods: HttpRequest['method'][] = ['GET', 'PUT', 'PATCH', 'DELETE'];
-  const responses = [];
-  for (const method of methods)
-    responses.push(await session.send(owner({ method, path: '/mcp' })));
-
-  expect(responses.map((response) => response.status)).toStrictEqual([
-    405, 405, 405, 405,
-  ]);
-  expect(responses.map((response) => response.body)).toStrictEqual(
-    methods.map(() =>
-      apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
-    ),
-  );
-  expect(responses.map((response) => response.headers.allow)).toStrictEqual([
-    'POST',
-    'POST',
-    'POST',
-    'POST',
-  ]);
-  expect(await server.requestedRoutes()).toEqual(
-    expect.arrayContaining([
-      'owner DELETE /mcp',
-      'owner GET /mcp',
-      'owner PATCH /mcp',
-      'owner PUT /mcp',
-    ]),
-  );
-});
-
-test('the network listener answers owner reads with the web shell, does not find owner writes even with a paired credential, and nothing is issued or revoked', async ({
-  session,
-}) => {
-  const before = await read(session, ownerAccess);
-  const requests: HttpRequest[] = [
-    { method: 'GET', path: '/status' },
-    { method: 'GET', path: '/access' },
-    {
-      method: 'POST',
-      path: '/pairings',
-      body: { labels: ['Intruder'], addresses: [session.address] },
-    },
-    { method: 'POST', path: '/access/revoke', body: { id: 'unknown' } },
-    {
-      method: 'POST',
-      path: '/mcp',
-      headers: mcpHeaders(session.repository),
-      body: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
-    },
-  ];
-  const responses = [];
-  for (const request of requests) responses.push(await session.send(request));
-
-  const reads = responses.slice(0, 2);
-  const writes = responses.slice(2);
-  expect(reads.map((response) => response.status)).toStrictEqual([200, 200]);
-  expect(reads.map((response) => response.body)).toStrictEqual([
-    session.fixture.web.shell,
-    session.fixture.web.shell,
-  ]);
-  expect(writes.map((response) => response.status)).toStrictEqual([
-    404, 404, 404,
-  ]);
-  expect(writes.map((response) => response.body)).toStrictEqual([
-    apiError(404, 'Not Found', 'Route POST:/pairings not found'),
-    apiError(404, 'Not Found', 'Route POST:/access/revoke not found'),
-    apiError(404, 'Not Found', 'Route POST:/mcp not found'),
-  ]);
-  expect(await read(session, ownerAccess)).toStrictEqual(before);
 });

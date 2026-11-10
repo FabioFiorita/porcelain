@@ -6,7 +6,6 @@ export { readReviewedFiles } from './queries/reviewed.ts';
 export {
   readPublishedReview,
   readReviewSummary,
-  readProofFile,
 } from './queries/publication.ts';
 
 export {
@@ -33,7 +32,6 @@ export {
   readProjectGitHubAccount,
 } from './queries/project-reviews.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
-export { observeReviewSeen } from './queries/project-reviews.ts';
 
 export {
   agentFeedbackControls,

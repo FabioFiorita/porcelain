@@ -102,6 +102,7 @@ it.each([false, true])(
               { migrationId: 11 },
               { migrationId: 12 },
               { migrationId: 13 },
+              { migrationId: 14 },
             ],
           });
           await expect(
@@ -123,3 +124,37 @@ it.each([false, true])(
     }
   },
 );
+
+it('clears retired push kinds before the remaining registration reader decodes stored JSON', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'porcelain-push-migration-'));
+  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
+  const open = () =>
+    ManagedRuntime.make(
+      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
+    );
+  try {
+    const initial = open();
+    await initial.runPromise(SqlClient.SqlClient);
+    await initial.dispose();
+    const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    stored.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
+      DELETE FROM porcelain_migrations WHERE migration_id = 14;
+      INSERT INTO push_registrations (device_id, token, platform, kinds) VALUES ('phone', 'ExponentPushToken[fixture]', 'ios', '["review-ready","agent-reply"]');`);
+    stored.close();
+    const migrated = open();
+    try {
+      const sql = await migrated.runPromise(SqlClient.SqlClient);
+      expect(
+        await Effect.runPromise(
+          sql`SELECT device_id, token, kinds FROM push_registrations`,
+        ),
+      ).toEqual([
+        { deviceId: 'phone', token: 'ExponentPushToken[fixture]', kinds: '[]' },
+      ]);
+    } finally {
+      await migrated.dispose();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

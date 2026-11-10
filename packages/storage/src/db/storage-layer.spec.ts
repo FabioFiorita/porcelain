@@ -193,6 +193,7 @@ describe('Native storage adoption', () => {
         { migration_id: 11, name: 'walkthroughs' },
         { migration_id: 12, name: 'walkthrough_messages' },
         { migration_id: 13, name: 'automatic_walkthroughs' },
+        { migration_id: 14, name: 'retire_review_push_kinds' },
       ]);
     } finally {
       database.close();
@@ -580,6 +581,7 @@ describe('Native storage adoption', () => {
         { migration_id: 11, name: 'walkthroughs' },
         { migration_id: 12, name: 'walkthrough_messages' },
         { migration_id: 13, name: 'automatic_walkthroughs' },
+        { migration_id: 14, name: 'retire_review_push_kinds' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -642,6 +644,7 @@ describe('Native storage adoption', () => {
           { migration_id: 11, name: 'walkthroughs' },
           { migration_id: 12, name: 'walkthrough_messages' },
           { migration_id: 13, name: 'automatic_walkthroughs' },
+          { migration_id: 14, name: 'retire_review_push_kinds' },
         ]);
         expect(
           stored

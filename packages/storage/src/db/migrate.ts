@@ -36,6 +36,10 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '014_retire_review_push_kinds': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`UPDATE push_registrations SET kinds = '[]'`;
+  }),
   '012_walkthrough_messages': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE walkthrough_messages (

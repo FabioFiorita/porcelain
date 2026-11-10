@@ -4,7 +4,7 @@ import {
   type ArchiveReviewRequest,
   type ReadPullRequestResponse,
 } from '@porcelain/contracts/reviews';
-import { archiveReviewRequestSchema } from '@porcelain/reviews/models';
+
 import { listWorktrees } from '@porcelain/git/discovery';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { CheckProjectService } from '@porcelain/projects/services';
@@ -23,12 +23,11 @@ import {
   Exit,
   Fiber,
   Layer,
-  Schema,
   type Scope,
 } from 'effect';
 import { execFile } from 'node:child_process';
 import { channel } from 'node:diagnostics_channel';
-import { randomUUID } from 'node:crypto';
+
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,13 +41,7 @@ import { ReadReviewPullRequestUseCasePort } from '../../src/ports/read-review-pu
 import { LaneKeys } from '../../src/runtime/lane-keys.ts';
 import { Lanes } from '../../src/runtime/lanes.ts';
 import { ArchiveReviewUseCase } from '../../src/use-cases/reviews/archive-review.ts';
-import {
-  commitReviewFixture,
-  read,
-  sampleReview,
-  toolCall,
-  toolValue,
-} from '../kit/requests.ts';
+import {} from '../kit/requests.ts';
 import { record, text } from '../kit/session.ts';
 import { test } from '../kit/server-test.ts';
 
@@ -699,104 +692,6 @@ for (const variant of [
       }),
     ));
 }
-
-test('HTTP archive preview, invalid flags, protected main and retained saved review use one ordinary server', async ({
-  session,
-  server,
-}) => {
-  const manifest = record(
-    JSON.parse(await readFile(server.manifestPath, 'utf8')),
-  );
-  const gh = join(text(manifest.bin), 'gh');
-  await writeFile(
-    gh,
-    `#!${process.execPath}
-const args = process.argv.slice(2);
-if (args[0] === 'auth') console.log(args[1] === 'status' ? '["fixture"]' : 'fixture-token');
-else if (args.includes('repos/FabioFiorita/porcelain')) console.log('{}');
-else {
- const pr = {number:423,title:'Fixture',url:${JSON.stringify(PR_URL)},state:'MERGED',isDraft:false,author:null,headRefName:'feature',updatedAt:'2026-10-19T00:00:00Z',commits:{nodes:[]},body:'',baseRefName:'main',headRefOid:'${'a'.repeat(40)}',mergeable:'UNKNOWN',labels:{nodes:[],pageInfo:{hasNextPage:false}},comments:{nodes:[],pageInfo:{hasNextPage:false}},reviews:{nodes:[],pageInfo:{hasNextPage:false}}};
- console.log(JSON.stringify({data:{repository:{pullRequest:pr}}}));
-}
-`,
-    { mode: 0o755 },
-  );
-  try {
-    await session.git('branch', 'porcelain-fixture-base');
-    await session.git(
-      'remote',
-      'add',
-      'origin',
-      'git@github.com:FabioFiorita/porcelain.git',
-    );
-    await commitReviewFixture(session);
-    const published = record(
-      toolValue(
-        await read(
-          session,
-          toolCall(session, 1, 'publish_review', {
-            ...sampleReview(session, 0, randomUUID(), randomUUID()),
-            pullRequest: PR_URL,
-          }),
-        ),
-      ),
-    );
-    const path = `/api/reviews/${text(published.reviewId)}`;
-    expect(
-      record(
-        await read(session, { method: 'GET', path: `${path}/pull-request` }),
-      ),
-    ).toMatchObject({ kind: 'available', pullRequest: { state: 'merged' } });
-    for (const body of [
-      { options: all, confirmation: false },
-      { options: all, confirmation: null },
-      { options: { ...all, deleteWorktree: null } },
-      { options: { ...all, deleteRemoteBranch: 'false' } },
-      { options: {} },
-      {},
-    ]) {
-      expect(Schema.is(archiveReviewRequestSchema)(body)).toBe(false);
-      await read(
-        session,
-        { method: 'POST', path: `${path}/archive`, body },
-        400,
-      );
-    }
-    const preview = record(
-      await read(session, {
-        method: 'POST',
-        path: `${path}/archive`,
-        body: { options: all },
-      }),
-    );
-    expect(preview).toMatchObject({
-      archived: false,
-      plan: { mainCheckout: true, dirty: false, unpushed: false },
-    });
-    expect(Object.keys(record(preview.plan)).toSorted()).toEqual([
-      'dirty',
-      'fingerprint',
-      'mainCheckout',
-      'unpushed',
-    ]);
-    expect(
-      await read(session, {
-        method: 'POST',
-        path: `${path}/archive`,
-        body: {
-          options: all,
-          confirmation: { plan: preview.plan, discardChanges: false },
-        },
-      }),
-    ).toMatchObject({ archived: true });
-    expect(await read(session, { method: 'GET', path })).toMatchObject({
-      review: { archived: true, state: 'closed' },
-      revision: { revision: 1 },
-    });
-  } finally {
-    await rm(gh, { force: true });
-  }
-});
 
 test.each([
   [false, false, false],

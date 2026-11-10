@@ -98,6 +98,7 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
       ).toEqual([
         { migration_id: 12, name: 'walkthrough_messages' },
         { migration_id: 13, name: 'automatic_walkthroughs' },
+        { migration_id: 14, name: 'retire_review_push_kinds' },
       ]);
     } finally {
       after.close();

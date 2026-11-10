@@ -69,9 +69,7 @@ function webConnection(instance: WebInstance) {
     serverDataDirectory: detail.serverDataDirectory,
     credentialFiles: detail.credentialFiles,
     pairing: { command: command('pairing-link') },
-    mcp: {
-      command: `cd ${shellCommand([detail.repository])} && ${shellCommand([process.execPath, join(root, 'scripts/server.ts'), '--data-directory', detail.serverDataDirectory, 'mcp'])}`,
-    },
+
     evidenceDirectory: instance.evidence,
     statusCommand: command('status'),
     logsCommand: command('logs'),

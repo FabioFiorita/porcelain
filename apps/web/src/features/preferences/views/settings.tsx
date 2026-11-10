@@ -186,7 +186,7 @@ function SettingsNotice({
       <Alert>
         <AlertTitle>Update {computer} to sync settings</AlertTitle>
         <AlertDescription>
-          Porcelain on {computer} is older and keeps no Reviews &amp; Git
+          Porcelain on {computer} is older and keeps no Changes &amp; Git
           settings. Update it from Computers to choose them here.
         </AlertDescription>
       </Alert>
@@ -282,11 +282,11 @@ function ReviewGitSettingsForm({
         </Alert>
       )}
       <FieldSet>
-        <FieldLegend variant="label">Reviews</FieldLegend>
+        <FieldLegend variant="label">Changes</FieldLegend>
         <ItemGroup>
           <SwitchItem
             label="Spec files"
-            description="Group specs separately and start them collapsed, in a review and in the changed files."
+            description="Group specs separately and start them collapsed, in the changed files."
             checked={settings?.collapseSpecs ?? false}
             disabled={!editable}
             onChange={(collapseSpecs) => change({ collapseSpecs })}
@@ -312,7 +312,7 @@ function ReviewGitSettingsForm({
       <WalkthroughSettings connection={connection} />
       <GitHubAccounts connection={connection} />
       <FieldSet>
-        <FieldLegend variant="label">When archiving a review</FieldLegend>
+        <FieldLegend variant="label">When archiving</FieldLegend>
         <ItemGroup>
           {archiveSettings.map(({ key, label, description }) => (
             <SwitchItem
@@ -364,7 +364,7 @@ function ComputerPicker({
         </SelectContent>
       </Select>
       <FieldDescription>
-        Each computer keeps its own Reviews &amp; Git settings.
+        Each computer keeps its own Changes &amp; Git settings.
       </FieldDescription>
     </Field>
   );
@@ -471,7 +471,7 @@ export function ReviewsGitSettings() {
     <>
       <SettingsHeading
         section="Settings"
-        title="Reviews & Git"
+        title="Changes & Git"
         lead="How reviews read, which GitHub account opens pull requests, and what Git does when you pull and archive."
       />
       {computers.length > 1 && (

@@ -1,13 +1,12 @@
+import type { ReviewFixtureDraft } from './seed-review.ts';
+
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Schema } from 'effect';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import {
-  readPublishedReviewResponseSchema,
-  type PublishReviewRequest,
-} from '@porcelain/contracts/reviews';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import type { Session } from './session.ts';
 
 const scenarios = [
@@ -327,18 +326,18 @@ export async function seedArchitectureSample(
   await session.git('add', 'apps/web', 'packages/client');
 
   const lanes = ['Entry points', 'Shared client', 'Server', 'Owners'];
-  const layers: PublishReviewRequest['layers'][number][] = [];
+  const layers: ReviewFixtureDraft['layers'][number][] = [];
   const boxes: NonNullable<
-    PublishReviewRequest['diagram']
+    ReviewFixtureDraft['diagram']
   >['after']['boxes'][number][] = [];
   const arrows: NonNullable<
-    PublishReviewRequest['diagram']
+    ReviewFixtureDraft['diagram']
   >['after']['arrows'][number][] = [];
   const owners = new Map<string, { id: string; layerId: string }>();
   for (const scenario of scenarios) {
     const id = randomUUID();
     const story = stories[scenario.key];
-    const steps: PublishReviewRequest['layers'][number]['steps'][number][] = [
+    const steps: ReviewFixtureDraft['layers'][number]['steps'][number][] = [
       {
         path: `apps/web/src/${scenario.key}.ts`,
         title: story.view,
@@ -506,7 +505,7 @@ export async function seedArchitectureSample(
   await session.writeFile(policyPath, changed.get(policyPath)!);
   await session.git('add', '-A');
   await session.git('commit', '-m', 'Establish the shared mutation boundary');
-  const body: PublishReviewRequest = {
+  const body: ReviewFixtureDraft = {
     base: 'refs/heads/porcelain-fixture-base',
     verdict: {
       asked: { text: 'Explore the synthetic workspace decisions' },

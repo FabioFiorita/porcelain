@@ -3,7 +3,7 @@ import { archiveFixture } from '../kit/archive-fixture.ts';
 
 for (const width of [1440, 414]) {
   for (const colorScheme of ['light', 'dark'] as const) {
-    test(`PR document and completion disclose ignored-file deletion at ${width}px in ${colorScheme}`, async ({
+    test(`PR document discloses ignored-file deletion at ${width}px in ${colorScheme}`, async ({
       pairedPage,
       server,
       app,
@@ -20,7 +20,7 @@ for (const width of [1440, 414]) {
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
       const search = pairedPage.getByRole('searchbox', {
-        name: 'Search reviews and worktrees',
+        name: 'Search worktrees',
         exact: true,
       });
       await search.fill('archive-fixture');
@@ -54,25 +54,6 @@ for (const width of [1440, 414]) {
       await expect
         .poll(() => fixture.ignoredFile())
         .toBe('LOCAL_ONLY=archive-fixture\n');
-      await app.open(`/reviews/${fixture.reviewId}`);
-      await pairedPage
-        .getByRole('region', { name: 'The walkthrough', exact: true })
-        .getByRole('button', { name: 'Not explained', exact: true })
-        .click();
-      await pairedPage
-        .getByRole('region', { name: 'Review completion', exact: true })
-        .getByRole('button', { name: 'Archive', exact: true })
-        .click();
-      await expect(dialog).toContainText(
-        'The entire worktree folder will be permanently deleted, including ignored files such as .env and local build output.',
-      );
-      await expect(
-        dialog.getByRole('button', { name: 'Archive review', exact: true }),
-      ).toBeEnabled();
-      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await expect
-        .poll(() => fixture.ignoredFile())
-        .toBe('LOCAL_ONLY=archive-fixture\n');
     });
   }
 }
@@ -83,7 +64,8 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   app,
 }) => {
   const project = await server.project();
-  const main = project.worktrees.find((row) => row.main)?.path;
+  const mainWorktree = project.worktrees.find((row) => row.main);
+  const main = mainWorktree?.path;
   if (!main) throw new Error('Missing main checkout');
   const fixture = await archiveFixture(main);
   await app.reload();
@@ -94,6 +76,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await expect(
     pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
   ).toBeVisible();
+  const pullRequestDocument = pairedPage.url();
   const archive = pairedPage.getByRole('button', {
     name: 'Archive',
     exact: true,
@@ -134,9 +117,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   fixture.unlock();
   fixture.dirty();
-  await pairedPage
-    .getByRole('button', { name: /^Open pull request #423:/ })
-    .click();
+  await app.follow(pullRequestDocument);
   await expect(
     pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
   ).toBeVisible();
@@ -158,16 +139,15 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await pairedPage.getByRole('tab', { name: 'Reviews', exact: true }).click();
-  await pairedPage
-    .getByRole('button', { name: 'Filter worktrees', exact: true })
-    .click();
-  await pairedPage
-    .getByRole('menuitemcheckbox', { name: 'Show older reviews', exact: true })
-    .click();
-  await pairedPage.keyboard.press('Escape');
-  await expect(
-    pairedPage.getByRole('link', { name: /archive-fixture.*Archived review/ }),
-  ).toBeVisible();
   await expect.poll(() => fixture.exists()).toBe(false);
+  const destination = `/${project.id}/${mainWorktree?.id}`;
+  await expect.poll(() => app.address().path).toBe(destination);
+  await expect(
+    pairedPage.getByText('Worktree not found', { exact: true }),
+  ).not.toBeAttached();
+  await app.reload();
+  await expect.poll(() => app.address().path).toBe(destination);
+  await expect(
+    pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+  ).toBeVisible();
 });

@@ -109,7 +109,7 @@ export function worktreeCleanupFailureMessage(error: unknown) {
 
 export function archiveDescription(plan: ReviewArchivePlan) {
   return [
-    'The review and its saved revisions will remain available with Show older reviews.',
+    'Saved review history will be preserved.',
     worktreeCleanupDescription(plan),
   ].join('\n\n');
 }

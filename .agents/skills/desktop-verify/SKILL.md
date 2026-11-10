@@ -18,7 +18,7 @@ $C doctor
 $C start
 ```
 
-The short card prints server/web/WebSocket URLs, the exact pairing and MCP commands, evidence and stop commands, renderer URL/CDP, and the lifecycle entry point. Private `connection.json` contains build identity, fixture paths, owner socket, credential file paths, app/server PIDs, staged path, disposable profile, launch-options file and platform capabilities. Launch options contain inherited environment values: keep that file private and never attach it to a PR.
+The short card prints server/web/WebSocket URLs, the exact pairing command, evidence and stop commands, renderer URL/CDP, and the lifecycle entry point. Private `connection.json` contains build identity, fixture paths, owner socket, credential file paths, app/server PIDs, staged path, disposable profile, launch-options file and platform capabilities. Launch options contain inherited environment values: keep that file private and never attach it to a PR.
 
 The app uses an isolated home and removes host provider credentials and configuration variables. Coding CLI lookup is explicitly disabled by default, even after login-shell PATH restoration. In-process journeys can supply an absolute `codingToolDirectory` containing only their fixture executables; missing executables never fall back to PATH.
 
@@ -63,7 +63,7 @@ xvfb-run -a $C start
 
 The detached instance inherits that display, so keep the xvfb owner alive until `$C stop` completes (for a bounded script, run the entire start/renderer/stop journey under `xvfb-run`). `doctor` reports missing display or Electron; run the normal project install to obtain dependencies. If Electron remains missing, report the missing binary/dependencies.
 
-Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, MCP configuration, substituted picker answers, local summaries and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
+Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, substituted picker answers, local summaries and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
 
 An OS accessibility driver additionally needs the accessibility bus and a window manager in the same owned graphical session; a display alone is insufficient. Select the exact disposable process/window and retain the resulting app state. Unsupported native dialogs or actions remain explicit gaps; use the renderer/Playwright handle for supported journeys.
 

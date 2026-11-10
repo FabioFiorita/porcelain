@@ -1,13 +1,13 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Side panel"
-  - "Review sidebar"
-  - "Hide side panel"
-  - "Show side panel"
-  - "Uncommitted changes"
-  - "Open graph"
-  - "Worktree review"
+  - 'Side panel'
+  - 'Review sidebar'
+  - 'Hide side panel'
+  - 'Show side panel'
+  - 'Uncommitted changes'
+  - 'Open graph'
+  - 'Worktree review'
 tests:
   - apps/web/spec/integration/reviews-side-panel.test.tsx
   - apps/web/spec/integration/history-list.test.tsx
@@ -22,8 +22,6 @@ api:
 At 1280px and wider a 44px rail stands at the far right of the worktree: buttons Files (`Alt+1`), Review — "Changes" when the worktree has no review — (`Alt+2`) and History (`Alt+3`), then a bottom button that hides or shows the panel (`Alt+Shift+R`). The selected view docks as a resizable panel (320px by default) between the page and the rail, with a 48px header that holds the view's name and its actions, and the page gives up that width. Clicking the pressed view hides the panel and leaves no view pressed. Below 1280px there is no rail: button "Review" in the bar, `Alt+Shift+R` or `Alt+1`/`Alt+2`/`Alt+3` open the same views in the "Worktree review" sheet, whose header holds the view tabs (role tab) and the view's actions.
 
 The History view names the branch and counts ahead and behind against its named upstream ("No upstream" when it has none), lists "Uncommitted changes" with a file count that opens All changes, draws the commits on their graph line and ends with "Open graph". The Files view uses Pierre's default 30px rows; its header holds "Create file or folder" and "Collapse all".
-
-A durable review page (`/reviews/<reviewId>`) uses the same rail and panel with the Review view only, because it has no worktree to browse: see [reviews.page](reviews.page.md).
 
 ## How to get to it (user POV)
 

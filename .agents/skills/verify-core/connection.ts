@@ -29,7 +29,6 @@ export const connectionSchema = Schema.Struct({
   serverDataDirectory: Schema.String,
   credentialFiles: Schema.Record(Schema.String, Schema.String),
   pairing: command,
-  mcp: command,
   evidenceDirectory: Schema.String,
   statusCommand: Schema.String,
   logsCommand: Schema.String,
@@ -59,5 +58,5 @@ export function buildIdentity(root: string) {
 }
 
 export function connectionCard(connection: Connection, path: string): string {
-  return `instance ${connection.instanceId}\nserver ${connection.serverUrl}\nweb ${connection.webUrl}\nwebsocket ${connection.webSocketUrl}\nconnection ${path}\npair ${connection.pairing.command}\nmcp ${connection.mcp.command}\nevidence ${connection.evidenceDirectory}\nstop ${connection.stopCommand}\n`;
+  return `instance ${connection.instanceId}\nserver ${connection.serverUrl}\nweb ${connection.webUrl}\nwebsocket ${connection.webSocketUrl}\nconnection ${path}\npair ${connection.pairing.command}\nevidence ${connection.evidenceDirectory}\nstop ${connection.stopCommand}\n`;
 }

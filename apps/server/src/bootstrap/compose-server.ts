@@ -35,7 +35,6 @@ import {
   RouteStateStore,
   PairingReachReader,
   RuntimeStatusReader,
-  PushSender,
 } from '@porcelain/access/ports';
 import {
   CommitPlanner,
@@ -51,7 +50,6 @@ import { inMemoryDeviceConnectionStoreLayer } from '../adapters/access/in-memory
 import { httpPairingReachReaderLayer } from '../adapters/access/http-pairing-reach-reader.ts';
 import { httpRouteListenerRunnerLayer } from '../adapters/access/http-route-listener-runner.ts';
 import { httpTunnelProbeLayer } from '../adapters/access/http-tunnel-probe.ts';
-import { expoPushSenderLayer } from '../adapters/access/expo-push-sender.ts';
 import { inMemoryTunnelConnectionStoreLayer } from '../adapters/access/in-memory-tunnel-connection-store.ts';
 import { macNetworkAddressReaderLayer } from '../adapters/access/mac-network-address-reader.ts';
 import { readNetworkPlatform } from '../config/network-platform.ts';
@@ -253,10 +251,6 @@ function serverResources(
               Layer.provide(Layer.succeed(RouteStateStore, stores.routeStates)),
             ),
             processRuntimeStatusReaderLayer(input.runtimeStatus),
-            expoPushSenderLayer({
-              endpoint: settings.pushEndpoint,
-              ...limits.access.pushNotifications,
-            }),
           ),
         );
         const access = yield* composeAccess(context, {
@@ -275,7 +269,6 @@ function serverResources(
           ),
           routeListenerRunner,
           tunnelProbe: Context.get(remoteContext, TunnelProbe),
-          pushSender: Context.get(accessContext, PushSender),
         });
         const projects = yield* composeProjects(context, {
           stores,
@@ -298,7 +291,6 @@ function serverResources(
           checkWorktree,
           findWorktreeByPath: projects.findWorktreeByPath,
           runtimeStatusReader: Context.get(accessContext, RuntimeStatusReader),
-          notifyDevices: access.notifyDevices,
         });
         const announcements = yield* AnnounceWorktreeChangeUseCase.pipe(
           Effect.provide(AnnounceWorktreeChangeUseCase.layer),
@@ -466,7 +458,7 @@ function serverResources(
           jobs,
           network,
           owner: createOwnerServer({
-            application: { ...useCases, reviewTools: reviews },
+            application: useCases,
             logger,
             observability,
             limits,

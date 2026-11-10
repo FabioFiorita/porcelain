@@ -17,7 +17,7 @@ $C start
 
 `doctor` separates startup dependencies (Node, Git, ps, the OS sandbox and installed checkout dependencies) from optional drivers. It works before an instance exists. `doctor --instance <id>` also checks ownership, build freshness, and a JSON health response.
 
-`start` prints a short connection card: instance id, server/web/WebSocket URLs, private `connection.json` path, exact pairing-link and MCP commands, evidence folder and stop command. The server's web URL serves the kit's minimal SPA shell, not the built web client; use web-verify for UI behavior.
+`start` prints a short connection card: instance id, server/web/WebSocket URLs, private `connection.json` path, exact pairing-link command, evidence folder and stop command. The server's web URL serves the kit's minimal SPA shell, not the built web client; use web-verify for UI behavior.
 
 Read private `connection.json` for build identity/freshness, fixture IDs and paths, required Origins, owner socket, data directory, credential-file paths, scoped routes, RPC examples and lifecycle commands. Commit/dirty fields are null without Git metadata. Connection metadata is removed after successful stop; keep credentials out of shared evidence.
 
@@ -31,7 +31,7 @@ Use Node fetch with the fixture bearer read privately from `credentialFiles.fixt
 
 Fallback: curl with `--include`, the card's Origin and fixture bearer. Keep bearer values out of output/traces. Check status **and content type**: a 200 with HTML can be the SPA fallback rather than an API response. The contracts in `packages/contracts` say which network routes need a paired caller. Public routes need no bearer. Paired routes accept the fixture bearer; browser sessions use their paired cookie. Browser pairing uses the exact printed `pairing-link` command, which mints a fresh one-time link. Treat its code as a secret.
 
-Owner routes (`/pairings`, `/access`, `/mcp`) use `ownerSocketPath`, never the TCP server URL. Node's `http.request({ socketPath, path, method, headers })` or `curl --unix-socket "$OWNER_SOCKET" --include http://localhost/access` reaches them; they need no paired bearer. Do not assume a TCP 200 proves owner access.
+Owner routes (`/pairings`, `/access`) use `ownerSocketPath`, never the TCP server URL. Node's `http.request({ socketPath, path, method, headers })` or `curl --unix-socket "$OWNER_SOCKET" --include http://localhost/access` reaches them; they need no paired bearer. Do not assume a TCP 200 proves owner access.
 
 ## Drive live RPC
 
@@ -46,13 +46,9 @@ After open, send the two objects in `live.protocolExample.notices` and `live.pro
 
 Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
-## Deterministic fixtures and MCP
+## Deterministic fixtures
 
-`ids` prints fixture IDs/paths. `agent publish-review`, `agent publish-proof`, `agent comment` and `agent reply` prepare repeatable changes through the disposable owner's MCP route. `server project`, `server published-review`, `server reviewed-layers`, `server reviewed-files`, `server comment-threads`, `server devices`, `server pending-links`, `server push-requests` (every request the fake push service received, with the messages it was sent) and `server receipt <id>` read typed state back. All accept `--instance <id>`; run the CLI alone for arguments.
-
-Review fixture commands commit changes before publishing, include the required verdict and accept only pass/fail proof checks. Unrun checks belong in verdict.notProven. Republishing appends a revision to the branch review.
-
-The card's MCP command runs the checkout's stdio bridge against the disposable data directory, with its working directory set to the sample repository so MCP resolves that worktree. Use that command with your harness's MCP client for arbitrary agent operations. The deterministic `agent` commands are also suitable for fixture publication; their evidence includes the MCP exchange.
+`ids` prints fixture IDs/paths. `server project`, `server published-review`, `server reviewed-files`, `server comment-threads`, `server devices`, and `server receipt <id>` read retained typed state. All accept `--instance <id>`. Publishing and MCP commands have been removed.
 
 ## Evidence and cleanup
 
@@ -66,4 +62,4 @@ With several instances, name one using `--instance <id>`. After stop, evidence a
 
 ## Live GitHub reads
 
-On a fresh instance, run `$C github-read <owner/repository> <pr-number> <account>... --instance <id>` with authenticated host accounts that can read that repository. It publishes a fixture review linked to that PR and records account, PR and project-list readbacks. A temporary Unix-socket bridge permits only these reads through the host's `gh`, since the sandbox has no network or machine credentials. Tokens remain in memory/per-call environments; cleanup removes the shim and socket. This proves live reads with that transport adaptation, not sandbox network access.
+On a fresh instance, run `$C github-read <owner/repository> <pr-number> <account>... --instance <id>` with authenticated host accounts that can read that repository. It seeds a stored mobile review linked to that PR and records account, PR and project-list readbacks. A temporary Unix-socket bridge permits only these reads through the host's `gh`, since the sandbox has no network or machine credentials. Tokens remain in memory/per-call environments; cleanup removes the shim and socket. This proves live reads with that transport adaptation, not sandbox network access.

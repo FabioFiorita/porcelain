@@ -7,14 +7,14 @@ import {
   type ReviewStatus,
 } from './review.ts';
 
-export type ReadinessKey =
+type ReadinessKey =
   | 'files'
   | 'stale'
   | 'unexplained'
   | 'comments'
   | 'replies'
   | 'checks';
-export type ReadinessTone = 'ok' | 'attention' | 'failing';
+type ReadinessTone = 'ok' | 'attention' | 'failing';
 export type ReadinessItem = {
   key: ReadinessKey;
   label: string;

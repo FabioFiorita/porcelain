@@ -1,10 +1,5 @@
 import { expect, it } from 'vitest';
-import {
-  entryKey,
-  parseEntry,
-  publishedReviewTitle,
-  workspaceTitle,
-} from './documents.ts';
+import { entryKey, parseEntry, workspaceTitle } from './documents.ts';
 
 it.each([
   ['files', 'Files'],
@@ -67,13 +62,6 @@ it('restores distinct all-changes and Specs documents after navigation or reload
   ).toBe('Specs — p');
 });
 
-it('names the current publication independently of whether its code is still active', () => {
-  expect(publishedReviewTitle({ active: true })).toBe('Review');
-  expect(publishedReviewTitle({ active: false })).toBe('Review');
-  expect(publishedReviewTitle(undefined)).toBeUndefined();
-  expect(publishedReviewTitle(null)).toBeUndefined();
-});
-
 it('restores a pull request tab and names it after reload', () => {
   expect(
     entryKey({
@@ -119,15 +107,7 @@ it.each([
 );
 
 it.each([
-  [
-    'review-file:review-id:2:apps/web/src/file:variant.ts',
-    {
-      kind: 'review-file',
-      reviewId: 'review-id',
-      revision: 2,
-      path: 'apps/web/src/file:variant.ts',
-    },
-  ],
+  ['review-file:review-id:2:apps/web/src/file:variant.ts', null],
   ['review-file:review-id:0:a.ts', null],
   ['review-file:review-id:1.5:a.ts', null],
   ['review-file:review-id:2:', null],

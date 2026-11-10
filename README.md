@@ -18,7 +18,7 @@ It is free, open source and has no account, and Porcelain never sends your code 
 
 - **A walkthrough of every decision.** The agent publishes a briefing and one stop per decision, with numbered notes that lead you through the diff.
 - **Nothing hides.** Changes the agent did not explain get their own stop, and reviewed marks keep count of what is left.
-- **Comment back.** Ask on a file or a line. The agent answers in the same thread over MCP.
+- **Comment back.** Ask on a file or a line. Porcelain answers questions on the Walkthrough.
 - **Proof.** The checks it ran and the screenshots it took live in the review, and Porcelain says when the code changed after them.
 - **Made for big repositories.** Pin the files you read, hide the ones you never open, and browse History as a commit graph, with commit, pull and push in the same place.
 - **Every machine, one place.** Run a server where each repository lives and reach all of them from one Porcelain.
@@ -45,22 +45,9 @@ npx @fabiofiorita/porcelain@latest service install
 
 `npx @fabiofiorita/porcelain@latest --help` lists every command, and the [npm readme](https://www.npmjs.com/package/@fabiofiorita/porcelain?activeTab=readme) covers sharing on your network, updates and recovery.
 
-## Connect your agent
+## Walkthroughs
 
-Porcelain talks to agents over MCP. Add it to your agent's MCP configuration and start the agent from a repository you opened in Porcelain:
-
-```json
-{
-  "mcpServers": {
-    "porcelain": {
-      "command": "npx",
-      "args": ["-y", "@fabiofiorita/porcelain@latest", "mcp"]
-    }
-  }
-}
-```
-
-Then ask the agent to read `porcelain://review-guide` and publish a review of its work. Your comments reach it through `list_comments`, and its replies appear in the thread.
+Choose **Write walkthrough** on a diff. Porcelain's own read-only agent explains the work and answers questions on the Walkthrough. The coding agent keeps working in its own app.
 
 ## Privacy
 

@@ -29,7 +29,6 @@ import { ReadReviewGitSettingsUseCase } from '../use-cases/access/read-review-gi
 import { SaveReviewGitSettingsUseCase } from '../use-cases/access/save-review-git-settings.ts';
 import { SetPushRegistrationUseCase } from '../use-cases/access/set-push-registration.ts';
 import { ClearPushRegistrationUseCase } from '../use-cases/access/clear-push-registration.ts';
-import { NotifyDevicesUseCase } from '../use-cases/access/notify-devices.ts';
 import { ReadServiceUpdateUseCase } from '../use-cases/access/read-service-update.ts';
 import { StartServiceUpdateUseCase } from '../use-cases/access/start-service-update.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
@@ -94,7 +93,6 @@ export function composeAccess(
     SaveReviewGitSettingsUseCase.layer,
     SetPushRegistrationUseCase.layer,
     ClearPushRegistrationUseCase.layer,
-    NotifyDevicesUseCase.layer,
     ReadRemoteAccessUseCase.layer,
     SetRemoteAccessUseCase.layer,
     OpenRemoteRoutesUseCase.layer,
@@ -134,7 +132,6 @@ export function composeAccess(
         saveReviewGitSettings: yield* SaveReviewGitSettingsUseCase,
         setPushRegistration: yield* SetPushRegistrationUseCase,
         clearPushRegistration: yield* ClearPushRegistrationUseCase,
-        notifyDevices: yield* NotifyDevicesUseCase,
         readRemoteAccess: yield* ReadRemoteAccessUseCase,
         setRemoteAccess: yield* SetRemoteAccessUseCase,
         openRemoteRoutes: yield* OpenRemoteRoutesUseCase,

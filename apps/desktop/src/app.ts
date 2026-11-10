@@ -47,7 +47,6 @@ import electronUpdater from 'electron-updater';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
 import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
-import { desktopMcpCommand } from './rules/mcp-command.ts';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
 import { DesktopError } from './errors/desktop-error.ts';
@@ -359,18 +358,6 @@ const start = Effect.fn('start')(function* () {
   );
   if (url !== undefined && pendingAction === undefined)
     pendingAction = { kind: 'open-review', url };
-  ipcMain.handle('porcelain:mcp-configuration', (event) => {
-    authorize(event);
-    const dataDirectory = join(settings.profile, 'server');
-    return {
-      dataDirectory,
-      command: desktopMcpCommand(
-        process.execPath,
-        app.isPackaged ? undefined : join(app.getAppPath(), 'desktop/main.mjs'),
-        dataDirectory,
-      ),
-    };
-  });
   ipcMain.handle('porcelain:pick-project-folder', (event) =>
     runtime.runPromise(
       Effect.gen(function* () {

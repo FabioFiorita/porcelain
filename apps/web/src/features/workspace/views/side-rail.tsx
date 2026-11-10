@@ -14,7 +14,7 @@ import { SurfaceIcon } from './review-sidebar';
 
 const KEYS: Record<Surface, string> = {
   files: SHORTCUTS.surfaceFiles,
-  changes: SHORTCUTS.surfaceReview,
+  changes: SHORTCUTS.surfaceChanges,
   history: SHORTCUTS.surfaceHistory,
 };
 

@@ -31,18 +31,9 @@ Notifications has two switches, Reviews ready and Agent replies. Turning the fir
 
 Preconditions: [surface baseline](README.md). A fresh start clears app data, so permission is undetermined.
 
-1. Open Settings: the Notifications row says Off. Open it: both switches are off and the footer says what each computer sends through Expo.
-2. Turn on Reviews ready: Allow notifications? explains first; Not now leaves it off. Continue shows the system permission prompt; Allow. Without push credentials the screen shows "Notifications need the app's push key — they'll start working once it's configured." and the Computers section says each computer registers once the phone has a notification token.
-3. Turn on Agent replies, relaunch through the Metro URL in [driving](../references/driving.md) and reopen: both switches stay on, the Settings row says Reviews ready and agent replies and the push-key message returns without a new prompt.
-4. Revoke the notification permission (Android: `adb shell pm revoke <package> android.permission.POST_NOTIFICATIONS`, flag it user-fixed) and relaunch: the screen says notifications are off in the phone's settings and Open Settings opens the app's system settings. Grant it there and return: the push-key message replaces it.
-5. Turn both switches off: the computer receives `DELETE /api/push-registration` (204 in the instance's request log).
-6. With push credentials, a token registers instead: each computer row says Notifies this phone. Publish with `$C agent publish-review`, post a comment from the app and answer it with `$C agent reply`; `$C server push-requests` lists each message sent to the fixture's fake push service, and a tap on the delivered notification opens the review.
+1. Open Settings → Notifications. The legacy switches remain saved preferences until the mobile deletion.
+2. Change each switch, reload the app, and confirm its value persists.
+3. Retired review-ready and agent-reply events are unavailable. The shared registration plan clears registrations; neither switch sends a notification or registers an event kind.
+4. Turning both off clears the computer registration with `DELETE /api/push-registration` (204).
 
-Automated coverage: `notifications.spec.ts` (plan, token failures, messages, tap route), `saved-preferences.spec.ts` (saved switches), and the server's `access-push-notifications.integration.ts` (register, publish, reply, unregister, dropped tokens).
-
-## Gotchas
-
-- Android 13 shows the permission prompt only after a notification channel exists; the app creates the Reviews and replies channel before asking.
-- Forgetting a computer clears this phone's registration there first, bounded by a short timeout; if the computer is unreachable, pairing it again moves the same token to the new device instead of duplicating it.
-- A failed registration retries when the app returns to the foreground.
-- Registration from the device is not observable on a build without push credentials; step 6 needs a credentialed build.
+Automated coverage: `saved-preferences.spec.ts`, `notifications.spec.ts`, and server `access-push-notifications.integration.ts`.

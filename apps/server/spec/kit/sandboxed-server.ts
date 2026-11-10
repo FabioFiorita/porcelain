@@ -25,7 +25,6 @@ import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
-import { startRecordingPushService } from './recording-push-service.ts';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import {
   readServerSettings,
@@ -169,10 +168,8 @@ const relay = createServer((incoming) => {
 });
 const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const routes = new Set<string>();
-const tools = new Set<string>();
 const hitsFile = join(root, 'hits.jsonl');
-const pushFile = join(root, 'push-requests.jsonl');
-let closePushService: (() => Promise<void>) | undefined;
+let closePortConflict: (() => Promise<void>) | undefined;
 let fixtureReady = false;
 subscribe('porcelain.http', (message) => {
   if (
@@ -184,13 +181,6 @@ subscribe('porcelain.http', (message) => {
     return;
   const owner = message.owner === true;
   if (
-    message.event === 'tool-registered' &&
-    owner &&
-    'tool' in message &&
-    typeof message.tool === 'string'
-  ) {
-    tools.add(message.tool);
-  } else if (
     message.event === 'registered' &&
     'method' in message &&
     'route' in message &&
@@ -474,14 +464,18 @@ try {
   await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
   await symlink('../credential.json', join(web, fixture.web.escape));
   const desktopCredential = randomBytes(32).toString('base64url');
-  await writeFile(pushFile, '');
-  const pushService = await startRecordingPushService(
-    pushFile,
-    sample === 'startup-bind-conflict' ? port : 0,
-  );
-  closePushService = pushService.close;
+  if (sample === 'startup-bind-conflict') {
+    const conflict = createServer();
+    await new Promise<void>((resolve, reject) => {
+      conflict.once('error', reject);
+      conflict.listen(port, '127.0.0.1', resolve);
+    });
+    closePortConflict = () =>
+      new Promise<void>((resolve, reject) =>
+        conflict.close((error) => (error ? reject(error) : resolve())),
+      );
+  }
   const settings = readServerSettings({
-    pushEndpoint: pushService.endpoint,
     dataDirectory: state,
     projectHome: root,
     port,
@@ -603,7 +597,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, pushFile, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs }, routes: registeredRoutes(), tools: [...tools].sort() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, installation, codingTool: codingToolExecutable, fixture: { ...fixture, gitActionDeadlineMs: gitActions.deadlineMs }, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(
@@ -624,7 +618,7 @@ try {
   try {
     relay.close();
     if (server !== undefined) await runtime.runPromise(server.close());
-    await closePushService?.();
+    await closePortConflict?.();
   } finally {
     try {
       await runtime.dispose();

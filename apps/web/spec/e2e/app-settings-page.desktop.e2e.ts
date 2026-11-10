@@ -30,10 +30,10 @@ test('Settings opens as its own page with one section at a time, and Close retur
   ).toBeVisible();
 
   await settings
-    .getByRole('button', { name: 'Reviews & Git', exact: true })
+    .getByRole('button', { name: 'Changes & Git', exact: true })
     .click();
   await expect(
-    settings.getByRole('heading', { name: 'Reviews & Git', exact: true }),
+    settings.getByRole('heading', { name: 'Changes & Git', exact: true }),
   ).toBeVisible();
   await expect(
     settings.getByText('Diff layout', { exact: true }),

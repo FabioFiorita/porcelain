@@ -1,11 +1,10 @@
 # Porcelain
 
-Porcelain is a companion to coding agents: it is where a developer reviews what an agent changed, comments back to the agent through MCP, reads the code and makes small edits, from a browser, the Mac app or a phone. One server runs on the developer's machine; the web, desktop and mobile apps connect to it locally, over the local network or across several remote environments.
+Porcelain is a companion to coding agents: it is where a developer reviews what an agent changed, asks questions about the Walkthrough, reads the code and makes small edits, from a browser, the Mac app or a phone. One server runs on the developer's machine; the web, desktop and mobile apps connect to it locally, over the local network or across several remote environments.
 
 ## Product
 
-- **Not a harness.** Agents run in their own apps; Porcelain reads their work beside them instead of running them.
-- **A review walks through decisions, never file names.** The agent publishes one stop per decision, in an order that meets an owner before what uses it; `apps/server/src/http/mcp/review-guide.ts` owns that shape.
+- Porcelain never runs the agent that builds; it runs its own read-only agent to write a Walkthrough and answer questions about it.
 - **A file tree for very large repositories.** The developer pins the files and folders they care about and hides the ones they never open.
 - **Git beside the review:** history, a per-file timeline, commit, pull and push.
 - **Phone and tablet.** The iPhone is a companion away from the desk: check, read, comment and small controls. The iPad is a reading tool, never a larger phone: used in landscape with a keyboard, it keeps its lists beside the content that changes and must be faster to move through than the phone. Neither manages files or adds projects. The platform draws the bars (top bar, tabs, sidebar, search, sheets, menus) and Porcelain's own style, taken from the web, draws everything inside them. The iPad is verified in landscape and portrait.

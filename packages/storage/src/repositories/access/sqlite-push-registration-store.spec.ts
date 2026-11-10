@@ -76,7 +76,7 @@ describe('SqlitePushRegistrationStore persistence', () => {
       deviceId: 'phone',
       token: 'ExponentPushToken[phone]',
       platform: 'android' as const,
-      kinds: ['agent-reply' as const],
+      kinds: [],
     };
     const first = open(dataDirectory);
     await pair(first, 'phone');

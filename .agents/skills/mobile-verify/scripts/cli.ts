@@ -40,9 +40,8 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   evidence                 list retained evidence
   stop                     close this run's sessions, release its simulator and stop owned processes
   pairing-link             print a fresh one-time pairing link
-  agent publish-review|publish-proof|comment|reply ...
                            act through the disposable server's MCP fixture
-  server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|push-requests|receipt ...
+  server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|receipt ...
                            read back the disposable server's state
 Drive the app with the full agent-device invocation from the connection card.
 `;

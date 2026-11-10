@@ -8,7 +8,7 @@ import {
 import { HttpApiClient } from 'effect/http-api';
 import { ownerStatusSchema } from '@porcelain/kernel/models';
 import type { OwnerProbeResult } from '../ports/owner-probe.ts';
-import { OwnerAccessApi, ReviewMcpApi } from '@porcelain/contracts/access';
+import { OwnerAccessApi } from '@porcelain/contracts/access';
 import { NodeHttpClient } from '@effect/platform-node';
 import { connect } from 'node:net';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
@@ -139,51 +139,6 @@ export const ownerRequest = <A, E, R>(
       }),
     ),
   );
-
-export const relayToOwner = Effect.fn('relayToOwner')(function* (
-  socketPath: string,
-  message: unknown,
-  cwd: string,
-  timeoutMs: number,
-  sessionHeaders: Record<string, string>,
-) {
-  const client = socketHttpClient(
-    socketPath,
-    timeoutMs,
-    'The Porcelain server did not answer in time.',
-  );
-  const endpoint = ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp;
-  const request = yield* HttpClientRequest.bodyJson(
-    HttpClientRequest.make(endpoint.method)(endpoint.path).pipe(
-      HttpClientRequest.setHeaders({
-        ...sessionHeaders,
-        accept: 'application/json, text/event-stream',
-        'x-porcelain-cwd': cwd,
-      }),
-    ),
-    message,
-  );
-  return yield* Effect.gen(function* () {
-    const response = yield* client.execute(request);
-    return {
-      status: response.status,
-      body: yield* response.text,
-      headers: new Headers(response.headers),
-    };
-  }).pipe(
-    Effect.mapError(
-      (error) =>
-        new OwnerRequestError({
-          message:
-            error.reason._tag === 'TransportError'
-              ? socketAbsent(error.reason.cause)
-                ? 'Porcelain is not running.'
-                : reasonOf(error.reason.cause)
-              : reasonOf(error),
-        }),
-    ),
-  );
-});
 
 export const probeOwner = Effect.fn('probeOwner')(function* (input: {
   readonly socketPath: string;

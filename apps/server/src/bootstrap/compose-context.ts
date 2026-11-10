@@ -3,7 +3,6 @@ import type { Context } from 'effect';
 import {
   type NetworkAddressReader,
   type PairingReachReader,
-  type PushSender,
   type RouteListenerRunner,
   type RuntimeStatusReader,
   type TunnelProbe,
@@ -44,5 +43,4 @@ export type AccessDependencies = {
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
   tunnelProbe: TunnelProbe;
-  pushSender: PushSender;
 };

@@ -2,7 +2,7 @@ import { Cause } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { reviewCommands } from '../commands/project-reviews.ts';
+
 import { agentFeedbackPresentation } from '../rules/agent-feedback.ts';
 import { reviewErrorMessage } from '../../reviews/rules/review.ts';
 import { readReview, readReviewAgentFeedback } from './project-reviews.ts';
@@ -21,15 +21,12 @@ export const agentFeedbackControls = Atom.family(
       reviewId: input.reviewId,
     };
     const query = readReviewAgentFeedback(reviewInput);
-    const commands = reviewCommands(reviewInput);
     const refresh = clientRuntime(input.connection).fn((_input: void) =>
       Atom.refresh(query),
     );
     const state = Atom.make((get) => {
       const result = get(query);
       const record = get(readReview(reviewInput));
-      const sending = get(commands.sendAgentFeedback);
-      const disconnecting = get(commands.disconnectAgentSession);
       if (!AsyncResult.isSuccess(result))
         return AsyncResult.isFailure(result)
           ? {
@@ -47,30 +44,21 @@ export const agentFeedbackControls = Atom.family(
         writable:
           input.writable && current?.state === 'open' && !current.archived,
       });
-      const pending = sending.waiting || disconnecting.waiting;
-      const settled =
-        !result.waiting && AsyncResult.isSuccess(record) && !record.waiting;
       return {
         kind: 'ready' as const,
         ...presentation,
-        canSend: presentation.canSend && settled && !pending,
-        canDisconnect: presentation.canDisconnect && settled && !pending,
-        sending: sending.waiting,
-        disconnecting: disconnecting.waiting,
-        showActions: result.value.session !== undefined && input.writable,
+        canSend: false,
+        canDisconnect: false,
+        sending: false,
+        disconnecting: false,
+        showActions: false,
         deliveryError: result.value.delivery?.error,
-        errors: [sending, disconnecting].flatMap((mutation) =>
-          AsyncResult.isFailure(mutation)
-            ? [reviewErrorMessage(Cause.squash(mutation.cause))]
-            : [],
-        ),
+        errors: [],
       };
     });
     return Atom.writable(
       (get) => {
         get(refresh);
-        get(commands.sendAgentFeedback);
-        get(commands.disconnectAgentSession);
         return get(state);
       },
       (context, action: 'send' | 'disconnect' | 'refresh') => {
@@ -80,10 +68,6 @@ export const agentFeedbackControls = Atom.family(
         }
         const view = context.get(state);
         if (view.kind !== 'ready') return;
-        if (action === 'send' && view.canSend)
-          context.set(commands.sendAgentFeedback, input.reviewRevision);
-        if (action === 'disconnect' && view.canDisconnect)
-          context.set(commands.disconnectAgentSession, undefined);
       },
     );
   },

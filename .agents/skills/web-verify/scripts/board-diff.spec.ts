@@ -67,11 +67,14 @@ it('escapes role and value cells in the pasteable table', () => {
 it('accepts defaults, deduplicates widths and finds a board by its HTML name', () => {
   const directory = mkdtempSync(join(tmpdir(), 'board-diff-options-'));
   try {
-    writeFileSync(join(directory, 'Narrative-desktop.html'), '<h1>Board</h1>');
+    writeFileSync(
+      join(directory, 'Narrative-settings-general.html'),
+      '<h1>Board</h1>',
+    );
     const args = [
       'board-diff',
       '--board',
-      'Narrative-desktop',
+      'Narrative-settings-general',
       '--route',
       '/project/worktree',
       '--board-directory',
@@ -80,7 +83,7 @@ it('accepts defaults, deduplicates widths and finds a board by its HTML name', (
     const defaults = boardDiffOptions(args);
     expect(defaults.widths).toStrictEqual([1440, 414]);
     expect(defaults.themes).toStrictEqual(['light', 'dark']);
-    expect(defaults.board.html).toBe('Narrative-desktop.html');
+    expect(defaults.board.html).toBe('Narrative-settings-general.html');
     expect(
       boardDiffOptions([...args, '--width', '414,414', '--theme', 'dark'])
         .widths,

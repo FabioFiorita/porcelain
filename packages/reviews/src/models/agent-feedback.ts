@@ -23,14 +23,3 @@ export const reviewAgentFeedbackStateSchema = Schema.Struct({
 export type ReviewAgentSession = typeof reviewAgentSessionSchema.Type;
 export type ReviewAgentFeedbackState =
   typeof reviewAgentFeedbackStateSchema.Type;
-
-export type ReviewAgentFeedbackResponse = ReviewAgentFeedbackState & {
-  currentCommentRevision: number;
-  acknowledgementAccepted?: boolean | undefined;
-};
-export type ReviewAgentFeedbackOperation = { reviewId: string } & (
-  | { kind: 'read' | 'disconnect' }
-  | { kind: 'connect'; session: ReviewAgentSession }
-  | { kind: 'send'; reviewRevision: number }
-  | { kind: 'acknowledge'; deliveryId: string }
-);

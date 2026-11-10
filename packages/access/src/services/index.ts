@@ -35,6 +35,3 @@ export { AuthorizeSharingService } from './authorize-sharing-service.ts';
 export { SetManagementPermissionService } from './set-management-permission-service.ts';
 export { SetPushRegistrationService } from './set-push-registration-service.ts';
 export { ClearPushRegistrationService } from './clear-push-registration-service.ts';
-export { PlanPushNotificationsService } from './plan-push-notifications-service.ts';
-export { SendPushNotificationsService } from './send-push-notifications-service.ts';
-export { ForgetPushRegistrationsService } from './forget-push-registrations-service.ts';

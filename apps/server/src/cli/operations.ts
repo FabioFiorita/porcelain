@@ -14,7 +14,6 @@ import {
   setDeviceTrust,
 } from './access-commands.ts';
 import { runLocalServer, type StartServer } from './launcher.ts';
-import { runMcpBridge } from './mcp-bridge.ts';
 import { runServiceCommand } from './service.ts';
 import { cliPackageRoot } from './package-version.ts';
 import { shareRemoteAccess } from './share-command.ts';
@@ -69,7 +68,6 @@ export class CliOperations extends Context.Service<
     readonly share: (
       settings: StatusSettings & { readonly action: ShareAction },
     ) => Effect.Effect<number, OwnerRequestError>;
-    readonly mcp: (settings: StatusSettings) => Effect.Effect<void>;
     readonly service: (settings: ServiceSettings) => Effect.Effect<void>;
   }
 >()('@porcelain/server/CliOperations') {
@@ -158,9 +156,6 @@ export class CliOperations extends Context.Service<
             output,
             limits,
           ),
-        ),
-        mcp: Effect.fn('Cli.mcp')((settings) =>
-          runMcpBridge(settings.dataDirectory, limits.owner.mcpTimeoutMs),
         ),
         service: Effect.fn('Cli.service')((settings) =>
           runServiceCommand(settings, {

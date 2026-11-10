@@ -108,7 +108,7 @@ export {
   OwnerAccessApi,
   AccessApi,
 } from './api.ts';
-export { LiveUpdatesApi, ReviewMcpApi } from './protocols.ts';
+export { LiveUpdatesApi } from './protocols.ts';
 
 export {
   type SetManagementPermissionRequest,

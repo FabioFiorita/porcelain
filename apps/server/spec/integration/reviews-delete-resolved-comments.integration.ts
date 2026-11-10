@@ -1,3 +1,4 @@
+import { seedAgentComment, seedAgentReply } from '../kit/seed-agent-comment.ts';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { deleteResolvedCommentsResponseSchema } from '@porcelain/contracts/reviews';
@@ -7,13 +8,7 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import {
-  read,
-  toolCall,
-  toolValue,
-  worktreePath,
-  answered,
-} from '../kit/requests.ts';
+import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -26,7 +21,7 @@ const answeredId = randomUUID();
 const notedId = randomUUID();
 const openId = randomUUID();
 const fromAgentId = randomUUID();
-const anchor = { kind: 'file', filePath: 'README.md' };
+const anchor = { kind: 'file', filePath: 'README.md' } as const;
 const threads = async (session: Session) =>
   list(
     (
@@ -66,7 +61,7 @@ const deleteResolved = (
   body: { threads },
 });
 
-test("deleting confirmed resolved threads removes the reviewer's whole threads and keeps agent-started, changed, open threads, also for the agent", async ({
+test("deleting confirmed resolved threads removes the reviewer's whole threads and keeps agent-started, changed, open threads, in persisted reads", async ({
   session,
 }) => {
   for (const { threadId, body } of [
@@ -79,21 +74,15 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
       path: worktreePath(session, '/comments'),
       body: { threadId, anchor, body },
     });
-  await read(
-    session,
-    toolCall(session, 1, 'reply_to_comment', {
-      threadId: answeredId,
-      body: 'It names the new section.',
-    }),
-  );
-  await read(
-    session,
-    toolCall(session, 2, 'create_comment', {
-      threadId: fromAgentId,
-      anchor,
-      body: 'I left the old heading in the changelog.',
-    }),
-  );
+  await seedAgentReply(session, {
+    threadId: answeredId,
+    body: 'It names the new section.',
+  });
+  await seedAgentComment(session, {
+    threadId: fromAgentId,
+    anchor,
+    body: 'I left the old heading in the changelog.',
+  });
   for (const threadId of [answeredId, notedId, fromAgentId])
     await resolve(session, threadId);
   const confirmed = await revisions(
@@ -103,13 +92,10 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
     fromAgentId,
     openId,
   );
-  await read(
-    session,
-    toolCall(session, 3, 'reply_to_comment', {
-      threadId: notedId,
-      body: 'Noted, and one more thing.',
-    }),
-  );
+  await seedAgentReply(session, {
+    threadId: notedId,
+    body: 'Noted, and one more thing.',
+  });
 
   const response = await session.send(deleteResolved(session, confirmed));
 
@@ -126,14 +112,18 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
     skipped: [notedId, fromAgentId, openId],
   });
   expect(await threads(session)).toStrictEqual([notedId, openId, fromAgentId]);
-  const listed = await read(
-    session,
-    toolCall(session, 4, 'list_comments', { scope: 'all' }),
-  );
-  expect(listed).toMatchObject(answered(4));
-  expect(
-    list(record(toolValue(listed)).threads).map((entry) => record(entry).id),
-  ).toStrictEqual([notedId, openId, fromAgentId]);
+  const listed = (
+    await session.read({
+      method: 'GET',
+      path: worktreePath(session, '/comments'),
+    })
+  ).body;
+
+  expect(list(listed).map((entry) => record(entry).id)).toStrictEqual([
+    notedId,
+    openId,
+    fromAgentId,
+  ]);
 });
 
 test('deleting an already deleted thread deletes nothing, an empty or malformed list is refused and an unknown worktree is not found', async ({

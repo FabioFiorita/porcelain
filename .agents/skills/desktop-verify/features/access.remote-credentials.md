@@ -11,21 +11,18 @@ selectors:
   - 'Read saved computers'
   - 'Walkthrough'
   - 'Review'
-  - 'Agent summary'
 tests:
   - apps/desktop/spec/e2e/bridge.e2e.ts
-  - apps/desktop/spec/e2e/review-summaries.e2e.ts
 api: []
 ---
 
 # access.remote-credentials
 
-The Mac app saves paired computers securely, preserves unreadable credentials without overwriting them, and opens remote review summaries in isolation.
+The Mac app saves paired computers securely, preserves unreadable credentials without overwriting them,.
 
 ## How to get to it (user POV)
 
 - Settings › Computers › paste a pairing link › Add
-- a project card belonging to a paired computer in the sidebar, then its worktree's Review → Agent summary
 
 ## Driving it with Electron
 
@@ -35,9 +32,8 @@ Preconditions: [surface baseline](README.md).
 2. Inspect `credentialFiles.remoteEncrypted`: no plaintext credential is present and file mode is 0600. Restart with the same disposable profile and confirm the saved computer reconnects.
 3. Using the named bridge fixture, make the encrypted store unreadable. Expect Settings to explain the failure; it must not overwrite unreadable ciphertext. Refuse encryption on write and confirm the prior ciphertext stays. Clear removes the saved store.
 4. In an in-process Electron journey, invoke credential/update IPC from an unowned window: every request is refused. Keep the owned window usable.
-5. Publish authored summaries on local and paired remote fixtures. Walkthrough is initial; Agent summary opens HTML, and its #layer-N links open decision N. Return through the Review document tab, then Agent summary. Open both through the app: theme and decision links work, content stays sandboxed, and no remote website, Node or bridge access is available.
 
-Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
+Automated coverage: `bridge.e2e.ts`.
 
 6. With an already open remote file/review, capture socket identity and independently change fixture data while the app is suspended. Resume without assuming a browser focus/visibility transition; accepted live subscription refreshes active reads and pending Git receipts, keeping a healthy socket. If the window remains unfocused, that refresh is retained until it becomes active. Computers diagnostic reads pause during native suspension. Keep another computer usable throughout. Run the native suspend/resume bridge regression separately from actual OS sleep/wake; emitted test events do not prove physical sleep. Repeat after closing/reopening the window and confirm power listeners are released.
 
@@ -45,5 +41,4 @@ Automated coverage: `bridge.e2e.ts`, `review-summaries.e2e.ts`.
 
 - The named encrypted-store and remote-summary regressions run in the `macos` project with Keychain and the same disposable profile. Linux encrypted persistence would need a real supported encrypted backend; plaintext fallback is refused. Never inspect the installed profile.
 - The `portable` project independently covers local signed summaries, untrusted-window IPC refusal and emitted suspend/resume delivery. Those promises do not require Keychain; they do not prove remote persistence or physical OS sleep.
-- Signed summary links expire shortly after the review read; reload for a fresh link before mounting a late frame. Focus the intended link and release Enter only after the destination takes focus; iframe replacement can otherwise send activation twice. Confirm the actual decision opens, or a frame-src violation blocks website navigation with zero website requests.
 - A remote encrypted-store file may not exist before the first save.

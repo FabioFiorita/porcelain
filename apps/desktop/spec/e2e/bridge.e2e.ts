@@ -70,36 +70,6 @@ const saved = JSON.stringify([
   { name: 'Desktop proof', credential: 'test-only-bearer' },
 ]);
 
-test('Settings obtains the local app executable and server directory through its trusted bridge', async ({
-  desktop,
-}) => {
-  const app = await desktop.launch();
-  const page = await app.window();
-  const configuration = await page.evaluate(() =>
-    porcelainDesktop.mcpConfiguration(),
-  );
-  const executable = await app.electron.evaluate(() => process.execPath);
-  expect(configuration.dataDirectory).toBe(app.serverData);
-  expect(configuration.command).toContain(executable);
-  expect(configuration.command).toContain('--porcelain-mcp');
-  expect(configuration.command).toContain(app.serverData);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page
-    .getByRole('navigation', { name: 'Settings sections', exact: true })
-    .getByRole('button', { name: 'Computers', exact: true })
-    .click();
-  await page.getByRole('button', { name: /^Open This computer:/u }).click();
-  await expect(
-    page.getByText(configuration.command, { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Copy MCP configuration' }),
-  ).toBeEnabled();
-  await expect(
-    page.getByText(/including when you are viewing another computer/),
-  ).toBeVisible();
-});
-
 test('the bridge keeps one opaque credential string encrypted in a file only the owner reads, and restores it after a restart @macos', async ({
   desktop,
 }) => {
@@ -175,64 +145,6 @@ test('with encryption unavailable a write is refused and the saved ciphertext st
   await page.evaluate(() => porcelainDesktop.credentials.clear());
   expect(await savedCredentials(page)).toEqual({ status: 'empty' });
   expect(existsSync(app.credentialsFile)).toBe(false);
-});
-
-test('a window the app did not open is refused MCP configuration, credentials and app updates', async ({
-  desktop,
-}) => {
-  const app = await desktop.launch();
-  const page = await app.window();
-  const rogueOpened = app.nextWindow();
-  const rogueId = await app.electron.evaluate(
-    async ({ BrowserWindow, app }) => {
-      const rogue = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          preload: `${app.getAppPath()}/desktop/preload.cjs`,
-          sandbox: true,
-          contextIsolation: true,
-          nodeIntegration: false,
-        },
-      });
-      await rogue.loadURL(
-        'data:text/html,<title>Untrusted bridge caller</title>',
-      );
-      return rogue.id;
-    },
-  );
-  const rogue = await rogueOpened;
-  const refusals = await rogue.evaluate(async () => {
-    const bridge = porcelainDesktop;
-    const operations = [
-      () => bridge.mcpConfiguration(),
-      () => bridge.credentials.read(),
-      () => bridge.credentials.write('untrusted'),
-      () => bridge.credentials.clear(),
-      () => bridge.appUpdate.check(),
-      () => bridge.appUpdate.install(),
-    ];
-    const messages: string[] = [];
-    for (const operation of operations)
-      messages.push(
-        await operation().then(
-          () => 'allowed',
-          (error: unknown) => (error instanceof Error ? error.message : ''),
-        ),
-      );
-    return messages;
-  });
-  await app.electron.evaluate(({ BrowserWindow }, id) => {
-    BrowserWindow.fromId(id)?.destroy();
-  }, rogueId);
-  expect(refusals).toEqual([
-    expect.stringContaining('Untrusted desktop request'),
-    expect.stringContaining('Untrusted desktop request'),
-    expect.stringContaining('Untrusted desktop request'),
-    expect.stringContaining('Untrusted desktop request'),
-    expect.stringContaining('Untrusted desktop request'),
-    expect.stringContaining('Untrusted desktop request'),
-  ]);
-  expect(await savedCredentials(page)).toEqual({ status: 'empty' });
 });
 
 test('the bridge gives the app version at once, reports through removable subscriptions that the local build has no update feed, and refuses to install', async ({

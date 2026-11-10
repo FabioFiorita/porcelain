@@ -1,47 +1,6 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('Changes and Review remain the first tab and cannot close by keyboard or menu', async ({
-  workspace,
-  agent,
-}) => {
-  const tabs = workspace.getByRole('tablist', {
-    name: 'Open documents',
-    exact: true,
-  });
-  await expect
-    .element(tabs.getByRole('tab', { name: 'Changes', exact: true }))
-    .toBeVisible();
-  await tabs.getByRole('tab', { name: 'Changes', exact: true }).click();
-  await userEvent.keyboard('{Alt>}w{/Alt}');
-  await expect
-    .element(tabs.getByRole('tab', { name: 'Changes', exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      workspace.getByRole('button', { name: 'Close Changes', exact: true }),
-    )
-    .not.toBeInTheDocument();
-  await tabs
-    .getByRole('tab', { name: 'Changes', exact: true })
-    .click({ button: 'right' });
-  await expect
-    .element(workspace.getByRole('menuitem', { name: /^Close Alt/ }))
-    .toBeDisabled();
-  await userEvent.keyboard('{Escape}');
-  await agent.publishReview('Readme layer');
-  await tabs.getByRole('tab', { name: 'Review', exact: true }).click();
-  await userEvent.keyboard('{Alt>}w{/Alt}');
-  await expect
-    .element(tabs.getByRole('tab', { name: 'Review', exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      workspace.getByRole('button', { name: 'Close Review', exact: true }),
-    )
-    .not.toBeInTheDocument();
-});
-
 test('the active file chip stays inside the narrow tab strip after its controls arrive', async ({
   render,
   repo,

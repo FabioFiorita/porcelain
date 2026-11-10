@@ -142,56 +142,6 @@ export function sampleReview(
   };
 }
 
-export const mcpHeaders = (cwd: string) => ({
-  accept: 'application/json, text/event-stream',
-  'x-porcelain-cwd': cwd,
-});
-
-export function toolCall(
-  session: Session,
-  id: number,
-  name: string,
-  input: Record<string, unknown>,
-): HttpRequest {
-  return {
-    method: 'POST',
-    path: '/mcp',
-    target: 'owner',
-    headers: {
-      ...mcpHeaders(session.repository),
-      'mcp-protocol-version': '2026-07-28',
-      'mcp-method': 'tools/call',
-      'mcp-name': name,
-    },
-    body: {
-      jsonrpc: '2.0',
-      id,
-      method: 'tools/call',
-      params: {
-        name,
-        arguments: input,
-        _meta: {
-          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
-          'io.modelcontextprotocol/clientCapabilities': {},
-        },
-      },
-    },
-  };
-}
-
-export function toolResult(body: unknown) {
-  return record(record(body).result);
-}
-
-export function toolText(body: unknown) {
-  return text(record(list(toolResult(body).content)[0]).text);
-}
-
-export function toolValue(body: unknown): unknown {
-  const value: unknown = JSON.parse(toolText(body));
-  return value;
-}
-
 export function worktreePath(session: Session, suffix = '') {
   return `/api/worktrees/${session.worktreeId}${suffix}`;
 }

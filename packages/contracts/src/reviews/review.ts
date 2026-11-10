@@ -1,5 +1,5 @@
 import { isoDateTimeSchema } from '../shared/schema.ts';
-import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
+
 import { Effect, Schema, SchemaTransformation } from 'effect';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
@@ -15,13 +15,11 @@ import {
   REVIEW_PROSE_LENGTH,
   REVIEW_STEPS,
   REVIEW_STEP_TEXT_LENGTH,
-  REVIEW_SUMMARY_BYTES,
-  REVIEW_SUMMARY_MEBIBYTES,
   REVIEW_SYMBOL_LENGTH,
   REVIEW_TITLE_LENGTH,
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
-import { proofDraftSchema, publishedProofSchema } from './review-proof.ts';
+import { publishedProofSchema } from './review-proof.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
 import { readBranchDiffsRequestSchema } from '../changes/branch-changes.ts';
 import { worktreeIdSchema } from '../shared/schema.ts';
@@ -186,20 +184,6 @@ const reviewDiagramSchema = Schema.Struct({
   after: diagramSchema,
 });
 
-const summaryHtmlSchema = Schema.String.check(Schema.isMinLength(1))
-  .check(Schema.isMaxLength(REVIEW_SUMMARY_BYTES))
-  .check(
-    Schema.makeFilter((value: string) => value.isWellFormed(), {
-      expected: 'Expected valid Unicode text',
-    }),
-  )
-  .check(
-    Schema.makeFilter(
-      (value: string) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
-      { expected: `Summary exceeds ${REVIEW_SUMMARY_MEBIBYTES} MiB` },
-    ),
-  );
-
 const notExplainedSchema = Schema.Struct({
   path: relativePathSchema,
   ranges: Schema.Array(
@@ -334,44 +318,13 @@ const publishedReviewSchema = Schema.Struct({
   proof: publishedProofSchema,
 });
 
-export const publishReviewRequestSchema = Schema.Struct({
-  timing: Schema.optional(Schema.Literals(['decision', 'record'])),
-  expectedRevision: Schema.Number.check(Schema.isInt())
-    .check(Schema.isGreaterThanOrEqualTo(0))
-    .check(Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1)),
-  summaryHtml: Schema.optional(summaryHtmlSchema),
-  verdict: reviewVerdictSchema,
-  base: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
-  pullRequest: Schema.optional(
-    Schema.String.check(
-      Schema.isPattern(
-        /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/[1-9][0-9]*\/?$/,
-      ),
-    ),
-  ),
-  reviewId: Schema.optional(reviewIdSchema),
-  diagram: Schema.optional(reviewDiagramSchema),
-  layers: Schema.Array(reviewLayerSchema)
-    .check(Schema.isMinLength(1))
-    .check(Schema.isMaxLength(REVIEW_LAYERS)),
-  proof: Schema.optional(proofDraftSchema),
-});
-
 export const readPublishedReviewResponseSchema = Schema.Struct({
   review: nullableAsUndefined(publishedReviewSchema),
-});
-export const publishReviewResponseSchema = Schema.Struct({
-  ...readPublishedReviewResponseSchema.fields,
-  reviewId: reviewIdSchema,
-  revision: revisionSchema,
-  headOid: Schema.String,
-  baseOid: Schema.String,
-  links: reviewLinksSchema,
 });
 export const projectReviewParamsSchema = Schema.Struct({
   projectId: Schema.String,
 });
-export const readReviewQuerySchema = Schema.Struct({
+const readReviewQuerySchema = Schema.Struct({
   revision: Schema.optional(revisionSchema),
 });
 export const readReviewDiffsRequestSchema = Schema.Struct({
@@ -439,7 +392,6 @@ export const deleteReviewResponseSchema = Schema.Struct({
 });
 export type DeleteReviewResponse = typeof deleteReviewResponseSchema.Type;
 
-export type PublishReviewRequest = typeof publishReviewRequestSchema.Type;
 export type ReadPublishedReviewResponse =
   typeof readPublishedReviewResponseSchema.Type;
 

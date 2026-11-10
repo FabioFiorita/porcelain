@@ -1,15 +1,14 @@
+import { seedReview } from '@porcelain/server/kit/seed-review';
 import { expect } from 'vitest';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { toolCall, toolValue } from '@porcelain/server/kit/requests';
+
 import { record, text } from '@porcelain/server/kit/session';
 import { test } from '@porcelain/server/kit/server-test';
 import {
-  read,
   sampleReview,
   commitReviewFixture,
-  worktreePath,
 } from '@porcelain/server/kit/requests';
 import {
   readProjectReviews,
@@ -31,16 +30,15 @@ test('a main checkout stays selectable while closed publications remain readable
   session,
 }) => {
   await commitReviewFixture(session);
-  await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(
+  await seedReview(
+    session,
+    sampleReview(
       session,
       0,
       '75dc6a36-a001-4d00-b511-c45430b99403',
       '75dc6a36-a001-4d00-b511-c45430b99404',
     ),
-  });
+  );
   const {
     connected,
     registry,
@@ -212,20 +210,20 @@ for (const main of [true, false])
       `#!${process.execPath}\nconst args=process.argv.slice(2);\nif(args[0]==='auth'&&args[1]==='status') console.log('["fixture"]');\nelse if(args[0]==='auth') console.log('fixture-credential');\nelse if(args.includes('repos/FabioFiorita/porcelain')) console.log('{}');\nelse console.log(JSON.stringify({data:{repository:{pullRequest:${JSON.stringify(pr)}}}}));\n`,
       { mode: 0o755 },
     );
-    const publish = toolCall(session, 1, 'publish_review', {
-      ...sampleReview(
-        session,
-        0,
-        '75dc6a36-a001-4d00-b511-c45430b99403',
-        '75dc6a36-a001-4d00-b511-c45430b99404',
-      ),
-      base: 'refs/heads/porcelain-fixture-base',
-      pullRequest: pr.url,
-    });
-    publish.headers = { ...publish.headers, 'x-porcelain-cwd': checkout };
-    const reviewId = text(
-      record(toolValue(await read(session, publish))).reviewId,
+    const published = await seedReview(
+      { ...session, repository: checkout },
+      {
+        ...sampleReview(
+          session,
+          0,
+          '75dc6a36-a001-4d00-b511-c45430b99403',
+          '75dc6a36-a001-4d00-b511-c45430b99404',
+        ),
+        base: 'refs/heads/porcelain-fixture-base',
+        pullRequest: pr.url,
+      },
     );
+    const reviewId = published.reviewId;
     const {
       connected,
       registry,

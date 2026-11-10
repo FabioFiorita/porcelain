@@ -176,18 +176,35 @@ function answerWalkthrough(args: readonly string[], prompt: string): Answer {
     return refused('Not logged in. Please run claude auth login.');
   if (scenario === 'broken')
     return { stdout: 'not json', stderr: '', exitCode: 0 };
-  const sessionId =
-    args[args.indexOf(first ? '--session-id' : '--resume') + 1] ?? '';
-  const answer = first
-    ? { understood: 'A change to the sample.', could_not_tell: [] }
-    : walkthroughContent(readFileSync(rangePath, 'utf8').trim(), scenario);
+  const sessionFlag = args.includes('--resume') ? '--resume' : '--session-id';
+  const sessionId = args[args.indexOf(sessionFlag) + 1] ?? '';
+  let output: { result: string } | { structured_output: object };
+  if (!args.includes('--json-schema'))
+    output = {
+      result:
+        'The notes explain why the sample changed; the glossary keeps its terms in one place.',
+    };
+  else if (first)
+    output = {
+      structured_output: {
+        understood: 'A change to the sample.',
+        could_not_tell: [],
+      },
+    };
+  else
+    output = {
+      structured_output: walkthroughContent(
+        readFileSync(rangePath, 'utf8').trim(),
+        scenario,
+      ),
+    };
   return {
     stdout: `${JSON.stringify({
       type: 'result',
       is_error: false,
       session_id: sessionId,
       total_cost_usd: 0.01,
-      structured_output: answer,
+      ...output,
     })}\n`,
     stderr: '',
     exitCode: 0,

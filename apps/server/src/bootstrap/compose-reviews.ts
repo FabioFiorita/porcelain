@@ -2,9 +2,7 @@ import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-reque
 import { CacheWalkthroughPullTitlesService } from '@porcelain/walkthroughs/services';
 import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
 import { AgentFeedbackUseCase } from '../use-cases/reviews/agent-feedback.ts';
-import { AgentFeedbackService } from '@porcelain/reviews/services';
 import { AgentFeedbackStore } from '@porcelain/reviews/ports';
-import { t3ReviewAgentHostLayer } from '../adapters/reviews/t3-review-agent-host.ts';
 import { ReadReviewGitHubTargetUseCasePort } from '../ports/read-review-github-target-use-case-port.ts';
 import { ArchiveReviewService } from '@porcelain/reviews/services';
 import { ReadReviewPullRequestUseCasePort } from '../ports/read-review-pull-request-use-case-port.ts';
@@ -43,15 +41,15 @@ import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-projec
 import {
   ReadReviewService,
   ReadReviewRevisionService,
+  ReadReviewAgentFeedbackService,
   ListProjectReviewsService,
   SetReviewSeenService,
   SetReviewStateService,
   ListReviewMarksService,
   SetReviewMarkService,
   RemoveReviewMarkService,
-  ReadReviewFileService,
   BuildReviewLinksService,
-  ValidateReviewPublicationService,
+  ReadReviewFileService,
 } from '@porcelain/reviews/services';
 import { AtReviewScopeUseCase } from '../use-cases/reviews/at-review-scope.ts';
 import { remoteReviewLinkSourceLayer } from '../adapters/reviews/remote-review-link-source.ts';
@@ -77,7 +75,6 @@ import {
 import { BranchRangeReader } from '@porcelain/changes/ports';
 import { ReadRepositoryOriginService } from '@porcelain/projects/services';
 import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
-import { gitReviewCommitPinnerLayer } from '../adapters/reviews/git-review-commit-pinner.ts';
 import { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
 import {
   ReadWorktreeStatusService,
@@ -91,10 +88,7 @@ import {
   ListKnownWorktreesService,
 } from '@porcelain/projects/services';
 import { ReadEnvironmentService } from '@porcelain/access/services';
-import {
-  ReadBinaryFilesService,
-  ReadTextFilesService,
-} from '@porcelain/files/services';
+import { ReadTextFilesService } from '@porcelain/files/services';
 import { ReadReviewEvidenceUseCasePort } from '../ports/read-review-evidence-use-case-port.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
@@ -121,7 +115,6 @@ import { summaryRoutes } from '../http/routes/reviews/summary-api.ts';
 import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import {
-  ValidateReviewDraftService,
   CreateCommentThreadService,
   DeleteCommentMessageService,
   DeleteReviewService,
@@ -132,7 +125,6 @@ import {
   ListReviewedFilesService,
   ListReviewedLayersService,
   MarkCommentsSeenService,
-  PublishReviewService,
   ReadProofFileService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
@@ -147,7 +139,6 @@ import {
   InvalidateReviewedMarksService,
 } from '@porcelain/reviews/services';
 import { hmacSignatureSourceLayer } from '../adapters/reviews/hmac-signature-source.ts';
-import { randomSecretSourceLayer } from '../adapters/runtime/random-secret-source.ts';
 import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
@@ -159,7 +150,6 @@ import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-thr
 import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
 import { ListReviewedLayersUseCase } from '../use-cases/reviews/list-reviewed-layers.ts';
 import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen.ts';
-import { PublishReviewUseCase } from '../use-cases/reviews/publish-review.ts';
 import { ReadProofFileUseCase } from '../use-cases/reviews/read-proof-file.ts';
 import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
 import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
@@ -172,9 +162,6 @@ import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import { NotifyDevicesUseCasePort } from '../ports/notify-devices-use-case-port.ts';
-import { NotifyReviewActivityUseCase } from '../use-cases/reviews/notify-review-activity.ts';
-import { NotifyReviewActivityUseCasePort } from '../ports/notify-review-activity-use-case-port.ts';
 import { type ComposeContext } from './compose-context.ts';
 import { type Shared } from './compose-shared.ts';
 import { type Stores } from './compose-stores.ts';
@@ -186,7 +173,6 @@ type ReviewsDependencies = {
   checkWorktree: CheckWorktreeUseCasePort;
   findWorktreeByPath: FindWorktreeByPathUseCasePort;
   runtimeStatusReader: RuntimeStatusReader;
-  notifyDevices: NotifyDevicesUseCasePort;
 };
 
 export function composeReviews(
@@ -210,14 +196,12 @@ export function composeReviews(
   const ports = Layer.mergeAll(
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
     Layer.succeed(AgentFeedbackStore, stores.agentFeedback),
-    t3ReviewAgentHostLayer(context.settings.limits.git),
     gitReviewArchiverLayer(context.settings.limits.git),
     dependencies.githubReader(context.settings.limits.git),
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
     Layer.succeed(InventoryStore, stores.inventory),
     gitReviewCodeReaderLayer(context.settings.limits),
     originLayer,
-    gitReviewCommitPinnerLayer(context.settings.limits.git),
     Layer.succeed(BranchReviewReader, shared.branchReviewReader),
     Layer.succeed(BranchRangeReader, shared.branchRangeReader),
     Layer.succeed(RemoteAccessStore, stores.remoteAccess),
@@ -227,7 +211,6 @@ export function composeReviews(
       hubOrigin: context.settings.appLinkOrigin,
     }),
     Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
-    Layer.succeed(NotifyDevicesUseCasePort, dependencies.notifyDevices),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
@@ -243,8 +226,6 @@ export function composeReviews(
     Layer.succeed(ReplyToCommentOptions, limits.comments),
     Layer.succeed(ReviewStore, reviewStore),
     Layer.succeed(ReadReviewEvidenceUseCasePort, shared.readReviewEvidence),
-    Layer.succeed(ReadBinaryFilesService, shared.readBinaryFiles),
-    randomSecretSourceLayer(limits.summaryLink),
     Layer.succeed(ProofLimits, limits.proof),
     Layer.succeed(ReadEnvironmentService, readEnvironment),
     Layer.succeed(ReadPublishedReviewService, readPublishedReview),
@@ -286,6 +267,7 @@ export function composeReviews(
     ReadRetainedBranchDiffsService.layer,
     ReadReviewService.layer,
     ReadReviewRevisionService.layer,
+    ReadReviewAgentFeedbackService.layer,
     ListProjectReviewsService.layer,
     SetReviewSeenService.layer,
     SetReviewStateService.layer,
@@ -293,9 +275,8 @@ export function composeReviews(
     ListReviewMarksService.layer,
     SetReviewMarkService.layer,
     RemoveReviewMarkService.layer,
-    ReadReviewFileService.layer,
     BuildReviewLinksService.layer,
-    ValidateReviewPublicationService.layer,
+    ReadReviewFileService.layer,
 
     WorktreeAccess.layer,
     ResolvePublishedReviewService.layer,
@@ -304,8 +285,6 @@ export function composeReviews(
     CreateCommentThreadService.layer,
     ReplyToCommentService.layer,
     UpdateCommentThreadService.layer,
-    ValidateReviewDraftService.layer,
-    PublishReviewService.layer,
     ListReviewedLayersService.layer,
     AtWorktreePathUseCase.layer,
     EditCommentMessageService.layer,
@@ -338,16 +317,8 @@ export function composeReviews(
     ReadReviewGitHubTargetUseCasePort,
     ReadReviewGitHubTargetUseCase,
   ).pipe(Layer.provideMerge(githubTargets));
-  const notifications = Layer.effect(
-    NotifyReviewActivityUseCasePort,
-    NotifyReviewActivityUseCase,
-  ).pipe(
-    Layer.provideMerge(
-      NotifyReviewActivityUseCase.layer.pipe(Layer.provideMerge(linkedGitHub)),
-    ),
-  );
   const operations = Layer.mergeAll(
-    AgentFeedbackUseCase.layer.pipe(Layer.provide(AgentFeedbackService.layer)),
+    AgentFeedbackUseCase.layer,
     CompareReviewUseCase.layer,
     ReadReviewInterdiffUseCase.layer,
     ReadProjectGitHubAccountUseCase.layer,
@@ -368,7 +339,6 @@ export function composeReviews(
     CreateCommentThreadUseCase.layer,
     ReplyToCommentUseCase.layer,
     UpdateCommentThreadUseCase.layer,
-    PublishReviewUseCase.layer,
     ReadPublishedReviewUseCase.layer,
     RefreshWorktreeReviewUseCase.layer,
     InvalidateReviewedMarksUseCase.layer,
@@ -385,7 +355,7 @@ export function composeReviews(
     ListReviewedLayersUseCase.layer,
     SetReviewedLayerUseCase.layer,
     RemoveReviewedLayerUseCase.layer,
-  ).pipe(Layer.provideMerge(notifications));
+  ).pipe(Layer.provideMerge(linkedGitHub));
   const archivePorts = Layer.effect(
     ReadReviewPullRequestUseCasePort,
     ReadReviewPullRequestUseCase,
@@ -439,7 +409,6 @@ export function composeReviews(
         deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
         markCommentsSeen: yield* MarkCommentsSeenUseCase,
         deleteReview: yield* DeleteReviewUseCase,
-        publishReview: yield* PublishReviewUseCase,
         readPublishedReview: yield* ReadPublishedReviewUseCase,
         readProofFile: yield* ReadProofFileUseCase,
         readReviewSummary: yield* ReadReviewSummaryUseCase,
@@ -453,7 +422,7 @@ export function composeReviews(
       return {
         ...useCases,
         resolveProjectGitHub: yield* ResolveProjectGitHubUseCasePort,
-        routes: reviewsRoutes(useCases, context.settings.limits.http),
+        routes: reviewsRoutes(useCases),
         summaryRoutes: summaryRoutes(useCases.readReviewSummary),
       };
     }).pipe(Effect.provideContext(runtime));

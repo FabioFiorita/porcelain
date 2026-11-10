@@ -20,7 +20,7 @@ test('desktop Settings uses the shared three sections and nests this computer an
   });
   await expect(sections.getByRole('button')).toHaveText([
     'General',
-    'Reviews & Git',
+    'Changes & Git',
     'Computers',
   ]);
   await expect(
@@ -66,6 +66,13 @@ test('desktop Settings uses the shared three sections and nests this computer an
   await expect(
     settings.getByRole('button', {
       name: 'Copy MCP configuration',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(settings.getByText('Agents', { exact: true })).toHaveCount(0);
+  await expect(
+    settings.getByRole('complementary', {
+      name: 'Pair a device',
       exact: true,
     }),
   ).toBeVisible();

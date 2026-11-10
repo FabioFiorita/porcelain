@@ -15,7 +15,7 @@ async function expectNoFalseEmpty(page: Page) {
   ).not.toBeAttached();
 }
 
-test('retrying a refused review read restores the workspace at the same address', async ({
+test('retrying a refused changes read restores the workspace at the same address', async ({
   pairedPage,
   app,
   failures,
@@ -23,7 +23,7 @@ test('retrying a refused review read restores the workspace at the same address'
   failures.console(/RequestError: Request failed \(503\)/);
   await waitChanges(pairedPage);
   const address = app.address().path;
-  const endOutage = await app.failReviewRead();
+  const endOutage = await app.failChangesRead();
   await app.reload();
   const retry = pairedPage.getByRole('button', {
     name: 'Try again',
@@ -44,7 +44,7 @@ test('a refused first changes read offers Retry and recovers at the same workspa
   failures,
 }) => {
   failures.console(/RequestError: Request failed \(503\)/);
-  const endOutage = await app.failReviewRead();
+  const endOutage = await app.failChangesRead();
   await app.open(await app.link('this'));
   const retry = page.getByRole('button', { name: 'Try again', exact: true });
   await expect(retry).toBeVisible();
@@ -123,58 +123,6 @@ for (const target of ['entry', 'side']) {
           : page;
       await expect(
         content.getByText('A change to review.', { exact: true }),
-      ).toBeVisible();
-    } finally {
-      held.release();
-    }
-  });
-}
-
-for (const first of ['changes', 'publication'] as const) {
-  test(`a published review opens after empty changes and publication settle: ${first} first`, async ({
-    page,
-    live,
-    app,
-    repo,
-    agent,
-  }) => {
-    await repo.commit('Commit the sample change');
-    await agent.publishReview('Published context', 'context');
-    const held = await (first === 'changes'
-      ? live.holdPublishedReviewRead()
-      : live.holdChangesRead());
-    held.arm();
-    try {
-      const settled = page.waitForResponse((response) => {
-        const path = new URL(response.url()).pathname;
-        return (
-          response.request().method() === 'GET' &&
-          path.endsWith(first === 'changes' ? '/changes' : '/review') &&
-          response.status() === 200
-        );
-      });
-      await app.open(await app.link('this'));
-      await held.requested;
-      await settled;
-      const loading = page.getByRole('status', {
-        name: 'Loading review',
-        exact: true,
-      });
-      await expect(loading).toBeVisible();
-      await expectNoFalseEmpty(page);
-      held.release();
-      await expect(
-        page.getByRole('region', { name: 'Review walkthrough', exact: true }),
-      ).toBeVisible();
-      await expect(
-        page
-          .getByRole('tablist', { name: 'Open documents', exact: true })
-          .getByRole('tab', { name: 'Review', exact: true }),
-      ).toBeVisible();
-      await expect(loading).not.toBeAttached();
-      await app.reload();
-      await expect(
-        page.getByRole('region', { name: 'Review walkthrough', exact: true }),
       ).toBeVisible();
     } finally {
       held.release();

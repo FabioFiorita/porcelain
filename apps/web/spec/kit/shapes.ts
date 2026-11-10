@@ -3,7 +3,7 @@ import {
   readServiceUpdateResponseSchema,
   type ReadServiceUpdateResponse,
 } from '@porcelain/contracts/access';
-import { reviewFixtureSchema } from './protocol.ts';
+
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
 import type {
@@ -29,40 +29,6 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
             ? state
             : Schema.encodeSync(readServiceUpdateResponseSchema)(state),
       }),
-    review: async (
-      title: string,
-      asked?: string,
-      route?: {
-        path: string;
-        lane: string;
-        timing?: 'decision' | 'record';
-        choices?: boolean;
-      },
-      branch?: string,
-    ) =>
-      Schema.decodeUnknownSync(reviewFixtureSchema)(
-        JSON.parse(
-          await step({
-            kind: 'review-fixture',
-            operation: 'publish',
-            title,
-            asked,
-            route,
-            branch,
-          }),
-        ),
-      ),
-    advanceReviewBranch: () =>
-      step({ kind: 'review-fixture', operation: 'advance', title: '' }),
-    removeReviewRepository: () =>
-      step({
-        kind: 'review-fixture',
-        operation: 'remove-repository',
-        title: '',
-      }),
-    removeReviewWorktree: () =>
-      step({ kind: 'review-fixture', operation: 'remove-worktree', title: '' }),
-    closingPlaces: () => step({ kind: 'closing-places-fixture' }),
     paginatedTimeline: () => step({ kind: 'paginated-timeline-fixture' }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
     remove: (path: string) => step({ kind: 'remove', path }),

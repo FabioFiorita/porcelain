@@ -368,22 +368,3 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
     .element(page.getByRole('heading', { name: 'All changes', exact: true }))
     .toBeVisible();
 });
-
-test('without a walkthrough the old published review stays on the first tab', async ({
-  agent,
-  render,
-}) => {
-  await agent.publishReview('Sample review');
-  const app = await render.route('/');
-  await expect
-    .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      app.page.getByRole('heading', {
-        name: 'No walkthrough yet.',
-        exact: true,
-      }),
-    )
-    .not.toBeInTheDocument();
-});

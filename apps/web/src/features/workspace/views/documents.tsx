@@ -1,7 +1,9 @@
-import type { ComponentProps, ReactNode } from 'react';
-import type { CodeDocument, CodeHeaderControls } from './code-document';
+import type { ReactNode } from 'react';
+import type { CodeHeaderControls } from './code-document';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { usePullRequestCheckout } from '../queries/pull-request';
+
 import {
   useConnectedContext,
   useRemoteConnections,
@@ -10,11 +12,11 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
-import { useInventory } from '@/features/projects/index';
+
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
-import { usePublishedReview } from '../queries/published-review';
+
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
 import {
@@ -23,12 +25,8 @@ import {
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import { decisionNotes, gapNotes, mergeNotes } from '../rules/code-notes';
-import {
-  isSpecPath,
-  stopTitle,
-  walkthroughStops,
-} from '@porcelain/client/reviews/rules';
+
+import { isSpecPath } from '@porcelain/client/reviews/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import {
   BranchDocument,
@@ -48,11 +46,10 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { StateNotice } from '@/shared/views/state-notice';
 import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
-import { useSpecsApart } from '@/features/preferences/index';
+
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import type { ChangeScope } from '@/shared/workspace/search';
 import { counted } from '@porcelain/client/reviews/rules';
-import { pullRequestReviewDestination } from '../rules/review-route';
 
 export type StepDocumentProps = DocumentProps & {
   step: number;
@@ -60,7 +57,6 @@ export type StepDocumentProps = DocumentProps & {
 };
 
 export type DocumentProps = {
-  agentNote?: ComponentProps<typeof CodeDocument>['agentNote'] | undefined;
   base: string | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -84,9 +80,7 @@ export function DocumentView({
   reveal,
   base,
   toolbarTarget,
-  handoff: Handoff,
-  reviewFile: ReviewFileDocument,
-  agentNote,
+  walkthrough: Walkthrough,
   stepDocument: StepDocument,
   changeScope = 'uncommitted',
   singleHeader = false,
@@ -94,18 +88,6 @@ export function DocumentView({
   stepDocument?: ComponentType<StepDocumentProps> | undefined;
   changeScope?: ChangeScope | undefined;
   singleHeader?: boolean | undefined;
-  agentNote?: DocumentProps['agentNote'] | undefined;
-  reviewFile?:
-    | ComponentType<{
-        document: Extract<
-          DocumentRef,
-          { kind: 'review-file' | 'review-change' }
-        >;
-        context: ConnectionContext;
-        interaction: DocumentInteraction;
-        onOpen: OpenDocument;
-      }>
-    | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   toolbarTarget?: HTMLElement | null | undefined;
@@ -116,11 +98,10 @@ export function DocumentView({
   reveal?: RevealComment | undefined;
   base?: string | undefined;
 } & (
-  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; handoff?: never }
-  | { document: DocumentRef; handoff: ComponentType<DocumentProps> }
+  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; walkthrough?: never }
+  | { document: DocumentRef; walkthrough: ComponentType<DocumentProps> }
 )) {
   const props = {
-    agentNote,
     base,
     scope,
     context,
@@ -138,18 +119,13 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
-      return Handoff ? <Handoff {...props} /> : null;
+      return Walkthrough ? <Walkthrough {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
-    case 'review-file':
-    case 'review-change':
-      return ReviewFileDocument ? (
-        <ReviewFileDocument {...props} document={document} />
-      ) : null;
     case 'file':
       return <FileDocument {...props} path={document.path} />;
     case 'commit':
@@ -176,7 +152,6 @@ export function DocumentView({
           document={document}
           context={context}
           toolbarTarget={toolbarTarget}
-          onOpen={onOpen}
         />
       );
   }
@@ -186,16 +161,13 @@ function ScopedPullRequestDocument({
   document,
   context,
   toolbarTarget,
-  onOpen,
 }: {
   document: Extract<DocumentRef, { kind: 'pull-request' }>;
   context: ConnectionContext;
   toolbarTarget: HTMLElement | null | undefined;
-  onOpen: OpenDocument;
 }) {
   const local = useConnectedContext();
   const remotes = useRemoteConnections();
-  const navigate = useNavigate();
   const connection =
     document.environmentId === undefined
       ? context.connection
@@ -209,24 +181,57 @@ function ScopedPullRequestDocument({
         description="Pair this pull request's computer in Settings to read it."
       />
     );
+  return (
+    <PullRequestSourceDocument
+      document={document}
+      context={{ connection }}
+      localEnvironmentId={local.connection.environmentId}
+      toolbarTarget={toolbarTarget}
+    />
+  );
+}
+
+function PullRequestSourceDocument({
+  document,
+  context,
+  localEnvironmentId,
+  toolbarTarget,
+}: {
+  document: Extract<DocumentRef, { kind: 'pull-request' }>;
+  context: ConnectionContext;
+  localEnvironmentId: string;
+  toolbarTarget: HTMLElement | null | undefined;
+}) {
+  const navigate = useNavigate();
+  const checkout = usePullRequestCheckout(
+    context.connection,
+    document.reviewId,
+  );
+  if (!checkout)
+    return <StateNotice title="Pull request checkout unavailable" />;
   const openSource = (
     entry: { kind: 'handoff' } | { kind: 'file'; path: string },
   ) => {
-    if (document.environmentId === undefined) onOpen(entry);
-    else
-      void navigate(
-        pullRequestReviewDestination(
-          document,
-          local.connection.environmentId,
-          entry,
-        ),
-      );
+    const params = checkout;
+    const search = { entry: entryKey(entry) };
+    void navigate(
+      context.connection.environmentId === localEnvironmentId
+        ? { to: '/$projectId/$worktreeId', params, search }
+        : {
+            to: '/remotes/$environmentId/$projectId/$worktreeId',
+            params: {
+              ...params,
+              environmentId: context.connection.environmentId,
+            },
+            search,
+          },
+    );
   };
   return (
     <PullRequestDocument
       reviewId={document.reviewId}
       number={document.number}
-      context={{ connection }}
+      context={context}
       toolbarTarget={toolbarTarget}
       onBack={() => openSource({ kind: 'handoff' })}
       onFile={(path) => openSource({ kind: 'file', path })}
@@ -292,41 +297,6 @@ function TimelineDocument({
   );
 }
 
-function NoReviewIntro({
-  scope,
-  context,
-  branch,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  branch: string | undefined;
-}) {
-  const project = useInventory(context.connection).projects.find(
-    (entry) => entry.id === scope.projectId,
-  );
-  const place = [branch, project?.name].filter(Boolean).join(' · ');
-  return (
-    <header className="flex min-w-0 flex-col pb-9">
-      {place && (
-        <div className="text-ui leading-5.5 font-medium text-muted-foreground">
-          <TruncatedText text={place} className="block min-w-0" />
-        </div>
-      )}
-      <h2 className="text-4xl not-first:mt-3.5 font-semibold tracking-title">
-        No review yet
-      </h2>
-      <p className="mt-4 max-w-180 text-lg leading-7 tracking-lead text-foreground-2">
-        The agent has not published a review for this worktree. Ask it to
-        publish one (it calls{' '}
-        <code className="font-mono text-base leading-7 text-foreground">
-          publish_review
-        </code>{' '}
-        through Porcelain&rsquo;s MCP server), or read the changes below.
-      </p>
-    </header>
-  );
-}
-
 function changesLabel(specsOnly: boolean, count: number) {
   return counted(
     count,
@@ -335,30 +305,23 @@ function changesLabel(specsOnly: boolean, count: number) {
 }
 
 export function PlainChangesDocument({
-  agentNote,
   scope,
   context,
   interaction,
   onBrowse,
   specsOnly = false,
-  intro = false,
   only,
   heading,
 }: DocumentProps & {
   specsOnly?: boolean;
-  intro?: boolean;
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const specsApart = useSpecsApart(context.connection);
   const list = useChanges(scope, connection);
   const allChanges = useReviewChangeItems(scope, context, list);
-  const published = usePublishedReview(scope, context);
-  const review =
-    !specsOnly && published.review?.active ? published.review : undefined;
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
@@ -412,22 +375,9 @@ export function PlainChangesDocument({
         </StateNotice>
       </div>
     );
-  const story = review
-    ? walkthroughStops(
-        review,
-        list.changes.map((change) => change.path),
-        { specsApart: specsApart },
-      ).flatMap((stop) =>
-        stop.paths.map((path) => ({
-          path,
-          note: stopTitle(stop),
-        })),
-      )
-    : [];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
-        agentNote={agentNote}
         scope={scope}
         context={context}
         interaction={interaction}
@@ -452,14 +402,7 @@ export function PlainChangesDocument({
             }
           : {
               header: (controls: CodeHeaderControls) => (
-                <div className={intro ? 'pt-14' : 'pt-6'}>
-                  {intro && (
-                    <NoReviewIntro
-                      scope={scope}
-                      context={context}
-                      branch={list.branch?.name}
-                    />
-                  )}
+                <div className="pt-6">
                   <ChangeTable
                     scope={scope}
                     context={context}
@@ -479,24 +422,12 @@ export function PlainChangesDocument({
                 </div>
               ),
             })}
-        {...(review
-          ? {
-              files: story,
-              agentNotes: mergeNotes(
-                ...review.layers.map((layer, index) =>
-                  decisionNotes(layer, index + 1),
-                ),
-                gapNotes(review.notExplained),
-              ),
-            }
-          : {})}
       />
     </div>
   );
 }
 
 function ChangeDocument({
-  agentNote,
   scope,
   context,
   interaction,
@@ -527,7 +458,6 @@ function ChangeDocument({
       >
         {(trigger) => (
           <ReviewCodeDocument
-            agentNote={agentNote}
             {...(interaction.reveal?.compose
               ? { commentRequest: interaction.reveal.nonce }
               : {})}

@@ -40,7 +40,7 @@ for (const legacy of ['markdownDefault', 'htmlDefault']) {
       documents.getByRole('tab', { name: 'Rendered', exact: true }),
     ).toHaveAttribute('aria-selected', 'true');
     await pairedPage
-      .getByRole('button', { name: 'Reviews & Git', exact: true })
+      .getByRole('button', { name: 'Changes & Git', exact: true })
       .click();
     await expect(
       pairedPage.getByRole('switch', { name: 'Spec files', exact: true }),
@@ -65,22 +65,6 @@ for (const section of ['devices', 'integrations']) {
     await expect(
       settings.getByText('Pair a device', { exact: true }),
     ).toBeVisible();
-    await expect(
-      settings.getByRole('button', {
-        name: 'Copy MCP configuration',
-        exact: true,
-      }),
-    ).toBeVisible();
-    await settings.getByRole('tab', { name: 'Codex', exact: true }).click();
-    await expect(settings.getByRole('status')).toHaveText(
-      'codex mcp add porcelain -- porcelain mcp',
-    );
-    await settings
-      .getByRole('tab', { name: 'Claude Code', exact: true })
-      .click();
-    await expect(settings.getByRole('status')).toHaveText(
-      'claude mcp add porcelain -- porcelain mcp',
-    );
     await closeSettings(settings.page());
     await expect(pairedPage).toHaveURL(/\/settings\/computers$/);
   });

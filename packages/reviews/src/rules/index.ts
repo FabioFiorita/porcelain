@@ -1,5 +1,4 @@
 export { reviewPaths } from './review-evidence.ts';
-export { proofFilePaths } from './review-proof.ts';
 
 export {
   reviewDirtyPaths,
@@ -16,3 +15,7 @@ export { githubRepository } from './github-account.ts';
 export { mapPullRequestSummary } from './pull-request.ts';
 
 export { recentPullRequestCutoff } from './pull-request.ts';
+
+export { publishedLayerFingerprint } from './resolve-review.ts';
+
+export { commentStorageSize } from './comment-threads.ts';

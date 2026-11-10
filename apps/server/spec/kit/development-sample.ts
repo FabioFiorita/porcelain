@@ -1,13 +1,14 @@
+import { Schema } from 'effect';
+import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
+import { seedAgentReply } from './seed-agent-comment.ts';
+import type { ReviewFixtureDraft } from './seed-review.ts';
+import { seedReview } from './seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Schema } from 'effect';
-import {
-  createCommentThreadResponseSchema,
-  type PublishReviewRequest,
-} from '@porcelain/contracts/reviews';
+
 import { type Recorder, type ServerHandle } from './isolated-server.ts';
-import { toolCall, toolResult } from './requests.ts';
+
 import {
   developmentCommits,
   developmentFiles,
@@ -156,7 +157,7 @@ export async function seedDevelopmentSample(
 
   await session.git('add', '-A');
   await session.git('commit', '-m', 'Keep document holds visible');
-  const review: PublishReviewRequest = {
+  const review: ReviewFixtureDraft = {
     base: 'refs/heads/porcelain-fixture-base',
     verdict: {
       asked: { text: 'Show the dispatch document-hold decisions' },
@@ -224,36 +225,8 @@ export async function seedDevelopmentSample(
       })),
     ),
   };
-  const published = await session.read(
-    toolCall(session, 1, 'publish_review', review),
-    200,
-  );
-  if (toolResult(published.body).isError === true)
-    throw new Error('Development review publication failed');
-  const comment = Schema.decodeUnknownSync(createCommentThreadResponseSchema)(
-    (
-      await session.read(
-        {
-          method: 'POST',
-          path: `/api/worktrees/${session.worktreeId}/comments`,
-          body: {
-            anchor: { kind: 'file', filePath: 'src/domain/shipment.ts' },
-            body: 'Should a document hold stay visible until the dispatcher records the next action?',
-          },
-        },
-        200,
-      )
-    ).body,
-  );
-  const replied = await session.read(
-    toolCall(session, 2, 'reply_to_comment', {
-      threadId: comment.id,
-      body: 'Yes. The pending status and card changes keep the hold and its next action visible.',
-    }),
-    200,
-  );
-  if (toolResult(replied.body).isError === true)
-    throw new Error('Development comment reply failed');
+  await seedReview(session, review);
+
   await session.read(
     {
       method: 'POST',
@@ -271,6 +244,20 @@ export async function seedDevelopmentSample(
     },
     200,
   );
+  const comment = await session.read({
+    method: 'POST',
+    path: `/api/worktrees/${session.worktreeId}/comments`,
+    body: {
+      anchor: { kind: 'file', filePath: 'src/domain/shipment.ts' },
+      body: 'Should a document hold stay visible until the dispatcher records the next action?',
+    },
+  });
+  await seedAgentReply(session, {
+    threadId: Schema.decodeUnknownSync(createCommentThreadResponseSchema)(
+      comment.body,
+    ).id,
+    body: 'Yes. The pending status and card changes keep the hold and its next action visible.',
+  });
   await write(
     'docs/operations/next-shift.md',
     '# Next shift\n\nConfirm the next document check with the dispatcher.\n',

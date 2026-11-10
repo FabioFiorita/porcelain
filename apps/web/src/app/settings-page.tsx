@@ -48,7 +48,7 @@ export const settingsSections: readonly [
   ...SettingsSection[],
 ] = [
   { id: 'general', label: 'General', icon: SlidersHorizontalIcon },
-  { id: 'git', label: 'Reviews & Git', icon: GitBranchIcon },
+  { id: 'git', label: 'Changes & Git', icon: GitBranchIcon },
   { id: 'computers', label: 'Computers', icon: ServerIcon },
 ];
 

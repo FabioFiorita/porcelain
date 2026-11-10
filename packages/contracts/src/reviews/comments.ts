@@ -116,7 +116,7 @@ export const commentThreadParamsSchema = Schema.Struct({
 export type CommentThreadTargetParams =
   typeof commentThreadTargetParamsSchema.Type;
 
-export const commentThreadScopeSchema = Schema.Literals(['waiting', 'all']);
+const commentThreadScopeSchema = Schema.Literals(['waiting', 'all']);
 const listCommentThreadsQuerySchema = Schema.Struct({
   reviewId: Schema.optional(Schema.String.check(Schema.isUUID())),
   scope: Schema.optional(commentThreadScopeSchema),

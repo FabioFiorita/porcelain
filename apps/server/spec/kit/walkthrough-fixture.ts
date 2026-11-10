@@ -90,7 +90,7 @@ export function seedStoredWalkthroughs(
 export function restoreWalkthroughMigration012(directory: string): void {
   transaction(directory, (database) =>
     database.exec(
-      "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id=13;",
+      "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id >= 13;",
     ),
   );
 }
@@ -102,7 +102,7 @@ export function restorePreWalkthroughReview(
   transaction(directory, (database) => {
     database.prepare('UPDATE review_revisions SET verdict = ?').run(verdict);
     database.exec(
-      "DROP TABLE walkthrough_messages; DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE name IN ('review_timing', 'walkthroughs', 'automatic_walkthroughs', 'walkthrough_messages');",
+      'DROP TABLE walkthrough_messages; DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE migration_id >= 10;',
     );
   });
 }

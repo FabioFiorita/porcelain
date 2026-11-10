@@ -144,9 +144,6 @@ function mobileConnection(instance: MobileInstance) {
       agentDevice: detail.driver.config,
     },
     pairing: { command: command('pairing-link') },
-    mcp: {
-      command: `cd ${shellCommand([detail.repository])} && ${shellCommand([process.execPath, join(repositoryRoot, 'scripts/server.ts'), '--data-directory', detail.serverDataDirectory, 'mcp'])}`,
-    },
     evidenceDirectory: instance.evidence,
     statusCommand: command('status'),
     logsCommand: command('logs'),

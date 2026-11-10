@@ -1,15 +1,10 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { access, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, vi } from 'vitest';
 import { test } from '../kit/server-test.ts';
-import {
-  commitReviewFixture,
-  sampleReview,
-  read,
-  toolCall,
-  toolValue,
-} from '../kit/requests.ts';
+import { commitReviewFixture, sampleReview, read } from '../kit/requests.ts';
 import { record, text } from '../kit/session.ts';
 
 test('reads GitHub PRs with per-project accounts, closes merged reviews, and never exposes tokens in responses or logs', async ({
@@ -94,15 +89,9 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
       'git@github.com:FabioFiorita/porcelain.git',
     );
     await commitReviewFixture(session);
-    const published = record(
-      toolValue(
-        await read(
-          session,
-          toolCall(session, 1, 'publish_review', {
-            ...sampleReview(session, 0, randomUUID(), randomUUID()),
-          }),
-        ),
-      ),
+    const published = await seedReview(
+      session,
+      sampleReview(session, 0, randomUUID(), randomUUID()),
     );
     const reviewId = text(published.reviewId);
     const responses: unknown[] = [];

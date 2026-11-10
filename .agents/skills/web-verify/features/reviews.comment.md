@@ -1,14 +1,13 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Comment on "
-  - "Comment"
-  - "Cancel"
-  - "Waiting for the agent"
-  - "The agent reads this when you ask it to check its comments."
+  - 'Comment on '
+  - 'Comment'
+  - 'Cancel'
+  - 'Waiting for the agent'
+  - 'The agent reads this when you ask it to check its comments.'
 tests:
   - apps/web/spec/integration/reviews-comment.test.tsx
-  - apps/web/spec/integration/reviews-retained-comments.test.tsx
   - apps/web/spec/integration/reviews-comment-drafts.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/comments
@@ -41,13 +40,13 @@ Preconditions: [surface baseline](README.md). For the visual sweep, pass the con
 
 ### Setup
 
- the sample `README.md` is already modified, so the "Changes" document shows it with its comment button.
+the sample `README.md` is already modified, so the "Changes" document shows it with its comment button.
 
 1. Navigate to `/`
    Expect: title "Changes — repository"; button "Comment on README.md (unstaged · modified)" in region "Review content".
 2. Click button `Comment on README.md (unstaged · modified)`
    Expect: textbox "Comment" (placeholder "Share feedback…") above the label text "README.md · Whole file"; button "Comment" is disabled; button "Cancel".
-3. Fill textbox `Comment` with '   '
+3. Fill textbox `Comment` with ' '
    Expect: button "Comment" is still disabled (whitespace only is blank).
 4. Fill textbox `Comment` with 'Please explain this change'
    Expect: button "Comment" is enabled.
@@ -61,14 +60,6 @@ Preconditions: [surface baseline](README.md). For the visual sweep, pass the con
 Reload: Please explain this change persists in Comment thread under README. Exactly one comment POST/200.
 
 Automated coverage: `reviews-comment.test.tsx`.
-
-## Retained context code
-
-Publish a decision with changed code and an unchanged context step (`agent publish-architecture` includes `packages/workspace/src/actor.ts`). Open a decision and its `Existing code it relies on` section. Post a whole-file comment from the file header, then a selected-line comment from the gutter. Both must save without an anchor error. Through MCP, list comments with `reviewId`, reply and resolve; the anchors keep the selected head and branch base, and the thread keeps its review revision after another publication.
-
-Repeat at 1440 and 414 in light and dark. A failed request keeps the draft and retry posts one thread. Ordinary worktree branch comments retain their existing matching behavior.
-
-When the server saves a comment but its response is lost, its live read may still display the saved thread. The draft must keep its error and retry identity through that update and another click on the file comment control. Retry clears the draft and error after confirmation and leaves exactly one saved thread.
 
 ## Gotchas
 

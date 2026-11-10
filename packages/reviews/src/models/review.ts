@@ -38,8 +38,8 @@ export const reviewLayerSchema = Schema.Struct({
   steps: Schema.mutableKey(Schema.Array(reviewStepSchema)),
   fingerprint: Schema.mutableKey(Schema.String),
 });
-import type { Brand } from 'effect';
-import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
+
+import type { ProofFile, ReviewProof } from './review-proof.ts';
 
 export type CodePointer = typeof codePointerSchema.Type;
 
@@ -150,18 +150,6 @@ export type ReviewCommit = {
   baseOid: string;
   mergeBaseOid: string;
 };
-export type ReviewDraft = {
-  timing?: 'decision' | 'record' | undefined;
-  expectedRevision: number;
-  summaryHtml?: string | undefined;
-  verdict: ReviewVerdict;
-  reviewId?: string | undefined;
-  base?: string | undefined;
-  pullRequest?: string | undefined;
-  diagram?: ReviewDiagram | undefined;
-  layers: readonly LayerDraft[];
-  proof?: ProofDraft | undefined;
-};
 
 export type ReviewStep = typeof reviewStepSchema.Type;
 
@@ -204,21 +192,6 @@ export type ReviewSummary = Pick<
 export type ReviewSummaryKey = { token: string };
 
 export type SignatureRequest = { secret: string; message: string };
-
-export type ReviewDraftProblem =
-  | { kind: 'duplicate-layer-id' }
-  | { kind: 'reversed-pointer' }
-  | { kind: 'duplicate-step-id' }
-  | { kind: 'step-lane-out-of-range' }
-  | { kind: 'unknown-box-layer' }
-  | { kind: 'invalid-decision-box' }
-  | { kind: 'unknown-arrow-box' }
-  | { kind: 'unknown-proof-target' };
-
-export type ValidatedReviewDraft = Brand.Branded<
-  Readonly<ReviewDraft>,
-  'Porcelain/ValidatedReviewDraft'
->;
 
 const diagramBoxSchema = Schema.Struct({
   options: Schema.optional(
@@ -268,6 +241,4 @@ export const reviewDiagramSchema = Schema.Struct({
   after: Schema.mutableKey(diagramSchema),
 });
 
-export type DiagramBox = typeof diagramBoxSchema.Type;
-export type Diagram = typeof diagramSchema.Type;
 export type ReviewDiagram = typeof reviewDiagramSchema.Type;

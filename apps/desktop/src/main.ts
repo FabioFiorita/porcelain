@@ -13,9 +13,6 @@ const refusal = launchRefusal({
 if (refusal !== undefined) {
   process.stderr.write(`${refusal}\n`);
   app.exit(1);
-} else if (process.argv.includes('--porcelain-mcp')) {
-  const { runDesktopMcp } = await import('./adapters/mcp.ts');
-  await runDesktopMcp();
 } else if (watchHostProfile !== undefined) {
   app.setPath('userData', watchHostProfile);
   app.disableHardwareAcceleration();

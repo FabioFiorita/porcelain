@@ -4,10 +4,9 @@ selectors:
   - 'Settings'
   - 'Settings sections'
   - 'General'
-  - 'Reviews & Git'
+  - 'Changes & Git'
   - 'Computers'
   - 'Pair a device'
-  - 'Copy MCP configuration'
   - 'Open This computer:'
   - 'Disconnect this browser'
 tests:
@@ -21,7 +20,7 @@ api:
 
 # app.settings-without-sharing
 
-Browser Settings has the same three sections as desktop. Computers starts with This computer and includes saved computers, versions, update offers and the existing paste-pairing-link form. Devices and Agents are inside Computers → This computer in browser mode too.
+Browser Settings has the same three sections as desktop. Computers starts with This computer and includes saved computers, versions, update offers and the existing paste-pairing-link form. Devices are inside Computers → This computer in browser mode too.
 
 ## How to get to it (user POV)
 
@@ -31,7 +30,7 @@ Browser Settings has the same three sections as desktop. Computers starts with T
 
 Preconditions: [surface baseline](README.md).
 
-Start a web verification instance and pair the browser. Open the sidebar, check that its application header says Porcelain and each project has a visible Computer: <name> badge, then click Settings. Expect `/settings/general` and section buttons General, Reviews & Git and Computers, with Close Settings in the navigator footer, replacing its Settings control. The Settings header has no Close control.
+Start a web verification instance and pair the browser. Open the sidebar, check that its application header says Porcelain and each project has a visible Computer: <name> badge, then click Settings. Expect `/settings/general` and section buttons General, Changes & Git and Computers, with Close Settings in the navigator footer, replacing its Settings control. The Settings header has no Close control.
 
 Click Computers, then Open This computer: <name>. Expect `/settings/computers/this-computer`, its current version and update state, Ways in, and Disconnect this browser. A local authorized browser shows Pair a device and Devices (list "Paired devices and links"). A remote browser whose `GET /api/access` is denied sees the one-line reason: Sharing is managed from a browser on the computer that runs Porcelain, and no administration controls are mounted. Its Ways in shows the editor only when the owner let its device edit ways in; when `GET /api/remote-access` is denied it says: This device cannot see or change ways in, or, when the browser reaches the computer through its own address, that ways in cannot be seen or changed over this connection.
 

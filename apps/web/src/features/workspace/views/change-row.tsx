@@ -137,7 +137,7 @@ export function ChangeRow({
   );
 }
 
-export function ChangeStatusIcon({
+function ChangeStatusIcon({
   status,
   reviewStatus,
 }: {

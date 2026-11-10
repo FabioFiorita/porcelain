@@ -744,7 +744,6 @@ export async function runGuardrailCases(named = []) {
         'native-process-types',
         'native-agent-types',
         'native-effect-diagnostics',
-        'review-draft-types',
         'worktree-transaction-types',
       ].includes(entry.rule)
     ) {

@@ -1,13 +1,12 @@
+import type { ReviewFixtureDraft } from './seed-review.ts';
+import { seedReview } from './seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import {
-  readPublishedReviewResponseSchema,
-  type PublishReviewRequest,
-} from '@porcelain/contracts/reviews';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import {
   COMMENT_BODY_LENGTH,
   DEVICE_LABEL_LENGTH,
@@ -25,15 +24,13 @@ import {
   stressVariants,
 } from './session.ts';
 
-type Layer = PublishReviewRequest['layers'][number];
-type Box = NonNullable<
-  PublishReviewRequest['diagram']
->['after']['boxes'][number];
+type Layer = ReviewFixtureDraft['layers'][number];
+type Box = NonNullable<ReviewFixtureDraft['diagram']>['after']['boxes'][number];
 type Plan = {
   variant: StressVariant;
   files: ReadonlyMap<string, string>;
   commit: string;
-  verdict: PublishReviewRequest['verdict'];
+  verdict: ReviewFixtureDraft['verdict'];
   summaryHtml: string;
   layers: readonly {
     title: string;
@@ -272,7 +269,7 @@ export async function seedStressSample(
     layerId: layer.id,
     decision: true,
   }));
-  const body: PublishReviewRequest = {
+  const body: ReviewFixtureDraft = {
     base: 'refs/heads/porcelain-fixture-base',
     expectedRevision:
       (await publishedReview(session, worktreeId))?.revision ?? 0,
@@ -295,11 +292,7 @@ export async function seedStressSample(
     layers,
   };
   const published = Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
-    await accepted(session, {
-      method: 'PUT',
-      path: `/api/worktrees/${worktreeId}/review`,
-      body,
-    }),
+    await seedReview(session, body),
   ).review;
   if (applied) await applyOnce(session, plan, projectId, worktreeId);
   return {

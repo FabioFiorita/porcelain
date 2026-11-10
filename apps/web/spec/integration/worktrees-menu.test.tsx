@@ -40,7 +40,7 @@ test('single-computer inventory cards retain accessible identity without a redun
         exact: true,
       }),
     )
-    .toHaveAttribute('aria-checked', 'false');
+    .not.toBeInTheDocument();
 });
 
 for (const width of [1440, 414]) {
@@ -55,7 +55,7 @@ for (const width of [1440, 414]) {
         name: new RegExp(`, ${project.name},.*Main worktree`),
       });
       const search = navigator.getByRole('searchbox', {
-        name: 'Search reviews and worktrees',
+        name: 'Search worktrees',
         exact: true,
       });
       await expect.element(search).toBeVisible();

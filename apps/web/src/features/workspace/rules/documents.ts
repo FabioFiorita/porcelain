@@ -4,19 +4,13 @@ import type {
   CommentAnchor,
   RevealComment,
 } from '@porcelain/client/reviews/rules';
-import type { ReviewResponse } from '@porcelain/client/reviews/rules';
+
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'all-changes' }
   | { kind: 'specs' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
-  | {
-      kind: 'review-file' | 'review-change';
-      reviewId: string;
-      revision: number;
-      path: string;
-    }
   | { kind: 'commit'; oid: string }
   | {
       kind: 'pull-request';
@@ -48,9 +42,6 @@ export function entryKey(ref: DocumentRef): string {
       return `change:${ref.path}`;
     case 'file':
       return `file:${ref.path}`;
-    case 'review-file':
-    case 'review-change':
-      return `${ref.kind}:${ref.reviewId}:${ref.revision}:${ref.path}`;
     case 'commit':
       return `commit:${ref.oid}`;
     case 'pull-request':
@@ -87,15 +78,6 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     case 'file':
     case 'timeline':
       return { kind, path: value };
-    case 'review-file':
-    case 'review-change': {
-      const [reviewId, revision, ...parts] = value.split(':');
-      const path = parts.join(':');
-      const number = Number(revision);
-      return reviewId && path && Number.isSafeInteger(number) && number > 0
-        ? { kind, reviewId, revision: number, path }
-        : null;
-    }
     case 'branch':
       return { kind: 'branch-file', path: value };
     case 'walkthrough-step':
@@ -157,14 +139,7 @@ export type DocumentInteraction = {
   singleHeader?: boolean;
 };
 
-export type ReviewTitle = 'Review' | 'Walkthrough';
-
-export function publishedReviewTitle(
-  review: Pick<ReviewResponse, 'active'> | null | undefined,
-): ReviewTitle | undefined {
-  if (!review) return undefined;
-  return 'Review';
-}
+export type ReviewTitle = 'Walkthrough';
 
 type Surface = 'changes' | 'files' | 'history';
 
@@ -192,8 +167,6 @@ function documentTitle(ref: DocumentRef): string {
       return `PR #${ref.number}`;
     case 'change':
     case 'file':
-    case 'review-file':
-    case 'review-change':
     case 'branch-file':
       return ref.path.split('/').at(-1) ?? ref.path;
     case 'timeline':

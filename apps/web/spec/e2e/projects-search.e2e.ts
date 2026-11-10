@@ -51,7 +51,7 @@ for (const [width, colorScheme] of [
     });
     await expect(clean).toHaveText('clean-topic');
     await expect(
-      clean.getByRole('button', { name: /No review, Working tree clean/ }),
+      clean.getByRole('button', { name: /Working tree clean/ }),
     ).toBeVisible();
     for (const folder of ['detached-531', 'detached-532']) {
       const target = project.worktrees.find((row) =>
@@ -91,7 +91,7 @@ for (const [width, colorScheme] of [
       ).toBeVisible();
     }
     const search = sidebar.getByRole('searchbox', {
-      name: 'Search reviews and worktrees',
+      name: 'Search worktrees',
       exact: true,
     });
     await search.fill('NO-MATCH');
@@ -136,7 +136,7 @@ test('search reveals a collapsed project without replacing its session choice an
   await expect(collapsedProject).toHaveAttribute('aria-expanded', 'false');
   await expect(topic).not.toBeVisible();
   const search = sidebar.getByRole('searchbox', {
-    name: 'Search reviews and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
   await search.fill('collapsed-topic');
@@ -203,7 +203,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   const search = pairedPage.getByRole('searchbox', {
-    name: 'Search reviews and worktrees',
+    name: 'Search worktrees',
     exact: true,
   });
   await search.fill('other-workspace');

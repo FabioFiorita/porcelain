@@ -5,12 +5,11 @@ import {
   GitPullRequestDraftIcon,
   GitPullRequestIcon,
   LoaderCircleIcon,
-  PlusIcon,
   TriangleAlertIcon,
   XIcon,
   type LucideIcon,
 } from 'lucide-react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   pullRequestState,
   pullRequestStateLabel,
@@ -18,12 +17,7 @@ import {
   type PullRequestState,
 } from '@porcelain/client/reviews/rules';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+
 import { cn } from '@/shared/lib/utils';
 
 type PullState = { state: 'open' | 'closed' | 'merged'; draft: boolean };
@@ -34,20 +28,6 @@ const stateIcons: Record<PullRequestState, LucideIcon> = {
   merged: GitMergeIcon,
   closed: GitPullRequestClosedIcon,
 };
-const stateText: Record<PullRequestState, string> = {
-  open: 'text-add-fg',
-  draft: 'text-muted-foreground',
-  merged: 'text-brand',
-  closed: 'text-del-fg',
-};
-
-export function pullStateIcon(pull: PullState) {
-  return stateIcons[pullRequestState(pull)];
-}
-
-export function pullStateText(pull: PullState) {
-  return stateText[pullRequestState(pull)];
-}
 
 export function PullStatePill({ pull }: { pull: PullState }) {
   const state = pullRequestState(pull);
@@ -109,46 +89,5 @@ export function Dot() {
     <span aria-hidden="true" className="text-muted-foreground">
       ·
     </span>
-  );
-}
-
-type ChipVariant = 'linked' | 'found' | 'empty';
-
-export function PullRequestChip({
-  variant,
-  description,
-  icon: Icon,
-  onClick,
-  disabled = false,
-  children,
-}: {
-  variant: ChipVariant;
-  description: string;
-  icon: LucideIcon | undefined;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-  disabled?: boolean;
-  children: ReactNode;
-}) {
-  const ChipIcon = Icon ?? PlusIcon;
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="sm"
-            variant={variant === 'empty' ? 'ghost' : 'outline'}
-            aria-label={description}
-            disabled={disabled}
-            onClick={onClick}
-            className="ml-auto"
-          />
-        }
-      >
-        <ChipIcon aria-hidden="true" />
-        {children}
-      </TooltipTrigger>
-      <TooltipContent>{description}</TooltipContent>
-    </Tooltip>
   );
 }

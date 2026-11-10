@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
@@ -24,11 +25,10 @@ const layerId = randomUUID();
 const strayLayerId = randomUUID();
 
 async function published(session: Session) {
-  const answer = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(session, 0, layerId, randomUUID()),
-  });
+  const answer = await seedReview(
+    session,
+    sampleReview(session, 0, layerId, randomUUID()),
+  );
   return String(record(list(record(answer.review).layers)[0]).fingerprint);
 }
 
@@ -159,16 +159,15 @@ test('an edit through the API preserves the published layer mark as it answers a
     path: worktreePath(session, '/review'),
   });
   await commitReviewFixture(session);
-  const republished = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(
+  const republished = await seedReview(
+    session,
+    sampleReview(
       session,
       Number(record(current.review).revision),
       layerId,
       randomUUID(),
     ),
-  });
+  );
   const fingerprint = String(
     record(list(record(republished.review).layers)[0]).fingerprint,
   );

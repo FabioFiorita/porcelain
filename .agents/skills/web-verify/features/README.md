@@ -14,10 +14,9 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 - Routes are full loads at `WEB`; wait for settled URL/title and expected content, not just the toolbar. Prefer roles and exact quoted names. Slash-delimited patterns are regexes. Scope repeated handles by region, dialog or tablist; inspect a fresh accessibility tree when a step differs.
 - Snapshots may omit editor, iframe or selected-option contents. Inspect the frame, screenshot, select value or real file. For contenteditable, select all and insert text without an unintended blur.
-- Shell/Git setup runs in `REPO`, whose commits use Porcelain Development. Agent publications use `$C agent …`; review fixtures commit before publishing, require a verdict and use pass/fail checks. Republishing appends a revision.
+- Shell/Git setup runs in `REPO`, whose commits use Porcelain Development. Walkthrough journeys use `start --coding-tool` and write through the app; retained-reader fixtures seed stored data directly.
 - `$C remote start` owns a second disposable server; `$C remote pairing-link` mints its link (`--trusted` grants update permission). Cross-origin desktop-mode views use that computer's credential.
 - For refusal, held-read and live-outage journeys, use [failure injection](../SKILL.md#inject-browser-failures), install routes before navigation and restore them in `finally`. Record HTTP method/path/status/content type/payload; distinguish cancelled requests from failed responses. The CLI has no browser commands.
-- Summary links expire two seconds after reading a disposable review. If its frame mounts later, reload fully to obtain a fresh link.
 
 ## Feature entry contract
 
@@ -65,7 +64,6 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [changes.live-update](changes.live-update.md) — External writes, additions and removals.
 - [changes.many-diffs](changes.many-diffs.md) — Large change lists and complete diff loading.
 - [changes.review-branch](changes.review-branch.md) — Uncommitted and branch comparisons.
-- [changes.step-lines](changes.step-lines.md) — Retained context excerpts stay unchanged after worktree edits.
 - [files.create](files.create.md) — Create files and folders, cancel and validate names.
 - [files.duplicate](files.duplicate.md) — Duplicate files beside the original and open the copy.
 - [files.edit-conflict](files.edit-conflict.md) — Concurrent changes and conflict recovery.
@@ -109,41 +107,26 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.remote-workspace](projects.remote-workspace.md) (desktop) — Remote routes, reviews and recovery.
 - [projects.remove](projects.remove.md) — Project removal and cancellation.
 - [projects.rename](projects.rename.md) — Project naming and persistence.
-- [preferences.reviews-git](preferences.reviews-git.md) — Reviews & Git settings each computer keeps, the first import and the computer picker.
+- [preferences.reviews-git](preferences.reviews-git.md) — Changes & Git settings each computer keeps, the first import and the computer picker.
 - [projects.search](projects.search.md) — Search, filters, checkout selection and deferred summaries.
 - [projects.worktree-actions](projects.worktree-actions.md) — Worktree branch switching and one-off deletion choices.
-- [reviews.all-changes](reviews.all-changes.md) — Review-wide changes and file selection.
+- [projects.pull-request-document](projects.pull-request-document.md) — PR source links keep their checkout and computer; archive returns after cleanup.
 - [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.
 - [reviews.change-comment](reviews.change-comment.md) — Comment on the whole uncommitted change or the whole branch.
 - [reviews.changed-file-menu](reviews.changed-file-menu.md) — File menus, marking, comments and timeline.
 - [reviews.comment](reviews.comment.md) — Comment entry, validation and persistence.
 - [reviews.comments-seen](reviews.comments-seen.md) — Seen state and unread comments.
-- [reviews.decision-link](reviews.decision-link.md) — Direct decisions, pairing and unknown targets.
 - [reviews.delete-resolved-race](reviews.delete-resolved-race.md) — Concurrent changes during deletion.
 - [reviews.delete-resolved](reviews.delete-resolved.md) — Resolved-thread deletion and cancellation.
-- [reviews.delete-review](reviews.delete-review.md) — Review deletion, cancellation and retained worktree data.
 - [reviews.edit-comment](reviews.edit-comment.md) — Comment editing and saved text.
 - [reviews.mark-all](reviews.mark-all.md) — Batch file marking and completion.
-- [reviews.mark-decision](reviews.mark-decision.md) — Decision and file marks, failure and unmarking.
 - [reviews.mark-file](reviews.mark-file.md) — File marking, unmarking and changed content.
 - [reviews.open-to-side](reviews.open-to-side.md) — Open files and commits in the other document pane.
-- [reviews.pane-bar](reviews.pane-bar.md) — Pane bars, permanent tabs, controls and Git placement.
-- [reviews.page](reviews.page.md) — Durable revisions, verdict, comments and lifecycle.
-- [reviews.proof](reviews.proof.md) — Published check results and image attachments.
-- [reviews.read-retry](reviews.read-retry.md) — Review loading, failure and retry.
-- [reviews.readiness-outdated](reviews.readiness-outdated.md) — Outdated proof and current readiness.
-- [reviews.readiness](reviews.readiness.md) — Review readiness and reasons.
 - [reviews.reload-layout](reviews.reload-layout.md) — Reload and retained document layout.
 - [reviews.reply](reviews.reply.md) — Replies and live thread updates.
 - [reviews.resolve](reviews.resolve.md) — Resolve and reopen threads.
-- [reviews.revision](reviews.revision.md) — Numbered revisions and retained content.
 - [reviews.side-panel](reviews.side-panel.md) — The rail and its docked Files, Review and History panel.
-- [reviews.sidebar-actions](reviews.sidebar-actions.md) — Review actions from the sidebar.
 - [reviews.spec-files](reviews.spec-files.md) — Group specs and tests apart from other changed files.
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.
-- [reviews.document-navigation](reviews.document-navigation.md) — Durable document URLs, browser Back and readable tab transitions.
-- [reviews.walkthrough](reviews.walkthrough.md) — Briefing, decision navigation and completion.
-
-- [Review agent feedback](reviews.agent-feedback.md)
 
 - [projects.walkthrough-settings](projects.walkthrough-settings.md) — Default writer, project overrides, effort and automatic mode.
