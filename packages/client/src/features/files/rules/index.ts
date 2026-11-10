@@ -47,3 +47,10 @@ export {
   type PinnedDirectoryState,
   type PinnedFileEntry,
 } from './file-preferences.ts';
+
+export {
+  completeFileIconRules,
+  fileIconToken,
+  completeFileIconArtwork,
+  completeFileIconColors,
+} from './file-icons.ts';

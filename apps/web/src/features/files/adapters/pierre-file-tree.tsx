@@ -131,7 +131,7 @@ function mountTree(
     initialExpansion: read().filter ? 'open' : 'closed',
     icons: treeIconsFor(read().links),
     unsafeCSS:
-      ':not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg, [data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-selected="true"]:not([data-item-git-status="ignored"]) > [data-item-section="icon"] > svg:not([data-icon-name="file-tree-icon-chevron"]) { color: var(--trees-selected-fg); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
+      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
     gitStatus: read().gitStatus,
     search: false,
     renaming: {

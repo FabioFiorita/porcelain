@@ -33,6 +33,7 @@ selectors:
   - 'File review status is unavailable.'
   - 'Read file review status again'
 tests:
+  - packages/client/src/features/files/rules/file-icons.spec.ts
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/files/rules/directory-loading.spec.ts
   - apps/mobile/src/features/files/rules/directory-requests.spec.ts
@@ -83,3 +84,7 @@ Automated coverage: `workspace-selection.spec.ts`, `directory-loading.spec.ts`, 
 
 - Files uses Uncommitted marks. Phones and tablets below 700 units push the file; wider tablets show it beside the tree inside the Worktrees tab root (`ListDetail` nested in the worktree page). Review status is in the accessible name only; the row shows one change mark.
 - Creation is the header +. Workspace selection happens in the Worktrees tab; Files has no worktree picker of its own.
+
+## File type icons
+
+Files use Pierre’s coloured Complete icons, including TypeScript, React for TSX, JSON, Markdown, named configuration files and a generic fallback. Folders and chevrons keep their existing appearance. Check expanded folders and search results in light and dark mode. Mobile parses the bundled SVG artwork once before rows mount. Regenerate the shared upstream data after a Pierre upgrade with `node scripts/generate-file-icons.ts`.
