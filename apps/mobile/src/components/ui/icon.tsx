@@ -43,6 +43,7 @@ const symbols = {
   hidden: { ios: 'eye.slash', android: 'visibility_off' },
   visible: { ios: 'eye', android: 'visibility' },
   sliders: { ios: 'slider.horizontal.3', android: 'tune' },
+  keyboard: { ios: 'keyboard', android: 'keyboard' },
   checklist: { ios: 'checklist', android: 'checklist' },
   notifications: { ios: 'bell', android: 'notifications' },
   reviewWaiting: { ios: 'text.badge.checkmark', android: 'rate_review' },

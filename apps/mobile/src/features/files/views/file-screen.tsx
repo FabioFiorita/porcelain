@@ -3,6 +3,7 @@ import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
 import { useIsFocused, useRouter, useSegments } from 'expo-router';
+import { useDocumentKeys } from '../../../shared/application/key-commands';
 import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -143,6 +144,7 @@ function useFileActions(props: FileProps) {
     id: 'timeline',
     label: 'Timeline',
     icon: 'timeline',
+    shortcut: 'timeline',
     onPress: () =>
       router.push({
         pathname: '/timeline',
@@ -155,6 +157,7 @@ function useFileActions(props: FileProps) {
 function FileContentView(props: FileProps) {
   const { path, selected } = props;
   const actions = useFileActions(props);
+  useDocumentKeys(actions);
   return (
     <Box className="flex-1" surface="background">
       {isNativeImagePath(path) ? (
@@ -243,10 +246,12 @@ function FilePreview({
           id: 'mode',
           label: toggle.label,
           icon: rendered ? 'showSource' : 'showRendered',
+          shortcut: 'documentMode',
           onPress: () => setRendered(!rendered),
         },
       ]
     : [];
+  useDocumentKeys(mode);
   return (
     <View className="flex-1">
       <DocumentHeader

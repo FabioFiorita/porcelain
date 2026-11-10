@@ -26,6 +26,7 @@ export type ItemProps = {
   children?: ReactNode;
   size?: keyof typeof sizes;
   selected?: boolean;
+  highlighted?: boolean;
   selectionTone?: 'brand' | 'neutral';
   disabled?: boolean;
   onPress?: () => void;
@@ -47,6 +48,7 @@ export function Item({
   children,
   size = 'default',
   selected = false,
+  highlighted = false,
   selectionTone = 'brand',
   disabled = false,
   onPress,
@@ -60,8 +62,13 @@ export function Item({
     'flex-row items-center',
     sizes[size].row,
     description || children ? sizes[size].twoLine : sizes[size].oneLine,
-    selected && selectionTone === 'brand' ? 'bg-brand-soft' : '',
-    selected && selectionTone === 'neutral' ? 'rounded-md bg-muted' : '',
+    highlighted ? 'rounded-md bg-accent' : '',
+    selected && !highlighted && selectionTone === 'brand'
+      ? 'bg-brand-soft'
+      : '',
+    selected && !highlighted && selectionTone === 'neutral'
+      ? 'rounded-md bg-muted'
+      : '',
     disabled ? 'opacity-50' : '',
     pressable ? 'active:bg-accent' : '',
   ]

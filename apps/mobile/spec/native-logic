@@ -1,0 +1,32 @@
+#!/bin/sh
+# Run the pure Swift owners of the native renderer and keyboard modules on macOS without Expo or a simulator.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+workspace=$(mktemp -d "${TMPDIR:-/tmp}/porcelain-native-logic.XXXXXX")
+trap 'rm -rf "$workspace"' EXIT HUP INT TERM
+target() {
+  name=$1 tests=$2
+  shift 2
+  mkdir -p "$workspace/Sources/$name" "$workspace/Tests/${name}Tests"
+  for source in "$@"; do
+    cp "$root/apps/mobile/modules/porcelain-renderer/ios/$source.swift" "$workspace/Sources/$name/"
+  done
+  cp "$root/apps/mobile/modules/porcelain-renderer/ios/$tests.swift" "$workspace/Tests/${name}Tests/"
+}
+target CodeSelection CodeSelectionTests CodeData CodeState RenderTokens
+target KeyCommands KeyCommandPlanTests KeyCommandPlan
+cat > "$workspace/Package.swift" <<'SWIFT'
+// swift-tools-version: 6.0
+import PackageDescription
+let package = Package(
+  name: "NativeLogic",
+  platforms: [.macOS(.v15)],
+  targets: [
+    .target(name: "CodeSelection"),
+    .testTarget(name: "CodeSelectionTests", dependencies: ["CodeSelection"]),
+    .target(name: "KeyCommands"),
+    .testTarget(name: "KeyCommandsTests", dependencies: ["KeyCommands"])
+  ]
+)
+SWIFT
+swift test --package-path "$workspace" --jobs 2

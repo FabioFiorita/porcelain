@@ -2,11 +2,19 @@ import { useAtomMount } from '@effect/atom-react';
 import { Stack } from 'expo-router';
 import { sheetOptions } from '../components/ui/sheet';
 import { shellStartup } from '../shared/application/store';
+import {
+  keyCommandRouting,
+  keyCommandSync,
+} from '../shared/application/key-commands';
+import { useAppKeyCommands } from './app-key-commands';
 import { notificationsSync } from '../features/notifications';
 
 export function ShellStartup() {
   useAtomMount(shellStartup);
   useAtomMount(notificationsSync);
+  useAtomMount(keyCommandSync);
+  useAtomMount(keyCommandRouting);
+  useAppKeyCommands();
   return (
     <Stack
       screenOptions={({ theme }) => ({
@@ -35,6 +43,10 @@ export function ShellStartup() {
       <Stack.Screen
         name="walkthrough-screenshot"
         options={{ title: 'Screenshot', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
+        name="keyboard-shortcuts"
+        options={{ title: 'Keyboard Shortcuts', ...sheetOptions('tall') }}
       />
     </Stack>
   );

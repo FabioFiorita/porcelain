@@ -1,6 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { SettingsScreen } from '../../features/access';
 import { headerIcon } from '../../shared/icons/header-icon';
+import { keyCommandsSupported } from '../../features/keyboard';
 
 export default function SettingsRoute() {
   const router = useRouter();
@@ -19,6 +20,9 @@ export default function SettingsRoute() {
         onOpenNotifications={() => router.push('/notifications')}
         onOpenComputers={() => router.push('/computers')}
         onOpenComponentLibrary={() => router.push('/component-library')}
+        {...(keyCommandsSupported
+          ? { onOpenShortcuts: () => router.push('/keyboard-shortcuts') }
+          : {})}
       />
     </>
   );

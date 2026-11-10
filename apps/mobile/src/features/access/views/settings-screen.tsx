@@ -29,12 +29,14 @@ export function SettingsScreen({
   onOpenNotifications,
   onOpenComputers,
   onOpenComponentLibrary,
+  onOpenShortcuts,
 }: {
   onOpenGeneral: () => void;
   onOpenReviewsGit: () => void;
   onOpenNotifications: () => void;
   onOpenComputers: () => void;
   onOpenComponentLibrary: () => void;
+  onOpenShortcuts?: (() => void) | undefined;
 }) {
   const remotes = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -84,6 +86,16 @@ export function SettingsScreen({
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenNotifications}
           />
+          {onOpenShortcuts ? (
+            <Item
+              testID="settings-keyboard-shortcuts"
+              title="Keyboard Shortcuts"
+              description="Move through lists and documents faster"
+              leading={<Icon name="keyboard" tone="muted" />}
+              trailing={<Icon name="chevron" tone="muted" />}
+              onPress={onOpenShortcuts}
+            />
+          ) : null}
         </CardRows>
         <Box gap={2}>
           <Card>

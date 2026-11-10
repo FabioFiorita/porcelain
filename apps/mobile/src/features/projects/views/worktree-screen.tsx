@@ -16,6 +16,7 @@ import { Screen } from '../../../components/ui/screen';
 import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
+import { useScreenKeyCommands } from '../../../shared/application/key-commands';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { workspaceKey, type Workspace } from '../commands/workspace-connection';
 import {
@@ -185,6 +186,7 @@ function WorktreeSections({
   content: WorktreeSectionContent;
   guide: WorktreeGuide;
 }) {
+  const router = useRouter();
   const [opening, setOpening] = useState<WorktreeSection>();
   const [chosen, choose] = useAtom(worktreeSection(workspace));
   if (opening === undefined && !guide.pending)
@@ -210,6 +212,19 @@ function WorktreeSections({
         }
       : undefined;
   const beside = mode === 'beside';
+  useScreenKeyCommands(
+    'worktree-sections',
+    (['changes', 'files', 'history'] as const).map((id) => ({
+      binding: id,
+      run: () =>
+        id === 'changes' && guide.walkthrough
+          ? router.push({
+              pathname: '/worktree-changes',
+              params: { workspace },
+            })
+          : choose(id),
+    })),
+  );
   return (
     <Screen layout="fixed" testID="worktree-screen">
       <Box
