@@ -20,7 +20,7 @@ export function ContentMenu({
   children: ReactNode;
 }) {
   return (
-    <Host matchContents>
+    <Host matchContents ignoreSafeArea="all">
       <Menu
         modifiers={[buttonStyle('plain')]}
         label={
