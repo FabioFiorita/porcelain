@@ -3,7 +3,7 @@ import type { FlatList } from 'react-native';
 
 type Scroller = Pick<FlatList<unknown>, 'scrollToIndex' | 'scrollToOffset'>;
 
-const REVEAL_RETRIES = 6;
+const REVEAL_RETRIES = 120;
 
 function listReveal() {
   let list: Scroller | null = null;
