@@ -222,7 +222,7 @@ const treeRows = [
 
         <div class="mt-9 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,42rem)_auto] lg:items-end lg:justify-between">
           <p data-reveal class="text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
-            Porcelain hands every change to an agent that has never seen it. It writes one page: what changed, how the
+            Porcelain hands a change to an agent that has never seen it. It writes one page: what changed, how the
             system grew, and the few calls only you can make. Ask it anything. The agent that built it keeps working.
           </p>
 
@@ -413,7 +413,7 @@ const treeRows = [
           <span class="absolute top-6 right-6 rounded-full border border-background/20 px-2 py-0.5 font-mono text-[0.68rem] text-background/70">read-only</span>
           <img src="/apple-touch-icon.png" alt="" width="40" height="40" class="size-10 rounded-xl" />
           <p class="mt-5 text-lg font-semibold tracking-[-0.02em]">The walkthrough agent</p>
-          <p class="mt-1 text-sm text-background/65">Fresh every time. Runs on your machine through Claude Code or Codex.</p>
+          <p class="mt-1 text-sm text-background/65">A new session for every walkthrough, on your machine, through Claude Code or Codex.</p>
         </div>
         <div class="relative hidden h-20 lg:block" aria-hidden="true">
           <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
@@ -587,10 +587,15 @@ const treeRows = [
               returns every note for an empty query, and nothing else calls it with one. Showing none is a one-line guard in
               <code class="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">src/search.ts</code>.
             </p>
-            <div data-chat-actions class="mt-4 flex flex-wrap items-center gap-2 text-sm">
-              <span class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
-              <span data-chat-save class="inline-flex h-8 items-center rounded-lg px-3 font-medium">Saved for later</span>
-              <span data-chat-undo class="text-muted-foreground">Undo</span>
+            <div data-chat-actions class="mt-4 text-sm">
+              <span data-chat-available class="hidden flex-wrap items-center gap-3">
+                <span class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
+                <span data-chat-save class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Save for later</span>
+              </span>
+              <span data-chat-saved class="flex items-center gap-2 text-xs text-muted-foreground">
+                Saved for later
+                <span class="font-medium text-foreground underline-offset-4">Undo</span>
+              </span>
             </div>
           </div>
           <div
@@ -1037,18 +1042,24 @@ const treeRows = [
       const working = one('[data-chat-working]', chat);
       const answer = one('[data-chat-answer]', chat);
       const actions = one('[data-chat-actions]', chat);
+      const available = one('[data-chat-available]', chat);
       const save = one('[data-chat-save]', chat);
-      const undo = one('[data-chat-undo]', chat);
+      const saved = one('[data-chat-saved]', chat);
       const bar = one('[data-chat-bar]', chat);
-      if (!question || !author || !working || !answer || !actions || !save || !undo || !bar) return;
+      if (!question || !author || !working || !answer || !actions || !available || !save || !saved || !bar) return;
+      const showSaved = (yes: boolean) => {
+        available.classList.toggle('hidden', yes);
+        available.classList.toggle('flex', !yes);
+        saved.classList.toggle('hidden', !yes);
+        saved.classList.toggle('flex', yes);
+      };
       const instant = { duration: 0 };
 
       whileVisible(chat, 0.5, async (live) => {
         while (live()) {
           animate([question, author, answer, actions, bar], { opacity: 0 }, instant);
           working.classList.add('hidden');
-          save.textContent = 'Save for later';
-          undo.style.opacity = '0';
+          showSaved(false);
           await wait(500);
           if (!live()) return;
           await animate(question, { opacity: [0, 1], y: [10, 0] }, spring);
@@ -1064,8 +1075,8 @@ const treeRows = [
           await wait(1100);
           if (!live()) return;
           await animate(save, { scale: [1, 0.95, 1] }, { duration: 0.2 });
-          save.textContent = 'Saved for later';
-          animate(undo, { opacity: [0, 1] }, { duration: 0.3 });
+          showSaved(true);
+          animate(saved, { opacity: [0, 1] }, { duration: 0.3 });
           await animate(bar, { opacity: [0, 1], y: [12, 0] }, spring);
           await wait(3600);
         }

@@ -2,7 +2,7 @@
 
 Your agent built it. A fresh one explains it.
 
-Porcelain hands every change to an agent that has never seen it. That agent reads the work and writes a **Walkthrough**: one page with what changed, how the system grew, and the few calls only you can make. Ask it anything. The agent that built the feature keeps working.
+Porcelain hands a change to an agent that has never seen it. That agent reads the work and writes a **Walkthrough**: one page with what changed, how the system grew, and the few calls only you can make. Ask it anything. The agent that built the feature keeps working.
 
 [Website](https://porcelain.fabiofiorita.com) · [Download](https://github.com/FabioFiorita/porcelain/releases) · [npm](https://www.npmjs.com/package/@fabiofiorita/porcelain)
 
@@ -21,7 +21,7 @@ Porcelain does not run your coding agent. It sits beside the one you already use
 
 ## What it does
 
-- **A Walkthrough of every change.** The calls that need you first, then how the system grew, then one step per decision. When nothing needs you, it says so in one line.
+- **One page per change.** The calls that need you first, then how the system grew, then one step per decision. When nothing needs you, it says so in one line.
 - **What the code doesn't say.** The agent reads the pull request, the diff and the repository first. Then it reads only your own messages to the builder, and writes down whatever only those explained.
 - **Proof where it belongs.** Screenshots from the pull request sit on the step they prove. The agent never edits code and never makes evidence up: no proof, nothing shown.
 - **Ask, then post.** Comment on a call or a step and the walkthrough agent answers. A requested change goes on the pull request in one click, alone or saved and posted together, or is copied as a brief when there is no pull request.
@@ -61,7 +61,7 @@ The walkthrough agent runs read-only in the worktree: it reads and searches, and
 
 ## Privacy
 
-Porcelain has no account, no analytics and no server of its own. Your code stays on your machine, with one exception you choose: the walkthrough agent, and commit message generation if you use it, run through your own Claude Code or Codex sign-in, so what they read goes to Anthropic or OpenAI under your account, as in any session you run yourself. That includes your own messages from the coding sessions in that worktree, which Porcelain reads locally to explain intent. Pull requests are read and comments posted through the GitHub CLI, signed in as you, and a comment is posted only when you click. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.
+Porcelain has no account, no analytics and no server of its own. Your code stays on your machine, with one exception you choose: the walkthrough agent, and commit message generation if you use it, run through your own Claude Code or Codex sign-in, so what they read goes to Anthropic or OpenAI under your account, as in any session you run yourself. That includes your own messages from the coding sessions in that worktree, which Porcelain reads locally to explain intent. Porcelain reads your pull requests through the GitHub CLI, signed in as you, and downloads the screenshots in a pull request's description from GitHub's image hosts. It posts a comment only when you click. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.
 
 ## Contributing
 
