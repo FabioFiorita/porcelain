@@ -28,10 +28,3 @@ export function orderedChecks(checks: readonly ProofCheck[]): ProofCheck[] {
       RESULT_ORDER.indexOf(left.result) - RESULT_ORDER.indexOf(right.result),
   );
 }
-
-export function publishedLabel(publishedAt: string): string {
-  return new Date(publishedAt).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}

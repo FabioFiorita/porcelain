@@ -1,12 +1,6 @@
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import type { ReviewComparison } from '../../shared/rules/review-comparison';
 import { Atom } from 'effect/reactivity';
-import type {
-  CommentAnchor,
-  CommentTarget,
-} from '@porcelain/client/reviews/rules';
-
-import type { ReviewRange } from '../../components/ui/review-annotation';
 
 export const phoneReviewComparison = Atom.family((_workspace: string) =>
   Atom.make<ReviewComparison>({ kind: 'worktree' }).pipe(Atom.keepAlive),
@@ -49,33 +43,3 @@ export function useReviewListOffset(owner: string) {
     onScrollOffset: useAtomSet(reviewListOffset(owner)),
   };
 }
-export const documentSelectionState = Atom.family(
-  (_: {
-    environmentId: string;
-    projectId: string;
-    worktreeId: string;
-    document: string;
-    comparison: CommentTarget['comparison'];
-  }) =>
-    Atom.make<{ range: ReviewRange; target: CommentTarget } | undefined>(
-      undefined,
-    ).pipe(Atom.keepAlive),
-);
-
-export type ComposerTarget = {
-  anchor: CommentAnchor;
-  threadId?: string | undefined;
-  reviewId?: string | undefined;
-  reviewRevision?: number | undefined;
-};
-
-export type CommentDraft = {
-  target: ComposerTarget | undefined;
-  body: string;
-  invalid: string | undefined;
-  intent: { body: string; threadId: string; messageId: string } | undefined;
-};
-
-export const commentDraftState = Atom.family((_document: string) =>
-  Atom.make<CommentDraft | undefined>(undefined).pipe(Atom.keepAlive),
-);

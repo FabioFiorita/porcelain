@@ -1,4 +1,3 @@
-import type { ComponentType, ReactNode } from 'react';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
 import { useIsFocused, useRouter } from 'expo-router';
@@ -13,8 +12,6 @@ import {
   type ChangeStatus,
 } from '@porcelain/client/files/rules';
 import { refLabel } from '@porcelain/client/history/rules';
-import { readCommentThreads } from '@porcelain/client/workspace';
-import { changeAnchor } from '@porcelain/client/reviews/rules';
 import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects/index';
 import { Item } from '../../../components/ui/item';
@@ -24,7 +21,7 @@ import { Separator } from '../../../components/ui/separator';
 import { Button } from '../../../components/ui/button';
 import { Text } from '../../../components/ui/text';
 import { StatusDot } from '../../../components/ui/status-dot';
-import type { Workspace, OpenedReview } from '../../projects/index';
+import type { Workspace } from '../../projects/index';
 
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
@@ -37,82 +34,24 @@ import { ReviewReadState } from './read-state';
 import { phoneReviewComparison, useReviewListOffset } from '../store';
 import { ComparisonMenu } from './comparison-menu';
 
-export type ReviewPaneProps = {
-  workspace?: string | undefined;
-  review?: OpenedReview | undefined;
-  linkedReview: ComponentType<{ review: OpenedReview }>;
-  currentReview: ComponentType<{
-    workspace: Workspace;
-    review: OpenedReview;
-    children: ReactNode;
-  }>;
-  publishedOverview: ComponentType<{ workspace: Workspace; bar?: boolean }>;
-};
-export function ReviewPane({
-  workspace,
-  review,
-  linkedReview: LinkedReviewPane,
-  currentReview: CurrentReview,
-  publishedOverview,
-}: ReviewPaneProps) {
+export type ReviewPaneProps = { workspace?: string | undefined };
+export function ReviewPane({ workspace }: ReviewPaneProps) {
   const focused = useIsFocused();
   if (!focused) return null;
-  const saved = review ? <LinkedReviewPane review={review} /> : undefined;
   return (
-    <WorkspaceGate
-      title="Review"
-      expectedWorkspace={workspace}
-      frame="pane"
-      unavailable={saved}
-      {...(workspace === undefined
-        ? {}
-        : {
-            changed: saved ?? (
-              <Empty
-                title="Workspace changed"
-                description="Another worktree is selected now. Open Review again from the worktree you want."
-              />
-            ),
-          })}
-    >
-      {(selected) =>
-        review ? (
-          <CurrentReview
-            key={selected.key}
-            workspace={selected}
-            review={review}
-          >
-            <PhoneReview
-              workspace={selected}
-              publishedOverview={publishedOverview}
-            />
-          </CurrentReview>
-        ) : (
-          <PhoneReview
-            key={selected.key}
-            workspace={selected}
-            publishedOverview={publishedOverview}
-          />
-        )
-      }
+    <WorkspaceGate title="Changes" expectedWorkspace={workspace} frame="pane">
+      {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
     </WorkspaceGate>
   );
 }
 
-function PhoneReview({
-  workspace,
-  publishedOverview,
-}: {
-  workspace: Workspace;
-  publishedOverview: ReviewPaneProps['publishedOverview'];
-}) {
+function PhoneReview({ workspace }: { workspace: Workspace }) {
   const router = useRouter();
   const [comparison, setComparison] = useAtom(
     phoneReviewComparison(workspace.key),
   );
   return (
     <ReviewNavigation
-      publishedOverview={publishedOverview}
       workspace={workspace}
       comparison={comparison}
       onComparison={setComparison}
@@ -133,7 +72,6 @@ function PhoneReview({
 }
 
 type ReviewNavigationProps = {
-  publishedOverview: ReviewPaneProps['publishedOverview'];
   workspace: Workspace;
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
@@ -142,7 +80,6 @@ type ReviewNavigationProps = {
 };
 
 function ReviewNavigation({
-  publishedOverview: PublishedOverview,
   workspace,
   comparison,
   onComparison,
@@ -191,12 +128,6 @@ function ReviewNavigation({
         }
         scrollEventThrottle={100}
       >
-        <PublishedOverview workspace={workspace} />
-        <ReviewComments
-          workspace={workspace}
-          snapshot={snapshotRead}
-          comparison={comparison}
-        />
         <Box gap={2}>
           <Box
             className="flex-row items-center justify-between"
@@ -250,63 +181,6 @@ function ReviewNavigation({
           />
         </Box>
       </ScrollView>
-      <PublishedOverview workspace={workspace} bar />
-    </Box>
-  );
-}
-
-function ReviewComments({
-  workspace,
-  snapshot,
-  comparison,
-}: {
-  workspace: Workspace;
-  snapshot: ReturnType<typeof useReviewSnapshot>;
-  comparison: ReviewComparison;
-}) {
-  const router = useRouter();
-  const commentsQuery = readCommentThreads({
-    connection: workspace.connection,
-    scope: workspace.scope,
-  });
-  const comments = useAtomValue(commentsQuery);
-  const refreshComments = useAtomRefresh(commentsQuery);
-  const value = AsyncResult.isSuccess(snapshot.result)
-    ? snapshot.result.value
-    : undefined;
-  const anchor = commentsAnchor(
-    value?.kind === 'branch' ? value.answer : undefined,
-    comparison,
-  );
-  const open = AsyncResult.isSuccess(comments)
-    ? comments.value.filter((thread) => !thread.resolved).length
-    : undefined;
-  return (
-    <Box gap={2}>
-      <Card>
-        <Item
-          title="Comments"
-          {...(open === undefined ? {} : { description: `${open} open` })}
-          leading={<Icon name="comment" tone="muted" />}
-          trailing={<Icon name="chevron" tone="muted" />}
-          accessibilityLabel={
-            open === undefined ? 'Comments' : `Comments · ${open} open`
-          }
-          testID="review-comments"
-          onPress={() =>
-            router.navigate({
-              pathname: '/review-comments',
-              params: {
-                ...reviewParams(workspace.key, comparison),
-                ...(anchor ? { anchor: JSON.stringify(anchor) } : {}),
-              },
-            })
-          }
-        />
-      </Card>
-      {AsyncResult.isFailure(comments) ? (
-        <ReviewReadState result={comments} refresh={refreshComments} />
-      ) : null}
     </Box>
   );
 }
@@ -411,21 +285,6 @@ function ChangeStatusDot({ status }: { status: ChangeStatus | undefined }) {
 
 function changeLabel(status: ChangeStatus | undefined) {
   return status ? changeStatusMarks[status].label : 'Changed';
-}
-
-function commentsAnchor(
-  branch:
-    | {
-        readonly base?: { readonly ref: string } | null | undefined;
-        readonly head: { readonly oid: string };
-      }
-    | undefined,
-  comparison: ReviewComparison,
-) {
-  if (branch?.base)
-    return changeAnchor({ base: branch.base.ref, tip: branch.head.oid });
-  if (comparison.kind === 'worktree') return changeAnchor(undefined);
-  return undefined;
 }
 
 function reviewStatusLabel(status: ReviewFile['reviewStatus']) {

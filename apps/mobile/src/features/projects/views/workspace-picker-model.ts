@@ -9,7 +9,6 @@ import { useProjectSelectionCommands } from '../commands/selection';
 import { useInventories } from '../queries/inventory';
 import { useWorkspace } from './workspace';
 import type { WorkspacePickerProps } from './workspace-picker-props';
-import { requestDocumentLeave } from '../store';
 
 export function useWorkspacePickerModel() {
   const workspace = useWorkspace();
@@ -69,17 +68,15 @@ export function useWorkspacePickerModel() {
         onSelect();
         return;
       }
-      requestDocumentLeave(() => {
-        commands.submit(
-          {
-            kind: 'workspace',
-            environmentId,
-            projectId,
-            worktreeId,
-          },
-          onSelect,
-        );
-      });
+      commands.submit(
+        {
+          kind: 'workspace',
+          environmentId,
+          projectId,
+          worktreeId,
+        },
+        onSelect,
+      );
     },
   } satisfies WorkspacePickerProps;
   const checkoutProject = choices.find((choice) =>

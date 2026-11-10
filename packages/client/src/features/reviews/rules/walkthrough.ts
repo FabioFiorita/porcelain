@@ -36,7 +36,7 @@ export type WalkthroughStop =
     }
   | { kind: 'specs'; key: 'specs'; paths: readonly string[] };
 
-export function decisionKey(layerId: string): `decision:${string}` {
+function decisionKey(layerId: string): `decision:${string}` {
   return `decision:${layerId}`;
 }
 
@@ -140,25 +140,6 @@ export function filesReviewed(
     (path) => status.get(path) === 'reviewed',
   ).length;
   return { reviewed, total: paths.length, done: reviewed === paths.length };
-}
-
-export function stopName(stop: WalkthroughStop): string {
-  switch (stop.kind) {
-    case 'briefing':
-      return 'Briefing';
-    case 'decision':
-      return stop.layer.title;
-    case 'unexplained':
-      return 'Not explained';
-    case 'specs':
-      return 'Specs';
-  }
-}
-
-export function stopTitle(stop: WalkthroughStop): string {
-  return stop.kind === 'decision'
-    ? `${stop.number}. ${stopName(stop)}`
-    : stopName(stop);
 }
 
 export type DecisionState = { reviewed: boolean; stale: boolean };

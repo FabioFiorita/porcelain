@@ -2,20 +2,14 @@ export { WorkspaceGate } from './views/workspace-gate';
 export { useSelectedWorkspaceKey } from './views/workspace';
 export type { Workspace } from './commands/workspace-connection';
 export {
-  useDocumentLeave,
   useComputerConnection,
-  openedReview,
   worktreeSection,
   worktreeListHidden,
 } from './store';
-export type { OpenedReview } from './store';
-export { ReviewInbox } from './views/review-inbox';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeScreen, WorktreeDetail } from './views/worktree-screen';
 export type { WorktreeSectionContent } from './views/worktree-screen';
 export type { WorktreeGuide } from './rules/worktree-section';
-
-export { useOpenPullRequest } from './views/open-pull-request';
 export { PullRequestArchive } from './views/archive-review';
 export {
   WorktreeActionsSheet,

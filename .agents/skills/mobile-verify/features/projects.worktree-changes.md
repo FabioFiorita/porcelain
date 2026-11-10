@@ -25,7 +25,6 @@ On a worktree whose first section is Walkthrough, the plain Changes list (Uncomm
 
 Preconditions: [Walkthrough](reviews.walkthrough-page.md) on a branch with commits.
 
-1. Press Changes in the top bar: the native title reads Changes; the Uncommitted/Branch menu, Changed files and All changes behave as in [Review](reviews.review.md); no published overview appears.
 2. Edit a file in `$REPO`: Uncommitted lists it. Open it, Back, then Back again returns to the Walkthrough.
 3. On a tablet the button sits in the worktree's top bar in landscape and portrait.
 

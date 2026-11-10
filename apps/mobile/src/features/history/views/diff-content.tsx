@@ -1,9 +1,4 @@
 import type { ReviewRange } from '../../../components/ui/review-annotation';
-import {
-  DocumentComments,
-  commitCommentTarget,
-  type DocumentCodeSelection,
-} from '../../workspace/index';
 import { CommitReadState } from './commit-state';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';
@@ -32,7 +27,6 @@ export function DiffContent({
   oid,
   parent,
   path,
-  leaveScope,
 }: {
   selection: HistorySelection;
   oid: string;
@@ -45,35 +39,20 @@ export function DiffContent({
     (candidate) => commitPath(candidate) === path,
   );
   return (
-    <DocumentComments
-      workspace={selection}
-      leaveScope={leaveScope}
-      path={path}
-      document={JSON.stringify(['commit-diff', oid, parent, path])}
-      target={commitCommentTarget(path, oid, parent)}
-      header={({ comments, clearSelection }) => (
-        <DocumentHeader
-          path={path}
-          details={[file?.status]}
-          actions={[comments, ...(clearSelection ? [clearSelection] : [])]}
-        />
-      )}
-    >
-      {(codeSelection) => (
-        <CommitReadState commit={commit}>
-          {(value) => (
-            <CommitFileContent
-              selection={selection}
-              oid={oid}
-              parent={parent}
-              path={path}
-              files={value.files}
-              codeSelection={codeSelection}
-            />
-          )}
-        </CommitReadState>
-      )}
-    </DocumentComments>
+    <Box className="flex-1">
+      <DocumentHeader path={path} details={[file?.status]} actions={[]} />
+      <CommitReadState commit={commit}>
+        {(value) => (
+          <CommitFileContent
+            selection={selection}
+            oid={oid}
+            parent={parent}
+            path={path}
+            files={value.files}
+          />
+        )}
+      </CommitReadState>
+    </Box>
   );
 }
 
@@ -83,14 +62,12 @@ function CommitFileContent({
   parent,
   path,
   files,
-  codeSelection,
 }: {
   selection: HistorySelection;
   oid: string;
   parent: number;
   path: string;
   files: readonly CommitFile[];
-  codeSelection: DocumentCodeSelection;
 }) {
   const file = files.find((candidate) => commitPath(candidate) === path);
   return (
@@ -101,8 +78,6 @@ function CommitFileContent({
           oid={oid}
           parent={parent}
           file={file}
-          selectionRange={codeSelection.selection}
-          onSelect={codeSelection.onSelect}
         />
       ) : (
         <Empty

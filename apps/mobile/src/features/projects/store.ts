@@ -1,9 +1,4 @@
-import { useId } from 'react';
-import {
-  leaveDocuments,
-  type DocumentLeaveGuard,
-} from '../../shared/rules/document-leave';
-import { useAtom, useAtomRef, useAtomMount } from '@effect/atom-react';
+import { useAtom, useAtomRef } from '@effect/atom-react';
 import { worktreeNavigatorState } from '@porcelain/client/projects';
 import {
   sameRemoteConnection,
@@ -14,7 +9,7 @@ import {
   selectionState,
 } from '../../shared/application/store';
 
-import { Atom, AtomRef } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import type { WorktreeSection } from './rules/worktree-section';
 
 export function useProjectSelection() {
@@ -47,63 +42,6 @@ export function useComputerConnection(environmentId: string | undefined) {
     (entry) => entry.remote.environmentId === environmentId,
   )?.connection;
 }
-
-const leaveGuards = AtomRef.make<
-  ReadonlyMap<string, { scope: string; guard: DocumentLeaveGuard }>
->(new Map());
-
-const documentLeave = Atom.family(
-  ({
-    scope,
-    guard,
-    owner,
-  }: {
-    scope: string | undefined;
-    guard: DocumentLeaveGuard | undefined;
-    owner: string;
-  }) =>
-    Atom.make((get) => {
-      if (!guard) return;
-      leaveGuards.update((current) =>
-        new Map(current).set(owner, { scope: scope ?? owner, guard }),
-      );
-      get.addFinalizer(() => {
-        leaveGuards.update((current) => {
-          if (current.get(owner)?.guard !== guard) return current;
-          const next = new Map(current);
-          next.delete(owner);
-          return next;
-        });
-      });
-    }),
-);
-
-export function useDocumentLeave(
-  scope: string | undefined,
-  guard: DocumentLeaveGuard | undefined,
-) {
-  const owner = useId();
-  useAtomMount(documentLeave({ scope, guard, owner }));
-}
-
-export function requestDocumentLeave(leave: () => void, scope?: string) {
-  leaveDocuments(
-    [...leaveGuards.value.values()]
-      .filter((entry) => scope === undefined || entry.scope === scope)
-      .map((entry) => entry.guard),
-    leave,
-  );
-}
-
-export type OpenedReview = {
-  reviewId: string;
-  environmentId: string;
-  workspace?: string | undefined;
-};
-
-export const openedReview = Atom.make<OpenedReview | undefined>(undefined).pipe(
-  Atom.keepAlive,
-);
 
 export type WorktreeDetails = {
   title: string;

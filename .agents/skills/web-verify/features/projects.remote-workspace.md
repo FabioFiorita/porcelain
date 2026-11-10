@@ -18,7 +18,7 @@ selectors:
   - 'Files'
   - 'Open file'
   - 'Source'
-  - 'Briefing'
+  - 'Walkthrough'
 tests:
   - apps/web/spec/integration/access-remote-access.test.tsx
 api:
@@ -38,7 +38,7 @@ api:
 
 # projects.remote-workspace
 
-The desktop app lists projects from local and remote computers together, each with a visible computer badge, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with links that open its decisions in the walkthrough.
+The desktop app lists projects from local and remote computers together, each with a visible computer badge, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload. Walkthroughs load from that computer.
 
 ## How to get to it (user POV)
 

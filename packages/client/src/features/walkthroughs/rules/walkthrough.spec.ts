@@ -280,31 +280,19 @@ describe('walkthroughPhase', () => {
 });
 
 describe('firstDocument', () => {
-  it('shows the walkthrough when the worktree has one, even with an old review', () => {
+  it('shows the walkthrough when the worktree has one', () => {
     expect(
       firstDocument({
         read: read(run({ status: 'running' })),
-        publishedReview: true,
         branchHasCommits: false,
       }),
     ).toBe('walkthrough');
-  });
-
-  it('shows the old review only when there is no walkthrough', () => {
-    expect(
-      firstDocument({
-        read: read(undefined),
-        publishedReview: true,
-        branchHasCommits: true,
-      }),
-    ).toBe('review');
   });
 
   it('offers a walkthrough on a branch with commits and nothing published', () => {
     expect(
       firstDocument({
         read: read(undefined),
-        publishedReview: false,
         branchHasCommits: true,
       }),
     ).toBe('walkthrough');
@@ -314,7 +302,6 @@ describe('firstDocument', () => {
     expect(
       firstDocument({
         read: read(undefined),
-        publishedReview: false,
         branchHasCommits: false,
       }),
     ).toBe('changes');

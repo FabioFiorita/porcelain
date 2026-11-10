@@ -21,19 +21,15 @@ export {
 
 export {
   emptyNavigatorFilter,
-  navigatorCardReviewLabel,
   navigatorCardChangesLabel,
   navigatorChangesLabel,
   navigatorChecksLabel,
-  navigatorEntryLabel,
   navigatorEntrySelected,
   type NavigatorStatusNotice,
   type NavigatorFilter,
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
-export type { ReviewInboxRow } from './review-inbox.ts';
-export { searchReviewInbox } from './review-inbox.ts';
 
 export {
   archiveSettings,

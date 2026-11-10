@@ -46,15 +46,13 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
   }
 }
 
-export type FirstDocument = 'walkthrough' | 'review' | 'changes';
+export type FirstDocument = 'walkthrough' | 'changes';
 
 export function firstDocument(input: {
   read: WalkthroughRead;
-  publishedReview: boolean;
   branchHasCommits: boolean;
 }): FirstDocument {
   if (input.read.walkthrough !== undefined) return 'walkthrough';
-  if (input.publishedReview) return 'review';
   return input.branchHasCommits ? 'walkthrough' : 'changes';
 }
 

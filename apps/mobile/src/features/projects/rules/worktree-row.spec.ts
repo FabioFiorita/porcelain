@@ -24,7 +24,6 @@ it('keeps full branch names without clean-state filler', () => {
   const branch = 'a-long-branch-name-'.repeat(12);
   expect(worktreeRow({ ...entry, branch })).toMatchObject({
     title: branch,
-    review: '',
     changes: '',
   });
 });
@@ -48,7 +47,7 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
       changes: { state: 'loading' },
       review: { state: 'loading' },
     }),
-  ).toMatchObject({ review: 'Reading review…', changes: 'Reading changes…' });
+  ).toMatchObject({ changes: 'Reading changes…' });
   expect(
     worktreeRow({
       ...entry,
@@ -56,7 +55,6 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
       review: { state: 'unavailable' },
     }),
   ).toMatchObject({
-    review: 'Review unavailable',
     changes: '—',
   });
 });
@@ -87,4 +85,22 @@ it('leads with the walkthrough or pull request title and keeps the branch as sma
     title: 'feat/pinned-files',
     branch: '',
   });
+});
+
+it('announces each detached checkout by its path and preserves main-checkout identity', () => {
+  const detached = {
+    ...entry,
+    detached: true,
+    name: 'qa',
+    branch: 'Detached HEAD',
+  };
+  expect(
+    worktreeRow({ ...detached, path: '/code/one/qa' }).accessibilityLabel,
+  ).toBe('qa, Detached HEAD, /code/one/qa, Porcelain, Private workstation');
+  expect(
+    worktreeRow({ ...detached, path: '/code/two/qa' }).accessibilityLabel,
+  ).toBe('qa, Detached HEAD, /code/two/qa, Porcelain, Private workstation');
+  expect(worktreeRow({ ...entry, main: true }).accessibilityLabel).toBe(
+    'feat/pinned-files, Main worktree, Porcelain, Private workstation',
+  );
 });

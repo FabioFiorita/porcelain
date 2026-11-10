@@ -7,7 +7,5 @@ export { ComputerScreen } from './views/computer-screen';
 export { useReadEnvironments } from './commands/pairing';
 export { useEnvironments, useEnvironmentStorageStatus } from './store';
 
-export { PairEnvironmentForm } from './views/pair-environment-form';
-
 export { SettingsToolbar } from './views/settings-toolbar';
 export { receivePairingLink } from './store';

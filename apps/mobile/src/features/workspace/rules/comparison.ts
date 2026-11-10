@@ -10,10 +10,8 @@ import {
 import {
   mergeBranchChanges,
   mergeReviewChanges,
-  type CommentTarget,
   type ReviewStatus,
 } from '@porcelain/client/reviews/rules';
-import { commitPath } from '@porcelain/client/history/rules';
 import {
   branchChangeMarks,
   worktreeChangeMarks,
@@ -92,50 +90,4 @@ export function snapshotChangeMarks<E>(
   return snapshot.value.kind === 'worktree'
     ? worktreeChangeMarks(snapshot.value.answer.changes)
     : branchChangeMarks(snapshot.value.answer.files);
-}
-
-export function commentTarget(
-  snapshot: ReviewSnapshot,
-  file: Pick<ReviewFile, 'path' | 'fingerprint'>,
-  scope?: 'staged' | 'unstaged' | 'untracked',
-): CommentTarget | undefined {
-  if (!file.fingerprint) return undefined;
-  if (snapshot.kind === 'branch') {
-    if (!snapshot.answer.base) return undefined;
-    return {
-      filePath: file.path,
-      comparison: { kind: 'branch', base: snapshot.answer.base.ref },
-      revision: snapshot.answer.head.oid,
-      contentFingerprint: file.fingerprint,
-    };
-  }
-  return scope
-    ? {
-        filePath: file.path,
-        comparison: { kind: 'worktree', scope },
-        contentFingerprint: file.fingerprint,
-      }
-    : undefined;
-}
-
-export function documentReviewTarget(
-  snapshot: ReviewSnapshot | undefined,
-  path: string,
-  preferredScope: string | undefined,
-) {
-  if (!snapshot) return undefined;
-  if (snapshot.kind === 'branch') {
-    const file = snapshot.answer.files.find(
-      (entry) => commitPath(entry) === path,
-    );
-    return file
-      ? commentTarget(snapshot, { path, fingerprint: file.fingerprint })
-      : undefined;
-  }
-  const file = snapshot.answer.changes.find((entry) => entry.path === path);
-  const comparison =
-    file?.comparisons.find((entry) => entry.scope === preferredScope) ??
-    file?.comparisons[0];
-  if (!file || !comparison || comparison.scope === 'unmerged') return undefined;
-  return commentTarget(snapshot, file, comparison.scope);
 }
