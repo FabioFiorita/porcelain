@@ -236,7 +236,7 @@ const keyGlyphs: Partial<Record<KeyInput, string>> = {
   down: '↓',
   left: '←',
   right: '→',
-  return: '↩',
+  return: '↩\uFE0E',
   escape: 'Esc',
   tab: '⇥',
   space: 'Space',
