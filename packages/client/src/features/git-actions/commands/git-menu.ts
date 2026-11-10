@@ -1,6 +1,5 @@
 import type { gitActionCommands } from './git-action-controller.ts';
-import type { Cause } from 'effect';
-import { Effect, Option } from 'effect';
+import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { ActionInput } from '../rules/git-action.ts';
@@ -74,11 +73,15 @@ export const runNetworkAction = Effect.fn('GitMenu.runNetwork')(
       return;
     }
     const { looked } = target;
-    const input: ActionInput = networkInput(
-      next,
-      looked.branch,
-      menu.pull.kind === 'ready' ? menu.pull.strategy : 'merge',
-    );
+    const input: ActionInput = yield* Effect.try({
+      try: () =>
+        networkInput(
+          next,
+          looked.branch,
+          menu.pull.kind === 'ready' ? menu.pull.strategy : 'merge',
+        ),
+      catch: (cause) => new Cause.UnknownError(cause, gitErrorMessage(cause)),
+    });
     const receipt = yield* Effect.acquireUseRelease(
       Effect.sync(() => menu.onProgress(true)),
       () =>

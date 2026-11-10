@@ -10,6 +10,7 @@ selectors:
 tests:
   - packages/client/src/features/git-actions/rules/network-availability.spec.ts
   - packages/client/src/features/git-actions/commands/git-menu.spec.ts
+  - packages/client/src/features/git-actions/commands/git-action-controller.spec.ts
   - packages/client/src/features/git-actions/queries/network-menu.spec.ts
 api:
   - GET /api/worktrees/:worktreeId/git/status

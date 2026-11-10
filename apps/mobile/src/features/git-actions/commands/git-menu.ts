@@ -6,7 +6,8 @@ import {
 } from '@effect/atom-react';
 import { readCurrentGitStatus, readGitStatus } from '@porcelain/client/changes';
 import {
-  operationKey,
+  networkMenuAttemptNotice,
+  type NetworkMenuAttempt,
   networkMenuFeedback,
   networkMenuNotice,
   readGitActionCommands,
@@ -17,6 +18,7 @@ import {
 } from '@porcelain/client/git-actions';
 import {
   networkActionBlocker,
+  gitActionLabel,
   gitErrorMessage,
 } from '@porcelain/client/git-actions/rules';
 import { readReviewGitSettingsView } from '@porcelain/client/preferences';
@@ -26,7 +28,6 @@ import {
 } from '@porcelain/client/preferences/rules';
 import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { Workspace } from '../../projects';
 
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
@@ -53,20 +54,18 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const running = feedback.running;
   const runners = { fetch: fetchCommands, pull: pullCommands };
   const remember = (
-    action: 'fetch' | 'pull',
+    attempt: NetworkMenuAttempt,
     notice: Parameters<GitMenuControls['onResult']>[0],
-    input: RunGitActionRequest['input'] | undefined,
   ) => {
-    const operation = connection.operations.state.value.operations.get(
-      operationKey(scope, action),
+    const result = networkMenuAttemptNotice(
+      connection.operations.state.value,
+      scope,
+      attempt,
+      notice,
     );
-    if (input && operation?.request.input !== input) return;
-    setNotice({ action, notice, operation: input ? operation : undefined });
+    if (result) setNotice(result);
   };
-  const controlsFor = (
-    action: 'fetch' | 'pull',
-    requestInput: () => RunGitActionRequest['input'] | undefined,
-  ): GitMenuControls => ({
+  const controlsFor = (attempt: NetworkMenuAttempt): GitMenuControls => ({
     details: {
       result: status,
       read: () =>
@@ -85,11 +84,11 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
             reviewGitSettingsBlock(settings) ??
             'Reviews & Git settings for this computer are unavailable.',
         },
-    notify: (notice) => remember(action, notice, requestInput()),
+    notify: (notice) => remember(attempt, notice),
     onProgress: (open) => {
       if (open) setNotice(null);
     },
-    onResult: (notice) => remember(action, notice, requestInput()),
+    onResult: (notice) => remember(attempt, notice),
   });
   const value = Option.getOrUndefined(AsyncResult.value(status));
   const blocker = (action: 'fetch' | 'pull') => {
@@ -107,16 +106,29 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   };
   const run = (action: 'fetch' | 'pull') => {
     const commands = runners[action];
-    if (blocker(action) || !AsyncResult.isSuccess(commands)) return;
-    let input: RunGitActionRequest['input'] | undefined;
+    const attempt: NetworkMenuAttempt = {
+      action,
+      previous: networkMenuFeedback(connection.operations.state.value, scope)
+        .selected?.operation,
+    };
+    const reason = blocker(action);
+    if (reason || !AsyncResult.isSuccess(commands)) {
+      remember(attempt, {
+        title: `${gitActionLabel(action)} did not run`,
+        description: reason ?? 'Preparing Git actions…',
+        type: 'error',
+      });
+      return;
+    }
     const runner = commands.value;
     Effect.runFork(
       runNetworkAction(
-        controlsFor(action, () => input),
+        controlsFor(attempt),
         {
           run: (next, expected) => {
-            input = next;
-            return runner.run(next, expected);
+            return runner.run(next, expected, (request) => {
+              attempt.request = request;
+            });
           },
         },
         action,
@@ -137,14 +149,28 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
     checkOutcome: () => {
       if (!running) return;
       const commands = runners[running.action];
-      if (AsyncResult.isSuccess(commands))
+      const attempt: NetworkMenuAttempt = {
+        action: running.action,
+        previous: running.operation,
+        request: running.operation.request,
+      };
+      if (AsyncResult.isSuccess(commands)) {
         Effect.runFork(
           recoverNetworkAction(
-            controlsFor(running.action, () => running.operation.request.input),
+            controlsFor(attempt),
             commands.value,
             running.action,
           ),
         );
+      } else {
+        remember(attempt, {
+          title: `${gitActionLabel(running.action)} outcome not confirmed`,
+          description: AsyncResult.isFailure(commands)
+            ? gitErrorMessage(Cause.squash(commands.cause))
+            : 'Preparing Git actions…',
+          type: 'error',
+        });
+      }
     },
   };
 }
