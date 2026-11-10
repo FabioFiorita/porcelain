@@ -6,7 +6,11 @@ export class ReadWalkthroughService extends Context.Service<
   {
     readonly execute: (input: {
       worktreeId: string;
-    }) => Effect.Effect<WalkthroughRun | undefined>;
+      branch: string | undefined;
+    }) => Effect.Effect<{
+      walkthrough: WalkthroughRun | undefined;
+      attempt: WalkthroughRun | undefined;
+    }>;
   }
 >()('@porcelain/walkthroughs/ReadWalkthroughService') {
   static readonly layer = Layer.effect(
@@ -15,7 +19,23 @@ export class ReadWalkthroughService extends Context.Service<
       const store = yield* WalkthroughStore;
       return {
         execute: Effect.fn('ReadWalkthroughService.execute')(function* (input) {
-          return yield* store.read(input.worktreeId);
+          const latest = yield* store.read(input.worktreeId, {
+            branch: input.branch,
+          });
+          const ready = (yield* store.listReadyRuns(input.worktreeId)).findLast(
+            (run) => run.branch === input.branch,
+          );
+          return {
+            walkthrough:
+              latest?.state.status === 'ready' ? latest : (ready ?? latest),
+            attempt:
+              ready !== undefined &&
+              latest !== undefined &&
+              latest.state.status !== 'ready' &&
+              latest.id !== ready.id
+                ? latest
+                : undefined,
+          };
         }),
       };
     }),

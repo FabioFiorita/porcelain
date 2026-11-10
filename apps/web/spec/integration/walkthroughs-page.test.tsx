@@ -251,9 +251,43 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
     )
     .toBeVisible();
+  await repo.write(SCENARIO, 'hold');
   await page
     .getByRole('button', { name: 'Update walkthrough', exact: true })
     .click();
+  await expect
+    .element(page.getByText('Updating…', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByText('By step', { exact: true }))
+    .toBeVisible();
+  await page
+    .getByRole('button', { name: 'See the code for step 1', exact: true })
+    .click();
+  await expect
+    .element(page.getByRole('tab', { name: 'Step 1', exact: true }))
+    .toBeVisible();
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await repo.write(SCENARIO, 'signed-out');
+  await expect
+    .element(page.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+      }),
+    )
+    .toBeVisible();
+  await repo.remove(SCENARIO);
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect
     .poll(async () => (await server.walkthrough()).walkthrough?.id)
     .not.toBe(firstId);

@@ -85,6 +85,7 @@ const startWalkthroughRequestSchema = Schema.Struct({
 });
 export const readWalkthroughResponseSchema = Schema.Struct({
   walkthrough: nullableAsUndefined(walkthroughRunSchema),
+  attempt: Schema.optional(walkthroughRunSchema),
   outOfDate: Schema.Boolean,
 });
 export const walkthroughWriterSettingsSchema = Schema.Struct({

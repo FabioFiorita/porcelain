@@ -314,24 +314,31 @@ function Written({
   updating: boolean;
   updateFailure: WalkthroughFailure | undefined;
 }) {
-  const stale = (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
-      New commits landed after this was written.
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={updating}
-        onClick={onUpdate}
-      >
+  let notice = (
+    <>
+      <span>New commits landed after this was written.</span>
+      <Button size="sm" variant="outline" onClick={onUpdate}>
         Update walkthrough
       </Button>
-      {updateFailure && (
-        <span role="alert" className="basis-full text-destructive">
+    </>
+  );
+  if (updating) notice = <span role="status">Updating…</span>;
+  else if (updateFailure)
+    notice = (
+      <>
+        <span role="alert">
           {walkthroughFailureCopy(updateFailure, run.writer).title}{' '}
           {updateFailure.message}
         </span>
-      )}
-    </p>
+        <Button size="sm" variant="outline" onClick={onUpdate}>
+          Try again
+        </Button>
+      </>
+    );
+  const stale = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
+      {notice}
+    </div>
   );
   if (content.outcome === 'nothing')
     return (
@@ -342,7 +349,7 @@ function Written({
           <p className="text-prose text-foreground-2">
             <RichText text={content.summary} />
           </p>
-          {outOfDate && stale}
+          {(outOfDate || updating || updateFailure) && stale}
           <div className="-ml-2">
             <Button
               variant="link"
@@ -363,7 +370,7 @@ function Written({
         <p className="text-prose text-foreground-2">
           <RichText text={content.summary} />
         </p>
-        {outOfDate && stale}
+        {(outOfDate || updating || updateFailure) && stale}
       </header>
       <Calls content={content} conversation={undefined} />
       {content.growth.length > 0 && <Growth items={content.growth} />}
@@ -520,8 +527,17 @@ export function WalkthroughDocument(props: DocumentProps) {
             outOfDate={phase.outOfDate}
             props={props}
             onUpdate={write.start}
-            updating={write.waiting}
-            updateFailure={write.failure}
+            updating={
+              write.waiting ||
+              phase.attempt?.state.status === 'queued' ||
+              phase.attempt?.state.status === 'running'
+            }
+            updateFailure={
+              write.failure ??
+              (phase.attempt?.state.status === 'failed'
+                ? phase.attempt.state.failure
+                : undefined)
+            }
           />
         );
     }

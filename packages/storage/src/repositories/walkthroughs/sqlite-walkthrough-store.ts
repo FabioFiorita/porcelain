@@ -180,13 +180,20 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           return run;
         }).pipe(sql.withTransaction, Effect.orDie);
       }),
-      read: Effect.fn('WalkthroughStore.read')(function* (worktreeId: string) {
+      read: Effect.fn('WalkthroughStore.read')(function* (
+        worktreeId: string,
+        current?: { branch: string | undefined },
+      ) {
         const rows = yield* sql<{
           payload: string;
-        }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${worktreeId} ORDER BY sequence DESC LIMIT 1`.pipe(
+        }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${worktreeId} ORDER BY sequence DESC`.pipe(
           Effect.orDie,
         );
-        return rows[0] === undefined ? undefined : decode(rows[0].payload).run;
+        return rows
+          .map((row) => decode(row.payload).run)
+          .find(
+            (run) => current === undefined || run.branch === current.branch,
+          );
       }),
       listPending: Effect.fn('WalkthroughStore.listPending')(function* () {
         const rows = yield* sql<{

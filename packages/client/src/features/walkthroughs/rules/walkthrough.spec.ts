@@ -411,3 +411,28 @@ describe('plainText', () => {
     expect(plainText('`/labs` asks him')).toBe('/labs asks him');
   });
 });
+
+it.each([
+  { status: 'running' },
+  { status: 'failed', failure: { kind: 'other', message: 'Writer failed' } },
+] as const)('keeps ready steps while the newer attempt is $status', (state) => {
+  const ready = run({
+    status: 'ready',
+    content: content({ stops: [stop()] }),
+    writtenAt: 'today',
+    durationMs: 1,
+    costUsd: undefined,
+  });
+  const phase = walkthroughPhase({
+    walkthrough: ready,
+    attempt: { ...run(state), id: 'newer' },
+    outOfDate: true,
+  });
+  expect(phase).toMatchObject({
+    kind: 'ready',
+    run: { id: 'run', headOid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+    content: { stops: [{ title: 'A step' }] },
+    outOfDate: true,
+    attempt: { id: 'newer' },
+  });
+});

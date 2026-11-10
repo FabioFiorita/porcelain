@@ -11,6 +11,7 @@ selectors:
   - "See the change"
   - "Update walkthrough"
   - "Try again"
+  - "Updating…"
   - "By step"
   - "Your call"
   - "Not in the walkthrough yet"
@@ -62,7 +63,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. Failure
 
-7. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect heading "Claude needs you to sign in again." naming `claude auth login`; after removing the file, "Try again" writes the walkthrough.
+7. During an update, the last ready page, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and shows the failure with “Try again”. With no ready page the initial running/failure states remain.
+8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect heading "Claude needs you to sign in again." naming `claude auth login`; after removing the file, "Try again" writes the walkthrough.
 
 ### 4. Short page
 

@@ -69,6 +69,10 @@ export function walkthroughsRoutes(useCases: {
           useCases.read.execute(params).pipe(
             Effect.map((value) => ({
               ...value,
+              attempt:
+                value.attempt === undefined
+                  ? undefined
+                  : presentWalkthrough(value.attempt),
               walkthrough:
                 value.walkthrough === undefined
                   ? undefined

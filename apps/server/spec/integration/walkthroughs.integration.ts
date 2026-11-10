@@ -47,6 +47,8 @@ test('reads the latest attempt and reports when its pinned head is out of date',
     await read(session, { method: 'GET', path }),
   );
   expect(initial.outOfDate).toBe(false);
+  expect(initial.walkthrough?.state.status).not.toBe('ready');
+  expect(initial.attempt).toBeUndefined();
   expect(initial.walkthrough?.headOid).toBe(text(first.headOid));
   await session.writeFile('walkthrough.txt', 'The next committed change.\n');
   await session.git('add', 'walkthrough.txt');
@@ -113,7 +115,9 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       },
     },
   };
-  Object.assign(run, { branch: session.fixture.branch });
+  Object.assign(run, {
+    branch: session.fixture.branch.replace(/^refs\/heads\//, ''),
+  });
   const job: WalkthroughJob = {
     run,
     worktreePath: session.repository,
@@ -157,6 +161,71 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     database.exec('COMMIT');
   } finally {
     database.close();
+  }
+  const readState = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await read(session, {
+        method: 'GET',
+        path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+      }),
+    );
+  const attempt: WalkthroughJob = {
+    ...other,
+    run: { ...other.run, id: 'new-attempt', state: { status: 'queued' } },
+  };
+  const insertAttempt = new DatabaseSync(
+    join(
+      session.projectHome,
+      session.fixture.folders.state,
+      'inventory.sqlite',
+    ),
+  );
+  try {
+    insertAttempt
+      .prepare(
+        'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(
+        'new-attempt',
+        session.worktreeId,
+        secondHead,
+        'queued',
+        JSON.stringify(attempt),
+      );
+    for (const state of [
+      { status: 'queued' },
+      { status: 'running' },
+      {
+        status: 'failed',
+        failure: { kind: 'other', message: 'Writer failed' },
+      },
+    ]) {
+      insertAttempt
+        .prepare(
+          'UPDATE walkthrough_runs SET status = ?, payload = ? WHERE id = ?',
+        )
+        .run(
+          state.status,
+          JSON.stringify({ ...attempt, run: { ...attempt.run, state } }),
+          'new-attempt',
+        );
+      const retained = await readState();
+      expect(retained.walkthrough?.id).toBe(secondId);
+      expect(retained.attempt?.state).toEqual(state);
+      expect(retained.outOfDate).toBe(false);
+    }
+    await session.git('commit', '--allow-empty', '-m', 'Advance during update');
+    expect((await readState()).outOfDate).toBe(true);
+    await session.git('reset', '--hard', secondHead);
+    await session.git('switch', '-c', 'no-walkthrough');
+    expect((await readState()).walkthrough).toBeUndefined();
+    await session.git('switch', session.fixture.branch);
+    await read(session, { method: 'POST', path: '/api/inventory/refresh' });
+    insertAttempt
+      .prepare('DELETE FROM walkthrough_runs WHERE id = ?')
+      .run('new-attempt');
+  } finally {
+    insertAttempt.close();
   }
   const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
   const accepted = await read(session, {
@@ -295,10 +364,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       projectId: session.projectId,
       worktreeId: session.worktreeId,
       pullRequestNumber,
-      pullRequestRepository:
-        pullRequestNumber === undefined
-          ? undefined
-          : { owner: 'FabioFiorita', repo: 'porcelain' },
+      pullRequestRepository: { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
       headOid: head,
       writer: { provider: 'claude', model: 'fixture', effort: 'high' },
@@ -348,6 +414,8 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       database.close();
     }
   };
+  const legacy = runJob('legacy-run', headA, [], undefined);
+  seed({ ...legacy, run: { ...legacy.run, pullRequestRepository: undefined } });
   seed(
     runJob(
       'first-run',
@@ -484,11 +552,26 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     ['first-run', { kind: 'stop', title: 'Kept step' }],
     ['first-run', { kind: 'walkthrough' }],
   ]);
+  const legacyMessage = await add(
+    undefined,
+    'A message without recorded origin',
+    'legacy-run',
+  );
+  const missingRepository = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot}/messages/${legacyMessage}/post`,
+  });
+  expect(missingRepository.status).toBe(409);
   const unbound = await session.send({
     method: 'POST',
     path: `${worktreeRoot}/messages/${removed}/post`,
   });
-  expect(unbound.status).toBe(409);
+  expect(unbound.status).toBe(200);
+  expect(record(unbound.body).outcome).toEqual({
+    status: 'posted',
+    url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
+    notPosted: [],
+  });
   const onPull = await add('Kept step', 'Ship it this way?', 'second-run', {
     provider: 'claude',
     model: 'sonnet',
@@ -530,12 +613,12 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     method: 'POST',
     path: `${worktreeRoot}/post-saved`,
   });
-  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [kept] });
+  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const calls = (await readFile(ghCalls, 'utf8'))
     .trim()
     .split('\n')
     .filter(Boolean);
-  expect(calls).toHaveLength(2);
+  expect(calls).toHaveLength(3);
   expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
   const unposted = await add(undefined, 'A private decision', 'second-run');
   await expect
@@ -561,7 +644,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   );
   expect(
     (await readFile(ghCalls, 'utf8')).trim().split('\n').filter(Boolean),
-  ).toHaveLength(2);
+  ).toHaveLength(3);
   const offered = await read(session, {
     method: 'GET',
     path: `${worktreeRoot}/brief?messageId=${unposted}`,
@@ -574,7 +657,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   const startedWithPull = await read(session, {
     method: 'POST',
     path: `/api/worktrees/${session.worktreeId}/walkthrough`,
-    body: { base: 'refs/heads/conversation-start-base', pullRequestNumber: 41 },
+    body: { base: 'refs/heads/conversation-start-base' },
   });
   expect(startedWithPull.pullRequestRepository).toEqual({
     owner: 'someone',

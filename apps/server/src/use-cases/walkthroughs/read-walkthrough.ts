@@ -9,10 +9,12 @@ import type { GitIoFailure } from '@porcelain/git/errors';
 export class ReadWalkthroughUseCase extends Context.Service<
   ReadWalkthroughUseCase,
   {
-    readonly execute: (
-      input: WorktreeParams,
-    ) => Effect.Effect<
-      { walkthrough: WalkthroughRun | undefined; outOfDate: boolean },
+    readonly execute: (input: WorktreeParams) => Effect.Effect<
+      {
+        walkthrough: WalkthroughRun | undefined;
+        attempt: WalkthroughRun | undefined;
+        outOfDate: boolean;
+      },
       WorktreeAccessFailure | GitIoFailure
     >;
   }
@@ -28,9 +30,13 @@ export class ReadWalkthroughUseCase extends Context.Service<
           return yield* access.read(input.worktreeId, () =>
             Effect.gen(function* () {
               const head = yield* status.execute(input);
-              const walkthrough = yield* store.execute(input);
+              const { walkthrough, attempt } = yield* store.execute({
+                ...input,
+                branch: head.branch?.name,
+              });
               return {
-                walkthrough: walkthrough,
+                walkthrough,
+                attempt,
                 outOfDate:
                   walkthrough !== undefined &&
                   head.headOid !== walkthrough.headOid,

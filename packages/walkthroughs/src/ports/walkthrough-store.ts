@@ -30,7 +30,10 @@ export interface WalkthroughStore {
     job: WalkthroughJob,
     automaticKey?: string,
   ): Effect.Effect<WalkthroughRun>;
-  read(worktreeId: string): Effect.Effect<WalkthroughRun | undefined>;
+  read(
+    worktreeId: string,
+    current?: { branch: string | undefined },
+  ): Effect.Effect<WalkthroughRun | undefined>;
   listPending(): Effect.Effect<readonly WalkthroughJob[]>;
   claim(id: string): Effect.Effect<boolean>;
   save(run: WalkthroughRun): Effect.Effect<void>;
