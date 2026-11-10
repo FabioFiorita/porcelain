@@ -10,7 +10,7 @@ selectors:
   - 'See the code'
   - 'See every changed file'
   - 'See the change'
-  - 'New commits landed after this was written.'
+  - 'The work changed after this was written.'
   - 'Update walkthrough'
   - 'Updating…'
   - 'Try again'
@@ -78,7 +78,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 2. Out of date, failure and the short page
 
-5. Commit another change in `$REPO`. Expect "New commits landed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
+5. Commit another change in `$REPO`. Expect "The work changed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
 6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer reads "Working…"; switching to `signed-out` fails it with Try again.
 7. `printf nothing > …`, write again. Expect a heading ending "Nothing needs you." and "See the change", which opens All changes.
 

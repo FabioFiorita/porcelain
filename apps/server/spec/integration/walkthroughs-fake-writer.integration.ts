@@ -189,9 +189,15 @@ test('an unsupported untracked Git filter preserves the saved walkthrough and ex
       await read(session, { method: 'GET', path }),
     );
   await expect
-    .poll(async () => (await current()).walkthrough?.state.status, {
-      timeout: 10000,
-    })
+    .poll(
+      async () => {
+        const view = await current();
+        return view.walkthrough?.id === accepted.id
+          ? view.walkthrough?.state.status
+          : undefined;
+      },
+      { timeout: 10000 },
+    )
     .toBe('ready');
   const saved = (await current()).walkthrough;
   await session.writeFile('.gitattributes', '*.secret filter=example\n');

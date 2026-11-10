@@ -9,7 +9,7 @@ import {
 import {
   WalkthroughDocument,
   WalkthroughIndex,
-  WalkthroughStepDocument,
+  WalkthroughCodeDocument,
   useWalkthroughTabTitle,
   useWorktreeFirstDocument,
 } from '@/features/walkthroughs/index';
@@ -17,7 +17,7 @@ import { useAtomMount } from '@effect/atom-react';
 
 type Props = Omit<
   ReviewWorkspaceProps,
-  'walkthrough' | 'changesNavigation' | 'stepDocument' | 'firstDocument'
+  'walkthrough' | 'changesNavigation' | 'walkthroughCode' | 'firstDocument'
 >;
 
 export function WorkspaceReview(props: Props) {
@@ -59,7 +59,7 @@ function WorkspaceReviewContent(props: Props) {
       changesNavigation={
         worktreeFirstDocument.guided ? WalkthroughIndex : ReviewIndex
       }
-      stepDocument={WalkthroughStepDocument}
+      walkthroughCode={WalkthroughCodeDocument}
       firstDocument={firstDocument}
     />
   );

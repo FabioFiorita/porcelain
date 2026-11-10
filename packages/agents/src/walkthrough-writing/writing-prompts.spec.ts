@@ -32,28 +32,30 @@ const content: WalkthroughContent = {
   onlyInTranscript: [],
   stillUnclear: [],
 };
-const prompts = (input: WalkthroughJob) => [
-  writingPrompts(
-    input,
-    { title: '', body: '', checks: undefined, assets: [] },
-    '',
-    '',
-  ).first,
-  answerPrompts({ ...input, content, text: 'Why?', stopTitle: undefined })
-    .fresh,
-];
+const promptFor = (kind: 'writing' | 'answer', input: WalkthroughJob) =>
+  kind === 'writing'
+    ? writingPrompts(
+        input,
+        { title: '', body: '', checks: undefined, assets: [] },
+        '',
+        '',
+      ).first
+    : answerPrompts({ ...input, content, text: 'Why?', stopTitle: undefined })
+        .fresh;
 
-it('bounds inline UTF-8 patch bytes in writing and fresh answers and names omitted files', () => {
-  const patch = Array.from(
-    { length: 12 },
-    (_, index) =>
-      `diff --git a/file-${index} b/file-${index}\n@@ -0,0 +1 @@\n+${'é'.repeat(16000)}\n`,
-  ).join('');
-  for (const prompt of prompts({
-    ...job,
-    patch,
-    omittedFiles: ['generated.txt'],
-  })) {
+it.each(['writing', 'answer'] as const)(
+  'bounds inline UTF-8 patch bytes and names omitted files for %s',
+  (kind) => {
+    const patch = Array.from(
+      { length: 12 },
+      (_, index) =>
+        `diff --git a/file-${index} b/file-${index}\n@@ -0,0 +1 @@\n+${'é'.repeat(16000)}\n`,
+    ).join('');
+    const prompt = promptFor(kind, {
+      ...job,
+      patch,
+      omittedFiles: ['generated.txt'],
+    });
     const inline =
       prompt.split('<captured_diff>\n')[1]?.split('</captured_diff>')[0] ?? '';
     expect(inline).toContain('diff --git a/file-0');
@@ -62,19 +64,21 @@ it('bounds inline UTF-8 patch bytes in writing and fresh answers and names omitt
     expect(prompt).toContain('generated.txt');
     expect(prompt).toContain('file-11');
     expect(prompt).toContain('read with the allowed commands if needed');
-  }
-});
+  },
+);
 
-it('reads committed changes through the immutable commit range without inlining their patch', () => {
-  for (const prompt of prompts({
-    ...job,
-    run: { ...job.run, includesUncommitted: false },
-    patch: 'never inline this clean patch',
-  })) {
+it.each(['writing', 'answer'] as const)(
+  'reads committed changes through the immutable range without inlining for %s',
+  (kind) => {
+    const prompt = promptFor(kind, {
+      ...job,
+      run: { ...job.run, includesUncommitted: false },
+      patch: 'never inline this clean patch',
+    });
     expect(prompt).toContain(
       `git diff --no-ext-diff --no-textconv ${'a'.repeat(40)}..${'b'.repeat(40)}`,
     );
     expect(prompt).not.toContain('never inline this clean patch');
     expect(prompt).not.toContain('<captured_diff>');
-  }
-});
+  },
+);

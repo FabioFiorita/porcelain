@@ -60,6 +60,7 @@ export function BranchDocument(
   props: Props & {
     only?: readonly string[] | undefined;
     heading?: DocumentHeading | undefined;
+    fullHeight?: boolean | undefined;
   },
 ) {
   return <BranchCode {...props} path={undefined} />;
@@ -80,11 +81,13 @@ function BranchCode({
   path,
   only,
   heading,
+  fullHeight = false,
   onOpen,
 }: Props & {
   path: string | undefined;
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
 }) {
   return (
     <BranchState scope={scope} context={context} base={base}>
@@ -98,6 +101,7 @@ function BranchCode({
           path={path}
           only={only}
           heading={heading}
+          fullHeight={fullHeight}
         />
       )}
     </BranchState>
@@ -112,10 +116,12 @@ function BranchMarkedCode({
   path,
   only,
   heading,
+  fullHeight = false,
   onOpen,
 }: {
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
   onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -157,6 +163,7 @@ function BranchMarkedCode({
       items={items}
       single={path !== null && path !== undefined}
       heading={heading}
+      fullHeight={fullHeight}
       branch={{
         base: branch.base.ref,
         head: branch.head,
@@ -176,10 +183,12 @@ function BranchDiffs({
   items,
   single,
   heading,
+  fullHeight = false,
   branch,
   onOpen,
 }: {
   heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
   onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -287,6 +296,7 @@ function BranchDiffs({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <CodeDocument
+        fullHeight={fullHeight}
         scope={scope}
         context={context}
         interaction={interaction}

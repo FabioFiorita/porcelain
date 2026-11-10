@@ -1,7 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
+import { NodeServices } from '@effect/platform-node';
+import { readWorkingTree } from '@porcelain/git/inspection';
+import { LIMITS } from '../../src/config/limits.ts';
 import type {
   EvidenceAsset,
   StoredWalkthroughMessage,
@@ -296,4 +299,12 @@ else if (endpoint) {
       }
     },
   };
+}
+
+export function captureWalkthroughFixture(repository: string, baseOid: string) {
+  return Effect.runPromise(
+    readWorkingTree(repository, baseOid, LIMITS.git).pipe(
+      Effect.provide(NodeServices.layer),
+    ),
+  );
 }

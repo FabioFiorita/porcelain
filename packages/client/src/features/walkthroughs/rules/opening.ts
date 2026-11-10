@@ -31,8 +31,16 @@ export function worktreeOpening(input: {
   });
   return {
     name: name === 'walkthrough' ? 'walkthrough' : 'changes',
-    pending: !settled(input.walkthrough) || !settled(input.branchFiles) || (input.uncommittedFiles !== undefined && !settled(input.uncommittedFiles)),
+    pending:
+      !settled(input.walkthrough) ||
+      !settled(input.branchFiles) ||
+      (input.uncommittedFiles !== undefined &&
+        !settled(input.uncommittedFiles)),
     guided: read?.walkthrough !== undefined,
-    companion: read?.walkthrough === undefined && files === 0 && input.uncommittedFiles?.status === 'read' && input.uncommittedFiles.value > 0,
+    companion:
+      read?.walkthrough === undefined &&
+      files === 0 &&
+      input.uncommittedFiles?.status === 'read' &&
+      input.uncommittedFiles.value > 0,
   };
 }

@@ -91,6 +91,7 @@ function describeTab(key: string, count: TabCount | undefined) {
         hint: `Changes in step ${ref.step}`,
       };
     case 'all-changes':
+    case 'walkthrough-changes':
       return {
         Icon: FileDiffIcon,
         title: 'All changes',

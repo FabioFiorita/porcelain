@@ -37,7 +37,7 @@ A worktree can have one Walkthrough for its whole change since the base branch, 
 - A worktree with commits since its base opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
 - Uncommitted-only work opens on Changes until a walkthrough is written. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
 - A worktree with no change since the base keeps tab "Changes".
-- Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); buttons "Previous step" and "Next step" in its header row move between steps.
+- Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); the code view selects the comparisons containing the step’s files independently of the selected Changes tab. Uncommitted-only work shows its working diff, committed-only work shows Branch, and mixed work shows Branch then Uncommitted in one scrollable document, each file once per comparison. "See every changed file" opens both comparisons as "All changes" (`entry=walkthrough-changes`); buttons "Previous step" and "Next step" in its header row move between steps.
 - Changes panel on a walkthrough worktree opens by default, on Branch: "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, steps without local edits are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
 ## Driving it with browser
@@ -70,10 +70,16 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Changes, with a Changes window title and a Walkthrough tab beside it. Click Walkthrough once and expect "No walkthrough yet." and "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this was written." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
 
+### Code scopes
+
+For each of uncommitted-only, committed-only, and committed plus a later edit to the same file, write a walkthrough and open "See the code for step 1". Expect the captured file’s actual code under "Uncommitted code", "Branch code", or both respectively, with Branch first. A mixed step has one active set of Comment/Reviewed controls; clicking either section selects its controls. Return to Walkthrough and choose "See every changed file": both applicable comparisons remain present. In the Changes sidebar, Branch lists committed files by step and Uncommitted lists dirty files by step, with no duplicate file within a comparison.
+
 ### 3. Failure
 
 7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. The sidebar keeps the last ready title for the current branch while updating and after failure; a ready title from another branch never replaces it. With no ready page the initial running/failure states remain.
 8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect one sentence "Sign in to Claude again with claude auth login, then try again." (Codex names `codex login`) in both the initial failure and failed-update line; after removing the file, "Try again" writes the walkthrough.
+
+After a ready page, add an untracked `.gitattributes` with `*.secret filter=example` and an untracked `new.secret`. Reload: the saved page remains visible and out of date. Update reports "This change uses Git conversion filters, which Porcelain will not execute." without removing the saved page.
 
 ### 4. Short page
 

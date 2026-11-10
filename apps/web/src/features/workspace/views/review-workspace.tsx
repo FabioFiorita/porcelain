@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { DocumentProps, StepDocumentProps } from './documents';
+import type { DocumentProps, WalkthroughCodeProps } from './documents';
 import type { ReviewIndexProps } from './review-index';
 
 import { StateSkeleton } from '@/shared/views/state-notice';
@@ -92,7 +92,7 @@ export type FirstDocument = {
 type ReviewContentProps = {
   walkthrough: ComponentType<DocumentProps>;
   changesNavigation: ComponentType<ReviewIndexProps>;
-  stepDocument: ComponentType<StepDocumentProps>;
+  walkthroughCode: ComponentType<WalkthroughCodeProps>;
   firstDocument: FirstDocument;
 };
 
@@ -114,7 +114,7 @@ export function ReviewWorkspace({
   navigationTrigger,
   walkthrough,
   changesNavigation,
-  stepDocument,
+  walkthroughCode,
   firstDocument,
 }: ReviewWorkspaceProps) {
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
@@ -332,7 +332,7 @@ export function ReviewWorkspace({
               <ConflictGuidance scope={scope} context={context} onOpen={open} />
               <DocumentArea
                 walkthrough={walkthrough}
-                stepDocument={stepDocument}
+                walkthroughCode={walkthroughCode}
                 firstDocument={firstDocument}
                 changesNavigation={changesNavigation}
                 reveal={reveal}
@@ -470,7 +470,7 @@ function DocumentPanes({
   overview,
   walkthrough,
   changesNavigation,
-  stepDocument,
+  walkthroughCode,
   firstDocument,
   layout,
   reveal,
@@ -518,7 +518,7 @@ function DocumentPanes({
   const paneProps = (index: PaneIndex) => ({
     walkthrough,
     changesNavigation,
-    stepDocument,
+    walkthroughCode,
     firstDocument,
     reveal,
     index,
@@ -578,7 +578,7 @@ function paneSide(split: boolean, index: PaneIndex): 'left' | 'right' | null {
 function PaneView({
   changeCount,
   walkthrough,
-  stepDocument,
+  walkthroughCode,
   firstDocument,
   reveal,
   index,
@@ -756,8 +756,7 @@ function PaneView({
               >
                 <DocumentView
                   walkthrough={walkthrough}
-                  stepDocument={stepDocument}
-                  changeScope={changes.scope}
+                  walkthroughCode={walkthroughCode}
                   singleHeader={firstDocument.guided}
                   scope={scope}
                   context={context}

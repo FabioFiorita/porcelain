@@ -1,12 +1,11 @@
-import { NodeServices } from '@effect/platform-node';
-import { Effect } from 'effect';
-import { readWorkingTree } from '@porcelain/git/inspection';
-import { LIMITS } from '../../src/config/limits.ts';
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { seedStoredWalkthroughs } from './walkthrough-fixture.ts';
+import {
+  captureWalkthroughFixture,
+  seedStoredWalkthroughs,
+} from './walkthrough-fixture.ts';
 
 const execute = promisify(execFile);
 
@@ -45,11 +44,7 @@ export async function seedWalkthroughSample(
       await execute('git', ['rev-parse', ref], { cwd: repository })
     ).stdout.trim();
   const baseOid = await git('main');
-  const snapshot = await Effect.runPromise(
-    readWorkingTree(repository, baseOid, LIMITS.git).pipe(
-      Effect.provide(NodeServices.layer),
-    ),
-  );
+  const snapshot = await captureWalkthroughFixture(repository, baseOid);
   const now = '2026-11-10T00:00:00.000Z';
   seedStoredWalkthroughs(directory, {
     jobs: [

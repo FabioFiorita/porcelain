@@ -12,6 +12,7 @@ import {
   walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughMeta,
+  WALKTHROUGH_STALE_TEXT,
   walkthroughVerdict,
   type WalkthroughContent,
   type WalkthroughFailure,
@@ -21,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
-import { BRANCH, type DocumentProps } from '@/features/workspace/index';
+import { type DocumentProps } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
@@ -308,7 +309,7 @@ function Written({
   };
   let notice = (
     <>
-      <span>The work changed after this was written.</span>
+      <span>{WALKTHROUGH_STALE_TEXT}</span>
       <Button size="sm" variant="outline" onClick={onUpdate}>
         Update walkthrough
       </Button>
@@ -350,7 +351,7 @@ function Written({
             <Button
               variant="link"
               size="sm"
-              onClick={() => props.onOpen(BRANCH)}
+              onClick={() => props.onOpen({ kind: 'walkthrough-changes' })}
             >
               See the change
             </Button>
@@ -391,7 +392,11 @@ function Written({
       />
       <footer className="border-t pt-5">
         <div className="-ml-2">
-          <Button variant="link" size="sm" onClick={() => props.onOpen(BRANCH)}>
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => props.onOpen({ kind: 'walkthrough-changes' })}
+          >
             See every changed file
           </Button>
         </div>

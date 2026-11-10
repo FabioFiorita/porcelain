@@ -114,7 +114,7 @@ function BranchSteps({
   return (
     <>
       <StepList
-        steps={grouped.steps}
+        steps={grouped.steps.filter((entry) => entry.files.length > 0)}
         activeEntry={activeEntry}
         onOpen={onOpen}
         row={row}

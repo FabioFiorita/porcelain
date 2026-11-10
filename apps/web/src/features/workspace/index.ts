@@ -12,7 +12,7 @@ export { ReviewBoundary } from './views/review-boundary';
 export {
   PlainChangesDocument,
   type DocumentProps,
-  type StepDocumentProps,
+  type WalkthroughCodeProps,
 } from './views/documents';
 
 export { BranchDocument, type DocumentHeading } from './views/branch-document';
@@ -26,3 +26,6 @@ export {
 
 export type { BranchFileGrouping } from './views/branch-index';
 export type { ReviewWorkspaceProps } from './views/review-workspace';
+
+export { BranchState } from './views/branch-state';
+export { DocumentToolbar } from './views/document-toolbar';

@@ -477,6 +477,7 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: true,
+      companion: false,
     });
   });
 
@@ -485,8 +486,24 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: false,
+      companion: false,
     });
     expect(settled(undefined, 0)).toMatchObject({ name: 'changes' });
+  });
+
+  it('keeps the mobile opening rule on Changes for uncommitted-only work and exposes its web companion tab', () => {
+    expect(
+      worktreeOpening({
+        walkthrough: { status: 'read', value: read(undefined) },
+        branchFiles: { status: 'read', value: 0 },
+        uncommittedFiles: { status: 'read', value: 1 },
+      }),
+    ).toEqual({
+      name: 'changes',
+      pending: false,
+      guided: false,
+      companion: true,
+    });
   });
 
   it('waits for both reads, and treats a failed read as settled', () => {
@@ -504,7 +521,12 @@ describe('worktreeOpening', () => {
         ),
         branchFiles: { status: 'failed' },
       }),
-    ).toEqual({ name: 'changes', pending: false, guided: false });
+    ).toEqual({
+      name: 'changes',
+      pending: false,
+      guided: false,
+      companion: false,
+    });
   });
 });
 
@@ -599,4 +621,13 @@ describe('walkthrough page rules', () => {
       "The walkthrough didn't finish.",
     );
   });
+});
+
+it('describes captured uncommitted work in shared web and mobile metadata', () => {
+  expect(
+    walkthroughMeta({
+      ...run({ status: 'running' }),
+      includesUncommitted: true,
+    }),
+  ).toBe('written for bbbbbbb and uncommitted work');
 });

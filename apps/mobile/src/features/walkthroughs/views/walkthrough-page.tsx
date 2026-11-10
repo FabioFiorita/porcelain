@@ -13,6 +13,7 @@ import {
   walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughMeta,
+  WALKTHROUGH_STALE_TEXT,
   type walkthroughPhase,
   walkthroughVerdict,
   type WalkthroughContent,
@@ -278,7 +279,7 @@ function Calls({
 }
 
 function updateText(failure: UpdateFailure | undefined) {
-  if (!failure) return 'New commits landed after this was written.';
+  if (!failure) return WALKTHROUGH_STALE_TEXT;
   const { title } = walkthroughFailureCopy(failure.failure, failure.writer);
   if (failure.failure.kind === 'signed_out') return title;
   return `${title} ${failure.failure.message}`;
