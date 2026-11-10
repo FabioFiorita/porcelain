@@ -324,13 +324,13 @@ describe('walkthroughFailureCopy', () => {
         claude,
       ),
     ).toMatchObject({
-      title: 'Claude needs you to sign in again.',
+      title: 'Sign in to Claude again with claude auth login, then try again.',
       command: 'claude auth login',
     });
     expect(
       walkthroughFailureCopy({ kind: 'signed_out', message: 'ignored' }, codex),
     ).toMatchObject({
-      title: 'Codex needs you to sign in again.',
+      title: 'Sign in to Codex again with codex login, then try again.',
       command: 'codex login',
     });
   });

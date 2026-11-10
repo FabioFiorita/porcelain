@@ -321,13 +321,10 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
   await expect
     .element(
       page.getByRole('heading', {
-        name: 'Claude needs you to sign in again.',
+        name: 'Sign in to Claude again with claude auth login, then try again.',
         exact: true,
       }),
     )
-    .toBeVisible();
-  await expect
-    .element(page.getByText('claude auth login', { exact: true }))
     .toBeVisible();
 
   await repo.remove(SCENARIO);

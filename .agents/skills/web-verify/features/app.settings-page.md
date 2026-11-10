@@ -48,3 +48,5 @@ Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2
 - Full navigation can discard in-memory drafts/history. Use the entry specified by each case.
 
 Default walkthrough writer in Changes & Git selects provider/model and effort on the server. Its note points to project overrides in the project three-dot menu. Follow [projects.walkthrough-settings](projects.walkthrough-settings.md) for the full save/reload and inheritance journey.
+
+The default writer uses the same outlined setting row as Spec files and Pull strategy, with its description beside the controls. Changes & Git describes change grouping, walkthrough writers, GitHub accounts, pull and archive; its shared-computer notice names Changes & Git.

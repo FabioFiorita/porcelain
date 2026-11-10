@@ -21,6 +21,11 @@ test('asks, preserves a draft through an answer, saves two, and posts them toget
     .element(page.getByText(reply, { exact: true }).first())
     .toBeVisible();
   await expect.element(composer).toHaveValue('An unfinished thought');
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Read all', exact: true }).first(),
+    )
+    .not.toBeInTheDocument();
   await page
     .getByRole('button', { name: 'Save for later', exact: true })
     .first()
@@ -122,6 +127,13 @@ test('a failed answer can be retried and a walkthrough without a PR copies its b
   await expect
     .element(page.getByText('Copied brief', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      page
+        .getByRole('region', { name: 'Notifications', exact: true })
+        .filter({ hasText: 'Copied brief' }),
+    )
+    .toHaveTextContent('Copied brief');
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });
 
@@ -192,6 +204,13 @@ test('retained comments on a short page without a PR can be copied together', as
   await expect
     .element(page.getByText('Copied brief', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      page
+        .getByRole('region', { name: 'Notifications', exact: true })
+        .filter({ hasText: 'Copied brief' }),
+    )
+    .toHaveTextContent('Copied brief');
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });
 
@@ -222,7 +241,7 @@ for (const { scenario, notice } of [
   { scenario: 'running-update', notice: 'Updating…' },
   {
     scenario: 'failed-update',
-    notice: 'Codex needs you to sign in again. The update writer stopped.',
+    notice: 'Sign in to Codex again with codex login, then try again.',
   },
 ] as const) {
   test(`a ${scenario} keeps the ready page conversations, composer and saved bar`, async ({
@@ -263,6 +282,17 @@ for (const { scenario, notice } of [
         }),
       )
       .toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          (await server.inventory()).projects
+            .flatMap((project) => project.worktrees)
+            .find(
+              (worktree) =>
+                worktree.walkthroughTitle === 'Keep retries beside their owner',
+            )?.walkthroughTitle,
+      )
+      .toBe('Keep retries beside their owner');
     const composer = page.getByRole('textbox', {
       name: 'Decide, or ask about this',
       exact: true,

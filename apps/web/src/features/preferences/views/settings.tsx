@@ -239,7 +239,7 @@ function ReviewGitSettingsForm({
           <AlertTitle>Choose settings for {computer.phrase}</AlertTitle>
           <AlertDescription>
             <p>
-              Every device connected to {computer.phrase} uses the same Reviews
+              Every device connected to {computer.phrase} uses the same Changes
               &amp; Git settings. These are the ones this browser used before;
               check the archive deletions below, then use them for{' '}
               {computer.phrase}.
@@ -472,7 +472,7 @@ export function ReviewsGitSettings() {
       <SettingsHeading
         section="Settings"
         title="Changes & Git"
-        lead="How reviews read, which GitHub account opens pull requests, and what Git does when you pull and archive."
+        lead="How changes are grouped, who writes walkthroughs, which GitHub account opens pull requests, and what Git does when you pull and archive."
       />
       {computers.length > 1 && (
         <ComputerPicker

@@ -361,9 +361,17 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           }) {
             const settings = yield* store.readSettings(input.projectId);
             const titles = yield* store.readTitles(input.projectId);
-            const runs = yield* Effect.forEach(input.worktreeIds, (id) =>
-              store.read(id),
+            const groups = yield* Effect.forEach(input.worktreeIds, (id) =>
+              sql<{
+                payload: string;
+              }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${id} AND status = 'ready' ORDER BY sequence DESC`.pipe(
+                Effect.map((rows) =>
+                  rows.map((row) => decode(row.payload).run),
+                ),
+                Effect.orDie,
+              ),
             );
+            const runs = groups.flat();
             return { settings, titles, runs };
           },
         ),
