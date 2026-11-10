@@ -14,10 +14,9 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 - Routes are full loads at `WEB`; wait for settled URL/title and expected content, not just the toolbar. Prefer roles and exact quoted names. Slash-delimited patterns are regexes. Scope repeated handles by region, dialog or tablist; inspect a fresh accessibility tree when a step differs.
 - Snapshots may omit editor, iframe or selected-option contents. Inspect the frame, screenshot, select value or real file. For contenteditable, select all and insert text without an unintended blur.
-- Shell/Git setup runs in `REPO`, whose commits use Porcelain Development. Agent publications use `$C agent …`; review fixtures commit before publishing, require a verdict and use pass/fail checks. Republishing appends a revision.
+- Shell/Git setup runs in `REPO`, whose commits use Porcelain Development. Walkthrough journeys use `start --coding-tool` and write through the app; retained-reader fixtures seed stored data directly.
 - `$C remote start` owns a second disposable server; `$C remote pairing-link` mints its link (`--trusted` grants update permission). Cross-origin desktop-mode views use that computer's credential.
 - For refusal, held-read and live-outage journeys, use [failure injection](../SKILL.md#inject-browser-failures), install routes before navigation and restore them in `finally`. Record HTTP method/path/status/content type/payload; distinguish cancelled requests from failed responses. The CLI has no browser commands.
-- Summary links expire two seconds after reading a disposable review. If its frame mounts later, reload fully to obtain a fresh link.
 
 ## Feature entry contract
 
