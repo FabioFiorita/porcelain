@@ -3,5 +3,5 @@ import { FilesScreen } from '../../../features/files';
 
 export default function FilesRoute() {
   const { workspace } = useLocalSearchParams<{ workspace?: string }>();
-  return <FilesScreen search="top-bar" workspace={workspace} />;
+  return <FilesScreen mode="stack" workspace={workspace} />;
 }

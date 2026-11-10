@@ -54,3 +54,8 @@ export function useWorkspace() {
     reading: connected.inventory.result.waiting || commands.pending > 0,
   };
 }
+
+export function useSelectedWorkspaceKey() {
+  const { state } = useWorkspace();
+  return state.kind === 'selected' ? state.workspace.key : undefined;
+}

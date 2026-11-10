@@ -2,7 +2,7 @@ import { useDocumentReadingLine } from '../../../shared/application/document-rea
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import { useIsFocused, useRouter } from 'expo-router';
+import { useIsFocused, useRouter, useSegments } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -38,6 +38,11 @@ import {
 } from '../../../components/ui/html-preview';
 import { ImageView } from '../../../components/ui/image-view';
 import { Text } from '../../../components/ui/text';
+import {
+  useLayoutMove,
+  useListDetailLayout,
+} from '../../../components/ui/list-detail';
+import { useOpenFileBeside } from '../commands/open-file';
 
 type ContentProps = {
   path: string;
@@ -45,7 +50,6 @@ type ContentProps = {
 };
 
 export function FileScreen(props: ContentProps & { workspace: string }) {
-  const router = useRouter();
   return (
     <DocumentScreen path={props.path}>
       <WorkspaceGate
@@ -59,31 +63,76 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
         }
       >
         {(selected) => (
-          <FileContent
-            key={`${selected.key}:${props.path}`}
-            {...props}
-            selected={selected}
-            timeline={{
-              kind: 'button',
-              id: 'timeline',
-              label: 'Timeline',
-              icon: 'timeline',
-              onPress: () =>
-                router.push({
-                  pathname: '/timeline',
-                  params: { path: props.path, workspace: selected.key },
-                }),
-            }}
-          />
+          <ReturnBeside path={props.path} workspace={selected.key}>
+            <FileContent
+              key={`${selected.key}:${props.path}`}
+              {...props}
+              selected={selected}
+              place="screen"
+              actions={[]}
+            />
+          </ReturnBeside>
         )}
       </WorkspaceGate>
     </DocumentScreen>
   );
 }
 
+export function FilePane({
+  path,
+  selected,
+  actions,
+}: {
+  path: string;
+  selected: Workspace;
+  actions: readonly DocumentAction[];
+}) {
+  return (
+    <FileContent
+      path={path}
+      selected={selected}
+      place="pane"
+      actions={actions}
+    />
+  );
+}
+
+function ReturnBeside({
+  path,
+  workspace,
+  children,
+}: {
+  path: string;
+  workspace: string;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  const worktrees = useSegments().some((segment) => segment === '(worktrees)');
+  const openBeside = useOpenFileBeside(workspace);
+  const layout = useListDetailLayout();
+  useLayoutMove({
+    place: 'pushed',
+    mode: layout.measured,
+    onMove: () => {
+      openBeside(path);
+      if (worktrees) router.dismissTo('/worktrees');
+      else {
+        router.back();
+        router.navigate('/worktrees');
+      }
+    },
+  });
+  return (
+    <View className="flex-1" collapsable={false} onLayout={layout.onLayout}>
+      {children}
+    </View>
+  );
+}
+
 type FileProps = ContentProps & {
   selected: Workspace;
-  timeline: DocumentAction;
+  place: 'screen' | 'pane';
+  actions: readonly DocumentAction[];
 };
 
 function FileContent(props: FileProps) {
@@ -91,13 +140,30 @@ function FileContent(props: FileProps) {
   return focused ? <FileContentView {...props} /> : null;
 }
 
+function useFileActions(props: FileProps) {
+  const router = useRouter();
+  const timeline: DocumentAction = {
+    kind: 'button',
+    id: 'timeline',
+    label: 'Timeline',
+    icon: 'timeline',
+    onPress: () =>
+      router.push({
+        pathname: '/timeline',
+        params: { path: props.path, workspace: props.selected.key },
+      }),
+  };
+  return [timeline, ...props.actions];
+}
+
 function FileContentView(props: FileProps) {
   const { path, selected } = props;
+  const actions = useFileActions(props);
   return (
     <Box className="flex-1" surface="background">
       {isNativeImagePath(path) ? (
         <>
-          <DocumentHeader path={path} actions={[props.timeline]} />
+          <DocumentHeader path={path} actions={actions} place={props.place} />
           <FileImage path={path} selected={selected} />
         </>
       ) : (
@@ -125,6 +191,7 @@ function FileImage({ path, selected }: { path: string; selected: Workspace }) {
 }
 
 function FileText(props: FileProps) {
+  const actions = useFileActions(props);
   const file = useTextFile(
     props.selected.connection,
     props.selected.scope,
@@ -133,7 +200,7 @@ function FileText(props: FileProps) {
   const data = Option.getOrUndefined(AsyncResult.value(file.result));
   const plain = (content: ReactNode) => (
     <>
-      <DocumentHeader path={props.path} actions={[props.timeline]} />
+      <DocumentHeader path={props.path} actions={actions} place={props.place} />
       {content}
     </>
   );
@@ -155,7 +222,7 @@ function FileText(props: FileProps) {
           retry={{ label: 'Read file again', onPress: file.refresh }}
         />
       ) : null}
-      <FilePreview {...props} file={data} text={data.text} />
+      <FilePreview {...props} actions={actions} file={data} text={data.text} />
     </View>
   );
 }
@@ -166,7 +233,8 @@ function FilePreview({
   selected,
   file,
   leaveScope,
-  timeline,
+  place,
+  actions,
 }: FileProps & { text: string; file: FileContents }) {
   const link = usePreviewLink();
   const { preferences } = usePreferences();
@@ -195,10 +263,11 @@ function FilePreview({
       header={({ comments, clearSelection }) => (
         <DocumentHeader
           path={path}
+          place={place}
           actions={[
             ...mode,
             comments,
-            timeline,
+            ...actions,
             ...(clearSelection ? [clearSelection] : []),
           ]}
         />
@@ -247,6 +316,7 @@ function FileContentsPreview({
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
+  if (text === '') return <FileNotice kind="empty" />;
   if (/\.mdx?$/i.test(path))
     return (
       <MarkdownContent

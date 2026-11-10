@@ -124,3 +124,5 @@ export const worktreeSection = Atom.family((_workspace: string) =>
 export const openedWorktree = Atom.make<WorktreeDetails | undefined>(
   undefined,
 ).pipe(Atom.keepAlive);
+
+export const worktreeListHidden = Atom.make(false).pipe(Atom.keepAlive);

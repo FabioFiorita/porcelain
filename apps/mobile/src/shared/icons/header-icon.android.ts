@@ -17,6 +17,8 @@ import compareArrows from '@expo/material-symbols/compare_arrows.xml';
 import code from '@expo/material-symbols/code.xml';
 import article from '@expo/material-symbols/article.xml';
 import moreVert from '@expo/material-symbols/more_vert.xml';
+import leftPanelOpen from '@expo/material-symbols/left_panel_open.xml';
+import leftPanelClose from '@expo/material-symbols/left_panel_close.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
@@ -41,6 +43,8 @@ const symbols = {
   showSource: code,
   showRendered: article,
   more: moreVert,
+  showList: leftPanelOpen,
+  hideList: leftPanelClose,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 
 export function headerIcon(name: HeaderIconName) {

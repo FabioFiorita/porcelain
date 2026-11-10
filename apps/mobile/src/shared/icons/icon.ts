@@ -20,4 +20,6 @@ export type HeaderIconName =
   | 'comparison'
   | 'showSource'
   | 'showRendered'
-  | 'more';
+  | 'more'
+  | 'showList'
+  | 'hideList';
