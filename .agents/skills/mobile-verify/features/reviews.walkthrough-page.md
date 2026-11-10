@@ -79,7 +79,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 2. Out of date, failure and the short page
 
 5. Commit another change in `$REPO`. Expect "New commits landed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
-6. `printf signed-out > …`, Update walkthrough: the page stays, with the sign-in failure and Try again. With no ready page (fresh worktree), Write walkthrough shows the failure heading "Claude needs you to sign in again." (or the sign-in sentence naming `claude auth login`) and Try again.
+6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer reads "Working…"; switching to `signed-out` fails it with Try again.
 7. `printf nothing > …`, write again. Expect a heading ending "Nothing needs you." and "See the change", which opens All changes.
 
 ### 3. Conversations
@@ -98,4 +98,5 @@ Automated coverage: `walkthrough.spec.ts` (opening rule, page rules, update stat
 
 - The stock fake never produces evidence and has no pull request; `$C walkthrough sample` replaces the writer with the scripted one, so run the hold, signed-out and nothing journeys first or restart the instance.
 - Notices are one short line; a brief, comment or answer never appears in one.
+- The driver's helper input method draws no soft keyboard. To see the composer above a real keyboard, switch the emulator to its stock keyboard with `adb shell ime set`, focus the last step's field, capture, then switch back.
 - Writing settings and the writer model stay on web and desktop.
