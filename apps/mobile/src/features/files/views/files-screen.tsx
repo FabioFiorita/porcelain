@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { useFileNavigation } from '../store';
 import { Stack, useIsFocused, useRouter } from 'expo-router';
 import type { SearchBarCommands } from 'react-native-screens';
-import { Alert } from 'react-native';
+import { Alert, type TextInput } from 'react-native';
+import type { ComponentRef } from 'react';
 import { Array, Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -22,13 +23,18 @@ import {
   filePreferenceEntries,
   quickOpenPath,
 } from '@porcelain/client/files/rules';
-import { FileTree, type FileTreeRow } from '../../../components/ui/file-tree';
+import {
+  FileTree,
+  fileTreeCursorRows,
+  type FileTreeRow,
+} from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { Empty } from '../../../components/ui/empty';
 import { headerIcon } from '../../../shared/icons/header-icon';
+import { useListCursor } from '../../../shared/application/key-commands';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
 import { useFilePaths } from '../queries/paths';
@@ -144,6 +150,9 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
     );
   const [refreshRequested, setRefreshRequested] = useState(false);
   const [searchBar] = useState(() => restoringSearchBar(query));
+  const [searchInput] = useState(() => ({
+    current: null as ComponentRef<typeof TextInput> | null,
+  }));
   const preferenceData = Option.getOrUndefined(
     AsyncResult.value(preferences.read.result),
   );
@@ -301,6 +310,7 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
         <Box className="flex-row items-center" gap={2}>
           <Box className="min-w-0 flex-1">
             <Input
+              ref={searchInput}
               accessibilityLabel="Search files"
               placeholder="Search files"
               value={query}
@@ -469,6 +479,44 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
         ),
       ],
     );
+  const toggle = (id: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setRequested((current) =>
+      current.includes(id) ? current : [...current, id],
+    );
+  };
+  const select = (path: string) => {
+    if (
+      searching ||
+      pins.some((pin) => pin.path === path && pin.state === 'unavailable') ||
+      nodes.some((node) => node.path === path && node.kind === 'file')
+    )
+      open(path);
+  };
+  const cursorRows = fileTreeCursorRows(rows, expanded);
+  const rowPath = (key: string) => cursorRows.find((row) => row.key === key);
+  const cursor = useListCursor({
+    rows: cursorRows,
+    selected: cursorRows.find((row) => row.path === selectedPath)?.key,
+    onOpen: (key) => {
+      const row = rowPath(key);
+      if (row?.directory) toggle(row.path);
+      else if (row) select(row.path);
+    },
+    onToggle: (key) => {
+      const row = rowPath(key);
+      if (row?.directory) toggle(row.path);
+    },
+    onSearch: () =>
+      search === 'top-bar'
+        ? searchBar.current?.focus()
+        : searchInput.current?.focus(),
+  });
   const tree = (createInTopBar: boolean) => (
     <Box
       className="flex-1"
@@ -529,26 +577,14 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
         expanded={expanded}
         {...(selectedPath ? { selected: selectedPath } : {})}
         loading={loading.folders}
+        highlighted={cursor.highlighted}
         onToggle={(id) => {
-          setExpanded((current) => {
-            const next = new Set(current);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-          });
-          setRequested((current) =>
-            current.includes(id) ? current : [...current, id],
-          );
+          cursor.claim();
+          toggle(id);
         }}
         onSelect={(path) => {
-          if (
-            searching ||
-            pins.some(
-              (pin) => pin.path === path && pin.state === 'unavailable',
-            ) ||
-            nodes.some((node) => node.path === path && node.kind === 'file')
-          )
-            open(path);
+          cursor.claim();
+          select(path);
         }}
         contextMenu={menuFor}
       />

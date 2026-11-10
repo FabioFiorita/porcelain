@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { useListReadingOffset } from './list-reading-offset';
+import { useListReveal } from './list-reveal';
 import { useResolveClassNames } from 'uniwind';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
@@ -19,6 +20,7 @@ import {
   type FileChangeMarks,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
+import type { CursorRow } from '../../shared/rules/list-cursor';
 
 export type FileTreeRow =
   | { key: string; header: ReactNode }
@@ -30,10 +32,36 @@ export type FileTreeRow =
       availability?: 'loading' | 'missing' | 'unavailable' | undefined;
     };
 
+export function fileTreeCursorRows(
+  rows: readonly FileTreeRow[],
+  expanded: ReadonlySet<string>,
+): (CursorRow & { path: string; directory: boolean })[] {
+  return rows.flatMap((row) => {
+    if (
+      'header' in row ||
+      row.availability === 'loading' ||
+      row.availability === 'missing'
+    )
+      return [];
+    const path = row.entry.path.replace(/\/$/, '');
+    const directory = !row.availability && row.entry.kind === 'directory';
+    return [
+      {
+        key: row.key,
+        path,
+        directory,
+        depth: row.depth,
+        folder: directory ? (expanded.has(path) ? 'open' : 'closed') : undefined,
+      },
+    ];
+  });
+}
+
 export function FileTree({
   nodes,
   expanded,
   selected,
+  highlighted,
   loading,
   onToggle,
   onSelect,
@@ -54,6 +82,7 @@ export function FileTree({
   onScrollOffset?: ((offset: number) => void) | undefined;
   expanded: ReadonlySet<string>;
   selected?: string | undefined;
+  highlighted?: string | undefined;
   loading?: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
@@ -71,23 +100,30 @@ export function FileTree({
     restoreReady,
     onScrollOffset,
   );
+  const reveal = useListReveal();
+  const data =
+    rows ??
+    (flat
+      ? nodes.map((entry) => ({ key: entry.path, entry, depth: 0 }))
+      : visibleFileTreeRows(nodes, expanded).map((row) => ({
+          ...row,
+          key: row.entry.path,
+        })));
+  const highlightedIndex = data.findIndex((row) => row.key === highlighted);
   return (
     <FlatList<FileTreeRow>
       {...reading}
+      {...reveal.props}
+      ref={(list) => {
+        reading.ref(list);
+        reveal.attach(list, highlightedIndex);
+      }}
       contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={<>{header}</>}
       keyboardShouldPersistTaps="handled"
       removeClippedSubviews={false}
       contentContainerStyle={padding}
-      data={
-        rows ??
-        (flat
-          ? nodes.map((entry) => ({ key: entry.path, entry, depth: 0 }))
-          : visibleFileTreeRows(nodes, expanded).map((row) => ({
-              ...row,
-              key: row.entry.path,
-            })))
-      }
+      data={data}
       keyExtractor={(row) => row.key}
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
@@ -108,6 +144,7 @@ export function FileTree({
           <FileTreeItem
             node={item.entry}
             depth={item.depth}
+            highlighted={item.key === highlighted}
             pinned={item.pinned}
             availability={item.availability}
             expanded={expanded}
@@ -129,6 +166,7 @@ export function FileTree({
 function FileTreeItem({
   node,
   depth,
+  highlighted,
   expanded,
   selected,
   loading,
@@ -143,6 +181,7 @@ function FileTreeItem({
 }: {
   node: FileTreeEntry;
   depth: number;
+  highlighted: boolean;
   expanded: ReadonlySet<string>;
   selected?: string | undefined;
   loading?: ReadonlySet<string> | undefined;
@@ -182,6 +221,7 @@ function FileTreeItem({
         : {}),
     titleNumberOfLines: 1,
     selected: path === selected,
+    highlighted,
     accessibilityLabel: [
       availability === 'unavailable'
         ? `Open pinned path ${path} as file`

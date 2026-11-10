@@ -21,6 +21,8 @@ import {
   type NavigatorFilterSection,
 } from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
+import { useListCursor } from '../../../shared/application/key-commands';
+import type { SearchBarCommands } from 'react-native-screens';
 import { IconButton } from '../../../components/ui/icon-button';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
@@ -98,6 +100,25 @@ export function WorktreeNavigator({
       );
     }
   };
+  const [searchBar] = useState(() => ({
+    current: null as SearchBarCommands | null,
+  }));
+  const visibleEntries = projects.flatMap((project) =>
+    project.expanded
+      ? project.entries.filter((entry) => entry.kind === 'worktree')
+      : [],
+  );
+  const cursor = useListCursor({
+    rows: visibleEntries,
+    selected: visibleEntries.find((entry) =>
+      navigatorEntrySelected(entry, selection),
+    )?.key,
+    onOpen: (key) => {
+      const entry = visibleEntries.find((candidate) => candidate.key === key);
+      if (entry && !picker.disabled) open(entry);
+    },
+    onSearch: () => searchBar.current?.focus(),
+  });
   if (storage.status === 'ready' && paired.length === 0)
     return (
       <Box className="flex-1" testID="worktree-navigator">
@@ -119,6 +140,7 @@ export function WorktreeNavigator({
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
       <Stack.SearchBar
+        ref={searchBar}
         placeholder="Search worktrees"
         autoCapitalize="none"
         hideWhenScrolling={false}
@@ -290,6 +312,7 @@ export function WorktreeNavigator({
                               ) : undefined
                             }
                             selected={selected}
+                            highlighted={cursor.highlighted === entry.key}
                             selectionTone="neutral"
                             disabled={picker.disabled || !entry.available}
                             accessibilityLabel={[
@@ -299,7 +322,10 @@ export function WorktreeNavigator({
                             ]
                               .filter(Boolean)
                               .join(', ')}
-                            onPress={() => open(entry)}
+                            onPress={() => {
+                              cursor.claim();
+                              open(entry);
+                            }}
                             {...(entry.kind === 'worktree' &&
                             entry.worktreeId &&
                             connection

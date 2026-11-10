@@ -16,6 +16,7 @@ import { Screen } from '../../../components/ui/screen';
 import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
+import { useScreenKeyCommands } from '../../../shared/application/key-commands';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { workspaceKey, type Workspace } from '../commands/workspace-connection';
 import {
@@ -215,6 +216,12 @@ function WorktreeSections({
         }
       : undefined;
   const beside = mode === 'beside';
+  useScreenKeyCommands(
+    worktreeSections.map((entry) => ({
+      binding: entry.id,
+      run: () => choose(entry.id),
+    })),
+  );
   return (
     <Screen layout="fixed" testID="worktree-screen">
       <Box

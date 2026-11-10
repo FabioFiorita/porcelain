@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentRef, ReactNode, Ref } from 'react';
 import { View, TextInput, type TextInputProps } from 'react-native';
 export function Input({
   leading,
@@ -7,8 +7,10 @@ export function Input({
   multiline = false,
   className,
   accessibilityState,
+  ref,
   ...props
 }: Omit<TextInputProps, 'style' | 'editable'> & {
+  ref?: Ref<ComponentRef<typeof TextInput>> | undefined;
   leading?: ReactNode;
   disabled?: boolean;
   invalid?: boolean;
@@ -16,6 +18,7 @@ export function Input({
   const input = (
     <TextInput
       {...props}
+      ref={ref}
       multiline={multiline}
       editable={!disabled}
       accessibilityState={{ ...accessibilityState, disabled }}

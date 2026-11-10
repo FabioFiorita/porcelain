@@ -46,7 +46,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [app.catalog-preview](app.catalog-preview.md) — Primitive previews, interactions and failures.
 - [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
 - [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
-- [app.shell](app.shell.md) — Worktrees stack, Settings modal and startup navigation.
+- [app.keyboard-shortcuts](app.keyboard-shortcuts.md) — Hardware keyboard shortcuts in the ⌘ overlay, list highlight and the Keyboard Shortcuts sheet.
 - [files.file-action](files.file-action.md) — New file, New folder and Rename sheets; Move to trash alert.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.

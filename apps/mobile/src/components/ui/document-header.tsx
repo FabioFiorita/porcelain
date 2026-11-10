@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { headerIcon } from '../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../shared/icons/icon';
 import { documentHeading } from '../../shared/rules/document-heading';
+import type { KeyBindingName } from '../../shared/rules/key-commands';
 import { HeaderTitle } from './header-title';
 import { Screen } from './screen';
 
@@ -20,6 +21,7 @@ export type DocumentAction =
       icon: HeaderIconName;
       onPress: () => void;
       disabled?: boolean | undefined;
+      shortcut?: KeyBindingName | undefined;
     }
   | {
       kind: 'choice';
