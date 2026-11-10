@@ -21,7 +21,7 @@ export function KeyboardShortcutsSheet() {
                   title={shortcut.title}
                   accessibilityLabel={`${shortcut.title}, ${shortcut.keys.join(' or ')}`}
                   trailing={
-                    <Text variant="code" tone="muted">
+                    <Text variant="body" tone="muted">
                       {shortcut.keys.join('  ')}
                     </Text>
                   }

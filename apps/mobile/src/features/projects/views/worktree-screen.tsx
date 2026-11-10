@@ -212,9 +212,8 @@ function WorktreeSections({
         }
       : undefined;
   const beside = mode === 'beside';
-  useScreenKeyCommands(
-    'worktree-sections',
-    (['changes', 'files', 'history'] as const).map((id) => ({
+  useScreenKeyCommands('worktree-sections', [
+    ...(['changes', 'files', 'history'] as const).map((id) => ({
       binding: id,
       run: () =>
         id === 'changes' && guide.walkthrough
@@ -224,7 +223,15 @@ function WorktreeSections({
             })
           : choose(id),
     })),
-  );
+    ...(guide.walkthrough
+      ? [
+          {
+            binding: 'walkthrough' as const,
+            run: () => choose('walkthrough'),
+          },
+        ]
+      : []),
+  ]);
   return (
     <Screen layout="fixed" testID="worktree-screen">
       <Box

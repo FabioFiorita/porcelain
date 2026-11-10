@@ -88,6 +88,12 @@ export const keyBindings = {
     key: '/',
     modifiers: ['command'],
   },
+  walkthrough: {
+    title: 'Walkthrough',
+    group: 'worktree',
+    key: '0',
+    modifiers: ['command'],
+  },
   changes: {
     title: 'Changes',
     group: 'worktree',

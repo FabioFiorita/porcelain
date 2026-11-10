@@ -16,6 +16,7 @@ import { historyStatus } from '../rules/status';
 import { commitAge } from '../rules/commit-age';
 import { GitMenu } from '../../git-actions';
 import { Button } from '../../../components/ui/button';
+import { useListCursor } from '../../../shared/application/key-commands';
 
 type HistoryNavigationProps = {
   selection: HistorySelection;
@@ -45,6 +46,16 @@ function HistoryNavigationContent({
   const failed = AsyncResult.isFailure(history.result);
   const value = history.value;
   const selectedCommit = selected ?? place.selected;
+  const commits = value?.commits ?? [];
+  const open = (oid: string) => {
+    setPlace((current) => ({ ...current, selected: oid }));
+    onOpen(oid, workspace);
+  };
+  const cursor = useListCursor({
+    rows: commits.map((commit) => ({ key: commit.oid })),
+    selected: selectedCommit,
+    onOpen: open,
+  });
   const branch = AsyncResult.isSuccess(status.result)
     ? historyStatus(status.result.value, value?.snapshot ?? null)
     : undefined;
@@ -67,6 +78,7 @@ function HistoryNavigationContent({
           ? {}
           : { uncommitted: branch.uncommitted })}
         {...(selectedCommit === undefined ? {} : { selected: selectedCommit })}
+        highlighted={cursor.highlighted}
         scrollOffset={place.scrollOffset}
         onScrollOffset={(scrollOffset) =>
           setPlace((current) => ({ ...current, scrollOffset }))
@@ -81,8 +93,8 @@ function HistoryNavigationContent({
         hasMore={Boolean(value?.nextAfter) && !failed}
         onLoadMore={history.readMore}
         onSelect={(oid) => {
-          setPlace((current) => ({ ...current, selected: oid }));
-          onOpen(oid, workspace);
+          cursor.claim();
+          open(oid);
         }}
         footer={<HistoryFooter history={history} />}
         unavailable={failed}
