@@ -75,6 +75,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await expect(
     pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
   ).toBeVisible();
+  const pullRequestDocument = pairedPage.url();
   const archive = pairedPage.getByRole('button', {
     name: 'Archive',
     exact: true,
@@ -115,6 +116,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   fixture.unlock();
   fixture.dirty();
+  await app.follow(pullRequestDocument);
   await expect(
     pairedPage.getByRole('article', { name: 'Pull request #423', exact: true }),
   ).toBeVisible();
