@@ -78,9 +78,15 @@ export type PostPlan =
       readonly pullRequestNumber: number | undefined;
       readonly repository: WalkthroughRun['pullRequestRepository'];
       readonly messageIds: readonly string[];
+      readonly notPosted: readonly string[];
+      readonly comment: string;
       readonly text: string;
     };
 export type PostResult =
   | { readonly status: 'nothing' }
-  | { readonly status: 'posted'; readonly url: string }
+  | {
+      readonly status: 'posted';
+      readonly url: string;
+      readonly notPosted: readonly string[];
+    }
   | { readonly status: 'brief'; readonly text: string };

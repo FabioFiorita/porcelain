@@ -356,7 +356,11 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     pullRequestNumber: undefined,
     conversations: [],
   });
-  const add = async (title: string | undefined, body: string) => {
+  const add = async (
+    title: string | undefined,
+    body: string,
+    runId = 'first-run',
+  ) => {
     const answer = Schema.decodeUnknownSync(
       walkthroughConversationsResponseSchema,
     )(
@@ -364,7 +368,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
         method: 'POST',
         path: `${worktreeRoot}/messages`,
         body: {
-          runId: 'first-run',
+          runId,
           anchor:
             title === undefined
               ? { kind: 'walkthrough' }
@@ -458,30 +462,42 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     ['first-run', { kind: 'stop', title: 'Kept step' }],
     ['first-run', { kind: 'walkthrough' }],
   ]);
-  const first = await read(session, {
+  const unbound = await session.send({
     method: 'POST',
     path: `${worktreeRoot}/messages/${removed}/post`,
+  });
+  expect(unbound.status).toBe(409);
+  const onPull = await add('Kept step', 'Ship it this way?', 'second-run');
+  const first = await read(session, {
+    method: 'POST',
+    path: `${worktreeRoot}/messages/${onPull}/post`,
   });
   const url =
     'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1';
-  expect(first.outcome).toEqual({ status: 'posted', url });
+  expect(first.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const second = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${removed}/post`,
+    path: `${worktreeRoot}/messages/${onPull}/post`,
   });
   expect(second.outcome).toEqual(first.outcome);
+  const savedOnPull = await add(undefined, 'Saved on the pull', 'second-run');
+  await read(session, {
+    method: 'PUT',
+    path: `${worktreeRoot}/messages/${savedOnPull}/saved`,
+    body: { saved: true },
+  });
   const saved = await read(session, {
     method: 'POST',
     path: `${worktreeRoot}/post-saved`,
   });
-  expect(saved.outcome).toEqual({ status: 'posted', url });
+  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [kept] });
   const calls = (await readFile(ghCalls, 'utf8'))
     .trim()
     .split('\n')
     .filter(Boolean);
   expect(calls).toHaveLength(2);
   expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
-  const unposted = await add(undefined, 'A private decision');
+  const unposted = await add(undefined, 'A private decision', 'second-run');
   await expect
     .poll(() => agentState(unposted), { timeout: 10000 })
     .toBe('answered');

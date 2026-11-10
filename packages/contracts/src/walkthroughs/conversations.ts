@@ -94,7 +94,11 @@ export type WalkthroughConversationsResponse =
 export const postWalkthroughMessagesResponseSchema = Schema.Struct({
   outcome: Schema.Union([
     Schema.Struct({ status: Schema.Literal('nothing') }),
-    Schema.Struct({ status: Schema.Literal('posted'), url: Schema.String }),
+    Schema.Struct({
+      status: Schema.Literal('posted'),
+      url: Schema.String,
+      notPosted: Schema.Array(Schema.String),
+    }),
     Schema.Struct({ status: Schema.Literal('brief'), text: Schema.String }),
   ]),
   view: walkthroughConversationsResponseSchema,

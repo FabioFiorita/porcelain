@@ -156,7 +156,12 @@ describe('composeBrief', () => {
 });
 
 describe('planPost', () => {
-  const runs = [run('run', ['Step'], 7)];
+  const runs = [
+    {
+      ...run('run', ['Step'], 7),
+      pullRequestRepository: { owner: 'o', repo: 'r' },
+    },
+  ];
   const posted = message('m', 'run', 'Step', {
     post: {
       status: 'posted',
@@ -213,5 +218,32 @@ describe('planPost', () => {
       messages: [message('m', 'run', 'Step')],
     });
     expect(plan.kind === 'write' && plan.pullRequestNumber).toBe(undefined);
+  });
+});
+
+describe('planPost across repositories', () => {
+  const pinned = (id: string, repo: string) => ({
+    ...run(id, ['Step'], 7),
+    pullRequestRepository: { owner: 'o', repo },
+  });
+  it('comments only messages whose own run was on the destination repository and keeps all of them in the brief', () => {
+    const plan = planPost({
+      selection: { kind: 'saved' },
+      readyRuns: [pinned('private', 'private'), pinned('fork', 'Fork')],
+      messages: [
+        message('old', 'private', 'Step', { post: { status: 'saved' } }),
+        message('new', 'fork', 'Step', { post: { status: 'saved' } }),
+      ],
+    });
+    expect(plan).toMatchObject({
+      kind: 'write',
+      repository: { owner: 'o', repo: 'Fork' },
+      messageIds: ['new'],
+      notPosted: ['old'],
+    });
+    if (plan.kind !== 'write') return;
+    expect(plan.comment).toContain('Why new?');
+    expect(plan.comment).not.toContain('Why old?');
+    expect(plan.text).toContain('Why old?');
   });
 });

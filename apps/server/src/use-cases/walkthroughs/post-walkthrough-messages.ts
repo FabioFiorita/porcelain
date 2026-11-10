@@ -64,7 +64,11 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
               return { outcome: { status: 'nothing' as const }, view };
             if (plan.kind === 'already-posted')
               return {
-                outcome: { status: 'posted' as const, url: plan.url },
+                outcome: {
+                  status: 'posted' as const,
+                  url: plan.url,
+                  notPosted: [],
+                },
                 view,
               };
             if (plan.pullRequestNumber === undefined)

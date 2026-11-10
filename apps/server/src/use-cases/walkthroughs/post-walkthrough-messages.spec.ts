@@ -44,15 +44,16 @@ const worktree: ListedWorktree = {
 const job = (
   pullRequestNumber: number | undefined,
   pullRequestRepository: { owner: string; repo: string } | undefined,
+  id = 'run',
 ): WalkthroughJob => ({
   run: {
-    id: 'run',
+    id,
     projectId: 'project',
     worktreeId: 'tree',
     pullRequestNumber,
     pullRequestRepository,
     baseOid: 'a'.repeat(40),
-    headOid: 'b'.repeat(40),
+    headOid: id === 'run' ? 'b'.repeat(40) : 'c'.repeat(40),
     writer: { provider: 'claude', model: 'claude-opus-5-5' },
     sessionId: 'session',
     createdAt: '2026-11-09T00:00:00.000Z',
@@ -206,14 +207,26 @@ async function fixture(
       yield* store.save(job(pullRequestNumber, pullRequestRepository).run);
     }),
   );
-  const add = (text: string, saved: boolean) =>
+  const refresh = (
+    id: string,
+    number: number,
+    repository: { owner: string; repo: string },
+  ) =>
+    runtime.runPromise(
+      Effect.gen(function* () {
+        const store = yield* WalkthroughStore;
+        yield* store.accept(job(number, repository, id));
+        yield* store.save(job(number, repository, id).run);
+      }),
+    );
+  const add = (text: string, saved: boolean, runId = 'run') =>
     runtime.runPromise(
       Effect.gen(function* () {
         const service = yield* AddWalkthroughMessageService;
         const store = yield* WalkthroughStore;
         const id = yield* service.execute({
           worktreeId: 'tree',
-          runId: 'run',
+          runId,
           anchor: { kind: 'stop', title: 'Keep the retry local' },
           text,
         });
@@ -239,6 +252,7 @@ async function fixture(
     );
   return {
     add,
+    refresh,
     post,
     attempt,
     comments,
@@ -295,7 +309,7 @@ it('sends all saved messages as one comment and marks each posted with its URL',
   expect(body).toContain('`src/a.ts`');
   expect(body).not.toContain('Not saved');
   const url = 'https://github.com/o/r/pull/9#c1';
-  expect(posted.outcome).toEqual({ status: 'posted', url });
+  expect(posted.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   expect(
     posted.view.conversations
       .flatMap((conversation) => conversation.messages)
@@ -389,4 +403,42 @@ it('posts to the recorded repository when origin differs only by letter case', a
   test.setOrigin({ owner: 'O', repo: 'R' });
   await test.post(id);
   expect(test.comments).toMatchObject([{ owner: 'o', repo: 'r', number: 9 }]);
+});
+
+it('posts only messages made on the destination repository and leaves the others saved', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(onTestFinished, 9);
+  const old = await test.add('A private decision', true);
+  const fork = { owner: 'someone', repo: 'public-fork' };
+  test.setOrigin(fork);
+  await test.refresh('fork-run', 12, fork);
+  const fresh = await test.add('A fork decision', true, 'fork-run');
+  const saved = await test.post();
+  expect(test.comments).toHaveLength(1);
+  expect(test.comments[0]).toMatchObject({ ...fork, number: 12 });
+  expect(test.comments[0]?.body).toContain('A fork decision');
+  expect(test.comments[0]?.body).not.toContain('A private decision');
+  expect(saved.outcome).toEqual({
+    status: 'posted',
+    url: 'https://github.com/o/r/pull/9#c1',
+    notPosted: [old],
+  });
+  expect(
+    saved.view.conversations
+      .flatMap((conversation) => conversation.messages)
+      .flatMap((message) =>
+        message.author === 'developer'
+          ? [[message.id, message.post.status]]
+          : [],
+      ),
+  ).toEqual([
+    [old, 'saved'],
+    [fresh, 'posted'],
+  ]);
+  expect(await test.attempt(old)).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'WalkthroughRepositoryChangedError' },
+  });
+  expect(test.comments).toHaveLength(1);
 });

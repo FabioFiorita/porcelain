@@ -134,6 +134,17 @@ function briefItem(
   };
 }
 
+type Repository = WalkthroughRun['pullRequestRepository'];
+
+export function sameRepository(left: Repository, right: Repository): boolean {
+  return (
+    left !== undefined &&
+    right !== undefined &&
+    left.owner.toLowerCase() === right.owner.toLowerCase() &&
+    left.repo.toLowerCase() === right.repo.toLowerCase()
+  );
+}
+
 export function planPost(input: {
   readonly selection: PostSelection;
   readonly readyRuns: readonly WalkthroughRun[];
@@ -152,11 +163,19 @@ export function planPost(input: {
   if (first.post.status === 'posted')
     return { kind: 'already-posted', url: first.post.url };
   const runs = new Map(input.readyRuns.map((run) => [run.id, run]));
+  const repository = input.readyRuns.at(-1)?.pullRequestRepository;
+  const eligible = selected.filter((message) =>
+    sameRepository(runs.get(message.runId)?.pullRequestRepository, repository),
+  );
   return {
     kind: 'write',
     pullRequestNumber: input.readyRuns.at(-1)?.pullRequestNumber,
-    repository: input.readyRuns.at(-1)?.pullRequestRepository,
-    messageIds: selected.map((message) => message.id),
+    repository,
+    messageIds: eligible.map((message) => message.id),
+    notPosted: selected
+      .filter((message) => !eligible.includes(message))
+      .map((message) => message.id),
+    comment: composeBrief(eligible.map((message) => briefItem(message, runs))),
     text: composeBrief(selected.map((message) => briefItem(message, runs))),
   };
 }

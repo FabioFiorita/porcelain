@@ -9,14 +9,9 @@ import type { WalkthroughMessageNotFoundError } from '../errors/walkthrough-mess
 import { WalkthroughPostFailedError } from '../errors/walkthrough-post-failed-error.ts';
 import { WalkthroughRepositoryChangedError } from '../errors/walkthrough-repository-changed-error.ts';
 import { PlanWalkthroughPostService } from './plan-walkthrough-post-service.ts';
+import { sameRepository } from '../rules/conversations.ts';
 
 const MAX_COMMENT_LENGTH = 60000;
-const sameRepository = (
-  left: { owner: string; repo: string },
-  right: { owner: string; repo: string },
-) =>
-  left.owner.toLowerCase() === right.owner.toLowerCase() &&
-  left.repo.toLowerCase() === right.repo.toLowerCase();
 
 export class PostWalkthroughMessagesService extends Context.Service<
   PostWalkthroughMessagesService,
@@ -46,7 +41,7 @@ export class PostWalkthroughMessagesService extends Context.Service<
             const plan = yield* plans.execute(input);
             if (plan.kind === 'nothing') return { status: 'nothing' };
             if (plan.kind === 'already-posted')
-              return { status: 'posted', url: plan.url };
+              return { status: 'posted', url: plan.url, notPosted: [] };
             if (plan.pullRequestNumber === undefined)
               return { status: 'brief', text: plan.text };
             if (plan.repository === undefined)
@@ -54,14 +49,15 @@ export class PostWalkthroughMessagesService extends Context.Service<
                 message:
                   "This walkthrough did not record its pull request's repository. Nothing was posted. Copy the brief instead.",
               });
-            if (
-              input.repository === undefined ||
-              !sameRepository(plan.repository, input.repository)
-            )
+            if (!sameRepository(plan.repository, input.repository))
               return yield* new WalkthroughRepositoryChangedError({
                 message: `This walkthrough's pull request is on ${plan.repository.owner}/${plan.repository.repo}, but this project's origin no longer points there. Nothing was posted. Copy the brief instead.`,
               });
-            if (plan.text.length > MAX_COMMENT_LENGTH)
+            if (plan.messageIds.length === 0)
+              return yield* new WalkthroughRepositoryChangedError({
+                message: `These messages were made on a walkthrough of another repository than ${plan.repository.owner}/${plan.repository.repo}. Nothing was posted. Copy the brief instead.`,
+              });
+            if (plan.comment.length > MAX_COMMENT_LENGTH)
               return yield* new WalkthroughPostFailedError({
                 message:
                   'These messages are too long for one pull request comment. Post fewer together.',
@@ -75,7 +71,7 @@ export class PostWalkthroughMessagesService extends Context.Service<
               ...plan.repository,
               account: input.account,
               number: plan.pullRequestNumber,
-              body: plan.text,
+              body: plan.comment,
             });
             yield* store.markPosted(
               input.worktreeId,
@@ -83,7 +79,7 @@ export class PostWalkthroughMessagesService extends Context.Service<
               url,
               yield* DateTime.now.pipe(Effect.map(DateTime.formatIso)),
             );
-            return { status: 'posted', url };
+            return { status: 'posted', url, notPosted: plan.notPosted };
           },
         ),
       };
