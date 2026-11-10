@@ -32,6 +32,9 @@ export const optionsSchema = Schema.Struct({
   agentSession: Schema.optional(Schema.String),
   simulatorLimit: Schema.Finite,
   manualPairing: Schema.Boolean,
+  codingTool: Schema.Boolean.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(false)),
+  ),
   fixture: Schema.Literals(['development', 'focused']).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed('focused')),
   ),

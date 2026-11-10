@@ -219,7 +219,7 @@ function NotSaid({ content }: { content: WalkthroughContent }) {
   return (
     <Box gap={3}>
       <Separator />
-      <SectionTitle>What the code doesn&apos;t say</SectionTitle>
+      <SectionTitle>{"What the code doesn't say"}</SectionTitle>
       <Folded fold={(open) => foldedNotSaid(content, open)}>
         {({ explained, unclear }) => (
           <>
