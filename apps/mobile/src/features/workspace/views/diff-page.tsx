@@ -73,7 +73,9 @@ export function DiffPage<F extends DiffPageFile>({
   const setStuck = useAtomSet(diffPageStuck(page));
   const [list, setList] = useState<FlatList<DiffPageRow> | null>(null);
   const [beside, setBeside] = useState(false);
-  const [pending, setPending] = useState<number>();
+  const [pending, setPending] = useState(
+    initial > 0 ? headingRow(initial) : undefined,
+  );
   const [onViewable] = useState(() => ({ viewableItems }: Viewable) => {
     const visible = viewableItems.flatMap((item) =>
       typeof item.index === 'number' ? [item.index] : [],
@@ -139,9 +141,6 @@ export function DiffPage<F extends DiffPageFile>({
               maxToRenderPerBatch={2}
               removeClippedSubviews={false}
               windowSize={9}
-              {...(initial > 0
-                ? { initialScrollIndex: headingRow(initial) }
-                : {})}
               {...(pending === undefined
                 ? { maintainVisibleContentPosition: { minIndexForVisible: 0 } }
                 : {})}
