@@ -23,6 +23,11 @@ import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import { useWalkthrough } from '../queries/walkthrough';
 import { RichText } from './rich-text';
+import {
+  WalkthroughConversation,
+  EarlierComments,
+  PostSaved,
+} from './walkthrough-conversation';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 const GROWTH_SIGNS = { added: '+', changed: '~', removed: '−' } as const;
@@ -314,6 +319,18 @@ function Written({
   updating: boolean;
   updateFailure: WalkthroughFailure | undefined;
 }) {
+  const conversation: Conversation = ({ kind, step }) => {
+    const title = content.stops[step - 1]!.title;
+    return (
+      <WalkthroughConversation
+        key={title}
+        owner={props}
+        title={title}
+        runId={run.id}
+        call={kind === 'call'}
+      />
+    );
+  };
   const stale = (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
       New commits landed after this was written.
@@ -353,6 +370,8 @@ function Written({
             </Button>
           </div>
         </header>
+        <EarlierComments owner={props} titles={[]} />
+        <PostSaved owner={props} />
       </Column>
     );
   return (
@@ -365,7 +384,7 @@ function Written({
         </p>
         {outOfDate && stale}
       </header>
-      <Calls content={content} conversation={undefined} />
+      <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth items={content.growth} />}
       <ol className="flex flex-col gap-10">
         {content.stops.map((stop, index) => (
@@ -375,11 +394,15 @@ function Written({
             step={index + 1}
             run={run}
             props={props}
-            conversation={undefined}
+            conversation={conversation}
           />
         ))}
       </ol>
       <NotSaid content={content} />
+      <EarlierComments
+        owner={props}
+        titles={content.stops.map((stop) => stop.title)}
+      />
       <footer className="border-t pt-5">
         <div className="-ml-2">
           <Button variant="link" size="sm" onClick={() => props.onOpen(BRANCH)}>
@@ -387,6 +410,7 @@ function Written({
           </Button>
         </div>
       </footer>
+      <PostSaved owner={props} />
     </Column>
   );
 }

@@ -608,3 +608,5 @@ export const test = base
 
 export const gitInterruptionTest = test.extend('sample', () =>
   'git-interruption' as const);
+
+export const conversationFixture = host.porcelainWalkthroughConversations;
