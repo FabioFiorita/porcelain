@@ -38,7 +38,10 @@ const nativeHistorySchema = Schema.Array(
 export const nativeMigrations = Migrator.fromRecord({
   '015_working_tree_walkthroughs': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`DELETE FROM walkthrough_automatic`;
+    yield* sql`CREATE TABLE walkthrough_automatic_content (pr_key TEXT PRIMARY KEY, run_id TEXT REFERENCES walkthrough_runs(id) ON DELETE SET NULL)`;
+    yield* sql`INSERT INTO walkthrough_automatic_content SELECT pr_key, run_id FROM walkthrough_automatic`;
+    yield* sql`DROP TABLE walkthrough_automatic`;
+    yield* sql`ALTER TABLE walkthrough_automatic_content RENAME TO walkthrough_automatic`;
     yield* sql`DELETE FROM walkthrough_runs`;
   }),
   '014_retire_review_push_kinds': Effect.gen(function* () {

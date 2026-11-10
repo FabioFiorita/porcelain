@@ -185,7 +185,7 @@ it('drops old commit-bound walkthrough runs and their dependent data at the cont
     ).toEqual([]);
     expect(
       await runtime.runPromise(sql`SELECT * FROM walkthrough_automatic`),
-    ).toEqual([]);
+    ).toEqual([{ prKey: 'pr', runId: null }]);
     expect(
       await runtime.runPromise(sql`SELECT * FROM walkthrough_evidence`),
     ).toEqual([]);

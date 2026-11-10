@@ -558,3 +558,49 @@ it('deduplicates identical base and content across commits, and accepts changed 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it('preserves the once-per-PR marker when the migration retires old walkthroughs', async () => {
+  const directory = mkdtempSync(
+    join(tmpdir(), 'walkthrough-automatic-migration-'),
+  );
+  const open = () =>
+    ManagedRuntime.make(
+      storageLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+  let runtime = open();
+  try {
+    const store = await runtime.runPromise(WalkthroughStore);
+    await runtime.runPromise(
+      store.accept(job('old', 'old-head'), 'handled-pr'),
+    );
+    await runtime.dispose();
+    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    database.exec('DELETE FROM porcelain_migrations WHERE migration_id = 15');
+    database.close();
+    runtime = open();
+    const reopened = await runtime.runPromise(WalkthroughStore);
+    const repeated = await runtime.runPromise(
+      reopened
+        .accept(job('automatic', 'new-head'), 'handled-pr')
+        .pipe(Effect.result),
+    );
+    expect(repeated).toMatchObject({
+      _tag: 'Failure',
+      failure: {
+        kind: 'other',
+        message:
+          'An automatic walkthrough was already requested for this pull request.',
+      },
+    });
+    expect(await runtime.runPromise(reopened.listPending())).toEqual([]);
+    expect(
+      (await runtime.runPromise(reopened.accept(job('manual', 'new-head')))).id,
+    ).toBe('manual');
+  } finally {
+    await runtime.dispose();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

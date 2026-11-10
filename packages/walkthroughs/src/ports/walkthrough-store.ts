@@ -1,3 +1,4 @@
+import type { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
 import { Context, type Effect } from 'effect';
 import type {
   EvidenceAsset,
@@ -29,7 +30,7 @@ export interface WalkthroughStore {
   accept(
     job: WalkthroughJob,
     automaticKey?: string,
-  ): Effect.Effect<WalkthroughRun>;
+  ): Effect.Effect<WalkthroughRun, WalkthroughFailedError>;
   read(
     worktreeId: string,
     current?: { branch: string | undefined },

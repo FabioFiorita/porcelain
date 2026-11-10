@@ -1,3 +1,7 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect } from 'effect';
+import { readWorkingTree } from '@porcelain/git/inspection';
+import { LIMITS } from '../../src/config/limits.ts';
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -40,12 +44,19 @@ export async function seedWalkthroughSample(
     (
       await execute('git', ['rev-parse', ref], { cwd: repository })
     ).stdout.trim();
+  const baseOid = await git('main');
+  const snapshot = await Effect.runPromise(
+    readWorkingTree(repository, baseOid, LIMITS.git).pipe(
+      Effect.provide(NodeServices.layer),
+    ),
+  );
   const now = '2026-11-10T00:00:00.000Z';
   seedStoredWalkthroughs(directory, {
     jobs: [
       {
         worktreePath: repository,
-        files: ['src/search.ts', 'src/results.ts'].map((path) => ({
+        patch: snapshot.patch,
+        files: ['README.md', 'src/search.ts', 'src/results.ts'].map((path) => ({
           path,
           hunks: [{ oldStart: 0, oldEnd: 0, newStart: 1, newEnd: 3 }],
         })),
@@ -53,7 +64,10 @@ export async function seedWalkthroughSample(
           ...ids,
           id: 'sample-walkthrough',
           branch: 'feature/note-search',
-          baseOid: await git('main'),
+          baseOid,
+          baseRef: 'refs/heads/main',
+          contentTreeOid: snapshot.treeOid,
+          includesUncommitted: snapshot.treeOid !== snapshot.headTreeOid,
           headOid: await git('HEAD'),
           writer: {
             provider: 'claude',
@@ -95,6 +109,7 @@ export async function seedWalkthroughSample(
                   excerpts: [],
                   evidence: [],
                   files: [
+                    { path: 'README.md', note: 'Introduces the sample.' },
                     {
                       path: 'src/search.ts',
                       note: 'Owns title matching and the empty query behavior.',
