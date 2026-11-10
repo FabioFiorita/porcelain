@@ -36,7 +36,7 @@ struct CodeContent: View {
         .frame(width: contentWidth, alignment: .leading)
         .padding(.vertical, model.tokens.spacing)
       }
-      .scrollPosition(id: $topLine, anchor: .top)
+      .scrollPosition(id: $topLine, anchor: .topLeading)
       .onChange(of: model.initialLine, initial: true) { restore() }
       .onChange(of: model.lines.isEmpty, initial: true) { restore() }
       .onChange(of: topLine) { _, value in
