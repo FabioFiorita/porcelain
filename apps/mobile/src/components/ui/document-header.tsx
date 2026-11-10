@@ -57,17 +57,25 @@ export function DocumentHeader({
   actions?: readonly DocumentAction[];
   place?: 'screen' | 'pane';
 }) {
-  return <PageHeader {...documentHeading(path, details)} actions={actions} />;
+  return (
+    <PageHeader
+      {...documentHeading(path, details)}
+      actions={actions}
+      place={place}
+    />
+  );
 }
 
 export function PageHeader({
   title,
   subtitle,
   actions = [],
+  place = 'screen',
 }: {
   title: string;
   subtitle?: string | undefined;
   actions?: readonly DocumentAction[];
+  place?: 'screen' | 'pane';
 }) {
   const overflowing = actions.length > visibleActions;
   const visible = overflowing ? actions.slice(0, 2) : actions;
