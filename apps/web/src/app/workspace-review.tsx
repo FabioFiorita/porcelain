@@ -1,6 +1,7 @@
 import {
   ReviewWorkspace,
   ReviewBoundary,
+  firstDocumentTitleOwner,
   usePublishedReview,
   publishedReviewTitle,
   type FirstDocument,
@@ -21,7 +22,6 @@ import {
   useWorktreeFirstDocument,
 } from '@/features/walkthroughs/index';
 import { useAtomMount } from '@effect/atom-react';
-import { firstDocumentTitleOwner } from '@/shared/store';
 
 type Props = Omit<
   ReviewWorkspaceProps,

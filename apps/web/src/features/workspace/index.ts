@@ -29,6 +29,8 @@ export {
 export { SidebarDocumentRow, SidebarGroup } from './views/sidebar-section';
 
 export {
+  firstDocumentTitle,
+  firstDocumentTitleOwner,
   usePullRequestLinkFocus,
   useReviewPanelOpen,
   useTabLayoutStore,

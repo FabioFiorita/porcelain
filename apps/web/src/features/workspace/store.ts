@@ -15,6 +15,7 @@ import { Option, Schema, SchemaGetter } from 'effect';
 import { storageRuntime } from '@/shared/adapters/storage';
 import { parseCodeFolds, withFolds } from './rules/code-folds';
 import { type Pane, parseTabLayout } from './rules/tab-strip';
+import { releaseTitle, type OwnedTitle } from './rules/first-document-title';
 
 const savedFlag = Schema.decodeUnknownOption(
   Schema.Struct({ saved: Schema.Boolean }),
@@ -264,3 +265,23 @@ export function usePullRequestLinkFocus(reviewId: string) {
     },
   };
 }
+
+const firstDocumentTitles = Atom.family((_worktreeId: string) =>
+  Atom.make<OwnedTitle | undefined>(undefined).pipe(Atom.keepAlive),
+);
+
+export const firstDocumentTitle = Atom.family((worktreeId: string) =>
+  Atom.make((get) => get(firstDocumentTitles(worktreeId))?.title),
+);
+
+export const firstDocumentTitleOwner = Atom.family(
+  (input: { worktreeId: string; title: string | undefined }) =>
+    Atom.make((get) => {
+      const titles = firstDocumentTitles(input.worktreeId);
+      const owner = Symbol();
+      get.set(titles, { owner, title: input.title });
+      get.addFinalizer(() =>
+        get.set(titles, releaseTitle(get.registry.get(titles), owner)),
+      );
+    }),
+);

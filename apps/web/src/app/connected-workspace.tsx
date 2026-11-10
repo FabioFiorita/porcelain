@@ -42,10 +42,13 @@ import {
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
 import { WorkspaceReview } from './workspace-review';
-import { entryKey, workspaceTitle } from '@/features/workspace/index';
+import {
+  entryKey,
+  firstDocumentTitle,
+  workspaceTitle,
+} from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { useAtomValue } from '@effect/atom-react';
-import { firstDocumentTitle } from '@/shared/store';
 import {
   useOpenProjectOnThisComputer,
   worktreeLocation,
