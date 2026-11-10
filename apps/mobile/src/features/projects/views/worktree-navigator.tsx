@@ -322,12 +322,7 @@ export function WorktreeNavigator({
                             : {})}
                         >
                           {row.branch ? (
-                            <Text
-                              variant="caption"
-                              tone="muted"
-                              numberOfLines={1}
-                              className="font-mono"
-                            >
+                            <Text variant="mono" tone="muted" numberOfLines={1}>
                               {row.branch}
                             </Text>
                           ) : null}

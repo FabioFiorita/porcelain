@@ -2,11 +2,11 @@ import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import {
+  readingOf,
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
 import {
-  readingOf,
   walkthroughPhase,
   walkthroughTabTitle,
   worktreeOpening,

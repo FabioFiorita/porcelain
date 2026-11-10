@@ -70,7 +70,7 @@ function ScreenshotReader({
   return (
     <Box className="flex-1" paddingX={4} paddingBottom={8} gap={3}>
       <RichText text={item.shows} variant="secondary" />
-      <Box className="flex-1 overflow-hidden rounded-lg border border-border">
+      <Box className="flex-1" surface="panel">
         <EvidenceImage
           key={item.assetId}
           workspace={workspace}

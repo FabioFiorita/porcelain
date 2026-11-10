@@ -11,6 +11,7 @@ const variants = {
   secondary: 'text-sm leading-5',
   caption: 'text-xs leading-4',
   code: 'font-mono text-[13px] leading-5',
+  mono: 'font-mono text-xs leading-4',
 };
 
 const headings = new Set<keyof typeof variants>([
@@ -27,6 +28,7 @@ const defaultWeights = {
   secondary: 'normal',
   caption: 'normal',
   code: 'normal',
+  mono: 'normal',
 } as const;
 
 const tones = {
@@ -53,6 +55,7 @@ type TextProps = Omit<NativeTextProps, 'style'> & {
   tone?: keyof typeof tones;
   weight?: keyof typeof weights;
   decoration?: 'line-through' | undefined;
+  mark?: 'code' | undefined;
 };
 
 export function Text({
@@ -60,6 +63,7 @@ export function Text({
   tone = 'default',
   weight,
   decoration,
+  mark,
   className,
   accessibilityRole,
   ...props
@@ -75,6 +79,7 @@ export function Text({
         tones[tone],
         weights[weight ?? defaultWeights[variant]],
         decoration ?? '',
+        mark === 'code' ? 'bg-muted font-mono' : '',
         className,
       ]
         .filter(Boolean)

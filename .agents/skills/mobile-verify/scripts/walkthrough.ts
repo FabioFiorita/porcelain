@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -119,7 +120,9 @@ export async function walkthroughCommand(
     throw new Usage(
       'Use walkthrough sample, walkthrough answer long|short, walkthrough moved or walkthrough posts.',
     );
-  const bin = String(JSON.parse(await readFile(manifest, 'utf8')).bin);
+  const { bin } = Schema.decodeUnknownSync(
+    Schema.Struct({ bin: Schema.String }),
+  )(JSON.parse(await readFile(manifest, 'utf8')));
   await rm(join(bin, 'claude'), { force: true });
   const writer = await scriptedWalkthroughs(session, manifest, {
     answer: SHORT_ANSWER,

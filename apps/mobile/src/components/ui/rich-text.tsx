@@ -27,7 +27,7 @@ export function RichText({
         variant={variant}
         tone={tone}
         {...(weight ? { weight } : {})}
-        className="bg-muted font-mono"
+        mark="code"
       >
         {part.text}
       </Text>

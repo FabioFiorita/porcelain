@@ -209,7 +209,13 @@ it.each([
 });
 
 describe('posting and saving', () => {
-  const answered = { status: 'answered' as const, text: 'Because.' };
+  const answered = {
+    status: 'answered' as const,
+    text: 'Because.',
+    answeredAt: '2026-11-09T00:00:01.000Z',
+    durationMs: 1,
+    costUsd: undefined,
+  };
   const asked = stop('Keep sessions', [
     developer('a', { status: 'saved' }),
     agent('a', answered),

@@ -1,5 +1,5 @@
 import { useState, type ComponentRef, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAtom } from '@effect/atom-react';
 import {
@@ -14,7 +14,7 @@ import {
   walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughMeta,
-  walkthroughPhase,
+  type walkthroughPhase,
   walkthroughVerdict,
   type WalkthroughContent,
   type WalkthroughFailure,
@@ -41,6 +41,11 @@ import {
 import { WalkthroughProof } from './walkthrough-evidence';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
+
+type UpdateFailure = {
+  failure: WalkthroughFailure;
+  writer: WalkthroughRun['writer'];
+};
 
 const GROWTH_TONES = {
   added: 'add',
@@ -77,7 +82,7 @@ function Column({
     places.set(target, y);
   };
   return (
-    <View className="flex-1 bg-background" collapsable={false}>
+    <Box className="flex-1" surface="background" collapsable={false}>
       <ScrollView
         ref={setScroll}
         className="flex-1"
@@ -96,7 +101,7 @@ function Column({
         {children(jump, place)}
       </ScrollView>
       {onReady}
-    </View>
+    </Box>
   );
 }
 
@@ -108,7 +113,7 @@ function Meta({
   content?: WalkthroughContent;
 }) {
   return (
-    <Text variant="caption" tone="muted" className="font-mono">
+    <Text variant="mono" tone="muted">
       {walkthroughMeta(run, content)}
     </Text>
   );
@@ -116,12 +121,7 @@ function Meta({
 
 function Headline({ content }: { content: WalkthroughContent }) {
   return (
-    <Text
-      variant="largeTitle"
-      weight="semibold"
-      accessibilityRole="header"
-      className="tracking-tight"
-    >
+    <Text variant="largeTitle" weight="semibold" accessibilityRole="header">
       <Text variant="largeTitle" weight="semibold" tone="muted">
         {plainText(content.title).replace(/\.$/, '')}.
       </Text>{' '}
@@ -254,7 +254,7 @@ function Calls({
   jump: Jump;
 }) {
   return walkthroughCalls(content).map(({ attention, step, stop }) => (
-    <Card key={step} gap={3} padding={4} className="rounded-xl">
+    <Card key={step} gap={3} padding={4}>
       <Box className="flex-row items-center justify-between" gap={3}>
         <Text variant="caption" tone="muted">
           {attentionLabel(attention)}
@@ -279,15 +279,20 @@ function Calls({
   ));
 }
 
+function updateText(failure: UpdateFailure | undefined) {
+  if (!failure) return 'New commits landed after this was written.';
+  const { title } = walkthroughFailureCopy(failure.failure, failure.writer);
+  if (failure.failure.kind === 'signed_out') return title;
+  return `${title} ${failure.failure.message}`;
+}
+
 function UpdateNotice({
   updating,
   failure,
   onUpdate,
 }: {
   updating: boolean;
-  failure:
-    | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
-    | undefined;
+  failure: UpdateFailure | undefined;
   onUpdate: () => void;
 }) {
   if (updating)
@@ -296,9 +301,6 @@ function UpdateNotice({
         <Loading label="Updating…" />
       </Box>
     );
-  const copy = failure
-    ? walkthroughFailureCopy(failure.failure, failure.writer)
-    : undefined;
   return (
     <Box className="flex-row flex-wrap items-center" gap={3}>
       <Text
@@ -307,11 +309,7 @@ function UpdateNotice({
         className="shrink"
         {...(failure ? { accessibilityRole: 'alert' as const } : {})}
       >
-        {failure && copy
-          ? failure.failure.kind === 'signed_out'
-            ? copy.title
-            : `${copy.title} ${failure.failure.message}`
-          : 'New commits landed after this was written.'}
+        {updateText(failure)}
       </Text>
       <Button
         label={failure ? 'Try again' : 'Update walkthrough'}
@@ -337,9 +335,7 @@ function Written({
   content: WalkthroughContent;
   outOfDate: boolean;
   updating: boolean;
-  updateFailure:
-    | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
-    | undefined;
+  updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
 }) {
   const router = useRouter();
@@ -419,7 +415,7 @@ function Written({
               >
                 <Separator />
                 <Box className="flex-row items-center" gap={2}>
-                  <Text variant="caption" tone="muted" className="font-mono">
+                  <Text variant="mono" tone="muted">
                     Step {step}
                   </Text>
                   {stop.attention ? (
@@ -538,8 +534,6 @@ function Writing({
           <Box className="items-start">
             <Loading label="Reading the change" />
           </Box>
-          <Box className="h-9 w-4/5 rounded-md bg-muted" />
-          <Box className="h-20 w-full rounded-md bg-muted" />
         </Box>
       )}
     </Column>
@@ -573,8 +567,8 @@ function Failed({
               {copy.command ? (
                 <>
                   {' '}
-                  <Text className="bg-muted font-mono">{copy.command}</Text> on
-                  this computer, then try again.
+                  <Text mark="code">{copy.command}</Text> on this computer, then
+                  try again.
                 </>
               ) : null}
             </Text>

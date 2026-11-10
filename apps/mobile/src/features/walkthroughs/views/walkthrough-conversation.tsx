@@ -15,6 +15,7 @@ import {
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
+import { FloatingBar } from '../../../components/ui/floating-bar';
 import { Loading } from '../../../components/ui/loading';
 import { Message } from '../../../components/ui/message';
 import { MessageComposer } from '../../../components/ui/message-composer';
@@ -331,17 +332,9 @@ export function PostSaved({ owner }: Props) {
   const saved = savedSummary(view);
   if (!saved) return null;
   return (
-    <Box
-      className="absolute inset-x-0 bottom-4 items-center px-4"
-      pointerEvents="box-none"
-    >
-      <Box
-        className="max-w-full flex-row flex-wrap items-center justify-center rounded-3xl border border-border bg-popover py-1.5 pr-1.5 pl-4 shadow-sm"
-        gap={3}
-      >
-        <Text variant="secondary">{saved}</Text>
-        <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
-      </Box>
-    </Box>
+    <FloatingBar>
+      <Text variant="secondary">{saved}</Text>
+      <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
+    </FloatingBar>
   );
 }

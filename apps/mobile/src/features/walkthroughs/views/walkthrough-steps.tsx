@@ -69,7 +69,7 @@ export function WalkthroughSteps({
           titleNumberOfLines={2}
           accessibilityLabel={`Step ${step}: ${plainText(stop.title)}${stop.attention ? ', your call' : ''}, ${owned.length} files`}
           leading={
-            <Text variant="caption" tone="muted" className="w-4 font-mono">
+            <Text variant="mono" tone="muted" className="w-4">
               {step}
             </Text>
           }

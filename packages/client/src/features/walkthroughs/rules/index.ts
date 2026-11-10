@@ -44,7 +44,6 @@ export {
   type WalkthroughAnchor,
 } from './conversations.ts';
 export {
-  readingOf,
   worktreeOpening,
   type Reading,
   type WorktreeOpening,

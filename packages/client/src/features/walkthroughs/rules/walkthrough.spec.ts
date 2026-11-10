@@ -17,7 +17,8 @@ import {
   type WalkthroughRun,
   type WalkthroughStop,
 } from './walkthrough.ts';
-import { readingOf, worktreeOpening } from './opening.ts';
+import { worktreeOpening } from './opening.ts';
+import { readingOf } from '../queries/reading.ts';
 import {
   attentionLabel,
   failureCopy,

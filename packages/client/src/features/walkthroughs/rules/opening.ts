@@ -1,5 +1,3 @@
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { firstDocument, type WalkthroughRead } from './walkthrough.ts';
 
 export type Reading<A> =
@@ -12,17 +10,6 @@ export type WorktreeOpening = {
   pending: boolean;
   guided: boolean;
 };
-
-export function readingOf<A, B>(
-  result: AsyncResult.AsyncResult<A, unknown>,
-  value: (read: A) => B,
-): Reading<B> {
-  const read = Option.getOrUndefined(AsyncResult.value(result));
-  if (read !== undefined) return { status: 'read', value: value(read) };
-  return AsyncResult.isFailure(result)
-    ? { status: 'failed' }
-    : { status: 'reading' };
-}
 
 function settled<A>(reading: Reading<A>) {
   return reading.status !== 'reading';

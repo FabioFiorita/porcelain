@@ -1,9 +1,7 @@
-import { shortOid } from '../../history/rules/presentation.ts';
-import { counted } from '../../reviews/rules/counted.ts';
 import {
   walkthroughFailureCopy,
   walkthroughFileCount,
-  walkthroughPhase,
+  type walkthroughPhase,
   type WalkthroughFailure,
   type WalkthroughContent,
   type WalkthroughRun,
@@ -36,6 +34,7 @@ export function growthSign(growth: Growth) {
 }
 
 const GROWTH_SHOWN = 4;
+const SHORT_OID = 7;
 const NOT_SAID_SHOWN = 3;
 
 export function foldedGrowth(content: WalkthroughContent, open: boolean) {
@@ -74,8 +73,8 @@ export function walkthroughMeta(
     ...(run.pullRequestNumber === undefined
       ? []
       : [`#${run.pullRequestNumber}`]),
-    ...(files > 0 ? [counted(files, 'file')] : []),
-    `written for ${shortOid(run.headOid)}`,
+    ...(files > 0 ? [files === 1 ? '1 file' : `${files} files`] : []),
+    `written for ${run.headOid.slice(0, SHORT_OID)}`,
   ].join(' · ');
 }
 

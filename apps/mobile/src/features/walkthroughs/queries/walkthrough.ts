@@ -4,11 +4,11 @@ import { Base64 } from 'effect/encoding';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readBranchChanges } from '@porcelain/client/changes';
 import {
+  readingOf,
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
 import {
-  readingOf,
   walkthroughPhase,
   worktreeOpening,
 } from '@porcelain/client/walkthroughs/rules';

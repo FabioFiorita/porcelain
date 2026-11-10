@@ -6,3 +6,4 @@ export {
   readWalkthrough,
   readWalkthroughAsset,
 } from './queries/walkthrough.ts';
+export { readingOf } from './queries/reading.ts';
