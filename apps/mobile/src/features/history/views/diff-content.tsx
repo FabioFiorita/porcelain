@@ -25,6 +25,7 @@ import {
   isSubmoduleChange,
 } from '@porcelain/client/changes/rules';
 import { commitPath, commitPaths } from '@porcelain/client/history/rules';
+import { sourceLanguage } from '../../../shared/rules/highlight-code';
 
 export function DiffContent({
   selection,
@@ -170,6 +171,7 @@ function FilePatchContent({
     return (
       <DiffView
         lines={parsed.lines}
+        language={sourceLanguage(commitPath(file))}
         selection={selectionRange}
         onSelect={onSelect}
         wrap={preferences.lineOverflow === 'wrap'}
