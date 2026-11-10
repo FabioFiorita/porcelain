@@ -116,6 +116,7 @@ export function DiffPage<F extends DiffPageFile>({
           <FlatList
             ref={setList}
             className="flex-1 bg-background"
+            contentInsetAdjustmentBehavior="automatic"
             data={rows}
             extraData={[files, pending]}
             keyExtractor={(row) => `${row.kind}:${files[row.file]?.key ?? ''}`}
@@ -187,6 +188,7 @@ function DiffPageFiles<F extends DiffPageFile>({
         return () => onShown(false);
       }}
       className="flex-1 bg-background"
+      contentInsetAdjustmentBehavior="automatic"
       data={files}
       extraData={current}
       keyExtractor={(file) => file.key}
