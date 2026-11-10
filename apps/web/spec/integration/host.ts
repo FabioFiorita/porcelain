@@ -1,3 +1,4 @@
+import { walkthroughConversationsFixture } from '../kit/walkthrough-conversations.ts';
 import type { IncomingMessage } from 'node:http';
 import { join, resolve } from 'node:path';
 import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
@@ -188,7 +189,14 @@ const porcelainReplaceEditorContent: BrowserCommand<[string, string], void> = (
 const porcelainCollectGarbage: BrowserCommand<[], void> = (context) =>
   context.page.requestGC();
 
+const porcelainWalkthroughConversations: BrowserCommand<
+  ['pr' | 'no-pr' | 'fail' | 'recover' | 'moved' | 'posts'],
+  string
+> = (context, action) =>
+  walkthroughConversationsFixture(world(context), action);
+
 export const hostCommands = {
+  porcelainWalkthroughConversations,
   porcelainCollectGarbage,
   porcelainReplaceEditorContent,
   porcelainStart,

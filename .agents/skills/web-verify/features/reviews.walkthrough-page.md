@@ -18,6 +18,7 @@ selectors:
   - "Next step"
 tests:
   - apps/web/spec/integration/walkthroughs-page.test.tsx
+  - apps/web/spec/integration/walkthrough-conversations.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/walkthrough
   - POST /api/worktrees/:worktreeId/walkthrough
@@ -72,3 +73,12 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 - The fake never produces evidence, because the fixture has no pull request; prove screenshots with seeded evidence or the real writer.
 - Provider credentials are stripped from verification instances; the real writer cannot run through this skill.
+
+### 5. Conversations
+
+9. Under a call, use textbox "Decide, or ask about this" and "Send" (Enter sends; Shift+Enter adds a line). Under a step, "Ask about this" reveals textbox "Ask about this step". Messages already on a step are visible immediately. Backticks render inline code.
+10. Expect a right-aligned developer bubble and "Walkthrough agent", first "Working…", then its answer with "Read all". Type another draft while the answer arrives; it must survive the notice without moving the document. A failed answer shows the plain failure and "Try again".
+11. "Save for later" becomes "Saved for later" with "Undo". Save two messages: the sticky bar says "2 comments saved". On a PR, "Post on #N" posts one, "Post together on #N" posts saved messages once. A posted message links with "Posted on #N". Without a PR, use "Copy as prompt" or "Copy together" and expect "Copied brief".
+12. A refused post says "Nothing was posted. Copy the brief instead." and offers "Copy". A partial post identifies comments still saved because they belong to a different repository. Whole-walkthrough and removed-stop conversations appear under "Earlier comments".
+
+Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations.test.tsx`, using its isolated fake CLI and fake GitHub against the real server. Its ready walkthrough is a synthetic fixture, with no external project content. Sweep at desktop and 414 × 896, light and dark.
