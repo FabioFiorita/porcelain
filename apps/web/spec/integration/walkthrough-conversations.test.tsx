@@ -229,7 +229,7 @@ for (const { scenario, notice } of [
     render,
     server,
   }) => {
-    await conversationFixture(scenario);
+    const runId = await conversationFixture(scenario);
     await browserPage.viewport(1280, 896);
     const { page } = await render.route('/');
     await expect.element(page.getByText(notice, { exact: true })).toBeVisible();
@@ -278,7 +278,7 @@ for (const { scenario, notice } of [
       .toBeVisible();
     await expect
       .poll(async () => (await server.walkthrough()).walkthrough?.id)
-      .toBe('conversation-run');
+      .toBe(runId);
     await expect
       .poll(async () => (await server.walkthrough()).attempt?.state.status)
       .toBe(scenario === 'running-update' ? 'running' : 'failed');
