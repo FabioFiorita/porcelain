@@ -27,3 +27,18 @@ export function listDetailModeChange({
   const next = listDetailMode({ tablet, width: to });
   return listDetailMode({ tablet, width: from }) === next ? undefined : next;
 }
+
+const layoutRoots = new Set(['index', 'worktrees', 'worktree']);
+
+export function movesWithLayout({
+  routes,
+  index,
+  own,
+}: {
+  routes: readonly string[];
+  index: number;
+  own: number;
+}): boolean {
+  if (own !== index) return false;
+  return own === 0 || layoutRoots.has(routes[own - 1] ?? '');
+}

@@ -1,7 +1,7 @@
 import { useAtom, useAtomRef, useAtomSet } from '@effect/atom-react';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { View } from 'react-native';
-import { onBesideLayout } from '../../../components/ui/list-detail';
+import { useReturnBeside } from '../../../components/ui/list-detail';
 import { useState, type ComponentType } from 'react';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
@@ -47,18 +47,12 @@ export function WorktreeScreen({
   const title = params.title ?? 'Worktree';
   const router = useRouter();
   const hideWorktrees = useAtomSet(worktreeListHidden);
-  const [returning, setReturning] = useState(false);
+  const onLayout = useReturnBeside(() => {
+    hideWorktrees(true);
+    router.dismissTo('/worktrees');
+  });
   return (
-    <View
-      className="flex-1"
-      collapsable={false}
-      onLayout={onBesideLayout(() => {
-        if (returning) return;
-        setReturning(true);
-        hideWorktrees(true);
-        router.dismissTo('/worktrees');
-      })}
-    >
+    <View className="flex-1" collapsable={false} onLayout={onLayout}>
       <Stack.Screen options={{ title }} />
       <Stack.Title asChild>
         <HeaderTitle

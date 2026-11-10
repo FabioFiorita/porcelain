@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { DeviceType, deviceType } from 'expo-device';
 import { View, type LayoutChangeEvent } from 'react-native';
+import { useNavigation, useRoute } from 'expo-router';
 import {
   listDetailMode,
   listDetailModeChange,
+  movesWithLayout,
   type ListDetailMode,
 } from '../../shared/rules/list-detail';
 
@@ -31,14 +33,35 @@ export function useListDetailLayout(
   };
 }
 
-export function onBesideLayout(
+export function useMovesWithLayout(): () => boolean {
+  const navigation = useNavigation();
+  const route = useRoute();
+  return () => {
+    const state = navigation.getState();
+    if (!state) return false;
+    return movesWithLayout({
+      routes: state.routes.map((entry) => entry.name),
+      index: state.index,
+      own: state.routes.findIndex((entry) => entry.key === route.key),
+    });
+  };
+}
+
+export function useReturnBeside(
   returnBeside: () => void,
 ): (event: LayoutChangeEvent) => void {
+  const movesWithLayout = useMovesWithLayout();
+  const [returning, setReturning] = useState(false);
   return ({ nativeEvent }) => {
     if (
-      listDetailMode({ tablet, width: nativeEvent.layout.width }) === 'beside'
+      returning ||
+      listDetailMode({ tablet, width: nativeEvent.layout.width }) !==
+        'beside' ||
+      !movesWithLayout()
     )
-      returnBeside();
+      return;
+    setReturning(true);
+    returnBeside();
   };
 }
 

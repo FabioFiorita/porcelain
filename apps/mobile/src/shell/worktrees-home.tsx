@@ -2,7 +2,11 @@ import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Stack, useRouter } from 'expo-router';
 import { WorktreeSectionView } from './worktree-section-view';
 import { Empty } from '../components/ui/empty';
-import { ListDetail, useListDetailLayout } from '../components/ui/list-detail';
+import {
+  ListDetail,
+  useListDetailLayout,
+  useMovesWithLayout,
+} from '../components/ui/list-detail';
 import { SettingsToolbar } from '../features/access';
 import { useOpenedFile } from '../features/files';
 import {
@@ -22,8 +26,9 @@ export function WorktreesHome() {
   const openedFile = useOpenedFile(workspace);
   const [hidden, setHidden] = useAtom(worktreeListHidden);
   const router = useRouter();
+  const movesWithLayout = useMovesWithLayout();
   const layout = useListDetailLayout((mode) => {
-    if (mode !== 'stack' || !selected) return;
+    if (mode !== 'stack' || !selected || !movesWithLayout()) return;
     router.push({ pathname: '/worktree', params: selected });
     if (workspace && section === 'files' && openedFile)
       router.push({

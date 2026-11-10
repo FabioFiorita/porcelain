@@ -2,12 +2,7 @@ import { useDocumentReadingLine } from '../../../shared/application/document-rea
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import {
-  useIsFocused,
-  useNavigation,
-  useRouter,
-  useSegments,
-} from 'expo-router';
+import { useIsFocused, useRouter, useSegments } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -43,7 +38,7 @@ import {
 } from '../../../components/ui/html-preview';
 import { ImageView } from '../../../components/ui/image-view';
 import { Text } from '../../../components/ui/text';
-import { onBesideLayout } from '../../../components/ui/list-detail';
+import { useReturnBeside } from '../../../components/ui/list-detail';
 import { useOpenFileBeside } from '../commands/open-file';
 
 type ContentProps = {
@@ -99,8 +94,6 @@ export function FilePane({
   );
 }
 
-const returnsBeside = new Set(['index', 'worktrees', 'worktree']);
-
 function ReturnBeside({
   path,
   workspace,
@@ -111,27 +104,18 @@ function ReturnBeside({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const navigation = useNavigation();
   const worktrees = useSegments().some((segment) => segment === '(worktrees)');
   const openBeside = useOpenFileBeside(workspace);
-  const [returning, setReturning] = useState(false);
+  const onLayout = useReturnBeside(() => {
+    openBeside(path);
+    if (worktrees) router.dismissTo('/worktrees');
+    else {
+      router.back();
+      router.navigate('/worktrees');
+    }
+  });
   return (
-    <View
-      className="flex-1"
-      collapsable={false}
-      onLayout={onBesideLayout(() => {
-        const state = navigation.getState();
-        const below = state?.routes[state.index - 1]?.name;
-        if (returning || !below || !returnsBeside.has(below)) return;
-        setReturning(true);
-        openBeside(path);
-        if (worktrees) router.dismissTo('/worktrees');
-        else {
-          router.back();
-          router.navigate('/worktrees');
-        }
-      })}
-    >
+    <View className="flex-1" collapsable={false} onLayout={onLayout}>
       {children}
     </View>
   );
@@ -222,7 +206,6 @@ function FileText(props: FileProps) {
   if (!data) return plain(<Loading label="Reading file…" />);
   if ('kind' in data)
     return plain(<FileNotice kind="unsupported" description={data.reason} />);
-  if (data.text === '') return plain(<FileNotice kind="empty" />);
   return (
     <View className="flex-1">
       {AsyncResult.isFailure(file.result) ? (
@@ -325,6 +308,7 @@ function FileContentsPreview({
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
+  if (text === '') return <FileNotice kind="empty" />;
   if (/\.mdx?$/i.test(path))
     return (
       <MarkdownContent

@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { listDetailMode, listDetailModeChange } from './list-detail';
+import {
+  listDetailMode,
+  listDetailModeChange,
+  movesWithLayout,
+} from './list-detail';
 
 it.each([
   {
@@ -77,4 +81,65 @@ it.each([
   },
 ] as const)('$why: $change', ({ tablet, from, to, change }) => {
   expect(listDetailModeChange({ tablet, from, to })).toBe(change);
+});
+
+it.each([
+  {
+    routes: ['worktrees'],
+    index: 0,
+    own: 0,
+    moves: true,
+    why: 'the tab root on top pushes its worktree when it narrows',
+  },
+  {
+    routes: ['worktrees', 'timeline'],
+    index: 1,
+    own: 0,
+    moves: false,
+    why: 'a tab root under a pushed screen pushes nothing over it',
+  },
+  {
+    routes: ['worktrees', 'worktree'],
+    index: 1,
+    own: 1,
+    moves: true,
+    why: 'the worktree page on top returns to the split',
+  },
+  {
+    routes: ['worktrees', 'worktree', 'history/commit/[oid]/index'],
+    index: 2,
+    own: 1,
+    moves: false,
+    why: 'a worktree page under a commit leaves the commit open',
+  },
+  {
+    routes: ['worktrees', 'worktree', 'file'],
+    index: 2,
+    own: 2,
+    moves: true,
+    why: 'a file above its worktree page returns to the split',
+  },
+  {
+    routes: ['worktrees', 'worktree', 'file', 'timeline'],
+    index: 3,
+    own: 2,
+    moves: false,
+    why: 'a file under its timeline leaves the timeline open',
+  },
+  {
+    routes: ['index', 'file'],
+    index: 1,
+    own: 1,
+    moves: true,
+    why: 'a file link above the Reviews root moves to the split',
+  },
+  {
+    routes: ['index', 'decision', 'file'],
+    index: 2,
+    own: 2,
+    moves: false,
+    why: 'a file opened from a review step stays pushed',
+  },
+] as const)('$why', ({ routes, index, own, moves }) => {
+  expect(movesWithLayout({ routes, index, own })).toBe(moves);
 });
