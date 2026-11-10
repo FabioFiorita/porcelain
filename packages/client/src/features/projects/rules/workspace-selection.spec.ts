@@ -17,7 +17,6 @@ const inventory: Inventory = {
           main: true,
           branch: 'main',
           available: true,
-          status: undefined,
         },
       ],
     },

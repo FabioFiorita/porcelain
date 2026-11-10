@@ -1,7 +1,6 @@
 import type { FileContents, FileDiffMetadata } from '@pierre/diffs';
 import type { ReactNode } from 'react';
 import { contentVersion } from '@/shared/lib/pierre';
-import type { CommentTarget } from '@porcelain/client/reviews/rules';
 
 type CodeReview = {
   path: string;
@@ -19,7 +18,7 @@ export type CodeEntry =
       fileDiff: FileDiffMetadata;
       version: number;
       note?: string;
-      comment?: CommentTarget;
+      discardScope?: 'staged' | 'unstaged';
       review?: CodeReview;
     }
   | {
@@ -29,7 +28,7 @@ export type CodeEntry =
       contents: string;
       version: number;
       note?: string;
-      comment?: CommentTarget;
+      discardScope?: 'staged' | 'unstaged';
       review?: CodeReview;
     };
 

@@ -1,7 +1,7 @@
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { readProjectPullRequests } from '@porcelain/client/reviews';
+import { readProjectPullRequests } from '@porcelain/client/projects';
 import { startWalkthrough } from '@porcelain/client/walkthroughs';
 import {
   walkthroughPullRequest,

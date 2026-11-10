@@ -1,430 +1,188 @@
+import { Context, Effect, Layer, Clock } from 'effect';
 import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
+import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
+import { gitBranchArchiverLayer } from '../adapters/projects/git-branch-archiver.ts';
 import { CacheWalkthroughPullTitlesService } from '@porcelain/walkthroughs/services';
 import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
-import { AgentFeedbackUseCase } from '../use-cases/reviews/agent-feedback.ts';
-import { AgentFeedbackStore } from '@porcelain/reviews/ports';
-import { ReadReviewGitHubTargetUseCasePort } from '../ports/read-review-github-target-use-case-port.ts';
-import { ArchiveReviewService } from '@porcelain/reviews/services';
-import { ReadReviewPullRequestUseCasePort } from '../ports/read-review-pull-request-use-case-port.ts';
-import { ArchiveReviewUseCase } from '../use-cases/reviews/archive-review.ts';
-import { gitReviewArchiverLayer } from '../adapters/reviews/git-review-archiver.ts';
 import {
-  CompareReviewService,
-  SelectReviewComparisonService,
-} from '@porcelain/reviews/services';
-import { CompareReviewUseCase } from '../use-cases/reviews/compare-review.ts';
-import { ReadReviewInterdiffUseCase } from '../use-cases/reviews/read-review-interdiff.ts';
+  GitHubAccountStore,
+  ReviewedFileStore,
+  SetReviewedFilesOptions,
+} from '@porcelain/reviews/ports';
 import {
+  SelectGitHubAccountService,
   GitHubAccountPreferenceService,
   ReadGitHubPullRequestService,
   ReadGitHubPullChecksService,
   ListGitHubPullRequestsService,
-  ReadReviewRecordService,
-} from '@porcelain/reviews/services';
-import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
-import { GitHubAccountStore } from '@porcelain/reviews/ports';
-import {
-  ObserveReviewPullRequestService,
-  SelectGitHubAccountService,
+  SetReviewedFilesService,
+  ListReviewedFilesService,
+  RemoveReviewedFilesService,
+  InvalidateReviewedMarksService,
 } from '@porcelain/reviews/services';
 import {
+  ArchiveBranchService,
   CheckProjectService,
-  FindProjectService,
+  ReadRepositoryOriginService,
+  ListKnownWorktreesService,
 } from '@porcelain/projects/services';
 import { InventoryStore } from '@porcelain/projects/ports';
-import { ResolveProjectGitHubUseCase } from '../use-cases/reviews/resolve-project-github.ts';
-import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
-import { ReadReviewPullChecksUseCase } from '../use-cases/reviews/read-review-pull-checks.ts';
-import { ReadReviewGitHubTargetUseCase } from '../use-cases/reviews/read-review-github-target.ts';
-import { ReadReviewPullRequestUseCase } from '../use-cases/reviews/read-review-pull-request.ts';
-import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-project-pull-requests.ts';
-import {
-  ReadReviewService,
-  ReadReviewRevisionService,
-  ReadReviewAgentFeedbackService,
-  ListProjectReviewsService,
-  SetReviewSeenService,
-  SetReviewStateService,
-  ListReviewMarksService,
-  SetReviewMarkService,
-  RemoveReviewMarkService,
-  BuildReviewLinksService,
-  ReadReviewFileService,
-} from '@porcelain/reviews/services';
-import { AtReviewScopeUseCase } from '../use-cases/reviews/at-review-scope.ts';
-import { remoteReviewLinkSourceLayer } from '../adapters/reviews/remote-review-link-source.ts';
-import { ReadRetainedBranchDiffsService } from '@porcelain/changes/services';
-import { RemoveReviewMarkUseCase } from '../use-cases/reviews/remove-review-mark.ts';
-import { SetReviewMarkUseCase } from '../use-cases/reviews/set-review-mark.ts';
-import { ListReviewMarksUseCase } from '../use-cases/reviews/list-review-marks.ts';
-import { ReadReviewDiffsUseCase } from '../use-cases/reviews/read-review-diffs.ts';
-import { ReadReviewFileUseCase } from '../use-cases/reviews/read-review-file.ts';
-import { SetReviewPullRequestService } from '@porcelain/reviews/services';
-import { SetReviewPullRequestUseCase } from '../use-cases/reviews/set-review-pull-request.ts';
-import { SetReviewStateUseCase } from '../use-cases/reviews/set-review-state.ts';
-import { SetReviewSeenUseCase } from '../use-cases/reviews/set-review-seen.ts';
-import { ListProjectReviewsUseCase } from '../use-cases/reviews/list-project-reviews.ts';
-import { ReadReviewUseCase } from '../use-cases/reviews/read-review.ts';
-import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-reader.ts';
-import { ReviewLinkOptions } from '../ports/review-link-options.ts';
-import {
-  RemoteAccessStore,
-  RouteStateStore,
-  RuntimeStatusReader,
-} from '@porcelain/access/ports';
-import { BranchRangeReader } from '@porcelain/changes/ports';
-import { ReadRepositoryOriginService } from '@porcelain/projects/services';
-import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
-import { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
 import {
   ReadWorktreeStatusService,
   ReadChangeFingerprintsService,
   ReadBranchChangesService,
 } from '@porcelain/changes/services';
-import { Logger } from '../ports/logger.ts';
-import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
-import {
-  ListRegisteredProjectsService,
-  ListKnownWorktreesService,
-} from '@porcelain/projects/services';
-import { ReadEnvironmentService } from '@porcelain/access/services';
-import { ReadTextFilesService } from '@porcelain/files/services';
-import { ReadReviewEvidenceUseCasePort } from '../ports/read-review-evidence-use-case-port.ts';
-import { EventPublisher } from '../ports/event-publisher.ts';
-import { LaneKeys } from '../runtime/lane-keys.ts';
-import { Lanes } from '../runtime/lanes.ts';
-import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
-import {
-  ResolvePublishedReviewOptions,
-  ReviewedFileStore,
-  SetReviewedFilesOptions,
-  CommentStore,
-  CreateCommentThreadOptions,
-  ReplyToCommentOptions,
-  BranchReviewReader,
-  ReviewStore,
-  ProofLimits,
-  ReviewedLayerStore,
-  EditCommentMessageOptions,
-  CommentSeenStore,
-  ReadProofFileOptions,
-} from '@porcelain/reviews/ports';
-import { IdSource } from '@porcelain/kernel/ports';
-import { Effect, Layer, Clock } from 'effect';
-import { summaryRoutes } from '../http/routes/reviews/summary-api.ts';
-import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
-import { WorktreeAccess } from '../runtime/worktree-access.ts';
-import {
-  CreateCommentThreadService,
-  DeleteCommentMessageService,
-  DeleteReviewService,
-  DeleteResolvedCommentsService,
-  EditCommentMessageService,
-  ResolvePublishedReviewService,
-  ListCommentThreadsService,
-  ListReviewedFilesService,
-  ListReviewedLayersService,
-  MarkCommentsSeenService,
-  ReadProofFileService,
-  ReadReviewLayerService,
-  ReadReviewSummaryService,
-  RemoveReviewedFilesService,
-  RemoveReviewedLayerService,
-  ReplyToCommentService,
-  SetReviewedFilesService,
-  SetReviewedLayerService,
-  UpdateCommentThreadService,
-  ReadPublishedReviewService,
-  RecordReviewActivityService,
-  InvalidateReviewedMarksService,
-} from '@porcelain/reviews/services';
-import { hmacSignatureSourceLayer } from '../adapters/reviews/hmac-signature-source.ts';
-import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
-import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
-import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
-import { DeleteReviewUseCase } from '../use-cases/reviews/delete-review.ts';
-import { DeleteResolvedCommentsUseCase } from '../use-cases/reviews/delete-resolved-comments.ts';
-import { EditCommentMessageUseCase } from '../use-cases/reviews/edit-comment-message.ts';
-import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
-import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
-import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
-import { ListReviewedLayersUseCase } from '../use-cases/reviews/list-reviewed-layers.ts';
-import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen.ts';
-import { ReadProofFileUseCase } from '../use-cases/reviews/read-proof-file.ts';
-import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
-import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
-import { RemoveReviewedFilesUseCase } from '../use-cases/reviews/remove-reviewed-files.ts';
-import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
-import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
-import { RefreshWorktreeReviewUseCase } from '../use-cases/reviews/refresh-worktree-review.ts';
-import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
-import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
-import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
-import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import { type ComposeContext } from './compose-context.ts';
-import { type Shared } from './compose-shared.ts';
-import { type Stores } from './compose-stores.ts';
+import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import { EventPublisher } from '../ports/event-publisher.ts';
+import { InventoryScan } from '../ports/inventory-scan.ts';
+import { Lanes } from '../runtime/lanes.ts';
+import { LaneKeys } from '../runtime/lane-keys.ts';
+import { WorktreeAccess } from '../runtime/worktree-access.ts';
+import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
+import { ReadProjectGitHubTargetUseCasePort } from '../ports/read-project-github-target-use-case-port.ts';
+import { ReadProjectPullRequestUseCasePort } from '../ports/read-project-pull-request-use-case-port.ts';
+import { ResolveProjectGitHubUseCase } from '../use-cases/reviews/resolve-project-github.ts';
+import { ReadProjectGitHubTargetUseCase } from '../use-cases/projects/read-project-github-target.ts';
+import { ReadProjectPullRequestUseCase } from '../use-cases/projects/read-project-pull-request.ts';
+import { ReadProjectPullChecksUseCase } from '../use-cases/projects/read-project-pull-checks.ts';
+import { ArchivePullRequestUseCase } from '../use-cases/projects/archive-pull-request.ts';
+import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
+import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-project-pull-requests.ts';
+import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
+import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
+import { RemoveReviewedFilesUseCase } from '../use-cases/reviews/remove-reviewed-files.ts';
+import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
+import { reviewedFilesRoutes } from '../http/routes/changes/reviewed-api.ts';
+import { pullRequestsRoutes } from '../http/routes/projects/pull-requests-api.ts';
+import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
+import type { Stores } from './compose-stores.ts';
 
-type ReviewsDependencies = {
+type Dependencies = {
   githubReader: typeof ghPullRequestReaderLayer;
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
-  findWorktreeByPath: FindWorktreeByPathUseCasePort;
-  runtimeStatusReader: RuntimeStatusReader;
+  inventory: Context.Service.Shape<typeof InventoryScan>;
 };
-
 export function composeReviews(
   context: ComposeContext,
-  dependencies: ReviewsDependencies,
+  dependencies: Dependencies,
 ) {
-  const { lanes, laneKeys, events, clock, ids, logger } = context;
-  const limits = context.settings.limits.reviews;
   const { stores, shared } = dependencies;
-  const { readEnvironment } = shared;
-  const { checkWorktree } = dependencies;
-  const commentStore = stores.comments;
-  const reviewStore = stores.reviews;
-  const reviewedFileStore = stores.reviewedFiles;
-  const reviewedLayerStore = stores.reviewedLayers;
-  const { readPublishedReview } = shared;
-  const { findWorktreeByPath } = dependencies;
-  const originLayer = ReadRepositoryOriginService.layer.pipe(
-    Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
-  );
   const ports = Layer.mergeAll(
-    Layer.succeed(WalkthroughStore, stores.walkthroughs),
-    Layer.succeed(AgentFeedbackStore, stores.agentFeedback),
-    gitReviewArchiverLayer(context.settings.limits.git),
     dependencies.githubReader(context.settings.limits.git),
+    gitBranchArchiverLayer(context.settings.limits.git),
+    ReadRepositoryOriginService.layer.pipe(
+      Layer.provide(
+        gitProjectRepositoryReaderLayer(context.settings.limits.git),
+      ),
+    ),
+    Layer.succeed(WalkthroughStore, stores.walkthroughs),
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
     Layer.succeed(InventoryStore, stores.inventory),
-    gitReviewCodeReaderLayer(context.settings.limits),
-    originLayer,
-    Layer.succeed(BranchReviewReader, shared.branchReviewReader),
-    Layer.succeed(BranchRangeReader, shared.branchRangeReader),
-    Layer.succeed(RemoteAccessStore, stores.remoteAccess),
-    Layer.succeed(RouteStateStore, stores.routeStates),
-    Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
-    Layer.succeed(ReviewLinkOptions, {
-      hubOrigin: context.settings.appLinkOrigin,
-    }),
-    Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
+    Layer.succeed(ReviewedFileStore, stores.reviewedFiles),
+    Layer.succeed(
+      SetReviewedFilesOptions,
+      context.settings.limits.reviews.reviewedFiles,
+    ),
+    Layer.succeed(CheckWorktreeUseCasePort, dependencies.checkWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
-    Layer.succeed(Lanes, lanes),
-    Layer.succeed(LaneKeys, laneKeys),
-    Layer.succeed(Clock.Clock, clock),
-    hmacSignatureSourceLayer,
-    Layer.succeed(ResolvePublishedReviewOptions, limits.summaryLink),
-    Layer.succeed(ReviewedFileStore, reviewedFileStore),
-    Layer.succeed(SetReviewedFilesOptions, limits.reviewedFiles),
-    Layer.succeed(CommentStore, commentStore),
-    Layer.succeed(IdSource, ids),
-    Layer.succeed(CreateCommentThreadOptions, limits.comments),
-    Layer.succeed(EventPublisher, events),
-    Layer.succeed(ReplyToCommentOptions, limits.comments),
-    Layer.succeed(ReviewStore, reviewStore),
-    Layer.succeed(ReadReviewEvidenceUseCasePort, shared.readReviewEvidence),
-    Layer.succeed(ProofLimits, limits.proof),
-    Layer.succeed(ReadEnvironmentService, readEnvironment),
-    Layer.succeed(ReadPublishedReviewService, readPublishedReview),
-    Layer.succeed(RecordReviewActivityService, shared.recordReviewActivity),
-    Layer.succeed(ReviewedLayerStore, reviewedLayerStore),
-    Layer.succeed(FindWorktreeByPathUseCasePort, findWorktreeByPath),
-    Layer.succeed(ListRegisteredProjectsService, shared.listRegisteredProjects),
+    Layer.succeed(Lanes, context.lanes),
+    Layer.succeed(LaneKeys, context.laneKeys),
+    Layer.succeed(Clock.Clock, context.clock),
+    Layer.succeed(EventPublisher, context.events),
+    Layer.succeed(InventoryScan, dependencies.inventory),
     Layer.succeed(ListKnownWorktreesService, shared.listKnownWorktrees),
-    Layer.succeed(Logger, logger),
     Layer.succeed(
       InvalidateReviewedMarksService,
       shared.invalidateReviewedMarks,
     ),
-    Layer.succeed(EditCommentMessageOptions, limits.comments),
-    Layer.succeed(CommentSeenStore, stores.commentsSeen),
-    Layer.succeed(ReadProofFileOptions, limits.proof),
     Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
     Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
     Layer.succeed(ReadBranchChangesService, shared.readBranchChanges),
-    Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
-  );
-  const linkPorts = remoteReviewLinkSourceLayer.pipe(Layer.provideMerge(ports));
-  const comparisonPorts = SelectReviewComparisonService.layer.pipe(
-    Layer.provideMerge(linkPorts),
   );
   const services = Layer.mergeAll(
-    ArchiveReviewService.layer,
-    CompareReviewService.layer,
     SelectGitHubAccountService.layer,
     GitHubAccountPreferenceService.layer,
     ReadGitHubPullRequestService.layer,
     ReadGitHubPullChecksService.layer,
-    CacheWalkthroughPullTitlesService.layer,
     ListGitHubPullRequestsService.layer,
-    ReadReviewRecordService.layer,
+    CacheWalkthroughPullTitlesService.layer,
     CheckProjectService.layer,
-    FindProjectService.layer,
-    AtReviewScopeUseCase.layer,
-    ReadRetainedBranchDiffsService.layer,
-    ReadReviewService.layer,
-    ReadReviewRevisionService.layer,
-    ReadReviewAgentFeedbackService.layer,
-    ListProjectReviewsService.layer,
-    SetReviewSeenService.layer,
-    SetReviewStateService.layer,
-    SetReviewPullRequestService.layer,
-    ListReviewMarksService.layer,
-    SetReviewMarkService.layer,
-    RemoveReviewMarkService.layer,
-    BuildReviewLinksService.layer,
-    ReadReviewFileService.layer,
-
     WorktreeAccess.layer,
-    ResolvePublishedReviewService.layer,
+    ArchiveBranchService.layer,
     SetReviewedFilesService.layer,
-    ListCommentThreadsService.layer,
-    CreateCommentThreadService.layer,
-    ReplyToCommentService.layer,
-    UpdateCommentThreadService.layer,
-    ListReviewedLayersService.layer,
-    AtWorktreePathUseCase.layer,
-    EditCommentMessageService.layer,
-    DeleteCommentMessageService.layer,
-    DeleteReviewService.layer,
-    DeleteResolvedCommentsService.layer,
-    MarkCommentsSeenService.layer,
-    ReadProofFileService.layer,
-    ReadReviewSummaryService.layer,
     ListReviewedFilesService.layer,
     RemoveReviewedFilesService.layer,
-    ReadReviewLayerService.layer,
-    SetReviewedLayerService.layer,
-    RemoveReviewedLayerService.layer,
-  ).pipe(Layer.provideMerge(comparisonPorts));
-  const githubServices = ObserveReviewPullRequestService.layer.pipe(
+  ).pipe(Layer.provideMerge(ports));
+  const resolve = ResolveProjectGitHubUseCase.layer.pipe(
     Layer.provideMerge(services),
   );
-  const githubResolution = ResolveProjectGitHubUseCase.layer.pipe(
-    Layer.provideMerge(githubServices),
-  );
-  const githubContext = Layer.effect(
+  const resolution = Layer.effect(
     ResolveProjectGitHubUseCasePort,
     ResolveProjectGitHubUseCase,
-  ).pipe(Layer.provideMerge(githubResolution));
-  const githubTargets = ReadReviewGitHubTargetUseCase.layer.pipe(
-    Layer.provideMerge(githubContext),
+  ).pipe(Layer.provideMerge(resolve));
+  const target = ReadProjectGitHubTargetUseCase.layer.pipe(
+    Layer.provideMerge(resolution),
   );
-  const linkedGitHub = Layer.effect(
-    ReadReviewGitHubTargetUseCasePort,
-    ReadReviewGitHubTargetUseCase,
-  ).pipe(Layer.provideMerge(githubTargets));
+  const targets = Layer.effect(
+    ReadProjectGitHubTargetUseCasePort,
+    ReadProjectGitHubTargetUseCase,
+  ).pipe(Layer.provideMerge(target));
   const operations = Layer.mergeAll(
-    AgentFeedbackUseCase.layer,
-    CompareReviewUseCase.layer,
-    ReadReviewInterdiffUseCase.layer,
+    ReadProjectPullRequestUseCase.layer,
+    ReadProjectPullChecksUseCase.layer,
     ReadProjectGitHubAccountUseCase.layer,
-    ReadReviewPullRequestUseCase.layer,
-    ReadReviewPullChecksUseCase.layer,
     ListProjectPullRequestsUseCase.layer,
-    RemoveReviewMarkUseCase.layer,
-    SetReviewMarkUseCase.layer,
-    ListReviewMarksUseCase.layer,
-    ReadReviewDiffsUseCase.layer,
-    ReadReviewFileUseCase.layer,
-    SetReviewStateUseCase.layer,
-    SetReviewPullRequestUseCase.layer,
-    SetReviewSeenUseCase.layer,
-    ListProjectReviewsUseCase.layer,
-    ReadReviewUseCase.layer,
-    ListCommentThreadsUseCase.layer,
-    CreateCommentThreadUseCase.layer,
-    ReplyToCommentUseCase.layer,
-    UpdateCommentThreadUseCase.layer,
-    ReadPublishedReviewUseCase.layer,
-    RefreshWorktreeReviewUseCase.layer,
-    InvalidateReviewedMarksUseCase.layer,
-    EditCommentMessageUseCase.layer,
-    DeleteCommentMessageUseCase.layer,
-    DeleteReviewUseCase.layer,
-    DeleteResolvedCommentsUseCase.layer,
-    MarkCommentsSeenUseCase.layer,
-    ReadProofFileUseCase.layer,
-    ReadReviewSummaryUseCase.layer,
     ListReviewedFilesUseCase.layer,
     SetReviewedFilesUseCase.layer,
     RemoveReviewedFilesUseCase.layer,
-    ListReviewedLayersUseCase.layer,
-    SetReviewedLayerUseCase.layer,
-    RemoveReviewedLayerUseCase.layer,
-  ).pipe(Layer.provideMerge(linkedGitHub));
-  const archivePorts = Layer.effect(
-    ReadReviewPullRequestUseCasePort,
-    ReadReviewPullRequestUseCase,
+    InvalidateReviewedMarksUseCase.layer,
+  ).pipe(Layer.provideMerge(targets));
+  const readPull = Layer.effect(
+    ReadProjectPullRequestUseCasePort,
+    ReadProjectPullRequestUseCase,
   ).pipe(Layer.provideMerge(operations));
-  const archiveOperations = ArchiveReviewUseCase.layer.pipe(
-    Layer.provideMerge(archivePorts),
-  );
-  const admission = Layer.mergeAll(
-    Layer.effect(
-      RefreshWorktreeReviewUseCasePort,
-      RefreshWorktreeReviewUseCase,
-    ),
-  ).pipe(Layer.provideMerge(archiveOperations));
-  const application = Layer.mergeAll(RefreshReviewActivityUseCase.layer).pipe(
-    Layer.provideMerge(admission),
+  const application = ArchivePullRequestUseCase.layer.pipe(
+    Layer.provideMerge(readPull),
   );
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(application);
-    return yield* Effect.gen(function* () {
-      const useCases = {
-        agentFeedback: yield* AgentFeedbackUseCase,
-        archiveReview: yield* ArchiveReviewUseCase,
-        compareReview: yield* CompareReviewUseCase,
-        readReviewInterdiff: yield* ReadReviewInterdiffUseCase,
-        readProjectGitHubAccount: yield* ReadProjectGitHubAccountUseCase,
-        readReviewPullRequest: yield* ReadReviewPullRequestUseCase,
-        readReviewPullChecks: yield* ReadReviewPullChecksUseCase,
-        listProjectPullRequests: yield* ListProjectPullRequestsUseCase,
-        atReviewScope: yield* AtReviewScopeUseCase,
-        removeReviewMark: yield* RemoveReviewMarkUseCase,
-        setReviewMark: yield* SetReviewMarkUseCase,
-        listReviewMarks: yield* ListReviewMarksUseCase,
-        readReviewDiffs: yield* ReadReviewDiffsUseCase,
-        readReviewFile: yield* ReadReviewFileUseCase,
-        setReviewState: yield* SetReviewStateUseCase,
-        setReviewPullRequest: yield* SetReviewPullRequestUseCase,
-        setReviewSeen: yield* SetReviewSeenUseCase,
-        listProjectReviews: yield* ListProjectReviewsUseCase,
-        readReview: yield* ReadReviewUseCase,
-        atWorktreePath: yield* AtWorktreePathUseCase,
-
-        refreshReviewActivity: yield* RefreshReviewActivityUseCase,
-        refreshWorktreeReview: yield* RefreshWorktreeReviewUseCase,
-        invalidateReviewedMarks: yield* InvalidateReviewedMarksUseCase,
-        listCommentThreads: yield* ListCommentThreadsUseCase,
-        createCommentThread: yield* CreateCommentThreadUseCase,
-        replyToComment: yield* ReplyToCommentUseCase,
-        updateCommentThread: yield* UpdateCommentThreadUseCase,
-        editCommentMessage: yield* EditCommentMessageUseCase,
-        deleteCommentMessage: yield* DeleteCommentMessageUseCase,
-        deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
-        markCommentsSeen: yield* MarkCommentsSeenUseCase,
-        deleteReview: yield* DeleteReviewUseCase,
-        readPublishedReview: yield* ReadPublishedReviewUseCase,
-        readProofFile: yield* ReadProofFileUseCase,
-        readReviewSummary: yield* ReadReviewSummaryUseCase,
-        listReviewedFiles: yield* ListReviewedFilesUseCase,
-        setReviewedFiles: yield* SetReviewedFilesUseCase,
-        removeReviewedFiles: yield* RemoveReviewedFilesUseCase,
-        listReviewedLayers: yield* ListReviewedLayersUseCase,
-        setReviewedLayer: yield* SetReviewedLayerUseCase,
-        removeReviewedLayer: yield* RemoveReviewedLayerUseCase,
-      };
-      return {
-        ...useCases,
-        resolveProjectGitHub: yield* ResolveProjectGitHubUseCasePort,
-        routes: reviewsRoutes(useCases),
-        summaryRoutes: summaryRoutes(useCases.readReviewSummary),
-      };
-    }).pipe(Effect.provideContext(runtime));
+    const useCases = {
+      readProjectPullRequest: Context.get(
+        runtime,
+        ReadProjectPullRequestUseCase,
+      ),
+      readProjectPullChecks: Context.get(runtime, ReadProjectPullChecksUseCase),
+      archivePullRequest: Context.get(runtime, ArchivePullRequestUseCase),
+      readProjectGitHubAccount: Context.get(
+        runtime,
+        ReadProjectGitHubAccountUseCase,
+      ),
+      listProjectPullRequests: Context.get(
+        runtime,
+        ListProjectPullRequestsUseCase,
+      ),
+      listReviewedFiles: Context.get(runtime, ListReviewedFilesUseCase),
+      setReviewedFiles: Context.get(runtime, SetReviewedFilesUseCase),
+      removeReviewedFiles: Context.get(runtime, RemoveReviewedFilesUseCase),
+      invalidateReviewedMarks: Context.get(
+        runtime,
+        InvalidateReviewedMarksUseCase,
+      ),
+    };
+    return {
+      ...useCases,
+      resolveProjectGitHub: Context.get(
+        runtime,
+        ResolveProjectGitHubUseCasePort,
+      ),
+      routes: Layer.mergeAll(
+        reviewedFilesRoutes(useCases),
+        pullRequestsRoutes(useCases),
+      ),
+    };
   });
 }

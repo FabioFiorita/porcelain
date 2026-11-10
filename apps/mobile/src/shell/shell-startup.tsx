@@ -24,8 +24,8 @@ export function ShellStartup() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
-        name="archive-review"
-        options={{ title: 'Archive review', ...sheetOptions('tall') }}
+        name="archive-pull-request"
+        options={{ title: 'Archive pull request', ...sheetOptions('tall') }}
       />
       <Stack.Screen name="(settings)" options={{ presentation: 'modal' }} />
       <Stack.Screen

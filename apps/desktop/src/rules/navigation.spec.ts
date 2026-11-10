@@ -44,13 +44,10 @@ describe('appDocument', () => {
       expect(appDocument(url)).toBe(true);
     },
   );
-  it.each([
-    'porcelain://app/review-summaries/token?expires=x&signature=y',
-    'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
-    'porcelain://elsewhere/',
-    'https://evil.example/',
-    'unparseable',
-  ])('is not the app when it shows a summary or another origin: %s', (url) => {
-    expect(appDocument(url)).toBe(false);
-  });
+  it.each(['porcelain://elsewhere/', 'https://evil.example/', 'unparseable'])(
+    'is not the app when it shows another origin: %s',
+    (url) => {
+      expect(appDocument(url)).toBe(false);
+    },
+  );
 });

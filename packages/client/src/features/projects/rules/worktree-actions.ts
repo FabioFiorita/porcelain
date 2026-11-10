@@ -1,4 +1,3 @@
-import type { ReviewArchivePlan } from '@porcelain/contracts/reviews';
 import type { WorktreeCleanupPlan } from '@porcelain/contracts/projects';
 import type { ReviewGitSettings } from '@porcelain/contracts/access';
 import type { ListBranchBasesResponse } from '@porcelain/contracts/changes';
@@ -7,12 +6,12 @@ export const archiveSettings = [
     key: 'archiveDeleteWorktree',
     label: 'Delete local worktree',
     description:
-      'Removes the review’s folder. The main checkout is never deleted.',
+      'Removes the branch’s folder. The main checkout is never deleted.',
   },
   {
     key: 'archiveDeleteLocalBranch',
     label: 'Delete local branch',
-    description: 'Deletes the review branch from this clone.',
+    description: 'Deletes the pull request branch from this clone.',
   },
   {
     key: 'archiveDeleteRemoteBranch',
@@ -107,11 +106,8 @@ export function worktreeCleanupFailureMessage(error: unknown) {
     : 'Deletion could not be completed. Prepare the deletion again.';
 }
 
-export function archiveDescription(plan: ReviewArchivePlan) {
-  return [
-    'Saved review history will be preserved.',
-    worktreeCleanupDescription(plan),
-  ].join('\n\n');
+export function archiveDescription(plan: WorktreeCleanupPlan) {
+  return [worktreeCleanupDescription(plan)].join('\n\n');
 }
 
 export function archiveFailureMessage(error: unknown) {

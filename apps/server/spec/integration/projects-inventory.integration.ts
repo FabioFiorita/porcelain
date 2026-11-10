@@ -31,7 +31,6 @@ const registered = async (session: Session, available: boolean) => ({
       main: true,
       branch: session.fixture.branch,
       available,
-      status: null,
       ...(available
         ? {
             headCommittedAt: DateTime.formatIso(

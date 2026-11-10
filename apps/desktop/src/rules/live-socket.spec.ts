@@ -43,7 +43,7 @@ describe('liveSocketHeaders', () => {
     ).toBeUndefined();
   });
 
-  it.each([{ name: 'summary' }, null, undefined])(
+  it.each([{ name: 'preview' }, null, undefined])(
     'refuses a socket a frame other than the app main frame opens: %s',
     (frame) => {
       expect(liveSocketHeaders({ ...socket, frame }, app, server)).toBe(
@@ -61,12 +61,14 @@ describe('liveSocketHeaders', () => {
     },
   );
 
-  it.each([
-    'https://evil.example/',
-    'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
-  ])('refuses once the app window shows another document: %s', (url) => {
-    expect(liveSocketHeaders(socket, { ...app, url }, server)).toBeUndefined();
-  });
+  it.each(['https://evil.example/'])(
+    'refuses once the app window shows another document: %s',
+    (url) => {
+      expect(
+        liveSocketHeaders(socket, { ...app, url }, server),
+      ).toBeUndefined();
+    },
+  );
 
   it.each([
     'ws://127.0.0.1:4322/api/live',

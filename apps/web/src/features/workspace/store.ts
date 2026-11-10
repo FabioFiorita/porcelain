@@ -1,12 +1,6 @@
 import { useId } from 'react';
 import type { CodeViewHandle } from '@pierre/diffs/react';
 import type { CodeViewLineSelection } from '@pierre/diffs';
-import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
-import type {
-  CommentAnchor,
-  FileCommentAnchor,
-  ReviewScope,
-} from '@porcelain/client/reviews/rules';
 import { atomRegistry } from '@/shared/store';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
@@ -21,57 +15,6 @@ const savedFlag = Schema.decodeUnknownOption(
   Schema.Struct({ saved: Schema.Boolean }),
 );
 
-type CommentDraftTarget =
-  | {
-      kind: 'create';
-      anchor: CommentAnchor;
-      quote?: string | undefined;
-      questionId?: string | undefined;
-    }
-  | { kind: 'reply'; threadId: string }
-  | { kind: 'edit'; threadId: string; messageId: string };
-
-export function commentDraftKey(
-  environmentId: string,
-  scope: ReviewScope,
-  target: CommentDraftTarget,
-) {
-  const anchor = target.kind === 'create' ? target.anchor : undefined;
-  const draftTarget =
-    target.kind === 'create' &&
-    anchor?.kind === 'change' &&
-    anchor.comparison?.kind === 'branch' &&
-    !scope.review
-      ? { ...target, anchor: { ...anchor, revision: undefined } }
-      : target;
-  return JSON.stringify([
-    environmentId,
-    scope.review?.reviewId ?? scope.worktreeId,
-    scope.review?.revision,
-    draftTarget,
-  ]);
-}
-
-export const newCommentDraftState = Atom.family((_target: string) =>
-  Atom.make<{
-    body: string;
-    error?: string | undefined;
-    pending?:
-      | (CreateCommentThreadRequest & { threadId: string; messageId: string })
-      | undefined;
-  }>({ body: '' }).pipe(Atom.keepAlive),
-);
-
-export const replyCommentDraftState = Atom.family((_target: string) =>
-  Atom.make<{
-    body: string;
-    pending?: { body: string; messageId: string } | undefined;
-  }>({ body: '' }).pipe(Atom.keepAlive),
-);
-
-export const editCommentDraftState = Atom.family((_target: string) =>
-  Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
-);
 const savedFocus = Schema.decodeUnknownOption(
   Schema.Struct({ focused: Schema.Literals([0, 1]) }),
 );
@@ -178,7 +121,7 @@ const codeViewScroll = Atom.family((_owner: string) =>
 );
 type CodeSelection = {
   lines: CodeViewLineSelection;
-  anchor: FileCommentAnchor | null;
+  version: number;
 } | null;
 const codePlaces = Atom.family((_owner: string) =>
   Atom.make<{

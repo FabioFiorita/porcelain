@@ -39,7 +39,7 @@ for (const width of [1440, 414]) {
       ).not.toBeAttached();
       await search.fill('');
       const dialog = pairedPage.getByRole('alertdialog', {
-        name: 'Archive review?',
+        name: 'Archive pull request?',
         exact: true,
       });
       await row.getByRole('button', { name: /^Open PR #423/ }).click();
@@ -83,7 +83,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   });
   await archive.click();
   const dialog = pairedPage.getByRole('alertdialog', {
-    name: 'Archive review?',
+    name: 'Archive pull request?',
     exact: true,
   });
   await expect(dialog).toContainText(`Delete worktree: ${fixture.tree}`);
@@ -99,16 +99,16 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
     .toBe('LOCAL_ONLY=archive-fixture\n');
   await archive.click();
   await expect(
-    dialog.getByRole('button', { name: 'Archive review', exact: true }),
+    dialog.getByRole('button', { name: 'Archive pull request', exact: true }),
   ).toBeEnabled();
   fixture.lock();
   await dialog
-    .getByRole('button', { name: 'Archive review', exact: true })
+    .getByRole('button', { name: 'Archive pull request', exact: true })
     .click();
   await expect(dialog.getByRole('alert')).toContainText(
     `Could not delete worktree ${fixture.tree}. Deleted: nothing.`,
   );
-  await expect(dialog).not.toContainText('ReviewArchiveRefusedError:');
+  await expect(dialog).not.toContainText('BranchArchiveRefusedError:');
   await expect(dialog).not.toContainText('Checking the worktree and branches');
   await expect.poll(() => fixture.exists()).toBe(true);
   await expect
@@ -124,7 +124,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   await archive.click();
   await expect(dialog).toContainText('uncommitted changes');
   await expect(
-    dialog.getByRole('button', { name: 'Archive review', exact: true }),
+    dialog.getByRole('button', { name: 'Archive pull request', exact: true }),
   ).toBeDisabled();
   await dialog
     .getByRole('switch', {
@@ -133,7 +133,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
     })
     .click();
   await dialog
-    .getByRole('button', { name: 'Archive review', exact: true })
+    .getByRole('button', { name: 'Archive pull request', exact: true })
     .click();
   await expect(dialog).not.toBeVisible();
   await pairedPage

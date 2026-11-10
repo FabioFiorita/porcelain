@@ -3,8 +3,7 @@ import { Model } from 'effect/schema';
 export class ReviewedFileRow extends Model.Class<ReviewedFileRow>(
   'ReviewedFileRow',
 )({
-  worktreeId: Schema.NullOr(Schema.String),
-  reviewId: Schema.NullOr(Schema.String),
+  worktreeId: Schema.String,
   scope: Schema.Literals(['worktree', 'branch']),
   branch: Schema.String,
   path: Schema.String,

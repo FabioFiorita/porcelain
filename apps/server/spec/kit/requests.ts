@@ -92,54 +92,8 @@ export async function waysInChange(
   };
 }
 
-export const SAMPLE_SUMMARY_HTML = '<html><body><h1>Summary</h1></body></html>';
-
 export function lineCount(value: string) {
   return value.split('\n').length - 1;
-}
-
-export function sampleReview(
-  session: Session,
-  expectedRevision: number,
-  layerId: string,
-  stepId: string,
-  options: { path?: string; title?: string; kind?: 'changed' | 'context' } = {},
-) {
-  const line = lineCount(session.fixture.readme.changed);
-  return {
-    expectedRevision,
-    base: 'refs/heads/porcelain-fixture-base',
-    verdict: {
-      asked: { text: 'Verify the disposable README review' },
-      recommendation: 'merge' as const,
-      reasons: ['The fixture demonstrates committed review rendering'],
-      notProven: [],
-      removed: [],
-    },
-    summaryHtml: SAMPLE_SUMMARY_HTML,
-    layers: [
-      {
-        id: layerId,
-        title: options.title ?? 'Readme',
-        summary: 'Adds a line',
-        lanes: ['Docs'],
-        steps: [
-          {
-            id: stepId,
-            lane: 0,
-            title: 'New line',
-            text: 'A line is added',
-            kind: options.kind ?? 'changed',
-            pointer: {
-              path: options.path ?? session.fixture.readme.path,
-              startLine: line,
-              endLine: line,
-            },
-          },
-        ],
-      },
-    ],
-  };
 }
 
 export function worktreePath(session: Session, suffix = '') {

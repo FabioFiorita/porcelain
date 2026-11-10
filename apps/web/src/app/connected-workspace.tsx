@@ -3,7 +3,7 @@ import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
   type NavigatorEntry,
-  firstWaitingWorktree,
+  firstAvailableWorktree,
   selectedWorktreeInProject,
   worktreeLabel,
 } from '@porcelain/client/projects/rules';
@@ -129,7 +129,7 @@ export function ConnectedWorkspace({
   const localInventory = useInventory(local.connection);
   const recovery = selectedWorktreeInProject(
     localInventory,
-    firstWaitingWorktree(localInventory)?.id,
+    firstAvailableWorktree(localInventory)?.id,
   );
   const firstRun = !notice && localInventory.projects.length === 0;
   const message = firstRun
@@ -181,12 +181,12 @@ export function ConnectedWorkspace({
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     onOpenPullRequest: (entry: NavigatorEntry) => {
-      if (entry.review.state !== 'available' || !entry.review.pullRequestNumber)
+      if (entry.pullRequest.state !== 'available' || !entry.pullRequest.number)
         return;
       const key = entryKey({
         kind: 'pull-request',
-        reviewId: entry.review.reviewId,
-        number: entry.review.pullRequestNumber,
+        projectId: entry.projectId,
+        number: entry.pullRequest.number,
         environmentId: entry.environmentId,
       });
       setOpenMobile(false);

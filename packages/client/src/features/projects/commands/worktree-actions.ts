@@ -63,7 +63,7 @@ export const deleteWorktree = Atom.family((selection: WorktreeSelection) =>
         yield* Reactivity.invalidate([
           queryKeys.inventory(selection.connection.environmentId),
           queryKeys.worktreeInventory(selection.connection.environmentId),
-          queryKeys.projectReviews(selection.connection.environmentId),
+          queryKeys.projectPullRequests(selection.connection.environmentId),
         ]);
       return result;
     }),

@@ -13,7 +13,6 @@ import {
 } from '../../verify-core/cli.ts';
 import { connectionSchema } from '../../verify-core/connection.ts';
 import {
-  agentCommand,
   issuedLink,
   serverOptions,
   serverRead,
@@ -32,8 +31,7 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   evidence                print the evidence folder (retained sessions require --instance)
   ids                     print deterministic fixture IDs and paths
   pairing-link            print a fresh one-time browser pairing link
-  agent comment <path> "<body>" | reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+  server reviewed-files [<branch ref>] | project | devices | pending-links | receipt <requestId>
                           deterministic fixture actions and typed server readbacks
 Drive HTTP/WebSocket, Git and files directly using connection.json and your own tools.
 `;
@@ -118,7 +116,7 @@ async function main(argv: readonly string[]): Promise<string> {
   if (command === 'status')
     return `${JSON.stringify(await registry.status(values.instance), null, 2)}\n`;
   if (
-    !['logs', 'ids', 'agent', 'server', 'pairing-link', 'github-read'].includes(
+    !['logs', 'ids', 'server', 'pairing-link', 'github-read'].includes(
       command ?? '',
     )
   )
@@ -143,14 +141,7 @@ async function main(argv: readonly string[]): Promise<string> {
   return registry.drive(instance, argv, async () => {
     const recorder = registry.redactor(instance).recorder();
     let output: string;
-    if (command === 'agent')
-      output = await agentCommand(
-        instance.detail.manifestPath,
-        rest,
-        values,
-        recorder,
-      );
-    else if (command === 'server')
+    if (command === 'server')
       output = await serverRead(instance.detail.manifestPath, rest, recorder);
     else if (command === 'pairing-link') {
       const grant = await issuedLink(

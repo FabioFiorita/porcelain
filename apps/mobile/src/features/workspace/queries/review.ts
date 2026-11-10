@@ -13,8 +13,8 @@ import {
 } from '@porcelain/client/changes/rules';
 import { Option } from 'effect';
 import { changeEntries } from '../rules/changes-page';
-import { readReviewedFiles } from '@porcelain/client/reviews';
-import { WORKTREE_RANGE } from '@porcelain/client/reviews/rules';
+import { readReviewedFiles } from '@porcelain/client/changes';
+import { WORKTREE_RANGE } from '@porcelain/client/changes/rules';
 import type { Workspace } from '../../projects/index';
 import {
   snapshotChangeMarks,

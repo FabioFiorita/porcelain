@@ -199,7 +199,6 @@ function WorktreeSections({
   const openPullRequest = useOpenPullRequest();
   const number = Number(details.number);
   const pullRequest =
-    details.reviewId &&
     details.environment &&
     details.projectId &&
     Number.isInteger(number) &&
@@ -207,7 +206,6 @@ function WorktreeSections({
       ? {
           environmentId: details.environment,
           projectId: details.projectId,
-          reviewId: details.reviewId,
           number,
         }
       : undefined;

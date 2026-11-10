@@ -1,5 +1,4 @@
 import type { ProjectUnavailableReason } from './project-unavailable-reason.ts';
-import type { ReviewBadge } from '@porcelain/kernel/models';
 
 type WorktreeReport = {
   id: string;
@@ -8,7 +7,6 @@ type WorktreeReport = {
   branch: string | undefined;
   headCommittedAt?: string;
   available: boolean;
-  status: ReviewBadge | undefined;
 };
 
 export type ProjectReport = {

@@ -289,8 +289,7 @@ function serverResources(
           stores,
           shared,
           checkWorktree,
-          findWorktreeByPath: projects.findWorktreeByPath,
-          runtimeStatusReader: Context.get(accessContext, RuntimeStatusReader),
+          inventory: projects.scanInventory,
         });
         const announcements = yield* AnnounceWorktreeChangeUseCase.pipe(
           Effect.provide(AnnounceWorktreeChangeUseCase.layer),
@@ -348,7 +347,6 @@ function serverResources(
           stores,
           shared,
           checkWorktree,
-          refreshWorktreeReview: reviews.refreshWorktreeReview,
           commitDraftSource: Context.get(plannerContext, CommitDraftSource),
           commitModelReader: Context.get(plannerContext, CommitModelReader),
         });
@@ -380,10 +378,7 @@ function serverResources(
           ),
           yield* makeIntervalJob(
             'scan-inventory',
-            jobSequence([
-              projects.scanInventory,
-              reviews.refreshReviewActivity,
-            ]),
+            projects.scanInventory,
             { atStart: true, every: limits.jobs.scanInventory },
             logger,
             observability,
@@ -443,7 +438,6 @@ function serverResources(
         const network = createNetworkServer({
           application: {
             ...useCases,
-            reviewPages: reviews.summaryRoutes,
             liveUpdates: liveConnections,
             worktreeWatches,
             deviceConnections,

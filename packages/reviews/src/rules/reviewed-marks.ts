@@ -1,13 +1,10 @@
 import type { ExpectedFile } from '@porcelain/kernel/models';
 import { expectationHolds } from '@porcelain/kernel/rules';
-import type { ReviewLayer } from '../models/review.ts';
 import type {
   ReviewedFile,
   ReviewedFileConflict,
   ReviewedFileMark,
   ReviewedFileSelection,
-  ListedReviewedLayerMark,
-  ReviewedLayerMark,
   ReviewedMark,
 } from '../models/reviewed-mark.ts';
 
@@ -59,21 +56,6 @@ export function touchedMarks(
   return marks.filter((mark) =>
     paths.some((path) => mark === path || mark.startsWith(`${path}/`)),
   );
-}
-
-export function reviewedLayerMarks(
-  marks: readonly ReviewedLayerMark[],
-  layers: readonly ReviewLayer[],
-): ListedReviewedLayerMark[] {
-  return layers.flatMap((layer) => {
-    const candidates = marks.filter((mark) => mark.layerId === layer.id);
-    const mark =
-      candidates.find((mark) => mark.fingerprint === layer.fingerprint) ??
-      candidates.at(-1);
-    return mark === undefined
-      ? []
-      : [{ ...mark, stale: mark.fingerprint !== layer.fingerprint }];
-  });
 }
 
 export function reviewedMarks(

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  desktopContentSecurityPolicy,
-  desktopResponseContentSecurityPolicy,
-} from './content-security-policy.ts';
+import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
   it('plays only app media and its own blobs', () => {
@@ -64,50 +61,5 @@ describe('desktop content security policy', () => {
     expect(desktopContentSecurityPolicy('development')).toBe(
       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
     );
-  });
-});
-
-describe('desktop response content security policy', () => {
-  const sandbox = 'sandbox allow-scripts allow-forms allow-popups allow-modals';
-
-  it('preserves the server sandbox for a signed review summary page', () => {
-    expect(
-      desktopResponseContentSecurityPolicy(
-        '/review-summaries/token',
-        sandbox,
-        'built',
-      ),
-    ).toBe(sandbox);
-  });
-
-  it('applies the app policy to all other pages even when the server supplies another policy', () => {
-    expect([
-      desktopResponseContentSecurityPolicy('/', sandbox, 'built'),
-      desktopResponseContentSecurityPolicy(
-        '/remotes/computer',
-        sandbox,
-        'built',
-      ),
-      desktopResponseContentSecurityPolicy(
-        '/review-summaries/',
-        sandbox,
-        'built',
-      ),
-      desktopResponseContentSecurityPolicy(
-        '/review-summaries/token/other',
-        sandbox,
-        'built',
-      ),
-    ]).toEqual(Array(4).fill(desktopContentSecurityPolicy('built')));
-  });
-
-  it('keeps the restrictive app policy when a summary has no server policy', () => {
-    expect(
-      desktopResponseContentSecurityPolicy(
-        '/review-summaries/token',
-        null,
-        'built',
-      ),
-    ).toBe(desktopContentSecurityPolicy('built'));
   });
 });

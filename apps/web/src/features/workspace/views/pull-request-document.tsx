@@ -8,7 +8,6 @@ import { File } from '@pierre/diffs/react';
 import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
-  CheckIcon,
   CircleCheckIcon,
   CircleXIcon,
   CopyIcon,
@@ -17,22 +16,20 @@ import {
   LoaderCircleIcon,
   LockKeyholeIcon,
   SettingsIcon,
-  TriangleAlertIcon,
 } from 'lucide-react';
-import { ArchiveReview } from '@/features/projects/index';
-import { readReviewPullRequest } from '@porcelain/client/reviews';
-import type { PullRequestRead } from '@porcelain/client/reviews/rules';
+import { ArchivePullRequest } from '@/features/projects/index';
+import { readProjectPullRequest } from '@porcelain/client/projects';
+import type { PullRequestRead } from '@porcelain/client/projects/rules';
 import {
   githubUnavailable,
   pullCheckDuration,
   pullCheckTone,
   pullRequestChecks,
   pullRequestConversation,
-  pullRequestHeadLabel,
   pullRequestMergeable,
   pullRequestRepository,
   pullReviewState,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/projects/rules';
 import { shortOid } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -69,7 +66,7 @@ type PullRequest = Extract<
 type TimelineItem = PullRequest['timeline'][number];
 
 type Props = {
-  reviewId: string;
+  projectId: string;
   number: number;
   context: ConnectionContext;
   toolbarTarget?: HTMLElement | null | undefined;
@@ -84,16 +81,17 @@ const reviewStateBadges = {
 } as const;
 
 export function PullRequestDocument({
-  reviewId,
+  projectId,
   number,
   context,
   toolbarTarget,
   onBack,
   onFile,
 }: Props) {
-  const query = readReviewPullRequest({
+  const query = readProjectPullRequest({
     connection: context.connection,
-    reviewId,
+    projectId,
+    number,
   });
   const result = useAtomValue(query);
   const retry = useAtomRefresh(query);
@@ -116,21 +114,6 @@ export function PullRequestDocument({
         onBack={onBack}
       />
     );
-  if (value.kind === 'not-linked' || value.pullRequest.number !== number)
-    return (
-      <StateNotice
-        title={
-          value.kind === 'not-linked'
-            ? 'Pull request no longer linked'
-            : 'This review follows another pull request'
-        }
-        description="Return to the review to see its current pull request."
-      >
-        <Button variant="outline" onClick={onBack}>
-          Back to the review
-        </Button>
-      </StateNotice>
-    );
   const pull = value.pullRequest;
   return (
     <div className="@container/pr flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
@@ -139,9 +122,10 @@ export function PullRequestDocument({
         target={toolbarTarget}
         archive={
           pull.state === 'merged' || pull.state === 'closed' ? (
-            <ArchiveReview
+            <ArchivePullRequest
               connection={context.connection}
-              reviewId={reviewId}
+              projectId={projectId}
+              number={number}
             />
           ) : undefined
         }
@@ -305,34 +289,6 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         </Tooltip>
         <Dot />
         <span>updated {timeAgo(pull.updatedAt)}</span>
-        {pull.matchesReviewHead ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span
-                  tabIndex={0}
-                  className="inline-flex items-center gap-1.5 text-foreground outline-none @min-4xl/pr:ml-auto"
-                />
-              }
-            >
-              <CheckIcon
-                aria-hidden="true"
-                strokeWidth={2.25}
-                className="size-3.5 text-add-fg"
-              />
-              {pullRequestHeadLabel(pull)}
-            </TooltipTrigger>
-            <TooltipContent>
-              The pull request’s head, {shortOid(pull.headSha)}, is the commit
-              this review reads
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-warn @min-4xl/pr:ml-auto">
-            <TriangleAlertIcon aria-hidden="true" className="size-3.5" />
-            {pullRequestHeadLabel(pull)}
-          </span>
-        )}
       </div>
       {pull.labels.length > 0 && (
         <ul aria-label="Labels" className="mt-3 flex min-w-0 flex-wrap gap-1.5">
@@ -413,9 +369,9 @@ function PullRequestConversation({
         </p>
       )}
       <p className="mt-4 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-4 text-muted-foreground @min-3xl/pr:ml-7.5">
-        Comments to the agent stay in the review.
+        Questions about the change belong in its Walkthrough.
         <Button variant="link" size="sm" onClick={onBack}>
-          Back to the review
+          Back to the worktree
         </Button>
       </p>
     </section>
@@ -739,7 +695,7 @@ function UnavailablePullRequest({
         </Button>
       )}
       <Button variant="ghost" onClick={onBack}>
-        Back to the review
+        Back to the worktree
       </Button>
     </StateNotice>
   );

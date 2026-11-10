@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  firstWaitingWorktree,
+  firstAvailableWorktree,
   projectPath,
   projectUnavailableMessage,
   selectedWorktreeInProject,
@@ -19,7 +19,6 @@ const project: Project = {
       main: true,
       branch: 'main',
       available: true,
-      status: undefined,
     },
     {
       id: 'linked-ready',
@@ -27,7 +26,6 @@ const project: Project = {
       main: false,
       branch: undefined,
       available: true,
-      status: 'reviewed',
     },
     {
       id: 'linked',
@@ -35,7 +33,6 @@ const project: Project = {
       main: false,
       branch: undefined,
       available: true,
-      status: 'pending',
     },
   ],
 };
@@ -55,19 +52,18 @@ describe('project inventory decisions', () => {
     expect(selectedWorktreeInProject(inventory, 'missing')).toBeUndefined();
   });
 
-  it('prefers a waiting worktree and shows the main repository path', () => {
-    expect(firstWaitingWorktree(inventory)?.id).toBe('linked');
+  it('prefers an available linked worktree and shows the main repository path', () => {
+    expect(firstAvailableWorktree(inventory)?.id).toBe('linked-ready');
     expect(projectPath(project)).toBe('/repo');
   });
   it('falls back to an available linked worktree when none needs attention', () => {
-    const result = firstWaitingWorktree({
+    const result = firstAvailableWorktree({
       ...inventory,
       projects: [
         {
           ...project,
           worktrees: project.worktrees.map((tree) => ({
             ...tree,
-            status: undefined,
           })),
         },
       ],

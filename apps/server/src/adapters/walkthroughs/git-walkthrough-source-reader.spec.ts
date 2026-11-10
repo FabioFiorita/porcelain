@@ -41,8 +41,6 @@ it('uses the captured head when a commit lands after the branch range was read',
           };
         }),
       readBranchPatches: () => Effect.die('Unexpected patches'),
-      readRetainedBranchPatches: () =>
-        Effect.die('Unexpected retained patches'),
       listBranchBases: () => Effect.die('Unexpected bases'),
     });
     const result = await Effect.runPromise(

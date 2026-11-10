@@ -5,14 +5,11 @@ import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { recentPullRequestCutoff } from '@porcelain/reviews/rules';
 import { Context, Effect, Layer, Clock } from 'effect';
 import type {
-  ProjectReviewParams,
+  ProjectParams,
   ListPullRequestsResponse,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/projects';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
-import {
-  ListGitHubPullRequestsService,
-  ListProjectReviewsService,
-} from '@porcelain/reviews/services';
+import { ListGitHubPullRequestsService } from '@porcelain/reviews/services';
 import { mapPullRequestSummary } from '@porcelain/reviews/rules';
 import { ResolveProjectGitHubUseCasePort } from '../../ports/resolve-project-github-use-case-port.ts';
 
@@ -20,7 +17,7 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
   ListProjectPullRequestsUseCase,
   {
     readonly execute: (
-      input: ProjectReviewParams,
+      input: ProjectParams,
     ) => Effect.Effect<ListPullRequestsResponse, ProjectNotFoundError>;
   }
 >()('@porcelain/server/ListProjectPullRequestsUseCase') {
@@ -31,7 +28,6 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
       const walkthroughs = yield* CacheWalkthroughPullTitlesService;
       const resolve = yield* ResolveProjectGitHubUseCasePort;
       const github = yield* ListGitHubPullRequestsService;
-      const reviews = yield* ListProjectReviewsService;
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
       return {
@@ -47,13 +43,6 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
               .pipe(Effect.result);
             if (result._tag === 'Failure')
               return { kind: 'unavailable', reason: result.failure.reason };
-            const records = yield* lanes.run(
-              keys.reviews({
-                repositoryId: `project-reviews:${input.projectId}`,
-              }),
-              'read',
-              () => reviews.execute(input),
-            );
             const recentlyClosedSince = recentPullRequestCutoff(
               yield* Clock.currentTimeMillis,
             );
@@ -62,15 +51,7 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
               ...result.success.recent.filter(
                 (pr) => pr.updatedAt >= recentlyClosedSince,
               ),
-            ].map((pr) => ({
-              ...mapPullRequestSummary(pr),
-              reviewId:
-                records.find(
-                  (record) =>
-                    record.state === 'open' &&
-                    record.pullRequest?.toLowerCase() === pr.url.toLowerCase(),
-                )?.reviewId ?? undefined,
-            }));
+            ].map(mapPullRequestSummary);
             const changed = yield* lanes.run(keys.walkthroughs(), 'write', () =>
               walkthroughs.execute({
                 projectId: input.projectId,

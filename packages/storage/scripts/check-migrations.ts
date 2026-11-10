@@ -1,4 +1,3 @@
-import { ReviewAgentFeedbackRow } from '../src/db/models/review-agent-feedback.ts';
 import { GitHubAccountRow } from '../src/db/models/github-accounts.ts';
 import { fileURLToPath } from 'node:url';
 import { Data, Effect, FileSystem, Schema, Stream, String } from 'effect';
@@ -7,12 +6,6 @@ import { SqlClient, SqlSchema } from 'effect/sql';
 import { NodeRuntime, NodeServices } from '@effect/platform-node';
 import { databaseLayer } from '../src/db/connection.ts';
 import { readLegacyMigrations } from '../src/db/migrate.ts';
-import { CommentSeenRow } from '../src/db/models/comment-reads.ts';
-import { CommentRevisionRow } from '../src/db/models/comment-revision.ts';
-import {
-  CommentThreadRow,
-  CommentMessageRow,
-} from '../src/db/models/comment-threads.ts';
 import { DeviceRow } from '../src/db/models/devices.ts';
 import { EnvironmentIconRow } from '../src/db/models/environment-icon.ts';
 import { EnvironmentNameRow } from '../src/db/models/environment-name.ts';
@@ -24,14 +17,7 @@ import { PushRegistrationRow } from '../src/db/models/push-registrations.ts';
 import { FilePreferenceRow } from '../src/db/models/project-file-preferences.ts';
 import { RemoteAccessRow } from '../src/db/models/remote-access.ts';
 import { ReviewGitSettingsRow } from '../src/db/models/review-git-settings.ts';
-import { ProofFileRow } from '../src/db/models/review-proof-files.ts';
 import { ReviewedFileRow } from '../src/db/models/reviewed-files.ts';
-import { ReviewedLayerRow } from '../src/db/models/reviewed-layers.ts';
-import {
-  ReviewRow,
-  ReviewRecordRow,
-  ReviewSeenRow,
-} from '../src/db/models/reviews.ts';
 import { WorktreePresenceRow } from '../src/db/models/worktree-presence.ts';
 
 class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
@@ -40,12 +26,7 @@ class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
 
 const directory = fileURLToPath(new URL('../drizzle/', import.meta.url));
 const models = [
-  ReviewAgentFeedbackRow,
   GitHubAccountRow,
-  CommentSeenRow,
-  CommentRevisionRow,
-  CommentThreadRow,
-  CommentMessageRow,
   DeviceRow,
   EnvironmentIconRow,
   EnvironmentNameRow,
@@ -57,12 +38,7 @@ const models = [
   FilePreferenceRow,
   RemoteAccessRow,
   ReviewGitSettingsRow,
-  ProofFileRow,
   ReviewedFileRow,
-  ReviewedLayerRow,
-  ReviewRow,
-  ReviewRecordRow,
-  ReviewSeenRow,
   WorktreePresenceRow,
 ];
 const git = Effect.fn('StorageCheck.git')(function* (args: readonly string[]) {

@@ -183,7 +183,7 @@ describe('developmentWebPath', () => {
     expect(developmentWebPath(pathname)).toBe(true);
   });
 
-  it.each(['/api', '/api/inventory', '/review-summaries/token'])(
+  it.each(['/api', '/api/inventory'])(
     'keeps %s on the local server',
     (pathname) => {
       expect(developmentWebPath(pathname)).toBe(false);

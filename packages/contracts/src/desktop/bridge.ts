@@ -1,8 +1,8 @@
 import { Schema } from 'effect';
 
-export const desktopActionSchema = Schema.Union([
-  Schema.Literals(['open-project', 'open-settings']),
-  Schema.Struct({ kind: Schema.Literal('open-review'), url: Schema.String }),
+export const desktopActionSchema = Schema.Literals([
+  'open-project',
+  'open-settings',
 ]);
 export const desktopAppearanceSchema = Schema.Literals([
   'system',

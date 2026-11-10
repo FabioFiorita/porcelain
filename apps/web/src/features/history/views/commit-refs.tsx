@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useRefChipLayout } from '../adapters/ref-chip-layout';
-import { plural } from '@porcelain/client/reviews/rules';
+import { plural } from '@porcelain/client/changes/rules';
 
 const chipClass = 'min-w-0 max-w-40';
 

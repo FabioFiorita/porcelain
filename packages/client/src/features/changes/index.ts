@@ -13,3 +13,9 @@ export {
 } from './commands/read-current-changes.ts';
 
 export { readChangeDiffWindow } from './queries/recovery.ts';
+
+export { readReviewedFiles } from './queries/reviewed.ts';
+export {
+  reviewedCommandFailure,
+  reviewedCommands,
+} from './commands/reviewed.ts';

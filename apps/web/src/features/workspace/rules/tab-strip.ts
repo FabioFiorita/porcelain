@@ -1,4 +1,4 @@
-import { counted } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 import { parseEntry, withDocument } from './documents';
 
 export type Pane = {

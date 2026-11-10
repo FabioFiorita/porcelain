@@ -238,10 +238,7 @@ export function ProjectNavigator({
   const visibleEntries = projects
     .flatMap((project) => (project.expanded ? project.entries : []))
     .filter(
-      (entry) =>
-        entry.available ||
-        entry.kind === 'review' ||
-        entry.review.state === 'available',
+      (entry) => entry.available || entry.pullRequest.state === 'available',
     );
   const firstKey = visibleEntries[0]?.key;
   const lastKey = visibleEntries.at(-1)?.key;
@@ -323,40 +320,36 @@ export function ProjectNavigator({
               className="flex max-h-[min(24rem,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-hidden"
             >
               <div className="-m-1 min-h-0 overflow-y-auto p-1">
-                {filters
-                  .filter((section) => section.key !== 'reviews')
-                  .map((section) => (
-                    <DropdownMenuGroup key={section.key}>
-                      <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
-                      {section.items.map((option) => (
-                        <DropdownMenuCheckboxItem
-                          key={option.id}
-                          className="cursor-pointer"
-                          checked={option.checked}
-                          closeOnClick={false}
-                          onCheckedChange={() =>
-                            setState((current) => ({
-                              ...current,
-                              filter: {
-                                ...current.filter,
-                                [section.key]: option.next,
-                              },
-                            }))
-                          }
-                        >
-                          {option.icon && (
-                            <EnvironmentGlyph icon={option.icon} />
-                          )}
-                          <TruncatedText
-                            propagateEscape
-                            text={option.label}
-                            className="min-w-0 flex-1"
-                          />
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                    </DropdownMenuGroup>
-                  ))}
+                {filters.map((section) => (
+                  <DropdownMenuGroup key={section.key}>
+                    <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                    {section.items.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.id}
+                        className="cursor-pointer"
+                        checked={option.checked}
+                        closeOnClick={false}
+                        onCheckedChange={() =>
+                          setState((current) => ({
+                            ...current,
+                            filter: {
+                              ...current.filter,
+                              [section.key]: option.next,
+                            },
+                          }))
+                        }
+                      >
+                        {option.icon && <EnvironmentGlyph icon={option.icon} />}
+                        <TruncatedText
+                          propagateEscape
+                          text={option.label}
+                          className="min-w-0 flex-1"
+                        />
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </DropdownMenuGroup>
+                ))}
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() =>
@@ -438,8 +431,8 @@ export function ProjectNavigator({
                         selection !== undefined &&
                         navigatorEntrySelected(entry, selection);
                       const review =
-                        entry.review.state === 'available'
-                          ? entry.review
+                        entry.pullRequest.state === 'available'
+                          ? entry.pullRequest
                           : undefined;
                       const changes =
                         entry.kind === 'worktree'
@@ -452,7 +445,7 @@ export function ProjectNavigator({
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      const label = `${[entry.name, entry.projectName, entry.environmentName, entry.main ? 'Main worktree' : undefined, entry.detached ? 'Detached HEAD' : undefined, entry.detached ? entry.path : undefined, entry.kind === 'worktree' ? navigatorChangesLabel(entry.changes) : undefined, review?.pullRequestNumber ? `Pull request #${review.pullRequestNumber}` : undefined, !entry.available ? 'Unavailable' : undefined].filter(Boolean).join(', ')}${active ? ', Current' : ''}`;
+                      const label = `${[entry.name, entry.projectName, entry.environmentName, entry.main ? 'Main worktree' : undefined, entry.detached ? 'Detached HEAD' : undefined, entry.detached ? entry.path : undefined, entry.kind === 'worktree' ? navigatorChangesLabel(entry.changes) : undefined, review?.number ? `Pull request #${review.number}` : undefined, !entry.available ? 'Unavailable' : undefined].filter(Boolean).join(', ')}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
@@ -536,22 +529,21 @@ export function ProjectNavigator({
                                           )}
                                         </div>
                                       )}
-                                      {(review?.pullRequestNumber ||
-                                        changes) && (
+                                      {(review?.number || changes) && (
                                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
-                                          {review?.pullRequestNumber && (
+                                          {review?.number && (
                                             <Button
                                               variant="ghost"
                                               size="xs"
                                               className="relative pointer-events-auto cursor-pointer"
-                                              aria-label={`Open PR #${review.pullRequestNumber} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
+                                              aria-label={`Open PR #${review.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
                                               onClick={() => {
                                                 onOpenPullRequest(entry);
                                                 setOpenMobile(false);
                                               }}
                                             >
                                               <span className="text-muted-foreground">
-                                                #{review.pullRequestNumber}
+                                                #{review.number}
                                               </span>
                                             </Button>
                                           )}

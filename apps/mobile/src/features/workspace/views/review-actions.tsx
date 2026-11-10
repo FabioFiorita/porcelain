@@ -5,9 +5,9 @@ import { useAtom } from '@effect/atom-react';
 import {
   reviewedCommandFailure,
   reviewedCommands,
-} from '@porcelain/client/reviews';
-import { unavailableReviewText } from '@porcelain/client/reviews/rules';
-import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes';
+import { unavailableReviewText } from '@porcelain/client/changes/rules';
+import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects/index';
 import {

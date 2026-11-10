@@ -111,34 +111,6 @@ test(
 );
 
 test(
-  'a stored agent comment prepared through the web CLI keeps its authorship in typed readback',
-  async ({ onTestFinished }) => {
-    const instance = await started(onTestFinished, { path: WEB_CLI });
-    const web = (...args: string[]) =>
-      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
-    const body = 'Sent through the web CLI as the agent';
-
-    const sent = await web('agent', 'comment', 'README.md', body);
-    const threads = list(printed(await web('server', 'comment-threads')));
-    const evidence = await evidenceOf(instance.evidence);
-
-    expect(sent.code).toBe(0);
-    expect(threads.map((thread) => record(thread).anchor)).toStrictEqual([
-      { kind: 'file', filePath: 'README.md' },
-    ]);
-    expect(
-      list(record(threads[0]).messages).map((message) => {
-        const { author, body: said } = record(message);
-        return { author, said };
-      }),
-    ).toStrictEqual([{ author: 'agent', said: body }]);
-    expect(evidence.text).toContain(body);
-    expect(evidence.numbered).toContain('002-agent-comment.json');
-  },
-  WEB_CASE_MS,
-);
-
-test(
   'the web CLI prints the second computer’s pairing link and keeps it and that computer’s credentials out of its evidence',
   async ({ onTestFinished }) => {
     const instance = await started(onTestFinished, { path: WEB_CLI });

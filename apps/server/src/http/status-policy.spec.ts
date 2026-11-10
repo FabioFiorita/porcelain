@@ -84,23 +84,6 @@ describe('status policy', () => {
     });
   });
 
-  it('answers a pull request linking refusal as a conflict with its reason', () => {
-    expect(
-      toStatusResponse(
-        new reviewsErrors.ReviewPullRequestRefusedError({
-          message: 'The pull request head must be feature.',
-        }),
-      ),
-    ).toEqual({
-      statusCode: 409,
-      body: {
-        statusCode: 409,
-        error: 'Conflict',
-        message: 'The pull request head must be feature.',
-      },
-    });
-  });
-
   it('answers a sharing-management refusal as forbidden with its actionable reason', () => {
     expect(
       toStatusResponse(new accessErrors.SharingManagementRequiredError()),
@@ -122,7 +105,7 @@ describe('status policy', () => {
   it('answers an archive refusal as a conflict with the safety reason', () => {
     expect(
       toStatusResponse(
-        new reviewsErrors.ReviewArchiveRefusedError({
+        new projectsErrors.BranchArchiveRefusedError({
           message: 'The archive plan changed; review it again',
         }),
       ),

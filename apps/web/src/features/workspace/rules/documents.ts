@@ -1,9 +1,4 @@
-import * as Schema from 'effect/Schema';
 import { shortOid } from '@porcelain/client/history/rules';
-import type {
-  CommentAnchor,
-  RevealComment,
-} from '@porcelain/client/reviews/rules';
 
 export type DocumentRef =
   | { kind: 'handoff' }
@@ -16,7 +11,7 @@ export type DocumentRef =
   | { kind: 'commit'; oid: string }
   | {
       kind: 'pull-request';
-      reviewId: string;
+      projectId: string;
       number: number;
       environmentId?: string;
     }
@@ -51,7 +46,7 @@ export function entryKey(ref: DocumentRef): string {
     case 'commit':
       return `commit:${ref.oid}`;
     case 'pull-request':
-      return `pull-request:${ref.reviewId}:${ref.number}${ref.environmentId ? `:environment=${encodeURIComponent(ref.environmentId)}` : ''}`;
+      return `pull-request:${ref.projectId}:${ref.number}${ref.environmentId ? `:environment=${encodeURIComponent(ref.environmentId)}` : ''}`;
     case 'branch':
       return 'branch';
     case 'branch-file':
@@ -95,9 +90,9 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
     case 'pull-request': {
-      const [reviewId, number, environmentId, extra] = value.split(':');
-      return reviewId !== undefined &&
-        Schema.is(Schema.String.check(Schema.isUUID()))(reviewId) &&
+      const [projectId, number, environmentId, extra] = value.split(':');
+      return projectId !== undefined &&
+        projectId.length > 0 &&
         number !== undefined &&
         extra === undefined &&
         (environmentId === undefined ||
@@ -106,7 +101,7 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
         Number.isSafeInteger(Number(number))
         ? {
             kind,
-            reviewId,
+            projectId,
             number: Number(number),
             ...(environmentId
               ? { environmentId: environmentId.slice('environment='.length) }
@@ -134,16 +129,17 @@ export function withDocument(
 
 export type OpenDocument = (
   ref: DocumentRef,
-  anchor?: CommentAnchor,
-  options?: { compose?: boolean; toSide?: boolean; preserveFocus?: boolean },
+  options?: { toSide?: boolean; preserveFocus?: boolean; path?: string },
 ) => void;
 
+export type DocumentFileTarget = { path: string; nonce: number };
+
 export type DocumentInteraction = {
+  fileTarget?: DocumentFileTarget | undefined;
   toolbarTarget?: HTMLElement | null | undefined;
   active: boolean;
   worktreeId: string;
   entry: string;
-  reveal?: RevealComment | undefined;
   singleHeader?: boolean;
 };
 

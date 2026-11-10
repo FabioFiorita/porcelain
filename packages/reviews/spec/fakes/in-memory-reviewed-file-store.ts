@@ -9,12 +9,8 @@ import type {
 import type { ReviewedFileStore } from '../../src/ports/reviewed-file-store.ts';
 
 type Row = ReviewedFileKey & { mark: ReviewedFileMark };
-function rowKey(
-  key: ReviewedFileKey,
-  path: string,
-  fingerprint?: string,
-): string {
-  return `${key.reviewId ?? key.worktreeId}\0${key.scope ?? 'worktree'}\0${key.branch ?? ''}\0${path}${(key.reviewId && `\0${fingerprint ?? ''}`) || ''}`;
+function rowKey(key: ReviewedFileKey, path: string): string {
+  return `${key.worktreeId}\0${key.scope ?? 'worktree'}\0${key.branch ?? ''}\0${path}`;
 }
 
 export class InMemoryReviewedFileStore implements ReviewedFileStore {
@@ -24,7 +20,7 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   constructor(rows: readonly Row[] = []) {
     this.rows = new Map(
       rows.map((row) => [
-        rowKey(row, row.mark.path, row.mark.fingerprint),
+        rowKey(row, row.mark.path),
         { ...row, mark: { ...row.mark } },
       ]),
     );
@@ -36,16 +32,13 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
         .filter(
           (row) =>
             row.worktreeId === input.worktreeId &&
-            row.reviewId === input.reviewId &&
             (row.scope ?? 'worktree') === (input.scope ?? 'worktree') &&
             (row.branch ?? '') === (input.branch ?? ''),
         )
         .map((row) => ({
           ...row.mark,
           stale:
-            this.staleness.get(
-              rowKey(row, row.mark.path, row.mark.fingerprint),
-            ) ?? row.mark.stale,
+            this.staleness.get(rowKey(row, row.mark.path)) ?? row.mark.stale,
         }))
         .sort(
           (left, right) =>
@@ -57,13 +50,13 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   save(input: ReviewedFileSave): Effect.Effect<void> {
     return Effect.sync(() => {
       input.marks.forEach((mark) => {
-        this.rows.set(rowKey(input, mark.path, mark.fingerprint), {
+        this.rows.set(rowKey(input, mark.path), {
           ...input,
           scope: input.scope,
           branch: input.branch,
           mark: { ...mark },
         });
-        this.staleness.delete(rowKey(input, mark.path, mark.fingerprint));
+        this.staleness.delete(rowKey(input, mark.path));
       });
     });
   }
@@ -71,7 +64,7 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   remove(input: ReviewedFileRemoval): Effect.Effect<void> {
     return Effect.sync(() => {
       input.paths.forEach((path) => {
-        const key = rowKey(input, path, input.fingerprint);
+        const key = rowKey(input, path);
         this.rows.delete(key);
         this.staleness.delete(key);
       });

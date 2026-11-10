@@ -37,8 +37,6 @@ it('returns a recoverable failure when content capture exceeds the Git output li
           files: [],
         }),
       readBranchPatches: () => Effect.die('Unexpected patches'),
-      readRetainedBranchPatches: () =>
-        Effect.die('Unexpected retained patches'),
       listBranchBases: () => Effect.die('Unexpected bases'),
     });
     const status = Layer.succeed(ChangeStatusReader, {

@@ -43,7 +43,6 @@ test('registering a second repository names the project after its folder, lists 
         main: true,
         branch: 'trunk',
         available: true,
-        status: null,
       },
     ],
   });

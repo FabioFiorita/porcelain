@@ -12,7 +12,7 @@ import {
   worktreeOpening,
   type WorktreeOpening,
 } from '@porcelain/client/walkthroughs/rules';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useBranchChanges } from '@/features/changes/index';
 

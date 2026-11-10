@@ -11,12 +11,11 @@ const unpairedRoutes = new Set([
   'GET /api/environment',
   'GET /api/health',
   'GET /api/live',
-  'GET /review-summaries/:token',
   'POST /api/live/tickets',
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 110;
+const PAIRED_ROUTES = 73;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -29,8 +28,7 @@ function pairedRoutes(routes: readonly string[]) {
 function parameter(session: Session, name: string, route: string): string {
   if (name === 'projectId') return session.projectId;
   if (name === 'worktreeId') return session.worktreeId;
-  if (name === 'reviewId') return UNKNOWN_UUID;
-  if (name === 'revision') return '1';
+  if (name === 'number') return '423';
   if (name === 'oid') return unknownOid;
   if (['threadId', 'requestId', 'runId', 'assetId', 'messageId'].includes(name))
     return UNKNOWN_UUID;
@@ -82,15 +80,6 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
       expect.arrayContaining([
         'POST /api/access/management-permission',
         'PUT /api/environment/icon',
-        'GET /api/reviews/:reviewId/compare',
-        'GET /api/reviews/:reviewId/interdiff',
-        'GET /api/reviews/:reviewId/agent-feedback',
-        'GET /api/worktrees/:worktreeId/review',
-        'GET /api/reviews/:reviewId/pull-request',
-        'GET /api/reviews/:reviewId/pull-request/checks',
-        'PUT /api/reviews/:reviewId/pull-request',
-        'POST /api/reviews/:reviewId/archive',
-        'GET /api/worktrees/:worktreeId/summary',
         'POST /api/worktrees/:worktreeId/delete',
         'POST /api/worktrees/:worktreeId/walkthrough',
         'GET /api/worktrees/:worktreeId/walkthrough',
@@ -103,6 +92,9 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
         'GET /api/projects/:projectId/pull-requests',
+        'GET /api/projects/:projectId/pull-requests/:number',
+        'GET /api/projects/:projectId/pull-requests/:number/checks',
+        'POST /api/projects/:projectId/pull-requests/:number/archive',
         'GET /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/walkthrough-settings',

@@ -241,12 +241,6 @@ export function createFetchGate(filePath: string) {
           (init?.method ?? 'GET') === 'GET' &&
           url.pathname.endsWith('/git/status'),
       ),
-    holdNextCommentsRead: () =>
-      holdNextFetch(
-        (url, init) =>
-          (init?.method ?? 'GET') === 'GET' &&
-          url.pathname.endsWith('/comments'),
-      ),
     holdNextPost: (pathEnding: string) =>
       holdNextFetch(
         (url, init) =>

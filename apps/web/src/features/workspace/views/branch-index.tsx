@@ -8,26 +8,22 @@ import type { useBranchChanges } from '@/features/changes/index';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
-import {
-  counted,
-  anchorPath,
-  type CommentThread,
-} from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import {
   mergeBranchChanges,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
-import { branchReviewRange } from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
+import { branchReviewRange } from '@porcelain/client/changes/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
 import { SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
-import { groupSpecPaths } from '@porcelain/client/reviews/rules';
+import { groupSpecPaths } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import type { ComponentType, ReactNode } from 'react';
-import type { BranchChangeItem } from '@porcelain/client/reviews/rules';
+import type { BranchChangeItem } from '@porcelain/client/changes/rules';
 
 export type BranchFileGrouping = ComponentType<{
   scope: ReviewScope;
@@ -43,7 +39,6 @@ export function BranchIndex({
   context,
   base,
   activeEntry,
-  threads,
   onOpen,
   sideLabel,
   onBase,
@@ -54,7 +49,6 @@ export function BranchIndex({
   context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
-  threads: readonly CommentThread[];
   onOpen: OpenDocument;
   sideLabel: string;
   onBase: (base: string | undefined) => void;
@@ -74,7 +68,6 @@ export function BranchIndex({
         context={context}
         base={base}
         activeEntry={activeEntry}
-        threads={threads}
         onOpen={onOpen}
         sideLabel={sideLabel}
         grouping={grouping}
@@ -88,7 +81,6 @@ function BranchFiles({
   context,
   base,
   activeEntry,
-  threads,
   onOpen,
   sideLabel,
   grouping,
@@ -98,7 +90,6 @@ function BranchFiles({
   context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
-  threads: readonly CommentThread[];
   onOpen: OpenDocument;
   sideLabel: string;
 }) {
@@ -110,7 +101,6 @@ function BranchFiles({
           context={context}
           branch={branch}
           activeEntry={activeEntry}
-          threads={threads}
           onOpen={onOpen}
           sideLabel={sideLabel}
           grouping={grouping}
@@ -125,7 +115,6 @@ function BranchFileList({
   context,
   branch,
   activeEntry,
-  threads,
   onOpen,
   sideLabel,
   grouping: Grouping,
@@ -137,7 +126,6 @@ function BranchFileList({
     ReturnType<typeof useBranchChanges>['result']
   >;
   activeEntry: string | undefined;
-  threads: readonly CommentThread[];
   onOpen: OpenDocument;
   sideLabel: string;
 }) {
@@ -167,14 +155,6 @@ function BranchFileList({
       changeStatus={branchChangeStatus(item)}
       scopes={[item.status]}
       reviewStatus={item.reviewStatus}
-      commentCount={
-        threads.filter(
-          (thread) =>
-            thread.anchor.comparison?.kind === 'branch' &&
-            anchorPath(thread.anchor) === item.path &&
-            !thread.resolved,
-        ).length
-      }
       active={
         activeEntry === entryKey({ kind: 'branch-file', path: item.path })
       }

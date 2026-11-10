@@ -1,4 +1,3 @@
-import { AgentFeedbackConflictError } from '@porcelain/reviews/errors';
 import { STATUS_CODES } from 'node:http';
 import { HttpApiError } from 'effect/http-api';
 import { HttpServerError } from 'effect/http';
@@ -102,6 +101,7 @@ import {
   RepositoryUnavailableError,
 } from '@porcelain/kernel/errors';
 import {
+  BranchArchiveRefusedError,
   FilePreferenceLimitError,
   FolderNotFoundError,
   FolderNotReadableError,
@@ -113,34 +113,7 @@ import {
 import {
   GitHubPullRequestNotFoundError,
   GitHubReadError,
-  UnknownBoxLayerError,
-  CommentAuthorMismatchError,
-  CommentIdentityConflictError,
-  CommentLimitExceededError,
-  CommentRevisionMismatchError,
-  CommentTargetNotFoundError,
-  DuplicateLayerIdError,
-  DuplicateStepIdError,
-  ProofFileNotFoundError,
-  ProofFileUnreadableError,
-  ProofTooLargeError,
-  InvalidReviewComparisonError,
-  ReviewConflictError,
-  ReviewArchiveRefusedError,
-  ReviewPublishRefusedError,
-  ReviewPullRequestRefusedError,
-  ReviewNotFoundError,
   ReviewedMarkConflictError,
-  ReviewLayerNotFoundError,
-  ReviewSummaryNotFoundError,
-  StepLaneOutOfRangeError,
-  UnknownArrowBoxError,
-  InvalidDecisionBoxError,
-  UnknownProofFileError,
-  InvalidReviewPointerError,
-  UnknownProofTargetError,
-  UnsupportedCommentComparisonError,
-  UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
 
@@ -165,24 +138,13 @@ const REPOSITORY_UNAVAILABLE = 'Repository could not be inspected';
 const OPERATION_UNAVAILABLE = 'Operation unavailable';
 
 const rules: readonly StatusRule[] = [
-  { errors: [InvalidReviewComparisonError], statusCode: 400 },
   {
     errors: [GitHubReadError],
     statusCode: 503,
     message: 'GitHub is unavailable',
   },
   {
-    errors: [
-      ReviewPublishRefusedError,
-      ReviewArchiveRefusedError,
-      ReviewPullRequestRefusedError,
-      WorktreeCleanupRefusedError,
-    ],
-    statusCode: 409,
-  },
-  { errors: [ReviewNotFoundError], statusCode: 404 },
-  {
-    errors: [AgentFeedbackConflictError],
+    errors: [WorktreeCleanupRefusedError],
     statusCode: 409,
   },
   {
@@ -199,9 +161,6 @@ const rules: readonly StatusRule[] = [
       InvalidTailnetHostnameError,
       MissingTailnetHostnameError,
       InvalidHistoryRequestError,
-      InvalidReviewPointerError,
-      UnknownProofTargetError,
-      UnknownProofFileError,
     ],
     statusCode: 400,
   },
@@ -211,8 +170,7 @@ const rules: readonly StatusRule[] = [
       InvalidLineRangeError,
       UnnamedDiffSelectionError,
       InvalidHunkRangeError,
-      CommentRevisionMismatchError,
-      UnsupportedCommentComparisonError,
+
       InvalidMoveError,
       DuplicateExpectedFileError,
       MergeExpectationMismatchError,
@@ -221,13 +179,8 @@ const rules: readonly StatusRule[] = [
       DiscardExpectationMismatchError,
       MissingExpectedFilesError,
       MissingUpstreamExpectationError,
-      DuplicateStepIdError,
-      StepLaneOutOfRangeError,
-      InvalidDecisionBoxError,
+
       GitHubReadError,
-      UnknownBoxLayerError,
-      UnknownArrowBoxError,
-      DuplicateLayerIdError,
     ],
     statusCode: 400,
     message: INVALID_REQUEST,
@@ -235,7 +188,6 @@ const rules: readonly StatusRule[] = [
   { errors: [InvalidPairingError], statusCode: 401 },
   {
     errors: [
-      CommentAuthorMismatchError,
       DeviceViewerRequiredError,
       PushRegistrationDeviceRequiredError,
       UntrustedDeviceError,
@@ -248,8 +200,7 @@ const rules: readonly StatusRule[] = [
   {
     errors: [
       WorktreeNotFoundError,
-      ReviewLayerNotFoundError,
-      ProofFileNotFoundError,
+
       ProjectNotFoundError,
       CommitNotFoundError,
       BranchBaseNotFoundError,
@@ -261,12 +212,6 @@ const rules: readonly StatusRule[] = [
     ],
     statusCode: 404,
   },
-  { errors: [ReviewSummaryNotFoundError], statusCode: 404, withoutBody: true },
-  {
-    errors: [CommentTargetNotFoundError],
-    statusCode: 404,
-    message: 'Comment target not found',
-  },
   {
     errors: [WorktreeChangedError],
     message: 'Refresh status and retry inspection',
@@ -276,8 +221,9 @@ const rules: readonly StatusRule[] = [
   {
     errors: [
       EntryExistsError,
-      CommentIdentityConflictError,
+
       ReviewedMarkConflictError,
+      BranchArchiveRefusedError,
       UnrelatedBranchError,
       UnbornBranchError,
       ServiceNotManagedError,
@@ -297,23 +243,9 @@ const rules: readonly StatusRule[] = [
     message: 'Git action request does not match its receipt',
   },
   {
-    errors: [CommentLimitExceededError],
-    statusCode: 409,
-    message: 'Comment capacity exceeded',
-  },
-  {
     errors: [FilePreferenceLimitError],
     statusCode: 409,
     message: 'File preference limit reached',
-  },
-  {
-    errors: [ReviewConflictError],
-    statusCode: 409,
-    message: 'The review changed; reload before retrying',
-  },
-  {
-    errors: [ProofTooLargeError],
-    statusCode: 413,
   },
   {
     errors: [TooManyPairingAttemptsError, TooManyLiveTicketsError],
@@ -340,8 +272,7 @@ const rules: readonly StatusRule[] = [
       CrossDeviceMoveError,
       TrashUnavailableError,
       UnsupportedAssetTypeError,
-      ProofFileUnreadableError,
-      UnsupportedProofFileError,
+
       CommitDraftSelectionError,
       CommitDraftTooLargeError,
       CommitGenerationFailedError,

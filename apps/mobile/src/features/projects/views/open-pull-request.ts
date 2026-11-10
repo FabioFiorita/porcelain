@@ -9,7 +9,7 @@ export function useOpenPullRequest() {
       params: {
         environment: target.environmentId,
         projectId: target.projectId,
-        reviewId: target.reviewId,
+
         number: String(target.number),
       },
     });

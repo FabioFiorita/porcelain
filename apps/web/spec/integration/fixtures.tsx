@@ -1,5 +1,3 @@
-import { Schema } from 'effect';
-import { listCommentThreadsResponseSchema } from '@porcelain/contracts/reviews';
 import {
   createMemoryHistory,
   createRouter,
@@ -378,52 +376,6 @@ export const test = base
           .map(({ path, branch }) => ({ path, branch })),
       );
     },
-    branchReviewMarks: async () => {
-      const published = await readersOf('this').publishedReview();
-      const reviewId = published.review?.reviewId;
-      if (!reviewId) throw new Error('The fixture has no branch review.');
-      return (
-        await host.porcelainRead({
-          server: 'this',
-          target: 'network',
-          path: `/api/reviews/${reviewId}/marks`,
-        })
-      ).body;
-    },
-    review: async (reviewId: string) =>
-      (
-        await host.porcelainRead({
-          server: 'this',
-          target: 'network',
-          path: `/api/reviews/${reviewId}`,
-        })
-      ).body,
-    reviewStatus: async (reviewId: string) =>
-      (
-        await host.porcelainRead({
-          server: 'this',
-          target: 'network',
-          path: `/api/reviews/${reviewId}`,
-        })
-      ).status,
-    reviewMarks: async (reviewId: string) =>
-      (
-        await host.porcelainRead({
-          server: 'this',
-          target: 'network',
-          path: `/api/reviews/${reviewId}/marks`,
-        })
-      ).body,
-    reviewComments: async (reviewId: string) =>
-      Schema.decodeUnknownSync(listCommentThreadsResponseSchema)(
-        (
-          await host.porcelainRead({
-            server: 'this',
-            target: 'network',
-            path: `/api/reviews/${reviewId}/comments`,
-          })
-        ).body,
-      ),
   }))
   .extend('repo', async ({ world: _world, failures }) =>
     sampleRepository(

@@ -15,9 +15,7 @@ import {
   ReadEnvironmentService,
   ReadEnvironmentLabelService,
 } from '@porcelain/access/services';
-import { ReadInventoryBadgesUseCasePort } from '../ports/read-inventory-badges-use-case-port.ts';
 import { ReadTextFilesService } from '@porcelain/files/services';
-import { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
@@ -67,7 +65,6 @@ import { gitWorktreeListingReaderLayer } from '../adapters/projects/git-worktree
 import { Logger } from '../ports/logger.ts';
 import { makeCoalescedWork } from '../runtime/coalesced-work.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
-import { ReadInventoryBadgesUseCase } from '../use-cases/projects/read-inventory-badges.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
@@ -112,7 +109,7 @@ export function composeProjects(
   const inventory = stores.inventory;
   const worktreePresence = stores.worktreePresence;
   const filePreference = stores.filePreferences;
-  const { catalog, readWorktreeStatuses } = shared;
+  const { catalog } = shared;
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
@@ -138,7 +135,6 @@ export function composeProjects(
     Layer.succeed(CheckRefreshedWorktreeService, shared.checkRefreshedWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
     Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
-    Layer.succeed(ReadReviewBadgesService, readWorktreeStatuses),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),
     Layer.succeed(ReadEnvironmentLabelService, shared.readEnvironmentLabel),
     Layer.succeed(IdSource, ids),
@@ -201,17 +197,13 @@ export function composeProjects(
   const layer6 = Layer.mergeAll(WorktreeAccess.layer).pipe(
     Layer.provideMerge(layer5),
   );
-  const layer7 = Layer.mergeAll(
-    ReadInventoryBadgesUseCase.layer,
-    DeleteWorktreeUseCase.layer,
-  ).pipe(Layer.provideMerge(layer6));
-  const layer8 = Layer.mergeAll(
-    Layer.effect(ReadInventoryBadgesUseCasePort, ReadInventoryBadgesUseCase),
-  ).pipe(Layer.provideMerge(layer7));
+  const layer7 = Layer.mergeAll(DeleteWorktreeUseCase.layer).pipe(
+    Layer.provideMerge(layer6),
+  );
   const layer9 = Layer.mergeAll(
     ReadInventoryUseCase.layer,
     RegisterProjectUseCase.layer,
-  ).pipe(Layer.provideMerge(layer8));
+  ).pipe(Layer.provideMerge(layer7));
   return Effect.gen(function* () {
     const reads = Layer.effect(
       ReadInventoryUseCasePort,

@@ -200,29 +200,6 @@ test("pinning a file tells a watching viewer the project's preferences changed",
   });
 });
 
-test("writing a comment tells a watching viewer the worktree's comments changed", async ({
-  session,
-}) => {
-  const connection = await watching(session);
-
-  const response = await session.send({
-    method: 'POST',
-    path: worktreePath(session, '/comments'),
-    body: {
-      anchor: { kind: 'file', filePath: session.fixture.readme.path },
-      body: 'Announced',
-    },
-  });
-
-  expect(response.status).toBe(200);
-  expect(record(list(record(response.body).messages)[0]).body).toBe(
-    'Announced',
-  );
-  expect(await connection.next(isWorktree('comments'))).toStrictEqual(
-    worktreeNotice(session, 'comments'),
-  );
-});
-
 test("creating a file tells a watching viewer the worktree's files changed", async ({
   session,
 }) => {

@@ -20,7 +20,7 @@ import {
 import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchBases, useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchBasePicker({

@@ -54,12 +54,11 @@ function worktreeDetails(entry: NavigatorEntry): WorktreeDetails {
     environment: entry.environmentId,
     projectId: entry.projectId,
     worktreeId: entry.worktreeId ?? '',
-    ...(entry.review.state === 'available'
+    ...(entry.pullRequest.state === 'available'
       ? {
-          reviewId: entry.review.reviewId,
-          ...(entry.review.pullRequestNumber === undefined
+          ...(entry.pullRequest.number === undefined
             ? {}
-            : { number: String(entry.review.pullRequestNumber) }),
+            : { number: String(entry.pullRequest.number) }),
         }
       : {}),
   };

@@ -29,10 +29,7 @@ export { openProject } from './commands/open-project.ts';
 
 export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';
 
-export {
-  readReviewNavigator,
-  readWorktreeNavigator,
-} from './queries/worktree-navigator.ts';
+export { readWorktreeNavigator } from './queries/worktree-navigator.ts';
 export { readWorktreeBranchSwitch } from './queries/worktree-actions.ts';
 export { refreshWorktreeNavigator } from './commands/worktree-navigator.ts';
 
@@ -50,3 +47,11 @@ export { worktreeStatusNotices } from './store/worktree-navigator.ts';
 
 export { readWalkthroughWriterSettings } from './queries/walkthrough-writer.ts';
 export { saveDefaultWalkthroughWriter } from './commands/projects.ts';
+
+export {
+  readProjectPullRequest,
+  readProjectPullRequests,
+  readProjectGitHubAccount,
+} from './queries/pull-requests.ts';
+export { setProjectGitHubAccount } from './commands/github-account.ts';
+export { archivePullRequest } from './commands/pull-requests.ts';

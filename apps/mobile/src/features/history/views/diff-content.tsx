@@ -1,4 +1,4 @@
-import type { ReviewRange } from '../../../components/ui/review-annotation';
+import type { ReviewRange } from '../../../components/ui/code-range';
 import { CommitReadState } from './commit-state';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';

@@ -11,3 +11,5 @@ export {
   postGitHubIssueComment,
   readGitHubApi,
 } from './commands/github-read.ts';
+
+export { readBranchTracking } from './commands/read-branch-tracking.ts';

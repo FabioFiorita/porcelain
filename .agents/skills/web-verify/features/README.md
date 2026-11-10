@@ -57,7 +57,6 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [app.shell](app.shell.md) — Unpaired routes and pairing instructions.
 - [app.tab-title](app.tab-title.md) — File, commit, review and Settings titles.
 - [changes.branch-base](changes.branch-base.md) — Base selection and URL persistence.
-- [changes.branch-comment-reveal](changes.branch-comment-reveal.md) — Branch comment navigation.
 - [changes.branch-marks](changes.branch-marks.md) — Branch-scoped reviewed marks.
 - [changes.branch-read-more](changes.branch-read-more.md) — Diff pagination and retained content.
 - [changes.diff-recovery](changes.diff-recovery.md) — Changed-worktree recovery during diff loading.
@@ -111,20 +110,11 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.search](projects.search.md) — Search, filters, checkout selection and deferred summaries.
 - [projects.worktree-actions](projects.worktree-actions.md) — Worktree branch switching and one-off deletion choices.
 - [projects.pull-request-document](projects.pull-request-document.md) — PR source links keep their checkout and computer; archive returns after cleanup.
-- [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.
-- [reviews.change-comment](reviews.change-comment.md) — Comment on the whole uncommitted change or the whole branch.
-- [reviews.changed-file-menu](reviews.changed-file-menu.md) — File menus, marking, comments and timeline.
-- [reviews.comment](reviews.comment.md) — Comment entry, validation and persistence.
-- [reviews.comments-seen](reviews.comments-seen.md) — Seen state and unread comments.
-- [reviews.delete-resolved-race](reviews.delete-resolved-race.md) — Concurrent changes during deletion.
-- [reviews.delete-resolved](reviews.delete-resolved.md) — Resolved-thread deletion and cancellation.
-- [reviews.edit-comment](reviews.edit-comment.md) — Comment editing and saved text.
+- [reviews.changed-file-menu](reviews.changed-file-menu.md) — File menus, marking and timeline.
 - [reviews.mark-all](reviews.mark-all.md) — Batch file marking and completion.
 - [reviews.mark-file](reviews.mark-file.md) — File marking, unmarking and changed content.
 - [reviews.open-to-side](reviews.open-to-side.md) — Open files and commits in the other document pane.
 - [reviews.reload-layout](reviews.reload-layout.md) — Reload and retained document layout.
-- [reviews.reply](reviews.reply.md) — Replies and live thread updates.
-- [reviews.resolve](reviews.resolve.md) — Resolve and reopen threads.
 - [reviews.side-panel](reviews.side-panel.md) — The rail and its docked Files, Review and History panel.
 - [reviews.spec-files](reviews.spec-files.md) — Group specs and tests apart from other changed files.
 - [reviews.split-shortcuts](reviews.split-shortcuts.md) — Split views and keyboard controls.

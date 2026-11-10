@@ -36,6 +36,32 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '016_remove_saved_reviews_and_comments': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE retained_reviewed_files (
+      worktree_id TEXT NOT NULL REFERENCES worktree_presence(worktree_id) ON DELETE CASCADE,
+      scope TEXT NOT NULL,
+      branch TEXT NOT NULL,
+      path TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      reviewed_at TEXT NOT NULL,
+      stale INTEGER NOT NULL,
+      UNIQUE(worktree_id, scope, branch, path)
+    )`;
+    yield* sql`INSERT INTO retained_reviewed_files SELECT worktree_id, scope, branch, path, fingerprint, reviewed_at, stale FROM reviewed_files WHERE worktree_id IS NOT NULL`;
+    yield* sql`DROP TABLE reviewed_files`;
+    yield* sql`ALTER TABLE retained_reviewed_files RENAME TO reviewed_files`;
+    yield* sql`DROP TABLE comment_messages`;
+    yield* sql`DROP TABLE comment_threads`;
+    yield* sql`DROP TABLE comment_reads`;
+    yield* sql`DROP TABLE comment_revision`;
+    yield* sql`DROP TABLE review_agent_feedback`;
+    yield* sql`DROP TABLE reviewed_layers`;
+    yield* sql`DROP TABLE review_proof_files`;
+    yield* sql`DROP TABLE review_seen`;
+    yield* sql`DROP TABLE review_revisions`;
+    yield* sql`DROP TABLE reviews`;
+  }),
   '015_working_tree_walkthroughs': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE walkthrough_automatic_content (pr_key TEXT PRIMARY KEY, run_id TEXT REFERENCES walkthrough_runs(id) ON DELETE SET NULL)`;

@@ -47,7 +47,7 @@ import {
   openToSideText,
   type TabCount,
 } from '../rules/tab-strip';
-import { basename } from '@porcelain/client/reviews/rules';
+import { basename } from '@porcelain/client/changes/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   Tooltip,

@@ -19,11 +19,11 @@ api:
 
 # reviews.file
 
-Review diffs support file marking and feedback on whole files or selected source lines.
+Diff documents support Reviewed marks and comparison switching.
 
 ## How to get to it (user POV)
 
-- Worktrees → worktree → Review → changed file, or a section heading or compact row on [All changes](reviews.all-changes.md), which opens on that section's comparison. Mark reviewed, Comment on file / Comment on selected lines, Clear selection and the Comparison menu are native top-bar actions; when more than three apply, the first two stay visible and the rest sit under More actions.
+- Worktrees → worktree → Changes → changed file. Reviewed and Comparison are native top-bar actions.
 
 ## Driving it with agent-device
 

@@ -1,7 +1,7 @@
 import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('right-clicking a changed file marks it reviewed, starts a comment on it and opens its timeline', async ({
+test('right-clicking a changed file marks it reviewed and opens its timeline without a Comment action', async ({
   workspace,
   repo,
   server,
@@ -39,15 +39,9 @@ test('right-clicking a changed file marks it reviewed, starts a comment on it an
   await userEvent.keyboard('{Escape}');
 
   await row.click({ button: 'right' });
-  await workspace
-    .getByRole('menuitem', { name: 'Comment', exact: true })
-    .click();
   await expect
-    .element(workspace.getByRole('textbox', { name: 'Comment', exact: true }))
-    .toBeVisible();
-
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await row.click({ button: 'right' });
+    .element(workspace.getByRole('menuitem', { name: 'Comment', exact: true }))
+    .not.toBeInTheDocument();
   await workspace
     .getByRole('menuitem', { name: 'Show timeline', exact: true })
     .click();

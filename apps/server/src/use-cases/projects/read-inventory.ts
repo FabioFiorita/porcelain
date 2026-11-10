@@ -11,7 +11,6 @@ import {
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import { inventoryReport } from '@porcelain/projects/rules';
-import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 
@@ -31,7 +30,6 @@ export class ReadInventoryUseCase extends Context.Service<
       const listRegisteredProjectsCapability =
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
-      const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
       const readEnvironmentCapability = yield* ReadEnvironmentService;
       const readEnvironmentLabelCapability = yield* ReadEnvironmentLabelService;
       const lanesCapability = yield* Lanes;
@@ -58,7 +56,6 @@ export class ReadInventoryUseCase extends Context.Service<
                   };
                 }),
             );
-            const statuses = yield* readBadgesCapability.execute({ listings });
             const { environmentId, environment } = yield* lanesCapability.run(
               laneKeysCapability.access(),
               'read',
@@ -72,12 +69,7 @@ export class ReadInventoryUseCase extends Context.Service<
                   };
                 }),
             );
-            const report = inventoryReport(
-              environmentId,
-              inventory,
-              listings,
-              statuses,
-            );
+            const report = inventoryReport(environmentId, inventory, listings);
             const projects = yield* Effect.forEach(report.projects, (project) =>
               Effect.gen(function* () {
                 const metadata = yield* walkthroughs.execute({

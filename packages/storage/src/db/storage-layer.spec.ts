@@ -10,7 +10,6 @@ import {
   DeviceStore,
 } from '@porcelain/access/ports';
 import { InventoryStore } from '@porcelain/projects/ports';
-import { CommentStore } from '@porcelain/reviews/ports';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { storageLayer } from './storage-layer.ts';
 
@@ -108,7 +107,7 @@ describe('Native storage adoption', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it('adopts a shipped database without changing identity, device trust, project order or comment revisions', async () => {
+  it('adopts a shipped database without changing identity, device trust, project order', async () => {
     legacyDatabase(directory);
     const session = runtime(directory);
     try {
@@ -117,28 +116,10 @@ describe('Native storage adoption', () => {
           const identity = yield* EnvironmentIdentityReader;
           const devices = yield* DeviceStore;
           const inventory = yield* InventoryStore;
-          const comments = yield* CommentStore;
           return {
             environmentId: yield* identity.environmentId(),
             device: yield* devices.find({ deviceId: 'device' }),
             inventory: yield* inventory.read(),
-            thread: yield* comments.insert({
-              content: {
-                id: 'thread',
-                worktreeId: 'worktree',
-                anchor: { kind: 'file', filePath: 'README.md' },
-                messages: [
-                  {
-                    id: 'opening',
-                    body: 'Preserve revisions',
-                    author: 'reviewer',
-                    createdAt: at,
-                  },
-                ],
-              },
-              sizeBytes: 18,
-              writtenByAgent: false,
-            }),
           };
         }),
       );
@@ -164,7 +145,6 @@ describe('Native storage adoption', () => {
           position: 4,
         },
       ]);
-      expect(state.thread.revision).toBe(38);
     } finally {
       await session.dispose();
     }
@@ -195,6 +175,7 @@ describe('Native storage adoption', () => {
         { migration_id: 13, name: 'automatic_walkthroughs' },
         { migration_id: 14, name: 'retire_review_push_kinds' },
         { migration_id: 15, name: 'working_tree_walkthroughs' },
+        { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
       ]);
     } finally {
       database.close();
@@ -263,11 +244,10 @@ describe('Native storage adoption', () => {
           },
         ],
       );
-      expect(database.prepare('SELECT * FROM reviews').all()).toEqual([]);
+
       expect(database.prepare('SELECT * FROM reviewed_files').all()).toEqual([
         {
           worktree_id: 'new-worktree',
-          review_id: null,
           scope: 'worktree',
           branch: '',
           path: 'README.md',
@@ -276,48 +256,13 @@ describe('Native storage adoption', () => {
           stale: 0,
         },
       ]);
-      expect(database.prepare('SELECT * FROM reviewed_layers').all()).toEqual(
-        [],
-      );
-      expect(database.prepare('SELECT * FROM comment_threads').all()).toEqual([
-        {
-          sequence: 2,
-          id: 'new-thread',
-          worktree_id: 'new-worktree',
-          review_id: null,
-          source_worktree_id: 'new-worktree',
-          review_revision: null,
-          head_oid: null,
-          anchor: '{"kind":"file","filePath":"README.md"}',
-          resolved: 0,
-          revision: 7,
-          last_agent_revision: null,
-          size_bytes: 12,
-        },
-      ]);
-      expect(database.prepare('SELECT * FROM comment_messages').all()).toEqual([
-        {
-          sequence: 2,
-          id: 'new-message',
-          thread_id: 'new-thread',
-          worktree_id: 'new-worktree',
-          body: 'Keep comment',
-          author: 'reviewer',
-          created_at: '2026-01-01T00:00:00.000Z',
-          edited_at: null,
-        },
-      ]);
-      expect(database.prepare('SELECT * FROM comment_reads').all()).toEqual([
-        { worktree_id: 'new-worktree', seen_through: 7 },
-      ]);
+
       expect(
         database.prepare('SELECT * FROM project_file_preferences').all(),
       ).toEqual([
         { project_id: 'new', path: 'README.md', pinned: 1, hidden: 0 },
       ]);
-      expect(
-        database.prepare('SELECT * FROM review_proof_files').all(),
-      ).toEqual([]);
+
       expect(
         database.prepare('SELECT * FROM git_action_receipts').all(),
       ).toEqual([
@@ -556,9 +501,7 @@ describe('Native storage adoption', () => {
           .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
           .get(),
       ).toEqual({ count: 30 });
-      expect(
-        database.prepare('SELECT revision FROM comment_revision').get(),
-      ).toEqual({ revision: 37 });
+
       expect(
         database
           .prepare("SELECT trusted FROM devices WHERE id = 'device'")
@@ -584,6 +527,7 @@ describe('Native storage adoption', () => {
         { migration_id: 13, name: 'automatic_walkthroughs' },
         { migration_id: 14, name: 'retire_review_push_kinds' },
         { migration_id: 15, name: 'working_tree_walkthroughs' },
+        { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -648,6 +592,7 @@ describe('Native storage adoption', () => {
           { migration_id: 13, name: 'automatic_walkthroughs' },
           { migration_id: 14, name: 'retire_review_push_kinds' },
           { migration_id: 15, name: 'working_tree_walkthroughs' },
+          { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
         ]);
         expect(
           stored

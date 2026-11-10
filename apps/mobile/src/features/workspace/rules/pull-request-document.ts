@@ -2,7 +2,7 @@ import {
   pullRequestChecks,
   pullRequestConversation,
   type PullRequestRead,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/projects/rules';
 
 type PullRequest = Extract<
   PullRequestRead,

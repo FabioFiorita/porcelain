@@ -8,7 +8,7 @@ import { DiffView } from '../../../components/ui/diff-view';
 import { MarkdownView } from '../../../components/ui/markdown-view';
 import { ImageView } from '../../../components/ui/image-view';
 import { HtmlPreview } from '../../../components/ui/html-preview';
-import type { ReviewRange } from '../../../components/ui/review-annotation';
+import type { ReviewRange } from '../../../components/ui/code-range';
 
 export default function NativePreview({ name }: { name: string }) {
   const [range, setRange] = useState<ReviewRange>();

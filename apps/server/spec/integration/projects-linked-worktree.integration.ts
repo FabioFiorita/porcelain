@@ -70,7 +70,6 @@ test('a worktree added with git worktree add is listed beside the main checkout 
     main: false,
     branch: BRANCH,
     available: true,
-    status: null,
   });
 });
 

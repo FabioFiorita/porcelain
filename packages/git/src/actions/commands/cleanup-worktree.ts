@@ -4,7 +4,7 @@ import type {
 } from '@porcelain/kernel/models';
 import { createHash } from 'node:crypto';
 import { Effect, FileSystem, Option, Path, Schema, Stream } from 'effect';
-import { listWorktrees } from '../../discovery/index.ts';
+import { listWorktrees, readBranchTracking } from '../../discovery/index.ts';
 import { gitRead } from '../../shared/commands/run-git.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 
@@ -20,9 +20,15 @@ export const cleanupWorktree = Effect.fn('Git.cleanupWorktree')(function* (
   input: {
     commonDirectory: string;
     repositoryIdentity?: string | undefined;
-    worktreePath: string;
+    worktreePath?: string | undefined;
     branch?: string | undefined;
     mergedHead?: string | undefined;
+    association?:
+      | {
+          tracking: Effect.Success<ReturnType<typeof readBranchTracking>>;
+          headOid: string;
+        }
+      | undefined;
     options: Options;
     confirmation?: { plan: Plan; discardChanges: boolean } | undefined;
   },
@@ -146,26 +152,18 @@ export const cleanupWorktree = Effect.fn('Git.cleanupWorktree')(function* (
     input.options.deleteWorktree ||
     input.options.deleteLocalBranch ||
     input.options.deleteRemoteBranch;
-  const tracking = ref
-    ? yield* read([
-        'for-each-ref',
-        '--format=%(upstream:remotename)%00%(upstream:remoteref)',
-        ref,
-      ])
-    : '';
-  const [trackedRemote, trackedRef] = tracking.split('\0');
-  const configuration = (key: string) =>
-    read(['config', '--get', key]).pipe(
-      Effect.catchTag('GitCommandError', (error) =>
-        error.exitCode === 1 ? Effect.succeed('') : Effect.fail(error),
-      ),
-    );
-  const remoteName =
-    trackedRemote ||
-    (ref ? yield* configuration(`branch.${input.branch}.remote`) : '');
-  const remoteRef =
-    trackedRef ||
-    (ref ? yield* configuration(`branch.${input.branch}.merge`) : '');
+  const tracking = input.branch
+    ? yield* readBranchTracking(input.commonDirectory, input.branch, limits)
+    : { remoteName: '', remoteRef: '', fetchUrls: [], pushUrls: [] };
+  const { remoteName, remoteRef } = tracking;
+  if (
+    input.association &&
+    JSON.stringify(tracking) !== JSON.stringify(input.association.tracking)
+  )
+    return yield* new GitCleanupRefusedError({
+      message:
+        'The branch upstream changed. Nothing was deleted. Refresh the pull request and retry.',
+    });
   if (
     !mainCheckout &&
     input.options.deleteRemoteBranch &&
@@ -234,6 +232,24 @@ export const cleanupWorktree = Effect.fn('Git.cleanupWorktree')(function* (
       yield* protectDefault(remote);
     }
   }
+  if (input.association) {
+    for (const oid of new Set([head, remoteOid].filter(Boolean))) {
+      const related = yield* read([
+        'merge-base',
+        '--is-ancestor',
+        input.association.headOid,
+        oid,
+      ]).pipe(
+        Effect.as(true),
+        Effect.catchTag('GitCommandError', () => Effect.succeed(false)),
+      );
+      if (!related)
+        return yield* new GitCleanupRefusedError({
+          message:
+            'The branch no longer contains this pull request head. Nothing was deleted. Refresh the pull request and check its branch.',
+        });
+    }
+  }
   const confirmedHead = remoteOid || input.mergedHead;
   const unpushed =
     cleanup &&
@@ -295,6 +311,7 @@ export const cleanupWorktree = Effect.fn('Git.cleanupWorktree')(function* (
           remoteUrl,
           remoteRef,
           remoteOid,
+          association: input.association,
         }),
       )
       .digest('hex'),

@@ -2,7 +2,6 @@ import { Effect } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { router } from 'expo-router';
 import { syncPushRegistration } from '@porcelain/client/notifications';
-import { notificationReviewRoute } from '@porcelain/client/reviews/rules';
 import {
   notificationKinds,
   pushRegistrationPlan,
@@ -86,9 +85,7 @@ export const notificationsSync = Atom.make((get) => {
     }),
   );
   get.addFinalizer(
-    observeNotificationTaps((data) =>
-      router.push(notificationReviewRoute(data)),
-    ),
+    observeNotificationTaps(() => router.push('/(tabs)/(worktrees)')),
   );
   fetchToken();
   synchronize();

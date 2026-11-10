@@ -27,7 +27,6 @@ api:
   - GET /api/environment
   - GET /api/inventory
   - GET /api/live
-  - GET /api/worktrees/:worktreeId/review
   - GET /api/worktrees/:worktreeId/reviewed
   - GET /api/worktrees/:worktreeId/text
   - POST /api/live/tickets

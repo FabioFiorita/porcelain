@@ -4,7 +4,6 @@ import * as changes from '@porcelain/contracts/changes';
 import * as files from '@porcelain/contracts/files';
 import * as gitActions from '@porcelain/contracts/git-actions';
 import * as projects from '@porcelain/contracts/projects';
-import * as reviews from '@porcelain/contracts/reviews';
 import { HttpApi } from 'effect/http-api';
 
 export function featureApiRoutes(): string[] {
@@ -16,7 +15,6 @@ export function featureApiRoutes(): string[] {
     ...files,
     ...gitActions,
     ...projects,
-    ...reviews,
   }))
     if (HttpApi.isHttpApi(value)) apis.push(value);
   return [

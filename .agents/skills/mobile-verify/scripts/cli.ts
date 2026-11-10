@@ -19,11 +19,7 @@ import {
   Usage,
   androidBuildMemoryProblem,
 } from '../../verify-core/cli.ts';
-import {
-  agentCommand,
-  serverRead,
-  serverOptions,
-} from '../../verify-core/fixtures.ts';
+import { serverRead, serverOptions } from '../../verify-core/fixtures.ts';
 import { registry, type MobileInstance } from './instance.ts';
 import { serve, start, startProblems } from './serve.ts';
 import { walkthroughCommand } from './walkthrough.ts';
@@ -44,7 +40,7 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   pairing-link             print a fresh one-time pairing link
   walkthrough sample|answer long|answer short|moved|posts
                            write a ready walkthrough on pull request #423 with screenshots, set the next answer, refuse posts, read posted comments
-  server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|receipt ...
+  server reviewed-files|project|devices|pending-links|receipt ...
                            read back the disposable server's state
 Drive the app with the full agent-device invocation from the connection card.
 `;
@@ -205,9 +201,7 @@ async function command(args: readonly string[]): Promise<string> {
       })
       .listing();
   if (name === undefined) throw new Usage(usage);
-  if (
-    !['logs', 'pairing-link', 'agent', 'server', 'walkthrough'].includes(name)
-  )
+  if (!['logs', 'pairing-link', 'server', 'walkthrough'].includes(name))
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
   if (name === 'pairing-link') {
@@ -227,19 +221,17 @@ async function command(args: readonly string[]): Promise<string> {
       return `recorded ${await registry.evidence(instance).record('logs', args, logs(instance))}\n`;
     const recorder = registry.redactor(instance).recorder();
     const output =
-      name === 'agent'
-        ? await agentCommand(instance.detail.manifest, rest, values, recorder)
-        : name === 'walkthrough'
-          ? await walkthroughCommand(
-              instance.detail.manifest,
-              {
-                projectId: instance.detail.projectId,
-                worktreeId: instance.detail.worktreeId,
-              },
-              rest,
-              recorder,
-            )
-          : await serverRead(instance.detail.manifest, rest, recorder);
+      name === 'walkthrough'
+        ? await walkthroughCommand(
+            instance.detail.manifest,
+            {
+              projectId: instance.detail.projectId,
+              worktreeId: instance.detail.worktreeId,
+            },
+            rest,
+            recorder,
+          )
+        : await serverRead(instance.detail.manifest, rest, recorder);
     return `${output}\nrecorded ${await registry.evidence(instance).record(name, args, output)}\n`;
   });
 }

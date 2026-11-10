@@ -2,17 +2,11 @@ import { liveSessionState } from '../store.ts';
 import { readClientAtom } from '../../../../spec/kit/client-fixture.ts';
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
-import {
-  readReview,
-  readReviewComments,
-  readProjectReviews,
-} from '@porcelain/client/reviews';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences, readInventory } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Equal, Layer, Scope } from 'effect';
+import { Equal, Layer } from 'effect';
 import { SecureRandom } from 'effect/crypto';
-import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 import { Effect } from 'effect';
 import { expect, it } from 'vitest';
@@ -174,20 +168,6 @@ it('keeps pending operations subscribed within the server limit and retains thei
   const pendingTree = '00000000000000000000000000000020';
   try {
     await readClientAtom(subject.registry, readInventory(subject.connection));
-    await subject.connection.runtime.runPromise(
-      Effect.gen(function* () {
-        const subscriptions = yield* ReadSubscriptions;
-        for (const [index, worktree] of background.entries())
-          yield* subscriptions.retain({
-            projectId,
-            worktreeId: worktree.id,
-            paths: [],
-            reviewId: `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`,
-            surface: 'review',
-            settled: Effect.void,
-          });
-      }).pipe(Effect.provideService(Scope.Scope, subject.connection.scope)),
-    );
     for (let index = 0; index < 33; index += 1) {
       const worktreeId = index.toString(16).padStart(32, '0');
       const query = readTextFile({
@@ -500,147 +480,35 @@ it('revalidates status on reconnect, identity-relevant notices and rejected cred
   }
 });
 
-it('refreshes mounted durable reviews, project lists and comments after another client changes them and after reconnect without a worktree', async () => {
-  const reviewId = '55555555-5555-4555-8555-555555555555';
-  const threadId = '66666666-6666-4666-8666-666666666666';
-  let revision = 1;
-  const subject = await setup((path) => {
-    if (path.endsWith('/inventory'))
-      return Promise.resolve(
-        Response.json({
-          environmentId,
-          environment: { name: 'Retained', custom: false },
-          projects: [],
-        }),
-      );
-    const review = {
-      reviewId,
-      projectId,
-      branch: 'removed-branch',
-      state: 'open',
-      latestRevision: revision,
-      lastSeenRevision: 0,
-    };
-    if (path.endsWith('/comments'))
-      return Promise.resolve(
-        Response.json(
-          revision === 1
-            ? []
-            : [
-                {
-                  id: threadId,
-                  worktreeId: 'a'.repeat(32),
-                  review: { reviewId, revision: 1, headOid: 'a'.repeat(40) },
-                  anchor: { kind: 'change' },
-                  messages: [
-                    {
-                      id: threadId,
-                      body: `External comment ${revision}`,
-                      author: 'agent',
-                    },
-                  ],
-                  resolved: false,
-                  revision,
-                },
-              ],
-        ),
-      );
-    if (path.includes('/projects/'))
-      return Promise.resolve(Response.json([review]));
-    const metadata = {
-      reviewId,
-      projectId,
-      revision,
-      headOid: 'a'.repeat(40),
-      base: 'refs/heads/main',
-      baseOid: 'b'.repeat(40),
-      mergeBaseOid: 'b'.repeat(40),
-      publishedAt: '2026-10-19T00:00:00.000Z',
-      branch: 'removed-branch',
-      worktreePath: '/removed',
-      worktreeName: 'removed',
-    };
-    const verdict = {
-      asked: { text: 'Review' },
-      recommendation: 'merge',
-      reasons: ['Verified'],
-      notProven: [],
-      removed: [],
-    };
-    return Promise.resolve(
-      Response.json({
-        review,
-        revisions: [metadata],
-        revision: {
-          ...metadata,
-          files: [],
-          verdict,
-          content: {
-            environmentId,
-            worktreeId: 'a'.repeat(32),
-            revision,
-            publishedAt: metadata.publishedAt,
-            active: true,
-            diagnostics: 'current',
-            summary: {
-              url: '/review-summaries/token?expires=later&signature=signed',
-              byteLength: 1,
-            },
-            layers: [],
-            notExplained: [],
-            proof: { checks: [], assets: [], current: true },
-          },
+it.each([
+  ['files', 0],
+  ['reviewed', 0],
+  ['git', 1],
+] as const)(
+  'a %s notice triggers %s GitHub refreshes',
+  async (change, expected) => {
+    const subject = await setup();
+    let refreshes = 0;
+    const stop = subject.connection.runtime
+      .runSync(Reactivity.Reactivity)
+      .registerUnsafe(
+        [queryKeys.projectPullRequests(environmentId, projectId)],
+        () => {
+          refreshes += 1;
         },
-      }),
-    );
-  });
-  const input = { connection: subject.connection, reviewId };
-  const latest = readReview(input);
-  const comments = readReviewComments(input);
-  const project = readProjectReviews({
-    connection: subject.connection,
-    projectId,
-  });
-  const unmount = [
-    subject.registry.mount(latest),
-    subject.registry.mount(comments),
-    subject.registry.mount(project),
-  ];
-
-  try {
-    expect(
-      (await readClientAtom(subject.registry, latest)).review?.latestRevision,
-    ).toBe(1);
-    expect(await readClientAtom(subject.registry, comments)).toEqual([]);
-    expect(
-      (await readClientAtom(subject.registry, project))[0]?.latestRevision,
-    ).toBe(1);
-    revision = 2;
-    subject.live()?.onNotice({ type: 'inventory' });
-    expect(
-      (await readClientAtom(subject.registry, latest)).review?.latestRevision,
-    ).toBe(2);
-    expect(
-      (await readClientAtom(subject.registry, comments))[0]?.messages[0]?.body,
-    ).toBe('External comment 2');
-    expect(
-      (await readClientAtom(subject.registry, project))[0]?.latestRevision,
-    ).toBe(2);
-    revision = 3;
-    subject.live()?.onReconnect();
-    subject.live()?.onNotice({ type: 'ready' });
-    expect(
-      (await readClientAtom(subject.registry, latest)).review?.latestRevision,
-    ).toBe(3);
-    expect(
-      (await readClientAtom(subject.registry, comments))[0]?.messages[0]?.body,
-    ).toBe('External comment 3');
-    expect(
-      (await readClientAtom(subject.registry, project))[0]?.latestRevision,
-    ).toBe(3);
-    expect(subject.sent.at(-1)?.worktrees).toEqual([]);
-  } finally {
-    for (const stop of unmount) stop();
-    await subject.cleanup();
-  }
-});
+      );
+    try {
+      subject.live()?.onNotice({
+        type: 'worktree',
+        projectId,
+        worktreeId: '00000000000000000000000000000001',
+        change,
+      });
+      await Promise.resolve();
+      expect(refreshes).toBe(expected);
+    } finally {
+      stop();
+      await subject.cleanup();
+    }
+  },
+);

@@ -1,9 +1,9 @@
 import { Component, type ReactNode, Suspense } from 'react';
 import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
-import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
+import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 
 class ReviewErrorBoundary extends Component<
   { children: ReactNode; reset: (show: () => void) => void },

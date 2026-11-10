@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { branchErrorMessage } from '@porcelain/client/changes/rules';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import { useBranchChanges } from '@/features/changes/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import {

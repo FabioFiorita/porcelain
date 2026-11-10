@@ -22,14 +22,7 @@ import {
   InventoryStore,
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
-import {
-  AgentFeedbackStore,
-  CommentSeenStore,
-  CommentStore,
-  ReviewedFileStore,
-  ReviewedLayerStore,
-  ReviewStore,
-} from '@porcelain/reviews/ports';
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { inMemoryDeviceSightingStoreLayer } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { inMemoryPairingAttemptStoreLayer } from '../adapters/access/in-memory-pairing-attempt-store.ts';
 import { inMemoryRouteStateStoreLayer } from '../adapters/access/in-memory-route-state-store.ts';
@@ -65,12 +58,7 @@ export const composeStores = Effect.fn('Server.composeStores')(function* () {
     remoteAccess: yield* RemoteAccessStore,
     routeStates: Context.get(memory, RouteStateStore),
     gitActions: yield* GitActionReceiptStore,
-    agentFeedback: yield* AgentFeedbackStore,
-    reviews: yield* ReviewStore,
     githubAccounts: yield* GitHubAccountStore,
     reviewedFiles: yield* ReviewedFileStore,
-    reviewedLayers: yield* ReviewedLayerStore,
-    comments: yield* CommentStore,
-    commentsSeen: yield* CommentSeenStore,
   };
 });

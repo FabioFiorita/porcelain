@@ -1,5 +1,4 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { MessageSquareIcon } from 'lucide-react';
 import {
   changeStatusMarks,
   type ChangeStatus,
@@ -8,11 +7,11 @@ import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTreeIcon } from '@/features/files/index';
 import type { DocumentRef, OpenDocument } from '../rules/documents';
-import { basename, type ReviewStatus } from '@porcelain/client/reviews/rules';
+import { basename, type ReviewStatus } from '@porcelain/client/changes/rules';
 import {
   reviewSidebarActions,
   type ReviewSidebarAction,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { SidebarActionMenu } from './sidebar-action-menu';
 
 export const ROW =
@@ -25,7 +24,6 @@ export function ChangeRow({
   scopes,
   changeStatus,
   reviewStatus,
-  commentCount,
   active,
   onOpen,
   sideLabel,
@@ -40,7 +38,6 @@ export function ChangeRow({
   scopes: readonly string[];
   changeStatus: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
-  commentCount: number;
   active: boolean;
   onOpen: OpenDocument;
   sideLabel: string;
@@ -55,14 +52,11 @@ export function ChangeRow({
       case 'review':
         onReview();
         break;
-      case 'comment':
-        onOpen(document, { kind: 'file', filePath: path }, { compose: true });
-        break;
       case 'open':
         onOpen(document);
         break;
       case 'open-to-side':
-        onOpen(document, undefined, { toSide: true });
+        onOpen(document, { toSide: true });
         break;
       case 'open-file':
         onOpen({ kind: 'file', path });
@@ -106,9 +100,7 @@ export function ChangeRow({
               indented && 'pl-7',
               active && 'bg-accent font-medium text-foreground',
             )}
-            onClick={(event) =>
-              onOpen(document, undefined, { toSide: event.altKey })
-            }
+            onClick={(event) => onOpen(document, { toSide: event.altKey })}
           >
             <ChangeStatusIcon
               status={changeStatus}
@@ -123,12 +115,6 @@ export function ChangeRow({
               )}
               text={basename(path)}
             />
-            {commentCount > 0 && (
-              <span className="flex shrink-0 items-center gap-0.5 text-2xs">
-                <MessageSquareIcon className="size-3" />
-                {commentCount}
-              </span>
-            )}
           </button>
           {menu}
         </div>

@@ -5,7 +5,7 @@ import {
   type RemoveReviewedFileQuery,
   type RemoveReviewedFilesRequest,
   type RemoveReviewedFilesResponse,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/changes';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import { RemoveReviewedFilesService } from '@porcelain/reviews/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';

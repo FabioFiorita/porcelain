@@ -5,7 +5,6 @@ import type { AgentAction } from '@porcelain/server/kit/session';
 export type {
   AgentAction,
   Hit as ServerHit,
-  ProofCheckStep,
 } from '@porcelain/server/kit/session';
 export type { ServerAnswer } from '@porcelain/server/kit/typed-readers';
 

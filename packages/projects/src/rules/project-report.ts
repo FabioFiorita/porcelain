@@ -4,12 +4,10 @@ import type {
 } from '../models/inventory-report.ts';
 import type { Inventory, ProjectName } from '../models/project.ts';
 import type { ProjectWorktrees } from '../models/project-worktrees.ts';
-import type { ReviewBadges } from '@porcelain/kernel/models';
 
 function projectReport(
   project: ProjectName,
   worktrees: ProjectWorktrees,
-  statuses: ReviewBadges,
 ): ProjectReport {
   return {
     id: project.id,
@@ -31,7 +29,6 @@ function projectReport(
         ? { headCommittedAt: worktree.headCommittedAt }
         : {}),
       available: worktree.available,
-      status: statuses.get(worktree.id),
     })),
   };
 }
@@ -39,7 +36,6 @@ function projectReport(
 export function registeredProjectReport(
   project: ProjectName,
   listings: readonly ProjectWorktrees[],
-  statuses: ReviewBadges,
 ): ProjectReport {
   return projectReport(
     project,
@@ -48,7 +44,6 @@ export function registeredProjectReport(
       available: false,
       worktrees: [],
     },
-    statuses,
   );
 }
 
@@ -56,7 +51,6 @@ export function inventoryReport(
   environmentId: string,
   inventory: Inventory,
   listings: readonly ProjectWorktrees[],
-  statuses: ReviewBadges,
 ): InventoryReport {
   const byProject = new Map(
     listings.map((listing) => [listing.projectId, listing]),
@@ -65,7 +59,7 @@ export function inventoryReport(
     environmentId,
     projects: inventory.projects.flatMap((project) => {
       const listing = byProject.get(project.id);
-      return listing ? [projectReport(project, listing, statuses)] : [];
+      return listing ? [projectReport(project, listing)] : [];
     }),
   };
 }

@@ -5,3 +5,5 @@ export { NoWorktreeAtPathError } from './no-worktree-at-path-error.ts';
 export { ProjectNotFoundError } from './project-not-found-error.ts';
 export { UnsupportedFolderNameError } from './unsupported-folder-name-error.ts';
 export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';
+
+export { BranchArchiveRefusedError } from './branch-archive-refused-error.ts';

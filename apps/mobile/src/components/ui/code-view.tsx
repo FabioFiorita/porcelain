@@ -1,6 +1,6 @@
 import { RenderSurface } from './render-surface';
 import type { RenderToken } from '../../shared/rules/render-model';
-import type { ReviewRange } from './review-annotation';
+import type { ReviewRange } from './code-range';
 import { useHighlightedCode } from './use-highlighted-code';
 import { View } from 'react-native';
 import { Text } from './text';

@@ -2,7 +2,7 @@ import { useAtomSet } from '@effect/atom-react';
 import { Exit } from 'effect';
 import { retryWorktreeReads } from '@porcelain/client/transport';
 import type { Connection } from '@/shared/workspace/connection';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 
 export function useRetryReview(connection: Connection, scope: ReviewScope) {
   const retry = useAtomSet(retryWorktreeReads(connection), {

@@ -35,3 +35,11 @@ export {
   type WorktreeCleanupPlan,
   type WorktreeCleanupRequest,
 } from './worktree-cleanup.ts';
+
+export * from './pull-requests.ts';
+export { PullRequestsApi } from './pull-requests-api.ts';
+
+export {
+  type ArchivePullRequestRequest,
+  type ArchivePullRequestResponse,
+} from '@porcelain/projects/models';

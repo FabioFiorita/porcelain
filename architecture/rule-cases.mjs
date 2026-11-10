@@ -499,7 +499,7 @@ import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import { RefreshInventoryUseCasePort } from '../../ports/refresh-inventory-use-case-port.ts';
-import { ReadReviewService } from '@porcelain/reviews/services';
+import { ListReviewedFilesService } from '@porcelain/reviews/services';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 export class RuleFixtureUseCase extends Context.Service<RuleFixtureUseCase, {
   readonly execute: (input: WorktreeParams) => Effect.Effect<void>;
@@ -511,7 +511,7 @@ export class RuleFixtureUseCase extends Context.Service<RuleFixtureUseCase, {
     const events = yield* EventPublisher;
     const check = yield* CheckWorktreeUseCasePort;
     const refresh = yield* RefreshInventoryUseCasePort;
-    const operation = yield* ReadReviewService;
+    const operation = yield* ListReviewedFilesService;
     ${helpers}
     return { execute: Effect.fn('RuleFixtureUseCase.execute')(function* (input) {
       ${body}
@@ -852,24 +852,27 @@ const nativeLaneCases = [
       'aliased service',
       (source) =>
         source
-          .replace('{ ReadReviewService }', '{ ReadReviewService as Read }')
-          .replace('yield* ReadReviewService', 'yield* Read'),
+          .replace(
+            '{ ListReviewedFilesService }',
+            '{ ListReviewedFilesService as Read }',
+          )
+          .replace('yield* ListReviewedFilesService', 'yield* Read'),
     ],
     [
       'namespace service',
       (source) =>
         source
-          .replace('{ ReadReviewService }', '* as Services')
+          .replace('{ ListReviewedFilesService }', '* as Services')
           .replace(
-            'yield* ReadReviewService',
-            'yield* Services.ReadReviewService',
+            'yield* ListReviewedFilesService',
+            'yield* Services.ListReviewedFilesService',
           ),
     ],
     [
       'worktree access',
       (source) =>
         source.replace(
-          'const operation = yield* ReadReviewService;',
+          'const operation = yield* ListReviewedFilesService;',
           'const access = yield* WorktreeAccess;',
         ),
     ],
@@ -885,7 +888,7 @@ const nativeLaneCases = [
       valid: transform(
         pure.replace(
           '    const keys',
-          '    const operation = yield* ReadReviewService;\n    const keys',
+          '    const operation = yield* ListReviewedFilesService;\n    const keys',
         ),
       ),
       invalid: pure,
@@ -897,7 +900,7 @@ const nativeLaneCases = [
     ['no lane', 'return;'],
     [
       'shadowed service tag',
-      `const ReadReviewService = input; const service = yield* ReadReviewService; ${singleLane}`,
+      `const ListReviewedFilesService = input; const service = yield* ListReviewedFilesService; ${singleLane}`,
     ],
   ].map(([state, body]) => ({
     state,
@@ -6711,19 +6714,6 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   }),
   {
     rule: 'lane-per-table',
-    name: 'agent feedback persistence has a declared table owner',
-    valid: {
-      'packages/reviews/src/ports/agent-feedback-store.ts':
-        'export interface AgentFeedbackStore { read(): string; begin(): boolean; acknowledge(): void; }',
-    },
-    invalid: {
-      'packages/reviews/src/ports/unowned-agent-feedback-store.ts':
-        'export interface UnownedAgentFeedbackStore { read(): string; begin(): boolean; acknowledge(): void; }',
-    },
-    errors: ['lane-per-table'],
-  },
-  {
-    rule: 'lane-per-table',
     valid: {
       'packages/reviews/src/ports/github-account-store.ts':
         'export interface GitHubAccountStore { read(): string; detect(): void; override(): void; }',
@@ -6749,20 +6739,20 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   {
     rule: 'lane-per-table',
     files: {
-      'apps/server/src/use-cases/reviews/read-review.ts':
-        "import { ReadReviewService } from '../../../../../packages/reviews/src/services/read-review-service.ts'; export class ReadReviewUseCase { constructor(private readonly service: ReadReviewService, private readonly lanes: { run(key: string, mode: string, body: () => string[]): string[] }, private readonly laneKeys: { reviews(): string }) {} execute() { return this.lanes.run(this.laneKeys.reviews(), 'read', () => this.service.execute()); } }",
+      'apps/server/src/use-cases/reviews/list-reviewed-files.ts':
+        "import { ListReviewedFilesService } from '../../../../../packages/reviews/src/services/list-reviewed-files-service.ts'; export class ListReviewedFilesUseCase { constructor(private readonly service: ListReviewedFilesService, private readonly lanes: { run(key: string, mode: string, body: () => string[]): string[] }, private readonly laneKeys: { reviews(): string }) {} execute() { return this.lanes.run(this.laneKeys.reviews(), 'read', () => this.service.execute()); } }",
     },
     valid: {
-      'packages/reviews/src/ports/review-store.ts':
-        'export interface ReviewStore { list(): string[]; }',
-      'packages/reviews/src/services/read-review-service.ts':
-        "import type { ReviewStore as Store } from '../ports/review-store.ts'; export class ReadReviewService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
+      'packages/reviews/src/ports/reviewed-file-store.ts':
+        'export interface ReviewedFileStore { list(): string[]; }',
+      'packages/reviews/src/services/list-reviewed-files-service.ts':
+        "import type { ReviewedFileStore as Store } from '../ports/review-store.ts'; export class ListReviewedFilesService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
     },
     invalid: {
-      'packages/reviews/src/ports/review-store.ts':
-        'export interface NewReviewStore { list(): string[]; }',
-      'packages/reviews/src/services/read-review-service.ts':
-        "import type { NewReviewStore as Store } from '../ports/review-store.ts'; export class ReadReviewService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
+      'packages/reviews/src/ports/reviewed-file-store.ts':
+        'export interface NewReviewedFileStore { list(): string[]; }',
+      'packages/reviews/src/services/list-reviewed-files-service.ts':
+        "import type { NewReviewedFileStore as Store } from '../ports/review-store.ts'; export class ListReviewedFilesService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
     },
     errors: ['lane-per-table'],
   },

@@ -1,6 +1,3 @@
-import { seedReview } from '@porcelain/server/kit/seed-review';
-import { Schema } from 'effect';
-import { readReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { execFileSync } from 'node:child_process';
 import {
   readFileSync,
@@ -11,7 +8,6 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ServerHandle, Recorder } from '@porcelain/server/kit/isolated-server';
-import { sampleReview } from '@porcelain/server/kit/requests';
 import { record, text } from '@porcelain/server/kit/session';
 
 export async function archiveFixture(
@@ -26,6 +22,7 @@ export async function archiveFixture(
   execFileSync('git', ['init', '-q', '--bare', remote]);
   git('remote', 'add', 'origin', 'git@github.com:FabioFiorita/porcelain.git');
   git('remote', 'set-url', '--push', 'origin', remote);
+  git('remote', 'add', 'fixture', remote);
   git('add', '--all');
   git('commit', '--allow-empty', '-qm', 'Prepare archive base');
   git('branch', 'archive-base');
@@ -40,7 +37,14 @@ export async function archiveFixture(
     '-qm',
     'Complete archive fixture',
   ]);
-  execFileSync('git', ['-C', tree, 'push', '-qu', 'origin', 'archive-fixture']);
+  execFileSync('git', [
+    '-C',
+    tree,
+    'push',
+    '-qu',
+    'fixture',
+    'archive-fixture',
+  ]);
   writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n.env\n');
   writeFileSync(join(tree, '.env'), 'LOCAL_ONLY=archive-fixture\n');
   mkdirSync(join(tree, 'node_modules'));
@@ -59,6 +63,7 @@ export async function archiveFixture(
     body: options.description ?? 'Finished',
     baseRefName: 'main',
     headRefOid: head,
+    headRepository: { url: remote },
     mergeable: 'UNKNOWN',
     labels: { nodes: [], pageInfo: { hasNextPage: false } },
     comments: { nodes: [], pageInfo: { hasNextPage: false } },
@@ -96,7 +101,7 @@ export async function archiveFixture(
   };
   const manifestPath = join(home, 'manifest.json');
   const manifest = record(JSON.parse(readFileSync(manifestPath, 'utf8')));
-  const githubCommand = `#!${process.execPath}\nconst args=process.argv.slice(2);\nif(args[0]==='auth'&&args[1]==='status') console.log('["fixture"]');\nelse if(args[0]==='auth') console.log('fixture-credential');\nelse if(args.includes('repos/FabioFiorita/porcelain')) console.log('{}');\nelse console.log(JSON.stringify({data:{repository:{pullRequest:${JSON.stringify(pr)}}}}));\n`;
+  const githubCommand = `#!${process.execPath}\nconst args=process.argv.slice(2);\nif(args[0]==='auth'&&args[1]==='status') console.log('["fixture"]');\nelse if(args[0]==='auth') console.log('fixture-credential');\nelse if(args.includes('repos/FabioFiorita/porcelain')) console.log('{}');\nelse console.log(JSON.stringify({data:{repository:args.some(arg=>arg.includes('PullRequestList'))?{open:{nodes:[],pageInfo:{hasNextPage:false}},recent:{nodes:[${JSON.stringify(pr)}],pageInfo:{hasNextPage:false}}}:{pullRequest:${JSON.stringify(pr)}}}}));\n`;
   const githubPath = join(text(manifest.bin), 'gh');
   const setGitHubFailure = (
     reason: 'rate-limited' | 'not-found' | undefined,
@@ -120,23 +125,6 @@ export async function archiveFixture(
     projectId: '',
     worktreeId: '',
   });
-  const body = {
-    ...sampleReview(
-      session,
-      0,
-      '75dc6a36-a001-4d00-b511-c45430b99403',
-      '75dc6a36-a001-4d00-b511-c45430b99404',
-    ),
-    base: 'refs/heads/archive-base',
-    pullRequest: pr.url,
-  };
-  const step = body.layers[0]?.steps[0];
-  if (!step) throw new Error('Archive fixture needs a review step');
-  step.pointer = {
-    path: 'archive.txt',
-    startLine: 1,
-    endLine: 1,
-  };
   await session.read({
     method: 'PATCH',
     path: '/api/review-git-settings',
@@ -151,17 +139,7 @@ export async function archiveFixture(
       },
     },
   });
-  const { reviewId } = await seedReview({ ...session, repository: tree }, body);
   return {
-    readReview: async () =>
-      Schema.decodeUnknownSync(readReviewResponseSchema)(
-        (
-          await session.read({
-            method: 'GET',
-            path: `/api/reviews/${reviewId}`,
-          })
-        ).body,
-      ).review,
     relocateBranch: (destination: 'another-checkout' | 'not-checked-out') => {
       execFileSync('git', ['-C', tree, 'switch', '-c', 'former-pr-checkout']);
       writeFileSync(join(tree, 'archive.txt'), 'Different branch content.\n');
@@ -193,6 +171,5 @@ export async function archiveFixture(
     tree,
     remote,
     main,
-    reviewId,
   };
 }

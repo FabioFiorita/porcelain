@@ -51,5 +51,5 @@ Automated coverage: `workspace-selection.spec.ts`, `status.spec.ts` (empty repos
 
 ## Gotchas
 
-- Use [Worktrees recovery](projects.worktrees.md#driving-it-with-agent-device) for shared inventory/loading/unavailable states.
+- Use [Worktrees recovery](projects.worktrees.md) for shared inventory/loading/unavailable states.
 - Emulator loopback proof does not cover iOS, physical-device LAN permissions or remote routing.

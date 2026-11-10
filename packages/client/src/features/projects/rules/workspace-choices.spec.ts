@@ -17,7 +17,6 @@ function project(id: string, available = true): Project {
         main: true,
         branch: 'main',
         available: true,
-        status: undefined,
       },
     ],
   };
@@ -80,7 +79,6 @@ describe('choosing a workspace across paired environments', () => {
                   main: false,
                   branch: 'feature',
                   available: false,
-                  status: undefined,
                 },
               ],
             },

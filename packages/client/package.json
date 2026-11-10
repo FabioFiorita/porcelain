@@ -13,10 +13,8 @@
     "./files": "./src/features/files/index.ts",
     "./changes": "./src/features/changes/index.ts",
     "./history": "./src/features/history/index.ts",
-    "./reviews": "./src/features/reviews/index.ts",
     "./git-actions": "./src/features/git-actions/index.ts",
     "./git-actions/rules": "./src/features/git-actions/rules/index.ts",
-    "./reviews/rules": "./src/features/reviews/rules/index.ts",
     "./changes/rules": "./src/features/changes/rules/index.ts",
     "./history/rules": "./src/features/history/rules/index.ts",
     "./files/rules": "./src/features/files/rules/index.ts",
@@ -28,7 +26,7 @@
     "./notifications/rules": "./src/features/notifications/rules/index.ts",
     "./walkthroughs": "./src/features/walkthroughs/index.ts",
     "./walkthroughs/rules": "./src/features/walkthroughs/rules/index.ts",
-    "./workspace": "./src/features/workspace/index.ts"
+    "./reviews/rules": "./src/features/links/rules/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",

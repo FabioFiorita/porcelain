@@ -1,29 +1,18 @@
 import type { ComponentType, ReactNode } from 'react';
 
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { useState } from 'react';
 import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { type ChangeScope } from '@/shared/workspace/search';
 import { SegmentedTabs } from './segmented-tabs';
-import { useBranchChanges, useChanges } from '@/features/changes/index';
+import { useChanges } from '@/features/changes/index';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
-import { useComments, usePrefetchComments } from '../queries/comments';
 
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
-  anchorPath,
-  changeAnchor,
-  type CommentThread,
-  type FileCommentAnchor,
-  threadCounts,
-} from '@porcelain/client/reviews/rules';
-import {
   SPECS,
-  BRANCH,
   type DocumentRef,
   entryKey,
   type OpenDocument,
@@ -33,19 +22,13 @@ import {
   type ChangeList,
   type ReviewChangeItem,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
-import {
-  ChangeComment,
-  CommentsView,
-  ReviewViews,
-  WholeChangeComment,
-} from './comments-view';
-import { isSpecPath } from '@porcelain/client/reviews/rules';
+import { isSpecPath } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -63,7 +46,6 @@ const CHANGE_SCOPES: readonly { value: ChangeScope; label: string }[] = [
 
 type ScopeProps = {
   allChanges: DocumentRef;
-  actionsTarget: HTMLElement | null;
   changeScope: ChangeScope;
   base: string | undefined;
   onChangeScope: (scope: ChangeScope) => void;
@@ -99,62 +81,35 @@ export function ReviewIndex({
   onChangeScope,
   onBase,
   allChanges,
-  actionsTarget,
 }: ReviewIndexProps & { grouping?: ChangeGrouping }) {
   const { connection } = context;
-  const [view, setView] = useState<'layers' | 'comments'>('layers');
-  const [composing, setComposing] = useState(false);
   usePrefetchReviewed(scope, context);
-  usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
-  const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
-  const openComments = threadCounts(threads).open;
 
   const branch = changeScope === 'branch';
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <WholeChangeComment
-        target={view === 'layers' ? actionsTarget : null}
-        branch={branch}
-        onCompose={() => {
-          setView('comments');
-          setComposing(true);
-        }}
-      />
       <SegmentedTabs
         label="Changes to review"
         className="px-2.5 pt-3"
         value={changeScope}
-        onValue={(next) => {
-          setComposing(false);
-          onChangeScope(next);
-        }}
+        onValue={onChangeScope}
         options={CHANGE_SCOPES}
       />
-      <ReviewViews
-        view={view}
-        onView={(next) => {
-          setComposing(false);
-          setView(next);
-        }}
-        filesLabel="Changed files"
-        openComments={openComments}
-      />
-      {view === 'layers' && branch && (
+      {branch && (
         <BranchIndex
           scope={scope}
           context={context}
           base={base}
           activeEntry={activeEntry}
-          threads={threads}
           onOpen={onOpen}
           sideLabel={sideLabel}
           onBase={onBase}
           grouping={grouping?.branch}
         />
       )}
-      {view === 'layers' && !branch && (
+      {!branch && (
         <LayersView
           scope={scope}
           context={context}
@@ -163,52 +118,9 @@ export function ReviewIndex({
           sideLabel={sideLabel}
           list={list}
           changes={changes}
-          threads={threads}
           grouping={grouping?.uncommitted}
           allChanges={allChanges}
           base={base}
-        />
-      )}
-      {view === 'comments' && (
-        <CommentsView
-          threads={threads}
-          scope={scope}
-          context={context}
-          composer={
-            branch ? (
-              <BranchChangeComment
-                scope={scope}
-                context={context}
-                base={base}
-                open={composing}
-                setOpen={setComposing}
-              />
-            ) : (
-              <ChangeComment
-                scope={scope}
-                context={context}
-                anchor={changeAnchor(undefined)}
-                open={composing}
-                setOpen={setComposing}
-              />
-            )
-          }
-          onReveal={(anchor) => {
-            if (anchor.kind === 'change') {
-              onOpen(
-                anchor.comparison?.kind === 'branch' ? BRANCH : allChanges,
-                anchor,
-              );
-              return;
-            }
-            onOpen(
-              anchorDocument(
-                anchor,
-                new Set(list.changes.map((entry) => entry.path)),
-              ),
-              anchor,
-            );
-          }}
         />
       )}
     </div>
@@ -223,7 +135,6 @@ function LayersView({
   sideLabel,
   list,
   changes,
-  threads,
   grouping: Grouping,
   allChanges,
   base,
@@ -233,7 +144,6 @@ function LayersView({
   grouping: UncommittedFileGrouping | undefined;
   list: ChangeList;
   changes: readonly ReviewChangeItem[];
-  threads: readonly CommentThread[];
 }) {
   const specsApart = useSpecsApart(context.connection);
   const [groups, setGroups] = useState({ changes: true, specs: false });
@@ -289,11 +199,6 @@ function LayersView({
         ),
       ]}
       reviewStatus={changeByPath.get(path)?.reviewStatus}
-      commentCount={
-        threads.filter(
-          (thread) => anchorPath(thread.anchor) === path && !thread.resolved,
-        ).length
-      }
       active={activeEntry === entryKey({ kind: 'change', path })}
       onOpen={onOpen}
       sideLabel={sideLabel}
@@ -372,53 +277,4 @@ function LayersView({
       </div>
     </ScrollArea>
   );
-}
-
-function BranchChangeComment({
-  scope,
-  context,
-  base,
-  open,
-  setOpen,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  base: string | undefined;
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}) {
-  const { connection } = context;
-  const changes = useBranchChanges(scope, connection, base);
-  const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
-  const ref = branch?.base?.ref;
-  const tip = branch?.head.oid;
-  return (
-    <ChangeComment
-      scope={scope}
-      context={context}
-      anchor={
-        ref === null || ref === undefined || tip === null || tip === undefined
-          ? undefined
-          : changeAnchor({ base: ref, tip })
-      }
-      open={open}
-      setOpen={setOpen}
-    />
-  );
-}
-
-function anchorDocument(
-  anchor: FileCommentAnchor,
-  changed: ReadonlySet<string>,
-): DocumentRef {
-  if (anchor.comparison?.kind === 'branch') {
-    return { kind: 'branch-file', path: anchor.filePath };
-  }
-  if (anchor.revision !== null && anchor.revision !== undefined) {
-    return { kind: 'commit', oid: anchor.revision };
-  }
-  if (anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)) {
-    return { kind: 'change', path: anchor.filePath };
-  }
-  return { kind: 'file', path: anchor.filePath };
 }

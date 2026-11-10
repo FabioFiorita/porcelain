@@ -2,7 +2,6 @@ import type { FileDraftHandle } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { createPortal } from 'react-dom';
-import { MessageSquarePlusIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { useReviewChangeItems } from '../queries/reviewed';
 import { type ReactNode, useId, useState } from 'react';
@@ -37,7 +36,7 @@ import { isImagePath } from '@porcelain/client/files/rules';
 import type { FileDraftState } from '@porcelain/client/files';
 import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { FindBar } from './find-bar';
 import { StateNotice } from '@/shared/views/state-notice';
@@ -217,18 +216,7 @@ function ReadableFileDocument({
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );
-  const { reveal, active } = interaction;
-  const [shownReveal, setShownReveal] = useState<number>();
-  if (
-    reveal &&
-    shownReveal !== reveal.nonce &&
-    reveal.anchor.comparison?.kind === 'file' &&
-    reveal.anchor.filePath === path
-  ) {
-    setShownReveal(reveal.nonce);
-    setMode('source');
-  }
-  const [commentRequest, setCommentRequest] = useState<number>();
+  const { active } = interaction;
   const [editing, setEditing] = useState(false);
   const [finding, setFinding] = useState<number>();
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
@@ -344,27 +332,10 @@ function ReadableFileDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {active && !showingSource && !editing && (
-        <RenderedFileShortcuts
-          onComment={() => {
-            setMode('source');
-            setCommentRequest(Date.now());
-          }}
-        />
-      )}
       {interaction.toolbarTarget &&
         !showingSource &&
         createPortal(
           <>
-            <BarAction
-              label="Comment"
-              icon={MessageSquarePlusIcon}
-              shortcut={SHORTCUTS.commentOnFile}
-              onClick={() => {
-                setMode('source');
-                setCommentRequest(Date.now());
-              }}
-            />
             <TimelineButton path={path} onOpen={onOpen} />
           </>,
           interaction.toolbarTarget,
@@ -411,20 +382,10 @@ function ReadableFileDocument({
                 <TimelineButton path={path} onOpen={onOpen} />
               ) : undefined
             }
-            {...(commentRequest !== undefined ? { commentRequest } : {})}
             {...(foundLine !== undefined ? { foundLine } : {})}
             entries={[
               {
                 ...fileEntry(`file:${path}`, path, text),
-                ...(contentFingerprint
-                  ? {
-                      comment: {
-                        filePath: path,
-                        comparison: { kind: 'file' },
-                        contentFingerprint,
-                      },
-                    }
-                  : {}),
               },
             ]}
           />
@@ -540,50 +501,10 @@ function defaultFileDisplayMode(
   return 'source';
 }
 
-function PreviewFileControls({
-  scope,
-  context,
-  interaction,
-  path,
-  onOpen,
-}: FileDocumentProps) {
-  const changes = useChanges(scope, context.connection);
-  const item = useReviewChangeItems(scope, context, changes, [path])[0];
-  const comment = () => {
-    if (item)
-      onOpen(
-        { kind: 'change', path },
-        { kind: 'file', filePath: path },
-        { compose: true },
-      );
-  };
+function PreviewFileControls({ interaction, path, onOpen }: FileDocumentProps) {
   if (!interaction.toolbarTarget) return null;
-  return (
-    <>
-      {interaction.active && <RenderedFileShortcuts onComment={comment} />}
-      {createPortal(
-        <>
-          <BarAction
-            label="Comment"
-            icon={MessageSquarePlusIcon}
-            shortcut={SHORTCUTS.commentOnFile}
-            disabled={!item}
-            description={
-              item
-                ? 'Comment'
-                : 'Comments for this preview are available from its diff.'
-            }
-            onClick={comment}
-          />
-          <TimelineButton path={path} onOpen={onOpen} />
-        </>,
-        interaction.toolbarTarget,
-      )}
-    </>
+  return createPortal(
+    <TimelineButton path={path} onOpen={onOpen} />,
+    interaction.toolbarTarget,
   );
-}
-
-function RenderedFileShortcuts({ onComment }: { onComment: () => void }) {
-  useHotkey(SHORTCUTS.commentOnFile, onComment, { ignoreInputs: true });
-  return null;
 }

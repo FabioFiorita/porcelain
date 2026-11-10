@@ -31,10 +31,7 @@ export function mapPullRequestSummary(
     checksTruncated: false,
   };
 }
-export function mapPullRequest(
-  raw: GitHubPullRequest,
-  reviewHead: string,
-): PullRequest {
+export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
   const rollup = raw.commits.nodes[0]?.commit.statusCheckRollup;
   const checks = (rollup?.contexts.nodes ?? []).map((check) =>
     check.__typename === 'CheckRun'
@@ -119,7 +116,7 @@ export function mapPullRequest(
     authorAvatarUrl: raw.author?.avatarUrl ?? undefined,
     baseBranch: raw.baseRefName,
     headSha: raw.headRefOid,
-    matchesReviewHead: raw.headRefOid === reviewHead,
+    headRepository: raw.headRepository?.url,
     mergeable: raw.mergeable,
     labels: raw.labels.nodes,
     checks,

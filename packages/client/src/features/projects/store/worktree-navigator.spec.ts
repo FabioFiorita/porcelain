@@ -15,8 +15,6 @@ it('retains search, combined filters and independent project expansion across na
     filter: {
       projects: ['computer/project'],
       environments: ['computer'],
-      reviews: ['with-review'],
-      older: true,
     },
     expanded: { 'computer/project': true, 'other/project': false },
   };
@@ -36,13 +34,13 @@ it('retains search, combined filters and independent project expansion across na
   }
 });
 
-it('starts an independent client session with all projects and review choices and older reviews hidden', () => {
+it('starts an independent client session with all projects and environments selected', () => {
   const first = AtomRegistry.make();
   const next = AtomRegistry.make();
   try {
     first.set(worktreeNavigatorState, {
       query: 'old search',
-      filter: { projects: [], environments: [], reviews: [], older: true },
+      filter: { projects: [], environments: [] },
       expanded: { old: false },
     });
     expect(next.get(worktreeNavigatorState)).toEqual({
@@ -50,8 +48,6 @@ it('starts an independent client session with all projects and review choices an
       filter: {
         projects: undefined,
         environments: undefined,
-        reviews: undefined,
-        older: false,
       },
       expanded: {},
     });

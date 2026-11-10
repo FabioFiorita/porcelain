@@ -2,7 +2,7 @@ import { useRenderTokens } from './use-render-tokens';
 import { requireNativeView } from 'expo';
 import { useState } from 'react';
 import { type NativeSyntheticEvent } from 'react-native';
-import type { ReviewRange } from './review-annotation';
+import type { ReviewRange } from './code-range';
 
 import type { RenderLine } from '../../shared/rules/render-model';
 type SurfaceProps = {

@@ -50,7 +50,6 @@ export type WorktreeDetails = {
   environment: string;
   projectId: string;
   worktreeId: string;
-  reviewId?: string | undefined;
   number?: string | undefined;
 };
 

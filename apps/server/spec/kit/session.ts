@@ -1,5 +1,4 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
-import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
 import type { liveSubscriptionSchema } from '@porcelain/contracts/access';
 
 export type HttpRequest = {
@@ -126,42 +125,8 @@ export type Hit = {
   status: number | undefined;
 };
 
-export type ProofCheckStep = {
-  name: string;
-  result: 'pass' | 'fail';
-  output?: string;
-};
-
 export type AgentAction =
-  | {
-      kind: 'publish-architecture';
-      questions?: Readonly<Record<string, string>> | undefined;
-    }
   | { kind: 'seed'; variant: StressVariant }
-  | {
-      kind: 'publish-review';
-      title: string;
-      step: 'changed' | 'context';
-      summaryHtml?: string | undefined;
-    }
-  | {
-      kind: 'publish-proof';
-      title: string;
-      checks: ProofCheckStep[];
-      screenshot: string;
-    }
-  | {
-      kind: 'comment';
-      path: string;
-      body: string;
-      thread?: Omit<CreateCommentThreadRequest, 'body'> | undefined;
-    }
-  | {
-      kind: 'reply';
-      threadId: string;
-      body: string;
-      reviewId?: string | undefined;
-    }
   | { kind: 'edit-file'; edit: EditFileRequest };
 
 export type Phase = 'setup' | 'request' | 'follow-up';

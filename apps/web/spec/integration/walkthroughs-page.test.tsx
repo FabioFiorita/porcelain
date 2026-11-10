@@ -545,7 +545,7 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
           .getByRole('toolbar', { name: 'Document controls', exact: true })
           .getByRole('button', { name: 'Comment', exact: true }),
       )
-      .toBeVisible();
+      .not.toBeInTheDocument();
     await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
     await page
       .getByRole('button', { name: 'See every changed file', exact: true })

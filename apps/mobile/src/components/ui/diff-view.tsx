@@ -1,6 +1,6 @@
 import { RenderSurface } from './render-surface';
 import type { RenderLine } from '../../shared/rules/render-model';
-import type { ReviewRange } from './review-annotation';
+import type { ReviewRange } from './code-range';
 import { useHighlightedCode } from './use-highlighted-code';
 import {
   diffSources,

@@ -1,4 +1,3 @@
-import { sqliteAgentFeedbackStoreLayer } from '../repositories/reviews/sqlite-agent-feedback-store.ts';
 import { sqliteGitHubAccountStoreLayer } from '../repositories/reviews/sqlite-github-account-store.ts';
 import { sqliteWalkthroughStoreLayer } from '../repositories/walkthroughs/sqlite-walkthrough-store.ts';
 import { Layer } from 'effect';
@@ -13,11 +12,7 @@ import { sqliteRemoteAccessStoreLayer } from '../repositories/access/sqlite-remo
 import { sqliteFilePreferenceStoreLayer } from '../repositories/projects/sqlite-file-preference-store.ts';
 import { sqliteInventoryStoreLayer } from '../repositories/projects/sqlite-inventory-store.ts';
 import { sqliteWorktreePresenceStoreLayer } from '../repositories/projects/sqlite-worktree-presence-store.ts';
-import { sqliteCommentSeenStoreLayer } from '../repositories/reviews/sqlite-comment-seen-store.ts';
-import { sqliteCommentStoreLayer } from '../repositories/reviews/sqlite-comment-store.ts';
-import { sqliteReviewStoreLayer } from '../repositories/reviews/sqlite-review-store.ts';
 import { sqliteReviewedFileStoreLayer } from '../repositories/reviews/sqlite-reviewed-file-store.ts';
-import { sqliteReviewedLayerStoreLayer } from '../repositories/reviews/sqlite-reviewed-layer-store.ts';
 import { sqliteGitActionReceiptStoreLayer } from '../repositories/git-actions/sqlite-git-action-receipt-store.ts';
 
 export function storageLayer(
@@ -26,7 +21,7 @@ export function storageLayer(
 ) {
   return Layer.mergeAll(
     sqliteWalkthroughStoreLayer,
-    sqliteAgentFeedbackStoreLayer,
+
     sqliteGitHubAccountStoreLayer,
     sqliteDeviceStoreLayer,
     sqliteEnvironmentIdentityReaderLayer,
@@ -38,11 +33,9 @@ export function storageLayer(
     sqliteFilePreferenceStoreLayer,
     sqliteInventoryStoreLayer,
     sqliteWorktreePresenceStoreLayer,
-    sqliteCommentSeenStoreLayer,
-    sqliteCommentStoreLayer,
-    sqliteReviewStoreLayer,
+
     sqliteReviewedFileStoreLayer,
-    sqliteReviewedLayerStoreLayer,
+
     sqliteGitActionReceiptStoreLayer,
   ).pipe(Layer.provideMerge(databaseLayer(dataDirectory, options)));
 }

@@ -1,19 +1,10 @@
-import { catalogBranchReviewReaderLayer } from '../adapters/reviews/catalog-branch-review-reader.ts';
-import { gitReviewCodeReaderLayer } from '../adapters/reviews/git-review-code-reader.ts';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
   ChangeStatusReader,
   ReadChangeFingerprintsOptions,
   BranchRangeReader,
 } from '@porcelain/changes/ports';
-import {
-  BranchReviewReader,
-  ReviewStore,
-  ReviewedLayerStore,
-  CommentStore,
-  CommentSeenStore,
-  ReviewedFileStore,
-} from '@porcelain/reviews/ports';
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import {
   FileReader,
   ReadTextFileOptions,
@@ -33,7 +24,6 @@ import {
 import { osHostNameReaderLayer } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
-  ReadRetainedBranchDiffsService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
@@ -53,13 +43,7 @@ import {
   ListRecordedWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
-import {
-  InvalidateReviewedMarksService,
-  ReadReviewTextsService,
-  ReadPublishedReviewService,
-  ReadReviewBadgesService,
-  RecordReviewActivityService,
-} from '@porcelain/reviews/services';
+import { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
 import { gitBranchRangeReaderLayer } from '../adapters/changes/git-branch-range-reader.ts';
 import { gitChangeDiffReaderLayer } from '../adapters/changes/git-change-diff-reader.ts';
 import { gitChangeStatusReaderLayer } from '../adapters/changes/git-change-status-reader.ts';
@@ -75,7 +59,6 @@ import { gitHeadTextReaderLayer } from '../adapters/files/git-head-text-reader.t
 import { gitWorktreeAccessReaderLayer } from '../adapters/projects/git-worktree-access-reader.ts';
 import { ListedWorktreeAccessReader } from '@porcelain/projects/ports';
 import { type ServerSettings } from '../config/server-settings.ts';
-import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
 import { type Stores } from './compose-stores.ts';
 
 export type Shared = Effect.Success<ReturnType<typeof composeShared>>;
@@ -119,17 +102,9 @@ export function composeShared(dependencies: SharedDependencies) {
       gitBranchRangeReaderLayer(worktreeAccess, gitVersion, limits.git),
       Layer.succeed(GitActionReceiptStore, stores.gitActions),
       Layer.succeed(WorktreePresenceStore, stores.worktreePresence),
-      Layer.succeed(ReviewStore, stores.reviews),
-      Layer.succeed(ReviewedLayerStore, stores.reviewedLayers),
-      Layer.succeed(CommentStore, stores.comments),
-      Layer.succeed(CommentSeenStore, stores.commentsSeen),
       Layer.succeed(ReadBinaryFilesOptions, limits.reviews.proof),
       Layer.succeed(ReviewedFileStore, stores.reviewedFiles),
     );
-    const reviewPorts = Layer.mergeAll(
-      catalogBranchReviewReaderLayer,
-      gitReviewCodeReaderLayer(dependencies.settings.limits),
-    ).pipe(Layer.provideMerge(ports));
     const native = Layer.mergeAll(
       ReadEnvironmentService.layer,
       ReadEnvironmentLabelService.layer,
@@ -149,7 +124,7 @@ export function composeShared(dependencies: SharedDependencies) {
           ),
         ),
       )
-      .pipe(Layer.provideMerge(reviewPorts));
+      .pipe(Layer.provideMerge(ports));
     const services = Layer.mergeAll(
       ReadTextFileService.layer,
       ReadTextFilesService.layer,
@@ -160,26 +135,17 @@ export function composeShared(dependencies: SharedDependencies) {
       ConfirmWorktreeService.layer,
       CheckRefreshedWorktreeService.layer,
       ReadBranchChangesService.layer,
-      ReadRetainedBranchDiffsService.layer,
-      ReadReviewTextsService.layer,
       ReadInterruptedGitActionService.layer,
       ListRegisteredProjectsService.layer,
       ListKnownWorktreesService.layer,
       ListRecordedWorktreesService.layer,
-      ReadReviewBadgesService.layer,
-      ReadPublishedReviewService.layer,
       ReadBinaryFilesService.layer,
-      RecordReviewActivityService.layer,
       InvalidateReviewedMarksService.layer,
     ).pipe(Layer.provideMerge(native));
-    const operations = Layer.mergeAll(ReadReviewEvidenceUseCase.layer).pipe(
-      Layer.provideMerge(services),
-    );
-    const runtime = yield* Layer.build(operations);
+    const runtime = yield* Layer.build(services);
     return yield* Effect.gen(function* () {
       return {
         gitVersion,
-        branchReviewReader: yield* BranchReviewReader,
         catalog,
         worktreeAccess,
         openInspection,
@@ -201,12 +167,8 @@ export function composeShared(dependencies: SharedDependencies) {
         listRegisteredProjects: yield* ListRegisteredProjectsService,
         listKnownWorktrees: yield* ListKnownWorktreesService,
         listRecordedWorktrees: yield* ListRecordedWorktreesService,
-        readWorktreeStatuses: yield* ReadReviewBadgesService,
-        readPublishedReview: yield* ReadPublishedReviewService,
         readTextFilesService: yield* ReadTextFilesService,
         readBinaryFiles: yield* ReadBinaryFilesService,
-        readReviewEvidence: yield* ReadReviewEvidenceUseCase,
-        recordReviewActivity: yield* RecordReviewActivityService,
         invalidateReviewedMarks: yield* InvalidateReviewedMarksService,
       };
     }).pipe(Effect.provideContext(runtime));
