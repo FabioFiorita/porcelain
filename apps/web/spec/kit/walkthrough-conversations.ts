@@ -1,9 +1,16 @@
+import type { ReadWalkthroughResult as WalkthroughRun } from '@porcelain/contracts/walkthroughs';
 import { serverReaders } from './readers.ts';
 import { Schema } from 'effect';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { World } from './world.ts';
+
+type WalkthroughContent = Extract<
+  WalkthroughRun['state'],
+  { status: 'ready' }
+>['content'];
+type WalkthroughStop = WalkthroughContent['stops'][number];
 
 export async function walkthroughConversationsFixture(
   world: World,
@@ -57,6 +64,7 @@ export async function walkthroughConversationsFixture(
     join(manifest.bin, 'claude'),
     `#!${process.execPath}
 const fs = require('node:fs');
+if (process.argv[2] === 'auth' && process.argv[3] === 'status') { console.log(JSON.stringify({loggedIn:true})); process.exit(0); }
 fs.readFileSync(0, 'utf8');
 if (fs.existsSync(${JSON.stringify(failure)})) { console.error('The tool crashed.'); process.exit(1); }
 console.log(JSON.stringify({session_id:'fixture',result:'Keep the retry beside its owner. The \`local\` boundary is deliberate.',total_cost_usd:0.01}));
@@ -82,7 +90,7 @@ else console.log('{}');
     'https://github.com/example/sample.git',
   );
   const head = (await session.git('rev-parse', 'HEAD')).trim();
-  const stop = (title: string, call: boolean) => ({
+  const stop = (title: string, call: boolean): WalkthroughStop => ({
     title,
     explanation: 'Keep the behavior close to its owner.',
     excerpts: [],
@@ -111,7 +119,7 @@ else console.log('{}');
         : {}),
       baseOid: head,
       headOid: head,
-      writer: { provider: 'claude', model: 'fixture' },
+      writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
       sessionId: 'fixture',
       createdAt: '2026-11-10T00:00:00.000Z',
       state: {
@@ -131,7 +139,7 @@ else console.log('{}');
           stillUnclear: [],
         },
       },
-    },
+    } satisfies WalkthroughRun,
     worktreePath: session.repository,
     files: [],
   };
@@ -180,7 +188,7 @@ else console.log('{}');
           answer,
         );
       }
-      const content =
+      const content: WalkthroughContent =
         action === 'changed-pr'
           ? job.run.state.content
           : {
@@ -206,7 +214,7 @@ else console.log('{}');
           createdAt: '2026-11-11T00:00:00.000Z',
           ...(action === 'short-copy' ? {} : { pullRequestNumber: 424 }),
           state: { ...job.run.state, content },
-        },
+        } satisfies WalkthroughRun,
       };
       db.prepare(
         'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
