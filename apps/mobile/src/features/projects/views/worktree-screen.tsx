@@ -1,123 +1,217 @@
+import { useAtom, useAtomRef } from '@effect/atom-react';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useState, type ComponentType } from 'react';
 import { Box } from '../../../components/ui/box';
-import { Card } from '../../../components/ui/card';
+import { Empty } from '../../../components/ui/empty';
+import { HeaderTitle } from '../../../components/ui/header-title';
 import { Icon } from '../../../components/ui/icon';
-import { StatusTile } from '../../../components/ui/status-tile';
 import { Item } from '../../../components/ui/item';
 import { Screen } from '../../../components/ui/screen';
-import { Separator } from '../../../components/ui/separator';
+import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
+import { remoteConnectionState } from '../../../shared/application/store';
+import type { ListDetailMode } from '../../../shared/rules/list-detail';
+import { workspaceKey } from '../commands/workspace-connection';
+import {
+  worktreeSectionNamed,
+  worktreeSections,
+  type WorktreeSection,
+} from '../rules/worktree-section';
+import { worktreeSection, type WorktreeDetails } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
-import { useWorkspacePickerModel } from './workspace-picker-model';
-import { useOpenInWorktree } from './open-in-worktree';
 import { PickerNotices } from './picker-notices';
-import type { WorktreeDetails } from '../store';
+import { WorkspaceGate } from './workspace-gate';
+import { useWorkspacePickerModel } from './workspace-picker-model';
 
-export function WorktreeScreen() {
-  const params = useLocalSearchParams<Partial<WorktreeDetails>>();
+export type WorktreeSectionContent = ComponentType<{
+  section: WorktreeSection;
+  mode: ListDetailMode;
+}>;
+
+type WorktreeParams = Partial<Omit<WorktreeDetails, 'opening'>> & {
+  opening?: string | undefined;
+};
+
+export function WorktreeScreen({
+  content,
+}: {
+  content: WorktreeSectionContent;
+}) {
+  const params = useLocalSearchParams<WorktreeParams>();
+  const title = params.title ?? 'Worktree';
   return (
     <>
-      <Stack.Screen options={{ title: params.title ?? 'Worktree' }} />
-      <WorktreeDetail params={params} />
+      <Stack.Screen options={{ title }} />
+      <Stack.Title asChild>
+        <HeaderTitle
+          title={title}
+          subtitle={worktreePlace(params)}
+          trailingItems={1}
+        />
+      </Stack.Title>
+      <WorktreeDetail details={params} mode="stack" content={content} />
     </>
   );
 }
 
 export function WorktreeDetail({
-  params,
-  heading = false,
+  details,
+  mode,
+  content,
 }: {
-  params: Partial<WorktreeDetails>;
-  heading?: boolean;
+  details: WorktreeParams;
+  mode: ListDetailMode;
+  content: WorktreeSectionContent;
 }) {
-  const openPullRequest = useOpenPullRequest();
   const { picker, reading } = useWorkspacePickerModel();
-  const openIn = useOpenInWorktree(picker.onWorktree);
-  const openInWorktree = (pathname: '/review' | '/files' | '/history') => {
-    if (params.environment && params.projectId && params.worktreeId)
-      openIn(
-        {
-          environmentId: params.environment,
-          projectId: params.projectId,
-          worktreeId: params.worktreeId,
-        },
-        pathname,
-      );
-  };
-  const number = Number(params.number);
+  const remotes = useAtomRef(remoteConnectionState);
+  const remote = remotes.find(
+    (entry) => entry.remote.environmentId === details.environment,
+  )?.remote;
+  const target =
+    details.environment && details.projectId && details.worktreeId
+      ? {
+          environmentId: details.environment,
+          projectId: details.projectId,
+          worktreeId: details.worktreeId,
+        }
+      : undefined;
+  return (
+    <WorkspaceGate
+      title="Worktree"
+      frame="pane"
+      expectedWorkspace={
+        remote && target ? workspaceKey(remote, target) : undefined
+      }
+      changed={
+        <Box className="flex-1" padding={4} gap={3}>
+          <Empty
+            title="Another worktree is selected"
+            description={`Select ${details.title ?? 'this worktree'} again to read it here.`}
+            action={
+              target
+                ? {
+                    label: 'Select this worktree',
+                    onPress: () =>
+                      picker.onWorktree(
+                        target.environmentId,
+                        target.projectId,
+                        target.worktreeId,
+                        () => undefined,
+                      ),
+                  }
+                : undefined
+            }
+          />
+          <PickerNotices
+            messages={[]}
+            error={picker.error}
+            onRead={picker.onRead}
+            reading={reading}
+          />
+        </Box>
+      }
+    >
+      {(workspace) =>
+        target && !remote ? (
+          <Box className="flex-1" padding={4}>
+            <Empty
+              title="Computer no longer paired"
+              description={`Pair ${details.computer ?? 'this computer'} again in Settings to read ${details.title ?? 'this worktree'}.`}
+            />
+          </Box>
+        ) : (
+          <WorktreeSections
+            key={workspace.key}
+            workspace={workspace.key}
+            details={details}
+            mode={mode}
+            content={content}
+          />
+        )
+      }
+    </WorkspaceGate>
+  );
+}
+
+function WorktreeSections({
+  workspace,
+  details,
+  mode,
+  content: Content,
+}: {
+  workspace: string;
+  details: WorktreeParams;
+  mode: ListDetailMode;
+  content: WorktreeSectionContent;
+}) {
+  const [opening] = useState(() => worktreeSectionNamed(details.opening));
+  const [chosen, choose] = useAtom(worktreeSection(workspace));
+  const section = chosen ?? opening;
+  const openPullRequest = useOpenPullRequest();
+  const number = Number(details.number);
   const pullRequest =
-    params.reviewId &&
-    params.environment &&
-    params.projectId &&
+    details.reviewId &&
+    details.environment &&
+    details.projectId &&
     Number.isInteger(number) &&
     number > 0
       ? {
-          environmentId: params.environment,
-          projectId: params.projectId,
-          reviewId: params.reviewId,
+          environmentId: details.environment,
+          projectId: details.projectId,
+          reviewId: details.reviewId,
           number,
         }
       : undefined;
-  const chevron = <Icon name="chevron" tone="muted" />;
+  const beside = mode === 'beside';
   return (
-    <Screen layout="scroll" testID="worktree-screen">
-      <Box className="w-full max-w-2xl self-center" gap={4} padding={4}>
-        {heading ? (
-          <Text variant="title" accessibilityRole="header">
-            {params.title ?? 'Worktree'}
-          </Text>
+    <Screen layout="fixed" testID="worktree-screen">
+      <Box
+        className={beside ? 'flex-row flex-wrap items-center' : ''}
+        paddingX={4}
+        paddingY={2}
+        gap={4}
+      >
+        {beside ? (
+          <Box className="min-w-40 flex-1">
+            <Text
+              variant="headline"
+              accessibilityRole="header"
+              numberOfLines={1}
+            >
+              {details.title ?? 'Worktree'}
+            </Text>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {worktreePlace(details)}
+            </Text>
+          </Box>
         ) : null}
-        <Text variant="caption" tone="muted">
-          {[params.project, params.computer].filter(Boolean).join(' · ')}
-        </Text>
-        <Card>
-          <Item
-            testID="worktree-review"
-            title="Review"
-            description={params.review || 'No published review'}
-            leading={<StatusTile name="checklist" tone="muted" />}
-            trailing={chevron}
-            disabled={picker.disabled}
-            onPress={() => openInWorktree('/review')}
+        <Box className={beside ? 'w-80 max-w-full' : ''}>
+          <SegmentedControl
+            options={worktreeSections}
+            selected={section}
+            onSelect={choose}
           />
-          <Separator inset="leading" />
+        </Box>
+      </Box>
+      {section === 'changes' && pullRequest ? (
+        <Box divider="bottom">
           <Item
-            testID="worktree-files"
-            title="Files"
-            leading={<StatusTile name="files" tone="muted" />}
-            trailing={chevron}
-            disabled={picker.disabled}
-            onPress={() => openInWorktree('/files')}
+            testID="worktree-pull-request"
+            title={`Pull request #${pullRequest.number}`}
+            leading={<Icon name="review" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            onPress={() => openPullRequest(pullRequest)}
           />
-          <Separator inset="leading" />
-          <Item
-            testID="worktree-history"
-            title="History"
-            leading={<StatusTile name="history" tone="muted" />}
-            trailing={chevron}
-            disabled={picker.disabled}
-            onPress={() => openInWorktree('/history')}
-          />
-          {pullRequest ? (
-            <>
-              <Separator inset="leading" />
-              <Item
-                testID="worktree-pull-request"
-                title={`Pull request #${number}`}
-                leading={<StatusTile name="review" tone="muted" />}
-                trailing={chevron}
-                onPress={() => openPullRequest(pullRequest)}
-              />
-            </>
-          ) : null}
-        </Card>
-        <PickerNotices
-          messages={[]}
-          error={picker.error}
-          onRead={picker.onRead}
-          reading={reading}
-        />
+        </Box>
+      ) : null}
+      <Box className="flex-1" collapsable={false}>
+        <Content section={section} mode={mode} />
       </Box>
     </Screen>
   );
+}
+
+function worktreePlace(details: WorktreeParams) {
+  return [details.project, details.computer].filter(Boolean).join(' · ');
 }

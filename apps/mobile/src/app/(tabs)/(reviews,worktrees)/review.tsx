@@ -1,10 +1,6 @@
-import {
-  LinkedReviewPane as SavedReviewPane,
-  CurrentWorkspaceReview,
-  WorkspacePublishedOverview,
-} from '../../../features/reviews/index';
 import { useLocalSearchParams } from 'expo-router';
-import { ReviewScreen } from '../../../features/workspace/index';
+import { Screen } from '../../../components/ui/screen';
+import { WorkspaceReviewPane } from '../../../shell/workspace-review-pane';
 
 export default function ReviewRoute() {
   const { workspace, reviewId, environmentId } = useLocalSearchParams<{
@@ -13,14 +9,13 @@ export default function ReviewRoute() {
     environmentId?: string;
   }>();
   return (
-    <ReviewScreen
-      linkedReview={SavedReviewPane}
-      currentReview={CurrentWorkspaceReview}
-      publishedOverview={WorkspacePublishedOverview}
-      workspace={workspace}
-      review={
-        reviewId && environmentId ? { reviewId, environmentId } : undefined
-      }
-    />
+    <Screen layout="fixed">
+      <WorkspaceReviewPane
+        workspace={workspace}
+        review={
+          reviewId && environmentId ? { reviewId, environmentId } : undefined
+        }
+      />
+    </Screen>
   );
 }

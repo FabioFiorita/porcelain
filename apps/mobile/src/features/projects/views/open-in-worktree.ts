@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useAtomRef } from '@effect/atom-react';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { workspaceKey } from '../commands/workspace-connection';
@@ -7,7 +6,6 @@ import type { WorkspacePickerProps } from './workspace-picker-props';
 export function useOpenInWorktree(
   onWorktree: WorkspacePickerProps['onWorktree'],
 ) {
-  const router = useRouter();
   const remotes = useAtomRef(remoteConnectionState);
   return (
     target: {
@@ -15,11 +13,7 @@ export function useOpenInWorktree(
       readonly projectId: string;
       readonly worktreeId: string;
     },
-    destination:
-      | '/review'
-      | '/files'
-      | '/history'
-      | ((workspace: string) => void),
+    destination: (workspace: string) => void,
   ) => {
     const remote = remotes.find(
       (candidate) => candidate.remote.environmentId === target.environmentId,
@@ -27,9 +21,7 @@ export function useOpenInWorktree(
     if (!remote) return;
     const workspace = workspaceKey(remote, target);
     onWorktree(target.environmentId, target.projectId, target.worktreeId, () =>
-      typeof destination === 'function'
-        ? destination(workspace)
-        : router.push({ pathname: destination, params: { workspace } }),
+      destination(workspace),
     );
   };
 }

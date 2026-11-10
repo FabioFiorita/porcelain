@@ -1,20 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { FilesScreen } from '../../../features/files';
 
-function FilesRoute() {
-  const router = useRouter();
+export default function FilesRoute() {
   const { workspace } = useLocalSearchParams<{ workspace?: string }>();
-  return (
-    <FilesScreen
-      workspace={workspace}
-      onOpen={(path, workspace) =>
-        router.push({ pathname: '/file', params: { path, workspace } })
-      }
-      onOpenTimeline={(path, workspace) =>
-        router.push({ pathname: '/timeline', params: { path, workspace } })
-      }
-    />
-  );
+  return <FilesScreen search="top-bar" workspace={workspace} />;
 }
-
-export { FilesRoute as default };
