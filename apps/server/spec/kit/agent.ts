@@ -1,3 +1,4 @@
+import { seedAgentComment, seedAgentReply } from './seed-agent-comment.ts';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
@@ -83,27 +84,10 @@ export async function agentActs(
         body: action.edit,
       })
     ).body;
-  if (action.kind === 'reply')
-    return (
-      await session.read({
-        method: 'POST',
-        path: action.reviewId
-          ? `/api/reviews/${action.reviewId}/comments/${action.threadId}/replies`
-          : `/api/worktrees/${session.worktreeId}/comments/${action.threadId}/replies`,
-        body: { body: action.body },
-      })
-    ).body;
-  return (
-    await session.read({
-      method: 'POST',
-      path: `/api/worktrees/${session.worktreeId}/comments`,
-      body: {
-        threadId: randomUUID(),
-        ...(action.thread ?? {
-          anchor: { kind: 'file', filePath: action.path },
-        }),
-        body: action.body,
-      },
-    })
-  ).body;
+  if (action.kind === 'reply') return seedAgentReply(session, action);
+  return seedAgentComment(session, {
+    ...action.thread,
+    anchor: action.thread?.anchor ?? { kind: 'file', filePath: action.path },
+    body: action.body,
+  });
 }

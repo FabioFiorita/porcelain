@@ -342,7 +342,7 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
     const before = new DatabaseSync(join(directory, 'inventory.sqlite'));
     try {
       before.exec(
-        "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id=13;",
+        "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id >= 13;",
       );
     } finally {
       before.close();
@@ -378,6 +378,7 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
       ).toEqual([
         { migration_id: 12, name: 'walkthrough_messages' },
         { migration_id: 13, name: 'automatic_walkthroughs' },
+        { migration_id: 14, name: 'retire_review_push_kinds' },
       ]);
     } finally {
       after.close();

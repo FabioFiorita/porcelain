@@ -1,4 +1,8 @@
-import { deleteCommentMessageResponseSchema } from '@porcelain/contracts/reviews';
+import { seedAgentReply } from '../kit/seed-agent-comment.ts';
+import {
+  deleteCommentMessageResponseSchema,
+  editCommentMessageResponseSchema,
+} from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
@@ -24,7 +28,7 @@ const answerId = randomUUID();
 const followUpId = randomUUID();
 const loneThreadId = randomUUID();
 const loneMessageId = randomUUID();
-
+const QUESTION = 'Why this line?';
 const REWRITTEN = 'Why does this line change the heading?';
 const ANSWER = 'It names the new section.';
 const targetNotFound = apiError(404, 'Not Found', 'Comment target not found');
@@ -61,6 +65,67 @@ const threads = async (session: Session) =>
   );
 const threadOf = async (session: Session, id: string) =>
   (await threads(session)).find((entry) => record(entry).id === id);
+
+test('the reviewer rewrites their comment in place, stamped and at the next revision, and reads the retained text', async ({
+  session,
+}) => {
+  await read(session, {
+    method: 'POST',
+    path: worktreePath(session, '/comments'),
+    body: {
+      threadId,
+      messageId: questionId,
+      anchor: { kind: 'file', filePath: 'README.md' },
+      body: QUESTION,
+    },
+  });
+  await seedAgentReply(session, {
+    threadId,
+    messageId: answerId,
+    body: ANSWER,
+  });
+  const before = record(await threadOf(session, threadId));
+
+  const response = await session.send(
+    edit(session, threadId, questionId, REWRITTEN),
+  );
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(editCommentMessageResponseSchema),
+      ),
+    ),
+  );
+  expect(response.body).toMatchObject({
+    id: threadId,
+    messages: [
+      { id: questionId, body: REWRITTEN, author: 'reviewer' },
+      { id: answerId, body: ANSWER, author: 'agent' },
+    ],
+    revision: Number(before.revision) + 1,
+  });
+  expect(
+    String(record(list(record(response.body).messages)[0]).editedAt),
+  ).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  const listed = (
+    await session.read({
+      method: 'GET',
+      path: worktreePath(session, '/comments'),
+    })
+  ).body;
+
+  expect(listed).toMatchObject([
+    {
+      id: threadId,
+      messages: [
+        { id: questionId, body: REWRITTEN },
+        { id: answerId, body: ANSWER },
+      ],
+    },
+  ]);
+});
 
 test("a reviewer cannot rewrite or delete the agent's message and the thread stays unchanged", async ({
   session,
@@ -112,6 +177,41 @@ test('the reviewer deletes a reply and the rest of the thread stays at the next 
   expect(await threadOf(session, threadId)).toStrictEqual(
     record(response.body).thread,
   );
+});
+
+test('deleting the last message of a thread removes the thread in persisted reads', async ({
+  session,
+}) => {
+  await read(session, {
+    method: 'POST',
+    path: worktreePath(session, '/comments'),
+    body: {
+      threadId: loneThreadId,
+      messageId: loneMessageId,
+      anchor: { kind: 'file', filePath: 'README.md' },
+      body: 'Never mind',
+    },
+  });
+
+  const response = await session.send(
+    remove(session, loneThreadId, loneMessageId),
+  );
+
+  expect(response.status).toBe(200);
+  expect(response.body).toStrictEqual({ threadId: loneThreadId, thread: null });
+  const listed = (
+    await session.read({
+      method: 'GET',
+      path: worktreePath(session, '/comments'),
+    })
+  ).body;
+
+  expect(list(listed).map((entry) => record(entry).id)).toStrictEqual([
+    threadId,
+  ]);
+  expect(
+    (await threads(session)).map((entry) => record(entry).id),
+  ).toStrictEqual([threadId]);
 });
 
 test('a blank rewrite is refused, and an unknown message, unknown or deleted thread or unknown worktree is not found', async ({

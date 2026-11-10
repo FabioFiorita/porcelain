@@ -19,7 +19,7 @@ Run `$C board-diff --board sidebar --route /<project>/<worktree> --instance <id>
 
 ## Driving it with the surface harness
 
-Start a clean instance. Sidebar comparisons use the approved compact project/worktree sketch; main worktrees are cards and appear first. Include a linked topic review to measure its PR action. The old Narrative-desktop status-group sidebar is superseded. Stock Mira controls take precedence over the temporary sketch's CSS dimensions; record the element comparison and accepted stock-control differences explicitly. Use `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Review panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Use an active decision route for the Review panel so its steps are already expanded; selecting a decision through a phone sheet normally closes that sheet. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
+Start a clean instance. Sidebar comparisons use the approved compact project/worktree sketch; main worktrees are cards and appear first. Include a linked topic review to measure its PR action. Stock Mira controls take precedence over the temporary sketch's CSS dimensions; record the element comparison and accepted stock-control differences explicitly. Use `--desktop` for Settings. Pass the concrete route and query parameters that select the screen. Use `?surface=changes` for the Changes panel, `?surface=history` for History and `?entry=commit:<full oid>` for a commit. PR states require a fixture exposing the corresponding state; the command never seeds or fabricates PR data. Maps reveal the navigator, phone panel and selected tab before measuring their roles.
 
 Defaults: `--width 1440,414 --theme light,dark`. Override with `--width 1440` or `--theme light`. The evidence directory holds board/app screenshots per width/theme, a pasteable `index.md` and numbered JSON. A nonzero exit retains the same evidence. Paste the table into the PR body and fix mismatches before handoff.
 
@@ -29,7 +29,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 
 - This compares mapped styles. Unmapped elements, icon identity and icon artwork still need visual review. Text may differ.
 - Lengths tolerate 0.5 px, RGB/alpha channels one step; weight and icon presence are exact. Colours resolve to hex including alpha. Padding and radius report four sides/corners; radius values follow the CSS overlap reduction against the rendered box, so equivalent full-round declarations compare equally. Gap reports the axes that can separate children; a nowrap flex row has no used row gap, and a nowrap flex column has no used column gap.
-- A dedicated dark HTML sibling wins. Otherwise the layout receives the approved `Narrative-desktop-dark.html` custom properties. A missing dark palette fails.
+- A dedicated dark HTML sibling wins. Otherwise the layout receives the shared palette asset `Narrative-desktop-dark.html` custom properties; that asset supplies colours only and is not a selectable board. A missing dark palette fails.
 - Device rows compare padding, radius and icons; their height and wrapping gaps depend on device metadata and responsive reflow. Check wrapping visually in the sweep.
 - Desktop reference boards are rendered at their native 1440px width for every app viewport. A 414px app capture compares the same visible roles without squeezing the fixed desktop reference until its content disappears. Responsive layout and wrapping still need visual review.
 - Not-found/unavailable screens, redirects, failed documents and browser errors fail. Recovery uses a fresh context on rerun. All contexts close on failure as well as success.
@@ -48,9 +48,9 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                              |
 | history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`              |
 | graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                                     |
-| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Review panel                                    |
+| pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Changes panel                                   |
 | pr-viewer                     | Narrative-desktop-pr-viewer      | PR document; absent roles fail until implemented                 |
-| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Review panel                        |
+| pr-state-1 through pr-state-8 | Narrative-pr-states              | The numbered PR state in the Changes panel                       |
 
 Names without `.html` are also accepted for the first mapped screen using that HTML. Use the short name when the same board covers more than one screen (sidebar/decision, commit/history).
 

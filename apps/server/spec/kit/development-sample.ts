@@ -1,3 +1,6 @@
+import { Schema } from 'effect';
+import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
+import { seedAgentReply } from './seed-agent-comment.ts';
 import type { ReviewFixtureDraft } from './seed-review.ts';
 import { seedReview } from './seed-review.ts';
 import { randomUUID } from 'node:crypto';
@@ -241,6 +244,20 @@ export async function seedDevelopmentSample(
     },
     200,
   );
+  const comment = await session.read({
+    method: 'POST',
+    path: `/api/worktrees/${session.worktreeId}/comments`,
+    body: {
+      anchor: { kind: 'file', filePath: 'src/domain/shipment.ts' },
+      body: 'Should a document hold stay visible until the dispatcher records the next action?',
+    },
+  });
+  await seedAgentReply(session, {
+    threadId: Schema.decodeUnknownSync(createCommentThreadResponseSchema)(
+      comment.body,
+    ).id,
+    body: 'Yes. The pending status and card changes keep the hold and its next action visible.',
+  });
   await write(
     'docs/operations/next-shift.md',
     '# Next shift\n\nConfirm the next document check with the dispatcher.\n',

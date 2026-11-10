@@ -111,7 +111,7 @@ test(
 );
 
 test(
-  'an agent comment sent through the web CLI reaches the disposable MCP route and typed readback',
+  'a stored agent comment prepared through the web CLI keeps its authorship in typed readback',
   async ({ onTestFinished }) => {
     const instance = await started(onTestFinished, { path: WEB_CLI });
     const web = (...args: string[]) =>

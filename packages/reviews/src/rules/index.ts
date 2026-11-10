@@ -17,3 +17,5 @@ export { mapPullRequestSummary } from './pull-request.ts';
 export { recentPullRequestCutoff } from './pull-request.ts';
 
 export { publishedLayerFingerprint } from './resolve-review.ts';
+
+export { commentStorageSize } from './comment-threads.ts';

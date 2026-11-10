@@ -190,17 +190,22 @@ export function ConnectedWorkspace({
         environmentId: entry.environmentId,
       });
       setOpenMobile(false);
-      if (!entry.worktreeId) return;
+      const target =
+        shown ??
+        (entry.worktreeId
+          ? {
+              remote:
+                entry.environmentId === local.connection.environmentId
+                  ? null
+                  : entry.environmentId,
+              projectId: entry.projectId,
+              worktreeId: entry.worktreeId,
+            }
+          : undefined);
+      if (!target) return;
       void navigate({
-        ...worktreeLocation({
-          remote:
-            entry.environmentId === local.connection.environmentId
-              ? null
-              : entry.environmentId,
-          projectId: entry.projectId,
-          worktreeId: entry.worktreeId,
-        }),
-        search: { entry: key },
+        ...worktreeLocation(target),
+        search: { ...(review?.search ?? {}), entry: key },
       });
     },
     onOpenProject: (entry: RemoteConnection | null) =>

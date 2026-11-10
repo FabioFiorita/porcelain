@@ -28,3 +28,16 @@ test('the desktop app cannot register for phone notifications', async ({
     ),
   );
 });
+
+test('a paired device can clear its registration repeatedly', async ({
+  session,
+}) => {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await session.send({
+      method: 'DELETE',
+      path: REGISTRATION_PATH,
+    });
+    expect(response.status).toBe(204);
+    expect(response.body).toBeUndefined();
+  }
+});

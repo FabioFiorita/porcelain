@@ -126,3 +126,8 @@ export {
   compareReviewResponseSchema,
   readReviewInterdiffResponseSchema,
 } from './review-comparison.ts';
+
+export {
+  editCommentMessageResponseSchema,
+  deleteResolvedCommentsResponseSchema,
+} from './comments.ts';
