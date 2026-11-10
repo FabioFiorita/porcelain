@@ -305,7 +305,7 @@ const help = Command.make(
 export const porcelainCommand = rootConfiguration.pipe(
   Command.withHandler(serveHandler),
   Command.withDescription(
-    'Review coding agents’ changes from a browser, Mac or phone',
+    'Understand what your coding agents changed, from a browser, Mac or phone',
   ),
   Command.withSubcommands([
     serve,

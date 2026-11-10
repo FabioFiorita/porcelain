@@ -20,7 +20,7 @@ api:
 
 # preferences.notifications
 
-Notifications has two switches, Reviews ready and Agent replies. Turning the first one on explains what Porcelain sends, then asks the phone's permission and requests an Expo push token; the phone registers that token with every paired computer, which then sends one push per published review or agent reply. Turning both off unregisters. Without the app's push credentials the token request fails: the screen says the push key is missing, the switches keep their values and the phone registers by itself once a token is available. Tapping a notification opens its review.
+Notifications has two switches, Reviews ready and Agent replies. Turning the first one on explains what Porcelain sends, then asks the phone's permission and requests an Expo push token, and the phone offers that token to every paired computer. Computers send no notifications since review publishing was removed: a server accepts only an empty kinds list ([push registrations](../../server-verify/features/access.push-notifications.md)), so these switches have nothing to deliver until the mobile cleanup removes or replaces them. Turning both off unregisters. Without the app's push credentials the token request fails: the screen says the push key is missing, the switches keep their values and the phone registers by itself once a token is available. Tapping a notification opens its review.
 
 ## How to get to it (user POV)
 

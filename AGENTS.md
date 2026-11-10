@@ -4,7 +4,7 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 ## Product
 
-- Porcelain never runs the agent that builds; it runs its own read-only agent to write a Walkthrough and answer questions about it.
+- Porcelain never runs the agent that builds; it runs its own read-only agent, through the developer's signed-in `claude` or `codex` CLI, to write a Walkthrough and answer questions about it. That agent never edits code and never produces evidence: it places what already exists, and a step without evidence shows none.
 - **A file tree for very large repositories.** The developer pins the files and folders they care about and hides the ones they never open.
 - **Git beside the review:** history, a per-file timeline, commit, pull and push.
 - **Phone and tablet.** The iPhone is a companion away from the desk: check, read, comment and small controls. The iPad is a reading tool, never a larger phone: used in landscape with a keyboard, it keeps its lists beside the content that changes and must be faster to move through than the phone. Neither manages files or adds projects. The platform draws the bars (top bar, tabs, sidebar, search, sheets, menus) and Porcelain's own style, taken from the web, draws everything inside them. The iPad is verified in landscape and portrait.

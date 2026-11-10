@@ -1,15 +1,19 @@
 ---
+import type { ImageMetadata } from 'astro';
 import Site from '../layouts/site.astro';
 import Command from '../components/command.astro';
 import ComingSoon from '../components/coming-soon.astro';
 import GithubMark from '../components/github-mark.astro';
-import walkthrough from '../assets/walkthrough.png';
-import comments from '../assets/comments.png';
-import proof from '../assets/proof.png';
+import topLight from '../assets/walkthrough-top-light.webp';
+import topDark from '../assets/walkthrough-top-dark.webp';
+import stepsLight from '../assets/walkthrough-steps-light.webp';
+import stepsDark from '../assets/walkthrough-steps-dark.webp';
+import stepLight from '../assets/walkthrough-step-light.webp';
+import stepDark from '../assets/walkthrough-step-dark.webp';
 import icon from '../../../../apps/web/public/icon-512.png';
 
 const description =
-  'A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.';
+  'Porcelain gives what your coding agent changed to a fresh, read-only agent that writes one page: what changed, how the system grew, and the few calls only you can make. Ask it anything while your coding agent keeps working.';
 const serve = 'npx @fabiofiorita/porcelain@latest serve';
 const github = 'https://github.com/FabioFiorita/porcelain';
 /* Search and answer engines read what the product is from this, not from the page layout. Keep it to what the page says. */
@@ -27,80 +31,79 @@ const application = {
 };
 
 const headline = [
-  { words: ['Agents', 'write', 'the', 'code.'], tone: 'text-muted-foreground' },
-  { words: ['This', 'is', 'where', 'you', 'read', 'it.'], tone: 'text-foreground' },
+  { words: ['Your', 'agent', 'built', 'it.'], tone: 'text-muted-foreground' },
+  { words: ['A', 'fresh', 'one', 'explains', 'it.'], tone: 'text-foreground' },
 ];
 
 /* Points on the walkthrough picture, as fractions of its width and height. */
 const callouts = [
-  { n: 1, label: 'One stop per decision', side: 'left', y: 0.229, x: 0.198 },
-  { n: 2, label: 'The route through your code', side: 'left', y: 0.312, x: 0.198 },
-  { n: 3, label: 'Notes that lead to the files', side: 'right', y: 0.448, x: 0.755 },
-  { n: 4, label: 'The diff, in the same view', side: 'right', y: 0.79, x: 0.766 },
+  { n: 1, label: 'The calls only you can make', side: 'left', y: 0.31, x: 0.229 },
+  { n: 2, label: 'How the system grew', side: 'left', y: 0.54, x: 0.224 },
+  { n: 3, label: 'One step per decision', side: 'left', y: 0.733, x: 0.224 },
+  { n: 4, label: 'Decide, or ask the agent', side: 'right', y: 0.438, x: 0.688 },
 ] as const;
 
-const shots = [
-  { image: walkthrough, alt: 'A decision in a published review, with its route through the code and a diff' },
-  { image: comments, alt: 'A reviewer asks about a file and the agent replies in the same thread' },
-  { image: proof, alt: 'Proof with passing checks, a web and an iPhone screenshot, beside the readiness of the review' },
-] as const;
+/* Light and dark captures of one screen share their size, so the crop maths reads the light one. */
+const shots: readonly { light: ImageMetadata; dark: ImageMetadata; alt: string }[] = [
+  {
+    light: topLight,
+    dark: topDark,
+    alt: 'A walkthrough titled Find notes by title: one product call, how the system grew, and its steps, with the changed files grouped by step',
+  },
+  {
+    light: stepsLight,
+    dark: stepsDark,
+    alt: 'The steps of a walkthrough, each with what changed and why, then what the code does not say',
+  },
+  {
+    light: stepLight,
+    dark: stepDark,
+    alt: 'Step 1 of 2 opened as its own tab, showing only that step’s diff, beside the Changes panel grouped by step',
+  },
+];
 
 /* Each stop of the tour frames one region of one picture: [left, top, right, bottom]. */
 const stops = [
   {
     id: 'walkthrough',
     shot: 0,
-    region: [0.2, 0.18, 0.7, 0.37],
-    title: 'One stop for each decision',
-    body: 'The agent publishes a briefing, then a stop for every decision it made. Each stop says what it decided and the route it took through your code.',
+    region: [0.225, 0.265, 0.695, 0.495],
+    title: 'The calls only you can make',
+    body: 'A product or architecture question the code cannot settle, with the trade-off in one line. Decide right there, or ask about it.',
   },
   {
-    id: 'notes',
+    id: 'grew',
     shot: 0,
-    region: [0.2, 0.375, 0.76, 0.685],
-    title: 'Notes lead you to the files',
-    body: 'Numbered notes point at the files that carry the decision, in the order to read them, and say which layer each one touches.',
+    region: [0.225, 0.515, 0.695, 0.635],
+    title: 'How the system grew',
+    body: 'New pieces and moved boundaries, a sentence each. You keep a picture of the system even when you did not write a line of it.',
   },
   {
-    id: 'diff',
-    shot: 0,
-    region: [0.195, 0.712, 0.767, 1],
-    title: 'The diff stays in the same view',
-    body: 'You read the explanation and the change together. Mark a file reviewed when you are done with it, and the review keeps count.',
-  },
-  {
-    id: 'comments',
+    id: 'steps',
     shot: 1,
-    region: [0.226, 0.205, 0.762, 0.46],
-    title: 'Comment back on the code',
-    body: 'Ask on a file or a line. Any agent that speaks MCP answers in the same thread, and the conversation stays with the change.',
+    region: [0.225, 0.21, 0.695, 0.735],
+    title: 'One step per decision',
+    body: 'Each step says what changed and why. Screenshots from the pull request sit on the step they prove; a step with no proof shows none, because the agent never makes any up.',
   },
   {
-    id: 'readiness',
-    shot: 2,
-    region: [0.776, 0.13, 0.99, 0.69],
-    title: 'See what is left',
-    body: 'Readiness counts what still needs you: files to read, lines the agent never explained, comments waiting on you or on the agent.',
+    id: 'unsaid',
+    shot: 1,
+    region: [0.225, 0.755, 0.695, 0.855],
+    title: 'What the code doesn’t say',
+    body: 'The agent reads the code first. Then it reads your own messages to the builder, and whatever only those explained is written down here, where the next reader will find it.',
   },
   {
-    id: 'proof',
+    id: 'by-step',
     shot: 2,
-    region: [0.2, 0.52, 0.745, 0.92],
-    title: 'Proof you can look at',
-    body: 'The checks the agent ran and the screenshots it took, on the web and on a phone, live in the review next to the code.',
-  },
-  {
-    id: 'stale',
-    shot: 2,
-    region: [0.2, 0.1, 0.745, 0.52],
-    title: 'And when it went stale',
-    body: 'When the code changes after the checks ran, Porcelain says so, and asks the agent to run them again.',
+    region: [0.185, 0.06, 0.965, 0.39],
+    title: 'Read the code by step',
+    body: 'Open a step and read only its files. The Changes panel groups the branch by step, marks the step with your call, and keeps reviewed checkboxes on plain changes.',
   },
 ] as const;
 
 /* On a phone each stop shows only its region of the picture, cropped to the same frame the desktop camera finds. */
 const crop = (shot: number, [left, top, right, bottom]: readonly [number, number, number, number]) => {
-  const { width, height } = shots[shot]!.image;
+  const { width, height } = shots[shot]!.light;
   const regionWidth = right - left;
   const regionHeight = bottom - top;
   return {
@@ -111,20 +114,35 @@ const crop = (shot: number, [left, top, right, bottom]: readonly [number, number
 
 const problems = [
   {
+    title: 'Bugs are not your job any more',
+    body: 'CI and reviewer agents catch them. What is left for you is product and architecture: the calls a machine should not make alone.',
+  },
+  {
     title: 'A diff has no order',
     body: 'Files arrive by name. A test weighs as much as the decision it proves, and the change you needed to see is the one you skim.',
   },
   {
-    title: 'Editors are built for typing',
-    body: 'You read code now more than you write it. An editor full of extensions and autocomplete is heavy for that, and it was never made to review.',
-  },
-  {
-    title: 'The conversation is somewhere else',
-    body: 'Your question lands in a chat window, far from the line that raised it. The answer comes back without the code you were looking at.',
+    title: 'The builder is busy',
+    body: 'Asking the agent that wrote it to explain stops its work, and it answers with everything it already assumes.',
   },
 ] as const;
 
-/* The last fourteen of the fifty-five files, by name. The decision is the eighth of them. */
+const runs = [
+  {
+    title: 'Your CLI, your sign-in',
+    body: 'It runs through the Claude Code or Codex CLI already signed in on your machine. There is no API key to set up. Choose the model and effort in Settings, for every project or just one.',
+  },
+  {
+    title: 'On a button, or on its own',
+    body: 'Press Write walkthrough, or let Porcelain write one when a pull request opens. Automatic is off until you turn it on for a project.',
+  },
+  {
+    title: 'Out of date, and it says so',
+    body: 'New commits mark the page out of date and offer Update. The last walkthrough and its comments stay readable while the new one is written.',
+  },
+] as const;
+
+/* The last fourteen of the fifty-five files, by name. The call is the eighth of them. */
 const changedFiles = [
   'packages/client/src/request.ts',
   'packages/client/src/revoke-access.ts',
@@ -177,10 +195,10 @@ const treeRows = [
         <a
           href={github}
           data-reveal
-          class="group inline-flex items-center gap-2 rounded-full border border-border bg-background/70 py-1 pr-3 pl-1 text-sm text-muted-foreground no-underline backdrop-blur transition-colors hover:text-foreground"
+          class="group inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 py-1 pr-3 pl-1 text-sm text-muted-foreground no-underline backdrop-blur transition-colors hover:text-foreground"
         >
           <span class="rounded-full bg-foreground px-2 py-0.5 text-xs font-medium whitespace-nowrap text-background">Open source</span>
-          Works with any agent that speaks MCP
+          <span class="truncate">Works with Claude Code and Codex</span>
           <span class="transition-transform group-hover:translate-x-0.5" aria-hidden="true">→</span>
         </a>
 
@@ -204,8 +222,8 @@ const treeRows = [
 
         <div class="mt-9 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,42rem)_auto] lg:items-end lg:justify-between">
           <p data-reveal class="text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
-            A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each
-            decision, and you comment back before you keep the change.
+            Porcelain hands a change to an agent that has never seen it. It writes one page: what changed, how the
+            system grew, and the few calls only you can make. Ask it anything. The agent that built it keeps working.
           </p>
 
           <div data-reveal class="flex min-w-0 flex-col items-start gap-4 lg:items-end">
@@ -242,14 +260,17 @@ const treeRows = [
             </div>
             <div class="rounded-[1.4rem] bg-muted/80 p-1.5 shadow-[inset_0_0_0_1px_var(--border),0_40px_120px_-40px_rgb(0_0_0/0.35)] backdrop-blur lg:p-2">
               <div class="relative overflow-hidden rounded-2xl shadow-[0_0_0_1px_var(--border)]">
-                <img
-                  class="block w-full"
-                  src={walkthrough.src}
-                  width={walkthrough.width}
-                  height={walkthrough.height}
-                  alt={shots[0].alt}
-                  fetchpriority="high"
-                />
+                <picture>
+                  <source srcset={topDark.src} media="(prefers-color-scheme: dark)" />
+                  <img
+                    class="block w-full"
+                    src={topLight.src}
+                    width={topLight.width}
+                    height={topLight.height}
+                    alt={shots[0]!.alt}
+                    fetchpriority="high"
+                  />
+                </picture>
                 {
                   callouts.map((callout) => (
                     <div
@@ -299,11 +320,11 @@ const treeRows = [
             class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]"
           >
             Fifty-five files, sorted by name.{' '}
-            <span class="text-muted-foreground">The one that matters is near the bottom.</span>
+            <span class="text-muted-foreground">The call that needs you is near the bottom.</span>
           </h2>
           <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            An agent can change more code in ten minutes than you can read in an hour. The review tools you have list it
-            alphabetically, and your attention runs out before the decision does.
+            An agent can change more code in ten minutes than you can read in an hour. A diff lists it alphabetically,
+            and your attention runs out before you reach the one decision that was yours to make.
           </p>
         </div>
 
@@ -336,7 +357,7 @@ const treeRows = [
                       data-matters
                       class="ml-auto shrink-0 rounded-full bg-graph-4/15 px-2 py-0.5 font-sans text-[0.7rem] font-medium text-graph-4"
                     >
-                      The decision
+                      Your call
                     </span>
                   )}
                 </li>
@@ -359,25 +380,40 @@ const treeRows = [
       </div>
     </section>
 
-    <!-- Beside the agent -->
-    <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-44">
+    <!-- Fresh eyes -->
+    <section id="fresh-eyes" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-32 lg:px-10 lg:pt-44">
       <div class="max-w-3xl">
-        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">How it fits</p>
+        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">How it works</p>
         <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
-          It sits beside your agent.{' '}
-          <span class="text-muted-foreground">It does not replace it.</span>
+          Fresh eyes are the test.{' '}
+          <span class="text-muted-foreground">If they can follow it, it was built well.</span>
         </h2>
         <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
-          Keep the agent in the terminal, desktop app or editor you already like. It publishes a walkthrough to Porcelain
-          over MCP. You read it, reply on the code, and the agent reads your reply where it is working.
+          Porcelain gives the change to an agent that was not there when it was built. It reads the pull request, the
+          diff and the repository first. Only then does it read your side of the conversation with the builder, and
+          whatever only those messages explained goes on the page. It never edits your code.
         </p>
       </div>
 
       <div data-reveal class="mt-16 grid grid-cols-1 items-center gap-6 lg:grid-cols-[1fr_minmax(6rem,1fr)_1.15fr_minmax(6rem,1fr)_1fr] lg:gap-0">
         <div class="rounded-2xl border border-border bg-card p-6">
           <div class="flex size-10 items-center justify-center rounded-xl bg-muted font-mono text-sm">&gt;_</div>
-          <p class="mt-5 font-semibold tracking-[-0.02em]">Your agent</p>
-          <p class="mt-1 text-sm text-muted-foreground">In the app you already run it in.</p>
+          <p class="mt-5 font-semibold tracking-[-0.02em]">Your coding agent</p>
+          <p class="mt-1 text-sm text-muted-foreground">Keeps building in its own app. Never interrupted.</p>
+        </div>
+        <div class="relative hidden h-20 lg:block" aria-hidden="true">
+          <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
+          <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
+          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
+          <span data-packet="right" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-3 shadow-[0_0_12px_var(--graph-3)]"></span></span>
+          <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap text-muted-foreground">the change</span>
+          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] whitespace-nowrap text-muted-foreground">your messages</span>
+        </div>
+        <div class="relative rounded-2xl bg-foreground p-7 text-background shadow-[0_30px_80px_-30px_rgb(0_0_0/0.5)]">
+          <span class="absolute top-6 right-6 rounded-full border border-background/20 px-2 py-0.5 font-mono text-[0.68rem] text-background/70">read-only</span>
+          <img src="/apple-touch-icon.png" alt="" width="40" height="40" class="size-10 rounded-xl" />
+          <p class="mt-5 text-lg font-semibold tracking-[-0.02em]">The walkthrough agent</p>
+          <p class="mt-1 text-sm text-background/65">A new session for every walkthrough, on your machine, through Claude Code or Codex.</p>
         </div>
         <div class="relative hidden h-20 lg:block" aria-hidden="true">
           <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
@@ -385,21 +421,7 @@ const treeRows = [
           <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
           <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
           <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">walkthrough</span>
-          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">reply</span>
-        </div>
-        <div class="relative rounded-2xl bg-foreground p-7 text-background shadow-[0_30px_80px_-30px_rgb(0_0_0/0.5)]">
-          <span class="absolute top-6 right-6 rounded-full border border-background/20 px-2 py-0.5 font-mono text-[0.68rem] text-background/70">MCP</span>
-          <img src="/apple-touch-icon.png" alt="" width="40" height="40" class="size-10 rounded-xl" />
-          <p class="mt-5 text-lg font-semibold tracking-[-0.02em]">Porcelain</p>
-          <p class="mt-1 text-sm text-background/65">On the machine that holds the repository.</p>
-        </div>
-        <div class="relative hidden h-20 lg:block" aria-hidden="true">
-          <div class="absolute inset-x-3 top-[34%] h-px bg-border"></div>
-          <div class="absolute inset-x-3 top-[66%] h-px bg-border"></div>
-          <span data-packet="right" class="absolute top-[34%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-1 shadow-[0_0_12px_var(--graph-1)]"></span></span>
-          <span data-packet="left" class="absolute top-[66%] right-5 left-3 h-0"><span class="absolute left-0 size-2 -translate-y-1/2 rounded-full bg-graph-2 shadow-[0_0_12px_var(--graph-2)]"></span></span>
-          <span class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">review</span>
-          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">comment</span>
+          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 font-mono text-[0.68rem] text-muted-foreground">questions</span>
         </div>
         <div class="rounded-2xl border border-border bg-card p-6">
           <div class="flex size-10 items-center justify-center rounded-xl bg-muted">
@@ -409,8 +431,19 @@ const treeRows = [
             </svg>
           </div>
           <p class="mt-5 font-semibold tracking-[-0.02em]">You</p>
-          <p class="mt-1 text-sm text-muted-foreground">In a browser, the Mac app, and soon your phone.</p>
+          <p class="mt-1 text-sm text-muted-foreground">Read, decide and ask, in a browser or the Mac app.</p>
         </div>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-3">
+        {
+          runs.map((run) => (
+            <div data-reveal class="bg-background p-8">
+              <h3 class="text-lg font-semibold tracking-[-0.025em]">{run.title}</h3>
+              <p class="mt-2 leading-relaxed text-muted-foreground">{run.body}</p>
+            </div>
+          ))
+        }
       </div>
     </section>
 
@@ -419,11 +452,11 @@ const treeRows = [
       <div class="max-w-3xl">
         <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">The walkthrough</p>
         <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
-          A review that reads in order.
+          One page, in the order you need it.
         </h2>
         <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
-          The agent explains the change one decision at a time, the way it would if it sat next to you. Scroll through
-          one.
+          The calls first, then how the system grew, then the steps. When nothing needs you, it says so in one line.
+          Scroll through one.
         </p>
       </div>
 
@@ -452,15 +485,18 @@ const treeRows = [
                   class="relative overflow-hidden rounded-xl bg-card shadow-[0_0_0_1px_var(--border)] lg:hidden"
                   style={crop(stop.shot, stop.region).frame}
                 >
-                  <img
-                    class="absolute block max-w-none"
-                    style={crop(stop.shot, stop.region).image}
-                    src={shots[stop.shot].image.src}
-                    width={shots[stop.shot].image.width}
-                    height={shots[stop.shot].image.height}
-                    alt={shots[stop.shot].alt}
-                    loading="lazy"
-                  />
+                  <picture>
+                    <source srcset={shots[stop.shot]!.dark.src} media="(prefers-color-scheme: dark)" />
+                    <img
+                      class="absolute block max-w-none"
+                      style={crop(stop.shot, stop.region).image}
+                      src={shots[stop.shot]!.light.src}
+                      width={shots[stop.shot]!.light.width}
+                      height={shots[stop.shot]!.light.height}
+                      alt={shots[stop.shot]!.alt}
+                      loading="lazy"
+                    />
+                  </picture>
                 </div>
               </li>
             ))
@@ -471,18 +507,21 @@ const treeRows = [
           <div class="sticky top-0 flex h-svh items-center pt-16">
             <div class="w-full">
             <div class="rounded-[1.4rem] bg-muted/80 p-2 shadow-[inset_0_0_0_1px_var(--border),0_40px_120px_-50px_rgb(0_0_0/0.35)]">
-              <div class="relative aspect-[1.44] overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
+              <div class="relative aspect-[1.6] overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
                 {
                   shots.map((shot, index) => (
                     <div data-camera={index} class="absolute inset-0 origin-top-left" style={index === 0 ? '' : 'opacity: 0'}>
-                      <img
-                        class="block size-full"
-                        src={shot.image.src}
-                        width={shot.image.width}
-                        height={shot.image.height}
-                        alt={shot.alt}
-                        loading="lazy"
-                      />
+                      <picture>
+                        <source srcset={shot.dark.src} media="(prefers-color-scheme: dark)" />
+                        <img
+                          class="block size-full"
+                          src={shot.light.src}
+                          width={shot.light.width}
+                          height={shot.light.height}
+                          alt={shot.alt}
+                          loading="lazy"
+                        />
+                      </picture>
                     </div>
                   ))
                 }
@@ -508,10 +547,72 @@ const treeRows = [
       <script type="application/json" id="tour-stops" set:html={JSON.stringify(stops.map(({ shot, region, title }) => ({ shot, region, title })))} />
     </section>
 
-    <!-- Around the review -->
+    <!-- Ask -->
+    <section id="ask" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-32 lg:px-10 lg:pt-44">
+      <div class="grid grid-cols-1 gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,36rem)] lg:items-center lg:gap-20">
+        <div>
+          <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">Comments</p>
+          <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
+            Ask the agent that read it.{' '}
+            <span class="text-muted-foreground">Not the one still building.</span>
+          </h2>
+          <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            Comment on a call or a step and the walkthrough agent answers, with the change in front of it. When you want
+            something changed, post it on the pull request in one click, alone or saved up and posted together. No pull
+            request yet? Copy it as a brief.
+          </p>
+          <p data-reveal class="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            Your coding agent is never interrupted, and you never have to tell it “I left comments”. The request is on the
+            pull request, with the rest of the review.
+          </p>
+        </div>
+
+        <div data-reveal data-chat class="rounded-2xl border border-border bg-card p-5 shadow-[0_30px_80px_-50px_rgb(0_0_0/0.35)] sm:p-7">
+          <div class="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Product call</span>
+            <span>Step 1</span>
+          </div>
+          <p class="mt-4 text-lg font-semibold tracking-[-0.02em]">Should an empty search show every note?</p>
+          <p class="mt-2 leading-relaxed text-muted-foreground">
+            Showing all notes makes browsing easy; showing none keeps the first view quiet.
+          </p>
+          <div class="mt-5 border-t border-border pt-5">
+            <div data-chat-question class="ml-auto w-fit max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm leading-relaxed shadow-[inset_0_0_0_1px_var(--border)]">
+              Show none until someone types. Does anything else rely on the full list?
+            </div>
+            <p data-chat-author class="mt-5 text-xs text-muted-foreground">Walkthrough agent</p>
+            <p data-chat-working class="mt-2 hidden text-sm text-muted-foreground">Working…</p>
+            <p data-chat-answer class="mt-2 text-sm leading-relaxed">
+              Only the first screen does. <code class="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">findNotes</code>
+              returns every note for an empty query, and nothing else calls it with one. Showing none is a one-line guard in
+              <code class="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">src/search.ts</code>.
+            </p>
+            <div data-chat-actions class="mt-4 text-sm">
+              <span data-chat-available class="hidden flex-wrap items-center gap-3">
+                <span class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
+                <span data-chat-save class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Save for later</span>
+              </span>
+              <span data-chat-saved class="flex items-center gap-2 text-xs text-muted-foreground">
+                Saved for later
+                <span class="font-medium text-foreground underline-offset-4">Undo</span>
+              </span>
+            </div>
+          </div>
+          <div
+            data-chat-bar
+            class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background"
+          >
+            <span>2 comments saved</span>
+            <span class="inline-flex h-8 items-center rounded-lg bg-background px-3 font-medium text-foreground">Post together on #42</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Around the walkthrough -->
     <section class="mx-auto max-w-[1440px] px-5 pt-32 lg:px-10 lg:pt-44">
       <div class="max-w-3xl">
-        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">Around the review</p>
+        <p data-reveal class="font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase">Around the walkthrough</p>
         <h2 data-reveal class="mt-5 text-[clamp(2.4rem,4.6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.05em]">
           Made for repositories too big to scroll.
         </h2>
@@ -652,8 +753,8 @@ const treeRows = [
             <ComingSoon />
           </div>
           <p class="mt-3 leading-relaxed text-muted-foreground">
-            Review without sitting at a desk. The mobile app reaches the same machines, with native navigation and the
-            Porcelain you know.
+            Read a walkthrough and answer its calls away from the desk. The mobile app reaches the same machines, with
+            native navigation and the Porcelain you know.
           </p>
           <div class="mt-8 flex items-end gap-4" aria-hidden="true">
             <div class="h-28 w-16 rounded-[14px] border-2 border-border bg-background p-1.5">
@@ -670,7 +771,7 @@ const treeRows = [
           <h3 class="text-2xl font-semibold tracking-[-0.035em]">Your code stays on your machines.</h3>
           <ul class="mt-6 space-y-3 text-muted-foreground">
             {
-              ['No account to create', 'No analytics on the app or this site', 'No code, review or comment sent to us'].map((line) => (
+              ['No account to create', 'No analytics on the app or this site', 'Your code goes only to the agent account you already use'].map((line) => (
                 <li class="flex items-center gap-3">
                   <svg viewBox="0 0 24 24" class="size-4 shrink-0 text-graph-2" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
                     <path d="m5 12.5 4.5 4.5L19 7.5" />
@@ -695,8 +796,8 @@ const treeRows = [
           </span>
           <h3 class="text-2xl font-semibold tracking-[-0.035em]">Open source, all of it.</h3>
           <p class="mt-3 max-w-md leading-relaxed text-background/65">
-            The server, the apps and the MCP tools are on GitHub under the MIT license. If you would rather not trust us,
-            read the source.
+            The server, the apps and the walkthrough agent’s prompts are on GitHub under the MIT license. If you would
+            rather not trust us, read the source.
           </p>
           <a
             class="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-background px-5 text-sm font-medium text-foreground no-underline transition-transform hover:scale-[1.03]"
@@ -722,10 +823,11 @@ const treeRows = [
         </div>
         <div data-glow class="pointer-events-none absolute -top-40 -right-20 -z-10 size-[30rem] rounded-full bg-graph-1/30 blur-[120px]" aria-hidden="true"></div>
         <h2 class="max-w-[14ch] text-[clamp(2.6rem,5.6vw,5.5rem)] leading-[0.95] font-semibold tracking-[-0.055em]">
-          Read what your agents wrote.
+          Understand what your agents built.
         </h2>
         <p class="mt-6 max-w-lg text-lg leading-relaxed text-background/65">
-          Start the server on the machine that holds your repositories, or download the Mac app.
+          Start the server on the machine that holds your repositories, or download the Mac app. Sign in to Claude Code
+          or Codex there, and press Write walkthrough.
         </p>
         <div class="mt-10 flex flex-wrap items-center gap-3">
           <a
@@ -811,7 +913,7 @@ const treeRows = [
       );
     }
 
-    /* An alphabetical diff: forty-one files in, attention drains row by row and runs out around the decision. */
+    /* An alphabetical diff: forty-one files in, attention drains row by row and runs out around the call. */
     function drainAttention() {
       const list = one('[data-diff-list]');
       const scan = one('[data-scan]');
@@ -847,7 +949,7 @@ const treeRows = [
       });
     }
 
-    /* Packets travel between the agent, Porcelain, and you. */
+    /* Packets travel from the coding agent to the walkthrough agent, and between it and you. */
     function sendPackets() {
       for (const [index, carrier] of all('[data-packet]').entries()) {
         const toRight = carrier.dataset.packet === 'right';
@@ -929,6 +1031,56 @@ const treeRows = [
           { margin: '-45% 0px -45% 0px' },
         );
       }
+    }
+
+    /* A question goes in, the walkthrough agent works on it and answers, and the comment is saved for the pull request. */
+    function playConversation() {
+      const chat = one('[data-chat]');
+      if (!chat) return;
+      const question = one('[data-chat-question]', chat);
+      const author = one('[data-chat-author]', chat);
+      const working = one('[data-chat-working]', chat);
+      const answer = one('[data-chat-answer]', chat);
+      const actions = one('[data-chat-actions]', chat);
+      const available = one('[data-chat-available]', chat);
+      const save = one('[data-chat-save]', chat);
+      const saved = one('[data-chat-saved]', chat);
+      const bar = one('[data-chat-bar]', chat);
+      if (!question || !author || !working || !answer || !actions || !available || !save || !saved || !bar) return;
+      const showSaved = (yes: boolean) => {
+        available.classList.toggle('hidden', yes);
+        available.classList.toggle('flex', !yes);
+        saved.classList.toggle('hidden', !yes);
+        saved.classList.toggle('flex', yes);
+      };
+      const instant = { duration: 0 };
+
+      whileVisible(chat, 0.5, async (live) => {
+        while (live()) {
+          animate([question, author, answer, actions, bar], { opacity: 0 }, instant);
+          working.classList.add('hidden');
+          showSaved(false);
+          await wait(500);
+          if (!live()) return;
+          await animate(question, { opacity: [0, 1], y: [10, 0] }, spring);
+          await wait(500);
+          if (!live()) return;
+          working.classList.remove('hidden');
+          await animate([author, working], { opacity: [0, 1] }, { duration: 0.3 });
+          await animate(working, { opacity: [1, 0.4, 1, 0.4, 1] }, { duration: 1.8 });
+          if (!live()) return;
+          working.classList.add('hidden');
+          await animate(answer, { opacity: [0, 1], y: [6, 0], filter: ['blur(4px)', 'blur(0px)'] }, { duration: 0.6 });
+          await animate(actions, { opacity: [0, 1] }, { duration: 0.3 });
+          await wait(1100);
+          if (!live()) return;
+          await animate(save, { scale: [1, 0.95, 1] }, { duration: 0.2 });
+          showSaved(true);
+          animate(saved, { opacity: [0, 1] }, { duration: 0.3 });
+          await animate(bar, { opacity: [0, 1], y: [12, 0] }, spring);
+          await wait(3600);
+        }
+      });
     }
 
     /* History draws its lanes, then drops each commit onto them. */
@@ -1043,6 +1195,7 @@ const treeRows = [
       drainAttention();
       sendPackets();
       runTour();
+      playConversation();
       drawHistory();
       pinAndHide();
       ambient();

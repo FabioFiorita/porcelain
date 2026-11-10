@@ -46,7 +46,7 @@ eas workflow:run .eas/workflows/production.yml --ref main
 
 ## Push notifications
 
-Settings → Notifications registers the phone's Expo push token with every paired computer; the computer then sends review-ready and agent-reply notices through Expo's push service. The app and server are complete without credentials: until they exist, the token request fails and the screen says the push key is missing, and the phone registers automatically on a later launch once a token is available.
+Settings → Notifications offers the phone's Expo push token to every paired computer. Computers send no notifications since review publishing was removed; the screen stays until the mobile cleanup. The app and server are complete without credentials: until they exist, the token request fails and the screen says the push key is missing, and the phone registers automatically on a later launch once a token is available.
 
 - **iOS:** run `eas credentials --platform ios` in `apps/mobile`, choose each profile's bundle identifier and set up an Apple Push Notifications key (EAS can generate one). The `expo-notifications` plugin adds the push entitlement, so the next build needs a provisioning profile with Push Notifications; regenerate the ad hoc profile for preview. Rebuild; an OTA update cannot add the entitlement.
 - **Android:** create an Android app for the package in a Firebase project, download its `google-services.json` and provide its path as `GOOGLE_SERVICES_JSON` when building (for EAS, a file environment variable); then upload a Firebase Cloud Messaging V1 service account key in the Expo project's Android credentials. Rebuild the development client.

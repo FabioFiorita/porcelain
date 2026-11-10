@@ -218,7 +218,9 @@ async function buildServer(
 function packageReadme(version: string): string {
   return `# @fabiofiorita/porcelain (${version})
 
-The Porcelain review server and bundled web app for a plain Node installation.
+The Porcelain server and bundled web app for a plain Node installation. A
+fresh, read-only agent writes a Walkthrough of what your coding agent changed,
+through the Claude Code or Codex CLI signed in on this machine.
 
 ## Quick start
 

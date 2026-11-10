@@ -42,7 +42,6 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   evidence                 list retained evidence
   stop                     close this run's sessions, release its simulator and stop owned processes
   pairing-link             print a fresh one-time pairing link
-                           act through the disposable server's MCP fixture
   walkthrough sample|answer long|answer short|moved|posts
                            write a ready walkthrough on pull request #423 with screenshots, set the next answer, refuse posts, read posted comments
   server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|receipt ...
