@@ -155,6 +155,7 @@ export function planPost(input: {
   return {
     kind: 'write',
     pullRequestNumber: input.readyRuns.at(-1)?.pullRequestNumber,
+    repository: input.readyRuns.at(-1)?.pullRequestRepository,
     messageIds: selected.map((message) => message.id),
     text: composeBrief(selected.map((message) => briefItem(message, runs))),
   };

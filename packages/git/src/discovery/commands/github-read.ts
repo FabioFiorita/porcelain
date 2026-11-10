@@ -20,6 +20,7 @@ const output = Effect.fn('Git.githubOutput')(function* (
   args: readonly string[],
   limits: GitLimits,
   token?: Redacted.Redacted<string>,
+  stdin?: string,
 ) {
   const env = { ...process.env };
   for (const name of [
@@ -38,6 +39,7 @@ const output = Effect.fn('Git.githubOutput')(function* (
     command: 'gh',
     args,
     env,
+    stdin,
     maxBytes: Math.min(limits.outputBytes, 4 * 1024 * 1024),
     timeoutMs: limits.readTimeoutMs,
     processGroup: limits.processGroup,
@@ -133,11 +135,12 @@ export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
         `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues/${input.number}/comments`,
         '--method',
         'POST',
-        '-f',
-        `body=${input.body}`,
+        '--input',
+        '-',
       ],
       limits,
       token,
+      JSON.stringify({ body: input.body }),
     );
     const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
       response,

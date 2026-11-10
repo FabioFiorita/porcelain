@@ -240,7 +240,7 @@ const args = process.argv.slice(2);
 if (args[0] === 'auth' && args[1] === 'status') console.log(JSON.stringify(['fixture']));
 else if (args[0] === 'auth' && args[1] === 'token') console.log('fixture-token');
 else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
-  fs.appendFileSync(${JSON.stringify(ghCalls)}, JSON.stringify(args) + '\\n');
+  fs.appendFileSync(${JSON.stringify(ghCalls)}, fs.readFileSync(0, 'utf8') + '\\n');
   console.log(JSON.stringify({ html_url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1' }));
 } else console.log('{}');
 `,
@@ -275,6 +275,10 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       projectId: session.projectId,
       worktreeId: session.worktreeId,
       pullRequestNumber,
+      pullRequestRepository:
+        pullRequestNumber === undefined
+          ? undefined
+          : { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
       headOid: head,
       writer: { provider: 'claude', model: 'fixture' },
@@ -476,7 +480,50 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     .split('\n')
     .filter(Boolean);
   expect(calls).toHaveLength(2);
-  expect(calls[0]).toContain('body=From the walkthrough of this change:');
+  expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
+  const unposted = await add(undefined, 'A private decision');
+  await expect
+    .poll(() => agentState(unposted), { timeout: 10000 })
+    .toBe('answered');
+  await session.git(
+    'remote',
+    'set-url',
+    'origin',
+    'https://github.com/someone/public-fork.git',
+  );
+  const refused = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot}/messages/${unposted}/post`,
+  });
+  expect(refused.status).toBe(409);
+  expect(refused.body).toEqual(
+    apiError(
+      409,
+      'Conflict',
+      "This walkthrough's pull request is on FabioFiorita/porcelain, but this project's origin no longer points there. Nothing was posted. Copy the brief instead.",
+    ),
+  );
+  expect(
+    (await readFile(ghCalls, 'utf8')).trim().split('\n').filter(Boolean),
+  ).toHaveLength(2);
+  const offered = await read(session, {
+    method: 'GET',
+    path: `${worktreeRoot}/brief?messageId=${unposted}`,
+  });
+  expect(offered.text).toContain('A private decision');
+  await session.git('branch', 'conversation-start-base');
+  await session.writeFile('conversation.txt', 'Advance again.\n');
+  await session.git('add', 'conversation.txt');
+  await session.git('commit', '-m', 'Advance for a pull request start');
+  const startedWithPull = await read(session, {
+    method: 'POST',
+    path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+    body: { base: 'refs/heads/conversation-start-base', pullRequestNumber: 41 },
+  });
+  expect(startedWithPull.pullRequestRepository).toEqual({
+    owner: 'someone',
+    repo: 'public-fork',
+  });
   expect(
     server.routes.filter((route) => route.includes('/walkthrough')).toSorted(),
   ).toEqual(WALKTHROUGH_ROUTES);

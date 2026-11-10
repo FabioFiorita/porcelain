@@ -80,7 +80,7 @@ export function composeWalkthroughs(
     ghPullRequestCommenterLayer(context.settings.limits.git),
     Layer.succeed(IdSource, context.ids),
     Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
-    gitWalkthroughSourceReaderLayer.pipe(
+    gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
     ),
     AnnounceWalkthroughUseCase.layer.pipe(

@@ -41,12 +41,16 @@ const worktree: ListedWorktree = {
   commonDirectory: '/repo/.git',
   repositoryIdentity: 'identity',
 };
-const job = (pullRequestNumber: number | undefined): WalkthroughJob => ({
+const job = (
+  pullRequestNumber: number | undefined,
+  pullRequestRepository: { owner: string; repo: string } | undefined,
+): WalkthroughJob => ({
   run: {
     id: 'run',
     projectId: 'project',
     worktreeId: 'tree',
     pullRequestNumber,
+    pullRequestRepository,
     baseOid: 'a'.repeat(40),
     headOid: 'b'.repeat(40),
     writer: { provider: 'claude', model: 'claude-opus-5-5' },
@@ -84,10 +88,25 @@ const job = (pullRequestNumber: number | undefined): WalkthroughJob => ({
 async function fixture(
   onTestFinished: (callback: () => Promise<void>) => void,
   pullRequestNumber: number | undefined,
+  repositoryRecorded = true,
 ) {
+  const pullRequestRepository =
+    pullRequestNumber !== undefined && repositoryRecorded
+      ? { owner: 'o', repo: 'r' }
+      : undefined;
   const folder = await mkdtemp(join(tmpdir(), 'walkthrough-post-'));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  const comments: { body: string; number: number; account: string }[] = [];
+  const comments: {
+    body: string;
+    number: number;
+    account: string;
+    owner: string;
+    repo: string;
+  }[] = [];
+  let origin: { owner: string; repo: string } | undefined = {
+    owner: 'o',
+    repo: 'r',
+  };
   const gate = await Effect.runPromise(Deferred.make<void>());
   const bothPlanned = await Effect.runPromise(Deferred.make<void>());
   let held = false;
@@ -137,7 +156,7 @@ async function fixture(
             yield* Deferred.succeed(bothPlanned, undefined);
           if (held) yield* Deferred.await(bothPlanned);
           return {
-            repository: { owner: 'o', repo: 'r' },
+            repository: origin,
             selection: {
               accounts: ['fixture'],
               choice: { account: 'fixture', source: 'detected' as const },
@@ -178,13 +197,13 @@ async function fixture(
   await runtime.runPromise(
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
-      yield* store.accept(job(pullRequestNumber));
+      yield* store.accept(job(pullRequestNumber, pullRequestRepository));
     }),
   );
   await runtime.runPromise(
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
-      yield* store.save(job(pullRequestNumber).run);
+      yield* store.save(job(pullRequestNumber, pullRequestRepository).run);
     }),
   );
   const add = (text: string, saved: boolean) =>
@@ -209,10 +228,23 @@ async function fixture(
         return yield* useCase.execute({ worktreeId: 'tree', messageId });
       }),
     );
+  const attempt = (messageId: string) =>
+    runtime.runPromise(
+      Effect.gen(function* () {
+        const useCase = yield* PostWalkthroughMessagesUseCase;
+        return yield* useCase
+          .execute({ worktreeId: 'tree', messageId })
+          .pipe(Effect.result);
+      }),
+    );
   return {
     add,
     post,
+    attempt,
     comments,
+    setOrigin: (next: typeof origin) => {
+      origin = next;
+    },
     hold: () => {
       held = true;
     },
@@ -301,4 +333,60 @@ it('returns the copyable brief and changes nothing when the walkthrough has no p
     author: 'developer',
     post: { status: 'saved' },
   });
+});
+
+it('refuses to post on another repository after origin changes and keeps the message unposted', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(onTestFinished, 9);
+  const id = await test.add('A private decision', false);
+  test.setOrigin({ owner: 'someone', repo: 'public-fork' });
+  expect(await test.attempt(id)).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      _tag: 'WalkthroughRepositoryChangedError',
+      message:
+        "This walkthrough's pull request is on o/r, but this project's origin no longer points there. Nothing was posted. Copy the brief instead.",
+    },
+  });
+  expect(test.comments).toEqual([]);
+  test.setOrigin({ owner: 'o', repo: 'r' });
+  expect((await test.post(id)).outcome).toMatchObject({ status: 'posted' });
+});
+
+it('refuses when origin is no longer on GitHub', async ({ onTestFinished }) => {
+  const test = await fixture(onTestFinished, 9);
+  const id = await test.add('A private decision', false);
+  test.setOrigin(undefined);
+  expect(await test.attempt(id)).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'WalkthroughRepositoryChangedError' },
+  });
+  expect(test.comments).toEqual([]);
+});
+
+it('refuses a pull request whose repository was never recorded', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(onTestFinished, 9, false);
+  const id = await test.add('A private decision', false);
+  expect(await test.attempt(id)).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      _tag: 'WalkthroughRepositoryChangedError',
+      message:
+        "This walkthrough did not record its pull request's repository. Nothing was posted. Copy the brief instead.",
+    },
+  });
+  expect(test.comments).toEqual([]);
+});
+
+it('posts to the recorded repository when origin differs only by letter case', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(onTestFinished, 9);
+  const id = await test.add('A decision', false);
+  test.setOrigin({ owner: 'O', repo: 'R' });
+  await test.post(id);
+  expect(test.comments).toMatchObject([{ owner: 'o', repo: 'r', number: 9 }]);
 });

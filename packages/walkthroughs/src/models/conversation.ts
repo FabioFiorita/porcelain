@@ -1,5 +1,8 @@
 import { Schema } from 'effect';
-import { walkthroughFailureSchema } from './walkthrough.ts';
+import {
+  walkthroughFailureSchema,
+  type WalkthroughRun,
+} from './walkthrough.ts';
 
 export const answerStateSchema = Schema.Union([
   Schema.Struct({ status: Schema.Literal('answering') }),
@@ -73,6 +76,7 @@ export type PostPlan =
   | {
       readonly kind: 'write';
       readonly pullRequestNumber: number | undefined;
+      readonly repository: WalkthroughRun['pullRequestRepository'];
       readonly messageIds: readonly string[];
       readonly text: string;
     };

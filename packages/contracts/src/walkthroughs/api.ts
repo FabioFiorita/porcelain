@@ -10,6 +10,7 @@ import {
   WalkthroughAssetNotFoundError,
   WalkthroughMessageNotFoundError,
   WalkthroughPostFailedError,
+  WalkthroughRepositoryChangedError,
   WalkthroughTargetNotFoundError,
 } from '@porcelain/walkthroughs/errors';
 import { nullableAsUndefined } from '../shared/schema.ts';
@@ -192,6 +193,9 @@ export class WalkthroughsApi extends porcelainApi.add(
             httpFailure(WalkthroughPostFailedError, 'BadGateway', {
               message: { fromError: true },
             }),
+            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
+              message: { fromError: true },
+            }),
           ],
         },
       ),
@@ -206,6 +210,9 @@ export class WalkthroughsApi extends porcelainApi.add(
             ...worktreeFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
             httpFailure(WalkthroughPostFailedError, 'BadGateway', {
+              message: { fromError: true },
+            }),
+            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
               message: { fromError: true },
             }),
           ],

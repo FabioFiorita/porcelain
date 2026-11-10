@@ -7,6 +7,7 @@ import {
 import type {
   WalkthroughMessageNotFoundError,
   WalkthroughPostFailedError,
+  WalkthroughRepositoryChangedError,
 } from '@porcelain/walkthroughs/errors';
 import type { WalkthroughPostInput } from '@porcelain/contracts/walkthroughs';
 import type {
@@ -28,6 +29,7 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
       | WorktreeAccessFailure
       | WalkthroughMessageNotFoundError
       | WalkthroughPostFailedError
+      | WalkthroughRepositoryChangedError
     >;
   }
 >()('@porcelain/server/PostWalkthroughMessagesUseCase') {
