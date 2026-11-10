@@ -349,8 +349,9 @@ function Written({
           {
             walkthroughFailureCopy(updateFailure.failure, updateFailure.writer)
               .title
-          }{' '}
-          {updateFailure.failure.message}
+          }
+          {updateFailure.failure.kind !== 'signed_out' &&
+            ` ${updateFailure.failure.message}`}
         </span>
         <Button size="sm" variant="outline" onClick={onUpdate}>
           Try again
@@ -490,16 +491,9 @@ function Failed({
         <h1 className="text-subpage-title font-semibold tracking-tight">
           {copy.title}
         </h1>
-        <p className="text-prose text-foreground-2">
-          {copy.message}
-          {copy.command && (
-            <>
-              {' '}
-              <code className="font-mono text-caption">{copy.command}</code> on
-              this computer, then try again.
-            </>
-          )}
-        </p>
+        {copy.message && (
+          <p className="text-prose text-foreground-2">{copy.message}</p>
+        )}
         <Button disabled={waiting} onClick={onRetry}>
           Try again
         </Button>

@@ -67,8 +67,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. Failure
 
-7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. With no ready page the initial running/failure states remain.
-8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect heading "Claude needs you to sign in again." naming `claude auth login`; after removing the file, "Try again" writes the walkthrough.
+7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. The sidebar keeps the last ready title for the current branch while updating and after failure; a ready title from another branch never replaces it. With no ready page the initial running/failure states remain.
+8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect one sentence "Sign in to Claude again with claude auth login, then try again." (Codex names `codex login`) in both the initial failure and failed-update line; after removing the file, "Try again" writes the walkthrough.
 
 ### 4. Short page
 
@@ -82,8 +82,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 5. Conversations
 
 9. The stock fake writer returns plain text for a comment follow-up, matching the conversation turn without a JSON schema. Under a call, use textbox "Decide, or ask about this" and "Send" (Enter sends; Shift+Enter adds a line). Under a step, "Ask about this" reveals textbox "Ask about this step". Messages already on a step are visible immediately. Backticks render inline code.
-10. Expect a right-aligned developer bubble and "Walkthrough agent", first "Working…", then its answer with "Read all". Type another draft while the answer arrives; it must survive the notice without moving the document. A failed answer shows the plain failure and "Try again".
-11. "Save for later" becomes "Saved for later" with "Undo". Save two messages: the sticky bar says "2 comments saved". On a PR, "Post on #N" posts one, "Post together on #N" posts saved messages once. A posted message links with "Posted on #N". Without a PR, use "Copy as prompt" or "Copy together" and expect "Copied brief".
+10. Expect a right-aligned developer bubble and "Walkthrough agent", first "Working…", then its answer; "Read all" appears only when the answer exceeds its three-line clamp and expands it. Type another draft while the answer arrives; it must survive the notice without moving the document. A failed answer shows the plain failure and "Try again".
+11. "Save for later" becomes "Saved for later" with "Undo". Save two messages: the sticky bar says "2 comments saved". On a PR, "Post on #N" posts one, "Post together on #N" posts saved messages once. A posted message links with "Posted on #N". Without a PR, use "Copy as prompt" or "Copy together" and expect a one-line "Copied brief" notification with no body.
 12. A refused post says "Nothing was posted. Copy the brief instead." and offers "Copy". A partial post identifies comments still saved because they belong to a different repository. Whole-walkthrough and removed-stop conversations appear under "Earlier comments".
 
 Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations.test.tsx`, using its isolated fake CLI and fake GitHub against the real server. Its ready walkthrough is a synthetic fixture, with no external project content. Sweep at desktop and 414 × 896, light and dark.

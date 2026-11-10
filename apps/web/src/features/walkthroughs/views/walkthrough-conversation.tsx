@@ -130,6 +130,16 @@ function AgentReply({
   owner,
 }: Props & { message: AgentMessage; children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const [attach] = useState(() => (element: HTMLSpanElement | null) => {
+    if (!element) return;
+    const measure = () =>
+      setClipped(element.scrollHeight > element.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
   const { failure, waiting, retry } = useRetryAnswer(owner, message.replyTo);
   const state = message.state;
   return (
@@ -139,7 +149,7 @@ function AgentReply({
         <Bubble variant="ghost" className="max-w-full">
           <BubbleContent className="whitespace-pre-wrap">
             {state.status === 'answered' ? (
-              <span className={open ? undefined : 'line-clamp-3'}>
+              <span ref={attach} className={open ? undefined : 'line-clamp-3'}>
                 <RichText text={state.text} />
               </span>
             ) : null}
@@ -152,7 +162,7 @@ function AgentReply({
           </BubbleContent>
         </Bubble>
         <div className="flex flex-wrap items-center gap-3">
-          {state.status === 'answered' && !open && (
+          {state.status === 'answered' && !open && clipped && (
             <Button variant="link" size="sm" onClick={() => setOpen(true)}>
               Read all
             </Button>

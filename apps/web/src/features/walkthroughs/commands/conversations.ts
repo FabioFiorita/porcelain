@@ -53,7 +53,7 @@ export function usePostActions(
   const failed = (error: unknown) => setNotice(conversationFailure(error));
   const copy = () =>
     void commands.brief.run(message?.id).then((text) => {
-      if (text) copyText(text, 'brief');
+      if (text) copyText(text, 'brief', false);
     }, failed);
   const save = (saved: boolean) => {
     if (message)
@@ -66,7 +66,7 @@ export function usePostActions(
       : commands.postSaved.run(undefined);
     void pending.then((result) => {
       if (result.outcome.status === 'brief')
-        copyText(result.outcome.text, 'brief');
+        copyText(result.outcome.text, 'brief', false);
       if (
         result.outcome.status === 'posted' &&
         result.outcome.notPosted.length > 0

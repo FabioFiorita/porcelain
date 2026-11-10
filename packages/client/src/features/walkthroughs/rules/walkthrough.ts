@@ -151,8 +151,8 @@ export function walkthroughFailureCopy(
   switch (failure.kind) {
     case 'signed_out':
       return {
-        title: `${name} needs you to sign in again.`,
-        message: 'The walkthrough stopped before it finished. Run',
+        title: `Sign in to ${name} again with ${SIGN_IN_COMMANDS[writer.provider]}, then try again.`,
+        message: '',
         command: SIGN_IN_COMMANDS[writer.provider],
       };
     case 'agent_not_installed':

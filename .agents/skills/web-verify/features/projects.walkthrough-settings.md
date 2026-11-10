@@ -39,3 +39,5 @@ Open the project menu and capture it, then open Walkthrough settings. The first 
 The fake coding tool authenticates locally and drafts commits; it does not write a real walkthrough. Writer process flags, two-pass effort and unavailable-model failures are covered by the named adapter and server tests. This loopback journey does not establish native mobile/desktop or remote connectivity. Mobile consumes the shared client API; its views are owned separately.
 
 A project with a saved unavailable writer still shows the unavailable warning. Changing Automatic to Manual must leave Save enabled when provider, model and effort are unchanged; save and independently read inventory to confirm Manual with the same override. A different unavailable writer or effort remains unsavable.
+
+The default writer uses the same outlined setting row as Spec files and Pull strategy, with its description beside the controls. Changes & Git describes change grouping, walkthrough writers, GitHub accounts, pull and archive; its shared-computer notice names Changes & Git.

@@ -1,6 +1,6 @@
 type CopyNotice = {
   title: string;
-  description: string;
+  description?: string;
   type: 'success' | 'error';
 };
 type CopyListener = (notice: CopyNotice) => void;
@@ -16,17 +16,17 @@ function announce(notice: CopyNotice) {
   for (const listener of [...listeners]) listener(notice);
 }
 
-export function copyText(text: string, label: string) {
+export function copyText(text: string, label: string, describe = true) {
   const done = () =>
     announce({
       title: `Copied ${label}`,
-      description: text,
+      ...(describe ? { description: text } : {}),
       type: 'success',
     });
   const failed = () =>
     announce({
       title: `Could not copy ${label}`,
-      description: text,
+      ...(describe ? { description: text } : {}),
       type: 'error',
     });
 

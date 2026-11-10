@@ -88,7 +88,10 @@ export class ReadInventoryUseCase extends Context.Service<
                 const titles = metadata.titles;
                 const worktrees = project.worktrees.map((worktree) => {
                   const run = metadata.runs.find(
-                    (run) => run?.worktreeId === worktree.id,
+                    (run) =>
+                      run?.worktreeId === worktree.id &&
+                      run.branch === worktree.branch &&
+                      run.state.status === 'ready',
                   );
                   const title =
                     run?.state.status === 'ready' &&
