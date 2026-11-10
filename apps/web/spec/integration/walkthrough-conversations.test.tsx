@@ -217,3 +217,108 @@ test('a posted comment keeps its original pull request number when the latest wa
     .element(page.getByRole('link', { name: 'Posted on #424', exact: true }))
     .not.toBeInTheDocument();
 });
+
+for (const { scenario, notice } of [
+  { scenario: 'running-update', notice: 'Updating…' },
+  {
+    scenario: 'failed-update',
+    notice: 'Codex needs you to sign in again. The update writer stopped.',
+  },
+] as const) {
+  test(`a ${scenario} keeps the ready page conversations, composer and saved bar`, async ({
+    render,
+    server,
+  }) => {
+    const runId = await conversationFixture(scenario);
+    await browserPage.viewport(1280, 896);
+    const { page } = await render.route('/');
+    await expect.element(page.getByText(notice, { exact: true })).toBeVisible();
+    await expect
+      .element(
+        page.getByRole('heading', {
+          name: /^Keep retries beside their owner\./,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        page.getByText('Keep the original boundary.', { exact: true }).first(),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        page
+          .getByText('The original boundary still matters.', { exact: true })
+          .first(),
+      )
+      .toBeVisible();
+    await expect
+      .element(page.getByText('1 comment saved', { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Post together on #423',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    const composer = page.getByRole('textbox', {
+      name: 'Decide, or ask about this',
+      exact: true,
+    });
+    await composer.fill('A comment on the retained page.');
+    await userEvent.keyboard('{Enter}');
+    await expect
+      .element(
+        page
+          .getByText('A comment on the retained page.', { exact: true })
+          .first(),
+      )
+      .toBeVisible();
+    await expect
+      .poll(async () => (await server.walkthrough()).walkthrough?.id)
+      .toBe(runId);
+    await expect
+      .poll(async () => (await server.walkthrough()).attempt?.state.status)
+      .toBe(scenario === 'running-update' ? 'running' : 'failed');
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Post together on #423',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  });
+}
+
+test('switching branches shows the displayed walkthrough conversations and never the previous branch comments', async ({
+  render,
+  repo,
+}) => {
+  await conversationFixture('two-branches');
+  await browserPage.viewport(1280, 896);
+  const { page } = await render.route('/');
+  await expect
+    .element(page.getByText('Only branch A', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch B', { exact: true }))
+    .not.toBeInTheDocument();
+  await repo.switch('conversation-branch-b');
+  await expect
+    .element(page.getByRole('heading', { name: /^Decisions on branch B/ }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch B', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Only branch A', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Post together on #424', exact: true }),
+    )
+    .toBeVisible();
+});

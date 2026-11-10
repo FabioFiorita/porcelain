@@ -12,7 +12,7 @@ import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { expect, it, onTestFinished } from 'vitest';
 
 const scope = { projectId: 'project', worktreeId: 'f'.repeat(32) };
-const route = `/api/worktrees/${scope.worktreeId}/walkthrough/conversations`;
+const route = `/api/worktrees/${scope.worktreeId}/walkthrough/run/conversations`;
 const conversations = (messageIds: readonly string[]) =>
   ({
     runId: 'run',
@@ -52,7 +52,7 @@ function fixture(transport: Transport) {
     registry.dispose();
     await lifetime.close();
   });
-  const selection = { connection: lifetime.connection, scope };
+  const selection = { connection: lifetime.connection, scope, runId: 'run' };
   const read = <A, E>(atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>) =>
     Effect.runPromise(
       AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
@@ -66,6 +66,7 @@ function fixture(transport: Transport) {
   };
   return {
     registry,
+    selection,
     read,
     send,
     state: readWalkthroughConversations(selection),
@@ -95,7 +96,6 @@ it('sends each command to its route and refreshes the conversations afterwards',
   onTestFinished(stop);
   expect((await subject.read(subject.state)).conversations).toEqual([]);
   await subject.send(subject.commands.addMessage, {
-    runId: 'run',
     anchor: { kind: 'walkthrough' },
     text: 'Why?',
   });
@@ -127,5 +127,28 @@ it('sends each command to its route and refreshes the conversations afterwards',
       `POST ${route}/post-saved`,
       `GET ${route}/brief`,
     ]),
+  );
+});
+
+it('loads separate conversation snapshots for the displayed runs of two branches in one worktree', async () => {
+  const subject = fixture((path) => {
+    const runId = new URL(path, 'http://porcelain.test').pathname.includes(
+      '/walkthrough/a/',
+    )
+      ? 'a'
+      : 'b';
+    return Promise.resolve(
+      Response.json({ ...conversations([`comment-${runId}`]), runId }),
+    );
+  });
+  const a = readWalkthroughConversations({ ...subject.selection, runId: 'a' });
+  const b = readWalkthroughConversations({ ...subject.selection, runId: 'b' });
+  onTestFinished(subject.registry.mount(a));
+  onTestFinished(subject.registry.mount(b));
+  expect((await subject.read(a)).conversations[0]?.messages[0]?.id).toBe(
+    'comment-a',
+  );
+  expect((await subject.read(b)).conversations[0]?.messages[0]?.id).toBe(
+    'comment-b',
   );
 });

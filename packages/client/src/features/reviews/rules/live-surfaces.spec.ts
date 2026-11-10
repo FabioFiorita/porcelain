@@ -46,7 +46,14 @@ describe('walkthrough notices', () => {
         worktreeId,
         change: 'git',
       })?.surfaces,
-    ).toContain('walkthrough');
+    ).toEqual(
+      new Set([
+        'review',
+        'reviewed-layers',
+        'walkthrough',
+        'walkthrough-conversations',
+      ]),
+    );
   });
 });
 
@@ -56,7 +63,12 @@ describe('receiptSurfaces', () => {
       receiptSurfaces({ action: 'commit', projectId, worktreeId }),
     ).toEqual({
       scope,
-      surfaces: new Set(['review', 'reviewed-layers', 'walkthrough']),
+      surfaces: new Set([
+        'review',
+        'reviewed-layers',
+        'walkthrough',
+        'walkthrough-conversations',
+      ]),
     });
   });
 });

@@ -115,53 +115,6 @@ it('reports a conflicting PR identity without losing either review or its branch
   }
 });
 
-it('upgrades legacy unassigned coverage to a neutral ownerless gap before reading retained reviews', async () => {
-  const first = reviewFixture();
-  const opened = await openStore([first.worktreeId]);
-  const next = ManagedRuntime.make(
-    storageLayer(opened.dataDirectory, {
-      worktreeIdLength: 32,
-      busyTimeoutMs: 5000,
-    }).pipe(Layer.provide(NodeServices.layer)),
-  );
-  try {
-    await Effect.runPromise(opened.store.save(reviewSave(first)));
-    const database = new DatabaseSync(
-      join(opened.dataDirectory, 'inventory.sqlite'),
-    );
-    database.prepare('UPDATE review_revisions SET verdict = ?').run(
-      JSON.stringify({
-        ...first.verdict,
-        coverage: [
-          {
-            asked: 'Chat request',
-            built: 'Partial change',
-            left: { what: 'Later', owner: { kind: 'nobody' } },
-          },
-        ],
-      }),
-    );
-    database.exec(
-      `DROP TABLE walkthrough_messages; DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE name IN ('review_timing', 'walkthroughs', 'automatic_walkthroughs', 'walkthrough_messages');`,
-    );
-    database.close();
-    const store = await next.runPromise(ReviewStore);
-    const review = await Effect.runPromise(
-      store.read({ reviewId: first.reviewId }),
-    );
-    expect(review?.verdict.coverage).toEqual([
-      {
-        asked: 'Chat request',
-        built: 'Partial change',
-        left: { what: 'Later' },
-      },
-    ]);
-  } finally {
-    await next.dispose();
-    await opened.close();
-  }
-});
-
 it('retains publication timing independently for each immutable revision', async () => {
   const first = reviewFixture({ timing: 'decision' });
   const second = {

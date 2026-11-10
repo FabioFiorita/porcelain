@@ -9,7 +9,6 @@ import type {
   PostResult,
   WalkthroughConversationsView,
 } from '@porcelain/walkthroughs/models';
-import type { WorktreeParams } from '../shared/worktree-params.ts';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 
@@ -22,13 +21,19 @@ const walkthroughAnchorSchema = Schema.Union([
     title: Schema.String.check(Schema.isMinLength(1)),
   }),
 ]);
-export const walkthroughMessageParamsSchema = Schema.Struct({
+export const walkthroughConversationParamsSchema = Schema.Struct({
   ...worktreeParamsSchema.fields,
+  runId: Schema.String.check(Schema.isMinLength(1)),
+});
+export type WalkthroughConversationParams =
+  typeof walkthroughConversationParamsSchema.Type;
+export const walkthroughMessageParamsSchema = Schema.Struct({
+  ...walkthroughConversationParamsSchema.fields,
   messageId: Schema.String.check(Schema.isMinLength(1)),
 });
 export type WalkthroughMessageParams =
   typeof walkthroughMessageParamsSchema.Type;
-export type WalkthroughPostInput = WorktreeParams & {
+export type WalkthroughPostInput = WalkthroughConversationParams & {
   readonly messageId?: string | undefined;
 };
 export type SaveWalkthroughMessageRequest =
@@ -37,7 +42,6 @@ export type WalkthroughConversationsResult = WalkthroughConversationsView;
 export type WalkthroughPostResult = PostResult;
 export const addWalkthroughMessageRequestSchema = Schema.Struct({
   writer: Schema.optional(writerSchema),
-  runId: Schema.String.check(Schema.isMinLength(1)),
   anchor: walkthroughAnchorSchema,
   text: Schema.String.check(
     Schema.isTrimmed(),

@@ -1,3 +1,4 @@
+import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -14,6 +15,7 @@ import {
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
+  ReadWalkthroughTargetService,
   ResolveWalkthroughWriterService,
   AnswerWalkthroughMessageService,
   BeginWalkthroughService,
@@ -106,6 +108,7 @@ async function fixture(
       RetryWalkthroughAnswerService.layer,
       ListWalkthroughConversationsService.layer,
     ).pipe(
+      Layer.provideMerge(ReadWalkthroughTargetService.layer),
       Layer.provideMerge(
         Layer.mergeAll(
           database,
@@ -185,15 +188,18 @@ async function fixture(
     runtime.runPromise(
       Effect.gen(function* () {
         const service = yield* AddWalkthroughMessageService;
-        return yield* service.execute({
-          worktreeId: 'worktree',
-          runId: 'run',
-          anchor:
-            stopTitle === undefined
-              ? { kind: 'walkthrough' }
-              : { kind: 'stop', title: stopTitle },
-          text,
-        });
+        return yield* withReadLease(
+          'worktree',
+          service.execute({
+            worktreeId: 'worktree',
+            runId: 'run',
+            anchor:
+              stopTitle === undefined
+                ? { kind: 'walkthrough' }
+                : { kind: 'stop', title: stopTitle },
+            text,
+          }),
+        );
       }),
     );
   const enqueue = () =>
@@ -207,7 +213,10 @@ async function fixture(
     runtime.runPromise(
       Effect.gen(function* () {
         const service = yield* ListWalkthroughConversationsService;
-        const view = yield* service.execute({ worktreeId: 'worktree' });
+        const view = yield* withReadLease(
+          'worktree',
+          service.execute({ worktreeId: 'worktree', runId: 'run' }),
+        );
         return view.conversations.flatMap(
           (conversation) => conversation.messages,
         );
@@ -253,6 +262,7 @@ async function fixture(
           const service = yield* RetryWalkthroughAnswerService;
           return yield* service.execute({
             worktreeId: 'worktree',
+            runId: 'run',
             messageId: id,
           });
         }),

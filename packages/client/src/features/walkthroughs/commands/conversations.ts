@@ -7,9 +7,9 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 
 export const walkthroughConversationCommands = Atom.family(
-  ({ connection, scope }: WorktreeSelection) => {
+  ({ connection, scope, runId }: WorktreeSelection & { runId: string }) => {
     const runtime = clientRuntime(connection);
-    const worktree = { worktreeId: scope.worktreeId };
+    const worktree = { worktreeId: scope.worktreeId, runId };
     const invalidate = Reactivity.invalidate([
       queryKeys.reviewSurface(connection.environmentId, scope, [
         'walkthrough-conversations',

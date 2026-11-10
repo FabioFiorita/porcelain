@@ -1,21 +1,52 @@
 import { Context, Effect, Layer } from 'effect';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
+import { WalkthroughHeadReader } from '../ports/walkthrough-head-reader.ts';
+import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type { WalkthroughRun } from '../models/walkthrough.ts';
 export class ReadWalkthroughService extends Context.Service<
   ReadWalkthroughService,
   {
-    readonly execute: (input: {
-      worktreeId: string;
-    }) => Effect.Effect<WalkthroughRun | undefined>;
+    readonly execute: (input: { worktreeId: string }) => Effect.Effect<
+      {
+        walkthrough: WalkthroughRun | undefined;
+        attempt: WalkthroughRun | undefined;
+        outOfDate: boolean;
+      },
+      GitIoFailure,
+      WorktreeRead
+    >;
   }
 >()('@porcelain/walkthroughs/ReadWalkthroughService') {
   static readonly layer = Layer.effect(
     ReadWalkthroughService,
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
+      const heads = yield* WalkthroughHeadReader;
       return {
         execute: Effect.fn('ReadWalkthroughService.execute')(function* (input) {
-          return yield* store.read(input.worktreeId);
+          const head = yield* heads.read(input);
+          const latest = yield* store.read(input.worktreeId, {
+            branch: head.branch,
+          });
+          const readyRuns = (yield* store.listReadyRuns(
+            input.worktreeId,
+          )).filter((run) => run.branch === head.branch);
+          const ready = readyRuns.at(-1);
+          const walkthrough =
+            latest?.state.status === 'ready' ? latest : (ready ?? latest);
+          return {
+            walkthrough,
+            outOfDate:
+              walkthrough !== undefined && head.headOid !== walkthrough.headOid,
+            attempt:
+              ready !== undefined &&
+              latest !== undefined &&
+              latest.state.status !== 'ready' &&
+              latest.id !== ready.id
+                ? latest
+                : undefined,
+          };
         }),
       };
     }),

@@ -14,7 +14,7 @@ import {
 import { NodeServices } from '@effect/platform-node';
 import { storageLayer } from '@porcelain/storage';
 import { SqlClient } from 'effect/sql';
-import { DatabaseSync } from 'node:sqlite';
+import { seedStoredWalkthroughs } from '../kit/walkthrough-fixture.ts';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import { expect, vi } from 'vitest';
 import { GitHubReader } from '@porcelain/reviews/ports';
@@ -337,24 +337,17 @@ test('recovers an interrupted automatic walkthrough without losing evidence and 
   await fixture.waitForWriter();
   const before = await fixture.read();
   const image = Buffer.from('89504e470d0a1a0a', 'hex');
-  const sql = new DatabaseSync(join(fixture.state, 'inventory.sqlite'));
-  try {
-    sql.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
-    sql
-      .prepare(
-        'INSERT INTO walkthrough_evidence (run_id,asset_id,media_type,caption,bytes) VALUES (?,?,?,?,?)',
-      )
-      .run(
-        before.walkthrough?.id ?? '',
-        'fixture-image',
-        'image/png',
-        'Existing proof',
-        image,
-      );
-    sql.exec('COMMIT');
-  } finally {
-    sql.close();
-  }
+  seedStoredWalkthroughs(fixture.state, {
+    assets: [
+      {
+        runId: before.walkthrough?.id ?? '',
+        id: 'fixture-image',
+        mediaType: 'image/png',
+        caption: 'Existing proof',
+        bytes: image,
+      },
+    ],
+  });
   const pid = Number(
     await readFile(join(fixture.root, 'writer-started'), 'utf8'),
   );

@@ -4,11 +4,18 @@ import { AsyncResult } from 'effect/reactivity';
 import { readWalkthroughConversations } from '@porcelain/client/walkthroughs';
 import type { DocumentProps } from '@/features/workspace/index';
 
-export type ConversationScope = Pick<DocumentProps, 'scope' | 'context'>;
+export type ConversationScope = Pick<DocumentProps, 'scope' | 'context'> & {
+  runId: string;
+};
 
-export function conversationSelection({ scope, context }: ConversationScope) {
+export function conversationSelection({
+  scope,
+  context,
+  runId,
+}: ConversationScope) {
   return {
     connection: context.connection,
+    runId,
     scope: { projectId: scope.projectId, worktreeId: scope.worktreeId },
   };
 }

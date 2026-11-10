@@ -175,6 +175,7 @@ describe('planPost', () => {
       planPost({
         selection: { kind: 'message', messageId: 'm' },
         readyRuns: runs,
+        target: runs[0]!,
         messages: [posted],
       }),
     ).toEqual({
@@ -187,6 +188,7 @@ describe('planPost', () => {
     const plan = planPost({
       selection: { kind: 'saved' },
       readyRuns: runs,
+      target: runs[0]!,
       messages: [
         message('a', 'run', 'Step', { post: { status: 'saved' } }),
         message('b', 'run', undefined),
@@ -206,6 +208,7 @@ describe('planPost', () => {
       planPost({
         selection: { kind: 'saved' },
         readyRuns: runs,
+        target: runs[0]!,
         messages: [message('b', 'run', undefined)],
       }),
     ).toEqual({ kind: 'nothing' });
@@ -215,6 +218,7 @@ describe('planPost', () => {
     const plan = planPost({
       selection: { kind: 'message', messageId: 'm' },
       readyRuns: [run('run', ['Step'])],
+      target: run('run', ['Step']),
       messages: [message('m', 'run', 'Step')],
     });
     expect(plan.kind === 'write' && plan.pullRequestNumber).toBe(undefined);
@@ -230,6 +234,7 @@ describe('planPost across repositories', () => {
     const plan = planPost({
       selection: { kind: 'saved' },
       readyRuns: [pinned('private', 'private'), pinned('fork', 'Fork')],
+      target: pinned('fork', 'Fork'),
       messages: [
         message('old', 'private', 'Step', { post: { status: 'saved' } }),
         message('new', 'fork', 'Step', { post: { status: 'saved' } }),

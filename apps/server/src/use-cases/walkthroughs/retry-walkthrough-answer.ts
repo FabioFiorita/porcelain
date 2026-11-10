@@ -1,3 +1,4 @@
+import type { WalkthroughTargetNotFoundError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
 import type { WalkthroughMessageParams } from '@porcelain/contracts/walkthroughs';
 import {
@@ -17,7 +18,9 @@ export class RetryWalkthroughAnswerUseCase extends Context.Service<
       input: WalkthroughMessageParams,
     ) => Effect.Effect<
       WalkthroughConversationsView,
-      WorktreeAccessFailure | WalkthroughMessageNotFoundError
+      | WorktreeAccessFailure
+      | WalkthroughTargetNotFoundError
+      | WalkthroughMessageNotFoundError
     >;
   }
 >()('@porcelain/server/RetryWalkthroughAnswerUseCase') {

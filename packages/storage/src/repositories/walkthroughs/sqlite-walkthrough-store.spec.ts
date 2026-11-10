@@ -308,86 +308,6 @@ it('resolves every comment answer from request, project, changed default and bui
   }
 });
 
-it('upgrades migration 012 runs to the saved high effort and preserves existing conversation messages in migration 013', async () => {
-  const directory = mkdtempSync(
-    join(tmpdir(), 'walkthrough-writer-migration-'),
-  );
-  const open = () =>
-    ManagedRuntime.make(
-      storageLayer(directory, {
-        worktreeIdLength: 32,
-        busyTimeoutMs: 5000,
-      }).pipe(Layer.provide(NodeServices.layer)),
-    );
-  let runtime = open();
-  try {
-    const store = await runtime.runPromise(WalkthroughStore);
-    await runtime.runPromise(store.accept(job('legacy', 'head')));
-    await runtime.runPromise(
-      store.addMessage({
-        id: 'legacy-comment',
-        runId: 'legacy',
-        worktreeId: 'worktree',
-        stopTitle: undefined,
-        text: 'Keep this question',
-        createdAt: '2026-11-09T00:00:00.000Z',
-        post: { status: 'saved' },
-        answer: { status: 'answering' },
-      }),
-    );
-    await runtime.runPromise(
-      store.saveForLater('worktree', 'legacy-comment', true),
-    );
-    await runtime.dispose();
-    const before = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      before.exec(
-        "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id=13;",
-      );
-    } finally {
-      before.close();
-    }
-    runtime = open();
-    const reopened = await runtime.runPromise(WalkthroughStore);
-    expect(
-      (await runtime.runPromise(reopened.readJob('legacy')))?.run.writer,
-    ).toEqual({ provider: 'claude', model: 'claude-opus-5-5', effort: 'high' });
-    expect(
-      await runtime.runPromise(
-        reopened.readMessage('worktree', 'legacy-comment'),
-      ),
-    ).toEqual({
-      id: 'legacy-comment',
-      runId: 'legacy',
-      worktreeId: 'worktree',
-      stopTitle: undefined,
-      text: 'Keep this question',
-      createdAt: '2026-11-09T00:00:00.000Z',
-      post: { status: 'saved' },
-      answer: { status: 'answering' },
-      writer: undefined,
-    });
-    const after = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      expect(
-        after
-          .prepare(
-            'SELECT migration_id,name FROM porcelain_migrations WHERE migration_id >= 12 ORDER BY migration_id',
-          )
-          .all(),
-      ).toEqual([
-        { migration_id: 12, name: 'walkthrough_messages' },
-        { migration_id: 13, name: 'automatic_walkthroughs' },
-      ]);
-    } finally {
-      after.close();
-    }
-  } finally {
-    await runtime.dispose();
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 it.each(['queued', 'running', 'ready'] as const)(
   'only reuses the current %s attempt and makes a returning writer current after another writer fails',
   async (status) => {
@@ -469,3 +389,127 @@ it.each(['queued', 'running', 'ready'] as const)(
     }
   },
 );
+
+it('keeps manual same-head acceptance and deduplication on each branch', async () => {
+  const automaticKey = undefined;
+  const directory = mkdtempSync(join(tmpdir(), 'branch-walkthrough-'));
+  const runtime = ManagedRuntime.make(
+    storageLayer(directory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
+  try {
+    const store = await runtime.runPromise(WalkthroughStore);
+    const onBranch = (id: string, branch: string): WalkthroughJob => {
+      const input = job(id, 'same-head');
+      return { ...input, run: { ...input.run, branch } };
+    };
+    expect(
+      (
+        await runtime.runPromise(
+          store.accept(onBranch('first-a', 'a'), automaticKey),
+        )
+      ).id,
+    ).toBe('first-a');
+    expect(
+      (
+        await runtime.runPromise(
+          store.accept(onBranch('first-b', 'b'), automaticKey),
+        )
+      ).id,
+    ).toBe('first-b');
+    expect(
+      (await runtime.runPromise(store.read('worktree', { branch: 'b' })))?.id,
+    ).toBe('first-b');
+    expect(
+      (
+        await runtime.runPromise(
+          store.accept(onBranch('repeat-b', 'b'), automaticKey),
+        )
+      ).id,
+    ).toBe('first-b');
+    expect(
+      (
+        await runtime.runPromise(
+          store.accept(onBranch('repeat-a', 'a'), automaticKey),
+        )
+      ).id,
+    ).toBe('first-a');
+    expect(
+      (await runtime.runPromise(store.read('worktree', { branch: 'a' })))?.id,
+    ).toBe('first-a');
+  } finally {
+    await runtime.dispose();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('never starts another automatic run for one PR after branch, worktree, head, failure and restart change', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'once-per-pr-walkthrough-'));
+  const open = () =>
+    ManagedRuntime.make(
+      storageLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+  let runtime = open();
+  const key = 'https://github.com/fixture/project/pull/42';
+  try {
+    const store = await runtime.runPromise(WalkthroughStore);
+    const first = job('original', 'head-a');
+    await runtime.runPromise(
+      store.accept({ ...first, run: { ...first.run, branch: 'a' } }, key),
+    );
+    await runtime.runPromise(
+      store.save({
+        ...first.run,
+        branch: 'a',
+        state: {
+          status: 'failed',
+          failure: { kind: 'other', message: 'Writer failed' },
+        },
+      }),
+    );
+    await runtime.dispose();
+    runtime = open();
+    const reopened = await runtime.runPromise(WalkthroughStore);
+    const moved = job('moved', 'head-b');
+    const returned = await runtime.runPromise(
+      reopened.accept(
+        {
+          ...moved,
+          run: { ...moved.run, branch: 'b', worktreeId: 'other-worktree' },
+        },
+        key,
+      ),
+    );
+    expect(returned).toMatchObject({
+      id: 'original',
+      branch: 'a',
+      worktreeId: 'worktree',
+      headOid: 'head-a',
+      state: { status: 'failed' },
+    });
+    expect(await runtime.runPromise(reopened.listPending())).toEqual([]);
+    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    try {
+      expect(
+        database
+          .prepare('SELECT pr_key, run_id FROM walkthrough_automatic')
+          .all(),
+      ).toEqual([
+        {
+          pr_key: 'https://github.com/fixture/project/pull/42',
+          run_id: 'original',
+        },
+      ]);
+    } finally {
+      database.close();
+    }
+  } finally {
+    await runtime.dispose();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

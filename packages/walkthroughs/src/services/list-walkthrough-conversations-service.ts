@@ -1,5 +1,6 @@
+import { ReadWalkthroughTargetService } from './read-walkthrough-target-service.ts';
 import { Context, Effect, Layer } from 'effect';
-import { WalkthroughStore } from '../ports/walkthrough-store.ts';
+import type { WalkthroughTargetNotFoundError } from '../errors/walkthrough-target-not-found-error.ts';
 import type { WalkthroughConversationsView } from '../models/conversation.ts';
 import { conversationsView } from '../rules/conversations.ts';
 export class ListWalkthroughConversationsService extends Context.Service<
@@ -7,21 +8,22 @@ export class ListWalkthroughConversationsService extends Context.Service<
   {
     readonly execute: (input: {
       worktreeId: string;
-    }) => Effect.Effect<WalkthroughConversationsView>;
+      runId: string;
+    }) => Effect.Effect<
+      WalkthroughConversationsView,
+      WalkthroughTargetNotFoundError
+    >;
   }
 >()('@porcelain/walkthroughs/ListWalkthroughConversationsService') {
   static readonly layer = Layer.effect(
     ListWalkthroughConversationsService,
     Effect.gen(function* () {
-      const store = yield* WalkthroughStore;
+      const current = yield* ReadWalkthroughTargetService;
       return {
         execute: Effect.fn('ListWalkthroughConversationsService.execute')(
           function* (input) {
-            const [runs, messages] = yield* Effect.all([
-              store.listReadyRuns(input.worktreeId),
-              store.listMessages(input.worktreeId),
-            ]);
-            return conversationsView(runs, messages);
+            const { readyRuns, messages } = yield* current.execute(input);
+            return conversationsView(readyRuns, messages);
           },
         ),
       };
