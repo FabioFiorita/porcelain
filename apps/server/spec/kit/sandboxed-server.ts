@@ -1,3 +1,4 @@
+import { ghPullRequestReaderLayer } from '../../src/adapters/reviews/gh-pull-request-reader.ts';
 import { OffsetClock } from './offset-clock.ts';
 import { createInterface } from 'node:readline';
 import {
@@ -86,6 +87,7 @@ let server: Runtime | undefined;
 const listeningPort = () =>
   Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
 const startServer = composeServer({
+  githubReader: ghPullRequestReaderLayer,
   networkAddressReader: () =>
     new FixedNetworkAddressReader(
       [

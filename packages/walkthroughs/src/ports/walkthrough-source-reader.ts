@@ -8,10 +8,12 @@ export interface WalkthroughSourceReader {
     worktreeId: string;
     worktreePath: string;
     base: string | undefined;
+    targetBranch?: string;
   }) => Effect.Effect<
     {
       baseOid: string;
       headOid: string;
+      branch?: string | undefined;
       files: readonly DiffFile[];
       githubRepository: { owner: string; repo: string } | undefined;
     },

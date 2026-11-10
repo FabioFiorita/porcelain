@@ -63,7 +63,7 @@ const run = (state: WalkthroughRun['state']): WalkthroughRun => ({
   pullRequestNumber: undefined,
   baseOid: 'a'.repeat(40),
   headOid: 'b'.repeat(40),
-  writer: { provider: 'claude', model: 'claude-opus-5-5' },
+  writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
   sessionId: undefined,
   createdAt: '2026-11-09T00:00:00.000Z',
   state,
@@ -310,8 +310,12 @@ describe('firstDocument', () => {
 });
 
 describe('walkthroughFailureCopy', () => {
-  const claude = { provider: 'claude', model: 'claude-opus-5-5' } as const;
-  const codex = { provider: 'codex', model: 'gpt' } as const;
+  const claude = {
+    provider: 'claude',
+    model: 'claude-opus-5-5',
+    effort: 'high',
+  } as const;
+  const codex = { provider: 'codex', model: 'gpt', effort: 'high' } as const;
 
   it('names the sign-in command of the writer that signed out', () => {
     expect(

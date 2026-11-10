@@ -9,6 +9,7 @@ export {
   readInventoryResponseSchema,
   registerProjectResponseSchema,
   renameProjectRequestSchema,
+  type WalkthroughSettings,
   type BrowseProjectFoldersQuery,
   type BrowseProjectFoldersResponse,
   type ListFilePreferencesParams,

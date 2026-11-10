@@ -15,6 +15,7 @@ export {
   refreshInventories,
   registerProject,
   renameProject,
+  saveWalkthroughSettings,
   removeProject,
 } from './commands/projects.ts';
 export { setFilePreference } from './commands/file-preferences.ts';
@@ -47,3 +48,6 @@ export type {
 } from '@porcelain/contracts/projects';
 
 export { worktreeStatusNotices } from './store/worktree-navigator.ts';
+
+export { readWalkthroughWriterSettings } from './queries/walkthrough-writer.ts';
+export { saveDefaultWalkthroughWriter } from './commands/projects.ts';

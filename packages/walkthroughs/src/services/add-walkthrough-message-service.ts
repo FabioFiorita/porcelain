@@ -1,6 +1,7 @@
 import { Context, DateTime, Effect, Layer } from 'effect';
 import { IdSource } from '@porcelain/kernel/ports';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
+import type { WalkthroughRun } from '../models/walkthrough.ts';
 import type { ConversationAnchor } from '../models/conversation.ts';
 import { WalkthroughTargetNotFoundError } from '../errors/walkthrough-target-not-found-error.ts';
 export class AddWalkthroughMessageService extends Context.Service<
@@ -11,6 +12,7 @@ export class AddWalkthroughMessageService extends Context.Service<
       runId: string;
       anchor: ConversationAnchor;
       text: string;
+      writer?: WalkthroughRun['writer'] | undefined;
     }) => Effect.Effect<string, WalkthroughTargetNotFoundError>;
   }
 >()('@porcelain/walkthroughs/AddWalkthroughMessageService') {
@@ -40,6 +42,7 @@ export class AddWalkthroughMessageService extends Context.Service<
             const id = ids.next();
             yield* store.addMessage({
               id,
+              writer: input.writer,
               runId: input.runId,
               worktreeId: input.worktreeId,
               stopTitle: anchor.kind === 'stop' ? anchor.title : undefined,

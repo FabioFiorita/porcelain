@@ -1,4 +1,7 @@
-import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughStore,
+  WalkthroughInventoryReader,
+} from '@porcelain/walkthroughs/ports';
 import { GitHubAccountStore } from '@porcelain/reviews/ports';
 import { Context, Effect, Layer } from 'effect';
 import {
@@ -44,6 +47,7 @@ export const composeStores = Effect.fn('Server.composeStores')(function* () {
   const crossOrigin = yield* Layer.build(inMemoryPairingAttemptStoreLayer);
   return {
     walkthroughs: yield* WalkthroughStore,
+    walkthroughInventory: yield* WalkthroughInventoryReader,
     inventory: yield* InventoryStore,
     worktreePresence: yield* WorktreePresenceStore,
     filePreferences: yield* FilePreferenceStore,

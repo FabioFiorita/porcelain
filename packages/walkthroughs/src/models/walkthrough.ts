@@ -1,9 +1,45 @@
 import { Schema } from 'effect';
 
-export const writerSchema = Schema.Struct({
+export const claudeEffortSchema = Schema.Literals([
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]);
+const codexEffortSchema = Schema.Literals([
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+]);
+export const writerEffortSchema = codexEffortSchema;
+const modelNameSchema = Schema.String;
+export const writerSchema = Schema.Union([
+  Schema.Struct({
+    provider: Schema.Literal('claude'),
+    model: modelNameSchema,
+    effort: claudeEffortSchema,
+  }),
+  Schema.Struct({
+    provider: Schema.Literal('codex'),
+    model: modelNameSchema,
+    effort: codexEffortSchema,
+  }),
+]);
+export type WalkthroughWriterChoice = typeof writerSchema.Type;
+export const walkthroughModelSchema = Schema.Struct({
   provider: Schema.Literals(['claude', 'codex']),
-  model: Schema.String,
+  model: modelNameSchema,
+  label: Schema.String,
+  efforts: Schema.Array(writerEffortSchema),
+  defaultEffort: writerEffortSchema,
 });
+export type WalkthroughModel = typeof walkthroughModelSchema.Type;
 export const walkthroughFailureSchema = Schema.Struct({
   kind: Schema.Literals([
     'signed_out',
@@ -75,6 +111,7 @@ export const walkthroughRunSchema = Schema.Struct({
   ),
   baseOid: Schema.String,
   headOid: Schema.String,
+  branch: Schema.optional(Schema.String),
   writer: writerSchema,
   sessionId: Schema.optional(Schema.String),
   createdAt: Schema.String,
@@ -142,3 +179,9 @@ export type WalkthroughEvidence = {
   readonly checks: WalkthroughContent['checks'];
   readonly assets: readonly EvidenceAsset[];
 };
+
+export const walkthroughSettingsSchema = Schema.Struct({
+  mode: Schema.Literals(['manual', 'automatic']),
+  writer: Schema.optional(writerSchema),
+});
+export type WalkthroughSettings = typeof walkthroughSettingsSchema.Type;

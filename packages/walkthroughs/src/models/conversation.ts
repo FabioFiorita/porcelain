@@ -33,6 +33,7 @@ export type ConversationAnchor =
   | { readonly kind: 'walkthrough' }
   | { readonly kind: 'stop'; readonly title: string };
 export type StoredWalkthroughMessage = {
+  readonly writer?: WalkthroughRun['writer'] | undefined;
   readonly id: string;
   readonly runId: string;
   readonly worktreeId: string;

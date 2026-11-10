@@ -1,3 +1,4 @@
+import { ghPullRequestReaderLayer } from '../../src/adapters/reviews/gh-pull-request-reader.ts';
 import { NodeServices } from '@effect/platform-node';
 import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
 import { Effect, Layer, ManagedRuntime, Scope } from 'effect';
@@ -103,6 +104,7 @@ test('local network sharing turned on stays on at the same address after the ser
   let application: Runtime | undefined;
   const start = async () => {
     const startServer = composeServer({
+      githubReader: ghPullRequestReaderLayer,
       networkAddressReader: lanNetwork,
       routeListenerRunner: () =>
         InMemoryRouteListenerRunner.layer(

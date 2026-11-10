@@ -1,3 +1,5 @@
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { CacheWalkthroughPullTitlesService } from '@porcelain/walkthroughs/services';
 import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { recentPullRequestCutoff } from '@porcelain/reviews/rules';
@@ -25,6 +27,8 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     ListProjectPullRequestsUseCase,
     Effect.gen(function* () {
+      const events = yield* EventPublisher;
+      const walkthroughs = yield* CacheWalkthroughPullTitlesService;
       const resolve = yield* ResolveProjectGitHubUseCasePort;
       const github = yield* ListGitHubPullRequestsService;
       const reviews = yield* ListProjectReviewsService;
@@ -67,6 +71,16 @@ export class ListProjectPullRequestsUseCase extends Context.Service<
                     record.pullRequest?.toLowerCase() === pr.url.toLowerCase(),
                 )?.reviewId ?? undefined,
             }));
+            const changed = yield* lanes.run(keys.walkthroughs(), 'write', () =>
+              walkthroughs.execute({
+                projectId: input.projectId,
+                pulls: pullRequests.map((pull) => ({
+                  branch: pull.headBranch,
+                  title: pull.title,
+                })),
+              }),
+            );
+            if (changed) yield* events.inventoryChanged();
             return {
               kind: 'available',
               account: selection.choice.account,

@@ -1,15 +1,18 @@
+import { ResolveWalkthroughWriterService } from './resolve-walkthrough-writer-service.ts';
 import { Context, DateTime, Effect, Layer } from 'effect';
 import { IdSource } from '@porcelain/kernel/ports';
 import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type { GitIoFailure } from '@porcelain/git/errors';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
 import { WalkthroughSourceReader } from '../ports/walkthrough-source-reader.ts';
-import type { WalkthroughRun } from '../models/walkthrough.ts';
+import { type WalkthroughRun } from '../models/walkthrough.ts';
 import type { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
 export class StartWalkthroughService extends Context.Service<
   StartWalkthroughService,
   {
     readonly execute: (input: {
+      automaticKey?: string;
+      targetBranch?: string;
       worktreeId: string;
       worktreePath: string;
       projectId: string;
@@ -27,38 +30,41 @@ export class StartWalkthroughService extends Context.Service<
     StartWalkthroughService,
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
+      const resolveWriter = yield* ResolveWalkthroughWriterService;
       const source = yield* WalkthroughSourceReader;
       const ids = yield* IdSource;
       return {
         execute: Effect.fn('StartWalkthroughService.execute')(
           function* (input) {
+            const writer = yield* resolveWriter.execute(input);
             const snapshot = yield* source.read(input);
             const createdAt = yield* DateTime.now.pipe(
               Effect.map(DateTime.formatIso),
             );
-            return yield* store.accept({
-              worktreePath: input.worktreePath,
-              files: snapshot.files,
-              run: {
-                id: ids.next(),
-                projectId: input.projectId,
-                worktreeId: input.worktreeId,
-                pullRequestNumber: input.pullRequestNumber,
-                pullRequestRepository:
-                  input.pullRequestNumber === undefined
-                    ? undefined
-                    : snapshot.githubRepository,
-                baseOid: snapshot.baseOid,
-                headOid: snapshot.headOid,
-                writer: input.writer ?? {
-                  provider: 'claude',
-                  model: 'claude-opus-5-5',
+            return yield* store.accept(
+              {
+                worktreePath: input.worktreePath,
+                files: snapshot.files,
+                run: {
+                  id: ids.next(),
+                  projectId: input.projectId,
+                  worktreeId: input.worktreeId,
+                  pullRequestNumber: input.pullRequestNumber,
+                  pullRequestRepository:
+                    input.pullRequestNumber === undefined
+                      ? undefined
+                      : snapshot.githubRepository,
+                  baseOid: snapshot.baseOid,
+                  headOid: snapshot.headOid,
+                  branch: snapshot.branch,
+                  writer,
+                  sessionId: undefined,
+                  createdAt,
+                  state: { status: 'queued' },
                 },
-                sessionId: undefined,
-                createdAt,
-                state: { status: 'queued' },
               },
-            });
+              input.automaticKey,
+            );
           },
         ),
       };

@@ -14,7 +14,9 @@ selectors:
 tests:
   - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
   - apps/web/spec/e2e/app-settings-history.e2e.ts
-api: []
+api:
+  - PUT /api/projects/:projectId/walkthrough-settings
+  - GET /api/inventory
 ---
 
 # app.settings-page
@@ -44,3 +46,5 @@ Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2
 ## Gotchas
 
 - Full navigation can discard in-memory drafts/history. Use the entry specified by each case.
+
+Default walkthrough writer in Reviews & Git selects provider/model and effort on the server. Its note points to project overrides in the project three-dot menu. Follow [projects.walkthrough-settings](projects.walkthrough-settings.md) for the full save/reload and inheritance journey.

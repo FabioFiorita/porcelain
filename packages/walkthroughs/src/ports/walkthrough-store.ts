@@ -3,6 +3,8 @@ import type {
   EvidenceAsset,
   WalkthroughFailure,
   WalkthroughJob,
+  WalkthroughSettings,
+  WalkthroughWriterChoice,
   WalkthroughRun,
 } from '../models/walkthrough.ts';
 import type {
@@ -10,7 +12,24 @@ import type {
   StoredWalkthroughMessage,
 } from '../models/conversation.ts';
 export interface WalkthroughStore {
-  accept(job: WalkthroughJob): Effect.Effect<WalkthroughRun>;
+  readDefaultWriter(): Effect.Effect<WalkthroughWriterChoice | undefined>;
+  saveDefaultWriter(writer: WalkthroughWriterChoice): Effect.Effect<void>;
+  readSettings(projectId: string): Effect.Effect<WalkthroughSettings>;
+  saveSettings(
+    projectId: string,
+    settings: WalkthroughSettings,
+  ): Effect.Effect<void>;
+  cachePullRequests(
+    projectId: string,
+    pulls: readonly { branch: string; title: string }[],
+  ): Effect.Effect<boolean>;
+  readTitles(
+    projectId: string,
+  ): Effect.Effect<readonly { branch: string; title: string }[]>;
+  accept(
+    job: WalkthroughJob,
+    automaticKey?: string,
+  ): Effect.Effect<WalkthroughRun>;
   read(worktreeId: string): Effect.Effect<WalkthroughRun | undefined>;
   listPending(): Effect.Effect<readonly WalkthroughJob[]>;
   claim(id: string): Effect.Effect<boolean>;

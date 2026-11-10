@@ -196,6 +196,10 @@ function answerWalkthrough(args: readonly string[], prompt: string): Answer {
 
 export function runCodingTool(): void {
   const args = process.argv.slice(2);
+  if (args[0] === 'auth' && args[1] === 'status') {
+    process.stdout.write(JSON.stringify({ loggedIn: true }));
+    return;
+  }
   const prompt = readFileSync(0, 'utf8');
   const answer =
     args[0] === '-p'

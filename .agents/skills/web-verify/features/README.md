@@ -145,3 +145,5 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.walkthrough](reviews.walkthrough.md) — Briefing, decision navigation and completion.
 
 - [Review agent feedback](reviews.agent-feedback.md)
+
+- [projects.walkthrough-settings](projects.walkthrough-settings.md) — Default writer, project overrides, effort and automatic mode.

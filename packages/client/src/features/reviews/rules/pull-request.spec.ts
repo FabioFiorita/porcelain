@@ -136,6 +136,7 @@ it('finds open pull requests for the branch and names the review holding one', (
     draft: false,
     updatedAt: '2026-10-27T00:00:00Z',
     checksTruncated: false,
+    baseBranch: 'main',
   };
   const pulls = [
     { ...base, number: 1, state: 'open', headBranch: 'feat' },

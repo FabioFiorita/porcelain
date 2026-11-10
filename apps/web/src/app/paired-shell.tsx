@@ -3,6 +3,7 @@ import {
   ProjectWorkspaceProvider,
   RemoveProjectDialog,
   RenameProjectDialog,
+  WalkthroughSettingsDialog,
 } from '@/features/projects/index';
 import { useLocalConnection } from '@/features/access/index';
 import { ReviewShell } from '@/app/review-shell';
@@ -20,6 +21,7 @@ export function PairedShell({ children }: { children: ReactNode }) {
         {connection && (
           <>
             <RenameProjectDialog connection={connection} />
+            <WalkthroughSettingsDialog connection={connection} />
             <RemoveProjectDialog connection={connection} />
           </>
         )}

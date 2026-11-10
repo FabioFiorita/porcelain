@@ -1,3 +1,4 @@
+import { ghPullRequestReaderLayer } from '../../src/adapters/reviews/gh-pull-request-reader.ts';
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
 import { NodeServices } from '@effect/platform-node';
@@ -76,6 +77,7 @@ export async function closeRunningCommit(): Promise<CloseRunningCommit> {
       },
     });
   const start = composeServer({
+    githubReader: ghPullRequestReaderLayer,
     networkAddressReader: () => new FixedNetworkAddressReader([], []).layer,
     routeListenerRunner: () =>
       InMemoryRouteListenerRunner.layer({

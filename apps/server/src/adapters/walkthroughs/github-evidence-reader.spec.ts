@@ -21,7 +21,7 @@ const job: WalkthroughJob = {
     pullRequestNumber: 702,
     baseOid: 'a'.repeat(40),
     headOid: 'b'.repeat(40),
-    writer: { provider: 'claude', model: 'claude-opus-5-5' },
+    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: undefined,
     createdAt: '2026-11-09T00:00:00Z',
     state: { status: 'running' },

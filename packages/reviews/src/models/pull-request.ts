@@ -65,6 +65,7 @@ export const githubPullSummarySchema = Schema.Struct({
   isDraft: Schema.Boolean,
   author: authorSchema,
   headRefName: Schema.String,
+  baseRefName: Schema.String,
   updatedAt: Schema.String,
   commits: Schema.Struct({
     nodes: Schema.Array(
@@ -166,6 +167,7 @@ export const pullRequestSummarySchema = Schema.Struct({
   draft: Schema.Boolean,
   author: Schema.optional(Schema.String),
   headBranch: Schema.String,
+  baseBranch: Schema.String,
   updatedAt: Schema.String,
   checksSummary: Schema.optional(Schema.String),
   checksTruncated: Schema.Boolean,

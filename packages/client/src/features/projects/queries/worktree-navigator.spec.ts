@@ -218,6 +218,7 @@ function recordedNavigator(
   records: readonly ReviewRecord[] = [record()],
   checks: 'passed' | 'failed' = 'passed',
   publishedReviewId: string | null = reviewId,
+  snapshot = inventory(),
 ) {
   const paths: string[] = [];
   const subject = create(
@@ -225,7 +226,7 @@ function recordedNavigator(
       paths.push(path);
       return navigatorResponse(
         path,
-        inventory(),
+        snapshot,
         records,
         checks,
         publishedReviewId,
@@ -1461,3 +1462,51 @@ it('keeps failed scopes and dismissal across collapse and remount, then retries 
     stop();
   }
 });
+
+it.each([
+  ['Walkthrough title', 'PR title', 'Walkthrough title'],
+  [undefined, 'PR title', 'PR title'],
+  [undefined, undefined, undefined],
+  ['topic', 'PR title', undefined],
+] as const)(
+  'shows the title fallback %s / %s and searches title or branch',
+  async (walkthroughTitle, pullRequestTitle, expected) => {
+    const snapshot = inventory();
+    Object.assign(snapshot.projects[0]?.worktrees[0] ?? {}, {
+      walkthroughTitle,
+      pullRequestTitle,
+    });
+    const subject = recordedNavigator([], 'passed', null, snapshot);
+    const list = readWorktreeNavigator([subject.connection]);
+    const stop = subject.registry.mount(list);
+    try {
+      await expectNavigatorNames(subject.registry, list, ['main', 'topic']);
+      const entry = subject.registry
+        .get(list)
+        .projects[0]?.entries.find((entry) => entry.worktreeId === topicId);
+      expect(entry?.displayTitle).toBe(expected);
+      expect(entry?.name).toBe('topic');
+      expect(entry?.branch).toBe('topic');
+      subject.registry.set(worktreeNavigatorState, {
+        ...subject.registry.get(worktreeNavigatorState),
+        query: expected ?? 'topic',
+      });
+      expect(
+        subject.registry
+          .get(list)
+          .projects[0]?.entries.map((entry) => entry.worktreeId),
+      ).toEqual([topicId]);
+      subject.registry.set(worktreeNavigatorState, {
+        ...subject.registry.get(worktreeNavigatorState),
+        query: 'topic',
+      });
+      expect(
+        subject.registry
+          .get(list)
+          .projects[0]?.entries.map((entry) => entry.worktreeId),
+      ).toEqual([topicId]);
+    } finally {
+      stop();
+    }
+  },
+);

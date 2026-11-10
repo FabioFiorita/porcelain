@@ -46,3 +46,10 @@ export {
   worktreeCleanupDescription,
   worktreeCleanupFailureMessage,
 } from './worktree-actions.ts';
+
+export {
+  selectedWalkthroughWriter,
+  type WriterSettings,
+} from './walkthrough-writer.ts';
+
+export { canSaveWalkthroughWriter } from './walkthrough-writer.ts';

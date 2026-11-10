@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import {
+  writerSchema,
   answerStateSchema,
   postStateSchema,
   walkthroughFailureSchema,
@@ -35,6 +36,7 @@ export type SaveWalkthroughMessageRequest =
 export type WalkthroughConversationsResult = WalkthroughConversationsView;
 export type WalkthroughPostResult = PostResult;
 export const addWalkthroughMessageRequestSchema = Schema.Struct({
+  writer: Schema.optional(writerSchema),
   runId: Schema.String.check(Schema.isMinLength(1)),
   anchor: walkthroughAnchorSchema,
   text: Schema.String.check(

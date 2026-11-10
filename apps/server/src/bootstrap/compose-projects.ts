@@ -1,3 +1,12 @@
+import {
+  SaveWalkthroughSettingsService,
+  ReadProjectWalkthroughsService,
+} from '@porcelain/walkthroughs/services';
+import {
+  WalkthroughStore,
+  WalkthroughInventoryReader,
+} from '@porcelain/walkthroughs/ports';
+import { SaveWalkthroughSettingsUseCase } from '../use-cases/projects/save-walkthrough-settings.ts';
 import { DeleteWorktreeService } from '@porcelain/git-actions/services';
 import { gitWorktreeCleanerLayer } from '../adapters/projects/git-worktree-cleaner.ts';
 import { DeleteWorktreeUseCase } from '../use-cases/projects/delete-worktree.ts';
@@ -106,6 +115,8 @@ export function composeProjects(
   const { catalog, readWorktreeStatuses } = shared;
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
+    Layer.succeed(WalkthroughStore, stores.walkthroughs),
+    Layer.succeed(WalkthroughInventoryReader, stores.walkthroughInventory),
     gitWorktreeCleanerLayer(settings.limits.git),
     gitWorktreeListingReaderLayer({
       git: settings.limits.git,
@@ -141,6 +152,8 @@ export function composeProjects(
     Layer.succeed(CollectAbsentWorktreesOptions, limits.presence),
   );
   const services = Layer.mergeAll(
+    SaveWalkthroughSettingsService.layer,
+    ReadProjectWalkthroughsService.layer,
     ListProjectWorktreesService.layer,
     DeleteWorktreeService.layer,
     UpdateProjectAvailabilityService.layer,
@@ -165,6 +178,7 @@ export function composeProjects(
   const operations = Layer.mergeAll(
     ScanInventoryUseCase.layer,
     RenameProjectUseCase.layer,
+    SaveWalkthroughSettingsUseCase.layer,
     BrowseProjectFoldersUseCase.layer,
     ListFilePreferencesUseCase.layer,
     SetFilePreferenceUseCase.layer,
@@ -214,6 +228,7 @@ export function composeProjects(
         checkWorktree: yield* CheckWorktreeUseCase,
         registerProject: yield* RegisterProjectUseCase,
         renameProject: yield* RenameProjectUseCase,
+        saveWalkthroughSettings: yield* SaveWalkthroughSettingsUseCase,
         removeProject: yield* RemoveProjectUseCase,
         deleteWorktree: yield* DeleteWorktreeUseCase,
         browseProjectFolders: yield* BrowseProjectFoldersUseCase,

@@ -25,6 +25,7 @@ export function mapPullRequestSummary(
     draft: raw.isDraft,
     author: raw.author?.login ?? undefined,
     headBranch: raw.headRefName,
+    baseBranch: raw.baseRefName,
     updatedAt: raw.updatedAt,
     checksSummary: rollup?.state ?? undefined,
     checksTruncated: false,

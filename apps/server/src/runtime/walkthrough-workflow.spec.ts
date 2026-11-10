@@ -1,3 +1,4 @@
+import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { Lanes } from './lanes.ts';
 import { LaneKeys } from './lane-keys.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
@@ -22,6 +23,7 @@ import {
   WriteWalkthroughService,
   BeginWalkthroughService,
   AnswerWalkthroughMessageService,
+  ResolveWalkthroughWriterService,
 } from '@porcelain/walkthroughs/services';
 import { cliWalkthroughWriterLayer } from '@porcelain/agents/walkthrough-writing';
 import { AnnounceWalkthroughUseCasePort } from '../ports/announce-walkthrough-use-case-port.ts';
@@ -59,7 +61,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
       pullRequestNumber: undefined,
       baseOid: head,
       headOid: head,
-      writer: { provider: 'claude', model: 'fixture' },
+      writer: { provider: 'claude', model: 'fixture', effort: 'high' },
       sessionId: undefined,
       createdAt: '2026-11-09T00:00:00Z',
       state: { status: 'queued' },
@@ -91,12 +93,28 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
   const services = Layer.mergeAll(
     WriteWalkthroughService.layer,
     BeginWalkthroughService.layer,
-    AnswerWalkthroughMessageService.layer,
+    AnswerWalkthroughMessageService.layer.pipe(
+      Layer.provide(ResolveWalkthroughWriterService.layer),
+    ),
   ).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         database,
         cliWalkthroughWriterLayer({ processGroup, command }).pipe(
+          Layer.provide(
+            Layer.succeed(WalkthroughModelReader, {
+              read: () =>
+                Effect.succeed([
+                  {
+                    provider: 'claude',
+                    model: 'fixture',
+                    label: 'Opus',
+                    efforts: ['high'],
+                    defaultEffort: 'high',
+                  },
+                ]),
+            }),
+          ),
           Layer.provide(NodeServices.layer),
         ),
         Layer.succeed(TranscriptReader, {
@@ -264,7 +282,7 @@ it.each(['signed_out', 'other'] as const)(
         worktreeId: 'worktree',
         baseOid: headOid,
         headOid,
-        writer: { provider: 'claude', model: 'fixture' },
+        writer: { provider: 'claude', model: 'fixture', effort: 'high' },
         createdAt: '2026-11-09T00:00:00Z',
         state: { status: 'queued' },
       },
@@ -290,6 +308,20 @@ it.each(['signed_out', 'other'] as const)(
               busyTimeoutMs: 5000,
             }).pipe(Layer.provide(NodeServices.layer)),
             cliWalkthroughWriterLayer({ processGroup, command }).pipe(
+              Layer.provide(
+                Layer.succeed(WalkthroughModelReader, {
+                  read: () =>
+                    Effect.succeed([
+                      {
+                        provider: 'claude',
+                        model: 'fixture',
+                        label: 'Opus',
+                        efforts: ['high'],
+                        defaultEffort: 'high',
+                      },
+                    ]),
+                }),
+              ),
               Layer.provide(NodeServices.layer),
             ),
             Layer.succeed(TranscriptReader, { read: () => Effect.succeed('') }),
