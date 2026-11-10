@@ -12,6 +12,7 @@ selectors:
   - 'Detached HEAD'
   - 'Uncommitted changes'
   - 'Retry branch status'
+  - 'Git actions'
 tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/history/rules/status.spec.ts
@@ -25,7 +26,7 @@ api:
 
 # history.history
 
-History is read-only. It shows the selected branch's ahead/behind counts against its named upstream, an uncommitted-files row when needed, and commits along a graph line. It loads older commits and updates when the worktree changes.
+History offers Fetch and Pull in its native top-bar Git actions menu; see [git-actions.menu](git-actions.menu.md). It shows the selected branch's ahead/behind counts against its named upstream, an uncommitted-files row when needed, and commits along a graph line. It loads older commits and updates when the worktree changes.
 
 ## How to get to it (user POV)
 

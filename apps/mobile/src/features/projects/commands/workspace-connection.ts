@@ -10,12 +10,12 @@ import {
   type Project,
   type WorkspaceReadiness,
 } from '@porcelain/client/projects/rules';
-import type { RuntimeConnection } from '@porcelain/client/transport';
+import type { EnvironmentConnection } from '@porcelain/client/access';
 import { useInventory } from '../queries/inventory';
 
 export type Workspace = {
   readonly key: string;
-  readonly connection: RuntimeConnection;
+  readonly connection: EnvironmentConnection;
   readonly scope: { readonly projectId: string; readonly worktreeId: string };
   readonly project: Project;
   readonly worktree: Project['worktrees'][number];
@@ -79,7 +79,7 @@ export function useWorkspaceConnection(
 function connectedWorkspace(
   decision: WorkspaceSelection,
   remote: Remote | undefined,
-  connection: RuntimeConnection | undefined,
+  connection: EnvironmentConnection | undefined,
 ): WorkspaceState {
   if (decision.kind !== 'selected') return decision;
   const paired = Option.getOrThrow(Option.fromUndefinedOr(remote));

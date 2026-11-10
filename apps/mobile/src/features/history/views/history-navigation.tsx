@@ -14,6 +14,7 @@ import {
 import { commitEntry, historyBoundary } from '@porcelain/client/history/rules';
 import { historyStatus } from '../rules/status';
 import { commitAge } from '../rules/commit-age';
+import { GitMenu } from '../../git-actions';
 import { Button } from '../../../components/ui/button';
 
 type HistoryNavigationProps = {
@@ -54,6 +55,7 @@ function HistoryNavigationContent({
         header={
           <Box gap={2} divider="bottom" paddingX={4} paddingY={3}>
             <BranchStatus status={status} branch={branch} />
+            <GitMenu selection={selection} />
             {value?.restarted ? (
               <Text variant="caption" tone="muted">
                 History changed. Showing it from the top.
