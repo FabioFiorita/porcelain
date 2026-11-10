@@ -44,3 +44,5 @@ export {
   gitActionLabel,
   gitActions,
 } from './git-action-options.ts';
+
+export { networkActionBlocker } from './network-availability.ts';

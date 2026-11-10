@@ -61,7 +61,7 @@ import {
 import {
   branchStatus,
   type GitActionStatus,
-  gitActionBlocker,
+  networkActionBlocker,
   gitActionReason,
   primaryGitAction,
   shownBranch,
@@ -341,10 +341,11 @@ export function GitButton({
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker =
-                      candidate.id === 'pull' && !pullStrategy
-                        ? pullBlock
-                        : gitActionBlocker(candidate.id, status);
+                    const blocker = networkActionBlocker(
+                      candidate.id,
+                      status,
+                      pullBlock,
+                    );
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (

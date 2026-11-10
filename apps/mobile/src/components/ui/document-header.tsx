@@ -8,7 +8,7 @@ import { Screen } from './screen';
 
 type DocumentChoice = {
   label: string;
-  selected: boolean;
+  selected?: boolean | undefined;
   onPress: () => void;
 };
 
@@ -50,10 +50,12 @@ export function DocumentHeader({
   path,
   details = [],
   actions = [],
+  place = 'screen',
 }: {
   path: string;
   details?: readonly (string | undefined)[];
   actions?: readonly DocumentAction[];
+  place?: 'screen' | 'pane';
 }) {
   const { title, subtitle } = documentHeading(path, details);
   const overflowing = actions.length > visibleActions;
@@ -61,7 +63,9 @@ export function DocumentHeader({
   const overflow = overflowing ? actions.slice(2) : [];
   return (
     <>
-      <Stack.Screen options={{ headerTransparent: false, title }} />
+      {place === 'screen' ? (
+        <Stack.Screen options={{ headerTransparent: false, title }} />
+      ) : null}
       <Stack.Title asChild>
         <HeaderTitle
           title={title}
@@ -138,7 +142,7 @@ function choiceItem(choice: DocumentChoice) {
   return (
     <Stack.Toolbar.MenuAction
       key={choice.label}
-      isOn={choice.selected}
+      {...(choice.selected === undefined ? {} : { isOn: choice.selected })}
       onPress={choice.onPress}
     >
       {choice.label}

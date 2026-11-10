@@ -8,6 +8,7 @@ const notices = {
   ],
   unavailable: ['File unavailable', 'The file could not be read.'],
   oversized: ['File too large', 'Choose a smaller file to preview.'],
+  empty: ['Empty file', 'This file has no content.'],
 } as const;
 export function FileNotice({
   kind,

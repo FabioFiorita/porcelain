@@ -11,7 +11,7 @@ export const WorktreeSectionView: WorktreeSectionContent = ({
     case 'changes':
       return <WorkspaceReviewPane />;
     case 'files':
-      return <FilesScreen search={mode === 'beside' ? 'content' : 'top-bar'} />;
+      return <FilesScreen mode={mode} />;
     case 'history':
       return <HistoryScreen />;
   }

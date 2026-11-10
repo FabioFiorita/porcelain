@@ -1,10 +1,10 @@
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
-import { Equal, Exit, Layer } from 'effect';
+import { Cause, Equal, Exit, Layer } from 'effect';
 import { SecureRandom } from 'effect/crypto';
 
 import type { Context } from 'effect';
-import { Atom, AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import { readChanges } from '@porcelain/client/changes';
 import { expect } from 'vitest';
 import { it } from '@effect/vitest';
@@ -18,7 +18,13 @@ import {
   createWorktreeConnection,
   type Transport,
 } from '@porcelain/client/transport';
-import { OperationStore, operationKey } from '@porcelain/client/git-actions';
+import {
+  networkMenuAttemptNotice,
+  networkMenuFeedback,
+  type NetworkMenuAttempt,
+  OperationStore,
+  operationKey,
+} from '@porcelain/client/git-actions';
 import {
   switchWorktreeBranch,
   recoverWorktreeBranchSwitch,
@@ -30,6 +36,8 @@ import {
   recoverGitAction,
   startNewGitAction,
 } from './git-action-controller.ts';
+
+import { runNetworkAction } from './git-menu.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -133,9 +141,13 @@ it.effect(
         Effect.sync(() => setup(disconnectFirstWrite(sent))),
         (subject) => Effect.promise(subject.close),
       );
+      const recorded: RunGitActionRequest[] = [];
       const failed = yield* Effect.exit(
-        subject.commands.run(input.input, input.expected),
+        subject.commands.run(input.input, input.expected, (request) =>
+          recorded.push(request),
+        ),
       );
+      expect(recorded.map((request) => request.requestId)).toEqual([requestId]);
       expect(Exit.isFailure(failed)).toBe(true);
       expect(
         subject.operations.state.value.operations.get(subject.key)?.requestId,
@@ -496,3 +508,186 @@ function disconnectFirstWrite(sent: string[], reads: string[] = []): Transport {
       : Promise.resolve(Response.json(receipt));
   };
 }
+
+it.each([undefined, 'fetch', 'pull'] as const)(
+  'shows unrecorded errors after %s with Retry and ignores superseded requests',
+  async (previousAction) => {
+    let rejectWrites = false;
+    const { store } = operationStoreFixture(undefined, {
+      read: () => Effect.succeed(null),
+      write: () =>
+        Effect.try(() => {
+          if (rejectWrites) throw new Error('Device storage full');
+        }),
+      clear: () => Effect.void,
+    });
+    const previousRequest = {
+      requestId: nextRequestId,
+      input: {
+        action: previousAction ?? 'fetch',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+      },
+      expected: input.expected,
+    };
+    if (previousAction) {
+      await Effect.runPromise(
+        store.set(operationKey(scope, previousAction), {
+          ...scope,
+          requestId: nextRequestId,
+          request: previousRequest,
+          receipt: {
+            ...receipt,
+            requestId: nextRequestId,
+            action: previousAction,
+            state: 'succeeded',
+          },
+        }),
+      );
+    }
+    const subject = setup(
+      () => Promise.reject(new Error('Must not send an unrecorded operation')),
+      store,
+    );
+    const commands = gitActionCommands(
+      { connection: subject.connection, scope, action: 'pull' },
+      subject.registry,
+    );
+    const attempt: NetworkMenuAttempt = {
+      action: 'pull',
+      previous: networkMenuFeedback(store.state.value, scope).selected
+        ?.operation,
+    };
+    try {
+      rejectWrites = true;
+      const failed = await Effect.runPromiseExit(
+        commands.run(
+          {
+            action: 'pull',
+            remoteName: 'origin',
+            sourceRef: 'refs/heads/main',
+            strategy: 'merge',
+          },
+          input.expected,
+          (request) => {
+            attempt.request = request;
+          },
+        ),
+      );
+      expect(Exit.isFailure(failed)).toBe(true);
+      if (!Exit.isFailure(failed)) throw new Error('Expected storage failure');
+      const error = Cause.squash(failed.cause);
+      expect(error).toMatchObject({
+        message:
+          'Could not save the Git operation. Check device storage before trying again.',
+      });
+      expect(attempt.request).toBeUndefined();
+      const notice = networkMenuAttemptNotice(
+        store.state.value,
+        scope,
+        attempt,
+        {
+          title: 'Pull outcome not confirmed',
+          description: error instanceof Error ? error.message : String(error),
+          type: 'error',
+        },
+      );
+      expect(notice).toBeDefined();
+      expect(
+        networkMenuFeedback(store.state.value, scope, notice),
+      ).toMatchObject({
+        result: {
+          title: 'Pull outcome not confirmed',
+          description:
+            'Could not save the Git operation. Check device storage before trying again.',
+          type: 'error',
+        },
+        retryAction: 'pull',
+      });
+      let preflight: ReturnType<typeof networkMenuAttemptNotice>;
+      await Effect.runPromise(
+        runNetworkAction(
+          {
+            details: {
+              result: AsyncResult.success({
+                environmentId: '44444444-4444-4444-8444-444444444444',
+                worktreeId: scope.worktreeId,
+                statusToken: 'seen',
+                changes: [],
+                consistency: 'best-effort',
+                headOid: undefined,
+                inProgress: undefined,
+                mergeHeadOid: undefined,
+                headCommit: undefined,
+              }),
+              read: () => Effect.die('Must use the confirmed status'),
+            },
+            enableDetails: () => undefined,
+            pull: { kind: 'ready', strategy: 'merge' },
+            onProgress: () => undefined,
+            notify: () => undefined,
+            onResult: (notice) => {
+              preflight = networkMenuAttemptNotice(
+                store.state.value,
+                scope,
+                attempt,
+                notice,
+              );
+            },
+          },
+          { run: () => Effect.die('Must not submit invalid input') },
+          'pull',
+          undefined,
+        ),
+      );
+      expect(
+        networkMenuFeedback(store.state.value, scope, preflight),
+      ).toMatchObject({
+        result: {
+          description: 'Check out a branch before using the remote.',
+          type: 'error',
+        },
+        retryAction: 'pull',
+      });
+      rejectWrites = false;
+      const superseding = {
+        ...previousRequest,
+        requestId,
+        input: {
+          action: 'pull' as const,
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+        },
+      };
+      await Effect.runPromise(
+        store.set(operationKey(scope, 'pull'), {
+          ...scope,
+          requestId,
+          request: superseding,
+        }),
+      );
+      const late = {
+        title: 'Pull outcome not confirmed',
+        description: 'Old request failed',
+        type: 'error' as const,
+      };
+      expect(
+        networkMenuAttemptNotice(store.state.value, scope, attempt, late),
+      ).toBeUndefined();
+      expect(
+        networkMenuAttemptNotice(
+          store.state.value,
+          scope,
+          {
+            action: previousAction ?? 'fetch',
+            previous: undefined,
+            request: previousRequest,
+          },
+          late,
+        ),
+      ).toBeUndefined();
+    } finally {
+      await subject.close();
+    }
+  },
+);

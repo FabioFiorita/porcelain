@@ -1,5 +1,10 @@
-import { useAtom, useAtomRef } from '@effect/atom-react';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useAtom, useAtomRef, useAtomSet } from '@effect/atom-react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { View } from 'react-native';
+import {
+  useLayoutMove,
+  useListDetailLayout,
+} from '../../../components/ui/list-detail';
 import { useState, type ComponentType } from 'react';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
@@ -17,7 +22,11 @@ import {
   worktreeSections,
   type WorktreeSection,
 } from '../rules/worktree-section';
-import { worktreeSection, type WorktreeDetails } from '../store';
+import {
+  worktreeListHidden,
+  worktreeSection,
+  type WorktreeDetails,
+} from '../store';
 import { useOpenPullRequest } from './open-pull-request';
 import { PickerNotices } from './picker-notices';
 import { WorkspaceGate } from './workspace-gate';
@@ -39,8 +48,19 @@ export function WorktreeScreen({
 }) {
   const params = useLocalSearchParams<WorktreeParams>();
   const title = params.title ?? 'Worktree';
+  const router = useRouter();
+  const hideWorktrees = useAtomSet(worktreeListHidden);
+  const layout = useListDetailLayout();
+  useLayoutMove({
+    place: 'pushed',
+    mode: layout.measured,
+    onMove: () => {
+      hideWorktrees(true);
+      router.dismissTo('/worktrees');
+    },
+  });
   return (
-    <>
+    <View className="flex-1" collapsable={false} onLayout={layout.onLayout}>
       <Stack.Screen options={{ title }} />
       <Stack.Title asChild>
         <HeaderTitle
@@ -50,7 +70,7 @@ export function WorktreeScreen({
         />
       </Stack.Title>
       <WorktreeDetail details={params} mode="stack" content={content} />
-    </>
+    </View>
   );
 }
 
