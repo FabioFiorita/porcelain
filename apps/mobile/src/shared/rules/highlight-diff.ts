@@ -3,7 +3,11 @@ import type { RenderLine, RenderToken } from './render-model.ts';
 
 type SideTokens = readonly (readonly RenderToken[])[] | undefined;
 
-const isCode = (line: RenderLine) => line.kind && line.kind !== 'gap';
+const isCode = (line: RenderLine) =>
+  line.kind !== 'gap' &&
+  (line.kind !== undefined ||
+    line.oldLine !== undefined ||
+    line.newLine !== undefined);
 const oldSide = (lines: readonly RenderLine[]) =>
   lines.filter((line) => line.kind !== 'added');
 const newSide = (lines: readonly RenderLine[]) =>

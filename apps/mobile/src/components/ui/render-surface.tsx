@@ -61,6 +61,7 @@ export function RenderSurface({
     setPainted({ data: next, documentKey });
   const data = next ?? painted?.data;
   if (data === undefined) return null;
+  const select = next === undefined ? undefined : onSelect;
   return (
     <NativeSurface
       key={next === undefined ? painted?.documentKey : documentKey}
@@ -78,10 +79,8 @@ export function RenderSurface({
       background={tokens.background}
       muted={tokens.muted}
       selection={selection ? JSON.stringify(selection) : ''}
-      selectable={onSelect !== undefined}
-      onCodeSelect={
-        onSelect ? (event) => onSelect(event.nativeEvent) : undefined
-      }
+      selectable={select !== undefined}
+      onCodeSelect={select ? (event) => select(event.nativeEvent) : undefined}
       onExpand={
         onExpand ? (event) => onExpand(event.nativeEvent.id) : undefined
       }

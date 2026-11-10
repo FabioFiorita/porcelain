@@ -81,3 +81,22 @@ it('keeps hunk headers out of the grammar so the code after one still colours', 
   expect(row(lines, '.title { margin: 1px; }').tokens).toEqual(file[0]);
   expect(row(lines, '@@ -9,1 +9,1 @@').tokens).toBeUndefined();
 });
+
+it('colours excerpt rows that carry a line number and no kind', async () => {
+  const excerpt: readonly RenderLine[] = [
+    { id: 'a', text: 'export function ready() {', newLine: 4 },
+    { id: 'b', text: '  return true;', newLine: 5 },
+    { id: 'c', text: '}', newLine: 6 },
+  ];
+  const highlight = await highlighter();
+  const { oldSource, newSource } = diffSources(excerpt);
+  const lines = highlightDiffLines(
+    excerpt,
+    await highlight(oldSource, 'typescript', 'light', signal),
+    await highlight(newSource, 'typescript', 'light', signal),
+  );
+  expect(newSource).toBe('export function ready() {\n  return true;\n}');
+  expect(
+    row(lines, '  return true;').tokens?.map((token) => token.text),
+  ).toEqual(['  ', 'return', ' ', 'true', ';']);
+});
