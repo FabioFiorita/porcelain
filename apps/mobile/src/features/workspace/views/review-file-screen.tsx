@@ -30,7 +30,10 @@ import {
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';
-import { reviewFileDocumentKey } from '../rules/navigation';
+import {
+  reviewFileDocumentKey,
+  reviewFileReadingKey,
+} from '../rules/navigation';
 import { diffPresentation } from '../rules/diff-presentation';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { ReviewReadState } from './read-state';
@@ -187,6 +190,7 @@ function ChangedFile({
     workspace,
     file,
     comparison,
+    scope: change?.scope,
   };
   return (
     <View className="flex-1">
@@ -222,6 +226,7 @@ type FileProps = {
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
+  scope?: string | undefined;
 };
 
 function WorktreeComparison(
@@ -381,6 +386,7 @@ function SelectableContent({
   workspace,
   file,
   comparison,
+  scope,
   source,
   lines,
 }: FileProps & {
@@ -390,8 +396,8 @@ function SelectableContent({
   const { preferences } = usePreferences();
   const reading = useDocumentReadingLine(
     workspace.key,
-    JSON.stringify([reviewFileDocumentKey(file.path, comparison)]),
-    source ?? '',
+    reviewFileReadingKey(file.path, comparison, scope),
+    file.fingerprint ?? source ?? '',
   );
   return lines ? (
     <DiffView

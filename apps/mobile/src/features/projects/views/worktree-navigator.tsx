@@ -293,12 +293,7 @@ export function WorktreeNavigator({
                             selectionTone="neutral"
                             disabled={picker.disabled || !entry.available}
                             accessibilityLabel={[
-                              entry.displayTitle,
-                              row.title,
-                              row.branch,
-                              entry.projectName,
-                              entry.environmentName,
-                              row.changes,
+                              row.accessibilityLabel,
                               number ? navigatorChecksLabel(checks) : undefined,
                               selected ? 'current' : undefined,
                             ]

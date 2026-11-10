@@ -86,3 +86,21 @@ it('leads with the walkthrough or pull request title and keeps the branch as sma
     branch: '',
   });
 });
+
+it('announces each detached checkout by its path and preserves main-checkout identity', () => {
+  const detached = {
+    ...entry,
+    detached: true,
+    name: 'qa',
+    branch: 'Detached HEAD',
+  };
+  expect(
+    worktreeRow({ ...detached, path: '/code/one/qa' }).accessibilityLabel,
+  ).toBe('qa, Detached HEAD, /code/one/qa, Porcelain, Private workstation');
+  expect(
+    worktreeRow({ ...detached, path: '/code/two/qa' }).accessibilityLabel,
+  ).toBe('qa, Detached HEAD, /code/two/qa, Porcelain, Private workstation');
+  expect(worktreeRow({ ...entry, main: true }).accessibilityLabel).toBe(
+    'feat/pinned-files, Main worktree, Porcelain, Private workstation',
+  );
+});

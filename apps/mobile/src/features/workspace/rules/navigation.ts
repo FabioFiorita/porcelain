@@ -31,3 +31,11 @@ export function reviewParams(key: string, comparison: ReviewComparison) {
       : {}),
   };
 }
+
+export function reviewFileReadingKey(
+  path: string,
+  comparison: ReviewComparison,
+  scope?: string,
+) {
+  return JSON.stringify([reviewFileDocumentKey(path, comparison), scope]);
+}
