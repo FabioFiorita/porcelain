@@ -317,38 +317,50 @@ function Written({
   props: DocumentProps;
   onUpdate: () => void;
   updating: boolean;
-  updateFailure: WalkthroughFailure | undefined;
+  updateFailure:
+    | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
+    | undefined;
 }) {
+  const owner = { ...props, runId: run.id };
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
       <WalkthroughConversation
         key={title}
-        owner={props}
+        owner={owner}
         title={title}
-        runId={run.id}
         call={kind === 'call'}
       />
     );
   };
-  const stale = (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
-      New commits landed after this was written.
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={updating}
-        onClick={onUpdate}
-      >
+  let notice = (
+    <>
+      <span>New commits landed after this was written.</span>
+      <Button size="sm" variant="outline" onClick={onUpdate}>
         Update walkthrough
       </Button>
-      {updateFailure && (
-        <span role="alert" className="basis-full text-destructive">
-          {walkthroughFailureCopy(updateFailure, run.writer).title}{' '}
-          {updateFailure.message}
+    </>
+  );
+  if (updating) notice = <span role="status">Updating…</span>;
+  else if (updateFailure)
+    notice = (
+      <>
+        <span role="alert">
+          {
+            walkthroughFailureCopy(updateFailure.failure, updateFailure.writer)
+              .title
+          }{' '}
+          {updateFailure.failure.message}
         </span>
-      )}
-    </p>
+        <Button size="sm" variant="outline" onClick={onUpdate}>
+          Try again
+        </Button>
+      </>
+    );
+  const stale = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
+      {notice}
+    </div>
   );
   if (content.outcome === 'nothing')
     return (
@@ -359,7 +371,7 @@ function Written({
           <p className="text-prose text-foreground-2">
             <RichText text={content.summary} />
           </p>
-          {outOfDate && stale}
+          {(outOfDate || updating || updateFailure) && stale}
           <div className="-ml-2">
             <Button
               variant="link"
@@ -370,8 +382,8 @@ function Written({
             </Button>
           </div>
         </header>
-        <EarlierComments owner={props} titles={[]} />
-        <PostSaved owner={props} />
+        <EarlierComments owner={owner} titles={[]} />
+        <PostSaved owner={owner} />
       </Column>
     );
   return (
@@ -382,7 +394,7 @@ function Written({
         <p className="text-prose text-foreground-2">
           <RichText text={content.summary} />
         </p>
-        {outOfDate && stale}
+        {(outOfDate || updating || updateFailure) && stale}
       </header>
       <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth items={content.growth} />}
@@ -400,7 +412,7 @@ function Written({
       </ol>
       <NotSaid content={content} />
       <EarlierComments
-        owner={props}
+        owner={owner}
         titles={content.stops.map((stop) => stop.title)}
       />
       <footer className="border-t pt-5">
@@ -410,7 +422,7 @@ function Written({
           </Button>
         </div>
       </footer>
-      <PostSaved owner={props} />
+      <PostSaved owner={owner} />
     </Column>
   );
 }
@@ -536,18 +548,38 @@ export function WalkthroughDocument(props: DocumentProps) {
             onRetry={write.start}
           />
         );
-      case 'ready':
+      case 'ready': {
+        const updateFailure =
+          phase.attempt?.state.status === 'failed'
+            ? {
+                failure: phase.attempt.state.failure,
+                writer: phase.attempt.writer,
+              }
+            : undefined;
         return (
           <Written
+            key={phase.run.id}
             run={phase.run}
             content={phase.content}
             outOfDate={phase.outOfDate}
             props={props}
             onUpdate={write.start}
-            updating={write.waiting}
-            updateFailure={write.failure}
+            updating={
+              write.waiting ||
+              phase.attempt?.state.status === 'queued' ||
+              phase.attempt?.state.status === 'running'
+            }
+            updateFailure={
+              write.failure
+                ? {
+                    failure: write.failure,
+                    writer: phase.attempt?.writer ?? phase.run.writer,
+                  }
+                : updateFailure
+            }
           />
         );
+      }
     }
   };
   return <div className="@container h-full overflow-auto">{body()}</div>;

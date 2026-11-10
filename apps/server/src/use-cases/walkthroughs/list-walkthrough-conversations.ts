@@ -1,5 +1,6 @@
+import type { WalkthroughTargetNotFoundError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { WalkthroughConversationParams } from '@porcelain/contracts/walkthroughs';
 import { ListWalkthroughConversationsService } from '@porcelain/walkthroughs/services';
 import type { WalkthroughConversationsView } from '@porcelain/walkthroughs/models';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -8,8 +9,11 @@ export class ListWalkthroughConversationsUseCase extends Context.Service<
   ListWalkthroughConversationsUseCase,
   {
     readonly execute: (
-      input: WorktreeParams,
-    ) => Effect.Effect<WalkthroughConversationsView, WorktreeAccessFailure>;
+      input: WalkthroughConversationParams,
+    ) => Effect.Effect<
+      WalkthroughConversationsView,
+      WorktreeAccessFailure | WalkthroughTargetNotFoundError
+    >;
   }
 >()('@porcelain/server/ListWalkthroughConversationsUseCase') {
   static readonly layer = Layer.effect(

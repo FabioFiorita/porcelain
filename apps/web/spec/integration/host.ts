@@ -199,7 +199,10 @@ const porcelainWalkthroughConversations: BrowserCommand<
     | 'posts'
     | 'short-pr'
     | 'short-copy'
-    | 'changed-pr',
+    | 'changed-pr'
+    | 'running-update'
+    | 'failed-update'
+    | 'two-branches',
   ],
   string
 > = (context, action) =>

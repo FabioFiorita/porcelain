@@ -1,5 +1,8 @@
-import { DatabaseSync } from 'node:sqlite';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  scriptedWalkthroughs,
+  seedStoredWalkthroughs,
+} from '../kit/walkthrough-fixture.ts';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type {
   WalkthroughJob,
@@ -20,14 +23,14 @@ import { list, record, text } from '../kit/session.ts';
 const WALKTHROUGH_ROUTES = [
   'GET /api/worktrees/:worktreeId/walkthrough',
   'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
-  'GET /api/worktrees/:worktreeId/walkthrough/conversations',
-  'GET /api/worktrees/:worktreeId/walkthrough/conversations/brief',
+  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations',
+  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
   'POST /api/worktrees/:worktreeId/walkthrough',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/post',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/retry',
-  'POST /api/worktrees/:worktreeId/walkthrough/conversations/post-saved',
-  'PUT /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/saved',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
+  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
 ].toSorted();
 
 test('reads the latest attempt and reports when its pinned head is out of date', async ({
@@ -47,6 +50,8 @@ test('reads the latest attempt and reports when its pinned head is out of date',
     await read(session, { method: 'GET', path }),
   );
   expect(initial.outOfDate).toBe(false);
+  expect(initial.walkthrough?.state.status).not.toBe('ready');
+  expect(initial.attempt).toBeUndefined();
   expect(initial.walkthrough?.headOid).toBe(text(first.headOid));
   await session.writeFile('walkthrough.txt', 'The next committed change.\n');
   await session.git('add', 'walkthrough.txt');
@@ -113,7 +118,9 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       },
     },
   };
-  Object.assign(run, { branch: session.fixture.branch });
+  Object.assign(run, {
+    branch: session.fixture.branch.replace(/^refs\/heads\//, ''),
+  });
   const job: WalkthroughJob = {
     run,
     worktreePath: session.repository,
@@ -123,41 +130,51 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     ...job,
     run: { ...run, id: secondId, headOid: secondHead },
   };
-  const database = new DatabaseSync(
-    join(
-      session.projectHome,
-      session.fixture.folders.state,
-      'inventory.sqlite',
-    ),
-  );
-  try {
-    database.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
-    const insert = database.prepare(
-      'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
+  const directory = join(session.projectHome, session.fixture.folders.state);
+  seedStoredWalkthroughs(directory, {
+    jobs: [job, other],
+    assets: [
+      {
+        runId: firstId,
+        id: 'first-image',
+        mediaType: 'image/png',
+        caption: 'Existing screenshot',
+        bytes,
+      },
+    ],
+  });
+  const readState = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await read(session, {
+        method: 'GET',
+        path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+      }),
     );
-    insert.run(
-      firstId,
-      session.worktreeId,
-      firstHead,
-      'ready',
-      JSON.stringify(job),
-    );
-    insert.run(
-      secondId,
-      session.worktreeId,
-      secondHead,
-      'ready',
-      JSON.stringify(other),
-    );
-    database
-      .prepare(
-        'INSERT INTO walkthrough_evidence (run_id, asset_id, media_type, caption, bytes) VALUES (?, ?, ?, ?, ?)',
-      )
-      .run(firstId, 'first-image', 'image/png', 'Existing screenshot', bytes);
-    database.exec('COMMIT');
-  } finally {
-    database.close();
+  const attempt: WalkthroughJob = {
+    ...other,
+    run: { ...other.run, id: 'new-attempt', state: { status: 'queued' } },
+  };
+  for (const state of [
+    { status: 'queued' },
+    { status: 'running' },
+    { status: 'failed', failure: { kind: 'other', message: 'Writer failed' } },
+  ] as const) {
+    seedStoredWalkthroughs(directory, {
+      jobs: [{ ...attempt, run: { ...attempt.run, state } }],
+    });
+    const retained = await readState();
+    expect(retained.walkthrough?.id).toBe(secondId);
+    expect(retained.attempt?.state).toEqual(state);
+    expect(retained.outOfDate).toBe(false);
   }
+  await session.git('commit', '--allow-empty', '-m', 'Advance during update');
+  expect((await readState()).outOfDate).toBe(true);
+  await session.git('reset', '--hard', secondHead);
+  await session.git('switch', '-c', 'no-walkthrough');
+  expect((await readState()).walkthrough).toBeUndefined();
+  await session.git('switch', session.fixture.branch);
+  await read(session, { method: 'POST', path: '/api/inventory/refresh' });
+  seedStoredWalkthroughs(directory, { removeRuns: ['new-attempt'] });
   const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
   const accepted = await read(session, {
     method: 'POST',
@@ -228,51 +245,33 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   session,
   server,
 }) => {
-  const manifest = record(
-    JSON.parse(await readFile(server.manifestPath, 'utf8')),
-  );
-  const bin = text(manifest.bin);
   const ghCalls = join(session.projectHome, 'gh-comment-calls');
   const agentFails = join(session.projectHome, 'agent-fails');
-  await writeFile(join(session.projectHome, 'gh-comment-calls'), '');
-  await writeFile(
-    join(bin, 'claude'),
-    `#!${process.execPath}
-import fs from 'node:fs';
-const args = process.argv.slice(2);
-if (args[0] === 'auth') {console.log(JSON.stringify({loggedIn:true})); process.exit(0);}
-fs.appendFileSync(${JSON.stringify(join(session.projectHome, 'answer-writer-args'))}, JSON.stringify(args) + '\\n');
-fs.readFileSync(0, 'utf8');
-if (fs.existsSync(${JSON.stringify(agentFails)})) { console.error('The tool crashed.'); process.exit(1); }
-console.log(JSON.stringify({ session_id: args[args.indexOf('--resume') + 1] ?? 'fresh', total_cost_usd: 0.03, result: 'It keeps the retry local.' }));
-`,
-    { mode: 0o755 },
-  );
-  await writeFile(
-    join(bin, 'gh'),
-    `#!${process.execPath}
-import fs from 'node:fs';
-const args = process.argv.slice(2);
-if (args[0] === 'auth' && args[1] === 'status') console.log(JSON.stringify(['fixture']));
-else if (args[0] === 'auth' && args[1] === 'token') console.log('fixture-token');
-else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
-  fs.appendFileSync(${JSON.stringify(ghCalls)}, fs.readFileSync(0, 'utf8') + '\\n');
-  console.log(JSON.stringify({ html_url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1' }));
-} else console.log('{}');
-`,
-    { mode: 0o755 },
-  );
+  const writer = await scriptedWalkthroughs(session, server.manifestPath, {
+    answer: 'It keeps the retry local.',
+    costUsd: 0.03,
+    failurePath: agentFails,
+    postsPath: ghCalls,
+    argumentsPath: join(session.projectHome, 'answer-writer-args'),
+  });
   await session.git(
     'remote',
     'add',
     'origin',
     'https://github.com/FabioFiorita/porcelain.git',
   );
+  await session.git('branch', 'conversation-fixture-base');
+  await mkdir(join(session.repository, 'src'));
+  await session.writeFile('src/kept.ts', 'export const kept = true;\n');
+  await session.writeFile('src/removed.ts', 'export const removed = true;\n');
+  await session.git('add', 'src/kept.ts', 'src/removed.ts');
   await session.writeFile('conversation-base.txt', 'Conversation base.\n');
   await session.git('add', 'conversation-base.txt');
   await session.git('commit', '-m', 'Prepare conversation fixture');
   const headA = (await session.git('rev-parse', 'HEAD')).trim();
-  const worktreeRoot = `/api/worktrees/${session.worktreeId}/walkthrough/conversations`;
+  let displayedRunId = '';
+  const worktreeRoot = (runId = displayedRunId) =>
+    `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/conversations`;
   const stop = (title: string, path: string) => ({
     title,
     explanation: 'Why it changed.',
@@ -280,21 +279,21 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     evidence: [],
     files: [{ path, note: 'Owns the behavior' }],
   });
+  const currentBranch = (await session.git('branch', '--show-current')).trim();
   const runJob = (
     id: string,
     head: string,
     stops: readonly ReturnType<typeof stop>[],
     pullRequestNumber: number | undefined,
+    branch = currentBranch,
   ): WalkthroughJob => ({
     run: {
       id,
       projectId: session.projectId,
       worktreeId: session.worktreeId,
       pullRequestNumber,
-      pullRequestRepository:
-        pullRequestNumber === undefined
-          ? undefined
-          : { owner: 'FabioFiorita', repo: 'porcelain' },
+      branch,
+      pullRequestRepository: { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
       headOid: head,
       writer: { provider: 'claude', model: 'fixture', effort: 'high' },
@@ -318,35 +317,36 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     worktreePath: session.repository,
     files: [],
   });
-  const seed = (job: WalkthroughJob) => {
-    const database = new DatabaseSync(
-      join(
-        session.projectHome,
-        session.fixture.folders.state,
-        'inventory.sqlite',
-      ),
-    );
-    try {
-      database.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
-      database
-        .prepare(
-          'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
-        )
-        .run(
-          job.run.id,
-          session.worktreeId,
-          job.run.headOid,
-          'ready',
-          JSON.stringify(job),
-        );
-      database.exec('COMMIT');
-    } finally {
-      database.close();
+  const seed = async (job: WalkthroughJob) => {
+    if (job.run.pullRequestRepository === undefined) {
+      seedStoredWalkthroughs(
+        join(session.projectHome, session.fixture.folders.state),
+        { jobs: [job] },
+      );
+      return job.run.id;
     }
+    if (job.run.state.status !== 'ready')
+      throw new Error('This fixture writes a finished walkthrough');
+    return (
+      await writer.write(job.run.state.content, {
+        base: 'refs/heads/conversation-fixture-base',
+        ...(job.run.pullRequestNumber === undefined
+          ? {}
+          : { pullRequestNumber: job.run.pullRequestNumber }),
+      })
+    ).id;
   };
-  seed(
+  let firstRunId = 'first-run';
+  let secondRunId = 'second-run';
+  let branchBRunId = 'branch-b-run';
+  const legacy = runJob('legacy-run', headA, [], undefined);
+  await seed({
+    ...legacy,
+    run: { ...legacy.run, pullRequestRepository: undefined },
+  });
+  firstRunId = await seed(
     runJob(
-      'first-run',
+      firstRunId,
       headA,
       [
         stop('Kept step', 'src/kept.ts'),
@@ -355,9 +355,10 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       undefined,
     ),
   );
+  displayedRunId = firstRunId;
   const conversations = async () =>
     Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
-      await read(session, { method: 'GET', path: worktreeRoot }),
+      await read(session, { method: 'GET', path: worktreeRoot() }),
     );
   const agentState = async (id: string) => {
     const view = await conversations();
@@ -368,14 +369,14 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     return undefined;
   };
   expect(await conversations()).toEqual({
-    runId: 'first-run',
+    runId: firstRunId,
     pullRequestNumber: undefined,
     conversations: [],
   });
   const add = async (
     title: string | undefined,
     body: string,
-    runId = 'first-run',
+    runId = firstRunId,
     writer?: { provider: 'claude'; model: string; effort: 'xhigh' },
   ) => {
     const answer = Schema.decodeUnknownSync(
@@ -383,9 +384,8 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     )(
       await read(session, {
         method: 'POST',
-        path: `${worktreeRoot}/messages`,
+        path: `${worktreeRoot(runId)}/messages`,
         body: {
-          runId,
           writer,
           anchor:
             title === undefined
@@ -416,7 +416,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   expect(await conversations()).toEqual(view);
   const missing = await session.send({
     method: 'PUT',
-    path: `${worktreeRoot}/messages/nope/saved`,
+    path: `${worktreeRoot()}/messages/nope/saved`,
     body: { saved: true },
   });
   expect(missing.status).toBe(404);
@@ -425,9 +425,8 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   );
   const unknownStop = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages`,
+    path: `${worktreeRoot(firstRunId)}/messages`,
     body: {
-      runId: 'first-run',
       anchor: { kind: 'stop', title: 'No such step' },
       text: 'Why?',
     },
@@ -435,19 +434,19 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   expect(unknownStop.status).toBe(404);
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${kept}/saved`,
+    path: `${worktreeRoot()}/messages/${kept}/saved`,
     body: { saved: true },
   });
   const brief = await read(session, {
     method: 'GET',
-    path: `${worktreeRoot}/brief?messageId=${kept}`,
+    path: `${worktreeRoot()}/brief?messageId=${kept}`,
   });
   expect(brief.text).toBe(
     "From the walkthrough of this change:\n\n> Why here?\n\n**Step:** Kept step (`src/kept.ts`)\n**Agent's answer:** It keeps the retry local.\n",
   );
   const noPull = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
   expect(noPull.outcome).toEqual({ status: 'brief', text: brief.text });
   await writeFile(agentFails, '');
@@ -458,7 +457,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   await rm(agentFails);
   await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${removed}/retry`,
+    path: `${worktreeRoot()}/messages/${removed}/retry`,
   });
   await expect
     .poll(() => agentState(removed), { timeout: 10000 })
@@ -467,9 +466,12 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   await session.git('add', 'conversation.txt');
   await session.git('commit', '-m', 'Advance the head');
   const headB = (await session.git('rev-parse', 'HEAD')).trim();
-  seed(runJob('second-run', headB, [stop('Kept step', 'src/kept.ts')], 423));
+  secondRunId = await seed(
+    runJob(secondRunId, headB, [stop('Kept step', 'src/kept.ts')], 423),
+  );
+  displayedRunId = secondRunId;
   const refreshed = await conversations();
-  expect(refreshed.runId).toBe('second-run');
+  expect(refreshed.runId).toBe(secondRunId);
   expect(refreshed.pullRequestNumber).toBe(423);
   expect(
     refreshed.conversations.map((conversation) => [
@@ -477,15 +479,30 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       conversation.anchor,
     ]),
   ).toEqual([
-    ['first-run', { kind: 'stop', title: 'Kept step' }],
-    ['first-run', { kind: 'walkthrough' }],
+    [firstRunId, { kind: 'stop', title: 'Kept step' }],
+    [firstRunId, { kind: 'walkthrough' }],
   ]);
+  const legacyMessage = await add(
+    undefined,
+    'A message without recorded origin',
+    'legacy-run',
+  );
+  const missingRepository = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot()}/messages/${legacyMessage}/post`,
+  });
+  expect(missingRepository.status).toBe(409);
   const unbound = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${removed}/post`,
+    path: `${worktreeRoot()}/messages/${removed}/post`,
   });
-  expect(unbound.status).toBe(409);
-  const onPull = await add('Kept step', 'Ship it this way?', 'second-run', {
+  expect(unbound.status).toBe(200);
+  expect(record(unbound.body).outcome).toEqual({
+    status: 'posted',
+    url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
+    notPosted: [],
+  });
+  const onPull = await add('Kept step', 'Ship it this way?', secondRunId, {
     provider: 'claude',
     model: 'sonnet',
     effort: 'xhigh',
@@ -506,34 +523,165 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   expect(answerArgs).not.toContain('--resume');
   const first = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${onPull}/post`,
+    path: `${worktreeRoot()}/messages/${onPull}/post`,
   });
   const url =
     'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1';
   expect(first.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const second = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/messages/${onPull}/post`,
+    path: `${worktreeRoot()}/messages/${onPull}/post`,
   });
   expect(second.outcome).toEqual(first.outcome);
-  const savedOnPull = await add(undefined, 'Saved on the pull', 'second-run');
+  const savedOnPull = await add(undefined, 'Saved on the pull', secondRunId);
   await read(session, {
     method: 'PUT',
-    path: `${worktreeRoot}/messages/${savedOnPull}/saved`,
+    path: `${worktreeRoot()}/messages/${savedOnPull}/saved`,
     body: { saved: true },
   });
   const saved = await read(session, {
     method: 'POST',
-    path: `${worktreeRoot}/post-saved`,
+    path: `${worktreeRoot()}/post-saved`,
   });
-  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [kept] });
+  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [] });
   const calls = (await readFile(ghCalls, 'utf8'))
     .trim()
     .split('\n')
     .filter(Boolean);
-  expect(calls).toHaveLength(2);
+  expect(calls).toHaveLength(3);
   expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
-  const unposted = await add(undefined, 'A private decision', 'second-run');
+  const branchA = await add(
+    undefined,
+    'Only branch A should see this.',
+    secondRunId,
+  );
+  await read(session, {
+    method: 'PUT',
+    path: `${worktreeRoot()}/messages/${branchA}/saved`,
+    body: { saved: true },
+  });
+  await session.git('switch', '-c', 'conversation-branch-b');
+  branchBRunId = await seed(
+    runJob(
+      branchBRunId,
+      headB,
+      [stop('Kept step', 'src/kept.ts')],
+      424,
+      'conversation-branch-b',
+    ),
+  );
+  displayedRunId = branchBRunId;
+  const branchB = await add(
+    undefined,
+    'Only branch B should see this.',
+    branchBRunId,
+  );
+  await read(session, {
+    method: 'PUT',
+    path: `${worktreeRoot()}/messages/${branchB}/saved`,
+    body: { saved: true },
+  });
+  await session.git('switch', currentBranch);
+  displayedRunId = secondRunId;
+  const branchRead = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+    await read(session, {
+      method: 'GET',
+      path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+    }),
+  );
+  expect(branchRead.walkthrough?.id).toBe(secondRunId);
+  const onA = await conversations();
+  expect(onA.runId).toBe(secondRunId);
+  expect(onA.pullRequestNumber).toBe(423);
+  expect(JSON.stringify(onA)).not.toContain('Only branch B');
+  const pinnedB = await read(session, {
+    method: 'GET',
+    path: worktreeRoot(branchBRunId),
+  });
+  expect(pinnedB.runId).toBe(branchBRunId);
+  const foreign = runJob('foreign-run', headB, [], 999);
+  seedStoredWalkthroughs(
+    join(session.projectHome, session.fixture.folders.state),
+    {
+      jobs: [
+        { ...foreign, run: { ...foreign.run, worktreeId: 'f'.repeat(32) } },
+      ],
+    },
+  );
+  for (const request of [
+    { method: 'GET', path: worktreeRoot('foreign-run') },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages`,
+      body: { anchor: { kind: 'walkthrough' }, text: 'Foreign target' },
+    },
+    {
+      method: 'PUT',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/saved`,
+      body: { saved: true },
+    },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/retry`,
+    },
+    {
+      method: 'POST',
+      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/post`,
+    },
+    { method: 'POST', path: `${worktreeRoot('foreign-run')}/post-saved` },
+    { method: 'GET', path: `${worktreeRoot('foreign-run')}/brief` },
+  ] as const) {
+    const refused = await session.send(request);
+    expect(refused.status).toBe(404);
+  }
+  const branchBrief = await read(session, {
+    method: 'GET',
+    path: `${worktreeRoot()}/brief`,
+  });
+  expect(branchBrief.text).toContain('Only branch A');
+  expect(branchBrief.text).not.toContain('Only branch B');
+  const wrongBrief = await session.send({
+    method: 'GET',
+    path: `${worktreeRoot()}/brief?messageId=${branchB}`,
+  });
+  expect(wrongBrief.status).toBe(404);
+  const wrongPost = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot()}/messages/${branchB}/post`,
+  });
+  expect(wrongPost.status).toBe(404);
+  for (const request of [
+    {
+      method: 'PUT',
+      path: `${worktreeRoot()}/messages/${branchB}/saved`,
+      body: { saved: false },
+    },
+    { method: 'POST', path: `${worktreeRoot()}/messages/${branchB}/retry` },
+  ] as const) {
+    const refused = await session.send(request);
+    expect(refused.status).toBe(404);
+  }
+  const postedA = await read(session, {
+    method: 'POST',
+    path: `${worktreeRoot()}/post-saved`,
+  });
+  expect(record(postedA.outcome).url).toBe(
+    'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
+  );
+  expect(record(postedA.view).runId).toBe(secondRunId);
+  await session.git('switch', 'conversation-branch-b');
+  displayedRunId = branchBRunId;
+  const postedB = await read(session, {
+    method: 'POST',
+    path: `${worktreeRoot()}/post-saved`,
+  });
+  expect(record(postedB.outcome).url).toBe(
+    'https://github.com/FabioFiorita/porcelain/pull/424#issuecomment-1',
+  );
+  expect(record(postedB.view).runId).toBe(branchBRunId);
+  await session.git('switch', currentBranch);
+  displayedRunId = secondRunId;
+  const unposted = await add(undefined, 'A private decision', secondRunId);
   await expect
     .poll(() => agentState(unposted), { timeout: 10000 })
     .toBe('answered');
@@ -545,7 +693,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   );
   const refused = await session.send({
     method: 'POST',
-    path: `${worktreeRoot}/messages/${unposted}/post`,
+    path: `${worktreeRoot()}/messages/${unposted}/post`,
   });
   expect(refused.status).toBe(409);
   expect(refused.body).toEqual(
@@ -557,10 +705,10 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   );
   expect(
     (await readFile(ghCalls, 'utf8')).trim().split('\n').filter(Boolean),
-  ).toHaveLength(2);
+  ).toHaveLength(5);
   const offered = await read(session, {
     method: 'GET',
-    path: `${worktreeRoot}/brief?messageId=${unposted}`,
+    path: `${worktreeRoot()}/brief?messageId=${unposted}`,
   });
   expect(offered.text).toContain('A private decision');
   await session.git('branch', 'conversation-start-base');
@@ -570,7 +718,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   const startedWithPull = await read(session, {
     method: 'POST',
     path: `/api/worktrees/${session.worktreeId}/walkthrough`,
-    body: { base: 'refs/heads/conversation-start-base', pullRequestNumber: 41 },
+    body: { base: 'refs/heads/conversation-start-base' },
   });
   expect(startedWithPull.pullRequestRepository).toEqual({
     owner: 'someone',

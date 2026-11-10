@@ -20,6 +20,7 @@ export {
   type AddWalkthroughMessageRequest,
   type SaveWalkthroughMessageRequest,
   type WalkthroughMessageParams,
+  type WalkthroughConversationParams,
   type WalkthroughPostInput,
   type WalkthroughConversationsResult,
   type WalkthroughPostResult,

@@ -8,7 +8,7 @@ import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
 import { text } from '../kit/session.ts';
 
-test('the verification fake writes a walkthrough and answers its comment with retained plain text', async ({
+test('the verification fake answers the displayed ready walkthrough after a later writing attempt fails', async ({
   session,
 }) => {
   await session.installCodingTool();
@@ -31,15 +31,40 @@ test('the verification fake writes a walkthrough and answers its comment with re
       timeout: 10000,
     })
     .toBe('ready');
+  const runId = text(accepted.id);
+  expect((await current()).walkthrough?.id).toBe(runId);
+  expect((await current()).attempt).toBeUndefined();
+  await session.writeFile(
+    'notes.md',
+    'Notes explain the sample and its follow-up.\n',
+  );
+  await session.git('add', 'notes.md');
+  await session.git('commit', '-m', 'Expand sample notes');
+  await session.writeFile('.git/porcelain-fake-walkthrough', 'signed-out');
+  const update = await read(session, {
+    method: 'POST',
+    path,
+    body: { base: 'refs/heads/fake-writer-base' },
+  });
+  await expect
+    .poll(async () => (await current()).attempt?.state.status, {
+      timeout: 10000,
+    })
+    .toBe('failed');
+  const displayed = await current();
+  expect(displayed.walkthrough?.id).toBe(runId);
+  expect(displayed.attempt?.id).toBe(text(update.id));
+  expect(displayed.outOfDate).toBe(true);
+  await session.writeFile('.git/porcelain-fake-walkthrough', 'ready');
+  const root = `${path}/${runId}/conversations`;
   const conversations = async () =>
     Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
-      await read(session, { method: 'GET', path: `${path}/conversations` }),
+      await read(session, { method: 'GET', path: root }),
     );
   await read(session, {
     method: 'POST',
-    path: `${path}/conversations/messages`,
+    path: `${root}/messages`,
     body: {
-      runId: text(accepted.id),
       anchor: { kind: 'walkthrough' },
       text: 'Why keep these notes?',
     },
@@ -48,10 +73,7 @@ test('the verification fake writes a walkthrough and answers its comment with re
     (await conversations()).conversations[0]?.messages.find(
       (message) => message.author === 'agent',
     );
-  await expect
-    .poll(async () => (await answer())?.state.status, { timeout: 10000 })
-    .not.toBe('answering');
-  expect(await answer()).toMatchObject({
+  await expect.poll(answer, { timeout: 10000 }).toMatchObject({
     author: 'agent',
     state: {
       status: 'answered',

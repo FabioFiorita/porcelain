@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { WalkthroughConversationParams } from '@porcelain/contracts/walkthroughs';
 import type { AddWalkthroughMessageRequest } from '@porcelain/contracts/walkthroughs';
 import {
   AddWalkthroughMessageService,
@@ -15,7 +15,7 @@ export class AddWalkthroughMessageUseCase extends Context.Service<
   AddWalkthroughMessageUseCase,
   {
     readonly execute: (
-      input: WorktreeParams & AddWalkthroughMessageRequest,
+      input: WalkthroughConversationParams & AddWalkthroughMessageRequest,
     ) => Effect.Effect<
       WalkthroughConversationsView,
       WorktreeAccessFailure | WalkthroughTargetNotFoundError

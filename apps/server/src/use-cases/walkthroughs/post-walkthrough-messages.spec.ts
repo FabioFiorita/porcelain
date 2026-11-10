@@ -1,3 +1,6 @@
+import { ReadRepositoryOriginService } from '@porcelain/projects/services';
+import { ProjectRepositoryReader } from '@porcelain/projects/ports';
+import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,6 +14,7 @@ import {
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
+  ReadWalkthroughTargetService,
   ListWalkthroughConversationsService,
   PlanWalkthroughPostService,
   PostWalkthroughMessagesService,
@@ -48,6 +52,7 @@ const job = (
 ): WalkthroughJob => ({
   run: {
     id,
+    branch: 'a',
     projectId: 'project',
     worktreeId: 'tree',
     pullRequestNumber,
@@ -121,6 +126,9 @@ async function fixture(
       }),
   });
   let next = 0;
+  let branch: string | undefined = 'a';
+  let displayedRunId = 'run';
+  let duringResolve: (() => Promise<void>) | undefined;
   const database = storageLayer(join(folder, 'data'), {
     worktreeIdLength: 32,
     busyTimeoutMs: 5000,
@@ -139,6 +147,19 @@ async function fixture(
   );
   const ports = Layer.mergeAll(
     database,
+    ReadRepositoryOriginService.layer.pipe(
+      Layer.provide(
+        Layer.succeed(ProjectRepositoryReader, {
+          find: () => Effect.succeed(undefined),
+          readOriginUrl: () =>
+            Effect.sync(() =>
+              origin === undefined
+                ? undefined
+                : `https://github.com/${origin.owner}/${origin.repo}.git`,
+            ),
+        }),
+      ),
+    ),
     commenter,
     lanes,
     Layer.succeed(IdSource, { next: () => `message-${(next += 1)}` }),
@@ -156,6 +177,11 @@ async function fixture(
           if (held && (planned += 1) === 2)
             yield* Deferred.succeed(bothPlanned, undefined);
           if (held) yield* Deferred.await(bothPlanned);
+          if (duringResolve) {
+            const action = duringResolve;
+            duringResolve = undefined;
+            yield* Effect.promise(action);
+          }
           return {
             repository: origin,
             selection: {
@@ -173,7 +199,7 @@ async function fixture(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(CheckWorktreeUseCasePort, {
-          execute: () => Effect.succeed(worktree),
+          execute: () => Effect.succeed({ ...worktree, branch }),
         }),
         Layer.succeed(WorktreeConsistencyProbe, {
           execute: () => Effect.void,
@@ -187,7 +213,10 @@ async function fixture(
     PostWalkthroughMessagesService.layer.pipe(
       Layer.provideMerge(PlanWalkthroughPostService.layer),
     ),
-  ).pipe(Layer.provideMerge(ports));
+  ).pipe(
+    Layer.provideMerge(ReadWalkthroughTargetService.layer),
+    Layer.provideMerge(ports),
+  );
   const runtime = ManagedRuntime.make(
     PostWalkthroughMessagesUseCase.layer.pipe(
       Layer.provideMerge(services),
@@ -211,12 +240,21 @@ async function fixture(
     id: string,
     number: number,
     repository: { owner: string; repo: string },
+    runBranch = 'a',
+    worktreeId = 'tree',
   ) =>
     runtime.runPromise(
       Effect.gen(function* () {
         const store = yield* WalkthroughStore;
-        yield* store.accept(job(number, repository, id));
-        yield* store.save(job(number, repository, id).run);
+        const original = job(number, repository, id);
+        const input = {
+          ...original,
+          run: { ...original.run, branch: runBranch, worktreeId },
+        };
+        if ((yield* store.readJob(id)) === undefined)
+          yield* store.accept(input);
+        yield* store.save(input.run);
+        displayedRunId = id;
       }),
     );
   const add = (text: string, saved: boolean, runId = 'run') =>
@@ -224,29 +262,32 @@ async function fixture(
       Effect.gen(function* () {
         const service = yield* AddWalkthroughMessageService;
         const store = yield* WalkthroughStore;
-        const id = yield* service.execute({
-          worktreeId: 'tree',
-          runId,
-          anchor: { kind: 'stop', title: 'Keep the retry local' },
-          text,
-        });
+        const id = yield* withReadLease(
+          'tree',
+          service.execute({
+            worktreeId: 'tree',
+            runId,
+            anchor: { kind: 'stop', title: 'Keep the retry local' },
+            text,
+          }),
+        );
         if (saved) yield* store.saveForLater('tree', id, true);
         return id;
       }),
     );
-  const post = (messageId?: string) =>
+  const post = (messageId?: string, runId = displayedRunId) =>
     runtime.runPromise(
       Effect.gen(function* () {
         const useCase = yield* PostWalkthroughMessagesUseCase;
-        return yield* useCase.execute({ worktreeId: 'tree', messageId });
+        return yield* useCase.execute({ worktreeId: 'tree', runId, messageId });
       }),
     );
-  const attempt = (messageId: string) =>
+  const attempt = (messageId: string, runId = displayedRunId) =>
     runtime.runPromise(
       Effect.gen(function* () {
         const useCase = yield* PostWalkthroughMessagesUseCase;
         return yield* useCase
-          .execute({ worktreeId: 'tree', messageId })
+          .execute({ worktreeId: 'tree', runId, messageId })
           .pipe(Effect.result);
       }),
     );
@@ -256,6 +297,24 @@ async function fixture(
     post,
     attempt,
     comments,
+    answer: (id: string) =>
+      runtime.runPromise(
+        Effect.gen(function* () {
+          const store = yield* WalkthroughStore;
+          yield* store.settleAnswer(id, {
+            status: 'answered',
+            text: 'Newly arrived answer',
+            answeredAt: '2026-11-10T00:01:00Z',
+            durationMs: 1,
+          });
+        }),
+      ),
+    setBranch: (value: string | undefined) => {
+      branch = value;
+    },
+    duringResolve: (action: () => Promise<void>) => {
+      duringResolve = action;
+    },
     setOrigin: (next: typeof origin) => {
       origin = next;
     },
@@ -441,4 +500,99 @@ it('posts only messages made on the destination repository and leaves the others
     failure: { _tag: 'WalkthroughRepositoryChangedError' },
   });
   expect(test.comments).toHaveLength(1);
+});
+
+it('posts only the displayed run messages to its PR when the branch changes between planning and posting', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  await subject.add('Only branch A', true);
+  await subject.refresh('branch-b', 12, { owner: 'o', repo: 'r' }, 'b');
+  subject.setBranch('b');
+  await subject.add('Only branch B', true, 'branch-b');
+  subject.setBranch('a');
+  subject.duringResolve(async () => {
+    subject.setBranch('b');
+  });
+  const result = await subject.post(undefined, 'run');
+  expect(subject.comments).toHaveLength(1);
+  expect(subject.comments[0]?.number).toBe(9);
+  expect(subject.comments[0]?.body).toContain('Only branch A');
+  expect(subject.comments[0]?.body).not.toContain('Only branch B');
+  expect(result.view.runId).toBe('run');
+});
+
+it('refuses a displayed run belonging to another worktree before posting', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  const id = await subject.add('A private decision', true);
+  await subject.refresh(
+    'foreign',
+    13,
+    { owner: 'o', repo: 'r' },
+    undefined,
+    'other-worktree',
+  );
+  expect(await subject.attempt(id, 'foreign')).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'WalkthroughTargetNotFoundError' },
+  });
+  expect(subject.comments).toEqual([]);
+});
+
+it('refuses a changed planned run instead of posting to its replacement PR', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  const id = await subject.add('Keep the original target', true);
+  subject.duringResolve(() =>
+    subject.refresh('run', 12, { owner: 'o', repo: 'r' }),
+  );
+  expect(await subject.attempt(id)).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'WalkthroughRepositoryChangedError' },
+  });
+  expect(subject.comments).toEqual([]);
+});
+
+it('refuses a changed saved selection instead of including a newly saved message', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  await subject.add('Original saved message', true);
+  subject.duringResolve(async () => {
+    await subject.add('Saved after planning', true);
+  });
+  await expect(subject.post()).rejects.toThrow(
+    'The walkthrough or selected messages changed before posting.',
+  );
+  expect(subject.comments).toEqual([]);
+});
+
+it('refuses when origin changes between planning and posting', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  const id = await subject.add('Private decision', true);
+  subject.duringResolve(async () => {
+    subject.setOrigin({ owner: 'someone', repo: 'public-fork' });
+  });
+  expect(await subject.attempt(id)).toMatchObject({
+    _tag: 'Failure',
+    failure: { _tag: 'WalkthroughRepositoryChangedError' },
+  });
+  expect(subject.comments).toEqual([]);
+});
+
+it('keeps the planned comment when its agent answer arrives before posting', async ({
+  onTestFinished,
+}) => {
+  const subject = await fixture(onTestFinished, 9);
+  const id = await subject.add('Original message', true);
+  subject.duringResolve(() => subject.answer(id));
+  expect((await subject.post(id)).outcome).toMatchObject({ status: 'posted' });
+  expect(subject.comments).toHaveLength(1);
+  expect(subject.comments[0]?.body).toContain('Original message');
+  expect(subject.comments[0]?.body).not.toContain('Newly arrived answer');
 });

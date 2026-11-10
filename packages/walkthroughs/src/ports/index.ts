@@ -8,3 +8,5 @@ export { WalkthroughModelReader } from './walkthrough-model-reader.ts';
 
 export { WalkthroughInventoryReader } from './walkthrough-inventory-reader.ts';
 export { PullRequestCommenter } from './pull-request-commenter.ts';
+
+export { WalkthroughHeadReader } from './walkthrough-head-reader.ts';

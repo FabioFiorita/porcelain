@@ -2,7 +2,11 @@ import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 
 const PUBLISHED = ['review', 'reviewed-layers'];
-const WITH_WALKTHROUGH = [...PUBLISHED, 'walkthrough'];
+const WITH_WALKTHROUGH = [
+  ...PUBLISHED,
+  'walkthrough',
+  'walkthrough-conversations',
+];
 const CHANGE_SURFACES = {
   files: PUBLISHED,
   git: WITH_WALKTHROUGH,

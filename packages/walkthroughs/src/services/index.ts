@@ -22,3 +22,5 @@ export { SaveWalkthroughMessageService } from './save-walkthrough-message-servic
 export { AnswerWalkthroughMessageService } from './answer-walkthrough-message-service.ts';
 export { PlanWalkthroughPostService } from './plan-walkthrough-post-service.ts';
 export { PostWalkthroughMessagesService } from './post-walkthrough-messages-service.ts';
+
+export { ReadWalkthroughTargetService } from './read-walkthrough-target-service.ts';

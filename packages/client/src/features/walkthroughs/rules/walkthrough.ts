@@ -23,6 +23,7 @@ export type WalkthroughPhase =
       run: WalkthroughRun;
       content: WalkthroughContent;
       outOfDate: boolean;
+      attempt?: WalkthroughRun | undefined;
     };
 
 export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
@@ -40,6 +41,7 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
         run,
         content: run.state.content,
         outOfDate: read.outOfDate,
+        attempt: read.attempt,
       };
   }
 }

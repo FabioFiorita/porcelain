@@ -23,7 +23,10 @@ declare module 'vitest/browser' {
         | 'posts'
         | 'short-pr'
         | 'short-copy'
-        | 'changed-pr',
+        | 'changed-pr'
+        | 'running-update'
+        | 'failed-update'
+        | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
     porcelainReplaceEditorContent: (

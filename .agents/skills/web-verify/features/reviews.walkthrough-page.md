@@ -11,6 +11,7 @@ selectors:
   - 'See the change'
   - 'Update walkthrough'
   - 'Try again'
+  - 'Updating…'
   - 'By step'
   - 'Your call'
   - 'Not in the walkthrough yet'
@@ -64,7 +65,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. Failure
 
-7. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect heading "Claude needs you to sign in again." naming `claude auth login`; after removing the file, "Try again" writes the walkthrough.
+7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. With no ready page the initial running/failure states remain.
+8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect heading "Claude needs you to sign in again." naming `claude auth login`; after removing the file, "Try again" writes the walkthrough.
 
 ### 4. Short page
 
@@ -85,3 +87,5 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations.test.tsx`, using its isolated fake CLI and fake GitHub against the real server. Its ready walkthrough is a synthetic fixture, with no external project content. Sweep at desktop and 414 × 896, light and dark.
 
 13. After a later walkthrough has outcome `nothing`, retained threads still appear under "Earlier comments" with Undo, copy/post controls and the saved bar. A posted link always labels its original comment destination, even when the current walkthrough names another PR; an unrecognized URL reads "Posted comment".
+
+14. With two ready walkthroughs on different branches in one checkout, read A’s comment and switch to B. B’s heading, comments and saved bar must name B; A’s comments disappear. Every conversation request includes the displayed ready run ID, so a pending A post remains targeted to A even if the branch switches.
