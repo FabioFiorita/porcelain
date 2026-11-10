@@ -11,13 +11,13 @@ const phone = {
   deviceId: 'phone',
   token: 'ExponentPushToken[phone]',
   platform: 'ios',
-  kinds: ['review-ready', 'agent-reply'],
+  kinds: [],
 } as const;
 const tablet = {
   deviceId: 'tablet',
   token: 'ExponentPushToken[tablet]',
   platform: 'android',
-  kinds: ['agent-reply'],
+  kinds: [],
 } as const;
 
 export function pushRegistrationStoreContract(
@@ -50,7 +50,7 @@ export function pushRegistrationStoreContract(
         opened.store.save({
           ...phone,
           token: 'ExponentPushToken[renewed]',
-          kinds: ['review-ready'],
+          kinds: [],
         }),
       );
       const listed = await run(opened.store.list());
@@ -60,7 +60,7 @@ export function pushRegistrationStoreContract(
         {
           ...phone,
           token: 'ExponentPushToken[renewed]',
-          kinds: ['review-ready'],
+          kinds: [],
         },
         tablet,
       ]);

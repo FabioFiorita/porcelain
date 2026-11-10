@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import {
@@ -5,8 +6,6 @@ import {
   lineCount,
   read,
   sampleReview,
-  toolCall,
-  toolValue,
   worktreePath,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
@@ -24,28 +23,24 @@ test('code moved is live per decision while published code stays unchanged', asy
   if (layer === undefined) throw new Error('The fixture has no decision');
   const step = layer.steps[0];
   if (step === undefined) throw new Error('The fixture has no step');
-  const published = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: {
-      ...draft,
-      layers: [
-        layer,
-        {
-          ...layer,
-          id: randomUUID(),
-          title: 'Unchanged introduction',
-          steps: [
-            {
-              ...step,
-              id: randomUUID(),
-              kind: 'context',
-              pointer: { ...step.pointer, startLine: 1, endLine: 1 },
-            },
-          ],
-        },
-      ],
-    },
+  const published = await seedReview(session, {
+    ...draft,
+    layers: [
+      layer,
+      {
+        ...layer,
+        id: randomUUID(),
+        title: 'Unchanged introduction',
+        steps: [
+          {
+            ...step,
+            id: randomUUID(),
+            kind: 'context',
+            pointer: { ...step.pointer, startLine: 1, endLine: 1 },
+          },
+        ],
+      },
+    ],
   });
   const reviewId = text(record(published.review).reviewId);
   const path = `/api/reviews/${reviewId}`;
@@ -70,10 +65,6 @@ test('code moved is live per decision while published code stays unchanged', asy
   expect(
     layersOf(branch.review).map((value) => record(value).codeMoved),
   ).toEqual([true, false]);
-  const mcp = toolValue(
-    await read(session, toolCall(session, 1, 'read_review', { reviewId })),
-  );
-  expect(layersOf(contentOf(mcp))).toEqual(layersOf(after));
   expect(
     await read(session, {
       method: 'GET',
@@ -110,27 +101,23 @@ test('whole-file anchors compare only the latest revision on its published branc
   if (layer === undefined) throw new Error('The fixture has no decision');
   const step = layer.steps[0];
   if (step === undefined) throw new Error('The fixture has no step');
-  const published = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: {
-      ...draft,
-      layers: [
-        {
-          ...layer,
-          steps: [
-            {
-              ...step,
-              pointer: {
-                ...step.pointer,
-                startLine: 1,
-                endLine: lineCount(session.fixture.readme.changed),
-              },
+  const published = await seedReview(session, {
+    ...draft,
+    layers: [
+      {
+        ...layer,
+        steps: [
+          {
+            ...step,
+            pointer: {
+              ...step.pointer,
+              startLine: 1,
+              endLine: lineCount(session.fixture.readme.changed),
             },
-          ],
-        },
-      ],
-    },
+          },
+        ],
+      },
+    ],
   });
   const path = `/api/reviews/${text(record(published.review).reviewId)}`;
   await session.writeFile(

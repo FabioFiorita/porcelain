@@ -203,7 +203,6 @@ function Navigator({
       settingsOpen={false}
       remotes={remotes}
       selected={undefined}
-      openReview={undefined}
       onSelect={() => {}}
       onOpenPullRequest={() => {}}
       onOpenProject={() => {}}

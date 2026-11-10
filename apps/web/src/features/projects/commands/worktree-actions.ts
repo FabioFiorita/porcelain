@@ -21,7 +21,7 @@ type Selection = {
 
 export function useDeleteWorktreeAction(
   selection: Selection,
-  entry: NavigatorEntry,
+  _entry: NavigatorEntry,
   onDone: () => void,
 ) {
   const [result, run] = useCommand(deleteWorktree(selection));
@@ -56,19 +56,7 @@ export function useDeleteWorktreeAction(
             ? params.environmentId
             : local?.environmentId;
         if (environmentId !== selection.connection.environmentId) return;
-        if (entry.review.state === 'available')
-          await navigate({
-            to: '/reviews/$reviewId',
-            params: { reviewId: entry.review.reviewId },
-            search: {
-              environment:
-                environmentId === local?.environmentId
-                  ? undefined
-                  : environmentId,
-              decision: undefined,
-            },
-          });
-        else await navigate({ to: '/' });
+        await navigate({ to: '/' });
       }, onFailure),
   };
 }

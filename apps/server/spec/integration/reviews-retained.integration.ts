@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,71 +9,12 @@ import {
   commitReviewFixture,
   read,
   sampleReview,
-  toolCall,
-  toolValue,
   worktreePath,
 } from '../kit/requests.ts';
 import { list, record, text } from '../kit/session.ts';
 
-test('publication refuses dirty, unexplained removal, foreign PR, detached and unborn heads with actionable messages', async ({
+test('retained revisions and revision-owned comments read pinned code after worktree removal', async ({
   session,
-}) => {
-  await session.git('branch', 'porcelain-fixture-base');
-  const draft = sampleReview(session, 0, randomUUID(), randomUUID());
-  const publish = () =>
-    session.send({
-      method: 'PUT',
-      path: worktreePath(session, '/review'),
-      body: draft,
-    });
-  const dirty = await publish();
-  expect(dirty.status).toBe(409);
-  expect(record(dirty.body).message).toBe(
-    'Commit first: 1 files differ from HEAD (README.md)',
-  );
-  await commitReviewFixture(session);
-  await session.git(
-    'remote',
-    'add',
-    'origin',
-    'git@github.com:owner/project.git',
-  );
-  const foreign = await session.send(
-    toolCall(session, 1, 'publish_review', {
-      ...draft,
-      pullRequest: 'https://github.com/foreign/project/pull/42',
-    }),
-  );
-  expect(foreign.status).toBe(200);
-  expect(toolValue(foreign.body)).toMatchObject({
-    statusCode: 409,
-    message:
-      'The pullRequest repository differs from origin. Use a PR from git@github.com:owner/project.git, or omit pullRequest.',
-  });
-  await session.remove('README.md');
-  await commitReviewFixture(session);
-  const removal = await publish();
-  expect(removal.status).toBe(409);
-  expect(record(removal.body).message).toBe(
-    'Explain every removal: README.md is deleted but no verdict.removed entry names it.',
-  );
-  await session.git('checkout', '--detach');
-  const detached = await publish();
-  expect(detached.status).toBe(409);
-  expect(record(detached.body).message).toBe(
-    'Check out a branch first: HEAD is detached. Switch to the branch being reviewed, then publish.',
-  );
-  await session.git('checkout', '--orphan', 'unborn-review');
-  const unborn = await publish();
-  expect(unborn.status).toBe(409);
-  expect(record(unborn.body).message).toBe(
-    'Commit first: HEAD is not a commit. Create a commit on a branch, then publish.',
-  );
-});
-
-test('MCP retains revisions and revision-owned comments, reads pinned code after worktree removal, and excludes delete_review', async ({
-  session,
-  server,
 }) => {
   await session.git('checkout', 'main');
   await session.writeFile('README.md', session.fixture.readme.changed);
@@ -81,8 +23,6 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
   await session.git('worktree', 'add', '-b', 'retained-review', path);
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', path, ...args], { encoding: 'utf8' }).trim();
-  const call = (id: number, name: string, input: object) =>
-    read(session, toolCall(session, id, name, { cwd: path, ...input }));
   writeFileSync(join(path, 'empty.ts'), '');
   git('add', 'empty.ts');
   git('commit', '-qm', 'Retain an empty changed file');
@@ -93,28 +33,14 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
     layerId,
     randomUUID(),
   );
-  const viewer = await session.live();
-  const first = record(
-    toolValue(await call(2, 'publish_review', { ...draft, timing: 'record' })),
+  const first = await seedReview(
+    { ...session, repository: path },
+    { ...draft, timing: 'record' },
   );
-  expect(record(first.review).timing).toBe('record');
-  expect(await viewer.next((notice) => notice.type === 'inventory')).toEqual({
-    type: 'inventory',
-  });
+  expect(first.review?.timing).toBe('record');
   const reviewId = text(first.reviewId);
   const headOid = git('rev-parse', 'HEAD');
   expect(first).toMatchObject({ revision: 1, headOid });
-  const links = record(first.links);
-  expect(links.kind).toBe('available');
-  const destination = new URL(text(record(links.revision).web));
-  expect(destination.protocol).toBe('http:');
-  expect(destination.pathname).toBe(`/reviews/${reviewId}/1`);
-  const app = new URL(text(record(list(links.decisions)[0]).app));
-  expect(app.searchParams.get('protocol')).toBe('http');
-  expect(app.searchParams.get('host')).toBe(destination.host);
-  expect(app.searchParams.get('revision')).toBe('1');
-  expect(app.searchParams.get('decision')).toBe(layerId);
-
   const basePath = `/api/reviews/${reviewId}`;
   expect(
     (await read(session, { method: 'GET', path: basePath })).review,
@@ -207,15 +133,14 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
       },
     }),
   ).toEqual({ deleted: [temporaryId], skipped: [] });
-  const created = record(
-    toolValue(
-      await call(3, 'create_comment', {
-        reviewId,
-        anchor: { kind: 'file', filePath: 'README.md' },
-        body: 'Read revision one.',
-      }),
-    ),
-  );
+  const created = await read(session, {
+    method: 'POST',
+    path: `${basePath}/comments`,
+    body: {
+      anchor: { kind: 'file', filePath: 'README.md' },
+      body: 'Read revision one.',
+    },
+  });
   expect(created.review).toEqual({ reviewId, revision: 1, headOid });
   await read(session, {
     method: 'POST',
@@ -227,19 +152,19 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
     `${session.fixture.readme.changed}Revision two.\n`,
   );
   git('commit', '-am', 'Revise review');
-  const second = record(
-    toolValue(
-      await call(4, 'publish_review', { ...draft, expectedRevision: 1 }),
-    ),
+  const second = await seedReview(
+    { ...session, repository: path },
+    { ...draft, expectedRevision: 1 },
   );
   expect(second).toMatchObject({
     reviewId,
     revision: 2,
     headOid: git('rev-parse', 'HEAD'),
   });
-  const seen = record(
-    toolValue(await call(5, 'read_review', { reviewId, revision: 1 })),
-  );
+  const seen = await read(session, {
+    method: 'GET',
+    path: `${basePath}/revisions/1`,
+  });
   expect(record(seen.review).latestRevision).toBe(2);
   expect(list(seen.revisions).map((entry) => record(entry).revision)).toEqual([
     1, 2,
@@ -254,25 +179,30 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
     newMode: '100644',
     newOid: 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391',
   });
-  const comments = record(
-    toolValue(await call(6, 'list_comments', { reviewId, scope: 'all' })),
-  );
-  expect(list(comments.threads).map((thread) => record(thread).review)).toEqual(
-    [{ reviewId, revision: 1, headOid }],
-  );
+  const comments = (
+    await session.read({ method: 'GET', path: `${basePath}/comments` })
+  ).body;
+  expect(list(comments).map((thread) => record(thread).review)).toEqual([
+    { reviewId, revision: 1, headOid },
+  ]);
   const threadId = text(created.id);
-  await call(7, 'reply_to_comment', {
-    reviewId,
-    threadId,
-    body: 'Still revision one.',
+  await read(session, {
+    method: 'POST',
+    path: `${basePath}/comments/${threadId}/replies`,
+    body: { body: 'Still revision one.' },
   });
-  await call(8, 'resolve_comment', { reviewId, threadId, resolved: true });
+  await read(session, {
+    method: 'PUT',
+    path: `${basePath}/comments/${threadId}`,
+    body: { resolved: true },
+  });
   await session.git('worktree', 'remove', path);
   await session.git('branch', '-D', 'retained-review');
   execFileSync('git', ['-C', session.repository, 'gc', '--prune=now']);
-  const retained = record(
-    toolValue(await call(9, 'read_review', { reviewId, revision: 1 })),
-  );
+  const retained = await read(session, {
+    method: 'GET',
+    path: `${basePath}/revisions/1`,
+  });
   expect(record(retained.revision).headOid).toBe(headOid);
   expect(record(record(retained.revision).content).timing).toBe('record');
   expect(
@@ -312,6 +242,4 @@ test('MCP retains revisions and revision-owned comments, reads pinned code after
   expect(await read(session, { method: 'DELETE', path: basePath })).toEqual({
     deleted: true,
   });
-  expect(server.tools).not.toContain('delete_review');
-  await viewer.close();
 });

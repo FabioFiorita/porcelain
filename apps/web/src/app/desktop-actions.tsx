@@ -1,4 +1,3 @@
-import { parseDesktopReviewLink } from '@porcelain/client/reviews/rules';
 import { linkOptions, useNavigate } from '@tanstack/react-router';
 import { useAtomMount } from '@effect/atom-react';
 import { toast } from '@/components/ui/toast';
@@ -53,29 +52,8 @@ export function DesktopActions({
   const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
   useAtomMount(
     desktopActions((action) => {
-      if (typeof action === 'object') {
-        const link = parseDesktopReviewLink(action.url);
-        if (!link) return;
-        const environment =
-          link.environmentId === connection.environmentId
-            ? undefined
-            : link.environmentId;
-        if (link.revision === undefined)
-          void navigate({
-            to: '/reviews/$reviewId',
-            params: { reviewId: link.reviewId },
-            search: { environment, decision: link.decision },
-          });
-        else
-          void navigate({
-            to: '/reviews/$reviewId/$revision',
-            params: {
-              reviewId: link.reviewId,
-              revision: String(link.revision),
-            },
-            search: { environment, decision: link.decision },
-          });
-      } else if (action === 'open-settings')
+      if (typeof action === 'object') return;
+      if (action === 'open-settings')
         void navigate({
           to: '/settings/$section',
           params: { section: defaultSettingsSection },

@@ -34,9 +34,6 @@ import {
   AuthorizeSharingService,
   SetPushRegistrationService,
   ClearPushRegistrationService,
-  PlanPushNotificationsService,
-  SendPushNotificationsService,
-  ForgetPushRegistrationsService,
 } from '@porcelain/access/services';
 import {
   RemoteAccessStore,
@@ -66,7 +63,6 @@ import {
   TakePairingAttemptOptions,
   RefundPairingAttemptOptions,
   PushRegistrationStore,
-  PushSender,
 } from '@porcelain/access/ports';
 import { IdSource } from '@porcelain/kernel/ports';
 import { inMemoryLiveTicketStoreLayer } from '../adapters/access/in-memory-live-ticket-store.ts';
@@ -122,9 +118,6 @@ export function accessServicesLayer(
     AuthorizeSharingService.layer,
     SetPushRegistrationService.layer,
     ClearPushRegistrationService.layer,
-    PlanPushNotificationsService.layer,
-    SendPushNotificationsService.layer,
-    ForgetPushRegistrationsService.layer,
   ).pipe(
     Layer.provide([
       Layer.succeed(RemoteAccessStore, remoteAccess),
@@ -148,7 +141,6 @@ export function accessServicesLayer(
       Layer.succeed(EnvironmentLabelStore, stores.environmentLabel),
       Layer.succeed(ReviewGitSettingsStore, stores.reviewGitSettings),
       Layer.succeed(PushRegistrationStore, stores.pushRegistrations),
-      Layer.succeed(PushSender, dependencies.pushSender),
       Layer.succeed(HostNameReader, dependencies.shared.hostNames),
       Layer.succeed(RuntimeStatusReader, dependencies.runtimeStatusReader),
       Layer.succeed(RemoteAccessOptions, {

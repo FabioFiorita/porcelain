@@ -89,7 +89,6 @@ const workspaceMessages = {
 
 export function ConnectedWorkspace({
   review,
-  openReview,
   remote,
   unavailable,
   notice,
@@ -101,7 +100,6 @@ export function ConnectedWorkspace({
     | ((navigationTrigger: ElementTarget<HTMLButtonElement>) => ReactNode);
   settingsOpen?: boolean;
   review?: Review;
-  openReview?: { reviewId: string; environment: string | undefined };
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
   notice?: 'not-found' | 'missing-worktree' | undefined;
@@ -182,7 +180,6 @@ export function ConnectedWorkspace({
     settingsOpen,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
-    openReview,
     onOpenPullRequest: (entry: NavigatorEntry) => {
       if (entry.review.state !== 'available' || !entry.review.pullRequestNumber)
         return;
@@ -193,20 +190,18 @@ export function ConnectedWorkspace({
         environmentId: entry.environmentId,
       });
       setOpenMobile(false);
-      if (shown) onSearch({ entry: key });
-      else
-        void navigate({
-          to: '/reviews/$reviewId',
-          params: { reviewId: entry.review.reviewId },
-          search: {
-            environment:
-              entry.environmentId === local.connection.environmentId
-                ? undefined
-                : entry.environmentId,
-            decision: undefined,
-            entry: key,
-          },
-        });
+      if (!entry.worktreeId) return;
+      void navigate({
+        ...worktreeLocation({
+          remote:
+            entry.environmentId === local.connection.environmentId
+              ? null
+              : entry.environmentId,
+          projectId: entry.projectId,
+          worktreeId: entry.worktreeId,
+        }),
+        search: { entry: key },
+      });
     },
     onOpenProject: (entry: RemoteConnection | null) =>
       entry

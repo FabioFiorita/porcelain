@@ -5,7 +5,7 @@ selectors:
   - 'Settings'
   - 'Settings sections'
   - 'General'
-  - 'Reviews & Git'
+  - 'Changes & Git'
   - 'Computers'
   - 'Open This computer:'
   - 'Name of this computer'
@@ -33,7 +33,7 @@ Preconditions: [surface baseline](README.md).
 
 Section navigation replaces the current entry; opening a computer detail adds a detail entry. Close or Escape returns detail to Computers, then leaves Settings for its originating workspace. Each exit dismisses the mobile navigator sheet and retains the existing return-focus owner. Switching from a detail to another section still allows one Escape to leave Settings. Escape while typing keeps the field and Settings open.
 
-Start a desktop verification instance and open Settings from the workspace sidebar. Expect heading General and no Review content region. Choose Reviews & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title.
+Start a desktop verification instance and open Settings from the workspace sidebar. Expect heading General and no Review content region. Choose Changes & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title.
 
 Reopen Settings, click Computers and Open This computer: <name>. Click Rename, focus Name of this computer and press Escape: the field closes and you remain on detail. Click General and press Escape: return to the review. From detail without switching sections, Escape returns to the focusable Computers list; another Escape leaves Settings.
 
@@ -47,4 +47,4 @@ Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2
 
 - Full navigation can discard in-memory drafts/history. Use the entry specified by each case.
 
-Default walkthrough writer in Reviews & Git selects provider/model and effort on the server. Its note points to project overrides in the project three-dot menu. Follow [projects.walkthrough-settings](projects.walkthrough-settings.md) for the full save/reload and inheritance journey.
+Default walkthrough writer in Changes & Git selects provider/model and effort on the server. Its note points to project overrides in the project three-dot menu. Follow [projects.walkthrough-settings](projects.walkthrough-settings.md) for the full save/reload and inheritance journey.

@@ -18,27 +18,7 @@ export type ServerRead = {
 };
 
 export type RepoStep =
-  | { kind: 'closing-places-fixture' }
   | { kind: 'paginated-timeline-fixture' }
-  | {
-      kind: 'review-fixture';
-      operation:
-        | 'publish'
-        | 'remove-worktree'
-        | 'advance'
-        | 'remove-repository';
-      title: string;
-      asked?: string | undefined;
-      branch?: string | undefined;
-      route?:
-        | {
-            path: string;
-            lane: string;
-            timing?: 'decision' | 'record';
-            choices?: boolean;
-          }
-        | undefined;
-    }
   | {
       kind: 'service-update-fixture';
       state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;

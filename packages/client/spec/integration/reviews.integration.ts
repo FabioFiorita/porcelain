@@ -1,3 +1,4 @@
+import { seedReview } from '@porcelain/server/kit/seed-review';
 import {
   readReview,
   readProjectReviews,
@@ -42,16 +43,10 @@ test('read an unpublished review, then its published layers and discussion', asy
   ).toBeNull();
   const layerId = '75dc6a36-a001-4d00-b511-c45430b99403';
   await commitReviewFixture(session);
-  await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(
-      session,
-      0,
-      layerId,
-      '75dc6a36-a001-4d00-b511-c45430b99404',
-    ),
-  });
+  await seedReview(
+    session,
+    sampleReview(session, 0, layerId, '75dc6a36-a001-4d00-b511-c45430b99404'),
+  );
   await read(session, {
     method: 'POST',
     path: worktreePath(session, '/comments'),
@@ -248,20 +243,16 @@ test('durable review clients read revisions, proof, code and comments and apply 
   await commitReviewFixture(session);
   const shot = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   await session.writeFile('review-shot.png', shot);
-  const published = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: {
-      ...sampleReview(
-        session,
-        1,
-        '75dc6a36-a001-4d00-b511-c45430b99403',
-        '75dc6a36-a001-4d00-b511-c45430b99404',
-      ),
-      proof: {
-        checks: [{ name: 'Client integration', result: 'pass' }],
-        assets: [{ kind: 'image', title: 'Shot', path: 'review-shot.png' }],
-      },
+  const published = await seedReview(session, {
+    ...sampleReview(
+      session,
+      1,
+      '75dc6a36-a001-4d00-b511-c45430b99403',
+      '75dc6a36-a001-4d00-b511-c45430b99404',
+    ),
+    proof: {
+      checks: [{ name: 'Client integration', result: 'pass' }],
+      assets: [{ kind: 'image', title: 'Shot', path: 'review-shot.png' }],
     },
   });
   const reviewId = text(published.reviewId);

@@ -21,19 +21,13 @@ import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useState } from 'react';
-import { navigatorView } from '../store';
+
 import { useElement } from '@/shared/hooks/use-element';
-import {
-  useAtom,
-  useAtomValue,
-  useAtomSet,
-  useAtomMount,
-} from '@effect/atom-react';
-import { Link, useLocation } from '@tanstack/react-router';
+import { useAtomValue, useAtomSet, useAtomMount } from '@effect/atom-react';
+import { useLocation } from '@tanstack/react-router';
 import {
   ChevronDownIcon,
   CircleAlertIcon,
-  FileTextIcon,
   GitBranchIcon,
   HouseIcon,
   KeyboardIcon,
@@ -44,16 +38,13 @@ import {
 } from 'lucide-react';
 import {
   readWorktreeNavigator,
-  readReviewNavigator,
   refreshWorktreeNavigator,
   refreshInventories,
   worktreeNavigatorState,
 } from '@porcelain/client/projects';
 import {
   emptyNavigatorFilter,
-  navigatorEntryLabel,
   navigatorEntrySelected,
-  navigatorCardReviewLabel,
   navigatorCardChangesLabel,
   navigatorChangesLabel,
   navigatorChecksLabel,
@@ -99,7 +90,7 @@ import {
 } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
 import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -117,8 +108,7 @@ import { ProjectHeading } from './project-heading';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
 
-function entryIcon(entry: NavigatorEntry, reviewsOnly: boolean) {
-  if (entry.kind === 'review' || reviewsOnly) return FileTextIcon;
+function entryIcon(entry: NavigatorEntry) {
   return entry.main ? HouseIcon : GitBranchIcon;
 }
 
@@ -181,7 +171,6 @@ function statusDescription(issue: WorktreeStatusIssue) {
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
-  openReview: { reviewId: string; environment: string | undefined } | undefined;
   onSelect: (target: WorktreeTarget) => void;
   onOpenPullRequest: (entry: NavigatorEntry) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
@@ -193,7 +182,6 @@ type Props = {
 export function ProjectNavigator({
   remotes,
   selected,
-  openReview,
   onSelect,
   onOpenPullRequest,
   onOpenProject,
@@ -202,8 +190,6 @@ export function ProjectNavigator({
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
-  const [view, setView] = useAtom(navigatorView);
-  const reviewsOnly = view === 'reviews';
   const [toastContainer, setToastContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -215,9 +201,7 @@ export function ProjectNavigator({
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
   const { projects, filters, loading, messages } = useAtomValue(
-    reviewsOnly
-      ? readReviewNavigator(connections)
-      : readWorktreeNavigator(connections),
+    readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
   const setState = useAtomSet(worktreeNavigatorState);
@@ -233,10 +217,7 @@ export function ProjectNavigator({
   const setQuery = (query: string) =>
     setState((current) => ({ ...current, query }));
   const filtered =
-    filter.projects !== undefined ||
-    filter.environments !== undefined ||
-    filter.reviews !== undefined ||
-    filter.older;
+    filter.projects !== undefined || filter.environments !== undefined;
   const emptyTitle =
     query.trim() || filtered
       ? 'No matching worktrees'
@@ -253,13 +234,7 @@ export function ProjectNavigator({
         environmentId: selected.remote ?? connection.environmentId,
       }
     : undefined;
-  const selection = openReview
-    ? {
-        kind: 'review' as const,
-        reviewId: openReview.reviewId,
-        environmentId: openReview.environment ?? connection.environmentId,
-      }
-    : checkoutSelection;
+  const selection = checkoutSelection;
   const visibleEntries = projects
     .flatMap((project) => (project.expanded ? project.entries : []))
     .filter(
@@ -295,29 +270,12 @@ export function ProjectNavigator({
             <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
           </div>
         </NavigatorHeader>
-        <div className="px-2 pt-1 pb-3">
-          <Tabs
-            value={view}
-            onValueChange={(value) =>
-              setView(value === 'reviews' ? 'reviews' : 'worktrees')
-            }
-          >
-            <TabsList
-              variant="line"
-              className="w-full"
-              aria-label="Navigator view"
-            >
-              <TabsTrigger value="worktrees">Worktrees</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
         <div className="navigator-filters mb-2 flex items-center gap-1 px-2">
           <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
               autoFocus={isMobile}
               type="search"
-              aria-label="Search reviews and worktrees"
+              aria-label="Search worktrees"
               placeholder="Search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -365,50 +323,40 @@ export function ProjectNavigator({
               className="flex max-h-[min(24rem,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-hidden"
             >
               <div className="-m-1 min-h-0 overflow-y-auto p-1">
-                {filters.map((section) => (
-                  <DropdownMenuGroup key={section.key}>
-                    <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
-                    {section.items.map((option) => (
-                      <DropdownMenuCheckboxItem
-                        key={option.id}
-                        className="cursor-pointer"
-                        checked={option.checked}
-                        closeOnClick={false}
-                        onCheckedChange={() =>
-                          setState((current) => ({
-                            ...current,
-                            filter: {
-                              ...current.filter,
-                              [section.key]: option.next,
-                            },
-                          }))
-                        }
-                      >
-                        {option.icon && <EnvironmentGlyph icon={option.icon} />}
-                        <TruncatedText
-                          propagateEscape
-                          text={option.label}
-                          className="min-w-0 flex-1"
-                        />
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                  </DropdownMenuGroup>
-                ))}
-                <DropdownMenuCheckboxItem
-                  className="cursor-pointer"
-                  checked={filter.older}
-                  closeOnClick={false}
-                  onCheckedChange={(older) =>
-                    setState((current) => ({
-                      ...current,
-                      filter: { ...current.filter, older },
-                    }))
-                  }
-                >
-                  Show older reviews
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
+                {filters
+                  .filter((section) => section.key !== 'reviews')
+                  .map((section) => (
+                    <DropdownMenuGroup key={section.key}>
+                      <DropdownMenuLabel>{section.label}</DropdownMenuLabel>
+                      {section.items.map((option) => (
+                        <DropdownMenuCheckboxItem
+                          key={option.id}
+                          className="cursor-pointer"
+                          checked={option.checked}
+                          closeOnClick={false}
+                          onCheckedChange={() =>
+                            setState((current) => ({
+                              ...current,
+                              filter: {
+                                ...current.filter,
+                                [section.key]: option.next,
+                              },
+                            }))
+                          }
+                        >
+                          {option.icon && (
+                            <EnvironmentGlyph icon={option.icon} />
+                          )}
+                          <TruncatedText
+                            propagateEscape
+                            text={option.label}
+                            className="min-w-0 flex-1"
+                          />
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </DropdownMenuGroup>
+                  ))}
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() =>
@@ -493,24 +441,18 @@ export function ProjectNavigator({
                         entry.review.state === 'available'
                           ? entry.review
                           : undefined;
-                      const retained = entry.kind === 'review';
-                      const detail = navigatorCardReviewLabel(entry);
                       const changes =
                         entry.kind === 'worktree'
                           ? navigatorCardChangesLabel(entry.changes)
                           : '';
-                      const EntryIcon = entryIcon(entry, reviewsOnly);
+                      const EntryIcon = entryIcon(entry);
                       const failed =
                         review?.checks?.state === 'available' &&
                         review.checks.result === 'failed';
-                      const openRetained =
-                        retained ||
-                        (reviewsOnly && review !== undefined) ||
-                        (!entry.available && review !== undefined);
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
+                      const label = `${[entry.name, entry.projectName, entry.environmentName, entry.main ? 'Main worktree' : undefined, entry.detached ? 'Detached HEAD' : undefined, entry.detached ? entry.path : undefined, entry.kind === 'worktree' ? navigatorChangesLabel(entry.changes) : undefined, review?.pullRequestNumber ? `Pull request #${review.pullRequestNumber}` : undefined, !entry.available ? 'Unavailable' : undefined].filter(Boolean).join(', ')}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
@@ -550,37 +492,13 @@ export function ProjectNavigator({
                                     size="xs"
                                     aria-label={label}
                                     aria-current={active ? 'page' : undefined}
-                                    onClick={() =>
-                                      openRetained
-                                        ? setOpenMobile(false)
-                                        : openWorktree(entry)
-                                    }
+                                    onClick={() => openWorktree(entry)}
                                     render={
-                                      openRetained && review ? (
-                                        <Link
-                                          ref={attach}
-                                          to="/reviews/$reviewId"
-                                          params={{
-                                            reviewId: review.reviewId,
-                                          }}
-                                          search={{
-                                            environment:
-                                              entry.environmentId ===
-                                              connection.environmentId
-                                                ? undefined
-                                                : entry.environmentId,
-                                            decision: undefined,
-                                          }}
-                                        />
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          ref={attach}
-                                          disabled={
-                                            !openRetained && !entry.available
-                                          }
-                                        />
-                                      )
+                                      <button
+                                        type="button"
+                                        ref={attach}
+                                        disabled={!entry.available}
+                                      />
                                     }
                                   />
                                   <Item
@@ -618,9 +536,9 @@ export function ProjectNavigator({
                                           )}
                                         </div>
                                       )}
-                                      {(detail || changes) && (
+                                      {(review?.pullRequestNumber ||
+                                        changes) && (
                                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
-                                          {detail && <span>{detail}</span>}
                                           {review?.pullRequestNumber && (
                                             <Button
                                               variant="ghost"
@@ -669,14 +587,8 @@ export function ProjectNavigator({
           {!loading && messages.length === 0 && projects.length === 0 && (
             <Empty>
               <EmptyHeader>
-                <EmptyTitle>
-                  {reviewsOnly ? 'No matching reviews' : emptyTitle}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {reviewsOnly
-                    ? 'Try another search or show older reviews in the filter.'
-                    : emptyDescription}
-                </EmptyDescription>
+                <EmptyTitle>{emptyTitle}</EmptyTitle>
+                <EmptyDescription>{emptyDescription}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}

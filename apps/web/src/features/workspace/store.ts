@@ -248,24 +248,6 @@ export function useReviewPanelOpen() {
   };
 }
 
-const pullRequestLinkFocus = Atom.family((_reviewId: string) =>
-  Atom.make(false).pipe(Atom.keepAlive),
-);
-
-export function usePullRequestLinkFocus(reviewId: string) {
-  const atom = pullRequestLinkFocus(reviewId);
-  const requested = useAtomValue(atom);
-  const set = useAtomSet(atom);
-  return {
-    request: () => set(true),
-    attach: (element: HTMLInputElement | HTMLButtonElement | null) => {
-      if (!element || !requested || element.disabled) return;
-      element.focus();
-      set(false);
-    },
-  };
-}
-
 export const firstDocumentTitle = Atom.family((_worktreeId: string) =>
   Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );

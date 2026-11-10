@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { literally } from '../kit/answers.ts';
@@ -19,11 +20,10 @@ async function summaryUrl(session: Session) {
     })
   ).review;
   const revision = current === null ? 0 : Number(record(current).revision);
-  const answer = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(session, revision, randomUUID(), randomUUID()),
-  });
+  const answer = await seedReview(
+    session,
+    sampleReview(session, revision, randomUUID(), randomUUID()),
+  );
   return new URL(
     String(record(record(answer.review).summary).url),
     session.address,

@@ -13,7 +13,6 @@ import {
   openToSideText,
   parseTabLayout,
   changesTabCount,
-  reviewTabCount,
 } from './tab-strip.ts';
 
 describe('opening a document', () => {
@@ -207,13 +206,6 @@ describe('first tab count', () => {
     [3, { value: '3', description: '3 uncommitted files' }],
   ])('counts %i uncommitted files for Changes', (count, expected) => {
     expect(changesTabCount(count)).toEqual(expected);
-  });
-
-  it.each([
-    [0, 1, { value: '0/1', description: '0 of 1 decision reviewed' }],
-    [2, 9, { value: '2/9', description: '2 of 9 decisions reviewed' }],
-  ])('counts %i of %i decisions for Review', (reviewed, total, expected) => {
-    expect(reviewTabCount(reviewed, total)).toEqual(expected);
   });
 });
 

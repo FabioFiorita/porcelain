@@ -82,117 +82,6 @@ test('worktree actions protect main and switch an unselected checkout without mo
   ).toHaveCount(1);
 });
 
-test('Delete choices reset from saved settings on each opening and detached checkouts disable branch deletion', async ({
-  pairedPage: page,
-  repo,
-  server,
-  app,
-}) => {
-  const main = (await server.project()).worktrees.find(
-    (entry) => entry.main,
-  )?.path;
-  if (!main) throw new Error('Missing main checkout');
-  const fixture = await archiveFixture(main);
-  const before = await server.reviewGitSettings();
-  await expect
-    .poll(() => server.reviewGitSettings())
-    .toMatchObject({
-      kind: 'configured',
-      settings: {
-        archiveDeleteWorktree: true,
-        archiveDeleteLocalBranch: true,
-        archiveDeleteRemoteBranch: true,
-      },
-    });
-  await repo.worktree('detached-menu');
-  await repo.detachWorktree('detached-menu');
-  await app.reload();
-  await page.setViewportSize({ width: 1440, height: 896 });
-  const sidebar = page.getByRole('navigation', {
-    name: 'Projects and worktrees',
-    exact: true,
-  });
-  const openDelete = async (name: RegExp) => {
-    await sidebar
-      .getByRole('button', { name, exact: true })
-      .click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
-  };
-  await openDelete(/^archive-fixture,/);
-  const dialog = page.getByRole('alertdialog', {
-    name: 'Delete archive-fixture?',
-    exact: true,
-  });
-  for (const label of [
-    'Delete local worktree',
-    'Delete local branch',
-    'Delete remote branch',
-  ])
-    await expect(
-      dialog.getByRole('switch', { name: label, exact: true }),
-    ).toBeChecked();
-  await dialog
-    .getByRole('switch', { name: 'Delete local worktree', exact: true })
-    .click();
-  await expect(
-    dialog.getByText(
-      'Keep the worktree folder and its files, detach it from the branch, then delete the local branch.',
-      { exact: true },
-    ),
-  ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect.poll(() => server.reviewGitSettings()).toEqual(before);
-  await expect.poll(() => fixture.exists()).toBe(true);
-  await openDelete(/^archive-fixture,/);
-  await expect(
-    dialog.getByRole('switch', { name: 'Delete local worktree', exact: true }),
-  ).toBeChecked();
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await openDelete(/^detached-menu,/);
-  const detached = page.getByRole('alertdialog', {
-    name: 'Delete detached-menu?',
-    exact: true,
-  });
-  for (const label of ['Delete local branch', 'Delete remote branch']) {
-    await expect(
-      detached.getByRole('switch', { name: label, exact: true }),
-    ).not.toBeChecked();
-    await expect(
-      detached.getByRole('switch', { name: label, exact: true }),
-    ).toBeDisabled();
-  }
-  await detached.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect.poll(() => server.reviewGitSettings()).toEqual(before);
-  await expect.poll(() => fixture.exists()).toBe(true);
-  await openDelete(/^archive-fixture,/);
-  await dialog
-    .getByRole('button', { name: 'Review deletion', exact: true })
-    .click();
-  await expect(
-    dialog.getByRole('button', { name: 'Delete', exact: true }),
-  ).toBeEnabled();
-  await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(dialog).not.toBeAttached();
-  await expect.poll(() => fixture.exists()).toBe(false);
-  await expect
-    .poll(async () => (await fixture.readReview())?.state)
-    .toBe('open');
-  await expect
-    .poll(async () => (await fixture.readReview())?.archived ?? false)
-    .toBe(false);
-  await expect.poll(() => server.reviewGitSettings()).toEqual(before);
-  await sidebar.getByRole('tab', { name: 'Reviews', exact: true }).click();
-  await sidebar
-    .getByRole('link', { name: /^archive-fixture,.*Decision review/ })
-    .click();
-  await expect
-    .poll(() => app.address().path)
-    .toBe(`/reviews/${fixture.reviewId}`);
-  await expect(
-    page.getByRole('region', { name: 'You asked', exact: true }),
-  ).toContainText('Verify the disposable README review');
-});
-
 test('a checkout without a review can keep its files while deleting its branch, then delete the detached folder', async ({
   pairedPage: page,
   repo,
@@ -219,7 +108,7 @@ test('a checkout without a review can keep its files while deleting its branch, 
     exact: true,
   });
   const row = sidebar.getByRole('button', {
-    name: /^kept-no-review,.*No review/,
+    name: /^kept-no-review,/,
   });
   await row.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();

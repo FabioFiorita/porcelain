@@ -7,10 +7,6 @@ import type {
 import { DeviceStore } from '../ports/device-store.ts';
 import { PushRegistrationStore } from '../ports/push-registration-store.ts';
 import { deviceRevoked } from '../rules/device-activity.ts';
-import {
-  otherDevicesWithToken,
-  pushKinds,
-} from '../rules/push-notifications.ts';
 
 export class SetPushRegistrationService extends Context.Service<
   SetPushRegistrationService,
@@ -46,24 +42,8 @@ export class SetPushRegistrationService extends Context.Service<
             return yield* Effect.fail(
               new PushRegistrationDeviceRequiredError(),
             );
-          const kinds = pushKinds(input.kinds);
-          if (kinds.length === 0) {
-            yield* registrations.remove({ deviceId: viewer.deviceId });
-            return { kind: 'cleared' };
-          }
-          const registration = {
-            deviceId: viewer.deviceId,
-            token: input.token,
-            platform: input.platform,
-            kinds,
-          };
-          for (const deviceId of otherDevicesWithToken(
-            yield* registrations.list(),
-            registration,
-          ))
-            yield* registrations.remove({ deviceId });
-          yield* registrations.save(registration);
-          return { kind: 'registered', registration };
+          yield* registrations.remove({ deviceId: viewer.deviceId });
+          return { kind: 'cleared' };
         }),
       };
     }),

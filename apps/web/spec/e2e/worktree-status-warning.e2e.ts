@@ -58,7 +58,7 @@ for (const width of [1440, 414]) {
         exact: true,
       });
       const search = sidebar.getByRole('searchbox', {
-        name: 'Search reviews and worktrees',
+        name: 'Search worktrees',
         exact: true,
       });
       await search.fill('status-');

@@ -4,27 +4,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 
-export function StateFrame({
-  navigation,
-  title,
-  children,
-}: {
-  navigation?: ReactNode;
-  title: string;
-  children: ReactNode;
-}) {
-  if (!navigation) return children;
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-paper border bg-background">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        {navigation}
-        <span className="text-ui font-medium">{title}</span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
-    </div>
-  );
-}
-
 export function StateNotice({
   title,
   description,

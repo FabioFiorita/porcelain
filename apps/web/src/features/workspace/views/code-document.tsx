@@ -1,6 +1,5 @@
-import type { ComponentType } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { Link } from '@tanstack/react-router';
+
 import { createPortal, flushSync } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
@@ -30,7 +29,7 @@ import {
   MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
@@ -62,7 +61,7 @@ import {
   lineCounts,
   entryLineCounts,
 } from '../adapters/code-entries';
-import type { AgentCodeNote } from '../rules/code-notes';
+
 import { useToggleReviewed } from '../commands/reviewed';
 import { ChangeCounts } from './change-counts';
 import { useComments } from '../queries/comments';
@@ -92,7 +91,6 @@ import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
-  | ({ kind: 'agent' } & AgentCodeNote)
   | {
       kind: 'thread';
       lineNumber: number;
@@ -101,16 +99,6 @@ type Note =
     }
   | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
-  agentNote?:
-    | ComponentType<{
-        title?: string;
-        text: string;
-        stale?: boolean;
-        marker?: string;
-        tone?: 'agent' | 'gap';
-        compact?: boolean;
-      }>
-    | undefined;
   onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
   scope: ReviewScope;
@@ -170,7 +158,6 @@ export function CodeDocument(props: Props) {
   );
 }
 function CodeSurface({
-  agentNote: AgentNote,
   entries: given,
   scope,
   context: gitContext,
@@ -374,17 +361,9 @@ function CodeSurface({
         notes.push(note);
       }
     }
-    for (const note of entry.agentNotes ?? [])
-      notes.push({ ...note, kind: 'agent' });
     if (composer?.id === entry.id)
       notes.push({ kind: 'composer', anchor: composer.anchor });
     const annotations = notes.map((note): DiffLineAnnotation<Note> => {
-      if (note.kind === 'agent')
-        return {
-          lineNumber: note.stale ? 0 : note.line,
-          side: 'additions',
-          metadata: note,
-        };
       if (note.kind === 'thread')
         return { lineNumber: note.lineNumber, side: note.side, metadata: note };
       const anchor = note.anchor;
@@ -744,17 +723,6 @@ function CodeSurface({
           }}
           renderAnnotation={(...[annotation, , item]) => {
             const note = annotation.metadata;
-            if (note.kind === 'agent')
-              return AgentNote ? (
-                <AgentNote
-                  compact={decision}
-                  title={note.title}
-                  text={note.text}
-                  stale={note.stale}
-                  {...(note.marker ? { marker: note.marker } : {})}
-                  {...(note.tone ? { tone: note.tone } : {})}
-                />
-              ) : null;
             if (
               note.kind === 'thread' &&
               note.threads.every(({ stale }) => !stale) &&
@@ -869,27 +837,7 @@ function CodeSurface({
                         role="status"
                         title="Code changed since this comment"
                         description={`Written on r${thread.review.revision}. Read the original code before acting on this thread.`}
-                      >
-                        <Link
-                          to="/reviews/$reviewId/$revision"
-                          params={{
-                            reviewId: thread.review.reviewId,
-                            revision: String(thread.review.revision),
-                          }}
-                          search={(previous) => ({
-                            environment: previous.environment,
-                            decision: undefined,
-                          })}
-                          className={cn(
-                            buttonVariants({
-                              variant: 'outline',
-                              size: 'xs',
-                            }),
-                          )}
-                        >
-                          Open r{thread.review.revision}
-                        </Link>
-                      </StateNotice>
+                      ></StateNotice>
                     )}
                     <ThreadCard
                       scope={scope}

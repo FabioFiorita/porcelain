@@ -112,18 +112,17 @@ export type Step =
   | LiveStep;
 
 type Manifest = {
+  dataDirectory: string;
   address: string;
   repository: string;
   socketPath: string;
   credentialFile: string;
   hitsFile: string;
-  pushFile: string;
   bin: string;
   installation: string;
   codingTool: string;
   fixture: Fixture;
   routes: string[];
-  tools: string[];
 };
 
 const execute = promisify(execFile);
@@ -349,18 +348,17 @@ function fixtureOf(value: unknown): Fixture {
 function manifestOf(value: unknown): Manifest {
   const manifest = record(value);
   return {
+    dataDirectory: text(manifest.dataDirectory),
     address: text(manifest.address),
     repository: text(manifest.repository),
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     hitsFile: text(manifest.hitsFile),
-    pushFile: text(manifest.pushFile),
     bin: text(manifest.bin),
     installation: text(manifest.installation),
     codingTool: text(manifest.codingTool),
     fixture: fixtureOf(manifest.fixture),
     routes: list(manifest.routes).map(text),
-    tools: list(manifest.tools).map(text),
   };
 }
 
@@ -441,7 +439,7 @@ async function readManifest(manifestPath: string): Promise<{
   };
 }
 
-type LoggedHit = Hit & { owner: boolean; handled: boolean; tools: string[] };
+type LoggedHit = Hit & { owner: boolean; handled: boolean };
 
 function hitsOf(lines: string): LoggedHit[] {
   const requests = new Map<string, LoggedHit>();
@@ -457,16 +455,8 @@ function hitsOf(lines: string): LoggedHit[] {
         status: undefined,
         owner: entry.owner === true,
         handled: false,
-        tools: [],
       });
     const hit = requests.get(id);
-    if (
-      entry.event === 'tool-handled' &&
-      entry.owner === true &&
-      hit?.owner &&
-      typeof entry.tool === 'string'
-    )
-      hit.tools.push(entry.tool);
     if (entry.event === 'handled' && hit) hit.handled = true;
     if (entry.event === 'response' && hit && typeof entry.status === 'number')
       hit.status = entry.status;
@@ -475,6 +465,7 @@ function hitsOf(lines: string): LoggedHit[] {
 }
 
 export class ServerHandle {
+  readonly dataDirectory: string;
   readonly address: string;
   readonly repository: string;
   readonly projectHome: string;
@@ -484,9 +475,7 @@ export class ServerHandle {
   readonly desktopCredential: string;
   readonly fixture: Fixture;
   readonly routes: readonly string[];
-  readonly tools: readonly string[];
   private readonly hitsFile: string;
-  private readonly pushFile: string;
   private readonly bin: string;
   private readonly codingTool: string;
 
@@ -494,6 +483,7 @@ export class ServerHandle {
     manifest: Manifest,
     credentials: { credential: string; desktopCredential: string },
   ) {
+    this.dataDirectory = manifest.dataDirectory;
     this.address = manifest.address;
     this.repository = manifest.repository;
     this.projectHome = resolve(manifest.repository, '..');
@@ -501,9 +491,7 @@ export class ServerHandle {
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
-    this.tools = manifest.tools;
     this.hitsFile = manifest.hitsFile;
-    this.pushFile = manifest.pushFile;
     this.bin = manifest.bin;
     this.codingTool = manifest.codingTool;
     this.credential = credentials.credential;
@@ -513,14 +501,6 @@ export class ServerHandle {
   static async attach(manifestPath: string): Promise<ServerHandle> {
     const { manifest, ...credentials } = await readManifest(manifestPath);
     return new ServerHandle(manifest, credentials);
-  }
-
-  async pushRequests(): Promise<unknown[]> {
-    const lines = await readFile(this.pushFile, 'utf8');
-    return lines
-      .split('\n')
-      .filter(Boolean)
-      .map((line): unknown => JSON.parse(line));
   }
 
   async sampleIds(): Promise<{ projectId: string; worktreeId: string }> {
@@ -569,16 +549,6 @@ export class ServerHandle {
     ].sort();
   }
 
-  async invokedTools(): Promise<string[]> {
-    return [
-      ...new Set(
-        (await this.allHits()).flatMap((hit) =>
-          hit.owner && hit.handled && !hit.kit ? hit.tools : [],
-        ),
-      ),
-    ].sort();
-  }
-
   session(
     recorder: Recorder,
     ids: { projectId: string; worktreeId: string },
@@ -608,6 +578,7 @@ export class ServerHandle {
       return absolute;
     };
     return {
+      dataDirectory: this.dataDirectory,
       fixture: this.fixture,
       address: this.address,
       repository: this.repository,

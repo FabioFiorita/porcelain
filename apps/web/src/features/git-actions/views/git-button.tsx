@@ -125,7 +125,7 @@ export function GitButton({
           kind: 'blocked',
           reason:
             pullBlock ??
-            'Reviews & Git settings for this computer are unavailable.',
+            'Changes & Git settings for this computer are unavailable.',
         },
     notify: ({ title, description, type }) =>
       toast.add({

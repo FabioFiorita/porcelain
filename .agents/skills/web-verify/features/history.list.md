@@ -1,16 +1,15 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "History"
-  - "Merge commit"
-  - "Commit graph"
-  - "Open graph"
-  - "Start of history."
+  - 'Review'
+  - 'History'
+  - 'Merge commit'
+  - 'Commit graph'
+  - 'Open graph'
+  - 'Start of history.'
 tests:
   - apps/web/spec/integration/history-list.test.tsx
   - apps/web/spec/integration/history-keyboard.test.tsx
-  - apps/web/spec/integration/review-panel-preference.test.tsx
   - apps/web/spec/integration/history-return.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits

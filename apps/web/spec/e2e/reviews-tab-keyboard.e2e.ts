@@ -1,13 +1,11 @@
 import { expect, test } from './fixtures.ts';
 
-for (const published of [false, true]) {
+for (const published of [false]) {
   test(`Alt+W keeps the permanent ${published ? 'Review' : 'Changes'} tab active beside a file`, async ({
     pairedPage: page,
     app,
     repo,
-    agent,
   }) => {
-    if (published) await agent.publishReview('Readme layer');
     await app.open(`${app.address().path}?entry=file:${repo.readme.path}`);
     const tabs = page.getByRole('tablist', {
       name: 'Open documents',
@@ -36,35 +34,3 @@ for (const published of [false, true]) {
     await expect(permanent).toHaveAttribute('aria-selected', 'true');
   });
 }
-
-test('file tabs distinguish matching basenames by their full paths', async ({
-  pairedPage: page,
-  app,
-  repo,
-  agent,
-}) => {
-  await agent.publishArchitecture();
-  await repo.write('docs/same.ts', 'export const side = "a";\n');
-  await repo.write(
-    'packages/workspace/src/same.ts',
-    'export const side = "b";\n',
-  );
-  const query = new URLSearchParams({
-    entry: 'file:docs/same.ts',
-    side: 'file:packages/workspace/src/same.ts',
-  });
-  await app.open(`${app.address().path}?${query}`);
-  const left = page.getByRole('region', { name: 'Left pane', exact: true });
-  const right = page.getByRole('region', { name: 'Right pane', exact: true });
-  await expect(left).toBeVisible();
-  await expect(right).toBeVisible();
-  const first = left.getByRole('tab', { name: 'docs/same.ts', exact: true });
-  const second = right.getByRole('tab', {
-    name: 'packages/workspace/src/same.ts',
-    exact: true,
-  });
-  await expect(first).toBeVisible();
-  await expect(second).toBeVisible();
-  await expect(first).toHaveText('same.ts');
-  await expect(second).toHaveText('same.ts');
-});

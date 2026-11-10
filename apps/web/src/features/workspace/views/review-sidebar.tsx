@@ -1,10 +1,6 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { cn } from '@/shared/lib/utils';
-import {
-  ALL_CHANGES,
-  publishedReviewTitle,
-  surfaceTitles,
-} from '../rules/documents';
+import { ALL_CHANGES, surfaceTitles } from '../rules/documents';
 import { useElement } from '@/shared/hooks/use-element';
 import type { ReactNode } from 'react';
 import {
@@ -13,12 +9,12 @@ import {
   HistoryIcon,
   ListChecksIcon,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
 import { FileNavigation } from '@/features/files/index';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePublishedReview } from '../queries/published-review';
+
 import type { OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import {
@@ -61,14 +57,12 @@ export function ReviewSidebar({
   layout: 'docked' | 'sheet';
   onSurface: (surface: Surface) => void;
 }) {
-  const { review } = usePublishedReview(props.scope, props.context);
-  const shown = props.guided ? null : review;
   return (
     <SidePanel
       layout={layout}
       surfaces={SURFACES}
-      names={surfaceNames(shown)}
-      published={Boolean(shown)}
+      names={surfaceNames()}
+      published={false}
       surface={props.surface}
       onSurface={onSurface}
     >
@@ -79,7 +73,7 @@ export function ReviewSidebar({
   );
 }
 
-export function SidePanel({
+function SidePanel({
   layout,
   surfaces,
   names,
@@ -168,13 +162,8 @@ export function SidePanel({
 
 export const SURFACES: readonly Surface[] = ['files', 'changes', 'history'];
 
-export function surfaceNames(
-  review: Parameters<typeof publishedReviewTitle>[0],
-): Record<Surface, string> {
-  return {
-    ...surfaceTitles,
-    changes: publishedReviewTitle(review) ?? surfaceTitles.changes,
-  };
+export function surfaceNames() {
+  return surfaceTitles;
 }
 
 export function SurfaceIcon({
@@ -209,15 +198,9 @@ function SidebarSurface({
   changes,
   actionsTarget,
 }: SidebarProps & { actionsTarget: HTMLElement | null }) {
-  const published = usePublishedReview(scope, context);
   if (!available)
     return (
       <div className="p-3">
-        {published.review && surface === 'changes' && (
-          <Button variant="ghost" onClick={() => onOpen({ kind: 'handoff' })}>
-            Review
-          </Button>
-        )}
         <StateNotice
           title="Worktree unavailable"
           description="Restore the checkout and return to Porcelain to browse its files and Git state."

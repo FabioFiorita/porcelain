@@ -145,7 +145,7 @@ test('the desktop app opens a project on another computer from the Open project 
   ).not.toHaveAttribute('data-clipped');
   await navigator
     .getByRole('searchbox', {
-      name: 'Search reviews and worktrees',
+      name: 'Search worktrees',
       exact: true,
     })
     .fill('landing-site');

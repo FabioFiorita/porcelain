@@ -53,35 +53,13 @@ test('a complete selection rejects an extra route log', () => {
   ).toThrow('Route coverage: 1 integration files ran but 2 wrote a route log');
 });
 
-const registeredHandlers = {
-  registered: ['owner POST /mcp'],
-  requested: ['owner POST /mcp'],
-  registeredTools: ['read_review', 'list_comments'],
-  invokedTools: ['read_review'],
-};
-
-test('reaching the MCP route leaves an uninvoked registered tool missing', () => {
-  expect(() => handlerCoverage([registeredHandlers])).toThrow(
-    'Route coverage: no integration test reached MCP tool list_comments;',
-  );
-});
-
-test('actual tool invocations across files cover the registered toolkit', () => {
+test('registered HTTP routes require a validated handler request', () => {
+  expect(() =>
+    handlerCoverage([{ registered: ['GET /api/inventory'], requested: [] }]),
+  ).toThrow('Route coverage: no integration test reached GET /api/inventory;');
   expect(() =>
     handlerCoverage([
-      registeredHandlers,
-      { ...registeredHandlers, invokedTools: ['list_comments'] },
+      { registered: ['GET /api/inventory'], requested: ['GET /api/inventory'] },
     ]),
   ).not.toThrow();
-});
-
-test('missing HTTP routes and MCP tools are named together without duplicates', () => {
-  const missing = {
-    ...registeredHandlers,
-    requested: [],
-    invokedTools: [],
-  };
-  expect(() => handlerCoverage([missing, missing])).toThrow(
-    'Route coverage: no integration test reached MCP tool list_comments, MCP tool read_review, owner POST /mcp;',
-  );
 });

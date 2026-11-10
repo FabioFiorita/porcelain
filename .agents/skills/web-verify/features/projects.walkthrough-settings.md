@@ -22,11 +22,11 @@ api:
 
 # projects.walkthrough-settings
 
-The server-wide writer is in Settings → Reviews & Git. It includes provider/model and the effort levels supported by that model. The note explains project overrides. Sidebar project actions → Walkthrough settings opens one small dialog with the default as its first writer option, any project override, effort, and Manual / Automatic. No other sidebar sections are added. The built-in writer is Claude Opus 5.5 at high effort; manual and automatic starts resolve an explicit request, project override, saved default, then built-in, in that order.
+The server-wide writer is in Settings → Changes & Git. It includes provider/model and the effort levels supported by that model. The note explains project overrides. Sidebar project actions → Walkthrough settings opens one small dialog with the default as its first writer option, any project override, effort, and Manual / Automatic. No other sidebar sections are added. The built-in writer is Claude Opus 5.5 at high effort; manual and automatic starts resolve an explicit request, project override, saved default, then built-in, in that order.
 
 ## How to get to it
 
-Open Settings → Reviews & Git → Default walkthrough writer, or use a project's existing three-dot menu → Walkthrough settings. Close or Escape dismisses the dialog. Save closes the project dialog; the global default remains on the settings page.
+Open Settings → Changes & Git → Default walkthrough writer, or use a project's existing three-dot menu → Walkthrough settings. Close or Escape dismisses the dialog. Save closes the project dialog; the global default remains on the settings page.
 
 ## Driving it with browser
 

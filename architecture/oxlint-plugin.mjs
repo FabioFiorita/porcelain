@@ -33,8 +33,6 @@ const composeSource =
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 
-const mcpSource = /\/apps\/server\/src\/http\/mcp\/.+\.ts$/;
-
 const parseMethods = new Set([
   'parse',
   'parseAsync',
@@ -411,12 +409,6 @@ function impureGlobalUse(identifier, context) {
   return member === 'parse'
     ? undefined
     : 'A rule takes the current time as an ISO string from its caller; it uses Date only as Date.parse(text) or new Date(instant), because the same inputs must yield the same result on every machine.';
-}
-
-function within(node, container) {
-  return (
-    node.range[0] >= container.range[0] && node.range[1] <= container.range[1]
-  );
 }
 
 function nodesOf(node, visitorKeys, accept) {
@@ -1803,89 +1795,7 @@ export default {
         };
       },
     },
-    'mcp-tool-handler': {
-      create(context) {
-        if (
-          !mcpSource.test(normalizedFilename(context.filename)) ||
-          isSpec(context)
-        )
-          return {};
-        const handlers = [];
-        return {
-          CallExpression(node) {
-            const callee = node.callee;
-            if (
-              callee.type === 'MemberExpression' &&
-              propertyName(callee, context) === 'registerTool'
-            ) {
-              context.report({
-                node,
-                message:
-                  'Register MCP tools with the native ReviewToolkit, because the contract owns validation, results and handler completeness.',
-              });
-              return;
-            }
-            if (
-              callee.type === 'MemberExpression' &&
-              propertyName(callee, context) === 'toLayer'
-            ) {
-              const binding = findVariable(
-                context.sourceCode.getScope(node),
-                callee.object.name,
-              )?.defs[0];
-              if (
-                binding?.type === 'ImportBinding' &&
-                binding.parent.source.value ===
-                  '@porcelain/contracts/reviews' &&
-                binding.node.imported?.name === 'ReviewToolkit'
-              ) {
-                const object = node.arguments[0];
-                if (object?.type !== 'ObjectExpression') {
-                  context.report({
-                    node,
-                    message:
-                      'Declare native toolkit handlers explicitly, because every tool must dispatch one shared use case.',
-                  });
-                  return;
-                }
-                for (const property of object.properties) {
-                  if (!isFunction(property.value))
-                    context.report({
-                      node: property,
-                      message:
-                        'Declare each MCP operation as a callback, because domain sequencing belongs to its shared use case.',
-                    });
-                  else handlers.push({ handler: property.value, executes: 0 });
-                }
-                return;
-              }
-            }
-            const path = memberPath(callee);
-            if (path?.[0] !== 'useCases') return;
-            const current = handlers.find((entry) =>
-              within(node, entry.handler),
-            );
-            if (!current) return;
-            if (path.at(-1) === 'execute') current.executes += 1;
-            else
-              context.report({
-                node,
-                message:
-                  'An MCP handler calls only execute on its use case, because domain sequencing belongs to the use case shared by every transport.',
-              });
-          },
-          'Program:exit'() {
-            for (const entry of handlers)
-              if (entry.executes !== 1)
-                context.report({
-                  node: entry.handler,
-                  message:
-                    'An MCP handler calls one use case once, because sequencing several operations belongs in one shared use case.',
-                });
-          },
-        };
-      },
-    },
+
     'no-schema-parse-in-typed-code': {
       create(context) {
         const path = normalizedFilename(context.filename);

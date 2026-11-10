@@ -20,15 +20,11 @@ declare module 'vitest' {
 export type RouteLog = {
   registered: Set<string>;
   requested: Set<string>;
-  registeredTools: Set<string>;
-  invokedTools: Set<string>;
 };
 
 export async function recordHandlers(server: ServerHandle, log: RouteLog) {
   for (const route of server.routes) log.registered.add(route);
   for (const route of await server.requestedRoutes()) log.requested.add(route);
-  for (const tool of server.tools) log.registeredTools.add(tool);
-  for (const tool of await server.invokedTools()) log.invokedTools.add(tool);
 }
 
 export async function writeRouteLog(folder: string, log: RouteLog) {
@@ -37,8 +33,6 @@ export async function writeRouteLog(folder: string, log: RouteLog) {
     JSON.stringify({
       registered: [...log.registered],
       requested: [...log.requested],
-      registeredTools: [...log.registeredTools],
-      invokedTools: [...log.invokedTools],
     }),
   );
 }
@@ -63,8 +57,6 @@ export const test = base
       const log: RouteLog = {
         registered: new Set(),
         requested: new Set(),
-        registeredTools: new Set(),
-        invokedTools: new Set(),
       };
       onCleanup(() => writeRouteLog(routeFolder, log));
       return log;

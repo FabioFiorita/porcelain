@@ -1,3 +1,4 @@
+import { seedReview } from '@porcelain/server/kit/seed-review';
 import { join } from 'node:path';
 import { Schema } from 'effect';
 import { expect } from 'vitest';
@@ -14,7 +15,6 @@ import {
   read,
   sampleReview,
   commitReviewFixture,
-  worktreePath,
 } from '@porcelain/server/kit/requests';
 import { connection } from '../kit/connection.ts';
 
@@ -37,16 +37,15 @@ for (const moved of [false, true])
         session.fixture.readme.changed,
       );
       await commitReviewFixture(session);
-      const published = await read(session, {
-        method: 'PUT',
-        path: worktreePath(session, '/review'),
-        body: sampleReview(
+      const published = await seedReview(
+        session,
+        sampleReview(
           session,
           0,
           '75dc6a36-a001-4d00-b511-c45430b99403',
           '75dc6a36-a001-4d00-b511-c45430b99404',
         ),
-      });
+      );
       const reviewId = text(published.reviewId);
       const {
         connected,

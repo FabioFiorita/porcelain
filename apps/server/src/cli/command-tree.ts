@@ -180,33 +180,6 @@ const trustCommand = (name: 'trust' | 'untrust', trusted: boolean) =>
         : 'Stop a paired device from updating Porcelain',
     ),
   );
-const mcp = Command.make(
-  'mcp',
-  {},
-  Effect.fn('Cli.mcpCommand')(function* () {
-    const operations = yield* CliOperations;
-    yield* operations.mcp({
-      dataDirectory: yield* dataDirectoryFor(yield* directory),
-    });
-  }),
-).pipe(
-  Command.withDescription('Serve MCP over the local owner socket for an agent'),
-);
-
-export const desktopMcpCommand = Command.make(
-  'porcelain-mcp',
-  {
-    dataDirectory: Flag.String('data-directory').pipe(
-      Flag.withSchema(absolutePathSchema),
-      Flag.withDescription('Server data directory of the running desktop app'),
-    ),
-  },
-  Effect.fn('Cli.desktopMcpCommand')(function* (input) {
-    const operations = yield* CliOperations;
-    yield* operations.mcp(input);
-  }),
-).pipe(Command.withDescription('Connect an agent to the running desktop app'));
-
 const shareHandler = Effect.fn('Cli.shareCommand')(function* (
   action: ShareAction,
 ) {
@@ -343,7 +316,6 @@ export const porcelainCommand = rootConfiguration.pipe(
     trustCommand('trust', true),
     trustCommand('untrust', false),
     share,
-    mcp,
     service,
     help,
   ]),

@@ -1,10 +1,10 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import {
   commitReviewFixture,
-  read,
   sampleReview,
   worktreePath,
 } from '../kit/requests.ts';
@@ -42,11 +42,10 @@ test('reading the review before anything is published answers null', async ({
 test('reading a published review adds the live code comparison and a freshly signed summary link', async ({
   session,
 }) => {
-  const publishedAnswer = await read(session, {
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(session, 0, randomUUID(), randomUUID()),
-  });
+  const publishedAnswer = await seedReview(
+    session,
+    sampleReview(session, 0, randomUUID(), randomUUID()),
+  );
 
   const response = await session.send({
     method: 'GET',

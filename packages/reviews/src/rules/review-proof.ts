@@ -1,10 +1,4 @@
-import type {
-  ProofDraft,
-  ProofFileKind,
-  ProofMediaType,
-  ProofTarget,
-} from '../models/review-proof.ts';
-import type { ReviewDiagram, LayerDraft } from '../models/review.ts';
+import type { ProofDraft, ProofMediaType } from '../models/review-proof.ts';
 
 const signatures: readonly {
   mediaType: ProofMediaType;
@@ -28,10 +22,6 @@ export function proofMediaType(head: Uint8Array): ProofMediaType | undefined {
   )?.mediaType;
 }
 
-export function proofFileKind(mediaType: ProofMediaType): ProofFileKind {
-  return mediaType.startsWith('image/') ? 'image' : 'video';
-}
-
 export function proofFilePaths(proof: ProofDraft | undefined): string[] {
   return [
     ...new Set(
@@ -40,30 +30,4 @@ export function proofFilePaths(proof: ProofDraft | undefined): string[] {
       ),
     ),
   ];
-}
-
-export function proofTargetsKnown(
-  proof: ProofDraft | undefined,
-  layers: readonly LayerDraft[],
-  diagram?: ReviewDiagram,
-): boolean {
-  const known = (target: ProofTarget) => {
-    if (
-      target.optionId !== undefined &&
-      !diagram?.after.boxes.some(
-        (box) =>
-          box.layerId === target.layerId &&
-          box.options?.some((option) => option.id === target.optionId),
-      )
-    )
-      return false;
-    if (target.layerId === undefined) return target.stepId === undefined;
-    const layer = layers.find((candidate) => candidate.id === target.layerId);
-    if (layer === undefined) return false;
-    return (
-      target.stepId === undefined ||
-      layer.steps.some((step) => step.id === target.stepId)
-    );
-  };
-  return [...(proof?.checks ?? []), ...(proof?.assets ?? [])].every(known);
 }

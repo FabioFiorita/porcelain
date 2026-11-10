@@ -27,9 +27,7 @@ import {
   waitForRemoteStatusFailure,
   failChangesRead,
   holdNextPost,
-  holdNextReviewRead,
   liveRouter,
-  reviewSeenRequests,
 } from './network.ts';
 
 export { expect };
@@ -231,7 +229,7 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
           .entries()
           .map((entry) => new URL(entry.url ?? '', location.href).pathname),
       ),
-    failReviewRead: () => failChangesRead(page.context()),
+    failChangesRead: () => failChangesRead(page.context()),
     failSharingRead: () => failSharingRead(page.context()),
     foreground: () =>
       page.evaluate(() => {
@@ -308,10 +306,8 @@ type TestFixtures = {
   };
   fetchGate: {
     holdNextChangeDiff: () => ReturnType<LiveFixture['holdNextChangeDiff']>;
-    holdNextReviewRead: () => ReturnType<typeof holdNextReviewRead>;
     holdNextPost: (ending: string) => ReturnType<typeof holdNextPost>;
   };
-  seenRequests: ReturnType<typeof reviewSeenRequests>;
   previewRequests: Awaited<ReturnType<typeof capturePreviewRequests>>;
   app: Awaited<ReturnType<typeof appOf>>;
   pairedPage: Page;
@@ -467,12 +463,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   fetchGate: async ({ context, live, repo }, use) => {
     await use({
       holdNextChangeDiff: () => live.holdNextChangeDiff(repo.readme.path),
-      holdNextReviewRead: () => holdNextReviewRead(context),
       holdNextPost: (ending) => holdNextPost(context, ending),
     });
-  },
-  seenRequests: async ({ context }, use) => {
-    await use(reviewSeenRequests(context));
   },
   previewRequests: async ({ context }, use) => {
     await use(await capturePreviewRequests(context));

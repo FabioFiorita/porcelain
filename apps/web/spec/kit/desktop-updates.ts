@@ -50,11 +50,6 @@ export async function updateFeed(
       },
     };
     window.porcelainDesktop = {
-      mcpConfiguration: async () => ({
-        command:
-          "claude mcp add porcelain -- '/tmp/Porcelain Dev' '--porcelain-mcp' '--data-directory' '/tmp/profile/server'",
-        dataDirectory: '/tmp/profile/server',
-      }),
       appUpdate: {
         enabled: () => enabled,
         current: () => '0.65.4',

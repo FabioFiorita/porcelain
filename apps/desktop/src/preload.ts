@@ -1,7 +1,6 @@
 import { Schema, Result } from 'effect';
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
-  desktopMcpConfigurationSchema,
   desktopActionSchema,
   desktopPowerStateSchema,
   desktopAppUpdateStateSchema,
@@ -37,12 +36,6 @@ ipcRenderer.on(
   },
 );
 const bridge: DesktopBridge = {
-  mcpConfiguration: async () => {
-    const value: unknown = await ipcRenderer.invoke(
-      'porcelain:mcp-configuration',
-    );
-    return Schema.decodeUnknownSync(desktopMcpConfigurationSchema)(value);
-  },
   pickProjectFolder: async () => {
     const value: unknown = await ipcRenderer.invoke(
       'porcelain:pick-project-folder',

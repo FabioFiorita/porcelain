@@ -4,14 +4,10 @@ import {
   Recorder,
   ServerHandle,
 } from '@porcelain/server/kit/isolated-server';
-import { pairingGrant, toolText } from '@porcelain/server/kit/requests';
-import type {
-  AgentAction,
-  ProofCheckStep,
-  Session,
-} from '@porcelain/server/kit/session';
+import { pairingGrant } from '@porcelain/server/kit/requests';
+import type { AgentAction, Session } from '@porcelain/server/kit/session';
 import { serverReaders } from '@porcelain/server/kit/typed-readers';
-import { stressVariants } from '@porcelain/server/kit/session';
+
 import { Usage } from './cli.ts';
 
 export const serverOptions = {
@@ -58,27 +54,6 @@ function readersOf(handle: ServerHandle, session: Session) {
   });
 }
 
-function pairs(values: readonly string[] | undefined, flag: string) {
-  return (values ?? []).map((value): [string, string] => {
-    const at = value.indexOf('=');
-    if (at < 1)
-      throw new Usage(`--${flag} takes "<name>=<value>", not ${value}.`);
-    return [value.slice(0, at), value.slice(at + 1)];
-  });
-}
-
-function checksOf(values: ServerValues): ProofCheckStep[] {
-  const outputs = new Map(pairs(values.output, 'output'));
-  return pairs(values.check, 'check').map(([name, result]) => {
-    if (result !== 'pass' && result !== 'fail')
-      throw new Usage(
-        `--check "${name}=${result}" needs pass or fail. Put checks not run in verdict.notProven.`,
-      );
-    const output = outputs.get(name);
-    return output === undefined ? { name, result } : { name, result, output };
-  });
-}
-
 function required(value: string | undefined, what: string): string {
   if (value === undefined || value === '') throw new Usage(`Name ${what}.`);
   return value;
@@ -107,33 +82,9 @@ async function actionOf(
   handle: ServerHandle,
   session: Session,
   rest: readonly string[],
-  values: ServerValues,
+  _values: ServerValues,
 ): Promise<AgentAction | undefined> {
   const [kind, first, second] = rest;
-  if (kind === 'publish-architecture') return { kind };
-  if (kind === 'seed') {
-    const variant = stressVariants.find((name) => name === first);
-    if (variant === undefined)
-      throw new Usage(`Name the seed: ${stressVariants.join(' or ')}.`);
-    return { kind, variant };
-  }
-  if (kind === 'publish-review')
-    return {
-      kind,
-      title: required(first, 'the review layer title'),
-      step: values.context === true ? 'context' : 'changed',
-      summaryHtml: values['summary-html'],
-    };
-  if (kind === 'publish-proof')
-    return {
-      kind,
-      title: required(first, 'the review layer title'),
-      checks: checksOf(values),
-      screenshot: required(
-        values.screenshot,
-        'the screenshot title with --screenshot',
-      ),
-    };
   if (kind === 'comment')
     return {
       kind,
@@ -161,15 +112,9 @@ export async function agentCommand(
   const { handle, session } = await attach(manifest, recorder);
   const action = await actionOf(handle, session, rest, values);
   if (action === undefined)
-    throw new Usage(
-      'Use agent publish-review, agent publish-architecture, agent publish-proof, agent seed, agent comment or agent reply.',
-    );
+    throw new Usage('Use agent comment or agent reply.');
   const result = await agentActs(session, action);
-  const answer =
-    action.kind === 'publish-architecture' || action.kind === 'seed'
-      ? JSON.stringify(result)
-      : toolText(result);
-  return `the agent's ${action.kind} reached the server, which answered:\n${answer}\n`;
+  return `the agent's ${action.kind} reached the server, which answered:\n${JSON.stringify(result)}\n`;
 }
 
 export async function serverRead(
@@ -195,16 +140,14 @@ export async function serverRead(
                 ? await readers.devices()
                 : what === 'pending-links'
                   ? await readers.pendingLinks()
-                  : what === 'push-requests'
-                    ? await handle.pushRequests()
-                    : what === 'receipt'
-                      ? await readers.receipt(
-                          required(argument, 'the Git action request id'),
-                        )
-                      : undefined;
+                  : what === 'receipt'
+                    ? await readers.receipt(
+                        required(argument, 'the Git action request id'),
+                      )
+                    : undefined;
   if (state === undefined)
     throw new Usage(
-      'Use server published-review | reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links, push-requests or receipt <requestId>.',
+      'Use server published-review | reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links or receipt <requestId>.',
     );
   return `${JSON.stringify(state, null, 2)}\n`;
 }

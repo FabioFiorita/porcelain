@@ -1,19 +1,11 @@
 import {
   ReviewWorkspace,
+  ReviewIndex,
   ReviewBoundary,
   firstDocumentTitleOwner,
-  usePublishedReview,
-  publishedReviewTitle,
   type FirstDocument,
   type ReviewWorkspaceProps,
 } from '@/features/workspace/index';
-import {
-  HandoffDocument,
-  ReviewFileDocument,
-  AgentNote,
-  WorkspaceReviewIndex,
-  useFirstTabCount,
-} from '@/features/reviews/index';
 import {
   WalkthroughDocument,
   WalkthroughIndex,
@@ -25,13 +17,7 @@ import { useAtomMount } from '@effect/atom-react';
 
 type Props = Omit<
   ReviewWorkspaceProps,
-  | 'handoff'
-  | 'reviewFile'
-  | 'agentNote'
-  | 'changesNavigation'
-  | 'firstTabCount'
-  | 'stepDocument'
-  | 'firstDocument'
+  'walkthrough' | 'changesNavigation' | 'stepDocument' | 'firstDocument'
 >;
 
 export function WorkspaceReview(props: Props) {
@@ -47,24 +33,12 @@ export function WorkspaceReview(props: Props) {
 
 function WorkspaceReviewContent(props: Props) {
   const scope = { projectId: props.projectId, worktreeId: props.worktree.id };
-  const { review } = usePublishedReview(scope, props.context);
   const worktreeFirstDocument = useWorktreeFirstDocument(
     scope,
     props.context,
     props.search.base,
   );
   const showsWalkthrough = worktreeFirstDocument.name === 'walkthrough';
-  const reviewTitle = showsWalkthrough
-    ? ('Walkthrough' as const)
-    : publishedReviewTitle(
-        worktreeFirstDocument.name === 'review' ? review : undefined,
-      );
-  const firstTabCount = useFirstTabCount({
-    scope,
-    context: props.context,
-    review: showsWalkthrough ? undefined : (review ?? undefined),
-    reviewTitle,
-  });
   const walkthroughTitle = useWalkthroughTabTitle(scope, props.context);
   useAtomMount(
     firstDocumentTitleOwner({
@@ -73,20 +47,17 @@ function WorkspaceReviewContent(props: Props) {
     }),
   );
   const firstDocument: FirstDocument = {
-    title: reviewTitle,
+    title: showsWalkthrough ? 'Walkthrough' : undefined,
     pending: worktreeFirstDocument.pending,
     guided: worktreeFirstDocument.guided,
   };
   return (
     <ReviewWorkspace
       {...props}
-      handoff={showsWalkthrough ? WalkthroughDocument : HandoffDocument}
-      reviewFile={ReviewFileDocument}
-      agentNote={AgentNote}
+      walkthrough={WalkthroughDocument}
       changesNavigation={
-        worktreeFirstDocument.guided ? WalkthroughIndex : WorkspaceReviewIndex
+        worktreeFirstDocument.guided ? WalkthroughIndex : ReviewIndex
       }
-      firstTabCount={firstTabCount}
       stepDocument={WalkthroughStepDocument}
       firstDocument={firstDocument}
     />

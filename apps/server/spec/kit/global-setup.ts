@@ -13,8 +13,6 @@ const integrationFolder = resolve(
 const routeLogSchema = Schema.Struct({
   registered: Schema.Array(Schema.String),
   requested: Schema.Array(Schema.String),
-  registeredTools: Schema.Array(Schema.String),
-  invokedTools: Schema.Array(Schema.String),
 });
 type CoverageProject = {
   readonly name: TestProject['name'];

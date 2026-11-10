@@ -1,4 +1,3 @@
-import type { ComponentProps } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
@@ -20,7 +19,7 @@ import {
 } from '@/features/changes/index';
 import { ImagePreview, useTextContents } from '@/features/files/index';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
-import type { AgentCodeNote } from '../rules/code-notes';
+
 import { omittedReasonText } from '../rules/omitted-reasons';
 import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -40,7 +39,6 @@ import { ThreadCard } from './thread-card';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
-  agentNote,
   scope,
   context,
   interaction,
@@ -52,12 +50,9 @@ export function ReviewCodeDocument({
   headerLeading,
   commentRequest,
   toolbar,
-  agentNotes,
   footer,
   column = false,
 }: {
-  agentNote?: ComponentProps<typeof CodeDocument>['agentNote'] | undefined;
-  agentNotes?: Readonly<Record<string, readonly AgentCodeNote[]>>;
   footer?: () => ReactNode;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -184,30 +179,6 @@ export function ReviewCodeDocument({
         : [];
     }),
   );
-  for (const [path, notes] of Object.entries(agentNotes ?? {})) {
-    const candidates = entries.filter((entry) => entry.path === path);
-    const target =
-      candidates.find(
-        (entry) =>
-          entry.comment?.comparison?.kind === 'worktree' &&
-          entry.comment.comparison.scope === 'unstaged',
-      ) ?? candidates[0];
-    if (!target) continue;
-    for (const note of notes) {
-      const atLine =
-        target.kind === 'file'
-          ? note.line <= target.contents.split('\n').length
-          : target.fileDiff.hunks.some(
-              (hunk) =>
-                note.line >= hunk.additionStart &&
-                note.line < hunk.additionStart + hunk.additionCount,
-            );
-      target.agentNotes = [
-        ...(target.agentNotes ?? []),
-        { ...note, line: atLine ? note.line : 0 },
-      ];
-    }
-  }
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const paneFile =
     interaction.toolbarTarget !== undefined &&
@@ -263,7 +234,6 @@ export function ReviewCodeDocument({
 
   return (
     <CodeDocument
-      agentNote={agentNote}
       emptyActions={
         omittedFile ? (
           <OmittedActions

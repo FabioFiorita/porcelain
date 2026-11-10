@@ -100,7 +100,7 @@ test('a server card exposes private connections and deterministic operations ret
   const evidence = await evidenceOf(instance.evidence);
 
   expect(instance.run.code).toBe(0);
-  expect(instance.run.stdout.trim().split('\n')).toHaveLength(9);
+  expect(instance.run.stdout.trim().split('\n')).toHaveLength(8);
   expect(Object.keys(connection).toSorted()).toStrictEqual(
     [
       'instanceId',
@@ -115,7 +115,6 @@ test('a server card exposes private connections and deterministic operations ret
       'serverDataDirectory',
       'credentialFiles',
       'pairing',
-      'mcp',
       'evidenceDirectory',
       'statusCommand',
       'logsCommand',
@@ -150,7 +149,7 @@ test('a server card exposes private connections and deterministic operations ret
   expect(connectionMode).toBe(0o600);
   expect(folderMode).toBe(0o700);
   expect(list(routes.owner)).toContain('POST /pairings');
-  expect(list(routes.owner)).toContain('POST /mcp');
+  expect(list(routes.owner)).not.toContain('POST /mcp');
   expect(Object.keys(routes).toSorted()).toStrictEqual(['network', 'owner']);
   expect(list(routes.network)).toContain('GET /api/health');
   expect(list(routes.network)).toContain('PATCH /api/projects/:projectId');
@@ -171,18 +170,14 @@ test('a server card exposes private connections and deterministic operations ret
   for (const name of ['statusCommand', 'logsCommand', 'stopCommand'])
     expect(text(connection[name])).toContain(instance.id);
   expect(text(record(connection.pairing).command)).toContain('pairing-link');
-  expect(text(record(connection.mcp).command)).toContain(
-    text(connection.serverDataDirectory),
-  );
   expect(ids.code).toBe(0);
   expect(JSON.parse(ids.stdout)).toStrictEqual(fixtures);
   expect(issued.code).toBe(0);
   expect(issued.stdout).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/pair#c=pcp_/);
   expect(code).not.toBe('');
-  expect(published.code).toBe(0);
-  expect(published.stdout).toContain('reached the server');
+  expect(published.code).toBe(2);
   expect(layers.code).toBe(0);
-  expect(layers.stdout).toContain('CLI review');
+  expect(JSON.parse(layers.stdout)).toEqual({});
   expect(status.code).toBe(0);
   expect(record(JSON.parse(status.stdout)).stale).toBe(null);
   expect(stopped.code).toBe(0);
@@ -195,12 +190,10 @@ test('a server card exposes private connections and deterministic operations ret
     '001-start.json',
     '002-ids.json',
     '003-pairing-link.json',
-    '004-agent.json',
-    '005-server.json',
-    '006-server-stop.json',
-    '007-stop.json',
+    '004-server.json',
+    '005-server-stop.json',
+    '006-stop.json',
   ]);
-  expect(evidence.text).toContain('CLI review');
   expect(evidence.text).not.toContain(code);
   for (const secret of instance.secrets) {
     expect(instance.run.stdout).not.toContain(secret);

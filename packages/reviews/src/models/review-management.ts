@@ -1,10 +1,5 @@
 import { Schema } from 'effect';
-import type {
-  Review,
-  ReviewRecord,
-  ReviewCommit,
-  ReviewVerdict,
-} from './review.ts';
+import type { Review, ReviewRecord } from './review.ts';
 import type { ReviewedFileMark, ReviewedLayerMark } from './reviewed-mark.ts';
 export type ReadReviewInput = {
   reviewId: string;
@@ -68,14 +63,3 @@ export type ReviewLinks =
 export type ReadReviewSelection =
   | ReadReviewInput
   | { worktreeId: string; revision?: number | undefined };
-
-export type ReviewPublicationInput = {
-  status:
-    | { kind: 'ready'; commit: ReviewCommit }
-    | { kind: 'unborn' | 'detached' | 'base-unavailable' };
-  dirtyPaths: readonly string[];
-  proofPaths: readonly string[];
-  verdict: ReviewVerdict;
-  origin: string | undefined;
-  pullRequest: string | undefined;
-};

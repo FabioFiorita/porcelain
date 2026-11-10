@@ -28,7 +28,6 @@ import { useSetEnvironmentIcon } from '../commands/share';
 import { ServiceUpdateSettings } from './service-update';
 import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
-import { AgentsSetting } from './agents-setting';
 import { PairedDevices } from './paired-devices';
 import { WaysIn, WaysInGate } from './ways-in';
 import { type Connection } from '@/shared/workspace/connection';
@@ -181,7 +180,6 @@ export function ComputerSettings({
         </ItemGroup>
         <WaysIn connection={connection} />
         <DevicesSettings connection={connection} />
-        <AgentsSetting />
         {!desktopShell && (
           <FieldSet>
             <FieldLegend variant="label">

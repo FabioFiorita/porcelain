@@ -1,21 +1,21 @@
 ---
 route: /
 selectors:
-  - "Walkthrough"
-  - "No walkthrough yet."
-  - "Write walkthrough"
-  - "Reading the change"
-  - "How the system grew"
-  - "See every changed file"
-  - "See the code"
-  - "See the change"
-  - "Update walkthrough"
-  - "Try again"
-  - "By step"
-  - "Your call"
-  - "Not in the walkthrough yet"
-  - "Previous step"
-  - "Next step"
+  - 'Walkthrough'
+  - 'No walkthrough yet.'
+  - 'Write walkthrough'
+  - 'Reading the change'
+  - 'How the system grew'
+  - 'See every changed file'
+  - 'See the code'
+  - 'See the change'
+  - 'Update walkthrough'
+  - 'Try again'
+  - 'By step'
+  - 'Your call'
+  - 'Not in the walkthrough yet'
+  - 'Previous step'
+  - 'Next step'
 tests:
   - apps/web/spec/integration/walkthroughs-page.test.tsx
   - apps/web/spec/integration/walkthrough-conversations.test.tsx
@@ -32,8 +32,8 @@ A worktree with commits to explain shows a Walkthrough as its first tab: a fresh
 
 ## How to get to it (user POV)
 
-- A worktree on a branch with commits and no published review opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
-- A worktree with no committed change keeps tab "Changes"; a worktree with only a published review keeps tab "Review".
+- A worktree on a branch with commits opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
+- A worktree with no committed change keeps tab "Changes".
 - Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); buttons "Previous step" and "Next step" in its header row move between steps.
 - Changes panel on a walkthrough worktree opens by default, on Branch: "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, steps without local edits are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 

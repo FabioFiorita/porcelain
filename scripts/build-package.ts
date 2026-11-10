@@ -245,9 +245,7 @@ it, \`porcelain pair "Phone" --address <the address serve printed>\` prints a
 link that works once; open it on the device itself. The address must be one
 this server answers at, and the not-paired screen in the browser shows the
 whole command with that device's own origin already filled in. \`porcelain devices\` lists what is paired and
-\`porcelain revoke <id>\` ends it. Coding agents connect over MCP with
-\`porcelain mcp\`, which needs no credential: it reaches a local socket only a
-process on this machine can open.
+\`porcelain revoke <id>\` ends it.
 
 ## Background service
 

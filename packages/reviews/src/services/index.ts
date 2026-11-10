@@ -9,7 +9,6 @@ export { ListCommentThreadsService } from './list-comment-threads-service.ts';
 export { ListReviewedFilesService } from './list-reviewed-files-service.ts';
 export { ListReviewedLayersService } from './list-reviewed-layers-service.ts';
 export { MarkCommentsSeenService } from './mark-comments-seen-service.ts';
-export { PublishReviewService } from './publish-review-service.ts';
 export { ReadPublishedReviewService } from './read-published-review-service.ts';
 export { ReadReviewBadgesService } from './read-review-badges-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
@@ -22,10 +21,6 @@ export { SetReviewedFilesService } from './set-reviewed-files-service.ts';
 export { SetReviewedLayerService } from './set-reviewed-layer-service.ts';
 export { UpdateCommentThreadService } from './update-comment-thread-service.ts';
 export { ReadProofFileService } from './read-proof-file-service.ts';
-export {
-  ValidateReviewDraftService,
-  type ReviewDraftFailure,
-} from './validate-review-draft-service.ts';
 
 export { ReadReviewRevisionService } from './read-review-revision-service.ts';
 export { ReadReviewService } from './read-review-service.ts';
@@ -38,8 +33,6 @@ export { SetReviewMarkService } from './set-review-mark-service.ts';
 export { ReadReviewFileService } from './read-review-file-service.ts';
 
 export { BuildReviewLinksService } from './build-review-links-service.ts';
-
-export { ValidateReviewPublicationService } from './validate-review-publication-service.ts';
 
 export { ReadReviewTextsService } from './read-review-texts-service.ts';
 export { SelectReviewComparisonService } from './select-review-comparison-service.ts';
@@ -62,4 +55,4 @@ export { SetReviewPullRequestService } from './set-review-pull-request-service.t
 
 export { ReadGitHubPullChecksService } from './read-github-pull-checks-service.ts';
 
-export { AgentFeedbackService } from './agent-feedback-service.ts';
+export { ReadReviewAgentFeedbackService } from './read-review-agent-feedback-service.ts';

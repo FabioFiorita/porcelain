@@ -1,8 +1,4 @@
-export {
-  reviewDiagramSchema,
-  type DiagramBox,
-  type Diagram,
-} from './review.ts';
+export { reviewDiagramSchema } from './review.ts';
 export type {
   AgentReply,
   CommentAnchor,
@@ -19,17 +15,8 @@ export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.t
 export type { ReadReviewEvidenceInput } from './read-review-evidence.ts';
 export type { ReplyToCommentInput } from './reply-to-comment.ts';
 export type { ReviewEvidence } from './review-evidence.ts';
-export type {
-  LayerDraft,
-  Review,
-  ReviewDraft,
-  ValidatedReviewDraft,
-  ReviewLayer,
-  ReviewStep,
-  StepDraft,
-} from './review.ts';
+export type { LayerDraft, Review, ReviewLayer, ReviewStep } from './review.ts';
 export type { WorktreeReviewedLayerMark } from './reviewed-mark.ts';
-export type { ProofFileReads } from './review-proof.ts';
 
 export { reviewLayerSchema } from './review.ts';
 export { reviewProofSchema, proofMediaTypeSchema } from './review-proof.ts';
@@ -46,7 +33,6 @@ export { unexplainedChangeSchema } from './review.ts';
 
 export type { ReviewLinkRoutes } from './review-management.ts';
 
-export type { ReviewPublicationInput } from './review-management.ts';
 export {
   reviewComparisonSchema,
   comparisonUnknownSchema,
@@ -73,6 +59,9 @@ export {
   reviewAgentSessionSchema,
   reviewAgentFeedbackDeliverySchema,
   reviewAgentFeedbackStateSchema,
-  type ReviewAgentFeedbackOperation,
   type ReviewAgentFeedbackState,
 } from './agent-feedback.ts';
+
+export type { ProofDraft } from './review-proof.ts';
+
+export type { ProofFile, ReviewProof } from './review-proof.ts';

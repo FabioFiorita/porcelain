@@ -21,7 +21,6 @@ import { Lanes } from '../../runtime/lanes.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { NotifyReviewActivityUseCasePort } from '../../ports/notify-review-activity-use-case-port.ts';
 
 export class ReplyToCommentUseCase extends Context.Service<
   ReplyToCommentUseCase,
@@ -50,7 +49,6 @@ export class ReplyToCommentUseCase extends Context.Service<
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
       const events = yield* EventPublisher;
-      const notify = yield* NotifyReviewActivityUseCasePort;
       const reply = Effect.fn('ReplyToCommentUseCase.reply')(function* (
         input: Parameters<
           Context.Service.Shape<typeof ReplyToCommentUseCase>['execute']
@@ -97,16 +95,6 @@ export class ReplyToCommentUseCase extends Context.Service<
       return {
         execute: Effect.fn('ReplyToCommentUseCase.execute')(function* (input) {
           const result = yield* reply(input);
-          if (
-            input.writer.kind === 'agent' &&
-            result.messages[0]?.author === 'reviewer'
-          )
-            yield* notify.execute({
-              kind: 'agent-reply',
-              reviewId: result.review?.reviewId ?? input.reviewId,
-              worktreeId: result.worktreeId,
-              reply: result.messages.at(-1)?.body ?? input.body,
-            });
           return result;
         }),
       };

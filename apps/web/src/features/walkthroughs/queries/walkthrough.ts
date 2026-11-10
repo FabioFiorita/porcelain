@@ -14,7 +14,6 @@ import {
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useBranchChanges } from '@/features/changes/index';
-import { usePublishedReview } from '@/features/workspace/index';
 
 function worktreeSelection(scope: ReviewScope, context: ConnectionContext) {
   return {
@@ -80,7 +79,6 @@ export function useWorktreeFirstDocument(
   base: string | undefined,
 ): WorktreeFirstDocument {
   const { result, read } = useWalkthrough(scope, context);
-  const { review } = usePublishedReview(scope, context);
   const branch = useBranchChanges(scope, context.connection, base).result;
   const committed = Option.getOrUndefined(AsyncResult.value(branch));
   const settled =
@@ -90,7 +88,7 @@ export function useWorktreeFirstDocument(
   return {
     name: firstDocument({
       read: read ?? { walkthrough: undefined, outOfDate: false },
-      publishedReview: Boolean(review),
+      publishedReview: false,
       branchHasCommits: (committed?.files.length ?? 0) > 0,
     }),
     pending: !settled,

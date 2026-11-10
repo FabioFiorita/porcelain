@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,13 +10,7 @@ import {
   readReviewInterdiffResponseSchema,
 } from '@porcelain/contracts/reviews';
 import { test } from '../kit/server-test.ts';
-import {
-  commitReviewFixture,
-  read,
-  sampleReview,
-  toolCall,
-  toolValue,
-} from '../kit/requests.ts';
+import { commitReviewFixture, read, sampleReview } from '../kit/requests.ts';
 import { record, text } from '../kit/session.ts';
 
 test('compares retained review blobs across a rebase, carries marks, reports conversation/proof and survives worktree removal', async ({
@@ -32,15 +27,6 @@ test('compares retained review blobs across a rebase, carries marks, reports con
     execFileSync('git', ['-C', path, ...args], { encoding: 'utf8' }).trim();
   const write = (name: string, value: string) =>
     writeFileSync(join(path, name), value);
-  const call = async (id: number, name: string, input: object) =>
-    record(
-      toolValue(
-        await read(
-          session,
-          toolCall(session, id, name, { cwd: path, ...input }),
-        ),
-      ),
-    );
   const layerId = randomUUID();
   const draft = {
     ...sampleReview(session, 0, layerId, randomUUID()),
@@ -56,10 +42,13 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   write('stable.ts', 'export const stable = true;\n');
   git('add', '-A');
   git('commit', '-qm', 'First review revision');
-  const first = await call(1, 'publish_review', {
-    ...draft,
-    proof: { checks: [{ name: 'focused tests', result: 'fail' }] },
-  });
+  const first = await seedReview(
+    { ...session, repository: path },
+    {
+      ...draft,
+      proof: { checks: [{ name: 'focused tests', result: 'fail' }] },
+    },
+  );
   const reviewId = text(first.reviewId);
   const url = `/api/reviews/${reviewId}`;
   const compare = async (query: Record<string, string> = {}) =>
@@ -114,13 +103,21 @@ test('compares retained review blobs across a rebase, carries marks, reports con
       fingerprint: text(record(layers[0]).fingerprint),
     },
   });
-  const created = await call(2, 'create_comment', {
-    reviewId,
-    anchor: { kind: 'change' },
-    body: 'Agent message after revision one.',
+  const created = await read(session, {
+    method: 'POST',
+    path: `${url}/comments`,
+    body: {
+      reviewRevision: 1,
+      anchor: { kind: 'change' },
+      body: 'Developer message after revision one.',
+    },
   });
   const threadId = text(created.id);
-  await call(3, 'resolve_comment', { reviewId, threadId, resolved: true });
+  await read(session, {
+    method: 'PUT',
+    path: `${url}/comments/${threadId}`,
+    body: { resolved: true },
+  });
   write('README.md', `${session.fixture.readme.changed}Second decision.\n`);
   git('rm', 'removed-later.ts');
   git('commit', '-am', 'Revise the decision and remove obsolete code');
@@ -135,27 +132,30 @@ test('compares retained review blobs across a rebase, carries marks, reports con
   expect(git('diff', '--name-only', text(first.headOid), 'HEAD')).toBe(
     'README.md\nremoved-later.ts\nunrelated-main.ts',
   );
-  const second = await call(4, 'publish_review', {
-    ...draft,
-    expectedRevision: 1,
-    layers: draft.layers.map((layer) => ({
-      ...layer,
-      summary: 'The revised decision',
-    })),
-    verdict: {
-      ...draft.verdict,
-      recommendation: 'hold',
-      removed: [
-        {
-          behavior: 'Obsolete fixture',
-          why: 'Verify deletion interdiff',
-          paths: ['removed-later.ts'],
-        },
-      ],
-      notProven: [{ what: 'Native apps', why: 'Server-only fixture' }],
+  const second = await seedReview(
+    { ...session, repository: path },
+    {
+      ...draft,
+      expectedRevision: 1,
+      layers: draft.layers.map((layer) => ({
+        ...layer,
+        summary: 'The revised decision',
+      })),
+      verdict: {
+        ...draft.verdict,
+        recommendation: 'hold',
+        removed: [
+          {
+            behavior: 'Obsolete fixture',
+            why: 'Verify deletion interdiff',
+            paths: ['removed-later.ts'],
+          },
+        ],
+        notProven: [{ what: 'Native apps', why: 'Server-only fixture' }],
+      },
+      proof: { checks: [{ name: 'focused tests', result: 'pass' }] },
     },
-    proof: { checks: [{ name: 'focused tests', result: 'pass' }] },
-  });
+  );
   expect(second).toMatchObject({ reviewId, revision: 2 });
   const answer = await compare();
   expect(answer).toMatchObject({
@@ -203,8 +203,8 @@ test('compares retained review blobs across a rebase, carries marks, reports con
         },
       },
       conversation: {
-        agentMessageCount: 1,
-        agentThreadIds: [threadId],
+        agentMessageCount: 0,
+        agentThreadIds: [],
         resolvedThreadCount: 1,
         resolvedThreadIds: [threadId],
       },

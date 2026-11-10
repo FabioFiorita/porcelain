@@ -1,3 +1,4 @@
+import { seedReview } from '@porcelain/server/kit/seed-review';
 import { liveSessionState } from '../../src/features/live/store.ts';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -7,13 +8,11 @@ import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews'
 import { NodeCrypto } from '@effect/platform-node';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { test } from '@porcelain/server/kit/server-test';
-import { record, text } from '@porcelain/server/kit/session';
+import { text } from '@porcelain/server/kit/session';
 import {
   read,
   sampleReview,
   commitReviewFixture,
-  toolCall,
-  toolValue,
 } from '@porcelain/server/kit/requests';
 import {
   readReview,
@@ -89,22 +88,23 @@ test.for([
     );
     const publications = [];
     for (const [index, cwd] of [session.repository, sibling, other].entries()) {
-      const publish = toolCall(
-        session,
-        index + 1,
-        'publish_review',
-        sampleReview(
-          session,
-          index === 0 ? (existing.review?.revision ?? 0) : 0,
-          '75dc6a36-a001-4d00-b511-c45430b99403',
-          '75dc6a36-a001-4d00-b511-c45430b99404',
-        ),
+      const published = await seedReview(
+        { ...session, repository: cwd },
+        {
+          ...sampleReview(
+            session,
+            index === 0 ? (existing.review?.revision ?? 0) : 0,
+            '75dc6a36-a001-4d00-b511-c45430b99403',
+            '75dc6a36-a001-4d00-b511-c45430b99404',
+          ),
+          ...(index === 0 && existing.review
+            ? { reviewId: existing.review.reviewId }
+            : {}),
+        },
       );
-      publish.headers = { ...publish.headers, 'x-porcelain-cwd': cwd };
-      const published = record(toolValue(await read(session, publish)));
       publications.push({
         reviewId: text(published.reviewId),
-        worktreeId: text(record(published.review).worktreeId),
+        worktreeId: published.worktreeId,
       });
     }
     const [a, b, c] = publications;

@@ -21,7 +21,7 @@ When the Spec files setting is on, specs and tests have a separate section in th
 
 ## How to get to it (user POV)
 
-- Settings → Reviews & Git → Spec files; review sidebar → Open all specs.
+- Settings → Changes & Git → Spec files; review sidebar → Open all specs.
 
 ## Driving it with browser
 
@@ -32,7 +32,7 @@ Create untracked `search.ts` and `search.spec.ts` in `REPO` before loading. Keep
 Open all specs opens a continuous document containing just those files, with individual and bulk reviewed controls. All changes still includes specs. The Settings switch "Spec files" enables this grouping and starts the section and its files collapsed. Off keeps specs in the ordinary file list and its original order. It does not remove them from progress or coverage.
 
 1. With the setting off, open Review → Changes. Expect README.md, search.spec.ts and search.ts in their original order, with no Specs section.
-2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings → Reviews & Git. On a fresh instance choose Use these settings for this computer first ([its settings](preferences.reviews-git.md)), then switch Spec files on and Back.
+2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings → Changes & Git. On a fresh instance choose Use these settings for this computer first ([its settings](preferences.reviews-git.md)), then switch Spec files on and Back.
 3. Open Review and expand Specs · 1 file. Open all specs shows "1 uncommitted spec change", its file diff and reviewed control. Open File review actions beside the count to mark all, or use the row checkbox. Mark it and verify `$C server reviewed-files` contains search.spec.ts only.
 4. Open Review again. Specs remains a visible counted section but its contents start collapsed. Expand its summary to see Open all specs and search.spec.ts. Expand the file in its document to read code.
 5. Reload: the collapse setting remains, and other devices on this computer group specs too. Turn it off through Settings and remove the two setup files when finished.

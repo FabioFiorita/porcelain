@@ -162,7 +162,7 @@ export function InlineComposer({
       {answer ? (
         <div className="flex items-center gap-2">
           <span className="text-xs leading-4 text-muted-foreground">
-            via MCP
+            Saved comment
           </span>
           {closable && (
             <Button

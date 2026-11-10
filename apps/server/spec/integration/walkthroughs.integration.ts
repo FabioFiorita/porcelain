@@ -221,11 +221,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       !route.includes('/walkthrough-settings'),
   );
   const requested = await server.requestedRoutes();
-  expect(() =>
-    handlerCoverage([
-      { registered, requested, registeredTools: [], invokedTools: [] },
-    ]),
-  ).not.toThrow();
+  expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });
 
 test('answers a walkthrough comment, keeps it after a refresh, copies a brief without a pull request and posts once with one', async ({
@@ -593,9 +589,5 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     route.includes('/conversations'),
   );
   const requested = await server.requestedRoutes();
-  expect(() =>
-    handlerCoverage([
-      { registered, requested, registeredTools: [], invokedTools: [] },
-    ]),
-  ).not.toThrow();
+  expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });

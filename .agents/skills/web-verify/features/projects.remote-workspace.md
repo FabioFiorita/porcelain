@@ -19,11 +19,8 @@ selectors:
   - 'Open file'
   - 'Source'
   - 'Briefing'
-  - 'Agent summary'
-  - 'Review summary'
-  - 'Review walkthrough'
 tests:
-  - apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts
+  - apps/web/spec/integration/access-remote-access.test.tsx
 api:
   - DELETE /api/worktrees/:worktreeId/reviewed
   - DELETE /api/worktrees/:worktreeId/reviewed-bulk
@@ -85,19 +82,10 @@ Required instance mode: `--desktop`.
 7. Disk on the remote: `printf '# Sample repository\n\nRewritten on the other computer while it is open.\n' > "$REMOTE_REPO/README.md"`, then wait for '/Rewritten on the other computer/'
    Look for (no reload): the code shows "Rewritten on the other computer while it is open."; `tail -1 "$REPO/README.md"` still prints `A change to review.`.
 
-### The remote's HTML review summary
-
-8. `$C agent publish-review "Remote review layer" --remote --summary-html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`
-   Expect: "the agent's publish-review reached the server".
-9. Click tab `Review`, then navigate to `$REMOTE_PAGE`
-   Expect: the handoff tab "Review" shows region "Review walkthrough" with tab "Walkthrough" selected. Click the "Agent summary" tab; the heading "Remote summary" appears inside frame "Review summary", and a screenshot shows the heading and the link "Open remote layer". Inspect HTTP traffic lists `GET /api/worktrees/<remote worktreeId>/review` 200 from the remote address.
-10. Click link named `Open remote layer` inside frame 'Review summary'
-    Expect: tab "Walkthrough" selected again and region "1. Remote review layer" visible; URL still `…?entry=handoff`; title "Changes — remote-sample · Remote journey computer".
-
 ### This computer is untouched
 
-11. Navigate to `/`
-    Expect: the local workspace with button "Mark README.md as reviewed" (this computer's README carries no mark).
+8. Navigate to `/`
+   Expect: the local workspace with button "Mark README.md as reviewed" (this computer's README carries no mark).
 
 ### Observable proof
 
@@ -108,4 +96,3 @@ Automated coverage: `projects-remote-workspace.desktop.e2e.ts`.
 ## Gotchas
 
 - Requires --desktop; remotes persist in browser storage. Use Main worktree plus project/computer identity to distinguish cards.
-- Use a fresh full review read for late summary frames. A repeated agent publish may refuse “The review changed; reload before retrying”; inspect before republishing.

@@ -1,6 +1,4 @@
-import type { ReviewStatus } from '@porcelain/client/reviews/rules';
 import type { ComponentType, ReactNode } from 'react';
-import { PullRequestBlock } from './pull-request-block';
 
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -14,7 +12,7 @@ import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments, usePrefetchComments } from '../queries/comments';
-import { usePublishedReview } from '../queries/published-review';
+
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
   anchorPath,
@@ -30,13 +28,12 @@ import {
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import type { ReadinessKey } from '@porcelain/client/reviews/rules';
+
 import {
   type ChangeList,
   type ReviewChangeItem,
   type ReviewScope,
 } from '@porcelain/client/reviews/rules';
-import { type ReviewResponse } from '@porcelain/client/reviews/rules';
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
@@ -75,34 +72,6 @@ type ScopeProps = {
 
 export type ReviewIndexProps = WorkspaceChangesProps & ScopeProps;
 
-type ReviewContentProps = {
-  reviewNavigation: ComponentType<{
-    review: ReviewResponse;
-    context: ConnectionContext;
-    onOpen: OpenDocument;
-    activeEntry: string | undefined;
-  }>;
-  branchReadiness: ComponentType<{
-    scope: ReviewScope;
-    context: ConnectionContext;
-    base: string | undefined;
-    review: ReviewResponse | null;
-    threads: readonly CommentThread[];
-    onSelect: (key: ReadinessKey, firstStale: string | undefined) => void;
-  }>;
-  changeReadiness: ComponentType<{
-    context: ConnectionContext;
-    files: readonly {
-      path: string;
-      reviewStatus: ReviewStatus;
-    }[];
-    review: ReviewResponse | null;
-    threads: readonly CommentThread[];
-    onSelect: (key: ReadinessKey, firstStale: string | undefined) => void;
-  }>;
-  onReviewReadiness: (key: 'checks' | 'unexplained') => void;
-};
-
 export type UncommittedFileGrouping = ComponentType<{
   base: string | undefined;
   scope: ReviewScope;
@@ -118,17 +87,7 @@ export type ChangeGrouping = {
   uncommitted: UncommittedFileGrouping;
 };
 
-type IndexContent =
-  | (ReviewContentProps & { grouping?: never })
-  | ({ grouping: ChangeGrouping } & {
-      [Key in keyof ReviewContentProps]?: never;
-    });
-
 export function ReviewIndex({
-  reviewNavigation: ReviewNavigation,
-  branchReadiness: BranchReadiness,
-  changeReadiness: ChangeReadiness,
-  onReviewReadiness,
   grouping,
   scope,
   context,
@@ -141,53 +100,20 @@ export function ReviewIndex({
   onBase,
   allChanges,
   actionsTarget,
-}: ReviewIndexProps & IndexContent) {
+}: ReviewIndexProps & { grouping?: ChangeGrouping }) {
   const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   const [composing, setComposing] = useState(false);
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
-  const published = usePublishedReview(scope, context);
-  const review = grouping ? null : (published.review ?? null);
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threadCounts(threads).open;
 
   const branch = changeScope === 'branch';
-  const selectReadiness = (
-    key: ReadinessKey,
-    firstStale: string | undefined,
-  ) => {
-    if (key === 'comments' || key === 'replies') {
-      setView('comments');
-      return;
-    }
-    setView('layers');
-    if (key === 'checks' || key === 'unexplained') {
-      onReviewReadiness?.(key);
-      onOpen({ kind: 'handoff' });
-    }
-    if (key === 'files') onOpen(branch ? BRANCH : allChanges);
-    if (key === 'stale' && firstStale !== undefined)
-      onOpen(
-        branch
-          ? { kind: 'branch-file', path: firstStale }
-          : { kind: 'change', path: firstStale },
-      );
-  };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {review?.reviewId && (
-        <PullRequestBlock
-          reviewId={review.reviewId}
-          context={context}
-          onOpenPullRequest={(number) =>
-            review.reviewId &&
-            onOpen({ kind: 'pull-request', reviewId: review.reviewId, number })
-          }
-        />
-      )}
       <WholeChangeComment
         target={view === 'layers' ? actionsTarget : null}
         branch={branch}
@@ -206,32 +132,13 @@ export function ReviewIndex({
         }}
         options={CHANGE_SCOPES}
       />
-      {BranchReadiness && branch && (
-        <BranchReadiness
-          scope={scope}
-          context={context}
-          base={base}
-          review={review}
-          threads={threads}
-          onSelect={selectReadiness}
-        />
-      )}
-      {ChangeReadiness && !branch && (
-        <ChangeReadiness
-          context={context}
-          files={changes}
-          review={review}
-          threads={threads}
-          onSelect={selectReadiness}
-        />
-      )}
       <ReviewViews
         view={view}
         onView={(next) => {
           setComposing(false);
           setView(next);
         }}
-        filesLabel={review && !branch ? 'Explore' : 'Changed files'}
+        filesLabel="Changed files"
         openComments={openComments}
       />
       {view === 'layers' && branch && (
@@ -249,14 +156,12 @@ export function ReviewIndex({
       )}
       {view === 'layers' && !branch && (
         <LayersView
-          reviewNavigation={ReviewNavigation}
           scope={scope}
           context={context}
           activeEntry={activeEntry}
           onOpen={onOpen}
           sideLabel={sideLabel}
           list={list}
-          review={review}
           changes={changes}
           threads={threads}
           grouping={grouping?.uncommitted}
@@ -311,14 +216,12 @@ export function ReviewIndex({
 }
 
 function LayersView({
-  reviewNavigation: ReviewNavigation,
   scope,
   context,
   activeEntry,
   onOpen,
   sideLabel,
   list,
-  review,
   changes,
   threads,
   grouping: Grouping,
@@ -328,9 +231,7 @@ function LayersView({
   base: string | undefined;
   allChanges: DocumentRef;
   grouping: UncommittedFileGrouping | undefined;
-  reviewNavigation: ReviewContentProps['reviewNavigation'] | undefined;
   list: ChangeList;
-  review: ReviewResponse | null | undefined;
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
 }) {
@@ -359,15 +260,6 @@ function LayersView({
           context={context}
           paths={paths}
           row={renderChange}
-          activeEntry={activeEntry}
-          onOpen={onOpen}
-        />
-      );
-    if (review && ReviewNavigation)
-      return (
-        <ReviewNavigation
-          context={context}
-          review={review}
           activeEntry={activeEntry}
           onOpen={onOpen}
         />
@@ -428,7 +320,7 @@ function LayersView({
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="px-2.5 pt-2 pb-3">
         {navigation()}
-        {!Grouping && !review && paths.length === 0 && (
+        {!Grouping && paths.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No changes</p>
         )}
         {!Grouping && mainPaths.length > 0 && (

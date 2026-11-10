@@ -1,8 +1,5 @@
-import {
-  closingPlacesFixture,
-  detachWorktreeFixture,
-  durableReviewFixture,
-} from './review-fixture.ts';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { paginatedTimelineFixture } from './history-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -144,19 +141,8 @@ export class World {
         throw new Error('The computer name fixture could not be saved');
       return '';
     }
-    if (step.kind === 'closing-places-fixture')
-      return closingPlacesFixture(repository);
     if (step.kind === 'paginated-timeline-fixture')
       return paginatedTimelineFixture(repository);
-    if (step.kind === 'review-fixture')
-      return durableReviewFixture(
-        repository,
-        step.operation,
-        step.title,
-        step.asked,
-        step.route,
-        step.branch,
-      );
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
       return '';
@@ -198,8 +184,15 @@ export class World {
         step.name,
         join(repository.projectHome, step.name),
       );
-    if (step.kind === 'detach-worktree')
-      return detachWorktreeFixture(repository, step.name);
+    if (step.kind === 'detach-worktree') {
+      await promisify(execFile)('git', [
+        '-C',
+        join(repository.projectHome, step.name),
+        'switch',
+        '--detach',
+      ]);
+      return repository.git('branch', '-D', step.name);
+    }
     return repository.git('switch', step.name);
   }
 

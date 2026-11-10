@@ -1,4 +1,3 @@
-import { reviewErrorMessage } from '../../reviews/rules/review.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
@@ -35,25 +34,6 @@ export const reviewCommands = Atom.family(
       return answer;
     });
     return {
-      sendAgentFeedback: runtime.fn(
-        Effect.fn('Reviews.sendAgentFeedback')(function* (
-          reviewRevision: number,
-        ) {
-          return yield* requestApi(input.connection, (api) =>
-            api.reviews.sendReviewAgentFeedback({
-              params,
-              payload: { reviewRevision },
-            }),
-          ).pipe(Effect.ensuring(invalidate));
-        }),
-      ),
-      disconnectAgentSession: runtime.fn(
-        Effect.fn('Reviews.disconnectAgentSession')(function* () {
-          return yield* requestApi(input.connection, (api) =>
-            api.reviews.disconnectReviewAgentSession({ params }),
-          ).pipe(Effect.ensuring(invalidate));
-        }),
-      ),
       setPullRequest: runtime.fn(
         Effect.fn('Reviews.setPullRequest')(function* (
           payload: SetReviewPullRequestRequest,
@@ -80,30 +60,8 @@ export const reviewCommands = Atom.family(
           payload: CreateCommentThreadRequest & { reviewRevision: number },
         ) {
           yield* createComment(payload);
-          const delivery = yield* Effect.gen(function* () {
-            const feedback = yield* requestApi(input.connection, (api) =>
-              api.reviews.readReviewAgentFeedback({ params }),
-            );
-            if (!feedback.session)
-              return 'No agent connected; request saved in comments.';
-            if (feedback.delivery?.state === 'pending')
-              return 'A feedback batch is pending; request saved in comments.';
-            yield* requestApi(input.connection, (api) =>
-              api.reviews.sendReviewAgentFeedback({
-                params,
-                payload: { reviewRevision: payload.reviewRevision },
-              }),
-            );
-            return 'Feedback queued for the agent.';
-          }).pipe(
-            Effect.match({
-              onSuccess: (status) => status,
-              onFailure: (error) =>
-                `Request saved. ${reviewErrorMessage(error)}`,
-            }),
-          );
           yield* invalidate;
-          return { delivery };
+          return { delivery: 'Request saved in comments.' };
         }),
       ),
       reply: runtime.fn(

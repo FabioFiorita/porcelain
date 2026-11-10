@@ -1,5 +1,3 @@
-import { durableReviewFixture } from '@porcelain/web/kit/review-fixture';
-import { ServerHandle } from '@porcelain/server/kit/isolated-server';
 import { pairingLink } from '@porcelain/contracts/access';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -44,12 +42,8 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
              [--board-directory <folder>]
                           compare mapped roles with approved HTML; write Markdown and JSON;
                           fail on style mismatches, missing roles or unavailable pages
-  agent publish-review "<title>" [--context] [--summary-html <html>]
-  agent publish-architecture | seed long-text|many-items
-  agent publish-revision "<title>" | advance-review-branch | remove-review-worktree
-  agent publish-proof "<title>" --check "<name>=pass|fail" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>" | reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | push-requests | receipt <requestId>
+  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
   remote start            start a second disposable computer
   remote pairing-link [--trusted]
                           mint a link for that computer; agent/server accept --remote
@@ -124,29 +118,6 @@ async function serverSide(
       .json(label, { command: args, output }, recorder);
     return registry.redactor(instance).known(output);
   };
-  if (
-    name === 'agent' &&
-    (rest[0] === 'publish-revision' ||
-      rest[0] === 'remove-review-worktree' ||
-      rest[0] === 'advance-review-branch')
-  ) {
-    const handle = await ServerHandle.attach(manifest());
-    recorder.secret(handle.credential);
-    recorder.secret(handle.desktopCredential);
-    const session = handle.session(recorder, { projectId: '', worktreeId: '' });
-    return record(
-      `agent-${rest[0]}`,
-      await durableReviewFixture(
-        session,
-        rest[0] === 'publish-revision'
-          ? 'publish'
-          : rest[0] === 'advance-review-branch'
-            ? 'advance'
-            : 'remove-worktree',
-        rest[1] ?? 'Retain code after the publishing checkout is removed',
-      ),
-    );
-  }
   if (name === 'agent')
     return record(
       `agent-${rest[0] ?? ''}`,

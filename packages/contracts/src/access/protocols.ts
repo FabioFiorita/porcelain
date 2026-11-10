@@ -5,7 +5,6 @@ import {
   liveUpdatesQuerySchema,
   liveUpgradeResponseSchema,
 } from './live-updates.ts';
-import { mcpAcceptedResponseSchema, mcpPayloadSchema } from './mcp-http.ts';
 
 export class LiveUpdatesApi extends porcelainApi.add(
   HttpApiGroup.make('live')
@@ -17,24 +16,6 @@ export class LiveUpdatesApi extends porcelainApi.add(
           HttpApiSchema.asNoContent({ decode: () => undefined }),
           HttpApiSchema.status('SwitchingProtocols'),
         ),
-      }),
-    )
-    .middleware(PairedRequest),
-) {}
-
-export class ReviewMcpApi extends porcelainApi.add(
-  HttpApiGroup.make('reviewMcp')
-    .add(
-      HttpApiEndpoint.post('reviewMcp', '/mcp', {
-        disableCodecs: true,
-        payload: mcpPayloadSchema,
-        success: [
-          mcpPayloadSchema,
-          mcpAcceptedResponseSchema.pipe(
-            HttpApiSchema.asNoContent({ decode: () => undefined }),
-            HttpApiSchema.status('Accepted'),
-          ),
-        ],
       }),
     )
     .middleware(PairedRequest),

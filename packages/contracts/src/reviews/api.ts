@@ -1,8 +1,5 @@
 import { AgentFeedbackConflictError } from '@porcelain/reviews/errors';
-import {
-  reviewAgentFeedbackResponseSchema,
-  sendReviewAgentFeedbackRequestSchema,
-} from './agent-feedback-api.ts';
+import { reviewAgentFeedbackResponseSchema } from './agent-feedback-api.ts';
 import {
   archiveReviewRequestSchema,
   archiveReviewResponseSchema,
@@ -52,20 +49,6 @@ import {
   UnsupportedCommentComparisonError,
   CommentTargetNotFoundError,
   CommentAuthorMismatchError,
-  DuplicateLayerIdError,
-  DuplicateStepIdError,
-  StepLaneOutOfRangeError,
-  InvalidDecisionBoxError,
-  UnknownBoxLayerError,
-  UnknownArrowBoxError,
-  InvalidReviewPointerError,
-  UnknownProofTargetError,
-  ReviewPublishRefusedError,
-  ReviewConflictError,
-  ProofTooLargeError,
-  UnknownProofFileError,
-  UnsupportedProofFileError,
-  ProofFileUnreadableError,
   ProofFileNotFoundError,
   ReviewedMarkConflictError,
   ReviewLayerNotFoundError,
@@ -109,8 +92,6 @@ import {
   readReviewFileQuerySchema,
   readReviewFileResponseSchema,
   deleteReviewResponseSchema,
-  publishReviewRequestSchema,
-  publishReviewResponseSchema,
   readPublishedReviewResponseSchema,
 } from './review.ts';
 import {
@@ -149,37 +130,7 @@ export class ReviewsApi extends porcelainApi.add(
           ],
         },
       ),
-      HttpApiEndpoint.post(
-        'sendReviewAgentFeedback',
-        '/api/reviews/:reviewId/agent-feedback',
-        {
-          disableCodecs: true,
-          params: reviewParamsSchema,
-          payload: sendReviewAgentFeedbackRequestSchema,
-          success: reviewAgentFeedbackResponseSchema,
-          error: [
-            httpFailure(ReviewNotFoundError, 'NotFound'),
-            httpFailure(AgentFeedbackConflictError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
-        },
-      ),
-      HttpApiEndpoint.delete(
-        'disconnectReviewAgentSession',
-        '/api/reviews/:reviewId/agent-session',
-        {
-          disableCodecs: true,
-          params: reviewParamsSchema,
-          success: reviewAgentFeedbackResponseSchema,
-          error: [
-            httpFailure(ReviewNotFoundError, 'NotFound'),
-            httpFailure(AgentFeedbackConflictError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
-        },
-      ),
+
       HttpApiEndpoint.post('archiveReview', '/api/reviews/:reviewId/archive', {
         disableCodecs: true,
         params: reviewParamsSchema,
@@ -706,56 +657,7 @@ export class ReviewsApi extends porcelainApi.add(
           ],
         },
       ),
-      HttpApiEndpoint.put(
-        'publishReview',
-        '/api/worktrees/:worktreeId/review',
-        {
-          disableCodecs: true,
-          params: worktreeParamsSchema,
-          payload: publishReviewRequestSchema,
-          success: publishReviewResponseSchema,
-          error: [
-            environmentUnavailable,
-            ...worktreeFailures,
-            ...gitReadFailures,
-            httpFailure(DuplicateLayerIdError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(DuplicateStepIdError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(InvalidLineRangeError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(StepLaneOutOfRangeError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(InvalidDecisionBoxError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(UnknownBoxLayerError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(UnknownArrowBoxError, 'BadRequest', {
-              message: 'Invalid request',
-            }),
-            httpFailure(UnknownProofTargetError, 'BadRequest'),
-            httpFailure(InvalidReviewPointerError, 'BadRequest', {
-              message: { fromError: true },
-            }),
-            httpFailure(ReviewConflictError, 'Conflict'),
-            httpFailure(ReviewPublishRefusedError, 'Conflict', {
-              message: { fromError: true },
-            }),
-            httpFailure(CommitNotFoundError, 'NotFound'),
-            httpFailure(ProofTooLargeError, 'PayloadTooLarge'),
-            httpFailure(UnknownProofFileError, 'BadRequest'),
-            httpFailure(UnsupportedProofFileError, 'UnprocessableEntity'),
-            httpFailure(ProofFileUnreadableError, 'UnprocessableEntity'),
-            httpFailure(IncompleteDiffReadError, 'UnprocessableEntity'),
-          ],
-        },
-      ),
+
       HttpApiEndpoint.get(
         'readProofFile',
         '/api/worktrees/:worktreeId/review/proof',

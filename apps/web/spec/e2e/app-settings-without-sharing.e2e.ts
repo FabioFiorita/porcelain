@@ -40,7 +40,7 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   });
   await expect(sections.getByRole('button')).toHaveText([
     'General',
-    'Reviews & Git',
+    'Changes & Git',
     'Computers',
   ]);
   await expect(

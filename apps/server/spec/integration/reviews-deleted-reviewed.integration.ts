@@ -1,13 +1,8 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { test } from '../kit/server-test.ts';
-import {
-  commitReviewFixture,
-  read,
-  sampleReview,
-  toolCall,
-  toolValue,
-} from '../kit/requests.ts';
+import { commitReviewFixture, read, sampleReview } from '../kit/requests.ts';
 import { list, record, text } from '../kit/session.ts';
 
 test('retains removal marks across republishing, rejects foreign fingerprints, and unmarks the exact blob', async ({
@@ -40,11 +35,7 @@ test('retains removal marks across republishing, rejects foreign fingerprints, a
       ],
     },
   };
-  const first = record(
-    toolValue(
-      await read(session, toolCall(session, 1, 'publish_review', draft)),
-    ),
-  );
+  const first = await seedReview(session, draft);
   const reviewId = text(first.reviewId);
   const url = `/api/reviews/${reviewId}`;
   const revision = record(
@@ -86,10 +77,7 @@ test('retains removal marks across republishing, rejects foreign fingerprints, a
   });
   await session.writeFile('retired.ts', 'export const retired = false;\n');
   await commitReviewFixture(session);
-  await read(
-    session,
-    toolCall(session, 2, 'publish_review', { ...draft, expectedRevision: 1 }),
-  );
+  await seedReview(session, { ...draft, expectedRevision: 1 });
   expect(
     await read(session, { method: 'PUT', path: `${url}/marks`, body: mark }),
   ).toEqual({ updated: true });

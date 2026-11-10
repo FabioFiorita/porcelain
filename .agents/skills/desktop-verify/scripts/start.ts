@@ -258,9 +258,6 @@ export async function startDesktop(input: {
           server.address,
         ]),
       },
-      mcp: {
-        command: `cd ${shellCommand([repositoryPath])} && ${shellCommand([...serverCommand, 'mcp'])}`,
-      },
       evidenceDirectory: input.evidenceDirectory,
       statusCommand: command('status'),
       logsCommand: command('logs'),

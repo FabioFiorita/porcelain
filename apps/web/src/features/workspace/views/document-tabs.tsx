@@ -41,7 +41,11 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry, type ReviewTitle } from '../rules/documents';
-import { openToSideText, type TabCount } from '../rules/tab-strip';
+import {
+  changesTabCount,
+  openToSideText,
+  type TabCount,
+} from '../rules/tab-strip';
 import { basename } from '@porcelain/client/reviews/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -103,13 +107,11 @@ function describeTab(
         hint: `${ref.path} · changes`,
       };
     case 'file':
-    case 'review-file':
-    case 'review-change':
       return {
         Icon: FileCodeIcon,
         title: basename(ref.path),
         accessibleName: ref.path,
-        hint: `${ref.path} · file`,
+        hint: ref.path,
       };
     case 'commit':
       return {
@@ -165,6 +167,7 @@ type TabActions = {
 };
 
 export function DocumentTabs({
+  changeCount,
   tabs,
   pinned,
   active,
@@ -173,10 +176,10 @@ export function DocumentTabs({
   focused,
   leading,
   trailing,
-  firstTabCount,
   commitContext,
   ...actions
 }: TabActions & {
+  changeCount: number;
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
@@ -185,7 +188,6 @@ export function DocumentTabs({
   focused: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
-  firstTabCount: TabCount | undefined;
   commitContext?: { connection: Connection; scope: HistoryScope };
 }) {
   return (
@@ -212,8 +214,8 @@ export function DocumentTabs({
         {tabs.includes('handoff') && (
           <span className="flex shrink-0">
             <DocumentTab
+              count={reviewTitle ? undefined : changesTabCount(changeCount)}
               tabKey="handoff"
-              count={firstTabCount}
               active={active === 'handoff'}
               pinned={false}
               hasUnpinned={tabs.some(

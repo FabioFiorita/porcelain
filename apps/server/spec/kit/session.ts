@@ -95,6 +95,7 @@ export const stressVariants = ['long-text', 'many-items'] as const;
 export type StressVariant = (typeof stressVariants)[number];
 
 export type Session = {
+  dataDirectory: string;
   fixture: Fixture;
   address: string;
   repository: string;

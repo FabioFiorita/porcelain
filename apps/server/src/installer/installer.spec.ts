@@ -219,7 +219,6 @@ const execute = (
                       requestTimeoutMs: 100,
                       probeTimeoutMs: 100,
                       quickProbeTimeoutMs: 100,
-                      mcpTimeoutMs: 100,
                       socketPathBytes: 100,
                     },
                   },

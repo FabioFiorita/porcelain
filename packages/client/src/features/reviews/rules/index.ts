@@ -25,19 +25,7 @@ export {
   type FileCommentAnchor,
   type RevealComment,
 } from './comments.ts';
-export {
-  checkResultLabel,
-  linkHost,
-  orderedChecks,
-  proofStatus,
-  proofFileBytes,
-  proofOnLayer,
-  publishedLabel,
-  type ProofAsset,
-  type ProofCheck,
-  type ProofFile,
-  type ReviewProof,
-} from './proof.ts';
+export { publishedLabel } from './proof.ts';
 export {
   basename,
   mergeBranchChanges,
@@ -45,10 +33,6 @@ export {
   notExplainedLabel,
   orderReviewChanges,
   reviewErrorMessage,
-  reviewSummaryUrl,
-  summaryLinkExpiring,
-  summaryLayerNumber,
-  summaryLayerLinks,
   type BranchChangeItem,
   type Change,
   type ChangeList,
@@ -56,8 +40,6 @@ export {
   type ReviewChangeItem,
   type ReviewLayer,
   type ReviewResponse,
-  type DurableReviewRead,
-  type ReviewMarks,
   type ReviewScope,
   type ReviewStatus,
   type ReviewStep,
@@ -77,16 +59,9 @@ export {
   type ReviewToggleTarget,
   type ReviewableItem,
 } from './reviewed.ts';
-export {
-  readinessItems,
-  type ReadinessItem,
-  type ReadinessKey,
-  type ReadinessTone,
-} from './readiness.ts';
 export { counted, plural } from './counted.ts';
 export { groupSpecPaths, isSpecPath } from './spec-paths.ts';
 export {
-  briefingTitle,
   currentStop,
   decisionKey,
   decisionLinks,
@@ -95,14 +70,11 @@ export {
   reviewStepLines,
   filesReviewed,
   neighbourStop,
-  stepMarker,
   stopDone,
   stopName,
   stopTitle,
   systemChanges,
   walkthroughStops,
-  type DecisionState,
-  type StepMarker,
   type SystemPart,
   type WalkthroughKey,
   type WalkthroughStop,
@@ -114,11 +86,7 @@ export {
 
 export { verdictSections, type ReviewRevision } from './verdict.ts';
 
-export {
-  revisionReviewItems,
-  revisionDecisionStates,
-  revisionDecisionProgress,
-} from './revision.ts';
+export { revisionReviewItems, revisionDecisionStates } from './revision.ts';
 
 export {
   parseReviewAppLink,
@@ -127,17 +95,8 @@ export {
   reviewDesktopUrl,
   type ReviewAppLink,
 } from './app-link.ts';
+export { reviewPullRequestNotice } from './review-list.ts';
 export {
-  reviewArchivable,
-  reviewClosed,
-  reviewListStatus,
-  reviewListTitle,
-  reviewPullRequestNotice,
-  pullRequestBlockHidden,
-  pullRequestLink,
-} from './review-list.ts';
-export {
-  foundPullRequests,
   githubUnavailable,
   pullCheckTone,
   pullCheckDuration,
@@ -147,11 +106,9 @@ export {
   pullRequestMergeable,
   pullRequestNumber,
   pullRequestRepository,
-  pullRequestRollup,
   pullRequestState,
   pullRequestStateLabel,
   pullReviewState,
-  type FoundPullRequest,
   type PullRequestRead,
   type PullChecksTone,
   type PullRequestState,
@@ -161,5 +118,3 @@ export {
   optionRequest,
   guardRequest,
 } from './review-requests.ts';
-
-export { readingSteps } from './walkthrough.ts';

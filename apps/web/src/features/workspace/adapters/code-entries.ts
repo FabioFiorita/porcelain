@@ -2,7 +2,6 @@ import type { FileContents, FileDiffMetadata } from '@pierre/diffs';
 import type { ReactNode } from 'react';
 import { contentVersion } from '@/shared/lib/pierre';
 import type { CommentTarget } from '@porcelain/client/reviews/rules';
-import type { AgentCodeNote } from '../rules/code-notes';
 
 type CodeReview = {
   path: string;
@@ -12,7 +11,7 @@ type CodeReview = {
   fingerprint?: string | null;
 };
 
-export type CodeEntry = { agentNotes?: readonly AgentCodeNote[] } & (
+export type CodeEntry =
   | {
       id: string;
       kind: 'diff';
@@ -32,8 +31,7 @@ export type CodeEntry = { agentNotes?: readonly AgentCodeNote[] } & (
       note?: string;
       comment?: CommentTarget;
       review?: CodeReview;
-    }
-);
+    };
 
 export function fileEntry(
   id: string,

@@ -1,3 +1,4 @@
+import { seedReview } from '../kit/seed-review.ts';
 import { commitReviewFixture } from '../kit/requests.ts';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
@@ -7,7 +8,7 @@ import { record, type Session } from '../kit/session.ts';
 
 const layerId = randomUUID();
 const stepId = randomUUID();
-const checks = [{ name: 'pnpm test', result: 'pass' }];
+const checks = [{ name: 'pnpm test', result: 'pass' as const }];
 const shot = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
 ]);
@@ -19,14 +20,12 @@ const proofOf = (body: unknown) => record(record(record(body).review).proof);
 
 test('proof published with a review is current', async ({ session }) => {
   await commitReviewFixture(session);
-  const response = await session.send({
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: {
-      ...sampleReview(session, 0, layerId, stepId),
-      proof: { checks },
-    },
-  });
+  const response = await seedReview(session, {
+    ...sampleReview(session, 0, layerId, stepId),
+    proof: { checks },
+  }).then(() =>
+    session.send({ method: 'GET', path: worktreePath(session, '/review') }),
+  );
 
   expect(response.status).toBe(200);
   expect(proofOf(response.body)).toStrictEqual({
@@ -59,15 +58,11 @@ test('deleting a published screenshot from the worktree keeps the proof current'
 }) => {
   await commitReviewFixture(session);
   await session.writeFile('current-shot.png', shot);
-  await session.read({
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: {
-      ...sampleReview(session, 1, layerId, stepId),
-      proof: {
-        checks,
-        assets: [{ kind: 'image', title: 'Shot', path: 'current-shot.png' }],
-      },
+  await seedReview(session, {
+    ...sampleReview(session, 1, layerId, stepId),
+    proof: {
+      checks,
+      assets: [{ kind: 'image', title: 'Shot', path: 'current-shot.png' }],
     },
   });
   await session.remove('current-shot.png');

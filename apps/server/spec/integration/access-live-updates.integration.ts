@@ -12,13 +12,7 @@ import {
   receiptOf,
   watching,
 } from '../kit/reads.ts';
-import {
-  commitReviewFixture,
-  gitPath,
-  read,
-  sampleReview,
-  worktreePath,
-} from '../kit/requests.ts';
+import { gitPath, read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { liveNotices } from '../kit/live-notices.ts';
 import {
@@ -298,29 +292,6 @@ test('a Git action is announced to a watching viewer with its receipt and its Gi
     },
   });
   expect(changed).toStrictEqual(worktreeNotice(session, 'git'));
-});
-
-test("publishing a review tells a watching viewer the worktree's review changed", async ({
-  session,
-}) => {
-  const connection = await watching(session);
-
-  await session.writeFile(
-    session.fixture.readme.path,
-    session.fixture.readme.changed,
-  );
-  await commitReviewFixture(session);
-  const response = await session.send({
-    method: 'PUT',
-    path: worktreePath(session, '/review'),
-    body: sampleReview(session, 0, randomUUID(), randomUUID()),
-  });
-
-  expect(response.status).toBe(200);
-  expect(record(record(response.body).review).revision).toBe(1);
-  expect(await connection.next(isWorktree('review'))).toStrictEqual(
-    worktreeNotice(session, 'review'),
-  );
 });
 
 test("marking a file reviewed tells a watching viewer the worktree's reviewed marks changed", async ({

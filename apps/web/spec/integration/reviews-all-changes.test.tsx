@@ -1,65 +1,6 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('all changes includes every changed file, including unexplained, deleted and spec files', async ({
-  workspace,
-  agent,
-  server,
-  repo,
-}) => {
-  await agent.publishArchitecture();
-  await repo.remove('packages/workspace/src/actor.ts');
-  const spec = 'tests/publish-note.spec.ts';
-  await repo.write(spec, `${await repo.read(spec)}\n// Follow-up spec edit.\n`);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  const drawer = workspace.getByRole('dialog', {
-    name: 'Worktree review',
-    exact: true,
-  });
-  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
-  await drawer
-    .getByRole('button', { name: 'All changes', exact: true })
-    .click();
-  await expect
-    .element(
-      workspace.getByRole('heading', {
-        name: '5 uncommitted changes',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await workspace
-    .getByRole('button', { name: /^File review actions:/ })
-    .click();
-  await workspace
-    .getByRole('button', { name: 'Mark all 5 files reviewed', exact: true })
-    .click();
-  const marks = async () =>
-    (await server.reviewedFiles()).marks.map((mark) => mark.path).sort();
-  const unmarkAll = workspace.getByRole('button', {
-    name: 'Unmark all',
-    exact: true,
-  });
-  await expect.element(unmarkAll).toBeEnabled();
-  await expect(marks()).resolves.toEqual([
-    'packages/workspace/src/actor.ts',
-    'packages/workspace/src/policy.ts',
-    'packages/workspace/src/revoke-access.ts',
-    'scripts/migrate-workspaces.ts',
-    'tests/publish-note.spec.ts',
-  ]);
-  await unmarkAll.click();
-  await expect
-    .element(
-      workspace.getByRole('button', {
-        name: 'Mark all 5 files reviewed',
-        exact: true,
-      }),
-    )
-    .toBeEnabled();
-  await expect(marks()).resolves.toEqual([]);
-});
-
 for (const surface of ['Files', 'History'] as const) {
   test(`a clean worktree keeps Changes open and reaches ${surface} from its notice`, async ({
     repo,
@@ -123,64 +64,6 @@ for (const surface of ['Files', 'History'] as const) {
       .toBeVisible();
   });
 }
-
-test('Changes explains how to get a review until the agent publishes one', async ({
-  workspace,
-  agent,
-}) => {
-  await expect
-    .element(workspace.getByText('main · repository', { exact: true }))
-    .toBeVisible();
-  const intro = workspace.getByRole('heading', {
-    name: 'No review yet',
-    exact: true,
-  });
-  await expect.element(intro).toBeVisible();
-  await expect
-    .element(workspace.getByText('publish_review', { exact: true }))
-    .toBeVisible();
-  const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
-  await expect.element(tab).toHaveTextContent('Changes1');
-  await expect.element(tab).toHaveAccessibleDescription('1 uncommitted file');
-  await expect
-    .element(
-      workspace.getByRole('heading', {
-        name: '1 uncommitted change',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await agent.publishArchitecture();
-  await expect.element(intro).not.toBeInTheDocument();
-});
-
-test('publishing a review keeps keyboard focus on the permanent first tab', async ({
-  workspace,
-  agent,
-  reviewLayout,
-}) => {
-  const firstTab = workspace
-    .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByRole('tab')
-    .first();
-  const changes = workspace.getByRole('tab', { name: 'Changes', exact: true });
-  await changes.click();
-  await expect.element(changes).toHaveFocus();
-  const continuity = reviewLayout.continuity(firstTab);
-  try {
-    await agent.publishArchitecture();
-    const review = workspace
-      .getByRole('tablist', { name: 'Open documents', exact: true })
-      .getByRole('tab', { name: 'Review', exact: true });
-    await expect
-      .element(review)
-      .toHaveAccessibleDescription('2 of 9 decisions reviewed');
-    await expect.element(review).toHaveFocus();
-    await expect.poll(() => continuity.read().remounted).toBe(false);
-  } finally {
-    continuity.stop();
-  }
-});
 
 test('Changes lists its files above the diff, marks them reviewed and switches to the branch from the bar at desktop width', async ({
   workspace,
@@ -310,47 +193,6 @@ test('Changes keeps file shortcuts without redundant header arrows', async ({
   await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
 });
 
-test('Changes preserves filenames and discloses shortened directories on hover and focus', async ({
-  repo,
-  render,
-  agent,
-  reviewLayout,
-}) => {
-  await agent.publishArchitecture();
-  const path = 'packages/workspace/src/recognizable-configuration.ts';
-  await repo.write(path, 'export const visible = true;\n');
-  const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  const drawer = workspace.getByRole('dialog', {
-    name: 'Worktree review',
-    exact: true,
-  });
-  await drawer.getByRole('tab', { name: 'Review', exact: true }).click();
-  await drawer
-    .getByRole('button', { name: 'All changes', exact: true })
-    .click();
-  const table = workspace.getByRole('region', { name: /uncommitted changes/ });
-  const row = table.getByRole('button', { name: `${path} +1 −0`, exact: true });
-  await expect.element(row).toBeVisible();
-  await expect
-    .poll(() =>
-      reviewLayout.filenameVisible(row, 'recognizable-configuration.ts'),
-    )
-    .toBe(true);
-  await row.hover();
-  await expect
-    .element(workspace.getByRole('tooltip', { name: path, exact: true }))
-    .toBeVisible();
-  await userEvent.keyboard('{Escape}');
-  await row.click();
-  await userEvent.tab();
-  await userEvent.tab({ shift: true });
-  await expect.element(row).toHaveFocus();
-  await expect
-    .element(workspace.getByRole('tooltip', { name: path, exact: true }))
-    .toBeVisible();
-});
-
 test('Changes reopens a collapsed file from its table', async ({
   workspace,
   repo,
@@ -434,21 +276,4 @@ test('Changes file rows reach non-text content without line counts', async ({
   } finally {
     held.release();
   }
-});
-
-test('a retained changed file shows additions before deletions', async ({
-  render,
-  repo,
-}) => {
-  const review = await repo.review('Readme counts');
-  const app = await render.route('/');
-  const entry = `review-change:${review.reviewId}:1:review-page.ts`;
-  await app.navigate(
-    `${app.location().split('?')[0]}?entry=${encodeURIComponent(entry)}`,
-  );
-  await expect
-    .element(
-      app.page.getByLabelText('2 additions, 0 deletions', { exact: true }),
-    )
-    .toHaveTextContent('+2 −0');
 });

@@ -34,7 +34,7 @@ test('touch opens the sidebar without holding a tooltip', async ({
     await expect(tooltip).not.toBeVisible();
     await expect(
       page.getByRole('searchbox', {
-        name: 'Search reviews and worktrees',
+        name: 'Search worktrees',
         exact: true,
       }),
     ).toBeFocused();
@@ -123,7 +123,7 @@ for (const width of [1280, 414]) {
     await expect(footer).toBeFocused();
 
     const search = page.getByRole('searchbox', {
-      name: 'Search reviews and worktrees',
+      name: 'Search worktrees',
       exact: true,
     });
     await search.fill('typing');
@@ -163,7 +163,7 @@ for (const width of [1280, 414]) {
       ).toBeVisible();
       await expect(
         page.getByRole('searchbox', {
-          name: 'Search reviews and worktrees',
+          name: 'Search worktrees',
           exact: true,
         }),
       ).toBeFocused();

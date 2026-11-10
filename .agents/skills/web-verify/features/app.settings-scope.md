@@ -5,7 +5,7 @@ selectors:
   - 'Settings'
   - 'Settings sections'
   - 'General'
-  - 'Reviews & Git'
+  - 'Changes & Git'
   - 'Computers'
   - 'Documents open as'
   - 'Pair a device'
@@ -23,11 +23,11 @@ api:
 
 # app.settings-scope
 
-Desktop and browser show the same three sections in this order: General, Reviews & Git, Computers. General is the default. No About or search section exists. The muted sidebar footer shows the app version and Esc to close.
+Desktop and browser show the same three sections in this order: General, Changes & Git, Computers. General is the default. No About or search section exists. The muted sidebar footer shows the app version and Esc to close.
 
 ## How to get to it (user POV)
 
-- Workspace sidebar → Settings; choose General, Reviews & Git or Computers.
+- Workspace sidebar → Settings; choose General, Changes & Git or Computers.
 
 ## Driving it with browser
 
@@ -35,7 +35,7 @@ Preconditions: [surface baseline](README.md).
 
 Start a desktop verification instance, pair the browser, open the workspace sidebar and click Settings. The URL is `/settings/general`; the page replaces the workspace. Click Computers, then Open This computer: <name>: `/settings/computers/this-computer` shows its status line (Online, This computer and, on a web connection, the served address), its name with Rename, the app or service updater, and Ways in. Local network, Tailscale and Cloudflare tunnel stay in that detail, rather than separate settings destinations. Do not change route switches during this navigation check.
 
-This computer also shows Pair a device and Devices for a host-authorized browser, then Agents with the Claude Code / Codex switch and copyable Porcelain MCP command. A failed desktop configuration read offers Retry MCP configuration. Old `/settings/devices` and `/settings/integrations` links redirect here. Click Reviews & Git: Spec files, pull strategy and archive toggles appear, saved on the computer for every device connected to it ([details](preferences.reviews-git.md)). There is no Commit model setting: the commit dialog picker remembers its last choice after reload. General has one Documents open as choice for Markdown and HTML. A legacy Source choice for either format migrates to Source; a later Rendered selection persists and removes both old keys.
+This computer also shows Pair a device and Devices for a host-authorized browser. Old `/settings/devices` and `/settings/integrations` links redirect here. Click Changes & Git: Spec files, pull strategy and archive toggles appear, saved on the computer for every device connected to it ([details](preferences.reviews-git.md)). There is no Commit model setting: the commit dialog picker remembers its last choice after reload. General has one Documents open as choice for Markdown and HTML. A legacy Source choice for either format migrates to Source; a later Rendered selection persists and removes both old keys.
 
 Automated coverage: `app-settings-scope.desktop.e2e.ts`.
 

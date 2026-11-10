@@ -5,10 +5,6 @@ import {
 } from '@porcelain/client/access/rules';
 import { counted } from '@porcelain/client/reviews/rules';
 
-export function agentMcpCommand(command: string, agent: 'claude' | 'codex') {
-  return command.replace(/^claude mcp add /, `${agent} mcp add `);
-}
-
 export function devicePlatformName(platform: string) {
   if (!platform.startsWith('Mozilla/')) return platform || 'Unknown platform';
   const browser = /Edg(?:e|A|iOS)?\//.test(platform)
@@ -57,21 +53,4 @@ export function computerSummary(remote: RemoteAccess, devices: number) {
     ways.length === 0 ? 'No way in on' : waysInList.format(ways),
     counted(devices, 'device'),
   ].join(' · ');
-}
-
-export type CommandPart = {
-  text: string;
-  kind: 'program' | 'quoted' | 'plain';
-};
-
-export function commandParts(command: string): CommandPart[] {
-  const [program = '', ...rest] = command.split(/(?<=^\S+)(?=\s)/);
-  const parts: CommandPart[] = [{ text: program, kind: 'program' }];
-  for (const piece of rest.join('').split(/('[^']*')/))
-    if (piece !== '')
-      parts.push({
-        text: piece,
-        kind: piece.startsWith("'") ? 'quoted' : 'plain',
-      });
-  return parts;
 }

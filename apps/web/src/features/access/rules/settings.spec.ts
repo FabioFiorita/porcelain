@@ -2,33 +2,7 @@ import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
 import { Schema } from 'effect';
 import { expect, it } from 'vitest';
 import type { RemoteAccess } from '@porcelain/client/access/rules';
-import {
-  agentMcpCommand,
-  commandParts,
-  computerSummary,
-  deviceKind,
-  devicePlatformName,
-} from './settings';
-
-it.each([
-  ['claude', 'claude mcp add porcelain -- porcelain mcp'],
-  ['codex', 'codex mcp add porcelain -- porcelain mcp'],
-] as const)('builds the %s MCP command', (agent, expected) => {
-  expect(
-    agentMcpCommand('claude mcp add porcelain -- porcelain mcp', agent),
-  ).toBe(expected);
-});
-
-it('keeps the desktop executable, data directory and shell quoting for Codex', () => {
-  expect(
-    agentMcpCommand(
-      "claude mcp add porcelain -- '/Applications/Porcelain Dev' '--porcelain-mcp' '--data-directory' '/tmp/profile/server'",
-      'codex',
-    ),
-  ).toBe(
-    "codex mcp add porcelain -- '/Applications/Porcelain Dev' '--porcelain-mcp' '--data-directory' '/tmp/profile/server'",
-  );
-});
+import { computerSummary, deviceKind, devicePlatformName } from './settings';
 
 it.each([
   ['', 'Unknown platform'],
@@ -124,21 +98,3 @@ it.each([
     expect(computerSummary(access(routes), devices)).toBe(expected);
   },
 );
-
-it('marks the program and each quoted argument of an MCP command', () => {
-  expect(
-    commandParts(
-      "claude mcp add porcelain -- '/Applications/Porcelain.app' --data-directory '/Users/me/Porcelain/server'",
-    ),
-  ).toEqual([
-    { text: 'claude', kind: 'program' },
-    { text: ' mcp add porcelain -- ', kind: 'plain' },
-    { text: "'/Applications/Porcelain.app'", kind: 'quoted' },
-    { text: ' --data-directory ', kind: 'plain' },
-    { text: "'/Users/me/Porcelain/server'", kind: 'quoted' },
-  ]);
-  expect(commandParts('codex mcp add porcelain -- porcelain mcp')).toEqual([
-    { text: 'codex', kind: 'program' },
-    { text: ' mcp add porcelain -- porcelain mcp', kind: 'plain' },
-  ]);
-});

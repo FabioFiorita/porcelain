@@ -1,4 +1,3 @@
-import { useLocalConnection } from '@/features/access';
 import { useAtom } from '@effect/atom-react';
 import { useNavigate } from '@tanstack/react-router';
 import { reviewCommands } from '@porcelain/client/reviews';
@@ -15,26 +14,13 @@ export function useArchiveReview(
     { mode: 'promise' },
   );
   const navigate = useNavigate();
-  const local = useLocalConnection();
-  const environment =
-    connection.environmentId === local?.environmentId
-      ? undefined
-      : connection.environmentId;
   return {
     result,
     submit: async (payload: ArchiveReviewRequest) => {
       if (payload.confirmation && beforeLeave) beforeLeave();
       let answer;
       try {
-        if (payload.confirmation)
-          await navigate({
-            to: '/reviews/$reviewId',
-            params: { reviewId },
-            search: {
-              environment,
-              decision: undefined,
-            },
-          });
+        if (payload.confirmation) await navigate({ to: '/' });
         answer = await run(payload);
       } catch {
         return undefined;

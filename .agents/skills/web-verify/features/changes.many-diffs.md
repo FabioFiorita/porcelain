@@ -1,10 +1,10 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "All changes"
-  - "The changes in this document could not be read."
-  - "Loading changes…"
+  - 'Review'
+  - 'All changes'
+  - 'The changes in this document could not be read.'
+  - 'Loading changes…'
 tests:
   - apps/web/spec/integration/changes-many-diffs.test.tsx
 api:
@@ -18,7 +18,7 @@ All changes shows the diffs of more tracked changes than one diff request may ca
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → button "All changes" (the first row of the Changes list; once an agent has published a review it moves under tab "Review" → nav "Walkthrough" as "All changes · N files"), in a worktree with more than 200 tracked, modified files.
+- Workspace → button "Review" → button "All changes" in a worktree with more than 200 tracked, modified files.
 
 ## Driving it with browser
 

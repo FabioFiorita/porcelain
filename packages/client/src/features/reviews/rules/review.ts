@@ -235,6 +235,5 @@ export function summaryLayerLinks(page: string): number[] {
   return [...new Set(numbers)].filter((number) => number > 0);
 }
 
-export type DurableReviewRead = ReadReviewResponse;
 export type ReviewRecord = NonNullable<ReadReviewResponse['review']>;
 export type ReviewMarks = ReviewMarksResponse;

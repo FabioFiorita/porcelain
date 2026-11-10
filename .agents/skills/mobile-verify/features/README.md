@@ -76,5 +76,3 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [history.timeline-diff](history.timeline-diff.md) — parent-specific timeline diff and Back.
 
 For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify tablets in landscape and portrait, with fresh geometry and refs; restore the original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
-
-- [Review agent feedback](reviews.agent-feedback.md)

@@ -1,3 +1,4 @@
+import { seedReview } from '@porcelain/server/kit/seed-review';
 import { Schema } from 'effect';
 import { readReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { execFileSync } from 'node:child_process';
@@ -10,11 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ServerHandle, Recorder } from '@porcelain/server/kit/isolated-server';
-import {
-  sampleReview,
-  toolCall,
-  toolValue,
-} from '@porcelain/server/kit/requests';
+import { sampleReview } from '@porcelain/server/kit/requests';
 import { record, text } from '@porcelain/server/kit/session';
 
 export async function archiveFixture(
@@ -140,9 +137,6 @@ export async function archiveFixture(
     startLine: 1,
     endLine: 1,
   };
-  const request = toolCall(session, 1, 'publish_review', body);
-  request.headers = { ...request.headers, 'x-porcelain-cwd': tree };
-  const result = await session.read(request);
   await session.read({
     method: 'PATCH',
     path: '/api/review-git-settings',
@@ -157,7 +151,7 @@ export async function archiveFixture(
       },
     },
   });
-  const reviewId = text(record(toolValue(result.body)).reviewId);
+  const { reviewId } = await seedReview({ ...session, repository: tree }, body);
   return {
     readReview: async () =>
       Schema.decodeUnknownSync(readReviewResponseSchema)(

@@ -1,7 +1,5 @@
 export {
   deleteCommentMessageResponseSchema,
-  deleteResolvedCommentsResponseSchema,
-  editCommentMessageResponseSchema,
   createCommentThreadResponseSchema,
   listCommentThreadsResponseSchema,
   markCommentsSeenResponseSchema,
@@ -27,10 +25,8 @@ export {
 } from './comments.ts';
 export {
   type DeleteReviewResponse,
-  publishReviewResponseSchema,
   reviewAppLinkProtocolSchema,
   readPublishedReviewResponseSchema,
-  type PublishReviewRequest,
   type ReadPublishedReviewResponse,
 } from './review.ts';
 export {
@@ -42,7 +38,6 @@ export {
   type ReadReviewSummaryQuery,
   type ReadReviewSummaryResponse,
 } from './review-summary.ts';
-export { type PublishReviewToolResponse } from './review-tools.ts';
 export {
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,
@@ -65,7 +60,6 @@ export {
 } from './reviewed-files.ts';
 export { ReviewsApi } from './api.ts';
 export { ReviewSummaryApi } from './summary-api.ts';
-export { ReviewToolkit } from './review-toolkit.ts';
 
 export {
   listProjectReviewsResponseSchema,
@@ -85,8 +79,6 @@ export {
 
 export type { ReviewScope } from './review.ts';
 export {
-  compareReviewResponseSchema,
-  readReviewInterdiffResponseSchema,
   type CompareReviewResponse,
   type ReadReviewInterdiffResponse,
 } from './review-comparison.ts';
@@ -128,7 +120,9 @@ export { ReviewPullRequestRefusedError } from '@porcelain/reviews/errors';
 
 export { type ReadPullChecksResponse } from './pull-requests.ts';
 
-export type {
-  ReviewAgentFeedbackResponse,
-  ReviewAgentFeedbackOperation,
-} from './agent-feedback-api.ts';
+export type { ReviewAgentFeedbackResponse } from './agent-feedback-api.ts';
+
+export {
+  compareReviewResponseSchema,
+  readReviewInterdiffResponseSchema,
+} from './review-comparison.ts';

@@ -2,7 +2,6 @@ import { Atom } from 'effect/reactivity';
 import { Context, Effect, Layer, Option, Queue, Stream } from 'effect';
 import { ConnectionError } from '@porcelain/client/transport';
 import type {
-  DesktopMcpConfiguration,
   DesktopAction,
   DesktopAppearance,
   DesktopBridge,
@@ -64,10 +63,6 @@ export class DesktopHost extends Context.Service<
     readonly pickProject: (
       address: string,
     ) => Effect.Effect<string | null, ConnectionError>;
-    readonly mcpConfiguration: Effect.Effect<
-      DesktopMcpConfiguration,
-      ConnectionError
-    >;
     readonly checkUpdate: Effect.Effect<
       Option.Option<{ readonly current: string }>,
       ConnectionError
@@ -109,22 +104,6 @@ export class DesktopHost extends Context.Service<
             }),
         });
       }),
-      mcpConfiguration: Effect.suspend(() =>
-        bridge
-          ? Effect.tryPromise({
-              try: () => bridge.mcpConfiguration(),
-              catch: (cause) =>
-                new ConnectionError({
-                  message: 'Could not read the local app MCP configuration.',
-                  cause,
-                }),
-            })
-          : Effect.fail(
-              new ConnectionError({
-                message: 'The desktop bridge is unavailable.',
-              }),
-            ),
-      ),
       checkUpdate: Effect.gen(function* () {
         if (!bridge) return Option.none();
         yield* Effect.tryPromise({
@@ -172,12 +151,6 @@ export class DesktopHost extends Context.Service<
         : Stream.succeed<DesktopAppUpdateState>({ status: 'idle' }),
     };
   });
-}
-
-export function desktopAppAddress(): string | undefined {
-  return desktopShell && window.porcelainDesktop
-    ? `${window.location.protocol}//${window.location.host}`
-    : undefined;
 }
 
 export function desktopCredentials() {

@@ -3494,15 +3494,7 @@ export function filesRoutes() {
 }`,
     errors: 1,
   },
-  {
-    rule: 'mcp-tool-handler',
-    path: 'apps/server/src/http/mcp/review-server.ts',
-    valid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
-export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.execute(input) }); }`,
-    invalid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
-export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.run(input) }); }`,
-    errors: 2,
-  },
+
   {
     rule: 'models-are-types',
     path: 'packages/projects/src/models/probe/probe-model.ts',
@@ -5529,7 +5521,7 @@ const featureMapCases = [
             'route: /',
           ).replace(
             'api: [GET /api/session]',
-            'api: [GET /api/health, GET /api/session, GET /api/worktrees/:worktreeId/changes, GET /api/worktrees/:worktreeId/text, GET /api/worktrees/:worktreeId/git/status, PATCH /api/projects/:projectId, PUT /api/worktrees/:worktreeId/review]',
+            'api: [GET /api/health, GET /api/session, GET /api/worktrees/:worktreeId/changes, GET /api/worktrees/:worktreeId/text, GET /api/worktrees/:worktreeId/git/status, PATCH /api/projects/:projectId, POST /api/worktrees/:worktreeId/walkthrough]',
           ),
           'apps/web/src/client.ts':
             'const endpoint = client[dynamicName]; export { endpoint };',
@@ -6429,35 +6421,10 @@ export const guardrailCases = [
   {
     rule: 'server-handler-coverage',
     completeLogs: [
-      {
-        registered: ['owner POST /mcp'],
-        requested: ['owner POST /mcp'],
-        registeredTools: ['read_review', 'delete_review'],
-        invokedTools: ['read_review'],
-      },
-      {
-        registered: ['owner POST /mcp'],
-        requested: ['owner POST /mcp'],
-        registeredTools: ['read_review', 'delete_review'],
-        invokedTools: ['delete_review'],
-      },
+      { registered: ['GET /api/inventory'], requested: ['GET /api/inventory'] },
     ],
-    missingToolLogs: [
-      {
-        registered: ['owner POST /mcp'],
-        requested: ['owner POST /mcp'],
-        registeredTools: ['read_review', 'delete_review'],
-        invokedTools: ['read_review'],
-      },
-      {
-        registered: ['owner POST /mcp'],
-        requested: ['owner POST /mcp'],
-        registeredTools: ['read_review', 'delete_review'],
-        invokedTools: [],
-      },
-    ],
-    error:
-      'Route coverage: no integration test reached MCP tool delete_review;',
+    missingToolLogs: [{ registered: ['GET /api/inventory'], requested: [] }],
+    error: 'Route coverage: no integration test reached GET /api/inventory;',
   },
   {
     rule: 'mobile-react-compiler',
@@ -6652,14 +6619,6 @@ const save = Effect.fail(new Error('Refused'));`,
     invalid:
       "import { Effect, type Context } from 'effect';\nimport { CommitPlanner } from '__COMMIT_PLANNING__';\nconst limits = { maxGroups: 20, maxPaths: 2000, maxMessageLength: 16384, maxPathLength: 4096 };\nconst planner = Effect.runSync(CommitPlanner.pipe(Effect.provide(CommitPlanner.layer(limits))));\ndeclare const subject: Context.Service.Shape<typeof CommitPlanner>;\nconst plan = subject.plan({ mode: 'message', model: 'claude:sonnet', paths: [123], evidence: 'diff' });",
     errors: ['TS2379', 'TS377004', 'TS2322'],
-  },
-  {
-    rule: 'review-draft-types',
-    valid:
-      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, verdict: { asked: { text: 'Brief' }, recommendation: 'merge', reasons: ['Verified'], notProven: [], removed: [] }, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', commit: { projectId: 'project', commonDirectory: '/repo/.git', worktreePath: '/repo', worktreeName: 'repo', branch: 'feature', headOid: 'head', base: 'refs/heads/main', baseOid: 'base', mergeBaseOid: 'base', files: [] }, draft, evidence: { changes: [], texts: new Map(), missing: new Set(), diffs: [] } })));",
-    invalid:
-      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, verdict: { asked: { text: 'Brief' }, recommendation: 'merge', reasons: ['Verified'], notProven: [], removed: [] }, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = publish.execute({ worktreeId: 'tree', commit: { projectId: 'project', commonDirectory: '/repo/.git', worktreePath: '/repo', worktreeName: 'repo', branch: 'feature', headOid: 'head', base: 'refs/heads/main', baseOid: 'base', mergeBaseOid: 'base', files: [] }, draft: input, evidence: { changes: [], texts: new Map(), missing: new Set(), diffs: [] } });",
-    errors: ['TS2322'],
   },
   {
     rule: 'worktree-transaction-types',
