@@ -22,7 +22,7 @@ api: []
 
 # access.settings
 
-Settings is a modal opened from the gear button labelled Settings on the left of the Reviews and Worktrees headers; Close Settings returns to the tab underneath. It offers General, Reviews & Git, Notifications and Computers, with the app version, and a Development section in development builds. Computers is the only place a computer is named. Each saved computer opens [its page](access.computer.md).
+Settings is a modal opened from the gear button labelled Settings on the left of the Reviews and Worktrees headers; Close Settings returns to the tab underneath. It offers General, Reviews & Git, Notifications and Computers, with the app version, and a Development section in development builds. Everything under the native bar uses Porcelain's web look: outlined groups with no fill on the page background, hairlines between rows, plain line icons and web-style section headings, in light and dark. Computers is the only place a computer is named. Each saved computer opens [its page](access.computer.md).
 
 ## How to get to it (user POV)
 

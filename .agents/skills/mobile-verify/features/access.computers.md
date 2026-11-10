@@ -27,7 +27,7 @@ api:
 
 # access.computers
 
-Computers manages saved connections and shows status, trust and update offers, with shared progress retained across navigation.
+Computers manages saved connections and shows status, trust and update offers, with shared progress retained across navigation. The page opens with Manage your paired computers., then outlined groups with hairlines between rows.
 
 ## How to get to it (user POV)
 

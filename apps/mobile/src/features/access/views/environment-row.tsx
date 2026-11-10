@@ -87,7 +87,7 @@ export function EnvironmentRow({
         ) : null}
       </Item>
       <ComputerUpdate environmentId={remote.environmentId} />
-      <Separator inset="leading" />
+      <Separator />
       <Item
         title="This computer"
         leading={<Icon name="laptop" tone="muted" />}
@@ -96,7 +96,7 @@ export function EnvironmentRow({
         onPress={onOpenComputer}
         disabled={disabled || Boolean(missing)}
       />
-      <Separator inset="leading" />
+      <Separator />
       <Item
         title={managing ? 'Hide connections' : 'Manage connections'}
         leading={<Icon name="sliders" tone="muted" />}

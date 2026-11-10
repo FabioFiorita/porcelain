@@ -1,11 +1,9 @@
-import { Fragment } from 'react';
 import { Stack } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { Box } from '../../../components/ui/box';
-import { Card } from '../../../components/ui/card';
+import { Card, CardRows } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import { useReadEnvironments } from '../commands/pairing';
@@ -42,10 +40,10 @@ function EnvironmentSettingsSection({
         />
       </Stack.Toolbar>
       <Box gap={3}>
-        <ComputerUpdatesSummary />
         <Text variant="caption" tone="muted">
-          Manage the computers connected to Porcelain.
+          Manage your paired computers.
         </Text>
+        <ComputerUpdatesSummary />
         {storage.status === 'loading' ? (
           <Loading label="Reading saved computers…" />
         ) : null}
@@ -84,21 +82,19 @@ function EnvironmentSettingsSection({
             </Card>
           ))}
         {remotes.length > 0 ? (
-          <Card className="overflow-hidden">
-            {remotes.map((remote, index) => (
-              <Fragment key={remote.environmentId}>
-                {index > 0 ? <Separator /> : null}
-                <EnvironmentRow
-                  remote={remote}
-                  missing={missing.find(
-                    (entry) => entry.environmentId === remote.environmentId,
-                  )}
-                  disabled={storage.status !== 'ready'}
-                  onOpenComputer={() => onOpenComputer(remote.environmentId)}
-                />
-              </Fragment>
+          <CardRows>
+            {remotes.map((remote) => (
+              <EnvironmentRow
+                key={remote.environmentId}
+                remote={remote}
+                missing={missing.find(
+                  (entry) => entry.environmentId === remote.environmentId,
+                )}
+                disabled={storage.status !== 'ready'}
+                onOpenComputer={() => onOpenComputer(remote.environmentId)}
+              />
             ))}
-          </Card>
+          </CardRows>
         ) : null}
       </Box>
     </>
@@ -112,12 +108,7 @@ export function EnvironmentsSettings(props: EnvironmentsSettingsProps) {
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Box
-        className="w-full max-w-2xl self-center"
-        gap={6}
-        paddingX={6}
-        paddingY={8}
-      >
+      <Box className="w-full max-w-2xl self-center" gap={6} padding={4}>
         <EnvironmentSettingsSection {...props} />
       </Box>
     </ScrollView>
