@@ -1,3 +1,4 @@
+import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
 import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
@@ -29,6 +30,13 @@ function makeProjectCommands(connection: RuntimeConnection) {
               : [...inventory.projects, project],
           }),
         ),
+      saveDefaultWriter: (writer: SaveDefaultWalkthroughWriterRequest) =>
+        inventory.confirm(
+          client.request((api) =>
+            api.walkthroughs.saveDefaultWalkthroughWriter({ payload: writer }),
+          ),
+          (inventory) => inventory,
+        ),
       saveWalkthroughSettings: (
         input: { projectId: string } & WalkthroughSettings,
       ) =>
@@ -36,7 +44,7 @@ function makeProjectCommands(connection: RuntimeConnection) {
           client.request((api) =>
             api.projects.saveWalkthroughSettings({
               params: { projectId: input.projectId },
-              payload: { mode: input.mode, provider: input.provider },
+              payload: { mode: input.mode, writer: input.writer },
             }),
           ),
           (inventory, walkthroughSettings) => ({
@@ -152,5 +160,13 @@ export const saveWalkthroughSettings = Atom.family(
           commands.saveWalkthroughSettings(input),
         ),
       { concurrent: true },
+    ),
+);
+
+export const saveDefaultWalkthroughWriter = Atom.family(
+  (connection: RuntimeConnection) =>
+    projectCommandRuntime(connection).fn(
+      (writer: SaveDefaultWalkthroughWriterRequest) =>
+        ProjectCommands.use((commands) => commands.saveDefaultWriter(writer)),
     ),
 );

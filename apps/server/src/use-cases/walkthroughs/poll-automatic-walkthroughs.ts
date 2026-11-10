@@ -22,7 +22,6 @@ export class PollAutomaticWalkthroughsUseCase extends Context.Service<
             for (const project of report.value.projects) {
               const settings = project.walkthroughSettings ?? {
                 mode: 'manual',
-                provider: 'claude',
               };
               if (!project.available || settings.mode !== 'automatic') continue;
               const result = yield* pulls
@@ -40,15 +39,9 @@ export class PollAutomaticWalkthroughsUseCase extends Context.Service<
                 yield* start
                   .execute({
                     worktreeId: worktree.id,
+                    targetBranch: pull.baseBranch,
                     automaticKey: pull.url.toLowerCase(),
                     pullRequestNumber: pull.number,
-                    writer: {
-                      provider: settings.provider,
-                      model:
-                        settings.provider === 'claude'
-                          ? 'claude-opus-5-5'
-                          : 'gpt-5.4',
-                    },
                   })
                   .pipe(Effect.ignore);
               }

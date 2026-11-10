@@ -2,7 +2,10 @@ import {
   SaveWalkthroughSettingsService,
   ReadProjectWalkthroughsService,
 } from '@porcelain/walkthroughs/services';
-import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughStore,
+  WalkthroughInventoryReader,
+} from '@porcelain/walkthroughs/ports';
 import { SaveWalkthroughSettingsUseCase } from '../use-cases/projects/save-walkthrough-settings.ts';
 import { DeleteWorktreeService } from '@porcelain/git-actions/services';
 import { gitWorktreeCleanerLayer } from '../adapters/projects/git-worktree-cleaner.ts';
@@ -113,6 +116,7 @@ export function composeProjects(
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
+    Layer.succeed(WalkthroughInventoryReader, stores.walkthroughInventory),
     gitWorktreeCleanerLayer(settings.limits.git),
     gitWorktreeListingReaderLayer({
       git: settings.limits.git,

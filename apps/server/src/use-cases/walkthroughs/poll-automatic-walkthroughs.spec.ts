@@ -39,6 +39,7 @@ it('makes no GitHub read by default, catches up open PRs, skips closed and merge
     state,
     draft: false,
     headBranch: 'topic',
+    baseBranch: 'release/fixture',
     updatedAt: '2026-11-09T00:00:00.000Z',
     checksTruncated: false,
   }));
@@ -75,6 +76,7 @@ it('makes no GitHub read by default, catches up open PRs, skips closed and merge
               writer: input.writer ?? {
                 provider: 'claude',
                 model: 'claude-opus-5-5',
+                effort: 'high',
               },
               headOid: 'head',
               baseOid: 'base',
@@ -95,7 +97,10 @@ it('makes no GitHub read by default, catches up open PRs, skips closed and merge
   const project = inventory.projects[0];
   if (!project) throw new Error('Missing fixture project');
   Object.assign(project, {
-    walkthroughSettings: { mode: 'automatic', provider: 'claude' },
+    walkthroughSettings: {
+      mode: 'automatic',
+      writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
+    },
   });
   await Effect.runPromise(poll);
   expect(queued).toEqual(['https://github.com/fixture/project/pull/1']);

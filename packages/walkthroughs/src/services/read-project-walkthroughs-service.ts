@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
-import { WalkthroughStore } from '../ports/walkthrough-store.ts';
+import { WalkthroughInventoryReader } from '../ports/walkthrough-inventory-reader.ts';
 import type {
   WalkthroughSettings,
   WalkthroughRun,
@@ -20,19 +20,14 @@ export class ReadProjectWalkthroughsService extends Context.Service<
   static readonly layer = Layer.effect(
     ReadProjectWalkthroughsService,
     Effect.gen(function* () {
-      const store = yield* WalkthroughStore;
+      const store = yield* WalkthroughInventoryReader;
       return {
         execute: Effect.fn('ReadProjectWalkthroughsService.execute')(
           function* (input: {
             projectId: string;
             worktreeIds: readonly string[];
           }) {
-            const settings = yield* store.readSettings(input.projectId);
-            const titles = yield* store.readTitles(input.projectId);
-            const runs = yield* Effect.forEach(input.worktreeIds, (id) =>
-              store.read(id),
-            );
-            return { settings, titles, runs };
+            return yield* store.readProject(input);
           },
         ),
       };

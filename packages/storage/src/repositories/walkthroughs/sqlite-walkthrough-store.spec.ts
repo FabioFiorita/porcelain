@@ -24,7 +24,7 @@ function job(
       headOid,
       baseOid: 'base',
       pullRequestNumber,
-      writer: { provider: 'claude', model: 'claude-opus-5-5' },
+      writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
       sessionId: undefined,
       createdAt: '2026-11-09T00:00:00.000Z',
       state: { status: 'queued' },
@@ -57,10 +57,12 @@ it('defaults to manual and persists preferences and one automatic attempt per PR
     );
     expect(await runtime.runPromise(store.readSettings('project'))).toEqual({
       mode: 'manual',
-      provider: 'claude',
     });
     await runtime.runPromise(
-      store.saveSettings('project', { mode: 'automatic', provider: 'codex' }),
+      store.saveSettings('project', {
+        mode: 'automatic',
+        writer: { provider: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
+      }),
     );
     const key = 'https://github.com/fixture/project/pull/42';
     const first = await runtime.runPromise(
@@ -90,7 +92,7 @@ it('defaults to manual and persists preferences and one automatic attempt per PR
     const reopened = await runtime.runPromise(WalkthroughStore);
     expect(await runtime.runPromise(reopened.readSettings('project'))).toEqual({
       mode: 'automatic',
-      provider: 'codex',
+      writer: { provider: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
     });
     const repeated = await runtime.runPromise(
       reopened.accept(job('after-restart', 'head-two'), key),
@@ -126,6 +128,17 @@ it('defaults to manual and persists preferences and one automatic attempt per PR
         )
       ).id,
     ).toBe('another-pr');
+    const changedWriter: WalkthroughJob = {
+      ...differentPr,
+      run: {
+        ...differentPr.run,
+        id: 'changed-writer',
+        writer: { provider: 'claude', model: 'sonnet', effort: 'medium' },
+      },
+    };
+    expect((await runtime.runPromise(reopened.accept(changedWriter))).id).toBe(
+      'changed-writer',
+    );
   } finally {
     await runtime.dispose();
     rmSync(directory, { recursive: true, force: true });

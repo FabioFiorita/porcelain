@@ -34,11 +34,11 @@ export class SaveWalkthroughSettingsUseCase extends Context.Service<
             yield* lanes.run(keys.walkthroughs(), 'write', () =>
               store.execute({
                 projectId: input.projectId,
-                settings: { mode: input.mode, provider: input.provider },
+                settings: { mode: input.mode, writer: input.writer },
               }),
             );
             yield* events.inventoryChanged();
-            return { mode: input.mode, provider: input.provider };
+            return { mode: input.mode, writer: input.writer };
           },
         ),
       };

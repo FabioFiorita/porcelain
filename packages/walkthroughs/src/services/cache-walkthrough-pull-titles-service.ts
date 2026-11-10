@@ -6,7 +6,7 @@ export class CacheWalkthroughPullTitlesService extends Context.Service<
     readonly execute: (input: {
       projectId: string;
       pulls: readonly { branch: string; title: string }[];
-    }) => Effect.Effect<void>;
+    }) => Effect.Effect<boolean>;
   }
 >()('@porcelain/walkthroughs/CacheWalkthroughPullTitlesService') {
   static readonly layer = Layer.effect(
@@ -19,7 +19,7 @@ export class CacheWalkthroughPullTitlesService extends Context.Service<
             projectId: string;
             pulls: readonly { branch: string; title: string }[];
           }) {
-            yield* store.cachePullRequests(input.projectId, input.pulls);
+            return yield* store.cachePullRequests(input.projectId, input.pulls);
           },
         ),
       };

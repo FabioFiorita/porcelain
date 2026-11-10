@@ -9,3 +9,9 @@ export { ReadProjectWalkthroughsService } from './read-project-walkthroughs-serv
 export { SaveWalkthroughSettingsService } from './save-walkthrough-settings-service.ts';
 
 export { CacheWalkthroughPullTitlesService } from './cache-walkthrough-pull-titles-service.ts';
+
+export { ReadWalkthroughWriterSettingsService } from './read-walkthrough-writer-settings-service.ts';
+
+export { SaveDefaultWalkthroughWriterService } from './save-default-walkthrough-writer-service.ts';
+
+export { ResolveWalkthroughWriterService } from './resolve-walkthrough-writer-service.ts';

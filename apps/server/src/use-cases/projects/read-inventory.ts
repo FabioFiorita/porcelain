@@ -80,17 +80,10 @@ export class ReadInventoryUseCase extends Context.Service<
             );
             const projects = yield* Effect.forEach(report.projects, (project) =>
               Effect.gen(function* () {
-                const metadata = yield* lanesCapability.run(
-                  laneKeysCapability.walkthroughs(),
-                  'read',
-                  () =>
-                    walkthroughs.execute({
-                      projectId: project.id,
-                      worktreeIds: project.worktrees.map(
-                        (worktree) => worktree.id,
-                      ),
-                    }),
-                );
+                const metadata = yield* walkthroughs.execute({
+                  projectId: project.id,
+                  worktreeIds: project.worktrees.map((worktree) => worktree.id),
+                });
                 const walkthroughSettings = metadata.settings;
                 const titles = metadata.titles;
                 const worktrees = project.worktrees.map((worktree) => {
@@ -98,7 +91,9 @@ export class ReadInventoryUseCase extends Context.Service<
                     (run) => run?.worktreeId === worktree.id,
                   );
                   const title =
-                    run?.state.status === 'ready'
+                    run?.state.status === 'ready' &&
+                    run.branch !== undefined &&
+                    run.branch === worktree.branch
                       ? run.state.content.title
                       : undefined;
                   const pull = titles.find(

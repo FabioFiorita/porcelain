@@ -23,7 +23,7 @@ const registered = async (session: Session, available: boolean) => ({
   id: session.projectId,
   name: session.fixture.folders.repository,
   available,
-  walkthroughSettings: { mode: 'manual', provider: 'claude' },
+  walkthroughSettings: { mode: 'manual' },
   worktrees: [
     {
       id: session.worktreeId,
@@ -168,7 +168,7 @@ test('removing a moved project lets the replacement repository be registered', a
     ).toStrictEqual([
       {
         ...record(readded.body),
-        walkthroughSettings: { mode: 'manual', provider: 'claude' },
+        walkthroughSettings: { mode: 'manual' },
       },
     ]);
   } finally {

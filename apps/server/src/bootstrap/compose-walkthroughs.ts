@@ -1,3 +1,5 @@
+import { ReadWalkthroughWriterSettingsUseCase } from '../use-cases/walkthroughs/read-walkthrough-writer-settings.ts';
+import { SaveDefaultWalkthroughWriterUseCase } from '../use-cases/walkthroughs/save-default-walkthrough-writer.ts';
 import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { QueueWalkthroughUseCase } from '../use-cases/walkthroughs/queue-walkthrough.ts';
 import { QueueWalkthroughUseCasePort } from '../ports/queue-walkthrough-use-case-port.ts';
@@ -10,13 +12,19 @@ import { Context, Effect, Layer } from 'effect';
 import { ClusterWorkflowEngine, SingleRunner } from 'effect/cluster';
 import { NodeCrypto, NodeServices } from '@effect/platform-node';
 import {
+  ReadWalkthroughWriterSettingsService,
+  SaveDefaultWalkthroughWriterService,
   WriteWalkthroughService,
   BeginWalkthroughService,
   StartWalkthroughService,
+  ResolveWalkthroughWriterService,
   ReadWalkthroughService,
   ReadWalkthroughAssetService,
 } from '@porcelain/walkthroughs/services';
-import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughStore,
+  WalkthroughInventoryReader,
+} from '@porcelain/walkthroughs/ports';
 import {
   BranchRangeReader,
   ChangeStatusReader,
@@ -34,7 +42,10 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { WalkthroughWorkflow } from '../runtime/walkthrough-workflow.ts';
-import { cliWalkthroughWriterLayer } from '@porcelain/agents/walkthrough-writing';
+import {
+  cliWalkthroughWriterLayer,
+  installedWalkthroughModelReaderLayer,
+} from '@porcelain/agents/walkthrough-writing';
 import { filesystemTranscriptReaderLayer } from '../adapters/walkthroughs/filesystem-transcript-reader.ts';
 import { githubEvidenceReaderLayer } from '../adapters/walkthroughs/github-evidence-reader.ts';
 import { StartWalkthroughUseCase } from '../use-cases/walkthroughs/start-walkthrough.ts';
@@ -53,8 +64,13 @@ export function composeWalkthroughs(
   pulls: Context.Service.Shape<typeof ListProjectPullRequestsUseCase>,
   githubReader: typeof ghPullRequestReaderLayer,
 ) {
+  const modelReader = installedWalkthroughModelReaderLayer(
+    context.settings.limits.agents,
+  );
   const ports = Layer.mergeAll(
+    modelReader,
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
+    Layer.succeed(WalkthroughInventoryReader, stores.walkthroughInventory),
     Layer.succeed(Lanes, context.lanes),
     Layer.succeed(LaneKeys, context.laneKeys),
     WorktreeAccess.layer.pipe(
@@ -82,7 +98,7 @@ export function composeWalkthroughs(
     filesystemTranscriptReaderLayer(),
     cliWalkthroughWriterLayer({
       processGroup: context.settings.limits.agents.processGroup,
-    }),
+    }).pipe(Layer.provide(modelReader)),
     githubEvidenceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(
         Layer.mergeAll(
@@ -93,9 +109,13 @@ export function composeWalkthroughs(
     ),
   ).pipe(Layer.provide(NodeServices.layer));
   const services = Layer.mergeAll(
+    ReadWalkthroughWriterSettingsService.layer,
+    SaveDefaultWalkthroughWriterService.layer,
     BeginWalkthroughService.layer,
     WriteWalkthroughService.layer,
-    StartWalkthroughService.layer,
+    StartWalkthroughService.layer.pipe(
+      Layer.provide(ResolveWalkthroughWriterService.layer),
+    ),
     ReadWalkthroughService.layer,
     ReadWalkthroughAssetService.layer,
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
@@ -110,6 +130,8 @@ export function composeWalkthroughs(
     Layer.provideMerge(engine),
   );
   const operations = Layer.mergeAll(
+    ReadWalkthroughWriterSettingsUseCase.layer,
+    SaveDefaultWalkthroughWriterUseCase.layer,
     QueueWalkthroughUseCase.layer,
     ReadWalkthroughUseCase.layer,
     ReadWalkthroughAssetUseCase.layer,
@@ -132,6 +154,14 @@ export function composeWalkthroughs(
       ),
     );
     const useCases = {
+      writerSettings: Context.get(
+        runtime,
+        ReadWalkthroughWriterSettingsUseCase,
+      ),
+      saveDefaultWriter: Context.get(
+        runtime,
+        SaveDefaultWalkthroughWriterUseCase,
+      ),
       start: Context.get(runtime, StartWalkthroughUseCase),
       read: Context.get(runtime, ReadWalkthroughUseCase),
       asset: Context.get(runtime, ReadWalkthroughAssetUseCase),

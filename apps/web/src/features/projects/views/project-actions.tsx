@@ -3,6 +3,7 @@ import {
   EllipsisIcon,
   FolderMinusIcon,
   PencilIcon,
+  SettingsIcon,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -19,7 +20,11 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { copyText } from '@/shared/workspace/copy';
-import { removeProjectDialog, renameProjectDialog } from '../overlays';
+import {
+  removeProjectDialog,
+  renameProjectDialog,
+  walkthroughSettingsDialog,
+} from '../overlays';
 import {
   projectPath,
   projectUnavailableMessage,
@@ -47,6 +52,12 @@ export function ProjectActions({
       label: 'Rename project',
       icon: PencilIcon,
       run: () => renameProjectDialog.openWithPayload(target),
+      destructive: false,
+    },
+    {
+      label: 'Walkthrough settings',
+      icon: SettingsIcon,
+      run: () => walkthroughSettingsDialog.openWithPayload(target),
       destructive: false,
     },
     {

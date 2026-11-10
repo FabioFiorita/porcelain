@@ -38,8 +38,9 @@ const nativeHistorySchema = Schema.Array(
 export const nativeMigrations = Migrator.fromRecord({
   '012_automatic_walkthroughs': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_default_writer (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), payload TEXT NOT NULL CHECK(json_valid(payload)))`;
     yield* sql`DROP INDEX walkthrough_runs_current_head`;
-    yield* sql`CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id, head_oid, COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0)) WHERE status != 'failed'`;
+    yield* sql`CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id, head_oid, COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0), json_extract(payload, '$.run.writer.provider'), json_extract(payload, '$.run.writer.model'), json_extract(payload, '$.run.writer.effort')) WHERE status != 'failed'`;
     yield* sql`CREATE TABLE walkthrough_settings (project_id TEXT PRIMARY KEY REFERENCES inventory_projects(id) ON DELETE CASCADE, payload TEXT NOT NULL CHECK(json_valid(payload)))`;
     yield* sql`CREATE TABLE walkthrough_automatic (pr_key TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES walkthrough_runs(id))`;
     yield* sql`CREATE TABLE walkthrough_pull_titles (project_id TEXT NOT NULL REFERENCES inventory_projects(id) ON DELETE CASCADE, branch TEXT NOT NULL, title TEXT NOT NULL, PRIMARY KEY(project_id, branch))`;

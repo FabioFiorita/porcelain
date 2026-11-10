@@ -1,3 +1,5 @@
+import type { ReadWalkthroughWriterSettingsUseCase } from '../../../use-cases/walkthroughs/read-walkthrough-writer-settings.ts';
+import type { SaveDefaultWalkthroughWriterUseCase } from '../../../use-cases/walkthroughs/save-default-walkthrough-writer.ts';
 import { presentWalkthrough } from '../../presenters/walkthrough.ts';
 import { Layer, Effect, type Context } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
@@ -9,6 +11,12 @@ import type { StartWalkthroughUseCase } from '../../../use-cases/walkthroughs/st
 import type { ReadWalkthroughUseCase } from '../../../use-cases/walkthroughs/read-walkthrough.ts';
 import type { ReadWalkthroughAssetUseCase } from '../../../use-cases/walkthroughs/read-walkthrough-asset.ts';
 export function walkthroughsRoutes(useCases: {
+  writerSettings: Context.Service.Shape<
+    typeof ReadWalkthroughWriterSettingsUseCase
+  >;
+  saveDefaultWriter: Context.Service.Shape<
+    typeof SaveDefaultWalkthroughWriterUseCase
+  >;
   start: Context.Service.Shape<typeof StartWalkthroughUseCase>;
   read: Context.Service.Shape<typeof ReadWalkthroughUseCase>;
   asset: Context.Service.Shape<typeof ReadWalkthroughAssetUseCase>;
@@ -18,6 +26,12 @@ export function walkthroughsRoutes(useCases: {
     'walkthroughs',
     (handlers) =>
       handlers
+        .handle('readWalkthroughWriterSettings', () =>
+          useCases.writerSettings.execute(),
+        )
+        .handle('saveDefaultWalkthroughWriter', ({ payload }) =>
+          useCases.saveDefaultWriter.execute(payload),
+        )
         .handle('startWalkthrough', ({ params, payload }) =>
           useCases.start
             .execute({ ...params, ...payload })

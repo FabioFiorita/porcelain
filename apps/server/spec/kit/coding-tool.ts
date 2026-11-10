@@ -91,7 +91,12 @@ function answerPrompt(args: readonly string[], prompt: string): Answer {
 }
 
 export function runCodingTool(): void {
-  const answer = answerPrompt(process.argv.slice(2), readFileSync(0, 'utf8'));
+  const args = process.argv.slice(2);
+  if (args[0] === 'auth' && args[1] === 'status') {
+    process.stdout.write(JSON.stringify({ loggedIn: true }));
+    return;
+  }
+  const answer = answerPrompt(args, readFileSync(0, 'utf8'));
   process.stdout.write(answer.stdout);
   process.stderr.write(answer.stderr);
   process.exitCode = answer.exitCode;

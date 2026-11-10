@@ -1,3 +1,4 @@
+import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
@@ -7,7 +8,10 @@ import { Toml } from 'effect/encoding';
 import { ChildProcessSpawner } from 'effect/process';
 import { runProvider } from '../commit-planning/commands/run-provider.ts';
 import { readBoundedText } from '../commit-planning/commands/read-bounded-text.ts';
-import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughModelReader,
+  WalkthroughWriter,
+} from '@porcelain/walkthroughs/ports';
 import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
@@ -26,6 +30,15 @@ const eventSchema = Schema.Struct({
 });
 const failure = (kind: WalkthroughFailedError['kind'], message: string) =>
   new WalkthroughFailedError({ kind, message });
+const unavailableWriter = (writer: WalkthroughWriterChoice) =>
+  failure(
+    'other',
+    `The walkthrough model ${writer.provider}/${writer.model} is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.`,
+  );
+const modelRefused = (detail: string) =>
+  /model.*(?:not.*(?:available|exist|found|support)|unavailable|no access)|no access.*model/i.test(
+    detail,
+  );
 export const cliWalkthroughWriterLayer = (options: {
   processGroup: ProcessGroupLimits;
   command?: string;
@@ -34,11 +47,23 @@ export const cliWalkthroughWriterLayer = (options: {
   Layer.effect(
     WalkthroughWriter,
     Effect.gen(function* () {
+      const models = yield* WalkthroughModelReader;
       const fs = yield* FileSystem.FileSystem;
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
       return WalkthroughWriter.of({
         write: Effect.fn('WalkthroughWriter.write')(
           function* (input) {
+            const available = (yield* models.read()).find(
+              (model) =>
+                model.provider === input.run.writer.provider &&
+                model.model === input.run.writer.model,
+            );
+            if (!available) return yield* unavailableWriter(input.run.writer);
+            if (!available.efforts.includes(input.run.writer.effort))
+              return yield* failure(
+                'other',
+                `The walkthrough model ${input.run.writer.model} does not support ${input.run.writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+              );
             const started = yield* Clock.currentTimeMillis;
             const folder = yield* Effect.acquireRelease(
               Effect.tryPromise(() =>
@@ -168,7 +193,7 @@ export const cliWalkthroughWriterLayer = (options: {
                 '--model',
                 input.run.writer.model,
                 '--effort',
-                'high',
+                input.run.writer.effort,
                 '--output-format',
                 'json',
                 '--json-schema',
@@ -201,6 +226,8 @@ export const cliWalkthroughWriterLayer = (options: {
                   : ['exec', 'resume', '-c', 'sandbox_mode="read-only"'];
               codexArgs.push(
                 ...codexConfigArgs,
+                '-c',
+                `model_reasoning_effort=${JSON.stringify(input.run.writer.effort)}`,
                 '--ignore-user-config',
                 '--ignore-rules',
                 '--json',
@@ -317,6 +344,8 @@ export const cliWalkthroughWriterLayer = (options: {
                       'signed_out',
                       'Sign in again to the selected agent CLI, then try again.',
                     );
+                  if (modelRefused(error.detail ?? ''))
+                    return unavailableWriter(input.run.writer);
                   if (error.cause !== undefined)
                     return failure(
                       'agent_not_installed',
@@ -339,6 +368,8 @@ export const cliWalkthroughWriterLayer = (options: {
                     ),
                   ),
                 );
+                if (envelope.is_error && modelRefused(envelope.result ?? ''))
+                  return yield* unavailableWriter(input.run.writer);
                 if (envelope.is_error)
                   return yield* failure(
                     /sign.?in|login|oauth|token.*expired|unauthorized/i.test(
@@ -414,3 +445,5 @@ export const cliWalkthroughWriterLayer = (options: {
       });
     }),
   );
+
+export { installedWalkthroughModelReaderLayer } from './installed-walkthrough-model-reader.ts';

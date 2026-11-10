@@ -3,9 +3,12 @@ import type {
   EvidenceAsset,
   WalkthroughJob,
   WalkthroughSettings,
+  WalkthroughWriterChoice,
   WalkthroughRun,
 } from '../models/walkthrough.ts';
 export interface WalkthroughStore {
+  readDefaultWriter(): Effect.Effect<WalkthroughWriterChoice | undefined>;
+  saveDefaultWriter(writer: WalkthroughWriterChoice): Effect.Effect<void>;
   readSettings(projectId: string): Effect.Effect<WalkthroughSettings>;
   saveSettings(
     projectId: string,
@@ -14,7 +17,7 @@ export interface WalkthroughStore {
   cachePullRequests(
     projectId: string,
     pulls: readonly { branch: string; title: string }[],
-  ): Effect.Effect<void>;
+  ): Effect.Effect<boolean>;
   readTitles(
     projectId: string,
   ): Effect.Effect<readonly { branch: string; title: string }[]>;

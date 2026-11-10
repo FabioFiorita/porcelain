@@ -14,7 +14,10 @@ export class QueueWalkthroughUseCase extends Context.Service<
   {
     readonly execute: (
       input: WorktreeParams &
-        StartWalkthroughRequest & { automaticKey?: string },
+        StartWalkthroughRequest & {
+          automaticKey?: string;
+          targetBranch?: string;
+        },
     ) => Effect.Effect<
       WalkthroughRun,
       WorktreeAccessFailure | GitIoFailure | WalkthroughFailedError

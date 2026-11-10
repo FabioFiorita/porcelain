@@ -142,7 +142,7 @@ it('upgrades legacy unassigned coverage to a neutral ownerless gap before readin
       }),
     );
     database.exec(
-      `DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE name IN ('review_timing', 'walkthroughs', 'automatic_walkthroughs');`,
+      `DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; DROP TABLE walkthrough_evidence; DROP TABLE walkthrough_runs; ALTER TABLE review_revisions DROP COLUMN timing; DELETE FROM porcelain_migrations WHERE name IN ('review_timing', 'walkthroughs', 'automatic_walkthroughs');`,
     );
     database.close();
     const store = await next.runPromise(ReviewStore);

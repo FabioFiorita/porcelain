@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it, onTestFinished } from 'vitest';
-import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughModelReader,
+  WalkthroughWriter,
+} from '@porcelain/walkthroughs/ports';
 import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { cliWalkthroughWriterLayer } from './cli-walkthrough-writer.ts';
 const processGroup = { lingerMs: 20, cleanupMs: 1000, pollMs: 5 };
@@ -15,7 +18,7 @@ const run: WalkthroughJob['run'] = {
   pullRequestNumber: undefined,
   baseOid: 'a'.repeat(40),
   headOid: 'b'.repeat(40),
-  writer: { provider: 'claude', model: 'claude-opus-5-5' },
+  writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
   sessionId: undefined,
   createdAt: '2026-11-09T00:00:00Z',
   state: { status: 'queued' },
@@ -31,6 +34,27 @@ async function fixture(
   const runtime = ManagedRuntime.make(
     cliWalkthroughWriterLayer({ processGroup, command, deadlineMs }).pipe(
       Layer.provide(NodeServices.layer),
+      Layer.provide(
+        Layer.succeed(WalkthroughModelReader, {
+          read: () =>
+            Effect.succeed([
+              {
+                provider: 'claude',
+                model: 'claude-opus-5-5',
+                label: 'Opus',
+                efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+                defaultEffort: 'high',
+              },
+              {
+                provider: 'codex',
+                model: 'gpt-5.5',
+                label: 'Codex',
+                efforts: ['low', 'medium', 'high', 'xhigh'],
+                defaultEffort: 'medium',
+              },
+            ]),
+        }),
+      ),
     ),
   );
   onTestFinished(async () => {
@@ -78,7 +102,11 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
     `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd()})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
     onTestFinished,
   );
-  const result = await test.result();
+  const result = await test.result({
+    provider: 'claude',
+    model: 'claude-opus-5-5',
+    effort: 'xhigh',
+  });
   expect(result._tag).toBe('Success');
   if (result._tag === 'Success')
     expect(result.success).toMatchObject({
@@ -99,6 +127,9 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
       )(line),
     );
   expect(invocations).toHaveLength(2);
+  expect(
+    invocations.map(({ args }) => args[args.indexOf('--effort') + 1]),
+  ).toEqual(['xhigh', 'xhigh']);
   expect(
     invocations.map(({ args }) => ({
       strictMcp: args.includes('--strict-mcp-config'),
@@ -187,10 +218,14 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)+'\\n'); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
     onTestFinished,
   );
-  const result = await test.result({ provider: 'codex', model: 'gpt-5.5' });
+  const result = await test.result({
+    provider: 'codex',
+    model: 'gpt-5.5',
+    effort: 'medium',
+  });
   expect(result).toMatchObject({
     _tag: 'Success',
     success: { content: { outcome: 'nothing', title: 'A small change' } },
@@ -201,6 +236,22 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   expect(calls).toContain('sandbox_mode=');
   expect(calls).toContain('features.hooks=false');
   expect(calls).toContain('codex-session');
+  const invocations = calls
+    .trim()
+    .split('\n')
+    .map((line) =>
+      Schema.decodeUnknownSync(
+        Schema.fromJsonString(Schema.Array(Schema.String)),
+      )(line),
+    );
+  expect(
+    invocations.map((args) =>
+      args.filter((arg) => arg.startsWith('model_reasoning_effort=')),
+    ),
+  ).toEqual([
+    ['model_reasoning_effort="medium"'],
+    ['model_reasoning_effort="medium"'],
+  ]);
 });
 it.each([
   { configured: 'keyring', expected: ['cli_auth_credentials_store="keyring"'] },
@@ -225,7 +276,11 @@ it.each([
       `cli_auth_credentials_store = '${configured}'\nnotify = ["inherited-notifier"]\n[profiles.unused]\ncli_auth_credentials_store = "file"\n`,
     );
     expect(
-      await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+      await test.result({
+        provider: 'codex',
+        model: 'gpt-5.5',
+        effort: 'high',
+      }),
     ).toMatchObject({ _tag: 'Success' });
     const calls = (await readFile(join(test.folder, 'calls'), 'utf8'))
       .trim()
@@ -243,6 +298,7 @@ it.each([
         store: args.filter((arg) =>
           arg.startsWith('cli_auth_credentials_store='),
         ),
+        effort: args.filter((arg) => arg.startsWith('model_reasoning_effort=')),
         isolated: args.includes('--ignore-user-config'),
         notifierDisabled: args.includes('notify=[]'),
         inheritedNotifier: args.includes('inherited-notifier'),
@@ -250,12 +306,14 @@ it.each([
     ).toEqual([
       {
         store: expected,
+        effort: ['model_reasoning_effort="high"'],
         isolated: true,
         notifierDisabled: true,
         inheritedNotifier: false,
       },
       {
         store: expected,
+        effort: ['model_reasoning_effort="high"'],
         isolated: true,
         notifierDisabled: true,
         inheritedNotifier: false,
@@ -272,7 +330,7 @@ it('disables every effective Codex MCP server on each pass, including system and
     onTestFinished,
   );
   expect(
-    await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'high' }),
   ).toMatchObject({ _tag: 'Success' });
   const calls = (await readFile(join(test.folder, 'calls'), 'utf8'))
     .trim()
@@ -374,7 +432,11 @@ it.each([
       onTestFinished,
     );
     expect(
-      await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+      await test.result({
+        provider: 'codex',
+        model: 'gpt-5.5',
+        effort: 'high',
+      }),
     ).toMatchObject({
       _tag: 'Failure',
       failure: {
@@ -405,7 +467,7 @@ it('does not run a configured Codex notify command outside the worktree on eithe
       ]),
   );
   expect(
-    await test.result({ provider: 'codex', model: 'gpt-5.5' }),
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'high' }),
   ).toMatchObject({
     _tag: 'Success',
     success: { content: { outcome: 'nothing' } },
@@ -421,5 +483,65 @@ it('surfaces a missing executable as agent not installed', async ({
   expect(await test.result()).toMatchObject({
     _tag: 'Failure',
     failure: { kind: 'agent_not_installed' },
+  });
+});
+
+it('fails an unavailable model clearly without invoking or substituting a writer', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    "require('fs').writeFileSync('invoked','yes');",
+    onTestFinished,
+  );
+  const result = await test.result({
+    provider: 'codex',
+    model: 'removed-model',
+    effort: 'high',
+  });
+  expect(result).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message:
+        'The walkthrough model codex/removed-model is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.',
+    },
+  });
+  expect(await readdir(test.folder)).not.toContain('invoked');
+});
+
+it('refuses a model-specific effort that the CLI catalogue does not offer', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    "require('fs').writeFileSync('invoked','yes');",
+    onTestFinished,
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'ultra' }),
+  ).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message:
+        'The walkthrough model gpt-5.5 does not support ultra effort. Choose a supported effort in walkthrough settings.',
+    },
+  });
+  expect(await readdir(test.folder)).not.toContain('invoked');
+});
+
+it('reports a model access refusal from the CLI without falling back', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    "console.error('The selected model is not available for this account');process.exitCode=1;",
+    onTestFinished,
+  );
+  expect(await test.result()).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message:
+        'The walkthrough model claude/claude-opus-5-5 is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.',
+    },
   });
 });

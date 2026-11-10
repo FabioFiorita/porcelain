@@ -17,7 +17,7 @@ import {
 import type { Limits } from '../../config/limits.ts';
 
 const PAGE = 'pageInfo { hasNextPage }';
-const SUMMARY_FIELDS = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName updatedAt`;
+const SUMMARY_FIELDS = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName baseRefName updatedAt`;
 const ROLLUP_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }`;
 const CHECK_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
     nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}

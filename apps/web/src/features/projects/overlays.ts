@@ -11,6 +11,7 @@ export type ProjectTarget = { project: Project; remote: string | null };
 export const openProjectDialog = Dialog.createHandle<{
   remote: string | null;
 }>();
+export const walkthroughSettingsDialog = Dialog.createHandle<ProjectTarget>();
 export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
 export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
 

@@ -11,7 +11,7 @@ import { Schema } from 'effect';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
-import { text } from '../kit/session.ts';
+import { text, list, record } from '../kit/session.ts';
 
 test('reads the latest attempt and reports when its pinned head is out of date', async ({
   session,
@@ -79,7 +79,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     worktreeId: session.worktreeId,
     baseOid: firstHead,
     headOid: firstHead,
-    writer: { provider: 'claude', model: 'fixture' },
+    writer: { provider: 'claude', model: 'fixture', effort: 'high' },
     createdAt: '2026-11-09T00:00:00.000Z',
     state: {
       status: 'ready',
@@ -96,6 +96,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       },
     },
   };
+  Object.assign(run, { branch: session.fixture.branch });
   const job: WalkthroughJob = {
     run,
     worktreePath: session.repository,
@@ -144,7 +145,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   const accepted = await read(session, {
     method: 'POST',
     path,
-    body: { base: 'refs/heads/walkthrough-evidence-base' },
+    body: { base: 'refs/heads/walkthrough-evidence-base', writer: run.writer },
   });
   expect(accepted.id).toBe(secondId);
   const finished = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
@@ -181,6 +182,21 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   expect(missing.body).toEqual(
     apiError(404, 'Not Found', 'Walkthrough evidence asset not found'),
   );
+  const title = (body: Record<string, unknown>) =>
+    record(list(record(list(body.projects)[0]).worktrees)[0]).walkthroughTitle;
+  expect(
+    title(await read(session, { method: 'GET', path: '/api/inventory' })),
+  ).toBe('Finished evidence fixture');
+  await session.git('commit', '--allow-empty', '-m', 'Advance same branch');
+  expect(
+    title(await read(session, { method: 'GET', path: '/api/inventory' })),
+  ).toBe('Finished evidence fixture');
+  await session.git('switch', '-c', 'another-topic');
+  expect(
+    title(
+      await read(session, { method: 'POST', path: '/api/inventory/refresh' }),
+    ),
+  ).toBeUndefined();
   const registered = server.routes.filter(
     (route) =>
       route.includes('/walkthrough') &&

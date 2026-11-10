@@ -7,8 +7,14 @@ export interface WalkthroughSourceReader {
   readonly read: (input: {
     worktreeId: string;
     base: string | undefined;
+    targetBranch?: string;
   }) => Effect.Effect<
-    { baseOid: string; headOid: string; files: readonly DiffFile[] },
+    {
+      baseOid: string;
+      headOid: string;
+      branch?: string | undefined;
+      files: readonly DiffFile[];
+    },
     GitIoFailure | WalkthroughFailedError,
     WorktreeRead
   >;
