@@ -37,6 +37,7 @@ function StepList<File>({
   row: (file: File) => ReactNode;
 }) {
   const [open, setOpen] = useState<number | null>(null);
+  if (steps.length === 0) return null;
   return (
     <div className="mt-1 flex flex-col">
       <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">By step</p>

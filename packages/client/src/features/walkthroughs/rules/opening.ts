@@ -12,35 +12,18 @@ export type WorktreeOpening = {
   companion: boolean;
 };
 
-function settled<A>(reading: Reading<A>) {
-  return reading.status !== 'reading';
-}
-
 export function worktreeOpening(input: {
   walkthrough: Reading<WalkthroughRead>;
-  branchFiles: Reading<number>;
-  uncommittedFiles?: Reading<number>;
 }): WorktreeOpening {
   const read =
     input.walkthrough.status === 'read' ? input.walkthrough.value : undefined;
-  const files =
-    input.branchFiles.status === 'read' ? input.branchFiles.value : 0;
-  const name = firstDocument({
-    read: read ?? { walkthrough: undefined, outOfDate: false },
-    branchHasCommits: files > 0,
-  });
+  const name = firstDocument(
+    read ?? { walkthrough: undefined, outOfDate: false },
+  );
   return {
-    name: name === 'walkthrough' ? 'walkthrough' : 'changes',
-    pending:
-      !settled(input.walkthrough) ||
-      !settled(input.branchFiles) ||
-      (input.uncommittedFiles !== undefined &&
-        !settled(input.uncommittedFiles)),
+    name,
+    pending: input.walkthrough.status === 'reading',
     guided: read?.walkthrough !== undefined,
-    companion:
-      read?.walkthrough === undefined &&
-      files === 0 &&
-      input.uncommittedFiles?.status === 'read' &&
-      input.uncommittedFiles.value > 0,
+    companion: read !== undefined && read.walkthrough === undefined,
   };
 }

@@ -33,17 +33,16 @@ export function WorkspaceReview(props: Props) {
 
 function WorkspaceReviewContent(props: Props) {
   const scope = { projectId: props.projectId, worktreeId: props.worktree.id };
-  const worktreeFirstDocument = useWorktreeFirstDocument(
-    scope,
-    props.context,
-    props.search.base,
-  );
+  const worktreeFirstDocument = useWorktreeFirstDocument(scope, props.context);
   const showsWalkthrough = worktreeFirstDocument.name === 'walkthrough';
   const walkthroughTitle = useWalkthroughTabTitle(scope, props.context);
   useAtomMount(
     firstDocumentTitleOwner({
       worktreeId: props.worktree.id,
-      title: showsWalkthrough ? walkthroughTitle : undefined,
+      title:
+        showsWalkthrough || props.search.entry === 'walkthrough'
+          ? walkthroughTitle
+          : 'Changes',
     }),
   );
   const firstDocument: FirstDocument = {

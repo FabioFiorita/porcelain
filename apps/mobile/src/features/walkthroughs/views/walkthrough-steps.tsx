@@ -42,6 +42,7 @@ export function WalkthroughSteps({
     ).values(),
   ];
   const grouped = groupFilesByStep(content, files);
+  const steps = grouped.steps.filter((step) => step.files.length > 0);
   return (
     <ScrollView
       className="flex-1 bg-background"
@@ -68,8 +69,8 @@ export function WalkthroughSteps({
           })
         }
       />
-      <GroupLabel>By step</GroupLabel>
-      {grouped.steps.map(({ stop, step, files: owned }) => (
+      {steps.length > 0 ? <GroupLabel>By step</GroupLabel> : null}
+      {steps.map(({ stop, step, files: owned }) => (
         <Item
           key={step}
           size="compact"

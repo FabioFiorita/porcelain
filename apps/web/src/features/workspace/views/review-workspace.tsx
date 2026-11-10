@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
-import { useReviewOverview } from '@/features/changes/index';
+import { useBranchChanges, useReviewOverview } from '@/features/changes/index';
 import type { Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
@@ -145,6 +145,16 @@ export function ReviewWorkspace({
     setFocused: setFocusedPane,
   } = useTabLayoutStore(worktree.id);
   const overview = useReviewOverview(scope, context.connection);
+  const branchChanges = useBranchChanges(
+    scope,
+    context.connection,
+    search.base,
+  ).result;
+  const onlyUncommitted =
+    Option.getOrUndefined(AsyncResult.value(branchChanges))?.files.length ===
+      0 &&
+    (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
+      0;
   const awaitingChanges = Option.isNone(AsyncResult.value(overview));
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
@@ -243,11 +253,10 @@ export function ReviewWorkspace({
     showSurface(next);
   };
   const changes: PaneContext['changes'] = {
-    scope: search.scope ?? (firstDocument.guided ? 'branch' : 'uncommitted'),
-    onScope: (next) =>
-      onSearch({
-        scope: firstDocument.guided || next === 'branch' ? next : undefined,
-      }),
+    scope:
+      search.scope ??
+      (firstDocument.guided && !onlyUncommitted ? 'branch' : 'uncommitted'),
+    onScope: (next) => onSearch({ scope: next }),
     onBase: (next) => onSearch({ base: next }),
   };
   const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
