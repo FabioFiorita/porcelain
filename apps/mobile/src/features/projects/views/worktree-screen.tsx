@@ -218,9 +218,9 @@ function WorktreeSections({
   const beside = mode === 'beside';
   useScreenKeyCommands(
     'worktree-sections',
-    worktreeSections.map((entry) => ({
-      binding: entry.id,
-      run: () => choose(entry.id),
+    (['changes', 'files', 'history'] as const).map((id) => ({
+      binding: id,
+      run: () => choose(id),
     })),
   );
   return (
