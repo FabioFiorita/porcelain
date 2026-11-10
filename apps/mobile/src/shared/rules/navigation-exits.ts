@@ -7,15 +7,23 @@ type NavigationLevel = {
     | undefined;
 };
 
-export function navigationExits(root: NavigationLevel | undefined) {
-  const routes = root?.routes ?? [];
-  const top = routes[root?.index ?? routes.length - 1];
+export function navigationExits(root: NavigationLevel | undefined): {
+  back: boolean;
+  close: string | undefined;
+} {
   let back = false;
+  let close: string | undefined;
   for (let level = root; level;) {
-    const levelRoutes = level.routes ?? [];
-    const index = level.index ?? levelRoutes.length - 1;
+    const routes = level.routes ?? [];
+    const index = level.index ?? routes.length - 1;
+    const current = routes[index];
     if (level.type === 'stack' && index > 0) back = true;
-    level = levelRoutes[index]?.state;
+    if (
+      routes.some((route) => route.name === '(tabs)') &&
+      current?.name !== '(tabs)'
+    )
+      close = level.key;
+    level = current?.state;
   }
-  return { back, close: top !== undefined && top.name !== '(tabs)' };
+  return { back, close };
 }

@@ -20,36 +20,42 @@ const tabs = (stack: string[]) => ({
   },
 });
 
+const app = (index: number, routes: { name: string }[]) => ({
+  key: 'navigator:root',
+  type: 'stack',
+  index: 0,
+  routes: [
+    {
+      name: '__root',
+      state: { key: 'navigator:0', type: 'stack', index, routes },
+    },
+  ],
+});
+
 it('has no way out of a tab root', () => {
-  expect(
-    navigationExits({ type: 'stack', index: 0, routes: [tabs(['worktrees'])] }),
-  ).toEqual({ back: false, close: false });
+  expect(navigationExits(app(0, [tabs(['worktrees'])]))).toEqual({
+    back: false,
+    close: undefined,
+  });
 });
 
 it('goes back from a screen pushed inside a tab', () => {
-  expect(
-    navigationExits({
-      type: 'stack',
-      index: 0,
-      routes: [tabs(['worktrees', 'file'])],
-    }),
-  ).toEqual({ back: true, close: false });
+  expect(navigationExits(app(0, [tabs(['worktrees', 'file'])]))).toEqual({
+    back: true,
+    close: undefined,
+  });
 });
 
-it('goes back and closes when a sheet or Settings is presented', () => {
+it('closes a presented sheet or Settings on the stack that holds the tabs', () => {
   expect(
-    navigationExits({
-      type: 'stack',
-      index: 1,
-      routes: [tabs(['worktrees']), { name: '(settings)' }],
-    }),
-  ).toEqual({ back: true, close: true });
+    navigationExits(app(1, [tabs(['worktrees']), { name: '(settings)' }])),
+  ).toEqual({ back: true, close: 'navigator:0' });
 });
 
 it('is quiet before navigation is ready', () => {
-  expect(navigationExits(undefined)).toEqual({ back: false, close: false });
+  expect(navigationExits(undefined)).toEqual({ back: false, close: undefined });
   expect(navigationExits({ type: 'stack', index: 0 })).toEqual({
     back: false,
-    close: false,
+    close: undefined,
   });
 });

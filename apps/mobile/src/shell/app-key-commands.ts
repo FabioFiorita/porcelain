@@ -28,7 +28,7 @@ export function useAppKeyCommands() {
               navigation.dispatch({
                 type: 'POP',
                 payload: { count: 1 },
-                target: root.key,
+                target: exits.close,
               }),
           },
         ]

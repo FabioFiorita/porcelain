@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md) on an iPad simulator in landscape, 
 
 1. Worktrees tab root: hold ⌘ for about a second. Expect the system overlay with Go (Settings, Keyboard Shortcuts) and List (Next Row, Previous Row, Search, Next List when the detail shows a list). Screenshot it.
 2. Press ↓ three times, then ↑: one worktree row shows the highlight and it moves with each press; Return opens that worktree beside the list. J and K do the same.
-3. ⌘2: the worktree page shows Files. Tab: the highlight moves into the file tree. ↓ to a closed folder, →: it opens; → again highlights its first child; ←: the highlight returns to the folder; ← again closes it. Return on a file opens it beside the tree on a wide tablet and pushed on a narrow one.
+3. ⌘2: the worktree page shows Files and the file tree, the newest list, takes the keys. Tab hands them back to the worktree list and Tab again returns them to the tree. ↓ to a closed folder, →: it opens; → again highlights its first child; ←: the highlight returns to the folder; ← again closes it. Return on a file opens it beside the tree on a wide tablet and pushed on a narrow one.
 4. On the open file: ⌘⇧T opens Timeline; ⌘[ returns; on a Markdown file ⌘⇧S switches Show source and Show rendered; Esc returns to the worktree page.
 5. ⌘1 and ⌘3 choose Changes and History; hold ⌘ to see the Worktree group.
 6. ⌘F: the active list's search field takes focus. Type a letter: it appears in the field and does not move the highlight. ⌘F again keeps focus; Esc clears or leaves the search as UIKit does, and the shortcuts return when editing ends.
@@ -42,6 +42,8 @@ Automated coverage: the named rule tests prove the catalog has one combination p
 
 ## Gotchas
 
+- ⌘W on a tab root, where Porcelain has nothing to close, is the system's Close Window and closes the app's window.
+- A tool that injects HID keys into the simulator (for example `axe key-combo --modifiers 227 --key 56 --udid <udid>` for ⌘/) presses shortcuts without the Simulator window or the Mac's keyboard focus; it cannot hold ⌘ for the overlay.
 - Without Send Keyboard Shortcuts to Device the Simulator keeps ⌘1–⌘3, ⌘, and ⌘W for its own window menu.
 - The shortcuts live in the main menu (`UIMainMenuSystem`), so they work whatever holds focus; a doubled shortcut is logged as an error and neither owner fires.
 - The history list has no highlight yet; it is the next list to wire through the same `useListCursor`. The worktree list highlights without scrolling the row into view.
