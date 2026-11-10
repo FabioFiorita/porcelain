@@ -177,6 +177,7 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
             current !== undefined &&
             current.state.status !== 'failed' &&
             current.baseOid === job.run.baseOid &&
+            current.baseRef === job.run.baseRef &&
             current.contentTreeOid === job.run.contentTreeOid &&
             current.pullRequestNumber === job.run.pullRequestNumber &&
             current.writer.provider === job.run.writer.provider &&

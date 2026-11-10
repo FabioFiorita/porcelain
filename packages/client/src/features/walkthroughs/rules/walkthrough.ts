@@ -242,3 +242,29 @@ export function richParts(text: string): readonly RichPart[] {
         : { kind: 'text', text: part },
     );
 }
+
+type CodeFile = { path: string; oldPath?: string | undefined };
+
+export function walkthroughCodeScopes({
+  branch,
+  worktree,
+  only,
+}: {
+  branch: readonly CodeFile[];
+  worktree: readonly CodeFile[];
+  only?: readonly string[] | undefined;
+}) {
+  const paths = (files: readonly CodeFile[]) => [
+    ...new Set(
+      files
+        .filter(
+          (file) =>
+            only === undefined ||
+            only.includes(file.path) ||
+            (file.oldPath !== undefined && only.includes(file.oldPath)),
+        )
+        .map((file) => file.path),
+    ),
+  ];
+  return { branch: paths(branch), worktree: paths(worktree) };
+}

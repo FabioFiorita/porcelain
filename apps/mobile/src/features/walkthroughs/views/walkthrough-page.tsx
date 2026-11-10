@@ -343,7 +343,10 @@ function Written({
   const seeChange = () =>
     router.push({
       pathname: '/review-changes',
-      params: reviewParams(workspace.key, { kind: 'branch' }),
+      params: {
+        ...reviewParams(workspace.key, { kind: 'branch' }),
+        walkthrough: 'true',
+      },
     });
   const header = (
     <Box gap={3}>

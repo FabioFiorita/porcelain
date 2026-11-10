@@ -2,7 +2,7 @@ import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { Base64 } from 'effect/encoding';
 import { Atom, AsyncResult } from 'effect/reactivity';
-import { readBranchChanges } from '@porcelain/client/changes';
+import { readBranchChanges, readChanges } from '@porcelain/client/changes';
 import {
   readingOf,
   readWalkthrough,
@@ -36,11 +36,19 @@ export function useReadyWalkthrough(workspace: Selection) {
   return phase?.kind === 'ready' ? phase : undefined;
 }
 
-export function useBranchFiles(workspace: Selection) {
+function useBranchFiles(workspace: Selection) {
   const result = useAtomValue(
     readBranchChanges(walkthroughSelection(workspace)),
   );
   return Option.getOrUndefined(AsyncResult.value(result))?.files ?? [];
+}
+
+export function useWalkthroughFiles(workspace: Selection) {
+  const branch = useBranchFiles(workspace);
+  const result = useAtomValue(readChanges(walkthroughSelection(workspace)));
+  const worktree =
+    Option.getOrUndefined(AsyncResult.value(result))?.changes ?? [];
+  return { branch, worktree };
 }
 
 export function useWorktreeGuide(workspace: Selection): WorktreeGuide {

@@ -538,9 +538,20 @@ it('deduplicates identical base and content across commits, and accepts changed 
     expect((await runtime.runPromise(store.accept(committed))).id).toBe(
       'uncommitted',
     );
-    const edited = {
+    const newReference = {
       ...committed,
-      run: { ...committed.run, id: 'edited', contentTreeOid: 'edited-tree' },
+      run: {
+        ...committed.run,
+        id: 'new-reference',
+        baseRef: 'refs/heads/new-base',
+      },
+    };
+    expect((await runtime.runPromise(store.accept(newReference))).id).toBe(
+      'new-reference',
+    );
+    const edited = {
+      ...newReference,
+      run: { ...newReference.run, id: 'edited', contentTreeOid: 'edited-tree' },
     };
     expect((await runtime.runPromise(store.accept(edited))).id).toBe('edited');
     expect(

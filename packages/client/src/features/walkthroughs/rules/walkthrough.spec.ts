@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   firstDocument,
+  walkthroughCodeScopes,
   groupFilesByStep,
   plainText,
   richParts,
@@ -314,7 +315,6 @@ describe('firstDocument', () => {
     },
   );
 
-
   it('offers a walkthrough on a branch with commits and nothing published', () => {
     expect(
       firstDocument({
@@ -324,17 +324,14 @@ describe('firstDocument', () => {
     ).toBe('walkthrough');
   });
 
-  it.each(['none', 'uncommitted'] as const)(
-    'opens Changes for %s work with no walkthrough run',
-    (change) => {
-      expect(
-        firstDocument({
-          read: read(undefined),
-          branchHasCommits: false,
-        }),
-      ).toBe('changes');
-    },
-  );
+  it('opens Changes for uncommitted-only work with no walkthrough run', () => {
+    expect(
+      firstDocument({
+        read: read(undefined),
+        branchHasCommits: false,
+      }),
+    ).toBe('changes');
+  });
 });
 
 describe('walkthroughFailureCopy', () => {
@@ -630,4 +627,54 @@ it('describes captured uncommitted work in shared web and mobile metadata', () =
       includesUncommitted: true,
     }),
   ).toBe('written for bbbbbbb and uncommitted work');
+});
+
+describe('walkthrough code scopes', () => {
+  it.each([
+    {
+      label: 'uncommitted only',
+      branch: [],
+      worktree: [{ path: 'dirty.ts' }],
+      expected: { branch: [], worktree: ['dirty.ts'] },
+    },
+    {
+      label: 'mixed',
+      branch: [{ path: 'committed.ts' }, { path: 'both.ts' }],
+      worktree: [
+        { path: 'both.ts' },
+        { path: 'dirty.ts' },
+        { path: 'dirty.ts' },
+      ],
+      expected: {
+        branch: ['committed.ts', 'both.ts'],
+        worktree: ['both.ts', 'dirty.ts'],
+      },
+    },
+    {
+      label: 'committed only',
+      branch: [{ path: 'committed.ts' }],
+      worktree: [],
+      expected: { branch: ['committed.ts'], worktree: [] },
+    },
+  ])(
+    'selects $label files once in each comparison',
+    ({ branch, worktree, expected }) => {
+      expect(walkthroughCodeScopes({ branch, worktree })).toEqual(expected);
+    },
+  );
+  it('selects only step files and follows renames in both comparisons', () => {
+    expect(
+      walkthroughCodeScopes({
+        branch: [
+          { path: 'renamed.ts', oldPath: 'old.ts' },
+          { path: 'outside.ts' },
+        ],
+        worktree: [
+          { path: 'renamed-again.ts', oldPath: 'renamed.ts' },
+          { path: 'outside.ts' },
+        ],
+        only: ['old.ts', 'renamed.ts'],
+      }),
+    ).toEqual({ branch: ['renamed.ts'], worktree: ['renamed-again.ts'] });
+  });
 });

@@ -96,7 +96,7 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
             includesUncommitted: snapshot.treeOid !== snapshot.headTreeOid,
             patch: snapshot.patch,
             omittedFiles: snapshot.omittedFiles,
-            headOid: range.head.oid,
+            headOid: snapshot.headOid,
             branch: range.head.ref?.replace(/^refs\/heads\//, ''),
             files,
             githubRepository: githubRepository(origin),

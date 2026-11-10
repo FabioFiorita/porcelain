@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useChanges } from '@/features/changes/index';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { plainText, stopPaths } from '@porcelain/client/walkthroughs/rules';
+import {
+  plainText,
+  stopPaths,
+  walkthroughCodeScopes,
+} from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import {
   BranchDocument,
@@ -92,19 +96,11 @@ function WalkthroughChangeDocument(
   return (
     <BranchState scope={props.scope} context={props.context} base={props.base}>
       {(branch) => {
-        const includes = (file: {
-          path: string;
-          oldPath?: string | undefined;
-        }) =>
-          props.only === undefined ||
-          props.only.includes(file.path) ||
-          (file.oldPath !== undefined && props.only.includes(file.oldPath));
-        const committed = [
-          ...new Set(branch.files.filter(includes).map((file) => file.path)),
-        ];
-        const dirty = [
-          ...new Set(changes.changes.filter(includes).map((file) => file.path)),
-        ];
+        const { branch: committed, worktree: dirty } = walkthroughCodeScopes({
+          branch: branch.files,
+          worktree: changes.changes,
+          only: props.only,
+        });
         const both = committed.length > 0 && dirty.length > 0;
         const interaction = (scope: 'branch' | 'uncommitted') => ({
           ...props.interaction,

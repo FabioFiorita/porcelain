@@ -1,4 +1,6 @@
 import { expect } from 'vitest';
+import { rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { Schema } from 'effect';
 import {
   readWalkthroughResponseSchema,
@@ -173,48 +175,68 @@ test('edits during writing do not change the captured files or excerpt validatio
   expect((await current()).outOfDate).toBe(true);
 });
 
-test('an unsupported untracked Git filter preserves the saved walkthrough and explains a refused update', async ({
-  session,
-}) => {
-  await session.installCodingTool();
-  await session.git('branch', 'filter-base');
-  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
-  const accepted = await read(session, {
-    method: 'POST',
-    path,
-    body: { base: 'refs/heads/filter-base' },
-  });
-  const current = async () =>
-    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
-      await read(session, { method: 'GET', path }),
+test.for(['conversion filter', 'empty nested repository'] as const)(
+  'a %s preserves the saved walkthrough when capture fails',
+  async (failure, { session }) => {
+    await session.installCodingTool();
+    await session.git(
+      'branch',
+      `filter-base-${failure === 'conversion filter' ? 'filter' : 'nested'}`,
     );
-  await expect
-    .poll(
-      async () => {
-        const view = await current();
-        return view.walkthrough?.id === accepted.id
-          ? view.walkthrough?.state.status
-          : undefined;
-      },
-      { timeout: 10000 },
-    )
-    .toBe('ready');
-  const saved = (await current()).walkthrough;
-  await session.writeFile('.gitattributes', '*.secret filter=example\n');
-  await session.writeFile('new.secret', 'keep this untracked\n');
-  expect((await current()).walkthrough).toEqual(saved);
-  expect((await current()).walkthrough?.id).toBe(accepted.id);
-  expect((await current()).outOfDate).toBe(true);
-  const refused = await read(
-    session,
-    {
+    const base = `refs/heads/filter-base-${failure === 'conversion filter' ? 'filter' : 'nested'}`;
+    await session.writeFile('notes.md', `Explain this ${failure} change.\n`);
+    const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+    const accepted = await read(session, {
       method: 'POST',
       path,
-      body: { base: 'refs/heads/filter-base' },
-    },
-    422,
-  );
-  expect(refused.message).toBe(
-    'This change uses Git conversion filters, which Porcelain will not execute.',
-  );
-});
+      body: { base },
+    });
+    const current = async () =>
+      Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+        await read(session, { method: 'GET', path }),
+      );
+    await expect
+      .poll(
+        async () => {
+          const view = await current();
+          return view.walkthrough?.id === accepted.id
+            ? view.walkthrough?.state.status
+            : undefined;
+        },
+        { timeout: 10000 },
+      )
+      .toBe('ready');
+    const saved = (await current()).walkthrough;
+    if (failure === 'conversion filter') {
+      await session.writeFile('.gitattributes', '*.secret filter=example\n');
+      await session.writeFile('new.secret', 'keep this untracked\n');
+    } else {
+      execFileSync('git', ['init', '-q', `${session.repository}/nested`]);
+    }
+    expect((await current()).walkthrough).toEqual(saved);
+    expect((await current()).walkthrough?.id).toBe(accepted.id);
+    expect((await current()).outOfDate).toBe(true);
+    const refused = await read(
+      session,
+      {
+        method: 'POST',
+        path,
+        body: { base },
+      },
+      422,
+    );
+    rmSync(`${session.repository}/.gitattributes`, {
+      force: true,
+    });
+    rmSync(`${session.repository}/new.secret`, { force: true });
+    rmSync(`${session.repository}/nested`, {
+      recursive: true,
+      force: true,
+    });
+    expect(refused.message).toBe(
+      failure === 'conversion filter'
+        ? 'This change uses Git conversion filters, which Porcelain will not execute.'
+        : 'The working change could not be captured within the server limits.',
+    );
+  },
+);

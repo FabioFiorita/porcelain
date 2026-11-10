@@ -6,7 +6,10 @@ import { RichText } from '../../../components/ui/rich-text';
 import { Screen } from '../../../components/ui/screen';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { ChangesPage } from '../../workspace/index';
-import { useBranchFiles, useReadyWalkthrough } from '../queries/walkthrough';
+import {
+  useWalkthroughFiles,
+  useReadyWalkthrough,
+} from '../queries/walkthrough';
 
 const BRANCH = { kind: 'branch' } as const;
 
@@ -44,7 +47,8 @@ function StepReader({
 }) {
   const router = useRouter();
   const ready = useReadyWalkthrough(workspace);
-  const renames = useBranchFiles(workspace);
+  const files = useWalkthroughFiles(workspace);
+  const renames = [...files.branch, ...files.worktree];
   const stop = ready?.content.stops[step - 1];
   if (!ready || !stop)
     return (
@@ -61,6 +65,7 @@ function StepReader({
       key={step}
       workspace={workspace}
       comparison={BRANCH}
+      walkthrough
       reading={{
         page: `walkthrough-step:${ready.run.id}:${step}`,
         title: `Step ${step} of ${total}`,
@@ -94,8 +99,8 @@ function StepReader({
           </Box>
         ),
         empty: {
-          title: 'No files on this branch',
-          description: `The files of “${plainText(stop.title)}” are no longer changed on this branch.`,
+          title: 'No changed files',
+          description: `The files of “${plainText(stop.title)}” no longer have changes in the branch or working tree.`,
         },
       }}
     />

@@ -1,3 +1,4 @@
+import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import { Effect, Layer } from 'effect';
 import { readWorkingTree } from '@porcelain/git/inspection';
 import { captureGitPlatform } from '@porcelain/git/discovery';
@@ -26,6 +27,7 @@ export const gitWalkthroughHeadReaderLayer = (limits: Limits['git']) =>
             input.worktreeId,
             readWorkingTree(input.worktreePath, undefined, limits).pipe(
               provideGit,
+              Effect.mapError(() => new RepositoryUnavailableError()),
             ),
           );
           return {

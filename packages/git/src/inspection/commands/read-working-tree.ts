@@ -17,7 +17,8 @@ export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
   });
   const read = (args: readonly string[], options: GitReadOptions = {}) =>
     gitRead(checkout, args, limits, options);
-  const headTreeOid = (yield* read(['rev-parse', 'HEAD^{tree}']))
+  const headOid = (yield* read(['rev-parse', 'HEAD'])).toString('utf8').trim();
+  const headTreeOid = (yield* read(['rev-parse', `${headOid}^{tree}`]))
     .toString('utf8')
     .trim();
   const filters = yield* checkConversionFilters(checkout, limits, true);
@@ -74,6 +75,7 @@ export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
   if (baseOid === undefined)
     return {
       treeOid,
+      headOid,
       headTreeOid,
       patch: '',
       omittedFiles: [],
@@ -109,6 +111,7 @@ export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
   const sections = yield* parseDiff(output, limits);
   return {
     treeOid,
+    headOid,
     headTreeOid,
     patch: [...sections.values()]
       .flatMap((section) => ('patch' in section ? [section.patch] : []))

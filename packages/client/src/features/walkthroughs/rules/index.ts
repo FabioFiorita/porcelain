@@ -1,5 +1,6 @@
 export {
   groupFilesByStep,
+  walkthroughCodeScopes,
   plainText,
   richParts,
   stopPaths,
