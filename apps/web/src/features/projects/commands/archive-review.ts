@@ -1,6 +1,7 @@
 import { useAtom } from '@effect/atom-react';
 import { useNavigate } from '@tanstack/react-router';
 import { reviewCommands } from '@porcelain/client/reviews';
+import { refreshInventory } from '@porcelain/client/projects';
 import type { Connection as RuntimeConnection } from '@/shared/workspace/connection';
 import type { ArchiveReviewRequest } from '@porcelain/contracts/reviews';
 export function useArchiveReview(
@@ -13,6 +14,9 @@ export function useArchiveReview(
     reviewCommands({ connection, reviewId }).archive,
     { mode: 'promise' },
   );
+  const [, refresh] = useAtom(refreshInventory(connection), {
+    mode: 'promise',
+  });
   const navigate = useNavigate();
   return {
     result,
@@ -20,8 +24,11 @@ export function useArchiveReview(
       if (payload.confirmation && beforeLeave) beforeLeave();
       let answer;
       try {
-        if (payload.confirmation) await navigate({ to: '/' });
         answer = await run(payload);
+        if (answer.archived) {
+          await refresh();
+          await navigate({ to: '/', replace: true });
+        }
       } catch {
         return undefined;
       }

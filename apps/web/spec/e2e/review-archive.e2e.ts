@@ -64,7 +64,8 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
   app,
 }) => {
   const project = await server.project();
-  const main = project.worktrees.find((row) => row.main)?.path;
+  const mainWorktree = project.worktrees.find((row) => row.main);
+  const main = mainWorktree?.path;
   if (!main) throw new Error('Missing main checkout');
   const fixture = await archiveFixture(main);
   await app.reload();
@@ -139,4 +140,14 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await expect.poll(() => fixture.exists()).toBe(false);
+  const destination = `/${project.id}/${mainWorktree?.id}`;
+  await expect.poll(() => app.address().path).toBe(destination);
+  await expect(
+    pairedPage.getByText('Worktree not found', { exact: true }),
+  ).not.toBeAttached();
+  await app.reload();
+  await expect.poll(() => app.address().path).toBe(destination);
+  await expect(
+    pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+  ).toBeVisible();
 });

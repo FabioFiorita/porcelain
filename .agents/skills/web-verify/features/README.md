@@ -110,6 +110,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [preferences.reviews-git](preferences.reviews-git.md) — Changes & Git settings each computer keeps, the first import and the computer picker.
 - [projects.search](projects.search.md) — Search, filters, checkout selection and deferred summaries.
 - [projects.worktree-actions](projects.worktree-actions.md) — Worktree branch switching and one-off deletion choices.
+- [projects.pull-request-document](projects.pull-request-document.md) — PR source links keep their checkout and computer; archive returns after cleanup.
 - [reviews.change-comment-draft](reviews.change-comment-draft.md) — Preserve whole-branch comment drafts across new commits.
 - [reviews.change-comment](reviews.change-comment.md) — Comment on the whole uncommitted change or the whole branch.
 - [reviews.changed-file-menu](reviews.changed-file-menu.md) — File menus, marking, comments and timeline.

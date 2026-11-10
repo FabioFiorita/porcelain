@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { CodeHeaderControls } from './code-document';
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { usePullRequestCheckout } from '../queries/pull-request';
 
 import {
   useConnectedContext,
@@ -150,7 +152,6 @@ export function DocumentView({
           document={document}
           context={context}
           toolbarTarget={toolbarTarget}
-          onOpen={onOpen}
         />
       );
   }
@@ -160,12 +161,10 @@ function ScopedPullRequestDocument({
   document,
   context,
   toolbarTarget,
-  onOpen,
 }: {
   document: Extract<DocumentRef, { kind: 'pull-request' }>;
   context: ConnectionContext;
   toolbarTarget: HTMLElement | null | undefined;
-  onOpen: OpenDocument;
 }) {
   const local = useConnectedContext();
   const remotes = useRemoteConnections();
@@ -182,16 +181,57 @@ function ScopedPullRequestDocument({
         description="Pair this pull request's computer in Settings to read it."
       />
     );
+  return (
+    <PullRequestSourceDocument
+      document={document}
+      context={{ connection }}
+      localEnvironmentId={local.connection.environmentId}
+      toolbarTarget={toolbarTarget}
+    />
+  );
+}
+
+function PullRequestSourceDocument({
+  document,
+  context,
+  localEnvironmentId,
+  toolbarTarget,
+}: {
+  document: Extract<DocumentRef, { kind: 'pull-request' }>;
+  context: ConnectionContext;
+  localEnvironmentId: string;
+  toolbarTarget: HTMLElement | null | undefined;
+}) {
+  const navigate = useNavigate();
+  const checkout = usePullRequestCheckout(
+    context.connection,
+    document.reviewId,
+  );
+  if (!checkout)
+    return <StateNotice title="Pull request checkout unavailable" />;
   const openSource = (
     entry: { kind: 'handoff' } | { kind: 'file'; path: string },
   ) => {
-    onOpen(entry);
+    const params = checkout;
+    const search = { entry: entryKey(entry) };
+    void navigate(
+      context.connection.environmentId === localEnvironmentId
+        ? { to: '/$projectId/$worktreeId', params, search }
+        : {
+            to: '/remotes/$environmentId/$projectId/$worktreeId',
+            params: {
+              ...params,
+              environmentId: context.connection.environmentId,
+            },
+            search,
+          },
+    );
   };
   return (
     <PullRequestDocument
       reviewId={document.reviewId}
       number={document.number}
-      context={{ connection }}
+      context={context}
       toolbarTarget={toolbarTarget}
       onBack={() => openSource({ kind: 'handoff' })}
       onFile={(path) => openSource({ kind: 'file', path })}
