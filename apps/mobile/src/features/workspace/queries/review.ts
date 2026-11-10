@@ -132,28 +132,39 @@ export const changePageDiffs = Atom.family(
     workspace: Pick<Workspace, 'connection' | 'scope'>;
     comparison: ReviewComparison;
     keys: readonly string[];
-  }) =>
-    Atom.readable((get): ChunkDiffs => {
-      const current = chunkDiffs(
-        get,
-        get(snapshots({ workspace, comparison })),
-        workspace,
-        keys,
-      );
-      const previous = Option.getOrUndefined(get.self<ChunkDiffs>());
-      if (
-        !AsyncResult.isSuccess(current) &&
-        !AsyncResult.isFailure(current) &&
-        previous &&
-        AsyncResult.isSuccess(previous)
-      )
-        return AsyncResult.success(previous.value, { waiting: true });
-      return current;
-    }),
+  }) => {
+    const source: { query: Atom.Atom<unknown> | undefined } = {
+      query: undefined,
+    };
+    return Atom.readable(
+      (get): ChunkDiffs => {
+        const current = chunkDiffs(
+          (query) => {
+            source.query = query;
+            return get(query);
+          },
+          get(snapshots({ workspace, comparison })),
+          workspace,
+          keys,
+        );
+        const previous = Option.getOrUndefined(get.self<ChunkDiffs>());
+        if (
+          !AsyncResult.isSuccess(current) &&
+          !AsyncResult.isFailure(current) &&
+          previous &&
+          AsyncResult.isSuccess(previous)
+        )
+          return AsyncResult.success(previous.value, { waiting: true });
+        return current;
+      },
+      (refresh) =>
+        refresh(source.query ?? snapshots({ workspace, comparison })),
+    );
+  },
 );
 
 function chunkDiffs(
-  get: Atom.AtomContext,
+  get: <A>(query: Atom.Atom<A>) => A,
   snapshot: AsyncResult.AsyncResult<ReviewSnapshot, unknown>,
   workspace: Pick<Workspace, 'connection' | 'scope'>,
   keys: readonly string[],

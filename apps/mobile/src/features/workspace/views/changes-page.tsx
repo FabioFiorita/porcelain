@@ -1,5 +1,5 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
@@ -146,12 +146,13 @@ function FirstDiffs({
   children: ReactNode;
 }) {
   const result = useAtomValue(changePageDiffs({ workspace, comparison, keys }));
-  if (
-    keys.length > 0 &&
-    !AsyncResult.isSuccess(result) &&
-    !AsyncResult.isFailure(result)
-  )
-    return <Loading label="Loading changes…" />;
+  const [opened, setOpened] = useState(false);
+  const settled =
+    keys.length === 0 ||
+    AsyncResult.isSuccess(result) ||
+    AsyncResult.isFailure(result);
+  if (settled && !opened) setOpened(true);
+  if (!settled && !opened) return <Loading label="Loading changes…" />;
   return children;
 }
 

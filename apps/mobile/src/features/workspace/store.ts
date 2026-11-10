@@ -20,7 +20,13 @@ export const reviewFileScope = Atom.family((_owner: string) =>
   Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );
 
-export const diffPageCurrent = Atom.family((_page: string) => Atom.make(0));
+export const diffPageCurrent = Atom.family((_page: string) =>
+  Atom.make(0).pipe(Atom.keepAlive),
+);
+
+export const diffPageOpening = Atom.family((page: string) =>
+  Atom.make((get) => get.once(diffPageCurrent(page))).pipe(Atom.setIdleTTL(0)),
+);
 
 export const diffPageStuck = Atom.family((_page: string) =>
   Atom.make<number | undefined>(undefined),

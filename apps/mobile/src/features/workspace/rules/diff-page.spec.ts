@@ -6,6 +6,7 @@ import {
   diffPageRows,
   fileAtTop,
   headingRow,
+  openingFile,
   stuckHeading,
   sourceBody,
 } from './diff-page';
@@ -81,5 +82,11 @@ describe('a page of diffs', () => {
     expect(diffChunk(files, 19)).toEqual(files.slice(0, 20));
     expect(diffChunk(files, 20)).toEqual(files.slice(20, 40));
     expect(diffChunk(files, 44)).toEqual([40, 41, 42, 43, 44]);
+  });
+
+  it('opens at the focused file, else at the file last read, else at the top', () => {
+    expect(openingFile(7, 3, 40)).toBe(7);
+    expect(openingFile(-1, 3, 40)).toBe(3);
+    expect(openingFile(-1, 12, 5)).toBe(0);
   });
 });

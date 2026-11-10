@@ -106,3 +106,8 @@ export function diffChunk<T>(items: readonly T[], index: number): T[] {
   const start = Math.floor(index / DIFF_PAGE_CHUNK) * DIFF_PAGE_CHUNK;
   return items.slice(start, start + DIFF_PAGE_CHUNK);
 }
+
+export function openingFile(focused: number, reading: number, files: number) {
+  if (focused >= 0) return focused;
+  return reading < files ? reading : 0;
+}

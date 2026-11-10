@@ -19,13 +19,14 @@ import {
   diffCountsLabel,
   diffPageRows,
   fileAtTop,
+  openingFile,
   stuckHeading,
   headingRow,
   type DiffPageBody,
   type DiffPageFile,
   type DiffPageRow,
 } from '../rules/diff-page';
-import { diffPageCurrent, diffPageStuck } from '../store';
+import { diffPageCurrent, diffPageOpening, diffPageStuck } from '../store';
 
 export type { DiffPageFile } from '../rules/diff-page';
 
@@ -68,7 +69,9 @@ export function DiffPage<F extends DiffPageFile>({
   part: (props: DiffPagePartProps<F>) => ReactNode;
   onOpenFile: (file: F) => void;
 }) {
-  const initial = files.findIndex((file) => file.key === initialFile);
+  const reading = useAtomValue(diffPageOpening(page));
+  const focused = files.findIndex((file) => file.key === initialFile);
+  const initial = openingFile(focused, reading, files.length);
   const setCurrent = useAtomSet(diffPageCurrent(page));
   const setStuck = useAtomSet(diffPageStuck(page));
   const [list, setList] = useState<FlatList<DiffPageRow> | null>(null);
