@@ -124,3 +124,96 @@ test('a failed answer can be retried and a walkthrough without a PR copies its b
     .toBeVisible();
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });
+
+test('retained comments on a short PR page remain readable, undoable and postable', async ({
+  render,
+}) => {
+  await conversationFixture('short-pr');
+  const { page } = await render.route('/');
+  await expect
+    .element(
+      page.getByRole('heading', { name: 'Earlier comments', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Keep the original boundary.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      page
+        .getByText('The original boundary still matters.', { exact: true })
+        .first(),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByText('1 comment saved', { exact: true }))
+    .toBeVisible();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect
+    .element(page.getByText('1 comment saved', { exact: true }))
+    .not.toBeInTheDocument();
+  await page
+    .getByRole('button', { name: 'Save for later', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Post together on #424', exact: true })
+    .click();
+  await expect
+    .poll(() => conversationFixture('posts'))
+    .toContain('Keep the original boundary.');
+});
+
+test('retained comments on a short page without a PR can be copied together', async ({
+  render,
+}) => {
+  await conversationFixture('short-copy');
+  const { page } = await render.route('/');
+  await expect
+    .element(
+      page.getByRole('heading', { name: 'Earlier comments', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByText('Keep the original boundary.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole('button', { name: 'Undo', exact: true }))
+    .toBeVisible();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect
+    .element(page.getByRole('button', { name: 'Copy as prompt', exact: true }))
+    .toBeVisible();
+  await page
+    .getByRole('button', { name: 'Save for later', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Copy together', exact: true })
+    .click();
+  await expect
+    .element(page.getByText('Copied brief', { exact: true }))
+    .toBeVisible();
+  await expect.poll(() => conversationFixture('posts')).toBe('');
+});
+
+test('a posted comment keeps its original pull request number when the latest walkthrough names another PR', async ({
+  render,
+}) => {
+  await conversationFixture('changed-pr');
+  const { page } = await render.route('/');
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Post together on #424', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('link', { name: 'Posted on #423', exact: true }).first(),
+    )
+    .toHaveAttribute(
+      'href',
+      'https://github.com/example/sample/pull/423#issuecomment-1',
+    );
+  await expect
+    .element(page.getByRole('link', { name: 'Posted on #424', exact: true }))
+    .not.toBeInTheDocument();
+});

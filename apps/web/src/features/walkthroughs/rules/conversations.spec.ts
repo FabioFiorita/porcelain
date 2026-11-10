@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   earlierConversations,
   postControls,
+  postedCommentLabel,
   conversationFailure,
   type DeveloperMessage,
 } from './conversations';
@@ -73,4 +74,19 @@ it('explains a refused post and offers the brief without hiding other failures',
     text: 'Offline',
     copy: false,
   });
+});
+
+it.each([
+  [
+    'https://github.com/example/sample/pull/423#issuecomment-1',
+    'Posted on #423',
+  ],
+  [
+    'https://github.example.com/example/sample/issues/17#issuecomment-9',
+    'Posted on #17',
+  ],
+  ['https://example.com/comments/9', 'Posted comment'],
+  ['not a URL', 'Posted comment'],
+])('labels the stored comment destination %s as %s', (url, label) => {
+  expect(postedCommentLabel(url)).toBe(label);
 });

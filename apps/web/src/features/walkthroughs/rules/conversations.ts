@@ -44,3 +44,11 @@ export function conversationFailure(error: unknown): {
     copy: false,
   };
 }
+
+export function postedCommentLabel(url: string): string {
+  if (!URL.canParse(url)) return 'Posted comment';
+  const number = new URL(url).pathname.match(
+    /\/(?:pull|issues)\/([1-9]\d*)\/?$/,
+  )?.[1];
+  return number === undefined ? 'Posted comment' : `Posted on #${number}`;
+}

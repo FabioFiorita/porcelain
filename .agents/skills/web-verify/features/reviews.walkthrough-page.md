@@ -82,3 +82,5 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 12. A refused post says "Nothing was posted. Copy the brief instead." and offers "Copy". A partial post identifies comments still saved because they belong to a different repository. Whole-walkthrough and removed-stop conversations appear under "Earlier comments".
 
 Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations.test.tsx`, using its isolated fake CLI and fake GitHub against the real server. Its ready walkthrough is a synthetic fixture, with no external project content. Sweep at desktop and 414 × 896, light and dark.
+
+13. After a later walkthrough has outcome `nothing`, retained threads still appear under "Earlier comments" with Undo, copy/post controls and the saved bar. A posted link always labels its original comment destination, even when the current walkthrough names another PR; an unrecognized URL reads "Posted comment".

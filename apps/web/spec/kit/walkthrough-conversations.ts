@@ -7,7 +7,16 @@ import type { World } from './world.ts';
 
 export async function walkthroughConversationsFixture(
   world: World,
-  action: 'pr' | 'no-pr' | 'fail' | 'recover' | 'moved' | 'posts',
+  action:
+    | 'pr'
+    | 'no-pr'
+    | 'fail'
+    | 'recover'
+    | 'moved'
+    | 'posts'
+    | 'short-pr'
+    | 'short-copy'
+    | 'changed-pr',
 ): Promise<string> {
   const server = world.server;
   const project = await serverReaders({
@@ -61,7 +70,7 @@ const fs = require('node:fs');
 const args = process.argv.slice(2);
 if (args[0] === 'auth' && args[1] === 'status') console.log(JSON.stringify(['fixture']));
 else if (args[0] === 'auth' && args[1] === 'token') console.log('fixture-token');
-else if (args.some(arg => arg.endsWith('/issues/423/comments'))) { fs.appendFileSync(${JSON.stringify(calls)}, fs.readFileSync(0, 'utf8')+'\\n'); console.log(JSON.stringify({html_url:'https://github.com/example/sample/pull/423#issuecomment-1'})); }
+else if (args.some(arg => arg.endsWith('/issues/423/comments') || arg.endsWith('/issues/424/comments'))) { fs.appendFileSync(${JSON.stringify(calls)}, fs.readFileSync(0, 'utf8')+'\\n'); console.log(JSON.stringify({html_url:'https://github.com/example/sample/pull/' + (args.some(arg => arg.endsWith('/issues/424/comments')) ? '424' : '423') + '#issuecomment-1'})); }
 else console.log('{}');
 `,
     { mode: 0o755 },
@@ -94,7 +103,7 @@ else console.log('{}');
       id: 'conversation-run',
       projectId: session.projectId,
       worktreeId: session.worktreeId,
-      ...(action === 'pr'
+      ...(action === 'pr' || action === 'short-pr' || action === 'changed-pr'
         ? {
             pullRequestNumber: 423,
             pullRequestRepository: { owner: 'example', repo: 'sample' },
@@ -137,6 +146,78 @@ else console.log('{}');
     db.prepare(
       'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
     ).run(job.run.id, session.worktreeId, head, 'ready', JSON.stringify(job));
+
+    if (
+      action === 'short-pr' ||
+      action === 'short-copy' ||
+      action === 'changed-pr'
+    ) {
+      const answer = JSON.stringify({
+        status: 'answered',
+        text: 'The original boundary still matters.',
+        answeredAt: '2026-11-10T00:01:00.000Z',
+        durationMs: 1,
+      });
+      for (const { id, text, status } of [
+        { id: 'saved', text: 'Keep the original boundary.', status: 'saved' },
+        { id: 'posted', text: 'This was already discussed.', status: 'posted' },
+      ]) {
+        db.prepare(
+          'INSERT INTO walkthrough_messages (id, run_id, worktree_id, stop_title, text, created_at, post_status, post_url, posted_at, answer_status, answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).run(
+          id,
+          job.run.id,
+          session.worktreeId,
+          'Retry boundary',
+          text,
+          '2026-11-10T00:00:00.000Z',
+          status,
+          status === 'posted'
+            ? 'https://github.com/example/sample/pull/423#issuecomment-1'
+            : null,
+          status === 'posted' ? '2026-11-10T00:02:00.000Z' : null,
+          'answered',
+          answer,
+        );
+      }
+      const content =
+        action === 'changed-pr'
+          ? job.run.state.content
+          : {
+              ...job.run.state.content,
+              outcome: 'nothing',
+              title: 'A small routine change',
+              summary: 'Nothing new needs a decision.',
+              stops: [],
+            };
+      await session.git(
+        'commit',
+        '--allow-empty',
+        '-m',
+        'Advance the conversation fixture',
+      );
+      const latestHead = (await session.git('rev-parse', 'HEAD')).trim();
+      const latest = {
+        ...job,
+        run: {
+          ...job.run,
+          id: 'latest-run',
+          headOid: latestHead,
+          createdAt: '2026-11-11T00:00:00.000Z',
+          ...(action === 'short-copy' ? {} : { pullRequestNumber: 424 }),
+          state: { ...job.run.state, content },
+        },
+      };
+      db.prepare(
+        'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
+      ).run(
+        latest.run.id,
+        session.worktreeId,
+        latestHead,
+        'ready',
+        JSON.stringify(latest),
+      );
+    }
   } finally {
     db.close();
   }

@@ -190,7 +190,17 @@ const porcelainCollectGarbage: BrowserCommand<[], void> = (context) =>
   context.page.requestGC();
 
 const porcelainWalkthroughConversations: BrowserCommand<
-  ['pr' | 'no-pr' | 'fail' | 'recover' | 'moved' | 'posts'],
+  [
+    | 'pr'
+    | 'no-pr'
+    | 'fail'
+    | 'recover'
+    | 'moved'
+    | 'posts'
+    | 'short-pr'
+    | 'short-copy'
+    | 'changed-pr',
+  ],
   string
 > = (context, action) =>
   walkthroughConversationsFixture(world(context), action);

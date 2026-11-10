@@ -370,6 +370,8 @@ function Written({
             </Button>
           </div>
         </header>
+        <EarlierComments owner={props} titles={[]} />
+        <PostSaved owner={props} />
       </Column>
     );
   return (

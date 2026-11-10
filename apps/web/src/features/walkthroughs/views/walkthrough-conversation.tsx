@@ -36,6 +36,7 @@ import {
 import {
   earlierConversations,
   postControls,
+  postedCommentLabel,
   type Conversation,
   type DeveloperMessage,
   type AgentMessage,
@@ -65,7 +66,7 @@ function PostActions({
           target="_blank"
           rel="noreferrer"
         >
-          Posted on #{number}
+          {postedCommentLabel(message.post.url)}
         </a>
       ) : null}
       {state === 'saved' && (
