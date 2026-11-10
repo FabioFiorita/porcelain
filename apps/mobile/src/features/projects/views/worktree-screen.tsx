@@ -189,6 +189,7 @@ function WorktreeSections({
   content: WorktreeSectionContent;
   guide: WorktreeGuide;
 }) {
+  const router = useRouter();
   const [opening, setOpening] = useState<WorktreeSection>();
   const [chosen, choose] = useAtom(worktreeSection(workspace));
   if (opening === undefined && !guide.pending)
@@ -220,7 +221,13 @@ function WorktreeSections({
     'worktree-sections',
     (['changes', 'files', 'history'] as const).map((id) => ({
       binding: id,
-      run: () => choose(id),
+      run: () =>
+        id === 'changes' && guide.walkthrough
+          ? router.push({
+              pathname: '/worktree-changes',
+              params: { workspace },
+            })
+          : choose(id),
     })),
   );
   return (
