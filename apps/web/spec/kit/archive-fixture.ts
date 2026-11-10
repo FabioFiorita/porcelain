@@ -22,6 +22,7 @@ export async function archiveFixture(
   execFileSync('git', ['init', '-q', '--bare', remote]);
   git('remote', 'add', 'origin', 'git@github.com:FabioFiorita/porcelain.git');
   git('remote', 'set-url', '--push', 'origin', remote);
+  git('remote', 'add', 'fixture', remote);
   git('add', '--all');
   git('commit', '--allow-empty', '-qm', 'Prepare archive base');
   git('branch', 'archive-base');
@@ -36,7 +37,14 @@ export async function archiveFixture(
     '-qm',
     'Complete archive fixture',
   ]);
-  execFileSync('git', ['-C', tree, 'push', '-qu', 'origin', 'archive-fixture']);
+  execFileSync('git', [
+    '-C',
+    tree,
+    'push',
+    '-qu',
+    'fixture',
+    'archive-fixture',
+  ]);
   writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n.env\n');
   writeFileSync(join(tree, '.env'), 'LOCAL_ONLY=archive-fixture\n');
   mkdirSync(join(tree, 'node_modules'));
@@ -55,6 +63,7 @@ export async function archiveFixture(
     body: options.description ?? 'Finished',
     baseRefName: 'main',
     headRefOid: head,
+    headRepository: { url: remote },
     mergeable: 'UNKNOWN',
     labels: { nodes: [], pageInfo: { hasNextPage: false } },
     comments: { nodes: [], pageInfo: { hasNextPage: false } },

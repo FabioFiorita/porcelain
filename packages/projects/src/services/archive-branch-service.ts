@@ -7,13 +7,16 @@ import { BranchArchiver } from '../ports/branch-archiver.ts';
 import { BranchArchiveRefusedError } from '../errors/branch-archive-refused-error.ts';
 type Input = Omit<
   BranchArchiveTarget,
-  'branch' | 'mergedHead' | 'worktreePath'
+  'branch' | 'mergedHead' | 'worktreePath' | 'pullRequestHead'
 > & {
+  number: number;
   pull:
     | {
+        number: number;
         state: 'open' | 'merged' | 'closed';
         headBranch: string;
         headSha: string;
+        headRepository?: string | undefined;
       }
     | undefined;
   worktrees: readonly { branch: string | undefined; path: string }[];
@@ -33,7 +36,7 @@ export class ArchiveBranchService extends Context.Service<
       return {
         execute: Effect.fn('ArchiveBranchService.execute')(function* (input) {
           const pull = input.pull;
-          if (!pull)
+          if (!pull || pull.number !== input.number)
             return yield* new BranchArchiveRefusedError({
               message:
                 'The pull request could not be confirmed. Nothing was deleted. Refresh it and retry.',
@@ -49,6 +52,10 @@ export class ArchiveBranchService extends Context.Service<
           const plan = yield* archiver.execute({
             ...input,
             branch: pull.headBranch,
+            pullRequestHead: {
+              repository: pull.headRepository,
+              oid: pull.headSha,
+            },
             worktreePath: worktree?.path,
             mergedHead: pull.state === 'merged' ? pull.headSha : undefined,
           });

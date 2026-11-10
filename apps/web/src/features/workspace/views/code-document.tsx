@@ -57,6 +57,7 @@ import {
 import { useToggleReviewed } from '../commands/reviewed';
 import { ChangeCounts } from './change-counts';
 import { isFolded } from '../rules/code-folds';
+import { discardSelection } from '../rules/discard-selection';
 import { counted } from '@porcelain/client/changes/rules';
 import { groupSpecPaths, isSpecPath } from '@porcelain/client/changes/rules';
 import type { DocumentInteraction } from '../rules/documents';
@@ -170,6 +171,7 @@ function CodeSurface({
     saveSelection(selected);
     viewer.rememberSelection(selected);
   };
+  const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
     focus(id);
@@ -359,29 +361,20 @@ function CodeSurface({
           Code changed since these lines were selected. Select lines again.
         </p>
       )}
-      {selection &&
-        selectedEntry?.discardScope &&
-        selection.range.side !== 'deletions' && (
-          <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2">
-            <DiscardButton
-              scope={scope}
-              context={gitContext}
-              path={selectedEntry.path}
-              hunk={{
-                scope: selectedEntry.discardScope,
-                startLine: Math.min(
-                  selection.range.start,
-                  selection.range.end ?? selection.range.start,
-                ),
-                endLine: Math.max(
-                  selection.range.start,
-                  selection.range.end ?? selection.range.start,
-                ),
-              }}
-              variant="compact"
-            />
-          </div>
-        )}
+      {discard && selectedEntry?.discardScope && (
+        <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2">
+          <DiscardButton
+            scope={scope}
+            context={gitContext}
+            path={selectedEntry.path}
+            hunk={{
+              scope: selectedEntry.discardScope,
+              ...discard,
+            }}
+            variant="compact"
+          />
+        </div>
+      )}
       {toolbar
         ? toolbar(collapseControl)
         : !column &&

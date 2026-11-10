@@ -116,6 +116,7 @@ export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
     authorAvatarUrl: raw.author?.avatarUrl ?? undefined,
     baseBranch: raw.baseRefName,
     headSha: raw.headRefOid,
+    headRepository: raw.headRepository?.url,
     mergeable: raw.mergeable,
     labels: raw.labels.nodes,
     checks,

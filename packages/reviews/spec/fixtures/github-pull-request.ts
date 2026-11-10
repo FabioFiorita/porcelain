@@ -47,6 +47,7 @@ export function githubPullRequest(
     body: '# Description',
     baseRefName: 'main',
     headRefOid: 'a'.repeat(40),
+    headRepository: { url: 'https://github.com/FabioFiorita/porcelain' },
     mergeable: 'MERGEABLE',
     labels: {
       nodes: [{ name: 'feature', color: '123456' }],

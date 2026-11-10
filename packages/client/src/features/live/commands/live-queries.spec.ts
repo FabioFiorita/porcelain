@@ -479,3 +479,36 @@ it('revalidates status on reconnect, identity-relevant notices and rejected cred
     await subject.cleanup();
   }
 });
+
+it.each([
+  ['files', 0],
+  ['reviewed', 0],
+  ['git', 1],
+] as const)(
+  'a %s notice triggers %s GitHub refreshes',
+  async (change, expected) => {
+    const subject = await setup();
+    let refreshes = 0;
+    const stop = subject.connection.runtime
+      .runSync(Reactivity.Reactivity)
+      .registerUnsafe(
+        [queryKeys.projectPullRequests(environmentId, projectId)],
+        () => {
+          refreshes += 1;
+        },
+      );
+    try {
+      subject.live()?.onNotice({
+        type: 'worktree',
+        projectId,
+        worktreeId: '00000000000000000000000000000001',
+        change,
+      });
+      await Promise.resolve();
+      expect(refreshes).toBe(expected);
+    } finally {
+      stop();
+      await subject.cleanup();
+    }
+  },
+);

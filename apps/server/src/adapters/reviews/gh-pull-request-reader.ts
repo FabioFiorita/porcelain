@@ -24,7 +24,7 @@ const CHECK_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { st
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
-    ${SUMMARY_FIELDS} ${CHECK_FIELDS} body createdAt baseRefName headRefOid mergeable bodyHTML
+    ${SUMMARY_FIELDS} ${CHECK_FIELDS} body createdAt baseRefName headRefOid headRepository { url } mergeable bodyHTML
     labels(first: 50) { nodes { name color } ${PAGE} }
     comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url } ${PAGE} }
     reviews(first: 50) { nodes { id author { login avatarUrl(size: 48) } submittedAt createdAt body url state

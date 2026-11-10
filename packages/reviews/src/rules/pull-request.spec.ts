@@ -19,6 +19,7 @@ it('maps headers, checks and a chronological timeline including deleted authors 
     authorAvatarUrl: 'https://avatars.githubusercontent.com/u/1',
     createdAt: '2026-10-18T10:00:00Z',
     headBranch: 'feat/review-per-branch',
+    headRepository: 'https://github.com/FabioFiorita/porcelain',
     baseBranch: 'main',
     description: '# Description',
     mergeable: 'MERGEABLE',

@@ -112,6 +112,9 @@ export const githubPullRequestSchema = Schema.Struct({
   createdAt: Schema.optional(Schema.String),
   baseRefName: Schema.String,
   headRefOid: Schema.String,
+  headRepository: Schema.optional(
+    Schema.NullOr(Schema.Struct({ url: Schema.String })),
+  ),
   mergeable: Schema.String,
   labels: Schema.Struct({
     nodes: Schema.Array(
@@ -194,6 +197,7 @@ export const pullRequestSchema = Schema.Struct({
   authorAvatarUrl: Schema.optional(Schema.String),
   baseBranch: Schema.String,
   headSha: Schema.String,
+  headRepository: Schema.optional(Schema.String),
   mergeable: Schema.String,
   labels: Schema.Array(
     Schema.Struct({ name: Schema.String, color: Schema.String }),

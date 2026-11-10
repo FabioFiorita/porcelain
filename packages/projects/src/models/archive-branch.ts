@@ -18,4 +18,5 @@ export type BranchArchiveTarget = ArchivePullRequestRequest & {
   worktreePath?: string | undefined;
   branch: string;
   mergedHead?: string | undefined;
+  pullRequestHead: { repository: string | undefined; oid: string };
 };

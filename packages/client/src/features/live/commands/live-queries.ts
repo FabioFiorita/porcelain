@@ -108,10 +108,14 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     if (notice.type === 'worktree') {
       yield* reactivity.invalidate([
         queryKeys.worktreeInventory(connection.environmentId),
-        queryKeys.projectPullRequests(
-          connection.environmentId,
-          notice.projectId,
-        ),
+        ...(notice.change === 'git'
+          ? [
+              queryKeys.projectPullRequests(
+                connection.environmentId,
+                notice.projectId,
+              ),
+            ]
+          : []),
       ]);
     }
     if (notice.type === 'project' && notice.change === 'preferences')

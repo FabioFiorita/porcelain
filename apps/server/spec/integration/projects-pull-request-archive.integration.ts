@@ -43,7 +43,6 @@ import { ReadProjectPullRequestUseCasePort } from '../../src/ports/read-project-
 import { LaneKeys } from '../../src/runtime/lane-keys.ts';
 import { Lanes } from '../../src/runtime/lanes.ts';
 import { ArchivePullRequestUseCase } from '../../src/use-cases/projects/archive-pull-request.ts';
-import {} from '../kit/requests.ts';
 import { record, text } from '../kit/session.ts';
 import { test } from '../kit/server-test.ts';
 
@@ -187,6 +186,7 @@ async function withArchive<E>(
                 description: '',
                 baseBranch: 'main',
                 headSha: head,
+                headRepository: remote,
                 mergeable: 'UNKNOWN',
                 labels: [],
                 checks: [],
@@ -809,5 +809,196 @@ test('stale bytes with the same dirty status refuse deletion, then a new preview
           confirmation: { plan: current.plan, discardChanges: true },
         })).archived,
       ).toBe(true);
+    }),
+  ));
+
+for (const state of ['merged', 'closed'] as const) {
+  test(`archive refuses a ${state} fork PR with the same local branch name without deleting anything`, () =>
+    withArchive((f) =>
+      Effect.gen(function* () {
+        if (f.state.pull.kind !== 'available')
+          throw new Error('Expected a pull request');
+        f.state.pull = {
+          ...f.state.pull,
+          pullRequest: {
+            ...f.state.pull.pullRequest,
+            state,
+            headRepository: 'https://github.com/someone/porcelain',
+          },
+        };
+        const result = yield* Effect.result(f.archive.execute(f.input));
+        expect(result).toMatchObject({
+          _tag: 'Failure',
+          failure: {
+            _tag: 'BranchArchiveRefusedError',
+          },
+        });
+        expect(yield* Effect.promise(() => f.git('rev-parse', 'feature'))).toBe(
+          f.head,
+        );
+        expect(
+          yield* Effect.promise(() =>
+            f.git('ls-remote', '--heads', 'origin', 'feature'),
+          ),
+        ).toBe(`${f.head}\trefs/heads/feature`);
+        expect(
+          yield* Effect.promise(() =>
+            readFile(join(f.worktree, 'note.txt'), 'utf8'),
+          ),
+        ).toBe('Retained code\n');
+        expect(f.trace).not.toContain('inventory');
+      }),
+    ));
+}
+
+test('archive refuses a fully pushed reused branch whose head is unrelated to the PR', () =>
+  withArchive((f) =>
+    Effect.gen(function* () {
+      const unrelated = yield* Effect.promise(async () => {
+        const tree = await f.git('rev-parse', `${f.head}^{tree}`);
+        const head = await f.git('commit-tree', tree, '-m', 'Unrelated branch');
+        await f.git('update-ref', 'refs/heads/feature', head);
+        await f.git('push', '--force', 'origin', 'feature');
+        return head;
+      });
+      const result = yield* Effect.result(f.archive.execute(f.input));
+      expect(result).toMatchObject({
+        _tag: 'Failure',
+        failure: {
+          _tag: 'BranchArchiveRefusedError',
+        },
+      });
+      expect(yield* Effect.promise(() => f.git('rev-parse', 'feature'))).toBe(
+        unrelated,
+      );
+      expect(
+        yield* Effect.promise(() =>
+          f.git('ls-remote', '--heads', 'origin', 'feature'),
+        ),
+      ).toBe(`${unrelated}\trefs/heads/feature`);
+      expect(
+        yield* Effect.promise(() =>
+          readFile(join(f.worktree, 'note.txt'), 'utf8'),
+        ),
+      ).toBe('Retained code\n');
+    }),
+  ));
+
+for (const mismatch of [
+  'missing-repository',
+  'upstream-ref',
+  'push-repository',
+  'remote-head',
+] as const) {
+  test(`archive refuses an unproven ${mismatch} association before producing any deletion target`, () =>
+    withArchive((f) =>
+      Effect.gen(function* () {
+        if (mismatch === 'missing-repository') {
+          if (f.state.pull.kind !== 'available')
+            throw new Error('Expected a pull request');
+          const { headRepository: _repository, ...pullRequest } =
+            f.state.pull.pullRequest;
+          f.state.pull = { ...f.state.pull, pullRequest };
+        } else {
+          yield* Effect.promise(async () => {
+            if (mismatch === 'upstream-ref')
+              await f.git(
+                'config',
+                'branch.feature.merge',
+                'refs/heads/unrelated',
+              );
+            if (mismatch === 'push-repository')
+              await f.git(
+                'remote',
+                'set-url',
+                '--push',
+                'origin',
+                `${f.remote}.unrelated`,
+              );
+            if (mismatch === 'remote-head') {
+              const tree = await f.git('rev-parse', `${f.head}^{tree}`);
+              const unrelated = await f.git(
+                'commit-tree',
+                tree,
+                '-m',
+                'Reused remote branch',
+              );
+              await f.git(
+                'push',
+                '--force',
+                'origin',
+                `${unrelated}:refs/heads/feature`,
+              );
+            }
+          });
+        }
+        const result = yield* Effect.result(
+          f.archive.execute({
+            ...f.input,
+            options: {
+              deleteWorktree: true,
+              deleteLocalBranch: true,
+              deleteRemoteBranch: false,
+            },
+          }),
+        );
+        expect(result._tag).toBe('Failure');
+        if (result._tag === 'Failure')
+          expect(result.failure.message).toContain('Nothing was deleted');
+        expect(yield* Effect.promise(() => f.git('rev-parse', 'feature'))).toBe(
+          f.head,
+        );
+        expect(
+          yield* Effect.promise(() =>
+            f.git(
+              '--git-dir',
+              f.remote,
+              'show-ref',
+              '--verify',
+              'refs/heads/feature',
+            ),
+          ),
+        ).toContain('refs/heads/feature');
+        expect(
+          yield* Effect.promise(() =>
+            readFile(join(f.worktree, 'note.txt'), 'utf8'),
+          ),
+        ).toBe('Retained code\n');
+      }),
+    ));
+}
+
+test('archive retains the merged head proof after GitHub deletes the remote branch', () =>
+  withArchive((f) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(() =>
+        f.git('push', 'origin', '--delete', 'feature'),
+      );
+      const preview = yield* f.archive.execute(f.input);
+      expect(preview.plan.unpushed).toBe(false);
+      expect(preview.plan.remoteBranch).toBeUndefined();
+      expect(
+        (yield* f.archive.execute({
+          ...f.input,
+          confirmation: { plan: preview.plan, discardChanges: false },
+        })).archived,
+      ).toBe(true);
+      expect(
+        yield* Effect.promise(() => f.git('branch', '--list', 'feature')),
+      ).toBe('');
+    }),
+  ));
+
+test('archive refuses a response for another PR before selecting the branch', () =>
+  withArchive((f) =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        f.archive.execute({ ...f.input, number: 424 }),
+      );
+      expect(result._tag).toBe('Failure');
+      expect(yield* Effect.promise(() => f.git('rev-parse', 'feature'))).toBe(
+        f.head,
+      );
+      expect(f.owners).toEqual([]);
     }),
   ));
