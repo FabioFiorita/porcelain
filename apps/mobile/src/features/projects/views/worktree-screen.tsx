@@ -4,6 +4,8 @@ import { useState, type ComponentType } from 'react';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { HeaderTitle } from '../../../components/ui/header-title';
+import { Icon } from '../../../components/ui/icon';
+import { Item } from '../../../components/ui/item';
 import { Screen } from '../../../components/ui/screen';
 import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
@@ -155,16 +157,6 @@ function WorktreeSections({
   const beside = mode === 'beside';
   return (
     <Screen layout="fixed" testID="worktree-screen">
-      {section === 'changes' && pullRequest ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel={`Open pull request #${pullRequest.number}`}
-            onPress={() => openPullRequest(pullRequest)}
-          >
-            {`#${pullRequest.number}`}
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-      ) : null}
       <Box
         className={beside ? 'flex-row items-center' : ''}
         paddingX={4}
@@ -193,6 +185,17 @@ function WorktreeSections({
           />
         </Box>
       </Box>
+      {section === 'changes' && pullRequest ? (
+        <Box divider="bottom">
+          <Item
+            testID="worktree-pull-request"
+            title={`Pull request #${pullRequest.number}`}
+            leading={<Icon name="review" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            onPress={() => openPullRequest(pullRequest)}
+          />
+        </Box>
+      ) : null}
       <Box className="flex-1" collapsable={false}>
         <Content section={section} mode={mode} />
       </Box>

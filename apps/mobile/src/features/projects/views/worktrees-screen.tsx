@@ -55,7 +55,6 @@ function worktreeDetails(entry: NavigatorEntry): WorktreeDetails {
     environment: entry.environmentId,
     projectId: entry.projectId,
     worktreeId: entry.worktreeId ?? '',
-    review: row.review,
     opening: openingWorktreeSection(entry),
     ...(entry.review.state === 'available'
       ? {
