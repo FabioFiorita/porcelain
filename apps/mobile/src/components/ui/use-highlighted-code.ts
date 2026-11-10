@@ -5,6 +5,14 @@ import { useUniwind } from 'uniwind';
 
 import { createCodeHighlighter } from './code-highlighter';
 import { createNativeEngine } from 'react-native-shiki-engine';
+import { isHighlightable } from '../../shared/rules/highlight-code';
+import type { RenderToken } from '../../shared/rules/render-model';
+
+type HighlightedCode = {
+  source: string;
+  tokens?: readonly (readonly RenderToken[])[];
+  error?: string;
+};
 
 async function loadHighlighter() {
   try {
@@ -38,27 +46,28 @@ const highlightedCode = Atom.family(
     scheme: 'light' | 'dark';
   }) =>
     Atom.make(
-      Effect.promise(async (signal) => {
+      Effect.promise(async (signal): Promise<HighlightedCode | undefined> => {
         if (!language) return undefined;
         const tokens = await highlightTokens(source, language, scheme, signal);
         return tokens
-          ? { source, language, scheme, tokens }
-          : {
-              source,
-              language,
-              scheme,
-              error: 'Syntax highlighting could not load.',
-            };
+          ? { source, tokens }
+          : { source, error: 'Syntax highlighting could not load.' };
       }),
-    ),
+    ).pipe(Atom.setIdleTTL('5 minutes')),
 );
 
-export function useHighlightedCode(source: string, language?: string) {
+export function useHighlightedCode(
+  source: string,
+  language: string | undefined,
+): HighlightedCode | undefined {
   const { theme } = useUniwind();
   const scheme = theme === 'dark' ? 'dark' : 'light';
-  return Option.getOrUndefined(
+  const highlighted =
+    language && isHighlightable(source) ? language : undefined;
+  const result = Option.getOrUndefined(
     AsyncResult.value(
-      useAtomValue(highlightedCode({ source, language, scheme })),
+      useAtomValue(highlightedCode({ source, language: highlighted, scheme })),
     ),
   );
+  return highlighted ? result : { source };
 }

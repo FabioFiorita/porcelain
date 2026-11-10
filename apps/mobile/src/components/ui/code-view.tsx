@@ -19,7 +19,7 @@ export function CodeView({
   source: string;
   initialLine?: number | undefined;
   onReadingLine?: ((line: number) => void) | undefined;
-  language?: string;
+  language?: string | undefined;
   tokens?: readonly (readonly RenderToken[])[] | undefined;
   wrap?: boolean;
   lineNumbers?: boolean;
@@ -27,16 +27,21 @@ export function CodeView({
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const result = useHighlightedCode(source, tokens ? undefined : language);
-  const highlighted = tokens ?? result?.tokens;
-  const lines = source
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map((text, index) => ({
-      id: String(index + 1),
-      text,
-      newLine: index + 1,
-      ...(highlighted?.[index] ? { tokens: highlighted[index] } : {}),
-    }));
+  const settled = tokens ? { source, tokens } : result;
+  const lines = settled
+    ? source
+        .replaceAll('\r\n', '\n')
+        .split('\n')
+        .map((text, index) => {
+          const lineTokens = settled.tokens?.[index];
+          return {
+            id: String(index + 1),
+            text,
+            newLine: index + 1,
+            ...(lineTokens ? { tokens: lineTokens } : {}),
+          };
+        })
+    : undefined;
   return (
     <View className="flex-1">
       {result?.error ? (
@@ -45,7 +50,7 @@ export function CodeView({
         </Text>
       ) : null}
       <RenderSurface
-        key={source}
+        documentKey={source}
         lines={lines}
         wrap={wrap}
         lineNumbers={lineNumbers}

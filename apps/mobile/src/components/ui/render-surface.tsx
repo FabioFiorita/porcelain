@@ -1,5 +1,6 @@
 import { useRenderTokens } from './use-render-tokens';
 import { requireNativeView } from 'expo';
+import { useState } from 'react';
 import { type NativeSyntheticEvent } from 'react-native';
 import type { ReviewRange } from './review-annotation';
 
@@ -32,6 +33,7 @@ const NativeSurface = requireNativeView<SurfaceProps>(
 );
 export function RenderSurface({
   lines,
+  documentKey,
   wrap = true,
   lineNumbers = true,
   selection,
@@ -40,7 +42,8 @@ export function RenderSurface({
   initialLine,
   onReadingLine,
 }: {
-  lines: readonly RenderLine[];
+  lines: readonly RenderLine[] | undefined;
+  documentKey?: string | undefined;
   initialLine?: number | undefined;
   onReadingLine?: ((line: number) => void) | undefined;
   wrap?: boolean;
@@ -49,10 +52,19 @@ export function RenderSurface({
   onSelect?: ((range: ReviewRange) => void) | undefined;
   onExpand?: ((id: string) => void) | undefined;
 }) {
-  const data = JSON.stringify(lines);
   const tokens = useRenderTokens();
+  const next = lines ? JSON.stringify(lines) : undefined;
+  const [painted, setPainted] = useState(
+    next === undefined ? undefined : { data: next, documentKey },
+  );
+  if (next !== undefined && next !== painted?.data)
+    setPainted({ data: next, documentKey });
+  const data = next ?? painted?.data;
+  if (data === undefined) return null;
+  const select = next === undefined ? undefined : onSelect;
   return (
     <NativeSurface
+      key={next === undefined ? painted?.documentKey : documentKey}
       data={data}
       initialLine={initialLine}
       onReadingLine={
@@ -67,10 +79,8 @@ export function RenderSurface({
       background={tokens.background}
       muted={tokens.muted}
       selection={selection ? JSON.stringify(selection) : ''}
-      selectable={onSelect !== undefined}
-      onCodeSelect={
-        onSelect ? (event) => onSelect(event.nativeEvent) : undefined
-      }
+      selectable={select !== undefined}
+      onCodeSelect={select ? (event) => select(event.nativeEvent) : undefined}
       onExpand={
         onExpand ? (event) => onExpand(event.nativeEvent.id) : undefined
       }

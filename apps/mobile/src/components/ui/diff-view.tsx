@@ -2,7 +2,10 @@ import { RenderSurface } from './render-surface';
 import type { RenderLine } from '../../shared/rules/render-model';
 import type { ReviewRange } from './review-annotation';
 import { useHighlightedCode } from './use-highlighted-code';
-import { mergeDiffTokens } from '../../shared/rules/merge-diff-tokens';
+import {
+  diffSources,
+  highlightDiffLines,
+} from '../../shared/rules/highlight-diff';
 
 export function DiffView({
   lines,
@@ -15,7 +18,7 @@ export function DiffView({
   onReadingLine,
 }: {
   lines: readonly RenderLine[];
-  language?: string;
+  language?: string | undefined;
   wrap?: boolean;
   selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
@@ -23,35 +26,16 @@ export function DiffView({
   initialLine?: number | undefined;
   onReadingLine?: ((line: number) => void) | undefined;
 }) {
-  const oldLines = lines.filter((line) => line.kind !== 'added');
-  const newLines = lines.filter((line) => line.kind !== 'removed');
-  const oldSource = oldLines
-    .map((line) => (line.kind === 'gap' ? '' : line.text))
-    .join('\n');
-  const newSource = newLines
-    .map((line) => (line.kind === 'gap' ? '' : line.text))
-    .join('\n');
-  const oldTokens = useHighlightedCode(oldSource, language);
-  const newTokens = useHighlightedCode(newSource, language);
-  const highlighted = new Map([
-    ...oldLines.map(
-      (line, index) => [line.id, oldTokens?.tokens?.[index]] as const,
-    ),
-    ...newLines.map(
-      (line, index) => [line.id, newTokens?.tokens?.[index]] as const,
-    ),
-  ]);
-  const rendered = language
-    ? lines.map((line) => {
-        const tokens = highlighted.get(line.id);
-        return tokens
-          ? { ...line, tokens: mergeDiffTokens(tokens, line.tokens) }
-          : line;
-      })
-    : lines;
+  const { oldSource, newSource } = diffSources(lines);
+  const oldHighlight = useHighlightedCode(oldSource, language);
+  const newHighlight = useHighlightedCode(newSource, language);
   return (
     <RenderSurface
-      lines={rendered}
+      lines={
+        oldHighlight && newHighlight
+          ? highlightDiffLines(lines, oldHighlight.tokens, newHighlight.tokens)
+          : undefined
+      }
       wrap={wrap}
       selection={selection}
       onSelect={onSelect}
