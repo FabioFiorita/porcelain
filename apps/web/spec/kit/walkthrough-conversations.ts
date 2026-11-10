@@ -151,6 +151,20 @@ else console.log('{}');
     worktreePath: session.repository,
     files: [],
   };
+  let latestHead: string | undefined;
+  if (
+    action === 'short-pr' ||
+    action === 'short-copy' ||
+    action === 'changed-pr'
+  ) {
+    await session.git(
+      'commit',
+      '--allow-empty',
+      '-m',
+      'Advance the conversation fixture',
+    );
+    latestHead = (await session.git('rev-parse', 'HEAD')).trim();
+  }
   const db = new DatabaseSync(
     join(
       session.projectHome,
@@ -159,6 +173,7 @@ else console.log('{}');
     ),
   );
   try {
+    db.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
     db.prepare(
       'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
     ).run(job.run.id, session.worktreeId, head, 'ready', JSON.stringify(job));
@@ -211,11 +226,7 @@ else console.log('{}');
         JSON.stringify(attempt),
       );
     }
-    if (
-      action === 'short-pr' ||
-      action === 'short-copy' ||
-      action === 'changed-pr'
-    ) {
+    if (latestHead !== undefined) {
       const answer = JSON.stringify({
         status: 'answered',
         text: 'The original boundary still matters.',
@@ -254,13 +265,6 @@ else console.log('{}');
               summary: 'Nothing new needs a decision.',
               stops: [],
             };
-      await session.git(
-        'commit',
-        '--allow-empty',
-        '-m',
-        'Advance the conversation fixture',
-      );
-      const latestHead = (await session.git('rev-parse', 'HEAD')).trim();
       const latest = {
         ...job,
         run: {
@@ -282,6 +286,7 @@ else console.log('{}');
         JSON.stringify(latest),
       );
     }
+    db.exec('COMMIT');
   } finally {
     db.close();
   }
