@@ -99,7 +99,7 @@ export function walkthroughChangeEntries(
   const dirty = changeEntries(working);
   const scopes = walkthroughCodeScopes({
     branch: committed,
-    worktree: dirty,
+    worktree: working.kind === 'worktree' ? working.answer.changes : dirty,
     only,
   });
   return [
@@ -110,7 +110,12 @@ export function walkthroughChangeEntries(
         diffKey: file.key,
         key: `branch:${file.key}`,
         details: ['Branch', ...file.details],
-        comparison: { kind: 'branch' as const },
+        comparison: {
+          kind: 'branch' as const,
+          ...(branch.kind === 'branch' && branch.answer.base
+            ? { base: branch.answer.base.ref }
+            : {}),
+        },
       })),
     ...dirty
       .filter((file) => scopes.worktree.includes(file.path))

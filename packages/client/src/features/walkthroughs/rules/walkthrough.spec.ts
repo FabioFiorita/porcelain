@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,
   walkthroughCodeScopes,
@@ -663,16 +664,37 @@ describe('walkthrough code scopes', () => {
     },
   );
   it('selects only step files and follows renames in both comparisons', () => {
+    const worktree = [
+      {
+        path: 'renamed-again.ts',
+        fingerprint: undefined,
+        comparisons: [
+          {
+            scope: 'staged',
+            kind: 'renamed',
+            oldPath: 'renamed.ts',
+            newPath: 'renamed-again.ts',
+            oldMode: '100644',
+            newMode: '100644',
+            oldOid: 'a'.repeat(40),
+            newOid: 'b'.repeat(40),
+            supported: true,
+          },
+        ],
+      },
+      {
+        path: 'outside.ts',
+        fingerprint: undefined,
+        comparisons: [{ scope: 'untracked', path: 'outside.ts' }],
+      },
+    ] satisfies ReadChangesResponse['changes'];
     expect(
       walkthroughCodeScopes({
         branch: [
           { path: 'renamed.ts', oldPath: 'old.ts' },
           { path: 'outside.ts' },
         ],
-        worktree: [
-          { path: 'renamed-again.ts', oldPath: 'renamed.ts' },
-          { path: 'outside.ts' },
-        ],
+        worktree,
         only: ['old.ts', 'renamed.ts'],
       }),
     ).toEqual({ branch: ['renamed.ts'], worktree: ['renamed-again.ts'] });
