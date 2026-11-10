@@ -22,9 +22,7 @@ tests:
 api:
   - GET /api/inventory
   - GET /api/worktrees/:worktreeId/git/status
-  - GET /api/worktrees/:worktreeId/review
-  - GET /api/projects/:projectId/reviews
-  - GET /api/reviews/:reviewId/pull-request/checks
+  - GET /api/projects/:projectId/pull-requests/:number/checks
 ---
 
 # projects.search
@@ -48,15 +46,11 @@ Preconditions: [surface baseline](README.md). Run at 1440 and 414 in light and d
 6. A PR number is a separate sibling action. Opening it creates or focuses an in-app PR document tab with the source review and computer, preserving the selected workspace path and card. Repeat from an unselected worktree and another computer, including colliding review/PR IDs. Close the tab and return to the original document. Inventory identity renders first; visible expanded worktree cards then read Git status/file counts and deferred minimal GitHub check summaries. Navigator rows never read full diff summaries or review marks. Reviews lists stored records without requiring a current checkout. For available checkouts, it reads the canonical current publication to associate only the matching review id with live controls. A publication with a pending candidate checkout lookup waits before its row becomes navigable; unrelated saved publications remain reachable. Collapsed or filtered-out projects do not mount those reads. Sidebar rendering does not fetch full GitHub PR payloads; opening the PR document can read them. Unknown/loading, failure and incomplete checks never use passed colouring. Only failed checks add an independent warning icon; the PR action remains neutral and its accessible name reports the actual check state. Local changed-file counts distinguish unavailable, pending and clean state without inventing zero totals. Reading progress and +/− totals belong inside the workspace, not in navigator rows. Routine record reviews never become approval requests merely because they are unread. GitHub failure stays in the PR document with a reason and retry; it never reorders the project list. Back to the review opens the source review on its computer. A scoped PR file action opens that source review and the exact requested file, including after reloading the durable destination.
 7. Keep a conflicted unsaved draft, select another checkout from search, return and Resume edit. The draft and disk content retain their independent values. Verify footer Settings/Keyboard shortcuts, shortcut hints, Open project and project actions at both widths. Native desktop bridge/remote behavior requires its own proof.
 
-## Archive a completed review
+## Archive a completed pull request
 
 Open a linked PR document: Archive appears after its readable merged/closed state and uses the existing archive dialog, settings confirmation and server protections. The worktree context menu has no Archive item. Cancel deletes nothing. Preserve ignored-file deletion disclosure, explicit dirty/unpushed acknowledgement, main-checkout protection, lock failure explanation and archive selection cleanup. After successful archive, the deleted checkout is absent.
 
 Automated coverage: projects-search.e2e.ts, projects-manage.e2e.ts, projects-retry.e2e.ts, projects-pr-state.e2e.ts, review-archive.e2e.ts and worktrees-menu.test.tsx. Old status groups, a separate flat checkout submenu and fixed row-pixel expectations have been replaced.
-
-## Returning to a warm review
-
-Cold setup waits for the initial durable review response before checking the visible revision. After visiting main and a linked topic worktree, return to main. Its valid content remains visible without a new initial Loading review state or repeated full review/HTML reads while lightweight Changes/publication reads revalidate. The automated request ledger briefly holds live notices on the already-connected page and drains HTTP before measuring the return, so a late seen-acknowledgement inventory refresh cannot masquerade as navigation work. It releases those notices before publishing a new main revision and confirming the selected main review updates; retaining warm values must not freeze them. Computer and checkout keys remain distinct, and unavailable scopes still follow their existing recovery contracts. Drive `reviews-workspace-return.e2e.ts`; atom tests cover scoped invalidation and the bounded summary lifetime.
 
 ## Unavailable worktree status
 

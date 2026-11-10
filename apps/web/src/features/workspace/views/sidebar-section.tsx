@@ -1,8 +1,8 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ReactNode } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
-import { counted } from '@porcelain/client/reviews/rules';
-import { reviewSidebarActions } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
+import { reviewSidebarActions } from '@porcelain/client/changes/rules';
 import { SidebarActionMenu } from './sidebar-action-menu';
 import { ROW } from './change-row';
 

@@ -7,7 +7,7 @@ description: Verify disposable Porcelain Dev in real Electron on Linux or macOS 
 
 The launcher stages unpackaged Porcelain Dev with a disposable profile and sample Git repository; drive its renderer and native shell.
 
-Use Linux for shared renderer, trusted bridge, project registration, local review links and shutdown journeys. Use macOS when the changed behavior depends on its native shell or Keychain; an unrelated shared UI change does not require another Mac run. The driver controls the instance this skill prepares; it does not launch a replacement app or own a second profile.
+Use Linux for shared renderer, trusted bridge, project registration, local navigation and shutdown journeys. Use macOS when the changed behavior depends on its native shell or Keychain; an unrelated shared UI change does not require another Mac run. The driver controls the instance this skill prepares; it does not launch a replacement app or own a second profile.
 
 `C=.agents/skills/desktop-verify/scripts/cli`, from the checkout root. Run `$C` alone for help. Use `doctor`, then `start`; the card supplies the remaining lifecycle commands.
 
@@ -65,7 +65,7 @@ xvfb-run -a $C start
 
 The detached instance inherits that display, so keep the xvfb owner alive until `$C stop` completes (for a bounded script, run the entire start/renderer/stop journey under `xvfb-run`). `doctor` reports missing display or Electron; run the normal project install to obtain dependencies. If Electron remains missing, report the missing binary/dependencies.
 
-Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, substituted picker answers, local summaries and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
+Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, substituted picker answers, local pages and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
 
 An OS accessibility driver additionally needs the accessibility bus and a window manager in the same owned graphical session; a display alone is insufficient. Select the exact disposable process/window and retain the resulting app state. Unsupported native dialogs or actions remain explicit gaps; use the renderer/Playwright handle for supported journeys.
 

@@ -15,7 +15,6 @@ export type {
   WorktreeKey,
   WorktreeKeys,
 } from './worktree.ts';
-export type { ReviewBadge, ReviewBadges } from './review-badge.ts';
 
 export { expectedFileSchema } from './change.ts';
 

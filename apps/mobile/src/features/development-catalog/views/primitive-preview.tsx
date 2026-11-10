@@ -15,8 +15,6 @@ import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { FileNotice } from '../../../components/ui/file-notice';
 import { FileTree } from '../../../components/ui/file-tree';
-import { ReviewAnnotation } from '../../../components/ui/review-annotation';
-import { ReviewComposer } from '../../../components/ui/review-composer';
 import { HistoryList } from '../../../components/ui/history-list';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
 const NativePreview = __DEV__
@@ -28,7 +26,6 @@ export function PrimitivePreview({ name }: { name: string }) {
   const [value, setValue] = useState('');
   const [expanded, setExpanded] = useState(new Set(['src']));
   const [selected, setSelected] = useState('');
-  const [resolved, setResolved] = useState(false);
   if (
     [
       'CodeView',
@@ -218,28 +215,6 @@ export function PrimitivePreview({ name }: { name: string }) {
             <FileNotice kind="unsupported" />
             <FileNotice kind="unavailable" />
             <FileNotice kind="oversized" />
-          </>
-        ) : null}
-        {name === 'Review' ? (
-          <>
-            <ReviewAnnotation
-              author="reviewer"
-              body="This should use the shared input primitive."
-              label="+12 to +14"
-              resolved={resolved}
-              onResolve={() => setResolved(true)}
-            />
-            <ReviewComposer
-              value={value}
-              onChangeText={setValue}
-              label="+12 to +14"
-              onSubmit={() => {
-                setActions(actions + 1);
-                setValue('');
-              }}
-              onCancel={() => setValue('')}
-            />
-            <Text variant="secondary">Comments: {actions}</Text>
           </>
         ) : null}
         {name === 'IconButton' ? (

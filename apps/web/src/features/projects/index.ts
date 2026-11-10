@@ -18,6 +18,9 @@ export {
   ProjectWorkspaceProvider,
 } from './views/project-workspace';
 
-export { ArchiveReview, ArchiveReviewDialog } from './views/archive-review';
+export {
+  ArchivePullRequest,
+  ArchivePullRequestDialog,
+} from './views/archive-pull-request';
 
 export { WalkthroughSettingsDialog } from './views/walkthrough-settings-dialog';

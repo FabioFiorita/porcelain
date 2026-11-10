@@ -43,7 +43,7 @@ function listing(
 }
 
 describe('inventoryReport', () => {
-  it('reports every project in inventory order with its worktrees and review status', () => {
+  it('reports every project in inventory order with its worktrees', () => {
     expect(
       inventoryReport(
         'environment',
@@ -54,7 +54,6 @@ describe('inventoryReport', () => {
           listing('second', [worktree('w2', 'second')]),
           listing('first', [worktree('w1', 'first')]),
         ],
-        new Map([['w2', 'pending']]),
       ),
     ).toEqual({
       environmentId: 'environment',
@@ -70,7 +69,6 @@ describe('inventoryReport', () => {
               main: true,
               branch: 'main',
               available: true,
-              status: undefined,
             },
           ],
         },
@@ -85,7 +83,6 @@ describe('inventoryReport', () => {
               main: true,
               branch: 'main',
               available: true,
-              status: 'pending',
             },
           ],
         },
@@ -101,7 +98,6 @@ describe('inventoryReport', () => {
         listing('kept', [worktree('w1', 'kept')]),
         listing('removed', [worktree('w2', 'removed')]),
       ],
-      new Map(),
     );
     expect(report.projects.map((entry) => entry.id)).toEqual(['kept']);
   });
@@ -110,14 +106,10 @@ describe('inventoryReport', () => {
 describe('registeredProjectReport', () => {
   it('reports the registered project with the worktrees the refresh listed for it', () => {
     expect(
-      registeredProjectReport(
-        project('second', 2),
-        [
-          listing('first', [worktree('w1', 'first')]),
-          listing('second', [worktree('w2', 'second')], false),
-        ],
-        new Map(),
-      ),
+      registeredProjectReport(project('second', 2), [
+        listing('first', [worktree('w1', 'first')]),
+        listing('second', [worktree('w2', 'second')], false),
+      ]),
     ).toEqual({
       id: 'second',
       name: 'name-second',
@@ -129,14 +121,13 @@ describe('registeredProjectReport', () => {
           main: true,
           branch: 'main',
           available: true,
-          status: undefined,
         },
       ],
     });
   });
 
   it('reports the project unavailable and without worktrees when the refresh no longer lists it', () => {
-    expect(registeredProjectReport(project('gone', 1), [], new Map())).toEqual({
+    expect(registeredProjectReport(project('gone', 1), [])).toEqual({
       id: 'gone',
       name: 'name-gone',
       available: false,
@@ -169,13 +160,8 @@ it.each([
       'environment',
       { projects: [registered] },
       listings,
-      new Map(),
     );
-    const registration = registeredProjectReport(
-      registered,
-      listings,
-      new Map(),
-    );
+    const registration = registeredProjectReport(registered, listings);
     expect(inventory.projects[0]?.worktrees[0]?.branch).toBe(expected);
     expect(registration.worktrees[0]?.branch).toBe(expected);
     expect(listings[0]?.worktrees[0]?.branch).toBe(branch);

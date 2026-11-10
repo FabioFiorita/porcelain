@@ -1,36 +1,23 @@
 import type { Transport } from '../../../shared/api/transport.ts';
-import type { ReadReviewResponse } from '@porcelain/contracts/reviews';
 import { expect, it } from 'vitest';
-import { Effect, HashMap, Stream } from 'effect';
-import { Reactivity, type AtomRegistry } from 'effect/reactivity';
-import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
+import { type AtomRegistry } from 'effect/reactivity';
 import {
   clientFixtures,
   idleClientAtoms,
   readClientAtom,
 } from '../../../../spec/kit/client-fixture.ts';
-import { readPublishedReview } from '../../reviews/queries/publication.ts';
-import { readReview } from '../../reviews/queries/project-reviews.ts';
-import type { ReviewRecord } from '../../reviews/rules/review.ts';
 import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
 import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import {
   worktreeNavigatorState,
   worktreeStatusNotices,
 } from '../store/worktree-navigator.ts';
-import {
-  readReviewInbox,
-  readReviewNavigator,
-  readWorktreeNavigator,
-} from './worktree-navigator.ts';
+import { readWorktreeNavigator } from './worktree-navigator.ts';
 
 const create = clientFixtures();
 const environmentId = '10000000-0000-4000-8000-000000000001';
 const secondEnvironmentId = '20000000-0000-4000-8000-000000000001';
 const projectId = '30000000-0000-4000-8000-000000000001';
-const reviewId = '40000000-0000-4000-8000-000000000001';
-const closedReviewId = '50000000-0000-4000-8000-000000000001';
 const mainId = 'a'.repeat(32);
 const topicId = 'b'.repeat(32);
 const projectKey = `${environmentId}/${projectId}`;
@@ -51,7 +38,6 @@ function inventory(identity = environmentId, name = 'Desk') {
             branch: 'topic',
             main: false,
             available: true,
-            status: null,
           },
           {
             id: mainId,
@@ -59,93 +45,10 @@ function inventory(identity = environmentId, name = 'Desk') {
             branch: 'main',
             main: true,
             available: true,
-            status: null,
           },
         ],
       },
     ],
-  };
-}
-function record(id = reviewId, state: 'open' | 'closed' = 'open') {
-  return {
-    reviewId: id,
-    projectId,
-    branch: 'topic',
-    state,
-    latestRevision: 1,
-    lastSeenRevision: 0,
-    pullRequest: 'https://github.com/example/project/pull/42',
-  };
-}
-function review(
-  worktreeId = topicId,
-  worktreePath = '/code/topic',
-): ReadReviewResponse {
-  return {
-    review: record(),
-    revisions: [],
-    revision: {
-      reviewId,
-      projectId,
-      revision: 1,
-      branch: 'topic',
-      worktreePath,
-      worktreeName: 'topic',
-      base: 'main',
-      headOid: 'a'.repeat(40),
-      baseOid: 'b'.repeat(40),
-      mergeBaseOid: 'b'.repeat(40),
-      publishedAt: '2026-10-30T00:00:00.000Z',
-      files: [],
-      verdict: {
-        asked: { text: 'A safely scoped review' },
-        recommendation: 'hold',
-        reasons: ['Review identity must stay scoped'],
-        notProven: [],
-        removed: [],
-      },
-      content: {
-        environmentId,
-        worktreeId,
-        revision: 1,
-        publishedAt: '2026-10-30T00:00:00.000Z',
-        active: true,
-        diagnostics: 'current',
-        summary: {
-          token: 'summary',
-          expires: '2026-10-30T01:00:00.000Z',
-          signature: 'signature',
-          byteLength: 10,
-        },
-        layers: [
-          {
-            id: '60000000-0000-4000-8000-000000000001',
-            title: 'Keep identity scoped',
-            summary: 'Use the checkout identity',
-            lanes: ['Client'],
-            steps: [
-              {
-                id: '70000000-0000-4000-8000-000000000001',
-                lane: 0,
-                title: 'Select the right checkout',
-                text: 'Keep the environment and worktree identity',
-                kind: 'context',
-                pointer: {
-                  path: 'README.md',
-                  startLine: 1,
-                  endLine: 1,
-                  textFingerprint: 'f'.repeat(64),
-                },
-                location: { state: 'current', startLine: 1, endLine: 1 },
-              },
-            ],
-            fingerprint: 'f'.repeat(64),
-          },
-        ],
-        notExplained: [],
-        proof: { current: true, checks: [], assets: [] },
-      },
-    },
   };
 }
 function status(path: string) {
@@ -162,132 +65,53 @@ function status(path: string) {
   };
 }
 
-function wireReview(answer = review()) {
+function pullList() {
   return {
-    ...answer,
-    revision: answer.revision
-      ? {
-          ...answer.revision,
-          content: {
-            ...answer.revision.content,
-            summary: {
-              url: '/review-summaries/summary?expires=2026-10-30T01%3A00%3A00.000Z&signature=signature',
-              byteLength: 10,
-            },
-          },
-        }
-      : null,
+    kind: 'available',
+    account: 'fixture',
+    pullRequests: [
+      {
+        number: 42,
+        title: 'Topic change',
+        url: 'https://github.com/example/project/pull/42',
+        state: 'open',
+        draft: false,
+        headBranch: 'topic',
+        baseBranch: 'main',
+        checksTruncated: false,
+        updatedAt: '2026-11-10T00:00:00Z',
+      },
+    ],
+    truncated: false,
+    recentlyClosedSince: '2026-11-01T00:00:00Z',
   };
 }
-
-function navigatorResponse(
-  path: string,
-  snapshot = inventory(),
-  records: readonly ReviewRecord[] = [record()],
-  checks: 'passed' | 'failed' = 'passed',
-  publishedReviewId: string | null = reviewId,
-) {
+function navigatorResponse(path: string, snapshot = inventory()) {
   return Promise.resolve(
     Response.json(
       path.startsWith('/api/inventory')
         ? snapshot
-        : path.endsWith('/review')
-          ? {
-              review:
-                publishedReviewId === null
-                  ? null
-                  : {
-                      ...wireReview().revision?.content,
-                      reviewId: publishedReviewId,
-                    },
-            }
-          : path.endsWith('/pull-request/checks')
-            ? { kind: 'available', number: 42, checks }
-            : path.endsWith('/reviews')
-              ? records
-              : path.endsWith('/marks')
-                ? { files: [], decisions: [] }
-                : path.endsWith(reviewId)
-                  ? wireReview()
-                  : status(path),
+        : path.endsWith('/pull-requests')
+          ? pullList()
+          : path.endsWith('/checks')
+            ? { kind: 'available', number: 42, checks: 'passed' }
+            : status(path),
     ),
   );
 }
-
-function recordedNavigator(
-  records: readonly ReviewRecord[] = [record()],
-  checks: 'passed' | 'failed' = 'passed',
-  publishedReviewId: string | null = reviewId,
-  snapshot = inventory(),
-) {
+function recordedNavigator(snapshot = inventory()) {
   const paths: string[] = [];
   const subject = create(
     (path) => {
       paths.push(path);
-      return navigatorResponse(
-        path,
-        snapshot,
-        records,
-        checks,
-        publishedReviewId,
-      );
+      return navigatorResponse(path, snapshot);
     },
     undefined,
     1000,
     environmentId,
   );
-  return {
-    ...subject,
-    paths,
-    setChecks: (next: 'passed' | 'failed') => {
-      checks = next;
-    },
-  };
+  return { ...subject, paths };
 }
-
-function observeReviews(records = [record()]) {
-  const subject = recordedNavigator(records);
-  const list = readReviewNavigator([subject.connection]);
-  return {
-    ...subject,
-    stop: subject.registry.mount(list),
-    view: () => subject.registry.get(list),
-  };
-}
-
-function observeInbox(
-  records: readonly ReviewRecord[] = [record()],
-  checks: 'passed' | 'failed' = 'passed',
-) {
-  const subject = recordedNavigator(records, checks);
-  const inbox = readReviewInbox([subject.connection]);
-  return {
-    ...subject,
-    stop: subject.registry.mount(inbox),
-    view: () => subject.registry.get(inbox),
-  };
-}
-
-function checkoutReads(paths: readonly string[]) {
-  return paths.filter(
-    (path) =>
-      path.endsWith('/git/status') ||
-      path.endsWith('/marks') ||
-      path.endsWith('/summary'),
-  );
-}
-
-function navigatorReviewIds(
-  registry: AtomRegistry.AtomRegistry,
-  list: ReturnType<typeof readReviewNavigator>,
-) {
-  return registry
-    .get(list)
-    .projects[0]?.entries.map((entry) =>
-      entry.review.state === 'available' ? entry.review.reviewId : undefined,
-    );
-}
-
 function identityResponse(
   path: string,
   identity: string,
@@ -300,13 +124,12 @@ function identityResponse(
     Response.json(
       path.startsWith('/api/inventory')
         ? snapshot
-        : path.endsWith('/reviews')
-          ? []
+        : path.endsWith('/pull-requests')
+          ? { ...pullList(), pullRequests: [] }
           : { ...status(path), environmentId: identity },
     ),
   );
 }
-
 function observeNavigator(transport: Transport) {
   const subject = create(transport, undefined, 1000, environmentId);
   const connections = [subject.connection];
@@ -336,512 +159,6 @@ function expectNavigatorNames(
     )
     .toEqual(names);
 }
-
-it.each([
-  { revision: undefined, selectedRevision: 2 },
-  { revision: 1, selectedRevision: 1 },
-])(
-  'validates a cached review on remount without hidden requests while preserving revision selection $revision',
-  async ({ revision, selectedRevision }) => {
-    let latestRevision = 1;
-    let archived = false;
-    let missing = false;
-    const paths: string[] = [];
-    const subject = create(
-      (path) => {
-        paths.push(path);
-        const metadata = {
-          ...record(),
-          latestRevision,
-          archived,
-          state: archived ? ('closed' as const) : ('open' as const),
-        };
-        if (path.endsWith('/reviews'))
-          return Promise.resolve(Response.json(missing ? [] : [metadata]));
-        if (missing)
-          return Promise.resolve(
-            Response.json({ review: null, revisions: [], revision: null }),
-          );
-        const answer = review();
-        const selected = revision ?? latestRevision;
-        return Promise.resolve(
-          Response.json(
-            wireReview({
-              ...answer,
-              review: metadata,
-              revision: answer.revision
-                ? {
-                    ...answer.revision,
-                    revision: selected,
-                    content: { ...answer.revision.content, revision: selected },
-                  }
-                : undefined,
-            }),
-          ),
-        );
-      },
-      undefined,
-      1000,
-      environmentId,
-    );
-    const atom = readReview({
-      connection: subject.connection,
-      reviewId,
-      ...(revision === undefined ? {} : { revision }),
-    });
-    const visit = async () => {
-      const stop = subject.registry.mount(atom);
-      try {
-        return await readClientAtom(subject.registry, atom);
-      } finally {
-        stop();
-        await Effect.runPromise(Effect.yieldNow);
-      }
-    };
-    const detailPath =
-      revision === undefined
-        ? `/api/reviews/${reviewId}`
-        : `/api/reviews/${reviewId}/revisions/${revision}`;
-    const detailReads = () =>
-      paths.filter((path) => path === detailPath).length;
-    expect((await visit()).revision?.revision).toBe(1);
-    expect((await visit()).revision?.revision).toBe(1);
-    expect(detailReads()).toBe(1);
-    const before = [...paths];
-    archived = true;
-    await subject.connection.runtime.runPromise(
-      Reactivity.invalidate([
-        queryKeys.inventory(environmentId),
-        queryKeys.environment(environmentId),
-        queryKeys.durableReview(environmentId, reviewId),
-      ]),
-    );
-    await Effect.runPromise(Effect.yieldNow);
-    expect(paths).toEqual(before);
-    expect((await visit()).review).toMatchObject({
-      state: 'closed',
-      archived: true,
-      latestRevision: 1,
-    });
-    expect(detailReads()).toBe(1);
-    latestRevision = 2;
-    await subject.connection.runtime.runPromise(
-      Reactivity.invalidate([queryKeys.durableReview(environmentId, reviewId)]),
-    );
-    expect(detailReads()).toBe(1);
-    const changed = await visit();
-    expect(changed.review?.latestRevision).toBe(2);
-    expect(changed.revision?.revision).toBe(selectedRevision);
-    expect(changed.revision?.content.revision).toBe(selectedRevision);
-    expect(detailReads()).toBe(2);
-    missing = true;
-    await subject.connection.runtime.runPromise(
-      Reactivity.invalidate([queryKeys.environment(environmentId)]),
-    );
-    expect(await visit()).toEqual({
-      review: undefined,
-      revision: undefined,
-      revisions: [],
-    });
-    expect(detailReads()).toBe(3);
-  },
-);
-
-it.each(['inventory', 'environment', 'durableReview'] as const)(
-  'releases collapsed project subscriptions and makes no hidden detail reads after %s invalidation',
-  async (invalidation) => {
-    const paths: string[] = [];
-    const navigator = observeNavigator((path) => {
-      paths.push(path);
-      return navigatorResponse(path);
-    });
-    try {
-      await expect
-        .poll(() => navigator.view().projects[0]?.entries[1]?.review)
-        .toMatchObject({
-          state: 'available',
-          timing: 'decision',
-          latestRevision: 1,
-          lastSeenRevision: 0,
-        });
-      const subscriptions = () =>
-        navigator.connection.runtime.runPromise(
-          ReadSubscriptions.use((reads) => reads.snapshot),
-        );
-      expect(HashMap.size(await subscriptions())).toBeGreaterThan(0);
-      const released = navigator.connection.runtime.runPromise(
-        ReadSubscriptions.use((reads) =>
-          Stream.runHead(
-            Stream.filter(reads.changes, (state) => HashMap.size(state) === 0),
-          ),
-        ),
-      );
-      navigator.registry.set(worktreeNavigatorState, {
-        query: '',
-        filter: emptyNavigatorFilter,
-        expanded: { [projectKey]: false },
-      });
-      await released;
-      await idleClientAtoms(navigator.registry);
-      const before = [...paths];
-      await navigator.connection.runtime.runPromise(
-        Reactivity.invalidate([
-          invalidation === 'inventory'
-            ? queryKeys.inventory(environmentId)
-            : invalidation === 'environment'
-              ? queryKeys.environment(environmentId)
-              : queryKeys.durableReview(environmentId, reviewId),
-        ]),
-      );
-      await Effect.runPromise(Effect.yieldNow);
-      const details = (sent: readonly string[]) =>
-        sent.filter((path) => !path.startsWith('/api/inventory'));
-      expect(details(paths)).toEqual(details(before));
-      navigator.registry.set(worktreeNavigatorState, {
-        query: '',
-        filter: emptyNavigatorFilter,
-        expanded: { [projectKey]: true },
-      });
-      await expect
-        .poll(() => navigator.view().projects[0]?.entries[1]?.review.state)
-        .toBe('available');
-      await readClientAtom(
-        navigator.registry,
-        readReview({ connection: navigator.connection, reviewId }),
-      );
-      expect(
-        paths.filter((path) => path === `/api/reviews/${reviewId}`),
-      ).toHaveLength(1);
-    } finally {
-      navigator.stop();
-    }
-  },
-);
-
-it('publishes main-first usable cards while review and changes reads are pending without inventing empty states', async () => {
-  let releaseReviews = (_: Response) => {};
-  const records = new Promise<Response>((resolve) => {
-    releaseReviews = resolve;
-  });
-  const pending = new Promise<Response>(() => {});
-  const subject = create(
-    (path) =>
-      Promise.resolve(
-        path.startsWith('/api/inventory')
-          ? Response.json(inventory())
-          : path.endsWith('/reviews')
-            ? records
-            : pending,
-      ),
-    undefined,
-    1000,
-    environmentId,
-  );
-  const list = readWorktreeNavigator([subject.connection]);
-  const stop = subject.registry.mount(list);
-  try {
-    await expectNavigatorNames(subject.registry, list, ['main', 'topic']);
-    expect(subject.registry.get(list).loading).toBe(false);
-    expect(
-      subject.registry
-        .get(list)
-        .projects[0]?.entries.map((entry) => [
-          entry.available,
-          entry.review.state,
-          entry.changes.state,
-        ]),
-    ).toEqual([
-      [true, 'loading', 'loading'],
-      [true, 'loading', 'loading'],
-    ]);
-    releaseReviews(Response.json([]));
-    await expect
-      .poll(() =>
-        subject.registry
-          .get(list)
-          .projects[0]?.entries.map((entry) => entry.review.state),
-      )
-      .toEqual(['none', 'none']);
-    expect(
-      subject.registry.get(list).projects[0]?.entries[0]?.changes.state,
-    ).toBe('loading');
-  } finally {
-    stop();
-  }
-});
-
-it.each([
-  {
-    name: 'the current checkout',
-    records: [record()],
-    expected: [['topic', reviewId, 'Decision review · New revision']],
-  },
-  {
-    name: 'a deleted checkout',
-    records: [record(), { ...record(closedReviewId), branch: 'removed' }],
-    expected: [
-      ['topic', reviewId, 'Decision review · New revision'],
-      ['removed', closedReviewId, 'Decision review · New revision'],
-    ],
-  },
-])(
-  'lists open publications for $name in the inbox without Git status, marks or diff summaries',
-  async ({ records, expected }) => {
-    const subject = recordedNavigator(records);
-    const inbox = readReviewInbox([subject.connection]);
-    const stop = subject.registry.mount(inbox);
-    try {
-      await expect
-        .poll(() =>
-          subject.registry
-            .get(inbox)
-            .inbox.decisions.map((row) => [
-              row.entry.branch,
-              row.review.reviewId,
-              row.label,
-            ]),
-        )
-        .toEqual(expected);
-      expect(subject.registry.get(inbox).inbox.projects).toEqual([]);
-      expect(checkoutReads(subject.paths)).toEqual([]);
-      expect(subject.paths).not.toContain(`/api/reviews/${closedReviewId}`);
-    } finally {
-      stop();
-    }
-  },
-);
-
-it.each(['', 'unrelated-worktree'])(
-  'shares inbox checks and filters independently of Worktrees search %s and collapsed groups',
-  async (query) => {
-    const subject = recordedNavigator();
-    const inbox = readReviewInbox([subject.connection]);
-    subject.registry.set(worktreeNavigatorState, {
-      query,
-      filter: emptyNavigatorFilter,
-      expanded: { [projectKey]: false },
-    });
-    const stop = subject.registry.mount(inbox);
-    try {
-      await expect
-        .poll(
-          () => subject.registry.get(inbox).inbox.decisions[0]?.review.checks,
-        )
-        .toEqual({ state: 'available', result: 'passed' });
-      expect(subject.registry.get(inbox)).toMatchObject({
-        filters: [
-          { key: 'reviews' },
-          {
-            key: 'environments',
-            items: [{ id: environmentId, checked: true }],
-          },
-          { key: 'projects', items: [{ id: projectKey, checked: true }] },
-        ],
-      });
-      subject.setChecks('failed');
-      const refresh = refreshWorktreeNavigator([subject.connection]);
-      subject.registry.set(refresh, undefined);
-      await readClientAtom(subject.registry, refresh);
-      await expect
-        .poll(
-          () => subject.registry.get(inbox).inbox.decisions[0]?.review.checks,
-        )
-        .toEqual({ state: 'available', result: 'failed' });
-      expect(checkoutReads(subject.paths)).toEqual([]);
-    } finally {
-      stop();
-    }
-  },
-);
-
-it.each(['passed', 'failed'] as const)(
-  'supplies %s PR checks to inbox rows',
-  async (checks) => {
-    const subject = observeInbox([record()], checks);
-    try {
-      await expect
-        .poll(() => subject.view().inbox.decisions[0]?.review.checks)
-        .toEqual({ state: 'available', result: checks });
-    } finally {
-      subject.stop();
-    }
-  },
-);
-
-it('leaves checks absent for a publication without a PR', async () => {
-  const subject = observeInbox([{ ...record(), pullRequest: undefined }]);
-  try {
-    await expect.poll(() => subject.view().inbox.decisions.length).toBe(1);
-    expect(subject.view().inbox.decisions[0]?.review.checks).toBeUndefined();
-    expect(
-      subject.paths.some((path) => path.endsWith('/pull-request/checks')),
-    ).toBe(false);
-  } finally {
-    subject.stop();
-  }
-});
-
-it.each([
-  { name: 'project', filter: { ...emptyNavigatorFilter, projects: [] } },
-  {
-    name: 'environment',
-    filter: { ...emptyNavigatorFilter, environments: [] },
-  },
-  {
-    name: 'publication',
-    filter: { ...emptyNavigatorFilter, reviews: ['without-review'] },
-  },
-])('applies the $name filter to the review inbox', async ({ filter }) => {
-  const subject = observeInbox();
-  try {
-    await expect.poll(() => subject.view().inbox.decisions.length).toBe(1);
-    subject.registry.set(worktreeNavigatorState, {
-      query: '',
-      filter,
-      expanded: {},
-    });
-    expect(subject.view().inbox.decisions).toEqual([]);
-  } finally {
-    subject.stop();
-  }
-});
-
-it('waits for a candidate checkout association while keeping unrelated saved reviews reachable', async () => {
-  const requested = Promise.withResolvers<void>();
-  const released = Promise.withResolvers<Response>();
-  const records = [
-    record(),
-    { ...record(closedReviewId), branch: 'deleted-branch' },
-  ];
-  const subject = create(
-    (path) => {
-      if (path.endsWith('/review')) {
-        requested.resolve();
-        return released.promise;
-      }
-      return navigatorResponse(path, inventory(), records);
-    },
-    undefined,
-    1000,
-    environmentId,
-  );
-  const list = readReviewNavigator([subject.connection]);
-  const inbox = readReviewInbox([subject.connection]);
-  const stopList = subject.registry.mount(list);
-  const stopInbox = subject.registry.mount(inbox);
-  try {
-    await requested.promise;
-    await idleClientAtoms(subject.registry);
-    expect(
-      subject.registry
-        .get(list)
-        .projects.flatMap((project) =>
-          project.entries.map((entry) => entry.key),
-        ),
-    ).toEqual([`${environmentId}/${closedReviewId}`]);
-    expect(
-      subject.registry
-        .get(inbox)
-        .inbox.decisions.map((row) => row.review.reviewId),
-    ).toEqual([closedReviewId]);
-    expect(subject.registry.get(inbox).loading).toBe(true);
-    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
-    await expect
-      .poll(() =>
-        subject.registry
-          .get(list)
-          .projects.flatMap((project) =>
-            project.entries.map((entry) => [
-              entry.key,
-              entry.worktreeId,
-              entry.path,
-            ]),
-          ),
-      )
-      .toEqual([
-        [`${environmentId}/${reviewId}`, topicId, '/code/topic'],
-        [`${environmentId}/${closedReviewId}`, undefined, undefined],
-      ]);
-    expect(
-      subject.registry
-        .get(inbox)
-        .inbox.decisions.map((row) => [
-          row.review.reviewId,
-          row.entry.worktreeId,
-        ]),
-    ).toEqual([
-      [reviewId, topicId],
-      [closedReviewId, undefined],
-    ]);
-    expect(subject.registry.get(inbox).loading).toBe(false);
-  } finally {
-    released.resolve(await navigatorResponse('/api/worktrees/topic/review'));
-    stopList();
-    stopInbox();
-  }
-});
-
-it('links only the exact current publication to an available checkout', async () => {
-  const subject = observeReviews([record(), record(closedReviewId)]);
-  try {
-    await expect
-      .poll(() =>
-        subject
-          .view()
-          .projects[0]?.entries.map((entry) => [
-            entry.review.state === 'available' ? entry.review.reviewId : '',
-            entry.worktreeId,
-            entry.path,
-          ]),
-      )
-      .toEqual([
-        [reviewId, topicId, '/code/topic'],
-        [closedReviewId, undefined, undefined],
-      ]);
-    expect(subject.paths.some((path) => path.endsWith('/git/status'))).toBe(
-      false,
-    );
-  } finally {
-    subject.stop();
-  }
-});
-
-it.each([null, closedReviewId])(
-  'does not link a saved review when the checkout publishes %s instead',
-  async (publishedReviewId) => {
-    const subject = recordedNavigator([record()], 'passed', publishedReviewId);
-    const list = readReviewNavigator([subject.connection]);
-    const stop = subject.registry.mount(list);
-    try {
-      await readClientAtom(
-        subject.registry,
-        readPublishedReview({
-          connection: subject.connection,
-          scope: { projectId, worktreeId: topicId },
-        }),
-      );
-      await idleClientAtoms(subject.registry);
-      expect(
-        subject.registry.get(list).projects[0]?.entries[0]?.worktreeId,
-      ).toBeUndefined();
-    } finally {
-      stop();
-    }
-  },
-);
-
-it('refreshes a review-only navigator without mounting hidden checkout reads', async () => {
-  const subject = observeReviews();
-  try {
-    await expect.poll(() => subject.view().projects[0]?.entries.length).toBe(1);
-    const refresh = refreshWorktreeNavigator([subject.connection]);
-    subject.registry.set(refresh, undefined);
-    await readClientAtom(subject.registry, refresh);
-    expect(checkoutReads(subject.paths)).toEqual([]);
-  } finally {
-    subject.stop();
-  }
-});
 
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];
@@ -883,7 +200,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       expanded: { [projectKey]: true },
     });
     await expect
-      .poll(() => registry.get(list).projects[0]?.entries[0]?.review.state)
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.pullRequest.state)
       .toBe('none');
     expect(
       reads
@@ -901,7 +218,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       .poll(() => registry.get(list).projects[0]?.key)
       .toBe(secondProjectKey);
     await expect
-      .poll(() => registry.get(list).projects[0]?.entries[0]?.review.state)
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.pullRequest.state)
       .toBe('none');
     registry.set(refreshWorktreeNavigator(connections), undefined);
     await readClientAtom(registry, refreshWorktreeNavigator(connections));
@@ -911,7 +228,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
           reads.filter(
             (read) =>
               read.environmentId === secondEnvironmentId &&
-              read.path.endsWith('/reviews'),
+              read.path.endsWith('/pull-requests'),
           ).length,
       )
       .toBe(2);
@@ -919,12 +236,12 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       reads.filter(
         (read) =>
           read.environmentId === environmentId &&
-          read.path.endsWith('/reviews'),
+          read.path.endsWith('/pull-requests'),
       ),
     ).toHaveLength(1);
     registry.set(worktreeNavigatorState, {
       query: '',
-      filter: { ...emptyNavigatorFilter, reviews: [] },
+      filter: { ...emptyNavigatorFilter, projects: [] },
       expanded: {},
     });
     expect(registry.get(list).projects).toEqual([]);
@@ -934,209 +251,6 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
     );
   } finally {
     stop();
-  }
-});
-
-it('requires checkout path and identity before associating a PR, and keeps closed publications in Reviews history', async () => {
-  let answer = review(mainId);
-  const subject = create(
-    (path) =>
-      Promise.resolve(
-        Response.json(
-          path.startsWith('/api/inventory')
-            ? inventory()
-            : path.endsWith('/pull-request/checks')
-              ? { kind: 'available', number: 42, checks: 'passed' }
-              : path.endsWith('/reviews')
-                ? [record(), record(closedReviewId, 'closed')]
-                : path.endsWith('/marks')
-                  ? {
-                      files: [],
-                      decisions: [
-                        {
-                          layerId: '60000000-0000-4000-8000-000000000001',
-                          fingerprint: 'f'.repeat(64),
-                          reviewedAt: '2026-10-30T00:00:00.000Z',
-                          stale: true,
-                        },
-                      ],
-                    }
-                  : path.endsWith(reviewId)
-                    ? {
-                        ...wireReview(answer),
-                      }
-                    : status(path),
-        ),
-      ),
-    undefined,
-    1000,
-    environmentId,
-  );
-  const connections = [subject.connection];
-  const list = readWorktreeNavigator(connections);
-  const stop = subject.registry.mount(list);
-  const currentReview = () =>
-    subject.registry.get(list).projects[0]?.entries[1]?.review;
-  const reread = async (next: ReadReviewResponse) => {
-    answer = next;
-    subject.registry.set(refreshWorktreeNavigator(connections), undefined);
-    await readClientAtom(
-      subject.registry,
-      refreshWorktreeNavigator(connections),
-    );
-  };
-  try {
-    await readClientAtom(
-      subject.registry,
-      readReview({ connection: subject.connection, reviewId }),
-    );
-    await expect.poll(() => currentReview()?.state).toBe('none');
-    expect(
-      subject.registry
-        .get(list)
-        .projects[0]?.entries.map((entry) => entry.kind),
-    ).toEqual(['worktree', 'worktree']);
-    await reread(review(topicId, '/code/elsewhere'));
-    await expect.poll(() => currentReview()?.state).toBe('none');
-    await reread(review());
-    await expect.poll(currentReview).toMatchObject({
-      state: 'available',
-      reviewId,
-      pullRequestNumber: 42,
-      timing: 'decision',
-      latestRevision: 1,
-      lastSeenRevision: 0,
-    });
-    const reviews = readReviewNavigator(connections);
-    const stopReviews = subject.registry.mount(reviews);
-    try {
-      await expect
-        .poll(() => navigatorReviewIds(subject.registry, reviews))
-        .toEqual([reviewId]);
-      subject.registry.set(worktreeNavigatorState, {
-        query: '',
-        filter: { ...emptyNavigatorFilter, older: true },
-        expanded: {},
-      });
-      await expect
-        .poll(() => navigatorReviewIds(subject.registry, reviews))
-        .toEqual([reviewId, closedReviewId]);
-      expect(
-        subject.registry
-          .get(list)
-          .projects[0]?.entries.map((entry) => entry.kind),
-      ).toEqual(['worktree', 'worktree']);
-    } finally {
-      stopReviews();
-    }
-    expect(subject.registry.get(list).projects[0]?.entries[0]?.name).toBe(
-      'main',
-    );
-  } finally {
-    stop();
-  }
-});
-
-it.each(['records', 'review'])(
-  'recovers a failed %s read on the same connection through Read again',
-  async (failedRead) => {
-    let fail = true;
-    const navigator = observeNavigator((path) => {
-      if (
-        fail &&
-        (failedRead === 'records'
-          ? path.endsWith('/reviews')
-          : path.endsWith(reviewId))
-      )
-        return Promise.resolve(
-          new Response('Temporarily unavailable', { status: 503 }),
-        );
-      return navigatorResponse(path);
-    });
-    try {
-      await expect
-        .poll(() => navigator.view().projects[0]?.entries[1]?.review.state)
-        .toBe('unavailable');
-      expect(navigator.view().messages).not.toEqual([]);
-      fail = false;
-      await navigator.refresh();
-      await expect
-        .poll(() => navigator.view().projects[0]?.entries[1]?.review)
-        .toMatchObject({
-          state: 'available',
-          reviewId,
-          timing: 'decision',
-          latestRevision: 1,
-          lastSeenRevision: 0,
-        });
-      expect(navigator.view().messages).toEqual([]);
-    } finally {
-      navigator.stop();
-    }
-  },
-);
-
-it('keeps a readable review reachable when its checkout is unavailable without enabling checkout selection', async () => {
-  const snapshot = inventory();
-  snapshot.projects[0]!.worktrees[0]!.available = false;
-  const reads: string[] = [];
-  const navigator = observeNavigator((path) => {
-    reads.push(path);
-    return navigatorResponse(path, snapshot);
-  });
-  try {
-    await expect
-      .poll(() => navigator.view().projects[0]?.entries[1])
-      .toMatchObject({
-        kind: 'worktree',
-        available: false,
-        worktreeId: topicId,
-        changes: { state: 'unavailable' },
-        review: {
-          state: 'available',
-          reviewId,
-          timing: 'decision',
-          latestRevision: 1,
-          lastSeenRevision: 0,
-        },
-      });
-    expect(reads.some((path) => path.includes(topicId))).toBe(false);
-  } finally {
-    navigator.stop();
-  }
-});
-
-it('keeps open publications independent of live checkout branches and preserves multiple reviews of one checkout', async () => {
-  const records = [
-    record(),
-    record(closedReviewId),
-    {
-      ...record('80000000-0000-4000-8000-000000000001'),
-      branch: 'removed-checkout',
-    },
-  ];
-  const subject = observeReviews(records);
-  try {
-    await expect
-      .poll(() =>
-        subject
-          .view()
-          .projects[0]?.entries.map((entry) => [
-            entry.kind,
-            entry.branch,
-            entry.review.state === 'available'
-              ? entry.review.reviewId
-              : undefined,
-          ]),
-      )
-      .toEqual([
-        ['review', 'topic', reviewId],
-        ['review', 'topic', closedReviewId],
-        ['review', 'removed-checkout', '80000000-0000-4000-8000-000000000001'],
-      ]);
-    expect(checkoutReads(subject.paths)).toEqual([]);
-  } finally {
-    subject.stop();
   }
 });
 
@@ -1159,9 +273,9 @@ it('loads checks after useful cards without computing diff summaries or reading 
       reads.push(path);
       if (path.startsWith('/api/inventory'))
         return Promise.resolve(Response.json(inventory()));
-      if (path.endsWith('/reviews'))
-        return reviewsReady.then(() => Response.json([record()]));
-      if (path.endsWith('/pull-request/checks'))
+      if (path.endsWith('/pull-requests'))
+        return reviewsReady.then(() => Response.json(pullList()));
+      if (path.endsWith('/checks'))
         return checks.then((response) => response.clone());
       if (path.endsWith('/git/status'))
         return statusReady.then(() =>
@@ -1172,7 +286,7 @@ it('loads checks after useful cards without computing diff summaries or reading 
         );
       if (path.endsWith('/marks'))
         return Promise.resolve(Response.json({ files: [], decisions: [] }));
-      return Promise.resolve(Response.json(wireReview()));
+      return Promise.resolve(Response.json(status(path)));
     },
     undefined,
     1000,
@@ -1201,7 +315,7 @@ it('loads checks after useful cards without computing diff summaries or reading 
           state: 'available',
           count: 1,
         },
-        review: { state: 'available', checks: { state: 'loading' } },
+        pullRequest: { state: 'available', checks: { state: 'loading' } },
       });
     expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
     expect(reads.some((path) => path.endsWith('/pull-request'))).toBe(false);
@@ -1212,16 +326,13 @@ it('loads checks after useful cards without computing diff summaries or reading 
       .poll(() => subject.registry.get(list).projects[0]?.entries[0])
       .toMatchObject({
         changes: { state: 'available', count: 1 },
-        review: { checks: { state: 'available', result: 'running' } },
+        pullRequest: { checks: { state: 'available', result: 'running' } },
       });
     const refresh = refreshWorktreeNavigator([subject.connection]);
     subject.registry.set(refresh, undefined);
     await readClientAtom(subject.registry, refresh);
     await expect
-      .poll(
-        () =>
-          reads.filter((path) => path.endsWith('/pull-request/checks')).length,
-      )
+      .poll(() => reads.filter((path) => path.endsWith('/checks')).length)
       .toBe(2);
     expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
   } finally {
@@ -1233,7 +344,7 @@ it('refuses checks for another pull request without reading a diff summary', asy
   const paths: string[] = [];
   const navigator = observeNavigator((path) => {
     paths.push(path);
-    if (path.endsWith('/pull-request/checks'))
+    if (path.endsWith('/checks'))
       return Promise.resolve(
         Response.json({ kind: 'available', number: 99, checks: 'passed' }),
       );
@@ -1253,7 +364,7 @@ it('refuses checks for another pull request without reading a diff summary', asy
       .poll(() => navigator.view().projects[0]?.entries[1])
       .toMatchObject({
         changes: { state: 'available', count: 1 },
-        review: { checks: { state: 'unavailable' } },
+        pullRequest: { checks: { state: 'unavailable' } },
       });
     expect(paths.filter((path) => path.endsWith('/summary'))).toEqual([]);
   } finally {
@@ -1476,7 +587,7 @@ it.each([
       walkthroughTitle,
       pullRequestTitle,
     });
-    const subject = recordedNavigator([], 'passed', null, snapshot);
+    const subject = recordedNavigator(snapshot);
     const list = readWorktreeNavigator([subject.connection]);
     const stop = subject.registry.mount(list);
     try {

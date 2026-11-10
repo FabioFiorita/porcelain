@@ -3,8 +3,6 @@ const untouched = {
   file: false,
   branch: false,
   history: false,
-  review: false,
-  comments: false,
   foreign: false,
 };
 import { Effect } from 'effect';
@@ -35,8 +33,6 @@ function cache() {
       'history',
       'commits',
     ]),
-    review: queryKeys.reviewSurface('environment', scope, ['review']),
-    comments: queryKeys.reviewSurface('environment', scope, ['comments']),
     foreign: queryKeys.reviewSurface('other-environment', scope, ['changes']),
   };
   const flags = Object.fromEntries(
@@ -64,8 +60,6 @@ it.each([
       file: true,
       branch: false,
       history: false,
-      review: true,
-      comments: false,
       foreign: false,
     },
   },
@@ -76,20 +70,6 @@ it.each([
       file: false,
       branch: true,
       history: true,
-      review: true,
-      comments: false,
-      foreign: false,
-    },
-  },
-  {
-    change: 'comments',
-    expected: {
-      changes: false,
-      file: false,
-      branch: false,
-      history: false,
-      review: false,
-      comments: true,
       foreign: false,
     },
   },
@@ -136,8 +116,6 @@ it('a completed push refreshes branch and history without invalidating published
     file: false,
     branch: true,
     history: true,
-    review: false,
-    comments: false,
     foreign: false,
   });
   subject.close();

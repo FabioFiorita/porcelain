@@ -51,7 +51,6 @@ export class GitReceiptRefresh extends Context.Service<
                 ),
               );
               const active = [...HashMap.values(yield* subscriptions.snapshot)];
-              const reviewIds = yield* subscriptions.reviewsFor(receipt);
               const worktreeReads = active.filter(
                 (read) =>
                   read.projectId === receipt.projectId &&
@@ -64,15 +63,9 @@ export class GitReceiptRefresh extends Context.Service<
                 Effect.gen(function* () {
                   reactivity.invalidateUnsafe([
                     queryKeys.worktreeInventory(connection.environmentId),
-                    queryKeys.projectReviews(
+                    queryKeys.projectPullRequests(
                       connection.environmentId,
                       receipt.projectId,
-                    ),
-                    ...reviewIds.map((reviewId) =>
-                      queryKeys.durableReview(
-                        connection.environmentId,
-                        reviewId,
-                      ),
                     ),
                     ...receiptReadKeys(connection.environmentId, receipt),
                   ]);

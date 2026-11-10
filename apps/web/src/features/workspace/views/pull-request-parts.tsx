@@ -15,7 +15,7 @@ import {
   pullRequestStateLabel,
   type PullChecksTone,
   type PullRequestState,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/projects/rules';
 import { Badge } from '@/components/ui/badge';
 
 import { cn } from '@/shared/lib/utils';

@@ -1,4 +1,4 @@
-import type { ReviewRange } from './review-annotation';
+import type { ReviewRange } from './code-range';
 import { externalLink } from '@porcelain/client/links/rules';
 import { useState } from 'react';
 import { requireNativeView } from 'expo';

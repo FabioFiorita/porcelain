@@ -3,7 +3,6 @@ import type {
   BranchBases,
   BranchPatches,
   BranchPatchesRequest,
-  RetainedBranchPatchesRequest,
   BranchRangeLookup,
   BranchRangeRequest,
 } from '../../src/models/branch-changes.ts';
@@ -44,17 +43,6 @@ export class InMemoryBranchRangeReader implements BranchRangeReader {
         }
       );
     });
-  }
-
-  readRetainedBranchPatches(
-    input: RetainedBranchPatchesRequest,
-  ): Effect.Effect<BranchPatches> {
-    return Effect.sync(
-      () =>
-        this.patches.get(`${input.baseOid}..${input.headOid}`) ?? {
-          kind: 'missing',
-        },
-    );
   }
 
   listBranchBases(): Effect.Effect<BranchBases> {

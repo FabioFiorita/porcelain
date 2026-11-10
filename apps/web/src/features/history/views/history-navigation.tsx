@@ -26,7 +26,7 @@ import { useReviewOverview } from '@/features/changes/index';
 import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 import { useHistoryScroll } from '../adapters/history-scroll';
 
 export function HistoryNavigation({

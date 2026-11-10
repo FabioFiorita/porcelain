@@ -1,16 +1,16 @@
 import { Context, Effect, Layer } from 'effect';
 import type {
-  ProjectReviewParams,
+  ProjectParams,
   ProjectGitHubAccountOverride,
   GitHubAccountResponse,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/projects';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import { ResolveProjectGitHubUseCasePort } from '../../ports/resolve-project-github-use-case-port.ts';
 export class ReadProjectGitHubAccountUseCase extends Context.Service<
   ReadProjectGitHubAccountUseCase,
   {
     readonly execute: (
-      input: ProjectReviewParams & ProjectGitHubAccountOverride,
+      input: ProjectParams & ProjectGitHubAccountOverride,
     ) => Effect.Effect<GitHubAccountResponse, ProjectNotFoundError>;
   }
 >()('@porcelain/server/ReadProjectGitHubAccountUseCase') {

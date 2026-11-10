@@ -6,18 +6,18 @@ import {
   branchReviewRange,
   WORKTREE_RANGE,
   type ReviewRange,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   mergeBranchChanges,
   mergeReviewChanges,
   type ReviewStatus,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   branchChangeMarks,
   worktreeChangeMarks,
   type FileChangeMarks,
 } from '@porcelain/client/files/rules';
-import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
+import type { ListReviewedFilesResponse } from '@porcelain/contracts/changes';
 import { AsyncResult } from 'effect/reactivity';
 
 export type ReviewSnapshot =

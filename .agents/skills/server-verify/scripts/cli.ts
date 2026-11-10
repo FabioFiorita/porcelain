@@ -13,7 +13,6 @@ import {
 } from '../../verify-core/cli.ts';
 import { connectionSchema } from '../../verify-core/connection.ts';
 import {
-  agentCommand,
   issuedLink,
   serverOptions,
   serverRead,
@@ -143,14 +142,7 @@ async function main(argv: readonly string[]): Promise<string> {
   return registry.drive(instance, argv, async () => {
     const recorder = registry.redactor(instance).recorder();
     let output: string;
-    if (command === 'agent')
-      output = await agentCommand(
-        instance.detail.manifestPath,
-        rest,
-        values,
-        recorder,
-      );
-    else if (command === 'server')
+    if (command === 'server')
       output = await serverRead(instance.detail.manifestPath, rest, recorder);
     else if (command === 'pairing-link') {
       const grant = await issuedLink(

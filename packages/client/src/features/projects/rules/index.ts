@@ -1,7 +1,7 @@
 export {
   worktreeLabel,
   selectedWorktreeInProject,
-  firstWaitingWorktree,
+  firstAvailableWorktree,
   projectPath,
   projectUnavailableMessage,
   type Inventory,
@@ -26,7 +26,6 @@ export {
   navigatorChecksLabel,
   navigatorEntrySelected,
   type NavigatorStatusNotice,
-  type NavigatorFilter,
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
@@ -49,3 +48,5 @@ export {
 } from './walkthrough-writer.ts';
 
 export { canSaveWalkthroughWriter } from './walkthrough-writer.ts';
+
+export * from './pull-request.ts';

@@ -422,14 +422,18 @@ for (const source of ['local', 'remote'] as const) {
         await app.reload();
         await expect(pull).toBeVisible();
       }
+      if (checkout === 'not-checked-out') {
+        await expect(
+          pull.getByRole('button', { name: 'Open archive.txt:1', exact: true }),
+        ).not.toBeAttached();
+        await expect(pull).toContainText('A completed change.');
+        return;
+      }
       const current = (await sourceServer.project()).worktrees.find(
         (entry) => entry.path === targetPath,
       );
       if (!current) throw new Error('Missing current source checkout');
-      const content =
-        checkout === 'not-checked-out'
-          ? 'Different branch content.'
-          : 'A completed change.';
+      const content = 'A completed change.';
       await pull
         .getByRole('button', { name: 'Open archive.txt:1', exact: true })
         .click();

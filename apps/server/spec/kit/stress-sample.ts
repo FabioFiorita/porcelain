@@ -1,22 +1,14 @@
-import type { ReviewFixtureDraft } from './seed-review.ts';
-import { seedReview } from './seed-review.ts';
-import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import {
-  COMMENT_BODY_LENGTH,
   DEVICE_LABEL_LENGTH,
   ENVIRONMENT_NAME_LENGTH,
   PROJECT_NAME_LENGTH,
-  REVIEW_PROSE_LENGTH,
-  REVIEW_STEP_TEXT_LENGTH,
-  REVIEW_TITLE_LENGTH,
 } from '@porcelain/contracts/shared';
-import { commitReviewFixture, lineCount, pairDevice } from './requests.ts';
+import { pairDevice } from './requests.ts';
 import {
   type HttpRequest,
   type Session,
@@ -24,23 +16,11 @@ import {
   stressVariants,
 } from './session.ts';
 
-type Layer = ReviewFixtureDraft['layers'][number];
-type Box = NonNullable<ReviewFixtureDraft['diagram']>['after']['boxes'][number];
 type Plan = {
   variant: StressVariant;
   files: ReadonlyMap<string, string>;
   commit: string;
-  verdict: ReviewFixtureDraft['verdict'];
-  summaryHtml: string;
-  layers: readonly {
-    title: string;
-    summary: string;
-    lane: string;
-    steps: readonly { title: string; text: string; path: string }[];
-  }[];
-  comments: readonly { path: string; body: string }[];
   devices: readonly string[];
-  removal: { behavior: string; why: string };
   environmentName?: string;
   projectName?: string;
 };
@@ -76,7 +56,7 @@ function longTextPlan(): Plan {
   const files = new Map([
     [
       notePath('long-text'),
-      `# Long text\n\n${filled(REVIEW_PROSE_LENGTH, 'A paragraph long enough to wrap many times at phone width.')}\n\nhttps://example.invalid/${UNBROKEN.repeat(4)}\n`,
+      `# Long text\n\n${filled(4000, 'A paragraph long enough to wrap many times at phone width.')}\n\nhttps://example.invalid/${UNBROKEN.repeat(4)}\n`,
     ],
     [
       longName,
@@ -90,43 +70,10 @@ function longTextPlan(): Plan {
   return {
     variant: 'long-text',
     files,
-    commit: filled(REVIEW_TITLE_LENGTH, 'Keep document holds visible'),
-    verdict: {
-      asked: { text: filled(REVIEW_PROSE_LENGTH, 'Asked:') },
-      recommendation: 'hold',
-      reasons: [
-        filled(REVIEW_PROSE_LENGTH, 'Reason:'),
-        filled(400, 'A shorter reason:'),
-      ],
-      notProven: [
-        {
-          what: filled(REVIEW_TITLE_LENGTH, 'Not proven:'),
-          why: filled(REVIEW_PROSE_LENGTH, 'Because'),
-        },
-      ],
-      removed: [],
-    },
-    summaryHtml: `<!doctype html><h1>${filled(REVIEW_TITLE_LENGTH, 'Summary')}</h1><p>${filled(REVIEW_PROSE_LENGTH, 'The summary')}</p>`,
-    layers: [longName, nested].map((path, index) => ({
-      title: filled(REVIEW_TITLE_LENGTH, `Decision ${index + 1} in ${path}`),
-      summary: filled(REVIEW_PROSE_LENGTH, 'Summary of the decision:'),
-      lane: filled(100, 'Lane'),
-      steps: [
-        {
-          title: filled(REVIEW_TITLE_LENGTH, `Step in ${path}`),
-          text: filled(REVIEW_STEP_TEXT_LENGTH, 'Step:'),
-          path,
-        },
-      ],
-    })),
-    comments: [
-      { path: longName, body: filled(COMMENT_BODY_LENGTH / 8, 'Comment:') },
-    ],
+    commit: filled(200, 'Keep document holds visible'),
+
     devices: [filled(DEVICE_LABEL_LENGTH, 'Phone')],
-    removal: {
-      behavior: filled(REVIEW_PROSE_LENGTH, 'Removed behavior:'),
-      why: filled(REVIEW_PROSE_LENGTH, 'Removed because'),
-    },
+
     environmentName: filled(ENVIRONMENT_NAME_LENGTH, 'Workstation'),
     projectName: filled(PROJECT_NAME_LENGTH, 'Project'),
   };
@@ -151,37 +98,8 @@ function manyItemsPlan(): Plan {
     variant: 'many-items',
     files,
     commit: 'Add many items',
-    verdict: {
-      asked: { text: 'Show many decisions, files, comments and devices' },
-      recommendation: 'merge',
-      reasons: count(5).map((number) => `Reason ${number}`),
-      notProven: count(8).map((number) => ({
-        what: `Check ${number}`,
-        why: 'Not run in this fixture',
-      })),
-      removed: [],
-    },
-    summaryHtml: `<!doctype html><h1>Many items</h1><ul>${count(40)
-      .map((number) => `<li>Item ${number}</li>`)
-      .join('')}</ul>`,
-    layers: count(20).map((number, index) => ({
-      title: `Decision ${number}`,
-      summary: `Decision ${number} groups three files.`,
-      lane: `Lane ${(index % 4) + 1}`,
-      steps: paths.slice(index * 3, index * 3 + 3).map((path) => ({
-        title: path.split('/').at(-1) ?? path,
-        text: `Changes ${path}.`,
-        path,
-      })),
-    })),
-    comments: paths
-      .slice(0, 30)
-      .map((path, index) => ({ path, body: `Comment ${index + 1}` })),
+
     devices: count(12).map((number) => `Device ${number}`),
-    removal: {
-      behavior: 'Files removed before this seed',
-      why: 'They stay removed',
-    },
   };
 }
 
@@ -205,24 +123,18 @@ async function mainWorktree(session: Session) {
   return { projectId: project.id, worktreeId: worktree.id };
 }
 
-async function publishedReview(session: Session, worktreeId: string) {
-  return Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
-    await accepted(session, {
-      method: 'GET',
-      path: `/api/worktrees/${worktreeId}/review`,
-    }),
-  ).review;
-}
-
 export async function seedStressSample(
   session: Session,
   variant: StressVariant,
 ) {
-  const { projectId, worktreeId } = await mainWorktree(session);
+  const { projectId } = await mainWorktree(session);
   const applied = !existsSync(appliedMarker(session, variant));
   const plan = variant === 'long-text' ? longTextPlan() : manyItemsPlan();
   if (applied) {
-    await commitReviewFixture(session);
+    if ((await session.git('status', '--porcelain')).trim()) {
+      await session.git('add', '-A');
+      await session.git('commit', '-m', 'Commit fixture changes');
+    }
     for (const [path, text] of plan.files) {
       await mkdir(dirname(join(session.repository, path)), {
         recursive: true,
@@ -232,93 +144,11 @@ export async function seedStressSample(
     await session.git('add', '-A');
     await session.git('commit', '--allow-empty', '-m', plan.commit);
   }
-  const deleted = (
-    await session.git(
-      'diff',
-      '--name-only',
-      '--diff-filter=D',
-      'porcelain-fixture-base',
-      'HEAD',
-    )
-  )
-    .split('\n')
-    .filter((path) => path !== '');
-  const layers: Layer[] = plan.layers.map((layer) => ({
-    id: randomUUID(),
-    title: layer.title,
-    summary: layer.summary,
-    lanes: [layer.lane],
-    steps: layer.steps.map((step) => ({
-      id: randomUUID(),
-      lane: 0,
-      title: step.title,
-      text: step.text,
-      kind: 'changed',
-      pointer: {
-        path: step.path,
-        startLine: 1,
-        endLine: lineCount(plan.files.get(step.path) ?? '\n'),
-      },
-    })),
-  }));
-  const boxes: Box[] = layers.map((layer) => ({
-    id: randomUUID(),
-    label: layer.title,
-    detail: layer.summary,
-    change: 'new',
-    layerId: layer.id,
-    decision: true,
-  }));
-  const body: ReviewFixtureDraft = {
-    base: 'refs/heads/porcelain-fixture-base',
-    expectedRevision:
-      (await publishedReview(session, worktreeId))?.revision ?? 0,
-    verdict: {
-      ...plan.verdict,
-      removed:
-        deleted.length === 0 ? [] : [{ ...plan.removal, paths: deleted }],
-    },
-    summaryHtml: plan.summaryHtml,
-    diagram: {
-      after: {
-        boxes,
-        arrows: boxes.slice(1).map((box, index) => ({
-          from: boxes[index]?.id ?? box.id,
-          to: box.id,
-          label: layers[index]?.title ?? 'uses',
-        })),
-      },
-    },
-    layers,
-  };
-  const published = Schema.decodeUnknownSync(readPublishedReviewResponseSchema)(
-    await seedReview(session, body),
-  ).review;
-  if (applied) await applyOnce(session, plan, projectId, worktreeId);
-  return {
-    variant,
-    applied,
-    reviewId: published?.reviewId,
-    revision: published?.revision,
-    layerId: published?.layers[0]?.id,
-  };
+  if (applied) await applyOnce(session, plan, projectId);
+  return { variant, applied };
 }
 
-async function applyOnce(
-  session: Session,
-  plan: Plan,
-  projectId: string,
-  worktreeId: string,
-) {
-  for (const comment of plan.comments)
-    await accepted(session, {
-      method: 'POST',
-      path: `/api/worktrees/${worktreeId}/comments`,
-      body: {
-        anchor: { kind: 'file', filePath: comment.path },
-        body: comment.body,
-      },
-    });
+async function applyOnce(session: Session, plan: Plan, projectId: string) {
   for (const label of plan.devices) await pairDevice(session, label);
   if (plan.environmentName !== undefined)
     await accepted(session, {

@@ -31,11 +31,11 @@ import {
 } from '@porcelain/client/history/rules';
 import { refLabel, shortOid, shownRefs } from '@porcelain/client/history/rules';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
-import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
+import type { DiffContent, ReviewScope } from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 
 const pathKey = (file: CommitFile) => commitPaths(file).join('\0');
 
@@ -53,19 +53,7 @@ export function CommitDocument({
   onOpen: OpenDocument;
 }) {
   const { connection } = context;
-  const { reveal } = interaction;
-  const requestedParent =
-    reveal?.anchor.comparison?.kind === 'commit'
-      ? reveal.anchor.comparison.parent
-      : 1;
-  const [parentChoice, setParentChoice] = useState({
-    nonce: reveal?.nonce,
-    parent: requestedParent,
-  });
-  const parent =
-    parentChoice.nonce === reveal?.nonce
-      ? parentChoice.parent
-      : requestedParent;
+  const [parent, setParent] = useState(1);
   const [, startTransition] = useTransition();
   const commit = useCommit(connection, scope, oid, parent);
   const history = Option.getOrUndefined(
@@ -96,11 +84,6 @@ export function CommitDocument({
           {
             ...entry,
             id: `${entry.id}:${parent}`,
-            comment: {
-              filePath: entry.path,
-              revision: oid,
-              comparison: { kind: 'commit' as const, parent },
-            },
           },
         ];
   });
@@ -187,12 +170,7 @@ export function CommitDocument({
                 <Tabs
                   value={String(parent)}
                   onValueChange={(value) =>
-                    startTransition(() =>
-                      setParentChoice({
-                        nonce: reveal?.nonce,
-                        parent: Number(value),
-                      }),
-                    )
+                    startTransition(() => setParent(Number(value)))
                   }
                 >
                   <TabsList>

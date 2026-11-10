@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import type { OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import {
   type ChangeScope,
   isSurface,
@@ -227,7 +227,6 @@ function SidebarSurface({
           onChangeScope={changes.onScope}
           onBase={changes.onBase}
           allChanges={guided ? ALL_CHANGES : { kind: 'handoff' }}
-          actionsTarget={actionsTarget}
         />
       )}
       {surface === 'files' && (
@@ -251,10 +250,13 @@ function SidebarSurface({
             activeEntry?.startsWith('commit:') ? activeEntry.slice(7) : ''
           }
           onSelect={(oid, toSide) =>
-            onOpen({ kind: 'commit', oid }, undefined, {
-              toSide: toSide === true,
-              preserveFocus: true,
-            })
+            onOpen(
+              { kind: 'commit', oid },
+              {
+                toSide: toSide === true,
+                preserveFocus: true,
+              },
+            )
           }
           sideLabel={sideLabel}
           onOpenGraph={() => onOpen({ kind: 'graph' })}

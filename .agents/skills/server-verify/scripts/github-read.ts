@@ -1,17 +1,11 @@
-import { seedReview } from '@porcelain/server/kit/seed-review';
 import { execFile } from 'node:child_process';
 import { createServer, type Socket } from 'node:net';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { Schema } from 'effect';
 import { ServerHandle, Recorder } from '@porcelain/server/kit/isolated-server';
-import {
-  commitReviewFixture,
-  sampleReview,
-  read,
-} from '@porcelain/server/kit/requests';
+import { read } from '@porcelain/server/kit/requests';
 import { record, text } from '@porcelain/server/kit/session';
 import { Usage } from '../../verify-core/cli.ts';
 
@@ -177,19 +171,13 @@ socket.on('error', () => { process.stderr.write('GitHub fixture bridge unavailab
       `git@github.com:${input.repository}.git`,
     );
     await session.git('branch', 'porcelain-fixture-base');
-    await commitReviewFixture(session);
-    const published = await seedReview(session, {
-      ...sampleReview(session, 0, randomUUID(), randomUUID()),
-      pullRequest: `https://github.com/${input.repository}/pull/${input.number}`,
-    });
-    const reviewId = text(published.reviewId);
     const accounts = await read(session, {
       method: 'GET',
       path: `/api/projects/${session.projectId}/github-account`,
     });
     const pullRequest = await read(session, {
       method: 'GET',
-      path: `/api/reviews/${reviewId}/pull-request`,
+      path: `/api/projects/${session.projectId}/pull-requests/${input.number}`,
     });
     const pullRequests = await read(session, {
       method: 'GET',

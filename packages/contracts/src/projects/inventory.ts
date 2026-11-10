@@ -28,9 +28,6 @@ const worktreeSchema = Schema.Struct({
   walkthroughTitle: Schema.optionalKey(Schema.String),
   pullRequestTitle: Schema.optionalKey(Schema.String),
   available: Schema.Boolean,
-  status: nullableAsUndefined(
-    Schema.Literals(['pending', 'reviewed', 'replied']),
-  ),
 });
 const projectFields = {
   id: projectIdSchema,

@@ -4,7 +4,7 @@ import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.
 import {
   type ListReviewedFilesQuery,
   type ListReviewedFilesResponse,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/changes';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import { ListReviewedFilesService } from '@porcelain/reviews/services';
 

@@ -1,5 +1,5 @@
 import {
-  firstWaitingWorktree,
+  firstAvailableWorktree,
   selectedWorktreeInProject,
 } from '@porcelain/client/projects/rules';
 import {
@@ -41,7 +41,7 @@ function WorkspaceIndex() {
     worktree === undefined
       ? selectedWorktreeInProject(
           inventory,
-          firstWaitingWorktree(inventory)?.id,
+          firstAvailableWorktree(inventory)?.id,
         )
       : selectedWorktreeInProject(inventory, worktree);
   if (target && settled)

@@ -1,13 +1,13 @@
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { readProjectPullRequests } from '@porcelain/client/reviews';
+import { readProjectPullRequests } from '@porcelain/client/projects';
 import { startWalkthrough } from '@porcelain/client/walkthroughs';
 import {
   walkthroughPullRequest,
   walkthroughStartFailure,
 } from '@porcelain/client/walkthroughs/rules';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useReviewOverview } from '@/features/changes/index';
 

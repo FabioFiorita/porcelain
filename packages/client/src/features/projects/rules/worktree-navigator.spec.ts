@@ -4,12 +4,10 @@ import {
   navigatorEntryMatches,
   navigatorEntryLabel,
   navigatorChangesLabel,
-  navigatorReviewLabel,
-  navigatorCardReviewLabel,
   navigatorCardChangesLabel,
   navigatorChecksLabel,
   type NavigatorChanges,
-  type NavigatorReview,
+  type NavigatorPullRequest,
   navigatorFilterSections,
   navigatorEntrySelected,
   reconcileNavigatorStatusNotices,
@@ -31,56 +29,9 @@ const entry: NavigatorEntry = {
   main: false,
   detached: true,
   available: true,
-  review: {
-    state: 'available',
-    reviewId: 'review',
-    closed: false,
-    archived: false,
-    pullRequestNumber: 42,
-    timing: 'record',
-    latestRevision: 1,
-    lastSeenRevision: 1,
-  },
+  pullRequest: { state: 'available', number: 42 },
   changes: { state: 'loading' },
 };
-it('describes publication purpose and a new revision without treating reading as a decision', () => {
-  expect(navigatorCardReviewLabel(entry)).toBe('Review available');
-  expect(
-    navigatorCardReviewLabel({ ...entry, review: { state: 'none' } }),
-  ).toBe('');
-  const review = {
-    state: 'available' as const,
-    reviewId: 'review',
-    closed: false,
-    archived: false,
-    pullRequestNumber: undefined,
-    timing: 'decision' as const,
-    latestRevision: 3,
-    lastSeenRevision: 3,
-  };
-  expect(navigatorCardReviewLabel({ ...entry, review })).toBe(
-    'Decision review',
-  );
-  expect(
-    navigatorCardReviewLabel({
-      ...entry,
-      review: { ...review, lastSeenRevision: 2 },
-    }),
-  ).toBe('Decision review · New revision');
-  expect(
-    navigatorCardReviewLabel({
-      ...entry,
-      review: { ...review, timing: 'record', retained: true },
-    }),
-  ).toBe('Saved review');
-  expect(
-    navigatorCardReviewLabel({
-      ...entry,
-      review: { ...review, timing: 'record', lastSeenRevision: 2 },
-    }),
-  ).toBe('New revision');
-});
-
 it.each<{ changes: NavigatorChanges; label: string }>([
   { changes: { state: 'loading' }, label: 'Reading changes…' },
   { changes: { state: 'unavailable' }, label: '—' },
@@ -92,7 +43,7 @@ it.each<{ changes: NavigatorChanges; label: string }>([
 });
 
 it.each<{
-  checks: Extract<NavigatorReview, { state: 'available' }>['checks'];
+  checks: Extract<NavigatorPullRequest, { state: 'available' }>['checks'];
   label: string;
 }>([
   { checks: undefined, label: 'Checks loading' },
@@ -108,44 +59,13 @@ it.each<{
 ])('keeps PR check status accessible in words: $label', ({ checks, label }) => {
   expect(navigatorChecksLabel(checks)).toBe(label);
 });
-it('combines every search term and review choice while unknown review state remains visible', () => {
-  expect(
-    navigatorEntryMatches(
-      entry,
-      'PORCELAIN desk detached 42',
-      emptyNavigatorFilter,
-    ),
-  ).toBe(true);
-  expect(
-    navigatorEntryMatches(
-      entry,
-      'Porcelain another-computer',
-      emptyNavigatorFilter,
-    ),
-  ).toBe(false);
-  expect(
-    navigatorEntryMatches(entry, '', {
-      ...emptyNavigatorFilter,
-      reviews: ['without-review'],
-    }),
-  ).toBe(false);
-  expect(
-    navigatorEntryMatches({ ...entry, review: { state: 'none' } }, '', {
-      ...emptyNavigatorFilter,
-      reviews: ['with-review'],
-    }),
-  ).toBe(false);
-  expect(
-    navigatorEntryMatches({ ...entry, review: { state: 'loading' } }, '', {
-      ...emptyNavigatorFilter,
-      reviews: ['with-review'],
-    }),
-  ).toBe(true);
-  expect(
-    navigatorEntryMatches(entry, '', { ...emptyNavigatorFilter, reviews: [] }),
-  ).toBe(false);
+it('combines every search term including project, environment, path and PR number', () => {
+  expect(navigatorEntryMatches(entry, 'PORCELAIN desk detached 42')).toBe(true);
+  expect(navigatorEntryMatches(entry, 'Porcelain another-computer')).toBe(
+    false,
+  );
 });
-it('keeps selected checkout and retained-review identity scoped to their computer and row kind', () => {
+it('keeps selected checkout identity scoped to its computer', () => {
   expect(
     navigatorEntrySelected(entry, {
       kind: 'worktree',
@@ -160,25 +80,6 @@ it('keeps selected checkout and retained-review identity scoped to their compute
       worktreeId: 'topic',
     }),
   ).toBe(false);
-  expect(
-    navigatorEntrySelected(
-      { ...entry, kind: 'review' },
-      { kind: 'worktree', environmentId: 'desk', worktreeId: 'topic' },
-    ),
-  ).toBe(false);
-  expect(
-    navigatorEntrySelected(
-      { ...entry, kind: 'review' },
-      { kind: 'review', environmentId: 'desk', reviewId: 'review' },
-    ),
-  ).toBe(true);
-  expect(
-    navigatorEntrySelected(entry, {
-      kind: 'review',
-      environmentId: 'other',
-      reviewId: 'review',
-    }),
-  ).toBe(false);
 });
 
 it('keeps pending and failed details distinct from no review and a clean checkout in visible and accessible labels', () => {
@@ -189,13 +90,8 @@ it('keeps pending and failed details distinct from no review and a clean checkou
   expect(navigatorChangesLabel({ state: 'available', count: 0 })).toBe(
     'Working tree clean',
   );
-  expect(navigatorReviewLabel({ state: 'loading' })).toBe('Reading review…');
-  expect(navigatorReviewLabel({ state: 'unavailable' })).toBe(
-    'Review unavailable',
-  );
-  expect(navigatorReviewLabel({ state: 'none' })).toBe('No review');
   expect(navigatorEntryLabel(entry)).toBe(
-    'long-detached-folder, Porcelain, Desk computer, Detached HEAD, /worktrees/long-detached-folder, Review available, Reading changes…, Pull request #42',
+    'long-detached-folder, Porcelain, Desk computer, Detached HEAD, /worktrees/long-detached-folder, Reading changes…, Pull request #42',
   );
 });
 
@@ -219,7 +115,6 @@ it('offers both same-named projects as scoped choices and keeps an empty review 
   const sections = navigatorFilterSections(projects, {
     ...emptyNavigatorFilter,
     projects: ['laptop/project'],
-    reviews: [],
   });
   expect(sections.find((section) => section.key === 'projects')?.items).toEqual(
     [
@@ -253,20 +148,6 @@ it('offers both same-named projects as scoped choices and keeps an empty review 
       icon: 'laptop',
       checked: true,
       next: ['desk'],
-    },
-  ]);
-  expect(sections.find((section) => section.key === 'reviews')?.items).toEqual([
-    {
-      id: 'with-review',
-      label: 'With a review',
-      checked: false,
-      next: ['with-review'],
-    },
-    {
-      id: 'without-review',
-      label: 'Without a review',
-      checked: false,
-      next: ['without-review'],
     },
   ]);
 });

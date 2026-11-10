@@ -5,10 +5,7 @@ import {
   gitSurfaces,
   queryKeys,
 } from '../../../shared/api/query-keys.ts';
-import {
-  noticeSurfaces,
-  receiptSurfaces,
-} from '../../reviews/rules/live-surfaces.ts';
+import { noticeSurfaces, receiptSurfaces } from '../rules/live-surfaces.ts';
 
 const BRANCH_SURFACES = ['branch', 'branch-bases', 'history'];
 

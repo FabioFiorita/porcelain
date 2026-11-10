@@ -1,7 +1,3 @@
-import {
-  parseDesktopReviewLink,
-  reviewDesktopUrl,
-} from '@porcelain/client/reviews/rules';
 import { externalLink } from '@porcelain/client/links/rules';
 import { NodeServices } from '@effect/platform-node';
 import {
@@ -302,21 +298,7 @@ app.on('activate', () => {
     ),
   );
 });
-app.on('open-url', (event, url) => {
-  event.preventDefault();
-  const link = parseDesktopReviewLink(url);
-  if (link)
-    runtime.runFork(
-      dispatch({ kind: 'open-review', url: reviewDesktopUrl(link) }),
-    );
-});
-
-app.on('second-instance', (_event, argv) => {
-  const url = argv.find((value) => parseDesktopReviewLink(value) !== undefined);
-  if (url !== undefined) {
-    runtime.runFork(dispatch({ kind: 'open-review', url }));
-    return;
-  }
+app.on('second-instance', () => {
   runtime.runFork(
     openWindow().pipe(
       Effect.catch((error) => Effect.sync(() => failure(error))),
@@ -352,12 +334,6 @@ const dispatch = Effect.fn('dispatch')(
 
 const start = Effect.fn('start')(function* () {
   yield* Effect.tryPromise(() => app.whenReady());
-  if (settings.updateFeed) app.setAsDefaultProtocolClient('porcelain-desktop');
-  const url = process.argv.find(
-    (value) => parseDesktopReviewLink(value) !== undefined,
-  );
-  if (url !== undefined && pendingAction === undefined)
-    pendingAction = { kind: 'open-review', url };
   ipcMain.handle('porcelain:pick-project-folder', (event) =>
     runtime.runPromise(
       Effect.gen(function* () {

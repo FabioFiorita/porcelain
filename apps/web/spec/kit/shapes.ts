@@ -5,11 +5,9 @@ import {
 } from '@porcelain/contracts/access';
 
 import type { EditFileRequest } from '@porcelain/contracts/files';
-import type { CreateCommentThreadRequest } from '@porcelain/contracts/reviews';
 import type {
   AgentAction,
   ProjectHomeStep,
-  ProofCheckStep,
   RepoFixture,
   RepoStep,
 } from './protocol.ts';
@@ -55,24 +53,6 @@ export function agentOn(step: Step) {
     await step({ kind: 'agent', action });
   };
   return {
-    publishArchitecture: (questions?: Readonly<Record<string, string>>) =>
-      act({ kind: 'publish-architecture', questions }),
-    publishReview: (
-      title: string,
-      kind: 'changed' | 'context' = 'changed',
-      summaryHtml?: string,
-    ) => act({ kind: 'publish-review', title, step: kind, summaryHtml }),
-    publishProof: (
-      title: string,
-      proof: { checks: ProofCheckStep[]; screenshot: string },
-    ) => act({ kind: 'publish-proof', title, ...proof }),
-    comment: (
-      path: string,
-      body: string,
-      thread?: Omit<CreateCommentThreadRequest, 'body'>,
-    ) => act({ kind: 'comment', path, body, thread }),
-    reply: (threadId: string, body: string, reviewId?: string) =>
-      act({ kind: 'reply', threadId, body, reviewId }),
     editFile: (edit: EditFileRequest) => act({ kind: 'edit-file', edit }),
   };
 }

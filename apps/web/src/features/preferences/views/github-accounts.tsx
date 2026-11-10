@@ -5,8 +5,8 @@ import { RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
 import {
   readProjectGitHubAccount,
   setProjectGitHubAccount,
-} from '@porcelain/client/reviews';
-import { githubUnavailable } from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/projects';
+import { githubUnavailable } from '@porcelain/client/projects/rules';
 import { useGitHubAccountProjects } from '../queries/review-git-settings';
 import type { Connection } from '@/shared/workspace/connection';
 import { copyText } from '@/shared/workspace/copy';

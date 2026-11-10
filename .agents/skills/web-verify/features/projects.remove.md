@@ -20,7 +20,7 @@ api:
 
 # projects.remove
 
-Removing a project from the navigator's project-header action menu, after confirming, takes it and all its worktrees out of the navigator and the server forgets it (its reviews, marks, comments and preferences in Porcelain); files on disk stay.
+Removing a project from the navigator's project-header action menu, after confirming, takes it and all its worktrees out of the navigator and the server forgets it (its worktree marks and preferences in Porcelain); files on disk stay.
 
 ## How to get to it (user POV)
 
@@ -74,4 +74,4 @@ Automated coverage: `projects-open-remote.desktop.e2e.ts`, `projects-remove.e2e.
 ## Gotchas
 
 - Navigator sheet stays open through confirmation/removal. Unsaved drafts refuse with “Save or discard unsaved file drafts before removing this project.”
-- To continue, Open project → repository → Open repository. Reregistration creates new IDs without old URLs/marks/comments/preferences.
+- To continue, Open project → repository → Open repository. Reregistration creates new IDs without old URLs/marks/preferences.

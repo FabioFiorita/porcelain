@@ -43,11 +43,11 @@ Preconditions: [surface baseline](README.md).
 ## Gotchas
 
 - Clicking the pressed rail button closes the panel; select a different view, or use `Alt+1`/`Alt+2`/`Alt+3`, when a journey needs the panel open.
-- The selected view is the `surface` search parameter. Panel visibility is a saved browser-profile preference, shared across worktrees and saved reviews; changing worktrees, Settings/Escape and reload retain the user's open or closed choice.
+- The selected view is the `surface` search parameter. Panel visibility is a saved browser-profile preference, shared across worktrees; changing worktrees, Settings/Escape and reload retain the user's open or closed choice.
 - Widening past 1280px while the phone sheet is open docks the panel on the same view.
 
 ## Linked pull request recovery
 
-Open a linked PR from its sidebar action or Review panel, then make GitHub return a missing-PR error or null response. The PR document explains that GitHub could not find it, retains Back to the review and Try again, and does not report a network failure or unlink/close the review. Restore GitHub and retry: the same PR opens without changing the workspace or review. Repeat at 1440 and 414. GitHub checks remain separate from the published review's proof.
+Open a linked PR from its sidebar action or Review panel, then make GitHub return a missing-PR error or null response. The PR document explains that GitHub could not find it, retains Back to the worktree and Try again, and does not report a network failure or alter the worktree. Restore GitHub and retry: the same PR opens without changing the workspace. Repeat at 1440 and 414. GitHub checks remain in the PR document.
 
 Discovery lists use only the authoritative GitHub check rollup; individual check details are fetched on PR opening. At up to50open+50recent PRs, listing must not request nested check contexts.

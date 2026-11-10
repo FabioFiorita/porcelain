@@ -2,7 +2,6 @@ import { type GitIoFailure } from '@porcelain/git/errors';
 import { type Effect, Context } from 'effect';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
 import {
-  type RetainedBranchPatchesRequest,
   type BranchBases,
   type BranchPatches,
   type BranchPatchesRequest,
@@ -18,9 +17,6 @@ export interface BranchRangeReader {
   readBranchPatches(
     input: BranchPatchesRequest,
   ): Effect.Effect<BranchPatches, GitIoFailure, WorktreeRead>;
-  readRetainedBranchPatches(
-    input: RetainedBranchPatchesRequest,
-  ): Effect.Effect<BranchPatches, GitIoFailure>;
   listBranchBases(
     input: ListBranchBasesInput,
   ): Effect.Effect<BranchBases, GitIoFailure, WorktreeRead>;

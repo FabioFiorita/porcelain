@@ -53,5 +53,5 @@ Automated coverage: `reviews-mark-all.test.tsx`.
 
 ## Gotchas
 
-- Bulk counts exclude already reviewed current files; unmark first. With a published review, bulk controls live in All changes rather than walkthrough.
+- Bulk counts exclude already reviewed current files; unmark first. On a Walkthrough worktree, bulk controls live in All changes.
 - Leave marks cleared and remove NOTES.md before another file-count journey.

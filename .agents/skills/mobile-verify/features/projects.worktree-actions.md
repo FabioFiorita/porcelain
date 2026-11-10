@@ -31,7 +31,7 @@ Long-pressing a worktree card in Worktrees opens its actions as a form sheet rou
 Preconditions: [surface baseline](README.md).
 
 1. Long-press a worktree card. The sheet covers the tab bar with rounded top corners; iOS shows the title and an X (Close) in the native header with a grabber, Android an in-sheet header with a drag handle, the title and an X. There is no Cancel button. Close and swipe-down each dismiss it back to Worktrees with the selection unchanged.
-2. Follow [worktree and project actions](projects.worktrees.md#worktree-and-project-actions) for Copy worktree path, Switch branch and Delete. Their forms keep the primary action (Switch branch, Review deletion then Delete) and dismiss with Close or swipe-down. A completed switch or deletion closes the sheet.
+2. Follow [worktree and project actions](projects.worktrees.md) for Copy worktree path, Switch branch and Delete. Their forms keep the primary action (Switch branch, Review deletion then Delete) and dismiss with Close or swipe-down. A completed switch or deletion closes the sheet.
 
 Automated coverage: `worktree-actions.spec.ts`, `cleanup-worktree.spec.ts`, `worktree-action-selection.spec.ts`.
 

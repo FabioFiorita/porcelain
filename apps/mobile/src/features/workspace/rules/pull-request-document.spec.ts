@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { PullRequestRead } from '@porcelain/client/reviews/rules';
+import type { PullRequestRead } from '@porcelain/client/projects/rules';
 import { pullRequestMarkdown } from './pull-request-document';
 
 type PullRequest = Extract<
@@ -15,7 +15,6 @@ const pull: PullRequest = {
   headBranch: 'feature',
   baseBranch: 'main',
   headSha: 'abc',
-  matchesReviewHead: true,
   mergeable: 'MERGEABLE',
   updatedAt: '2026-10-30T00:00:00Z',
   description: 'A **Markdown** description.',

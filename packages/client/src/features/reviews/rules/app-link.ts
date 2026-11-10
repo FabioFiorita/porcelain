@@ -1,5 +1,4 @@
 import * as Schema from 'effect/Schema';
-import { reviewAppLinkProtocolSchema } from '@porcelain/contracts/reviews';
 
 const segment = Schema.String.check(Schema.isUUID());
 const revisionNumber = Schema.FiniteFromString.check(Schema.isInt()).check(
@@ -9,7 +8,7 @@ const destinationSchema = Schema.Struct({
   reviewId: segment,
   environmentId: Schema.NonEmptyString,
   host: Schema.NonEmptyString,
-  protocol: Schema.optional(reviewAppLinkProtocolSchema),
+  protocol: Schema.optional(Schema.Literals(['http', 'https'])),
   revision: Schema.optional(revisionNumber),
   decision: Schema.optional(segment),
 });
@@ -100,37 +99,4 @@ export function reviewDesktopUrl(link: ReviewAppLink): string {
   if (link.decision !== undefined)
     url.searchParams.set('decision', link.decision);
   return url.toString();
-}
-
-export function parseDesktopReviewLink(
-  value: string,
-): ReviewAppLink | undefined {
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== 'porcelain-desktop:' ||
-      url.host !== 'open' ||
-      url.username ||
-      url.password ||
-      url.hash
-    )
-      return undefined;
-    return parseReviewAppLink(
-      `https://porcelain.fabiofiorita.com/open${url.pathname}${url.search}`,
-    );
-  } catch {
-    return undefined;
-  }
-}
-
-export function notificationReviewRoute(data: unknown): string {
-  const url =
-    data !== null && typeof data === 'object' && 'url' in data
-      ? data.url
-      : undefined;
-  if (typeof url !== 'string') return '/';
-  const link = parseReviewAppLink(url);
-  if (link === undefined) return '/';
-  const parsed = new URL(url);
-  return `${parsed.pathname}${parsed.search}`;
 }

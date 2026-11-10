@@ -1,4 +1,4 @@
-import type { ReviewRange } from './review-annotation';
+import type { ReviewRange } from './code-range';
 import { parseMarkdown } from '../../shared/rules/markdown';
 import { externalLink } from '@porcelain/client/links/rules';
 import { useRenderTokens } from './use-render-tokens';

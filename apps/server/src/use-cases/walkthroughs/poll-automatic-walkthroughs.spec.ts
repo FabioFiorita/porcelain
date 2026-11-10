@@ -1,7 +1,7 @@
 import { Effect, Layer } from 'effect';
 import { expect, it } from 'vitest';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import type { ListPullRequestsResponse } from '@porcelain/contracts/reviews';
+import type { ListPullRequestsResponse } from '@porcelain/contracts/projects';
 import { ReadInventoryUseCasePort } from '../../ports/read-inventory-use-case-port.ts';
 import { ListProjectPullRequestsUseCasePort } from '../../ports/list-project-pull-requests-use-case-port.ts';
 import { QueueWalkthroughUseCasePort } from '../../ports/queue-walkthrough-use-case-port.ts';
@@ -24,7 +24,6 @@ it('makes no GitHub read by default, catches up open PRs, skips closed and merge
             main: false,
             branch: 'topic',
             available: true,
-            status: undefined,
           },
         ],
       },

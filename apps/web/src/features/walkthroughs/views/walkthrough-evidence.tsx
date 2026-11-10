@@ -5,7 +5,7 @@ import type {
   WalkthroughEvidence,
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';

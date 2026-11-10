@@ -2,7 +2,7 @@ import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
+import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 
 export function ReviewReadState<A, E>({
   result,

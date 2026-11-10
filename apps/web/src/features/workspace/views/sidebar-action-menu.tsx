@@ -15,13 +15,10 @@ import {
   FileDiffIcon,
   FileIcon,
   HistoryIcon,
-  MessageSquarePlusIcon,
-  ReplyIcon,
-  RotateCcwIcon,
   Undo2Icon,
   type LucideIcon,
 } from 'lucide-react';
-import type { ReviewSidebarAction } from '@porcelain/client/reviews/rules';
+import type { ReviewSidebarAction } from '@porcelain/client/changes/rules';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
@@ -39,7 +36,6 @@ import {
 const icons: Record<ReviewSidebarAction['id'], LucideIcon> = {
   open: FileDiffIcon,
   review: CheckIcon,
-  comment: MessageSquarePlusIcon,
   'open-to-side': Columns2Icon,
   'open-file': FileIcon,
   timeline: HistoryIcon,
@@ -47,16 +43,10 @@ const icons: Record<ReviewSidebarAction['id'], LucideIcon> = {
   discard: Undo2Icon,
   'expand-all': ChevronsUpDownIcon,
   'collapse-all': ChevronsDownUpIcon,
-  reply: ReplyIcon,
-  resolution: CheckIcon,
-  reveal: FileIcon,
 };
 
 function ActionIcon({ action }: { action: ReviewSidebarAction }) {
-  const Icon =
-    action.id === 'resolution' && action.label === 'Reopen'
-      ? RotateCcwIcon
-      : icons[action.id];
+  const Icon = icons[action.id];
   return <Icon />;
 }
 

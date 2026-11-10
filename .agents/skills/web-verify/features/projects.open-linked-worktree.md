@@ -74,5 +74,5 @@ Automated coverage: `projects-open-linked-worktree.e2e.ts`.
 ## Gotchas
 
 - Browser Back must skip the empty `/` workspace; landing there indicates push instead of replacement. Reopen the navigator after opening a project to inspect its cards.
-- Match the main card by Main worktree and its scoped project/computer identity. Reregistering creates new IDs; old URLs/marks/comments/preferences are gone.
+- Match the main card by Main worktree and its scoped project/computer identity. Reregistering creates new IDs; old URLs/marks/preferences are gone.
 - Cleanup: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.

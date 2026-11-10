@@ -25,7 +25,7 @@ function readersOf(environment: Environment) {
   });
 }
 
-test('the mobile development fixture exposes nested files, a merge, two distinct dirty worktrees and a review conversation', async ({
+test('the mobile development fixture exposes nested files, a merge, two distinct dirty worktrees', async ({
   onTestFinished,
 }) => {
   const environment = await Environment.start({
@@ -152,28 +152,6 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
       await execute('git', ['-C', offline.path, 'log', '-1', '--format=%s'])
     ).stdout.trim(),
   ).toBe('Queue offline dispatch notes');
-  const review = await readers.publishedReview();
-  expect(review.review?.layers.map((layer) => layer.title)).toEqual([
-    'Keep document holds visible',
-    'Filter completed deliveries',
-    'Explain the dispatch handoff',
-  ]);
-  expect(
-    review.review?.layers.flatMap((layer) =>
-      layer.steps.map((step) => step.pointer.path),
-    ),
-  ).toContain('src/ui/shipment-filters.tsx');
-  const comments = await readers.commentThreads();
-  expect(comments).toHaveLength(2);
-  expect(
-    comments
-      .find((thread) => thread.anchor.kind === 'file')
-      ?.messages.map((message) => message.author),
-  ).toEqual(['reviewer', 'agent']);
-  expect(
-    comments.find((thread) => thread.anchor.kind === 'codeRange')?.messages[0]
-      ?.body,
-  ).toBe('Please keep the delivered filter independent of route selection.');
   expect(await environment.devices()).toEqual([]);
   const statusBefore = await session.git('status', '--porcelain');
   await expect(
@@ -182,7 +160,7 @@ test('the mobile development fixture exposes nested files, a merge, two distinct
   expect(await session.git('status', '--porcelain')).toBe(statusBefore);
 });
 
-test('focused mobile verification keeps its one-README fixture with no published review or comments', async ({
+test('focused mobile verification keeps its one-README fixture without old review or comment seeds', async ({
   onTestFinished,
 }) => {
   const environment = await Environment.start({
@@ -200,7 +178,5 @@ test('focused mobile verification keeps its one-README fixture with no published
   expect(
     (await readers.changes()).changes.map((change) => change.path),
   ).toEqual(['README.md']);
-  expect((await readers.publishedReview()).review).toBeUndefined();
-  expect(await readers.commentThreads()).toEqual([]);
   expect(await environment.devices()).toEqual([]);
 });

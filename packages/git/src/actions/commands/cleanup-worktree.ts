@@ -20,7 +20,7 @@ export const cleanupWorktree = Effect.fn('Git.cleanupWorktree')(function* (
   input: {
     commonDirectory: string;
     repositoryIdentity?: string | undefined;
-    worktreePath: string;
+    worktreePath?: string | undefined;
     branch?: string | undefined;
     mergedHead?: string | undefined;
     options: Options;

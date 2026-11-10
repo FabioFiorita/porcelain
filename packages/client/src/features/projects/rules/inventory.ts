@@ -18,22 +18,11 @@ export function selectedWorktreeInProject(
   return undefined;
 }
 
-function firstAvailableWorktree(inventory: Inventory) {
+export function firstAvailableWorktree(inventory: Inventory) {
   const worktrees = inventory.projects.flatMap((project) => project.worktrees);
   return (
     worktrees.find((worktree) => worktree.available && !worktree.main) ??
     worktrees.find((worktree) => worktree.available)
-  );
-}
-
-export function firstWaitingWorktree(inventory: Inventory) {
-  const worktrees = inventory.projects.flatMap((project) => project.worktrees);
-  return (
-    worktrees.find(
-      (worktree) =>
-        worktree.available &&
-        (worktree.status === 'replied' || worktree.status === 'pending'),
-    ) ?? firstAvailableWorktree(inventory)
   );
 }
 

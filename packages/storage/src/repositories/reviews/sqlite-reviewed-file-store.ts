@@ -10,8 +10,7 @@ export const sqliteReviewedFileStoreLayer = Layer.effect(
     const sql = yield* SqlClient.SqlClient;
     const list = SqlSchema.findAll({
       Request: Schema.Struct({
-        worktreeId: Schema.optional(Schema.String),
-        reviewId: Schema.optional(Schema.String),
+        worktreeId: Schema.String,
         scope: Schema.optional(Schema.Literals(['worktree', 'branch'])),
         branch: Schema.optional(Schema.String),
       }),
@@ -22,9 +21,7 @@ export const sqliteReviewedFileStoreLayer = Layer.effect(
         stale: ReviewedFileRow.fields.stale,
       }),
       execute: (input) =>
-        input.reviewId !== undefined
-          ? sql`SELECT path, fingerprint, reviewed_at, stale FROM reviewed_files WHERE review_id = ${input.reviewId} ORDER BY path, reviewed_at`
-          : sql`SELECT path, fingerprint, reviewed_at, stale FROM reviewed_files WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} ORDER BY path`,
+        sql`SELECT path, fingerprint, reviewed_at, stale FROM reviewed_files WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} ORDER BY path`,
     });
 
     return ReviewedFileStore.of({
@@ -39,16 +36,12 @@ export const sqliteReviewedFileStoreLayer = Layer.effect(
         return yield* Effect.gen(function* () {
           for (const mark of input.marks) {
             const row = yield* Schema.encodeEffect(ReviewedFileRow.insert)({
-              worktreeId: input.worktreeId ?? null,
-              reviewId: input.reviewId ?? null,
+              worktreeId: input.worktreeId,
               scope: input.scope ?? 'worktree',
               branch: input.branch ?? '',
               ...mark,
             });
-            if (input.reviewId !== undefined)
-              yield* sql`INSERT INTO reviewed_files ${sql.insert(row)} ON CONFLICT (review_id, path, fingerprint) WHERE review_id IS NOT NULL DO NOTHING`;
-            else
-              yield* sql`INSERT INTO reviewed_files ${sql.insert(row)} ON CONFLICT (worktree_id, scope, branch, path) WHERE worktree_id IS NOT NULL DO UPDATE SET ${sql.update(row, ['worktreeId', 'reviewId', 'scope', 'branch', 'path'])}`;
+            yield* sql`INSERT INTO reviewed_files ${sql.insert(row)} ON CONFLICT (worktree_id, scope, branch, path) DO UPDATE SET ${sql.update(row, ['worktreeId', 'scope', 'branch', 'path'])}`;
           }
         }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
       }),
@@ -56,12 +49,6 @@ export const sqliteReviewedFileStoreLayer = Layer.effect(
         input: Parameters<ReviewedFileStore['remove']>[0],
       ) {
         if (!input.paths.length) return;
-        if (input.reviewId !== undefined) {
-          yield* sql`DELETE FROM reviewed_files WHERE review_id = ${input.reviewId} AND ${sql.in('path', input.paths)} AND ${input.fingerprint === undefined ? sql`1 = 1` : sql`fingerprint = ${input.fingerprint}`}`.pipe(
-            Effect.orDie,
-          );
-          return;
-        }
         yield* sql`DELETE FROM reviewed_files WHERE worktree_id = ${input.worktreeId} AND scope = ${input.scope ?? 'worktree'} AND branch = ${input.branch ?? ''} AND ${sql.in('path', input.paths)}`.pipe(
           Effect.orDie,
         );

@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import {
   listReviewedFilesResponseSchema,
   removeReviewedFilesResponseSchema,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { fingerprintOf } from '../kit/reads.ts';

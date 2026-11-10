@@ -52,7 +52,7 @@ export const liveNoticeSchema = Schema.Union([
     type: Schema.Literal('worktree'),
     projectId: Schema.String.check(Schema.isUUID()),
     worktreeId: worktreeIdSchema,
-    change: Schema.Literals(['files', 'git', 'reviewed', 'comments', 'review']),
+    change: Schema.Literals(['files', 'git', 'reviewed']),
   }),
 ]);
 

@@ -10,7 +10,7 @@ export function PullRequestScreen() {
   const target = Schema.decodeUnknownOption(pullRequestTargetSchema)({
     environmentId: params.environment,
     projectId: params.projectId,
-    reviewId: params.reviewId,
+
     number: Number(params.number),
   });
   return (

@@ -1,12 +1,11 @@
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
-import { readReviewPullRequest } from '@porcelain/client/reviews';
+import { readProjectPullRequest } from '@porcelain/client/projects';
 import {
-  pullRequestHeadLabel,
   pullRequestStateLabel,
   type PullRequestRead,
-} from '@porcelain/client/reviews/rules';
-import { reviewPullRequestNotice } from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/projects/rules';
+import { githubUnavailable } from '@porcelain/client/projects/rules';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import {
   PullRequestArchive,
@@ -38,9 +37,10 @@ function ConnectedPullRequest({
   target: PullRequestTarget;
   connection: RuntimeConnection;
 }) {
-  const query = readReviewPullRequest({
+  const query = readProjectPullRequest({
     connection,
-    reviewId: target.reviewId,
+    projectId: target.projectId,
+    number: target.number,
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
@@ -58,8 +58,9 @@ function ConnectedPullRequest({
     return (
       <ErrorState
         message={
-          reviewPullRequestNotice(pull) ??
-          'This review no longer has a linked pull request.'
+          pull.kind === 'unavailable'
+            ? githubUnavailable(pull.reason).description
+            : 'The pull request could not be read.'
         }
         retry={{
           label: 'Read pull request again',
@@ -67,10 +68,6 @@ function ConnectedPullRequest({
           pending: result.waiting,
         }}
       />
-    );
-  if (pull.pullRequest.number !== target.number)
-    return (
-      <ErrorState message="This review now links to a different pull request. Return to Worktrees and open its current PR." />
     );
   const available = pull.pullRequest;
   return (
@@ -83,9 +80,7 @@ function ConnectedPullRequest({
           {pullRequestStateLabel(available)} · {available.headBranch} →{' '}
           {available.baseBranch}
         </Text>
-        <Text variant="caption">
-          {pullRequestHeadLabel(available)} · {available.headSha}
-        </Text>
+        <Text variant="caption">{available.headSha}</Text>
         <Box className="flex-row flex-wrap" gap={2}>
           <Button
             label="Read pull request again"
@@ -102,7 +97,7 @@ function ConnectedPullRequest({
         {available.state !== 'open' ? (
           <PullRequestArchive
             projectId={target.projectId}
-            reviewId={target.reviewId}
+            number={target.number}
             connection={connection}
           />
         ) : null}

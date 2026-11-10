@@ -40,7 +40,7 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | Name                          | Approved HTML                    | App setup                                                        |
 | ----------------------------- | -------------------------------- | ---------------------------------------------------------------- |
 | sidebar                       | selected-direction               | Main first; include a linked topic PR; phone opens the navigator |
-| changes                       | Narrative-desktop-no-review      | Worktree without a published review                              |
+| changes                       | Narrative-desktop-no-review      | Worktree without a Walkthrough                              |
 | settings-general              | Narrative-settings-general       | `/settings/general`                                              |
 | settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                                  |
 | settings-computers            | Narrative-settings-computers     | `/settings/computers`                                            |

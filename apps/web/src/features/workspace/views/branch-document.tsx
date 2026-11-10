@@ -29,11 +29,11 @@ import {
   type DiffContent,
   mergeBranchChanges,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   branchReviewRange,
   type ReviewRange,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
@@ -270,12 +270,7 @@ function BranchDiffs({
       {
         ...entry,
         id: `branch:${item.path}`,
-        comment: {
-          filePath: item.path,
-          comparison: { kind: 'branch', base: branch.base },
-          revision: branch.head.oid,
-          contentFingerprint: item.fingerprint,
-        },
+
         review: {
           path: item.path,
           fingerprint: item.fingerprint,
@@ -311,9 +306,6 @@ function BranchDiffs({
             />
           ) : undefined
         }
-        {...(interaction.reveal?.compose
-          ? { commentRequest: interaction.reveal.nonce }
-          : {})}
         entries={entries}
         toolbar={(collapseControl) => {
           if (single && first && singleHeader) return null;

@@ -527,9 +527,6 @@ importers:
       '@porcelain/theme':
         specifier: workspace:*
         version: link:../../packages/theme
-      '@shadcn/react':
-        specifier: 0.3.1
-        version: 0.3.1(@types/react@19.3.0)(react@19.2.8)
       '@tanstack/markdown':
         specifier: 0.0.14
         version: 0.0.14(react@19.2.8)
@@ -3743,17 +3740,6 @@ packages:
       '@typescript-eslint/parser':
         optional: true
       eslint:
-        optional: true
-
-  '@shadcn/react@0.3.1':
-    resolution: {integrity: sha512-2gOR0HDMtWeRsCZfNDaU0YDFdgH3zsDQ6lz67Fv/y/qjY9y+R8kJqAn6q56phqv7/zHi0wqURjntrNO9zL7vnQ==}
-    peerDependencies:
-      '@types/react': '>=19'
-      react: '>=19'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
         optional: true
 
   '@shikijs/core@4.4.3':
@@ -11132,11 +11118,6 @@ snapshots:
       cn: 0.3.2
     optionalDependencies:
       oxc-parser: 0.148.0
-
-  '@shadcn/react@0.3.1(@types/react@19.3.0)(react@19.2.8)':
-    optionalDependencies:
-      '@types/react': 19.3.0
-      react: 19.2.8
 
   '@shikijs/core@4.4.3':
     dependencies:

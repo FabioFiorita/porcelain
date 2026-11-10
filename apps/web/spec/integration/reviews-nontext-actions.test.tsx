@@ -39,7 +39,7 @@ test.for([
     await expect.element(reviewed).toBeEnabled();
     await expect
       .element(controls.getByRole('button', { name: 'Comment', exact: true }))
-      .toBeEnabled();
+      .not.toBeInTheDocument();
     await expect
       .element(controls.getByRole('button', { name: 'Timeline', exact: true }))
       .toBeVisible();
@@ -59,36 +59,7 @@ test.for([
     await userEvent.keyboard('c');
     await expect
       .element(app.page.getByRole('textbox', { name: 'Comment', exact: true }))
-      .toBeVisible();
-    await app.page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await controls
-      .getByRole('button', { name: 'Comment', exact: true })
-      .click();
-    const comment = app.page.getByRole('textbox', {
-      name: 'Comment',
-      exact: true,
-    });
-    await expect.element(comment).toBeVisible();
-    await expect
-      .element(
-        app.page.getByRole('button', { name: 'Comment', exact: true }).nth(1),
-      )
-      .toBeDisabled();
-    await app.page
-      .getByRole('textbox', { name: 'Comment', exact: true })
-      .fill('Explain this binary change');
-    await app.page
-      .getByRole('button', { name: 'Comment', exact: true })
-      .nth(1)
-      .click();
-    await expect
-      .poll(async () =>
-        (await server.commentThreads()).map((thread) => ({
-          path: thread.anchor.filePath,
-          body: thread.messages[0]?.body,
-        })),
-      )
-      .toContainEqual({ path, body: 'Explain this binary change' });
+      .not.toBeInTheDocument();
     await app.page
       .getByRole('button', { name: 'Open file', exact: true })
       .click();

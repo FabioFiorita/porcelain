@@ -15,7 +15,7 @@ api:
 
 # projects.worktree-changes
 
-On a worktree whose first section is Walkthrough, the plain Changes list (Uncommitted or Branch, the changed files with their reviewed marks, All changes and Comments) is one push away from the Walkthrough's top bar, so uncommitted work stays readable on the phone.
+On a worktree whose first section is Walkthrough, the plain Changes list (Uncommitted or Branch, the changed files with their reviewed marks, All changes) is one push away from the Walkthrough's top bar, so uncommitted work stays readable on the phone.
 
 ## How to get to it (user POV)
 

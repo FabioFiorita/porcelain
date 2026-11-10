@@ -9,7 +9,7 @@ import {
   recentPullRequestCutoff,
 } from './pull-request.ts';
 it('maps headers, checks and a chronological timeline including deleted authors and outdated lines', () => {
-  const mapped = mapPullRequest(githubPullRequest(), 'a'.repeat(40));
+  const mapped = mapPullRequest(githubPullRequest());
   expect(mapped).toMatchObject({
     number: 423,
     title: 'Reviews per branch',
@@ -22,7 +22,7 @@ it('maps headers, checks and a chronological timeline including deleted authors 
     baseBranch: 'main',
     description: '# Description',
     mergeable: 'MERGEABLE',
-    matchesReviewHead: true,
+
     labels: [{ name: 'feature', color: '123456' }],
     updatedAt: '2026-10-19T12:00:00Z',
     truncated: false,
@@ -86,13 +86,13 @@ it.each([
       commits: { nodes: [] },
       labels: { nodes: [], pageInfo: { hasNextPage: true } },
     });
-    expect(mapPullRequest(raw, 'different')).toMatchObject({
+    expect(mapPullRequest(raw)).toMatchObject({
       state: expected,
       draft: true,
       checks: [],
       checksSummary: undefined,
       checksTruncated: false,
-      matchesReviewHead: false,
+
       truncated: true,
     });
   },
@@ -148,15 +148,13 @@ it.each([
         ],
       },
     });
-    expect(mapPullRequest(raw, raw.headRefOid).checks[0]?.durationMs).toBe(
-      durationMs,
-    );
+    expect(mapPullRequest(raw).checks[0]?.durationMs).toBe(durationMs);
   },
 );
 
 it('leaves legacy status checks without a duration', () => {
   expect(
-    mapPullRequest(githubPullRequest(), 'head').checks[1]?.durationMs,
+    mapPullRequest(githubPullRequest()).checks[1]?.durationMs,
   ).toBeUndefined();
 });
 
@@ -191,14 +189,12 @@ it('leaves running checks without a completed duration', () => {
       ],
     },
   };
-  expect(
-    mapPullRequest(changed, raw.headRefOid).checks[0]?.durationMs,
-  ).toBeUndefined();
+  expect(mapPullRequest(changed).checks[0]?.durationMs).toBeUndefined();
 });
 
 it('retains a pending review as the parent of its inline comments', () => {
   const raw = pendingGitHubPullRequest();
-  const mapped = mapPullRequest(raw, raw.headRefOid);
+  const mapped = mapPullRequest(raw);
   expect(mapped.timeline.find((item) => item.id === 'review')).toMatchObject({
     kind: 'review',
     time: '2026-10-19T09:00:00Z',

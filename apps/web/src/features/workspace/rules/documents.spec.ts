@@ -70,7 +70,7 @@ it('restores a pull request tab and names it after reload', () => {
   expect(
     entryKey({
       kind: 'pull-request',
-      reviewId: '10000000-0000-4000-8000-000000000001',
+      projectId: '10000000-0000-4000-8000-000000000001',
       number: 482,
     }),
   ).toBe('pull-request:10000000-0000-4000-8000-000000000001:482');
@@ -78,7 +78,7 @@ it('restores a pull request tab and names it after reload', () => {
     parseEntry('pull-request:10000000-0000-4000-8000-000000000001:482'),
   ).toEqual({
     kind: 'pull-request',
-    reviewId: '10000000-0000-4000-8000-000000000001',
+    projectId: '10000000-0000-4000-8000-000000000001',
     number: 482,
   });
   expect(
@@ -99,12 +99,8 @@ it.each(['0', '-1', '1.5', '01', 'abc', '9007199254740992'])(
   },
 );
 
-it.each([
-  '482',
-  'not-a-review:482',
-  '10000000-0000-4000-8000-000000000001:482:extra',
-])(
-  'rejects a pull request tab without a valid retained review identity: %s',
+it.each(['482', ':482', '10000000-0000-4000-8000-000000000001:482:extra'])(
+  'rejects a pull request tab without a project and pull request number: %s',
   (value) => {
     expect(parseEntry(`pull-request:${value}`)).toBeNull();
   },
@@ -124,16 +120,16 @@ it.each([
 );
 
 it('keeps equal pull request and review IDs on two computers as separate tabs', () => {
-  const reviewId = '10000000-0000-4000-8000-000000000001';
+  const projectId = '10000000-0000-4000-8000-000000000001';
   const local = entryKey({
     kind: 'pull-request',
-    reviewId,
+    projectId,
     number: 482,
     environmentId: 'local-computer',
   });
   const remote = entryKey({
     kind: 'pull-request',
-    reviewId,
+    projectId,
     number: 482,
     environmentId: 'remote-computer',
   });
@@ -145,7 +141,7 @@ it('keeps equal pull request and review IDs on two computers as separate tabs', 
   );
   expect(parseEntry(remote)).toEqual({
     kind: 'pull-request',
-    reviewId,
+    projectId,
     number: 482,
     environmentId: 'remote-computer',
   });

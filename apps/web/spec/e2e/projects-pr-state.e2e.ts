@@ -12,7 +12,6 @@ for (const width of [1440, 414]) {
     )?.path;
     if (!main) throw new Error('Missing main checkout');
     const fixture = await archiveFixture(main);
-    fixture.setGitHubFailure('rate-limited');
     try {
       await page.setViewportSize({ width, height: 896 });
       await app.reload();
@@ -28,8 +27,13 @@ for (const width of [1440, 414]) {
         has: page.getByRole('button', { name: /^archive-fixture,/ }),
       });
       await expect(row).toBeVisible();
+      const openPullRequest = row.getByRole('button', {
+        name: /^Open PR #423/,
+      });
+      await expect(openPullRequest).toBeVisible();
+      fixture.setGitHubFailure('rate-limited');
       const original = app.address().path;
-      await row.getByRole('button', { name: /^Open PR #423/ }).click();
+      await openPullRequest.click();
       await expect(
         page.getByRole('tab', { name: 'PR #423', exact: true }),
       ).toHaveAttribute('aria-selected', 'true');
@@ -53,13 +57,8 @@ for (const width of [1440, 414]) {
         page.getByText(/GitHub could not find this pull request/),
       ).toBeVisible();
       await expect(
-        page.getByRole('button', { name: 'Back to the review', exact: true }),
+        page.getByRole('button', { name: 'Back to the worktree', exact: true }),
       ).toBeVisible();
-      await expect
-        .poll(() => fixture.readReview())
-        .toMatchObject({
-          pullRequest: 'https://github.com/FabioFiorita/porcelain/pull/423',
-        });
       await expect(
         page.getByRole('button', { name: 'Try again', exact: true }),
       ).toBeEnabled();
@@ -72,7 +71,7 @@ for (const width of [1440, 414]) {
       ).toBeVisible();
       await page.getByRole('button', { name: 'Archive', exact: true }).click();
       const dialog = page.getByRole('alertdialog', {
-        name: 'Archive review?',
+        name: 'Archive pull request?',
         exact: true,
       });
       await expect(dialog).toContainText(`Delete worktree: ${fixture.tree}`);

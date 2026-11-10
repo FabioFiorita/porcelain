@@ -1,7 +1,7 @@
 import {
   removeReviewedFilesResponseSchema,
   setReviewedFilesResponseSchema,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import { apiError, unknownFingerprint } from '../kit/answers.ts';

@@ -93,7 +93,6 @@ type Props = {
   sideLabel: string;
   onOpen: (
     document: { kind: 'file' | 'change' | 'timeline'; path: string },
-    anchor?: undefined,
     options?: { toSide?: boolean },
   ) => void;
   actionsTarget: HTMLElement | null;
@@ -246,7 +245,7 @@ function ScopedFileNavigation({
   );
 
   const openFile = (path: string, toSide = false) =>
-    onOpen({ kind: 'file', path }, undefined, { toSide });
+    onOpen({ kind: 'file', path }, { toSide });
   const duplicate = (path: string) =>
     edit.duplicate(
       path,
@@ -263,7 +262,7 @@ function ScopedFileNavigation({
   const onSelect = (path: string, toSide = false) => {
     const kind = kinds.get(path);
     if (kind === 'symlink' || kind === 'submodule')
-      onOpen({ kind: 'file', path }, undefined, { toSide });
+      onOpen({ kind: 'file', path }, { toSide });
     else if (kind === 'file') openFile(path, toSide);
   };
   const { collapseAll, renameFile, bindCollapseAll, bindRename } =

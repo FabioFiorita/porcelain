@@ -16,7 +16,6 @@ import {
 import { registeredProjectReport } from '@porcelain/projects/rules';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 
-import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 
@@ -42,7 +41,6 @@ export class RegisterProjectUseCase extends Context.Service<
       const listRegisteredProjectsCapability =
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
-      const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
       const eventsCapability = yield* EventPublisher;
@@ -79,13 +77,8 @@ export class RegisterProjectUseCase extends Context.Service<
                 (inventory) => listKnownWorktreesCapability.execute(inventory),
               ),
           );
-          const statuses = yield* readBadgesCapability.execute({ listings });
           if (registered.changed) yield* eventsCapability.inventoryChanged();
-          return registeredProjectReport(
-            registered.project,
-            listings,
-            statuses,
-          );
+          return registeredProjectReport(registered.project, listings);
         }),
       };
     }),

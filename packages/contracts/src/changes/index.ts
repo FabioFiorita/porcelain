@@ -47,3 +47,6 @@ export {
   readWorktreeSummaryResponseSchema,
   type ReadWorktreeSummaryResponse,
 } from './git-status.ts';
+
+export * from './reviewed-files.ts';
+export { ReviewedFilesApi } from './reviewed-api.ts';

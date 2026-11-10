@@ -3,7 +3,7 @@ import {
   remoteRouteTitles,
   type RemoteAccess,
 } from '@porcelain/client/access/rules';
-import { counted } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 
 export function devicePlatformName(platform: string) {
   if (!platform.startsWith('Mozilla/')) return platform || 'Unknown platform';

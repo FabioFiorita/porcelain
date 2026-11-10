@@ -10,7 +10,7 @@ import {
   counted,
   type ReviewChangeItem,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import type { CodeHeaderControls } from './code-document';
 import { ChangeCounts } from './change-counts';

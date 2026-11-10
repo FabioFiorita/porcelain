@@ -14,6 +14,4 @@ export { ReadCommitDiffsService } from './read-commit-diffs-service.ts';
 export { ReadCommitFilesService } from './read-commit-files-service.ts';
 export { ReadWorktreeStatusService } from './read-worktree-status-service.ts';
 
-export { ReadRetainedBranchDiffsService } from './read-retained-branch-diffs-service.ts';
-
 export { ReadWorktreeSummaryService } from './read-worktree-summary-service.ts';

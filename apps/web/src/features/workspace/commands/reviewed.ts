@@ -1,18 +1,18 @@
 import { useAtom, useAtomSet } from '@effect/atom-react';
 import { Cause, Exit, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { reviewedCommands } from '@porcelain/client/reviews';
+import { reviewedCommands } from '@porcelain/client/changes';
 import {
   reviewErrorMessage,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   type ReviewNotice,
   type ReviewRange,
   reviewToggle,
   type ReviewToggleTarget,
   WORKTREE_RANGE,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
 export function useMarkReviewed(

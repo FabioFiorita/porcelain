@@ -3,13 +3,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
-import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { Schema } from 'effect';
 import {
   type Recorder,
   ServerHandle,
 } from '@porcelain/server/kit/isolated-server';
-import { type Session, stressVariants } from '@porcelain/server/kit/session';
+import { stressVariants } from '@porcelain/server/kit/session';
 import {
   appliedStressVariants,
   seedStressSample,
@@ -32,11 +31,6 @@ type Width = (typeof sweepWidths)[number];
 type Theme = (typeof sweepThemes)[number];
 type State = (typeof firstStates)[number] | (typeof stressVariants)[number];
 type Target = { entry: string; board?: string };
-type Review = {
-  reviewId?: string | undefined;
-  revision?: number | undefined;
-  layerId?: string | undefined;
-};
 type Shot = {
   target: number;
   entry: string;
@@ -118,32 +112,24 @@ function mapRoute(entry: string): string {
   return route;
 }
 
-const reviewValues = new Set(['reviewId', 'revision', 'layerId']);
-
 function resolved(
   instance: WebInstance,
   entry: string,
-  review: Review,
 ): string | { skipped: string } {
   if (entry.startsWith('/')) return entry;
   const values: Record<string, string | undefined> = {
     projectId: instance.detail.projectId,
     worktreeId: instance.detail.worktreeId,
     environmentId: instance.detail.environmentId,
-    reviewId: review.reviewId,
-    revision: review.revision?.toString(),
-    layerId: review.layerId,
   };
   const route = mapRoute(entry);
   const missing = [...route.matchAll(/\$(\w*)/g)]
     .map((match) => match[1] ?? '')
     .filter((name) => values[name] === undefined);
-  if (missing.some((name) => !reviewValues.has(name)))
+  if (missing.length > 0)
     throw new Usage(
       `${entry} routes to ${route}; pass a concrete path for ${missing.map((name) => `$${name}`).join(', ')}.`,
     );
-  if (missing.length > 0)
-    return { skipped: 'no review is published in this state' };
   return route.replace(/\$(\w+)/g, (_, name: string) => values[name] ?? '');
 }
 
@@ -155,21 +141,6 @@ async function sessionOf(instance: WebInstance, recorder: Recorder) {
     projectId: instance.detail.projectId,
     worktreeId: instance.detail.worktreeId,
   });
-}
-
-async function latestReview(session: Session): Promise<Review> {
-  const response = await session.read(
-    { method: 'GET', path: `/api/worktrees/${session.worktreeId}/review` },
-    200,
-  );
-  const { review } = Schema.decodeUnknownSync(
-    readPublishedReviewResponseSchema,
-  )(response.body);
-  return {
-    reviewId: review?.reviewId,
-    revision: review?.revision,
-    layerId: review?.layers[0]?.id,
-  };
 }
 
 const layoutScript = `(() => {
@@ -514,9 +485,8 @@ async function captureAll(
     found.states.push(state);
     if (state !== 'as-is' && state !== 'as-left')
       found.seeds.push(await seedStressSample(session, state));
-    const review = await latestReview(session);
     for (const [index, target] of targets.entries()) {
-      const path = resolved(instance, target.entry, review);
+      const path = resolved(instance, target.entry);
       const directory = join(folder, slug(target.entry, index), state);
       if (typeof path === 'string')
         await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -554,7 +524,7 @@ export async function sweep(
   args: readonly string[],
 ): Promise<string> {
   const targets = sweepTargets(args);
-  for (const target of targets) resolved(instance, target.entry, {});
+  for (const target of targets) resolved(instance, target.entry);
   const redactor = registry.redactor(instance);
   const recorder = redactor.recorder();
   const record = await registry.evidence(instance).claim('sweep', 'json');

@@ -55,7 +55,6 @@ import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts'
 import { RunQueuedGitActionUseCase } from '../use-cases/git-actions/run-queued-git-action.ts';
 import { RunQueuedGitActionUseCasePort } from '../ports/run-queued-git-action-use-case-port.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
 import { type ComposeContext } from './compose-context.ts';
 import { type Shared } from './compose-shared.ts';
 import { type Stores } from './compose-stores.ts';
@@ -64,7 +63,6 @@ type GitActionsDependencies = {
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
-  refreshWorktreeReview: RefreshWorktreeReviewUseCasePort;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
 };
@@ -89,10 +87,6 @@ export function composeGitActions(
     Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
     gitGitActionRunnerLayer(shared.worktreeAccess, context.settings.limits.git),
     Layer.succeed(RecordGitActionProgressOptions, limits.progress),
-    Layer.succeed(
-      RefreshWorktreeReviewUseCasePort,
-      dependencies.refreshWorktreeReview,
-    ),
     Layer.succeed(EventPublisher, events),
     Layer.succeed(Logger, logger),
     Layer.succeed(RunGitActionUseCaseOptions, {

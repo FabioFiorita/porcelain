@@ -26,12 +26,7 @@ import {
   listFilePreferencesResponseSchema,
   readInventoryResponseSchema,
 } from '@porcelain/contracts/projects';
-import {
-  listCommentThreadsResponseSchema,
-  listReviewedFilesResponseSchema,
-  listReviewedLayersResponseSchema,
-  readPublishedReviewResponseSchema,
-} from '@porcelain/contracts/reviews';
+import { listReviewedFilesResponseSchema } from '@porcelain/contracts/changes';
 import type { Hit } from './session.ts';
 import * as Schema from 'effect/Schema';
 
@@ -162,17 +157,8 @@ export function serverReaders(transport: ServerTransport) {
         readBranchChangesResponseSchema,
         await worktreePath(`/branch-changes${base ? query({ base }) : ''}`),
       ),
-    reviewedLayers: async () =>
-      read(
-        listReviewedLayersResponseSchema,
-        await worktreePath('/reviewed-layers'),
-      ),
     walkthrough: async () =>
       read(readWalkthroughResponseSchema, await worktreePath('/walkthrough')),
-    publishedReview: async () =>
-      read(readPublishedReviewResponseSchema, await worktreePath('/review')),
-    commentThreads: async () =>
-      read(listCommentThreadsResponseSchema, await worktreePath('/comments')),
     commitModels: () =>
       read(listCommitModelsResponseSchema, '/api/git/commit-models'),
     receipt: async (requestId: string) =>

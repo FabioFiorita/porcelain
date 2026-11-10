@@ -19,11 +19,7 @@ import {
   Usage,
   androidBuildMemoryProblem,
 } from '../../verify-core/cli.ts';
-import {
-  agentCommand,
-  serverRead,
-  serverOptions,
-} from '../../verify-core/fixtures.ts';
+import { serverRead, serverOptions } from '../../verify-core/fixtures.ts';
 import { registry, type MobileInstance } from './instance.ts';
 import { serve, start, startProblems } from './serve.ts';
 import { walkthroughCommand } from './walkthrough.ts';
@@ -227,19 +223,17 @@ async function command(args: readonly string[]): Promise<string> {
       return `recorded ${await registry.evidence(instance).record('logs', args, logs(instance))}\n`;
     const recorder = registry.redactor(instance).recorder();
     const output =
-      name === 'agent'
-        ? await agentCommand(instance.detail.manifest, rest, values, recorder)
-        : name === 'walkthrough'
-          ? await walkthroughCommand(
-              instance.detail.manifest,
-              {
-                projectId: instance.detail.projectId,
-                worktreeId: instance.detail.worktreeId,
-              },
-              rest,
-              recorder,
-            )
-          : await serverRead(instance.detail.manifest, rest, recorder);
+      name === 'walkthrough'
+        ? await walkthroughCommand(
+            instance.detail.manifest,
+            {
+              projectId: instance.detail.projectId,
+              worktreeId: instance.detail.worktreeId,
+            },
+            rest,
+            recorder,
+          )
+        : await serverRead(instance.detail.manifest, rest, recorder);
     return `${output}\nrecorded ${await registry.evidence(instance).record(name, args, output)}\n`;
   });
 }

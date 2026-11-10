@@ -3,7 +3,7 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
 import { type ReactNode, useState } from 'react';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { CheckIcon, SquareIcon, MessageSquarePlusIcon } from 'lucide-react';
+import { CheckIcon, SquareIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { toast } from '@/components/ui/toast';
@@ -21,7 +21,6 @@ import { ImagePreview, useTextContents } from '@/features/files/index';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 
 import { omittedReasonText } from '../rules/omitted-reasons';
-import { useComments } from '../queries/comments';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
 import { focusPatch, type LineSpan } from '@porcelain/client/changes/rules';
@@ -31,11 +30,9 @@ import {
   orderReviewChanges,
   type ReviewChangeItem,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { CodeDocument, type CodeHeaderControls } from './code-document';
-import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
-import { ThreadCard } from './thread-card';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
@@ -48,7 +45,6 @@ export function ReviewCodeDocument({
   header,
   headerActions,
   headerLeading,
-  commentRequest,
   toolbar,
   footer,
   column = false,
@@ -66,11 +62,9 @@ export function ReviewCodeDocument({
   fullHeight?: boolean | undefined;
   headerActions?: ReactNode;
   headerLeading?: ReactNode;
-  commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const [omittedComment, setOmittedComment] = useState(0);
   const [pendingOmittedPath, setPendingOmittedPath] = useState<string>();
   const focusOmitted = (path: string, target: HTMLLIElement) => {
     if (pendingOmittedPath !== path) return;
@@ -149,13 +143,6 @@ export function ReviewCodeDocument({
               notes.get(item.path) ?? 'untracked',
             ),
             review,
-            comment: {
-              filePath: item.path,
-              comparison: { kind: 'worktree', scope: 'untracked' },
-              ...(item.fingerprint
-                ? { contentFingerprint: item.fingerprint }
-                : {}),
-            },
           },
         ];
       }
@@ -169,13 +156,7 @@ export function ReviewCodeDocument({
               ...entry,
               ...(note ? { note } : {}),
               review,
-              comment: {
-                filePath: item.path,
-                comparison: { kind: 'worktree', scope: change.scope },
-                ...(item.fingerprint
-                  ? { contentFingerprint: item.fingerprint }
-                  : {}),
-              },
+              discardScope: change.scope,
             },
           ]
         : [];
@@ -224,10 +205,6 @@ export function ReviewCodeDocument({
                 scope={scope}
                 context={context}
                 paneFile={Boolean(omittedFile)}
-                {...(entries.length === 0 &&
-                (commentRequest !== undefined || omittedComment > 0)
-                  ? { commentRequest: (commentRequest ?? 0) + omittedComment }
-                  : {})}
               />
             )}
           </>
@@ -244,7 +221,6 @@ export function ReviewCodeDocument({
             context={context}
             item={omittedFile}
             active={interaction.active}
-            onComment={() => setOmittedComment((value) => value + 1)}
           >
             {headerActions}
           </OmittedActions>
@@ -253,7 +229,6 @@ export function ReviewCodeDocument({
       scope={scope}
       context={context}
       interaction={interaction}
-      {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
       column={column}
       {...(footer ? { footer } : {})}
@@ -319,7 +294,6 @@ function OmittedChanges({
   renderedPaths,
   scope,
   context,
-  commentRequest,
   paneFile,
 }: {
   paneFile: boolean;
@@ -329,7 +303,6 @@ function OmittedChanges({
     item: ReviewChangeItem;
     reasons: readonly string[];
   }>;
-  commentRequest?: number;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -378,81 +351,10 @@ function OmittedChanges({
                 compact={Boolean(item.fingerprint)}
               />
             )}
-            {!renderedPaths.has(item.path) && (
-              <OmittedDiscussion
-                scope={scope}
-                context={context}
-                path={item.path}
-                paneFile={paneFile}
-                {...(commentRequest !== undefined ? { commentRequest } : {})}
-              />
-            )}
           </li>
         ))}
       </ul>
     </section>
-  );
-}
-
-function OmittedDiscussion({
-  scope,
-  context,
-  path,
-  commentRequest,
-  paneFile,
-}: {
-  paneFile: boolean;
-  scope: ReviewScope;
-  context: ConnectionContext;
-  path: string;
-  commentRequest?: number;
-}) {
-  const { threads } = useComments(scope, context);
-  const [compose, setCompose] = useState(false);
-  const [handled, setHandled] = useState<number>();
-  if (commentRequest !== undefined && handled !== commentRequest) {
-    setHandled(commentRequest);
-    setCompose(true);
-  }
-  const visible = threads.filter(
-    (thread) =>
-      thread.anchor.kind === 'file' &&
-      thread.anchor.filePath === path &&
-      !thread.anchor.revision,
-  );
-  return (
-    <>
-      {!paneFile && (
-        <Button
-          size="xs"
-          variant="ghost"
-          className="h-auto max-w-full text-left whitespace-normal"
-          onClick={() => setCompose(true)}
-        >
-          Comment on {path}
-        </Button>
-      )}
-      {(visible.length > 0 || compose) && (
-        <div className="w-full space-y-2">
-          {visible.map((thread) => (
-            <ThreadCard
-              key={thread.id}
-              scope={scope}
-              context={context}
-              thread={thread}
-            />
-          ))}
-          {compose && (
-            <InlineComposer
-              scope={scope}
-              context={context}
-              anchor={{ kind: 'file', filePath: path }}
-              onClose={() => setCompose(false)}
-            />
-          )}
-        </div>
-      )}
-    </>
   );
 }
 
@@ -461,14 +363,12 @@ function OmittedActions({
   context,
   item,
   active,
-  onComment,
   children,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   item: ReviewChangeItem;
   active: boolean;
-  onComment: () => void;
   children: ReactNode;
 }) {
   const review = useToggleReviewed(scope, context, (notice) =>
@@ -477,10 +377,6 @@ function OmittedActions({
   const target = fileReviewControl(scope, context, item);
   const toggle = () => review.toggle(target);
   useHotkey(SHORTCUTS.toggleReviewed, toggle, {
-    enabled: active,
-    ignoreInputs: true,
-  });
-  useHotkey(SHORTCUTS.commentOnFile, onComment, {
     enabled: active,
     ignoreInputs: true,
   });
@@ -494,12 +390,6 @@ function OmittedActions({
         disabled={!target.fingerprint}
         pressed={target.reviewed}
         onClick={toggle}
-      />
-      <BarAction
-        label="Comment"
-        icon={MessageSquarePlusIcon}
-        shortcut={SHORTCUTS.commentOnFile}
-        onClick={onComment}
       />
       {children}
     </>

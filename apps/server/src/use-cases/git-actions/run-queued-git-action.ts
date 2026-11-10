@@ -19,7 +19,6 @@ import {
 } from '@porcelain/git-actions/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { Logger } from '../../ports/logger.ts';
-import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
 import { RunGitActionUseCaseOptions } from '../../ports/run-git-action-use-case-options.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
@@ -45,7 +44,6 @@ export class RunQueuedGitActionUseCase extends Context.Service<
       const finishAction = yield* FinishGitActionService;
       const interruptAction = yield* InterruptGitActionService;
       const events = yield* EventPublisher;
-      const refreshReview = yield* RefreshWorktreeReviewUseCasePort;
       const lanes = yield* Lanes;
       const keys = yield* LaneKeys;
       const findProject = yield* FindProjectService;
@@ -195,26 +193,6 @@ export class RunQueuedGitActionUseCase extends Context.Service<
                   .pipe(Effect.orDie),
               );
               yield* events.gitActionChanged(view);
-              if (
-                receipt.state === 'succeeded' &&
-                (receipt.intent.action === 'commit' ||
-                  receipt.intent.action === 'amend')
-              ) {
-                yield* lanes.start(
-                  () =>
-                    refreshReview.execute({ worktreeId: receipt.worktreeId }),
-                  (cause) =>
-                    Cause.hasInterruptsOnly(cause)
-                      ? Effect.void
-                      : Effect.sync(() =>
-                          logger.failure({
-                            kind: 'review-refresh',
-                            worktreeId: receipt.worktreeId,
-                            error: Cause.squash(cause),
-                          }),
-                        ),
-                );
-              }
             }),
           );
         }),

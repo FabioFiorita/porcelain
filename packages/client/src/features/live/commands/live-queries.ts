@@ -51,24 +51,7 @@ function liveSubscription(
       paths: new Set(),
     });
   }
-  const activeReads = [...reads];
-  for (const read of [
-    ...activeReads.filter((read) => !read.reviewId),
-    ...activeReads.filter((read) => read.reviewId),
-  ]) {
-    if (read.projectId === undefined) continue;
-    if (
-      read.reviewId &&
-      !data?.projects.some(
-        (project) =>
-          project.id === read.projectId &&
-          project.available &&
-          project.worktrees.some(
-            (worktree) => worktree.id === read.worktreeId && worktree.available,
-          ),
-      )
-    )
-      continue;
+  for (const read of reads) {
     const key = JSON.stringify([read.projectId, read.worktreeId]);
     const entry = watched.get(key) ?? {
       projectId: read.projectId,
@@ -123,12 +106,11 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         queryKeys.reviewGitSettings(connection.environmentId),
       ]);
     if (notice.type === 'worktree') {
-      const reviewIds = yield* reads.reviewsFor(notice);
       yield* reactivity.invalidate([
         queryKeys.worktreeInventory(connection.environmentId),
-        queryKeys.projectReviews(connection.environmentId, notice.projectId),
-        ...reviewIds.map((reviewId) =>
-          queryKeys.durableReview(connection.environmentId, reviewId),
+        queryKeys.projectPullRequests(
+          connection.environmentId,
+          notice.projectId,
         ),
       ]);
     }

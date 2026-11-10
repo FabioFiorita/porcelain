@@ -18,7 +18,7 @@ tests:
   - apps/server/spec/integration/access-review-git-settings.integration.ts
   - packages/client/src/features/preferences/rules/review-git-settings.spec.ts
   - packages/client/src/features/preferences/queries/review-git-settings.spec.ts
-  - packages/client/src/features/reviews/queries/pull-requests.spec.ts
+  - packages/client/src/features/projects/queries/worktree-navigator.spec.ts
 api:
   - GET /api/review-git-settings
   - PATCH /api/review-git-settings

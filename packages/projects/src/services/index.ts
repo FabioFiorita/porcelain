@@ -23,3 +23,5 @@ export { RemoveProjectService } from './remove-project-service.ts';
 export { RenameProjectService } from './rename-project-service.ts';
 export { SetFilePreferenceService } from './set-file-preference-service.ts';
 export { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';
+
+export { ArchiveBranchService } from './archive-branch-service.ts';

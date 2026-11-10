@@ -4,8 +4,8 @@ import { ChangesApi } from '../changes/api.ts';
 import { FilesApi } from '../files/api.ts';
 import { GitActionsApi } from '../git-actions/api.ts';
 import { ProjectsApi } from '../projects/api.ts';
-import { ReviewsApi } from '../reviews/api.ts';
-import { ReviewSummaryApi } from '../reviews/summary-api.ts';
+import { ReviewedFilesApi } from '../changes/reviewed-api.ts';
+import { PullRequestsApi } from '../projects/pull-requests-api.ts';
 import { porcelainApi } from './http-api.ts';
 
 export class PorcelainClientApi extends porcelainApi
@@ -14,6 +14,6 @@ export class PorcelainClientApi extends porcelainApi
   .addHttpApi(ProjectsApi)
   .addHttpApi(FilesApi)
   .addHttpApi(ChangesApi)
-  .addHttpApi(ReviewsApi)
-  .addHttpApi(ReviewSummaryApi)
+  .addHttpApi(ReviewedFilesApi)
+  .addHttpApi(PullRequestsApi)
   .addHttpApi(GitActionsApi) {}

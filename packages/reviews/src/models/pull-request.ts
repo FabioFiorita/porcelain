@@ -194,7 +194,6 @@ export const pullRequestSchema = Schema.Struct({
   authorAvatarUrl: Schema.optional(Schema.String),
   baseBranch: Schema.String,
   headSha: Schema.String,
-  matchesReviewHead: Schema.Boolean,
   mergeable: Schema.String,
   labels: Schema.Array(
     Schema.Struct({ name: Schema.String, color: Schema.String }),

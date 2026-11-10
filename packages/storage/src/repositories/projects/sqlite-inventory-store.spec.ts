@@ -5,15 +5,8 @@ import {
   WorktreePresenceStore,
   FilePreferenceStore,
 } from '@porcelain/projects/ports';
-import {
-  ReviewStore,
-  ReviewedFileStore,
-  ReviewedLayerStore,
-  CommentStore,
-  CommentSeenStore,
-} from '@porcelain/reviews/ports';
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { reviewFixture, reviewSave } from '@porcelain/reviews/store-contracts';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -92,18 +85,7 @@ async function seed(
       preference: { path: 'README.md', pinned: true, hidden: false },
     }),
   );
-  await Effect.runPromise(
-    (await session.runPromise(ReviewStore)).save(
-      reviewSave(
-        reviewFixture({
-          reviewId: `review-${worktreeId}`,
-          projectId,
-          worktreeId,
-          summaryToken: `token-${worktreeId}`,
-        }),
-      ),
-    ),
-  );
+
   await Effect.runPromise(
     (await session.runPromise(ReviewedFileStore)).save({
       worktreeId,
@@ -117,38 +99,7 @@ async function seed(
       ],
     }),
   );
-  await Effect.runPromise(
-    (await session.runPromise(ReviewedLayerStore)).save({
-      reviewId: `review-${worktreeId}`,
-      marks: [
-        {
-          layerId: 'layer',
-          fingerprint: 'fingerprint',
-          reviewedAt: at,
-        },
-      ],
-    }),
-  );
-  await Effect.runPromise(
-    (await session.runPromise(CommentStore)).insert({
-      content: {
-        id: `thread-${worktreeId}`,
-        worktreeId,
-        anchor: { kind: 'file', filePath: 'README.md' },
-        messages: [
-          { id: `message-${worktreeId}`, body: 'Why?', author: 'reviewer' },
-        ],
-      },
-      sizeBytes: 4,
-      writtenByAgent: false,
-    }),
-  );
-  await Effect.runPromise(
-    (await session.runPromise(CommentSeenStore)).save({
-      worktreeId,
-      seenThrough: 1,
-    }),
-  );
+
   await Effect.runPromise(
     (await session.runPromise(GitActionReceiptStore)).insert(
       receipt(projectId, worktreeId),
@@ -177,38 +128,13 @@ async function stored(
     preferences: await Effect.runPromise(
       (await session.runPromise(FilePreferenceStore)).count({ projectId }),
     ),
-    review:
-      (await Effect.runPromise(
-        (await session.runPromise(ReviewStore)).read({
-          reviewId: `review-${worktreeId}`,
-        }),
-      )) !== undefined,
+
     reviewedFiles: (
       await Effect.runPromise(
         (await session.runPromise(ReviewedFileStore)).list({ worktreeId }),
       )
     ).length,
-    reviewedLayers: (
-      await Effect.runPromise(
-        (await session.runPromise(ReviewedLayerStore)).list({
-          reviewId: `review-${worktreeId}`,
-        }),
-      )
-    ).length,
-    threads: (
-      await Effect.runPromise(
-        (await session.runPromise(CommentStore)).list({ worktreeId }),
-      )
-    ).length,
-    message:
-      (await Effect.runPromise(
-        (await session.runPromise(CommentStore)).findMessage({
-          messageId: `message-${worktreeId}`,
-        }),
-      )) !== undefined,
-    seenThrough: await Effect.runPromise(
-      (await session.runPromise(CommentSeenStore)).seenThrough({ worktreeId }),
-    ),
+
     receipt:
       (await Effect.runPromise(
         (await session.runPromise(GitActionReceiptStore)).read({
@@ -240,7 +166,7 @@ describe('SqliteInventoryStore removal', () => {
     rmSync(dataDirectory, { recursive: true, force: true });
   });
 
-  it('removes worktree data and preserves project reviews and their marks', async () => {
+  it('removes only the selected project and its worktree data', async () => {
     await seed(session, 'removed', 'removed-worktree');
     await seed(session, 'kept', 'kept-worktree');
 
@@ -254,24 +180,18 @@ describe('SqliteInventoryStore removal', () => {
       project: false,
       presence: 0,
       preferences: 0,
-      review: true,
+
       reviewedFiles: 0,
-      reviewedLayers: 1,
-      threads: 0,
-      message: false,
-      seenThrough: 0,
+
       receipt: false,
     });
     expect(await stored(session, 'kept', 'kept-worktree')).toEqual({
       project: true,
       presence: 1,
       preferences: 1,
-      review: true,
+
       reviewedFiles: 1,
-      reviewedLayers: 1,
-      threads: 1,
-      message: true,
-      seenThrough: 1,
+
       receipt: true,
     });
   });

@@ -7,11 +7,6 @@ import {
   forwardedResponseHeaders,
   forwardedWebRequestHeaders,
 } from './rules/app-request.ts';
-import {
-  remoteSummaryHeaders,
-  remoteSummaryRequest,
-  remoteSummaryTarget,
-} from './rules/remote-summary.ts';
 
 export function registerDesktopScheme() {
   protocol.registerSchemesAsPrivileged([
@@ -41,30 +36,6 @@ async function fetchDesktop(
   return response;
 }
 
-async function remoteSummary(
-  request: Request,
-  signal: AbortSignal,
-): Promise<Response> {
-  const target = remoteSummaryTarget(request.url);
-  if (request.method !== 'GET' || target === undefined)
-    return new Response('Unknown review summary', { status: 404 });
-  const response = await fetchDesktop(target, {
-    credentials: 'omit',
-    redirect: 'manual',
-    signal,
-  }).catch(
-    () =>
-      new Response('The computer that published this summary is unreachable', {
-        status: 502,
-      }),
-  );
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: remoteSummaryHeaders(response.headers),
-  });
-}
-
 export function serveDesktop(
   server: { address: string; credential: string },
   development: string | undefined,
@@ -83,7 +54,6 @@ export function serveDesktop(
     if (refusal !== undefined) return new Response(refusal, { status: 403 });
     const signal = AbortSignal.any([request.signal, lifetime.signal]);
     const pathname = new URL(request.url).pathname;
-    if (remoteSummaryRequest(pathname)) return remoteSummary(request, signal);
     const web =
       development !== undefined && developmentWebPath(pathname)
         ? development

@@ -1,15 +1,15 @@
-import { readReviewedFiles } from '@porcelain/client/reviews';
+import { readReviewedFiles } from '@porcelain/client/changes';
 import { useAtomMount } from '@effect/atom-react';
 import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import {
   type ChangeList,
   mergeReviewChanges,
   type ReviewScope,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   type ReviewRange,
   WORKTREE_RANGE,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function useReviewedMarks(

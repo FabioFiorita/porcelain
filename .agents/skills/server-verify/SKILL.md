@@ -48,7 +48,7 @@ Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
 ## Deterministic fixtures
 
-`ids` prints fixture IDs/paths. `server project`, `server published-review`, `server reviewed-files`, `server comment-threads`, `server devices`, and `server receipt <id>` read retained typed state. All accept `--instance <id>`. Publishing and MCP commands have been removed.
+`ids` prints fixture IDs/paths. `server project`, `server reviewed-files`, `server devices`, and `server receipt <id>` read retained typed state. All accept `--instance <id>`. Publishing and MCP commands have been removed.
 
 ## Evidence and cleanup
 
@@ -62,4 +62,4 @@ With several instances, name one using `--instance <id>`. After stop, evidence a
 
 ## Live GitHub reads
 
-On a fresh instance, run `$C github-read <owner/repository> <pr-number> <account>... --instance <id>` with authenticated host accounts that can read that repository. It seeds a stored mobile review linked to that PR and records account, PR and project-list readbacks. A temporary Unix-socket bridge permits only these reads through the host's `gh`, since the sandbox has no network or machine credentials. Tokens remain in memory/per-call environments; cleanup removes the shim and socket. This proves live reads with that transport adaptation, not sandbox network access.
+On a fresh instance, run `$C github-read <owner/repository> <pr-number> <account>... --instance <id>` with authenticated host accounts that can read that repository. It reads that project and PR number and records account, PR and project-list readbacks. A temporary Unix-socket bridge permits only these reads through the host's `gh`, since the sandbox has no network or machine credentials. Tokens remain in memory/per-call environments; cleanup removes the shim and socket. This proves live reads with that transport adaptation, not sandbox network access.

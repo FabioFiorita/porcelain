@@ -3,14 +3,9 @@ import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
 import {
-  readProjectReviews,
-  readReviewPullChecks,
-  readReview,
-} from '../../reviews/queries/project-reviews.ts';
-import { readPublishedReview } from '../../reviews/queries/publication.ts';
-import { checkoutFolder } from '../../reviews/rules/review-list.ts';
-import { pullRequestNumber } from '../../reviews/rules/pull-request.ts';
-import type { ReviewRecord } from '../../reviews/rules/review.ts';
+  readProjectPullRequests,
+  readProjectPullChecks,
+} from './pull-requests.ts';
 import {
   navigatorEntryMatches,
   navigatorProjectVisible,
@@ -18,10 +13,8 @@ import {
   navigatorFilterSections,
   navigatorWorktreeOrder,
   type NavigatorEntry,
-  type NavigatorReview,
 } from '../rules/worktree-navigator.ts';
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
-import { reviewInbox } from '../rules/review-inbox.ts';
 import {
   worktreeNavigatorState,
   worktreeStatusNotices,
@@ -51,22 +44,6 @@ type ProjectInput = {
   project: Project;
   environmentName: string;
 };
-function recordReview(
-  record: ReviewRecord,
-): Extract<NavigatorReview, { state: 'available' }> {
-  return {
-    state: 'available',
-    reviewId: record.reviewId,
-    closed: record.state === 'closed' || record.archived === true,
-    archived: record.archived === true,
-    pullRequestNumber: record.pullRequest
-      ? pullRequestNumber(record.pullRequest)
-      : undefined,
-    timing: record.timing ?? 'decision',
-    latestRevision: record.latestRevision,
-    lastSeenRevision: record.lastSeenRevision,
-  };
-}
 function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
   const { project, connection, environmentName } = input;
   return project.worktrees
@@ -81,7 +58,10 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
         projectName: project.name,
         worktreeId: worktree.id,
         path: worktree.path,
-        name: worktree.branch ?? checkoutFolder(worktree.path).name,
+        name:
+          worktree.branch ??
+          worktree.path.split('/').filter(Boolean).at(-1) ??
+          worktree.path,
         displayTitle: title !== worktree.branch ? title : undefined,
         branch: worktreeLabel(worktree.branch),
         main: worktree.main,
@@ -90,7 +70,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
           : {}),
         detached: !worktree.branch,
         available: project.available && worktree.available,
-        review: { state: 'loading' },
+        pullRequest: { state: 'loading' },
         changes: {
           state:
             project.available && worktree.available ? 'loading' : 'unavailable',
@@ -99,7 +79,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
     })
     .sort(navigatorWorktreeOrder);
 }
-const readWorktreeReviewEntries = Atom.family(
+const readProjectEntries = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
       const inventoryResult = get(readInventory(input.connection));
@@ -113,186 +93,30 @@ const readWorktreeReviewEntries = Atom.family(
       const project: Project = AsyncResult.isFailure(inventoryResult)
         ? { ...savedProject, available: false }
         : savedProject;
-      const environmentName = inventory.environment.name;
-      const entries = inventoryEntries({ ...input, project, environmentName });
-      const recordsResult = get(
-        readProjectReviews({
-          connection: input.connection,
-          projectId: project.id,
-        }),
-      );
-      const records = Option.getOrUndefined(AsyncResult.value(recordsResult));
-      const messages: string[] = [];
-      const active = (records ?? []).filter(
-        (record) => record.state === 'open' && !record.archived,
-      );
-      const branches = new Set(entries.map((entry) => entry.branch));
-      const candidates = active
-        .filter((record) => branches.has(record.branch))
-        .map((record) => {
-          const result = get(
-            readReview({
-              connection: input.connection,
-              reviewId: record.reviewId,
-            }),
-          );
-          return {
-            record,
-            result,
-            revision: Option.getOrUndefined(AsyncResult.value(result))
-              ?.revision,
-          };
-        })
-        .sort(
-          (a, b) =>
-            (b.revision?.publishedAt ?? '').localeCompare(
-              a.revision?.publishedAt ?? '',
-            ) || a.record.reviewId.localeCompare(b.record.reviewId),
-        );
-      if (AsyncResult.isFailure(recordsResult))
-        messages.push(`Reviews for ${project.name} could not be read.`);
-      const byCheckout = new Map<string, (typeof candidates)[number]>();
-      const pending = new Set<string>();
-      const failed = new Set<string>();
-      for (const candidate of candidates) {
-        if (AsyncResult.isInitial(candidate.result))
-          pending.add(candidate.record.branch);
-        if (AsyncResult.isFailure(candidate.result) || !candidate.revision)
-          failed.add(candidate.record.branch);
-        const revision = candidate.revision;
-        if (!revision || revision.projectId !== project.id) continue;
-        const key = JSON.stringify([
-          revision.worktreePath,
-          revision.content.worktreeId,
-        ]);
-        if (!byCheckout.has(key)) byCheckout.set(key, candidate);
-      }
+      const entries = inventoryEntries({
+        ...input,
+        project,
+        environmentName: inventory.environment.name,
+      });
+      const result = get(readProjectPullRequests(input));
+      const answer = Option.getOrUndefined(AsyncResult.value(result));
       for (const entry of entries) {
-        if (AsyncResult.isFailure(recordsResult)) {
-          entry.review = { state: 'unavailable' };
-          continue;
+        if (AsyncResult.isFailure(result) || answer?.kind === 'unavailable')
+          entry.pullRequest = { state: 'unavailable' };
+        else if (answer?.kind === 'available') {
+          const pull = answer.pullRequests.find(
+            (pull) => pull.headBranch === entry.branch,
+          );
+          entry.pullRequest = pull
+            ? { state: 'available', number: pull.number }
+            : { state: 'none' };
         }
-        if (!records) continue;
-        const match = byCheckout.get(
-          JSON.stringify([entry.path, entry.worktreeId]),
-        );
-        if (!match || match.record.branch !== entry.branch) {
-          if (failed.has(entry.branch) && !pending.has(entry.branch))
-            messages.push(
-              `Review for ${entry.name} on ${environmentName} could not be read.`,
-            );
-          entry.review = { state: 'none' };
-          if (failed.has(entry.branch)) entry.review = { state: 'unavailable' };
-          if (pending.has(entry.branch)) entry.review = { state: 'loading' };
-          continue;
-        }
-        entry.review = recordReview(match.record);
       }
-      return { entries, messages };
-    }).pipe(Atom.setIdleTTL(0)),
-);
-
-const readStoredReviewEntries = Atom.family(
-  (input: {
-    connection: RuntimeConnection;
-    projectId: string;
-    older: boolean;
-  }) =>
-    Atom.readable((get) => {
-      const inventoryResult = get(readInventory(input.connection));
-      const inventory = Option.getOrUndefined(
-        AsyncResult.value(inventoryResult),
-      );
-      const project = inventory?.projects.find(
-        (project) => project.id === input.projectId,
-      );
-      const statusFailures: StatusFailure[] = [];
-      if (!inventory || !project)
-        return { entries: [], messages: [], loading: false, statusFailures };
-      const result = get(
-        readProjectReviews({
-          connection: input.connection,
-          projectId: input.projectId,
-        }),
-      );
-      const records = Option.getOrUndefined(AsyncResult.value(result)) ?? [];
-      const checkouts =
-        !AsyncResult.isFailure(inventoryResult) && project.available
-          ? project.worktrees
-              .filter(
-                (worktree) =>
-                  worktree.available &&
-                  records.some(
-                    (record) =>
-                      record.state === 'open' &&
-                      !record.archived &&
-                      record.branch === worktreeLabel(worktree.branch),
-                  ),
-              )
-              .map((worktree) => {
-                const published = get(
-                  readPublishedReview({
-                    connection: input.connection,
-                    scope: { projectId: project.id, worktreeId: worktree.id },
-                  }),
-                );
-                return {
-                  worktree,
-                  pending: AsyncResult.isInitial(published),
-                  reviewId: AsyncResult.isSuccess(published)
-                    ? published.value?.reviewId
-                    : undefined,
-                };
-              })
-          : [];
-      const entries = records
-        .filter(
-          (record) =>
-            input.older || (record.state === 'open' && !record.archived),
-        )
-        .filter(
-          (record) =>
-            record.state !== 'open' ||
-            record.archived ||
-            !checkouts.some(
-              (entry) =>
-                entry.pending &&
-                worktreeLabel(entry.worktree.branch) === record.branch,
-            ),
-        )
-        .map((record): NavigatorEntry => {
-          const checkout = checkouts.find(
-            (entry) =>
-              entry.reviewId === record.reviewId &&
-              worktreeLabel(entry.worktree.branch) === record.branch,
-          )?.worktree;
-          return {
-            key: `${input.connection.environmentId}/${record.reviewId}`,
-            kind: 'review',
-            environmentId: input.connection.environmentId,
-            environmentName: inventory.environment.name,
-            projectId: project.id,
-            projectName: project.name,
-            worktreeId: checkout?.id,
-            path: checkout?.path,
-            name: record.branch,
-            branch: record.branch,
-            main: false,
-            detached: record.branch === 'Detached HEAD',
-            available: true,
-            review: { ...recordReview(record), retained: true },
-            changes: { state: 'unavailable' },
-          };
-        });
       return {
         entries,
         messages: AsyncResult.isFailure(result)
-          ? [`Reviews for ${project.name} could not be read.`]
+          ? [`Pull requests for ${project.name} could not be read.`]
           : [],
-        loading:
-          AsyncResult.isInitial(result) ||
-          checkouts.some((entry) => entry.pending),
-        statusFailures,
       };
     }).pipe(Atom.setIdleTTL(0)),
 );
@@ -300,7 +124,7 @@ const readStoredReviewEntries = Atom.family(
 const readNavigatorProject = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
-      const reviewed = get(readWorktreeReviewEntries(input));
+      const reviewed = get(readProjectEntries(input));
       const statusFailures: StatusFailure[] = [];
       const entries = reviewed.entries.map((source) => {
         const entry: NavigatorEntry = { ...source };
@@ -372,14 +196,10 @@ function connectionInventories(
   };
 }
 
-function navigator(
-  connections: readonly RuntimeConnection[],
-  view: 'worktrees' | 'reviews' | 'inbox',
-) {
+function navigator(connections: readonly RuntimeConnection[]) {
   return Atom.readable((get) => {
     const state = get(worktreeNavigatorState);
-    const reviewsOnly = view !== 'worktrees';
-    const query = view === 'inbox' ? '' : state.query;
+    const query = state.query;
     const all: NavigatorProject[] = [];
     const observedEntries: NavigatorEntry[] = [];
     const readEnvironments: string[] = [];
@@ -405,10 +225,7 @@ function navigator(
           project,
           environmentName: inventory!.environment.name,
           environmentIcon: environmentIcon(inventory!.environment),
-          expanded:
-            view === 'inbox' ||
-            query.trim().length > 0 ||
-            state.expanded[key] !== false,
+          expanded: query.trim().length > 0 || state.expanded[key] !== false,
           entries: [],
         });
       }
@@ -447,9 +264,7 @@ function navigator(
         connection: source.connection,
         projectId: source.project.id,
       };
-      const answer = reviewsOnly
-        ? get(readStoredReviewEntries({ ...input, older: state.filter.older }))
-        : get(readNavigatorProject(input));
+      const answer = get(readNavigatorProject(input));
       detailsLoading ||= answer.loading;
       observedEntries.push(...answer.entries);
       messages.push(...answer.messages);
@@ -467,44 +282,38 @@ function navigator(
           });
       }
       const entries = answer.entries
-        .filter((entry) => navigatorEntryMatches(entry, query, state.filter))
+        .filter((entry) => navigatorEntryMatches(entry, query))
         .map((entry): NavigatorEntry => ({
           ...entry,
-          review: { ...entry.review },
+          pullRequest: { ...entry.pullRequest },
           changes: { ...entry.changes },
         }));
       for (const entry of entries) {
-        if (
-          entry.review.state === 'available' &&
-          entry.review.pullRequestNumber
-        ) {
+        if (entry.pullRequest.state === 'available') {
           const result = get(
-            readReviewPullChecks({
+            readProjectPullChecks({
               connection: source.connection,
-              reviewId: entry.review.reviewId,
+              projectId: entry.projectId,
+              number: entry.pullRequest.number,
             }),
           );
           const value = Option.getOrUndefined(AsyncResult.value(result));
-          entry.review.checks = { state: 'loading' };
+          entry.pullRequest.checks = { state: 'loading' };
           if (
             AsyncResult.isFailure(result) ||
             (value &&
               (value.kind !== 'available' ||
-                value.number !== entry.review.pullRequestNumber))
+                value.number !== entry.pullRequest.number))
           )
-            entry.review.checks = { state: 'unavailable' };
+            entry.pullRequest.checks = { state: 'unavailable' };
           else if (value?.kind === 'available')
-            entry.review.checks = {
+            entry.pullRequest.checks = {
               state: 'available',
               result: value.checks,
             };
         }
       }
-      if (
-        entries.length === 0 &&
-        (reviewsOnly || query.trim() || state.filter.reviews !== undefined)
-      )
-        continue;
+      if (entries.length === 0 && query.trim()) continue;
       projects.push({ ...source, entries });
     }
     const previousNotices = get.once(worktreeStatusNotices);
@@ -538,30 +347,5 @@ function navigator(
 }
 
 export const readWorktreeNavigator = Atom.family(
-  (connections: readonly RuntimeConnection[]) =>
-    navigator(connections, 'worktrees'),
-);
-
-export const readReviewNavigator = Atom.family(
-  (connections: readonly RuntimeConnection[]) =>
-    navigator(connections, 'reviews'),
-);
-
-export const readReviewInbox = Atom.family(
-  (connections: readonly RuntimeConnection[]) => {
-    const reviews = navigator(connections, 'inbox');
-    return Atom.readable((get) => {
-      const { filter } = get(worktreeNavigatorState);
-      const result = get(reviews);
-      return {
-        inbox: reviewInbox(
-          result.projects.flatMap((project) => project.entries),
-          filter.older,
-        ),
-        filters: result.filters,
-        loading: result.loading,
-        messages: result.messages,
-      };
-    });
-  },
+  (connections: readonly RuntimeConnection[]) => navigator(connections),
 );

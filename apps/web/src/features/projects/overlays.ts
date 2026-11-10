@@ -2,7 +2,7 @@ import { AlertDialog } from '@base-ui/react/alert-dialog';
 import { Dialog } from '@base-ui/react/dialog';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
-import type { ArchiveReviewRequest } from '@porcelain/contracts/reviews';
+import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 type Project = ReadInventoryResponse['projects'][number];
@@ -15,10 +15,11 @@ export const walkthroughSettingsDialog = Dialog.createHandle<ProjectTarget>();
 export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
 export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
 
-export const archiveReviewDialog = AlertDialog.createHandle<{
+export const archivePullRequestDialog = AlertDialog.createHandle<{
   connection: Connection;
-  reviewId: string;
-  options: ArchiveReviewRequest['options'];
+  projectId: string;
+  number: number;
+  options: ArchivePullRequestRequest['options'];
   requestId: string;
   beforeLeave: () => void;
 }>();

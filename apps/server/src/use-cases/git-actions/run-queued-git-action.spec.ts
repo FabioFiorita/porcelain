@@ -1,7 +1,6 @@
 import { TestClock } from 'effect/testing';
 import { RunGitActionUseCaseOptions } from '../../ports/run-git-action-use-case-options.ts';
 import { Logger } from '../../ports/logger.ts';
-import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
 import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
 import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import { LaneOptions } from '../../ports/lane-options.ts';
@@ -235,9 +234,6 @@ const fixture = Effect.fn(function* (progress?: string) {
       },
     }),
     Layer.succeed(RunGitActionUseCaseOptions, { deadlineMs: 1000 }),
-    Layer.succeed(RefreshWorktreeReviewUseCasePort, {
-      execute: () => Effect.void,
-    }),
     Layer.succeed(InventoryStore, {
       read: () => Effect.succeed({ projects: [project] }),
       find: () => Effect.succeed(project),

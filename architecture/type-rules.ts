@@ -45,12 +45,7 @@ const tableLanes: Readonly<
 > = {
   GitActionReceiptStore: { any: ['receipts', 'repository'] },
   WalkthroughStore: { any: ['walkthroughs', 'repository'] },
-  ReviewStore: { any: repositoryTables },
-  AgentFeedbackStore: { any: repositoryTables },
   ReviewedFileStore: { any: repositoryTables },
-  ReviewedLayerStore: { any: repositoryTables },
-  CommentStore: { any: repositoryTables },
-  CommentSeenStore: { any: repositoryTables },
   FilePreferenceStore: { any: ['project'] },
   InventoryStore: { any: ['inventory'] },
   GitHubAccountStore: { any: ['project'] },
@@ -82,17 +77,10 @@ const readsBeforeLane: Readonly<Record<string, string>> = {
     'answers the worktree the refresh just recorded, before its lane can be chosen',
   CheckProjectService: 'resolves the project before the lane is keyed on it',
   FindProjectService: 'resolves the project before the lane is keyed on it',
-  ReadReviewSummaryService:
-    'reads a summary link by its token, before any worktree is known',
   CheckRequestOriginService:
     'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
   IdentifyRequestClientService:
     'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
-};
-
-const checkedByCaller: Readonly<Record<string, string>> = {
-  ReadReviewEvidenceUseCase:
-    'reads the evidence inside the lane of the use case that checked the worktree, never on its own',
 };
 
 type Lane =
@@ -531,14 +519,9 @@ function resolvesWorktree(project: Project, declaration: Node): boolean {
     )
       return true;
     const target = ownerDeclaration(project, expression);
-    const targetName =
-      target && (isClassDeclaration(target) || isInterfaceDeclaration(target))
-        ? (target.name?.text ?? '')
-        : '';
     return (
       target !== undefined &&
-      useCaseOrPortFile.test(target.getSourceFile().fileName) &&
-      !(targetName.replace(/Port$/, '') in checkedByCaller)
+      useCaseOrPortFile.test(target.getSourceFile().fileName)
     );
   });
 }
@@ -551,7 +534,6 @@ function worktreeCheckFindings(
   const { checker } = project;
   return file.statements.filter(isClassDeclaration).flatMap((declaration) => {
     const name = declaration.name?.text ?? '';
-    if (name in checkedByCaller) return [];
     const execute = executeMethods(file).find((method) =>
       descendants(declaration).includes(method),
     );

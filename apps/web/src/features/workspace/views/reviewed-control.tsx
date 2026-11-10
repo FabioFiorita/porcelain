@@ -5,7 +5,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { reviewedCommandFailure } from '@porcelain/client/reviews';
+import { reviewedCommandFailure } from '@porcelain/client/changes';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -28,7 +28,7 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import {
   type BulkReviewReport,
   bulkReportText,
@@ -38,7 +38,7 @@ import {
   unavailableReviewText,
   type ReviewRange,
   WORKTREE_RANGE,
-} from '@porcelain/client/reviews/rules';
+} from '@porcelain/client/changes/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function fileReviewControl(

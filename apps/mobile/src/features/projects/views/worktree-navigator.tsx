@@ -30,7 +30,7 @@ import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
-import { NavigatorFilter, NavigatorScopePicker } from './navigator-filter';
+import { NavigatorScopePicker } from './navigator-filter';
 import { Loading } from '../../../components/ui/loading';
 import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
@@ -134,30 +134,22 @@ export function WorktreeNavigator({
         contentContainerClassName="gap-2.5 px-4 pb-6"
       >
         <Box className="flex-row items-center" gap={2}>
-          <NavigatorFilter
-            view="worktrees"
-            sections={filters.filter((section) => section.key === 'reviews')}
-            filter={filter}
-            onChange={setFilter}
-          />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="items-center gap-2"
             keyboardShouldPersistTaps="handled"
           >
-            {filters
-              .filter((section) => section.key !== 'reviews')
-              .map((section) => (
-                <NavigatorScopePicker
-                  key={section.key}
-                  section={section}
-                  label={scopeLabel(section)}
-                  onChange={(next) =>
-                    setFilter({ ...filter, [section.key]: next })
-                  }
-                />
-              ))}
+            {filters.map((section) => (
+              <NavigatorScopePicker
+                key={section.key}
+                section={section}
+                label={scopeLabel(section)}
+                onChange={(next) =>
+                  setFilter({ ...filter, [section.key]: next })
+                }
+              />
+            ))}
           </ScrollView>
         </Box>
         {initializing || loading ? (
@@ -224,16 +216,16 @@ export function WorktreeNavigator({
                       const selected = navigatorEntrySelected(entry, selection);
                       const row = worktreeRow(entry);
                       const review =
-                        entry.review.state === 'available'
-                          ? entry.review
+                        entry.pullRequest.state === 'available'
+                          ? entry.pullRequest
                           : undefined;
-                      const number = review?.pullRequestNumber;
+                      const number = review?.number;
                       const checks = review?.checks;
                       const failed =
                         checks?.state === 'available' &&
                         checks.result === 'failed';
                       const pending =
-                        entry.review.state === 'loading' ||
+                        entry.pullRequest.state === 'loading' ||
                         (entry.kind === 'worktree' &&
                           entry.changes.state === 'loading');
                       return (
@@ -273,7 +265,6 @@ export function WorktreeNavigator({
                                   onPress={() =>
                                     openPullRequest({
                                       environmentId: entry.environmentId,
-                                      reviewId: review.reviewId,
                                       number,
                                       projectId: entry.projectId,
                                     })

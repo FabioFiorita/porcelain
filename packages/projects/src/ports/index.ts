@@ -10,3 +10,5 @@ export { CheckWorktreeOptions } from './check-worktree-options.ts';
 export { CollectAbsentWorktreesOptions } from './collect-absent-worktrees-options.ts';
 export { SetFilePreferenceOptions } from './set-file-preference-options.ts';
 export { ListedWorktreeAccessReader } from './listed-worktree-access-reader.ts';
+
+export { BranchArchiver } from './branch-archiver.ts';

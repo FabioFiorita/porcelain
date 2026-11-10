@@ -1,9 +1,3 @@
-import { Schema } from 'effect';
-import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
-import { seedAgentReply } from './seed-agent-comment.ts';
-import type { ReviewFixtureDraft } from './seed-review.ts';
-import { seedReview } from './seed-review.ts';
-import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
@@ -142,7 +136,7 @@ export async function seedDevelopmentSample(
     ],
     [
       'docs/offline-walkthrough.md',
-      '# Offline branch walkthrough\n\nThis worktree has different pending changes. Compare its history and return to main for the published review.\n',
+      '# Offline branch walkthrough\n\nThis worktree has different pending changes. Compare its history and return to main for the Walkthrough.\n',
     ],
   ] as const) {
     await writeFile(join(secondary, path), text);
@@ -157,107 +151,6 @@ export async function seedDevelopmentSample(
 
   await session.git('add', '-A');
   await session.git('commit', '-m', 'Keep document holds visible');
-  const review: ReviewFixtureDraft = {
-    base: 'refs/heads/porcelain-fixture-base',
-    verdict: {
-      asked: { text: 'Show the dispatch document-hold decisions' },
-      recommendation: 'hold',
-      reasons: ['This synthetic fixture demonstrates review reading'],
-      notProven: [
-        { what: 'Application checks', why: 'Synthetic source-reading fixture' },
-      ],
-      removed: [
-        {
-          behavior: 'Release checklist',
-          why: 'The dispatch guide and escalation procedure replace it',
-          paths: ['docs/operations/release-checklist.md'],
-        },
-      ],
-    },
-    expectedRevision: 0,
-    summaryHtml:
-      '<!doctype html><h1>Dispatch document holds</h1><p>This synthetic source-reading sample adds a document hold status, keeps the next action visible, and explains the dispatch handoff. Application checks have not been run.</p>',
-    layers: await Promise.all(
-      [
-        {
-          title: 'Keep document holds visible',
-          summary:
-            'Carry the status and next action from the model into the card.',
-          paths: [
-            'src/domain/shipment.ts',
-            'src/lib/status-tone.ts',
-            'src/ui/shipment-card.tsx',
-          ],
-        },
-        {
-          title: 'Filter completed deliveries',
-          summary:
-            'Hide completed shipments unless the dispatcher asks to see them.',
-          paths: ['src/api/read-shipments.ts', 'src/ui/shipment-filters.tsx'],
-        },
-        {
-          title: 'Explain the dispatch handoff',
-          summary: 'Rename the guide and add a document escalation procedure.',
-          paths: [
-            'docs/operations/dispatch-guide.md',
-            'docs/operations/escalation.md',
-          ],
-        },
-      ].map(async (layer) => ({
-        id: randomUUID(),
-        title: layer.title,
-        summary: layer.summary,
-        lanes: ['Implementation'],
-        steps: await Promise.all(
-          layer.paths.map(async (path) => ({
-            id: randomUUID(),
-            lane: 0,
-            title: path,
-            text: layer.summary,
-            kind: 'changed' as const,
-            pointer: {
-              path,
-              startLine: 1,
-              endLine: (await session.readFile(path)).split('\n').length - 1,
-            },
-          })),
-        ),
-      })),
-    ),
-  };
-  await seedReview(session, review);
-
-  await session.read(
-    {
-      method: 'POST',
-      path: `/api/worktrees/${session.worktreeId}/comments`,
-      body: {
-        anchor: {
-          kind: 'codeRange',
-          filePath: 'src/api/read-shipments.ts',
-          startLine: 5,
-          endLine: 8,
-          side: 'additions',
-        },
-        body: 'Please keep the delivered filter independent of route selection.',
-      },
-    },
-    200,
-  );
-  const comment = await session.read({
-    method: 'POST',
-    path: `/api/worktrees/${session.worktreeId}/comments`,
-    body: {
-      anchor: { kind: 'file', filePath: 'src/domain/shipment.ts' },
-      body: 'Should a document hold stay visible until the dispatcher records the next action?',
-    },
-  });
-  await seedAgentReply(session, {
-    threadId: Schema.decodeUnknownSync(createCommentThreadResponseSchema)(
-      comment.body,
-    ).id,
-    body: 'Yes. The pending status and card changes keep the hold and its next action visible.',
-  });
   await write(
     'docs/operations/next-shift.md',
     '# Next shift\n\nConfirm the next document check with the dispatcher.\n',

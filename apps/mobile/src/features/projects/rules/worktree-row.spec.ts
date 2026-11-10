@@ -16,7 +16,7 @@ const entry: NavigatorEntry = {
   main: false,
   detached: false,
   available: true,
-  review: { state: 'none' },
+  pullRequest: { state: 'none' },
   changes: { state: 'available', count: 0 },
 };
 
@@ -45,14 +45,14 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
     worktreeRow({
       ...entry,
       changes: { state: 'loading' },
-      review: { state: 'loading' },
+      pullRequest: { state: 'loading' },
     }),
   ).toMatchObject({ changes: 'Reading changes…' });
   expect(
     worktreeRow({
       ...entry,
       changes: { state: 'unavailable' },
-      review: { state: 'unavailable' },
+      pullRequest: { state: 'unavailable' },
     }),
   ).toMatchObject({
     changes: '—',

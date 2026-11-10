@@ -18,16 +18,16 @@ import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
-import type { RevealComment } from '@porcelain/client/reviews/rules';
 import {
   type DocumentInteraction,
   type DocumentRef,
   entryKey,
   type OpenDocument,
+  type DocumentFileTarget,
 } from '../rules/documents';
 
-import { isSpecPath } from '@porcelain/client/reviews/rules';
-import type { ReviewScope } from '@porcelain/client/reviews/rules';
+import { isSpecPath } from '@porcelain/client/changes/rules';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import {
   BranchDocument,
   BranchFileDocument,
@@ -48,7 +48,7 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
 
 export type WalkthroughCodeProps = DocumentProps & {
   document: Extract<
@@ -78,12 +78,12 @@ export function DocumentView({
   onBrowse,
   sideLabel,
   active = false,
-  reveal,
   base,
   toolbarTarget,
   walkthrough: Walkthrough,
   walkthroughCode: WalkthroughCode,
   singleHeader = false,
+  fileTarget,
 }: {
   walkthroughCode?: ComponentType<WalkthroughCodeProps> | undefined;
   singleHeader?: boolean | undefined;
@@ -94,7 +94,7 @@ export function DocumentView({
   sideLabel: string;
   onBrowse: DocumentProps['onBrowse'];
   active?: boolean;
-  reveal?: RevealComment | undefined;
+  fileTarget?: DocumentFileTarget | undefined;
   base?: string | undefined;
 } & (
   | {
@@ -115,7 +115,7 @@ export function DocumentView({
       active,
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
-      reveal,
+      fileTarget,
       singleHeader,
     },
   };
@@ -206,13 +206,16 @@ function PullRequestSourceDocument({
   const navigate = useNavigate();
   const checkout = usePullRequestCheckout(
     context.connection,
-    document.reviewId,
+    document.projectId,
+    document.number,
   );
-  if (!checkout)
-    return <StateNotice title="Pull request checkout unavailable" />;
   const openSource = (
     entry: { kind: 'handoff' } | { kind: 'file'; path: string },
   ) => {
+    if (!checkout) {
+      void navigate({ to: '/' });
+      return;
+    }
     const params = checkout;
     const search = { entry: entryKey(entry) };
     void navigate(
@@ -230,12 +233,14 @@ function PullRequestSourceDocument({
   };
   return (
     <PullRequestDocument
-      reviewId={document.reviewId}
+      projectId={document.projectId}
       number={document.number}
       context={context}
       toolbarTarget={toolbarTarget}
       onBack={() => openSource({ kind: 'handoff' })}
-      onFile={(path) => openSource({ kind: 'file', path })}
+      onFile={
+        checkout ? (path) => openSource({ kind: 'file', path }) : undefined
+      }
     />
   );
 }
@@ -248,9 +253,12 @@ function GraphDocument({ scope, context, onOpen, sideLabel }: DocumentProps) {
         connection={context.connection}
         sideLabel={sideLabel}
         onSelect={(oid, toSide) =>
-          onOpen({ kind: 'commit', oid }, undefined, {
-            toSide: toSide === true,
-          })
+          onOpen(
+            { kind: 'commit', oid },
+            {
+              toSide: toSide === true,
+            },
+          )
         }
       />
     </div>
@@ -284,13 +292,7 @@ function TimelineDocument({
         onSelect={(commit, toSide) =>
           onOpen(
             { kind: 'commit', oid: commit.oid },
-            {
-              kind: 'file',
-              filePath: commit.path,
-              revision: commit.oid,
-              comparison: { kind: 'commit', parent: 1 },
-            },
-            { toSide: toSide === true },
+            { path: commit.path, toSide: toSide === true },
           )
         }
       />
@@ -462,9 +464,6 @@ function ChangeDocument({
       >
         {(trigger) => (
           <ReviewCodeDocument
-            {...(interaction.reveal?.compose
-              ? { commentRequest: interaction.reveal.nonce }
-              : {})}
             headerActions={
               <>
                 <BarAction

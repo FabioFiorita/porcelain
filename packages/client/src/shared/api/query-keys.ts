@@ -33,14 +33,12 @@ export const queryKeys = {
       queryKeys.inventory(connection.environmentId),
       connection,
     ),
-  projectReviews: (environmentId: string, projectId?: string) =>
+  projectPullRequests: (environmentId: string, projectId?: string) =>
     [
-      'project-reviews',
+      'project-pull-requests',
       environmentId,
       ...(projectId ? [projectId] : []),
     ] as const,
-  durableReview: (environmentId: string, reviewId: string) =>
-    ['project-review', environmentId, reviewId] as const,
   environment: (environmentId: string) =>
     ['environment', environmentId] as const,
   reviewGitSettings: (environmentId: string) =>

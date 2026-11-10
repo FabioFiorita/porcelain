@@ -1,14 +1,12 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
 
-import { createPortal, flushSync } from 'react-dom';
+import { createPortal } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { CheckIcon, SquareIcon } from 'lucide-react';
-import { AsyncResult } from 'effect/reactivity';
 import type {
   FileDiffMetadata,
   CodeViewItem,
   CodeViewLineSelection,
-  DiffLineAnnotation,
 } from '@pierre/diffs';
 import { DEFAULT_VIRTUAL_FILE_METRICS } from '@pierre/diffs';
 import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
@@ -23,10 +21,6 @@ import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
-  MessageSquareIcon,
-  UserIcon,
-  BotIcon,
-  MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -37,12 +31,10 @@ import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_CHANGES_HEADER_CSS,
-  PIERRE_COMMENT_CSS,
   PIERRE_FILE_CSS,
   PIERRE_DECISION_CSS,
   PIERRE_DECISION_THEME,
   PIERRE_HEADER_CSS,
-  PIERRE_MARGIN_THREAD_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
   PIERRE_HIGHLIGHTER,
@@ -64,40 +56,16 @@ import {
 
 import { useToggleReviewed } from '../commands/reviewed';
 import { ChangeCounts } from './change-counts';
-import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
-import { counted } from '@porcelain/client/reviews/rules';
-import { groupSpecPaths, isSpecPath } from '@porcelain/client/reviews/rules';
-import {
-  anchorLabel,
-  type FileCommentAnchor,
-  type CommentThread,
-  rangeAnchor,
-} from '@porcelain/client/reviews/rules';
+import { counted } from '@porcelain/client/changes/rules';
+import { groupSpecPaths, isSpecPath } from '@porcelain/client/changes/rules';
 import type { DocumentInteraction } from '../rules/documents';
-import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
-import type { ReviewRange } from '@porcelain/client/reviews/rules';
+import { type ReviewScope } from '@porcelain/client/changes/rules';
+import type { ReviewRange } from '@porcelain/client/changes/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
-import { revealMarginLine, useMarginStack } from '../adapters/margin-stack';
-import {
-  codeCommentMatches,
-  codeCommentStale,
-} from '../rules/retained-comments';
-import { StateNotice } from '@/shared/views/state-notice';
-import { InlineComposer } from './inline-composer';
 
-import { ThreadCard } from './thread-card';
-import { MarginThreadLocation } from './margin-thread-location';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-type Note =
-  | {
-      kind: 'thread';
-      lineNumber: number;
-      side: 'additions' | 'deletions';
-      threads: { thread: CommentThread; stale: boolean }[];
-    }
-  | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
   onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
@@ -110,7 +78,6 @@ type Props = {
   headerLeading?: ReactNode;
   headerActions?: ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
-  commentRequest?: number;
   foundLine?: { line: number; nonce: number };
   compactThreads?: boolean;
   fileDiff?: FileDiffMetadata | undefined;
@@ -119,11 +86,9 @@ type Props = {
   compactHeight?: boolean;
   collapsible?: boolean;
   range?: ReviewRange;
-  threadMargin?: boolean;
   decision?: boolean;
   column?: boolean;
   framed?: boolean;
-  commentLabel?: string;
 };
 export type CodeHeaderControls = {
   collapse: ReactNode;
@@ -132,7 +97,6 @@ export type CodeHeaderControls = {
   open: (path: string) => void;
 };
 export function CodeDocument(props: Props) {
-  const { threads, result } = useComments(props.scope, props.context);
   const review = useToggleReviewed(
     props.scope,
     props.context,
@@ -141,15 +105,9 @@ export function CodeDocument(props: Props) {
   );
   return (
     <>
-      {AsyncResult.isFailure(result) && (
-        <p role="alert" className="px-3 text-xs text-destructive">
-          Comments could not be refreshed.
-        </p>
-      )}
       <CodeSurface
         key={JSON.stringify([props.interaction.entry, props.range])}
         {...props}
-        threads={threads}
         onToggleReviewed={
           props.onReview ?? ((entry) => review.toggle(entry.review))
         }
@@ -168,8 +126,6 @@ function CodeSurface({
   headerActions,
   emptyActions,
   toolbar,
-  threads,
-  commentRequest,
   foundLine,
   disableFileHeader = false,
   fileDiff,
@@ -177,21 +133,15 @@ function CodeSurface({
   fullHeight = false,
   compactHeight = false,
   collapsible = false,
-  threadMargin = false,
   decision = false,
   column = false,
   framed = false,
-  commentLabel,
   range,
   onToggleReviewed,
 }: Props & {
-  threads: readonly CommentThread[];
   onToggleReviewed: (entry: CodeEntry) => void;
 }) {
   const { dark } = useTheme();
-  const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<string>>(
-    new Set(),
-  );
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
@@ -203,33 +153,20 @@ function CodeSurface({
     range,
   ]);
   const viewer = useCodeViewScroll(scrollOwner);
-  const margin = useMarginStack();
-  const [composer, setComposer] = useState<{
-    id: string;
-    anchor: FileCommentAnchor;
-    focusRequested: boolean;
-  } | null>(null);
   const [savedSelection, saveSelection] = useState(() => viewer.selection());
   const selectedEntry = savedSelection
     ? entries.find((entry) => entry.id === savedSelection.lines.id)
     : undefined;
   const staleSelection =
-    savedSelection?.anchor && selectedEntry?.comment
-      ? codeCommentStale(savedSelection.anchor, selectedEntry.comment)
-      : false;
+    savedSelection !== null &&
+    selectedEntry?.version !== savedSelection.version;
   const selection = staleSelection ? null : (savedSelection?.lines ?? null);
   const setSelection = (next: CodeViewLineSelection | null) => {
     const entry = next
       ? entries.find((entry) => entry.id === next.id)
       : undefined;
-    const selected = next
-      ? {
-          lines: next,
-          anchor: entry?.comment
-            ? rangeAnchor(entry.comment, next.range)
-            : null,
-        }
-      : null;
+    const selected =
+      next && entry ? { lines: next, version: entry.version } : null;
     saveSelection(selected);
     viewer.rememberSelection(selected);
   };
@@ -242,59 +179,22 @@ function CodeSurface({
     entries.findIndex((entry) => entry.id === focusedId),
     0,
   );
-  const [rangeError, setRangeError] = useState<string | null>(null);
   const collapsed = new Set(
     entries
-      .filter(
-        (entry) =>
-          composer?.id !== entry.id &&
-          isFolded(
-            folds.folds,
-            entry.id,
-            (entries.length > 1 && entry.review?.reviewed === true) ||
-              ((collapsible || entries.length > 1) &&
-                specsApart &&
-                isSpecPath(entry.path)),
-          ),
+      .filter((entry) =>
+        isFolded(
+          folds.folds,
+          entry.id,
+          (entries.length > 1 && entry.review?.reviewed === true) ||
+            ((collapsible || entries.length > 1) &&
+              specsApart &&
+              isSpecPath(entry.path)),
+        ),
       )
       .map((entry) => entry.id),
   );
-  const openComposer = (entry: CodeEntry, anchor: FileCommentAnchor) => {
-    setFocusedId(entry.id);
-    setComposer({
-      id: entry.id,
-      anchor,
-      focusRequested: true,
-    });
-  };
-  const openFileComment = (entry: CodeEntry | undefined) => {
-    if (!entry?.comment) return;
-    openComposer(entry, { ...entry.comment, kind: 'file' });
-    setSelection(null);
-  };
-  const closeComposer = () => {
-    setComposer(null);
-    setSelection(null);
-  };
-  const [handledComment, setHandledComment] = useState<number>();
-  if (commentRequest !== undefined && handledComment !== commentRequest) {
-    setHandledComment(commentRequest);
-    openFileComment(entries[0]);
-  }
   const [handledFound, setHandledFound] = useState<number>();
-  const [handledReveal, setHandledReveal] = useState<number>();
-  const reveal = interaction.reveal;
-  const revealEntry =
-    reveal &&
-    entries.find(
-      (entry) =>
-        entry.comment &&
-        codeCommentMatches(
-          reveal.anchor,
-          entry.comment,
-          scope.review !== undefined,
-        ),
-    );
+  const [handledFile, setHandledFile] = useState<number>();
   const focusEntry = (index: number) => {
     const entry = entries[index];
     if (!entry) return;
@@ -302,89 +202,14 @@ function CodeSurface({
     viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const items: CodeViewItem<Note>[] = entries.map((entry) => {
-    const target = entry.comment;
-    const notes: Note[] = [];
-    const lines = new Map<string, Extract<Note, { kind: 'thread' }>>();
-    const placed = target
-      ? threads
-          .filter(
-            (thread) =>
-              codeCommentMatches(
-                thread.anchor,
-                target,
-                scope.review !== undefined,
-              ) &&
-              (thread.anchor.comparison ||
-                entries.find(
-                  (candidate) =>
-                    candidate.comment &&
-                    codeCommentMatches(
-                      thread.anchor,
-                      candidate.comment,
-                      scope.review !== undefined,
-                    ),
-                )?.id === entry.id),
-          )
-          .map((thread) => ({
-            thread,
-            stale: codeCommentStale(
-              thread.anchor,
-              target,
-              scope.review && {
-                revision: scope.review.revision,
-                commentRevision: thread.review?.revision,
-                kind: entry.kind,
-              },
-            ),
-          }))
-      : [];
-    for (const item of placed) {
-      const anchor = item.thread.anchor;
-      const lineNumber =
-        anchor.kind === 'codeRange' && !item.stale ? anchor.endLine : 0;
-      const side =
-        anchor.kind === 'codeRange'
-          ? (anchor.side ?? 'additions')
-          : 'additions';
-      const key = lineNumber === 0 ? item.thread.id : `${side}:${lineNumber}`;
-      const line = lines.get(key);
-      if (line) line.threads.push(item);
-      else {
-        const note = {
-          kind: 'thread' as const,
-          lineNumber,
-          side,
-          threads: [item],
-        };
-        lines.set(key, note);
-        notes.push(note);
-      }
-    }
-    if (composer?.id === entry.id)
-      notes.push({ kind: 'composer', anchor: composer.anchor });
-    const annotations = notes.map((note): DiffLineAnnotation<Note> => {
-      if (note.kind === 'thread')
-        return { lineNumber: note.lineNumber, side: note.side, metadata: note };
-      const anchor = note.anchor;
-      return anchor.kind === 'codeRange'
-        ? {
-            lineNumber: anchor.endLine,
-            side: anchor.side ?? 'additions',
-            metadata: note,
-          }
-        : { lineNumber: 0, side: 'additions', metadata: note };
-    });
-    const shared = {
-      id: entry.id,
-      collapsed: collapsed.has(entry.id),
-      version: contentVersion(
-        JSON.stringify([entry.version, collapsed.has(entry.id), notes]),
-      ),
-      annotations,
-    };
-    return { ...shared, ...codeTarget(entry) };
-  });
+  const items: CodeViewItem<never>[] = entries.map((entry) => ({
+    id: entry.id,
+    collapsed: collapsed.has(entry.id),
+    version: contentVersion(
+      JSON.stringify([entry.version, collapsed.has(entry.id)]),
+    ),
+    ...codeTarget(entry),
+  }));
   const specEntries = entries.filter((entry) => isSpecPath(entry.path));
   const specCount = new Set(specEntries.map((entry) => entry.path)).size;
   const firstSpecId = specEntries[0]?.id;
@@ -394,7 +219,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const paddingBottom = fullHeight || footer ? 12 : 160;
-  const options: CodeViewReactOptions<Note, undefined> = {
+  const options: CodeViewReactOptions<never, undefined> = {
     preferredHighlighter: PIERRE_HIGHLIGHTER,
     theme:
       decision || column || compactThreads || framed
@@ -408,23 +233,11 @@ function CodeSurface({
     stickyHeaders: !disableFileHeader && !fullHeight,
     disableFileHeader: disableFileHeader || compactHeight,
     enableLineSelection: true,
-    enableGutterUtility: true,
+    enableGutterUtility: false,
     onLineClick: (_, context) => setFocusedId(context.item.id),
     onLineNumberClick: (_, context) => setFocusedId(context.item.id),
-    onGutterUtilityClick: (range, context) => {
-      const entry = byId.get(context.item.id);
-      if (!entry?.comment) return;
-      const anchor = rangeAnchor(entry.comment, range);
-      if (!anchor) {
-        setRangeError('Select lines on one side of the comparison.');
-        return;
-      }
-      setRangeError(null);
-      openComposer(entry, anchor);
-      setSelection({ id: entry.id, range });
-    },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${threadMargin ? PIERRE_MARGIN_THREAD_CSS : ''}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
     ...(column
       ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
       : {}),
@@ -493,13 +306,6 @@ function CodeSurface({
             }}
           />
         )}
-        <BarAction
-          label="Comment"
-          icon={MessageSquarePlusIcon}
-          shortcut={SHORTCUTS.commentOnFile}
-          disabled={!focusedEntry?.comment}
-          onClick={() => openFileComment(focusedEntry)}
-        />
         {headerActions}
       </>
     ) : (
@@ -519,8 +325,6 @@ function CodeSurface({
           focusEntry(index);
         },
       }));
-  const selectionAnchor =
-    composer || staleSelection ? null : savedSelection?.anchor;
 
   return (
     <div
@@ -541,57 +345,43 @@ function CodeSurface({
         <CodeShortcuts
           next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
           previous={() => focusEntry(Math.max(focused - 1, 0))}
-          comment={() => openFileComment(entries[focused])}
           review={() => {
             const entry = entries[focused];
             if (entry?.review) onToggleReviewed(entry);
           }}
         />
       )}
-      {staleSelection || rangeError ? (
+      {staleSelection && (
         <p
           role="status"
           className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2 text-xs"
         >
-          {staleSelection
-            ? 'Code changed since these lines were selected. Select lines again.'
-            : rangeError}
+          Code changed since these lines were selected. Select lines again.
         </p>
-      ) : (
-        selectionAnchor !== null &&
-        selectionAnchor !== undefined && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-lg border bg-popover/95 px-2.5 py-1 text-xs text-popover-foreground shadow-md"
-          >
-            <MessageSquarePlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <TruncatedText
-              className="pointer-events-auto"
-              text={`${basename(selectionAnchor.filePath)} · ${anchorLabel(selectionAnchor)}`}
-            />
-            {selectionAnchor.kind === 'codeRange' &&
-              selectionAnchor.comparison?.kind === 'worktree' &&
-              selectionAnchor.side !== 'deletions' &&
-              (selectionAnchor.comparison.scope === 'staged' ||
-                selectionAnchor.comparison.scope === 'unstaged') && (
-                <span className="pointer-events-auto">
-                  <DiscardButton
-                    scope={scope}
-                    context={gitContext}
-                    path={selectionAnchor.filePath}
-                    hunk={{
-                      scope: selectionAnchor.comparison.scope,
-                      startLine: selectionAnchor.startLine,
-                      endLine: selectionAnchor.endLine,
-                    }}
-                    variant="compact"
-                  />
-                </span>
-              )}
-          </div>
-        )
       )}
+      {selection &&
+        selectedEntry?.discardScope &&
+        selection.range.side !== 'deletions' && (
+          <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2">
+            <DiscardButton
+              scope={scope}
+              context={gitContext}
+              path={selectedEntry.path}
+              hunk={{
+                scope: selectedEntry.discardScope,
+                startLine: Math.min(
+                  selection.range.start,
+                  selection.range.end ?? selection.range.start,
+                ),
+                endLine: Math.max(
+                  selection.range.start,
+                  selection.range.end ?? selection.range.start,
+                ),
+              }}
+              variant="compact"
+            />
+          </div>
+        )}
       {toolbar
         ? toolbar(collapseControl)
         : !column &&
@@ -628,15 +418,6 @@ function CodeSurface({
             className="min-w-0 flex-1 font-mono text-caption font-medium"
             text={entries[0].path}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={`Comment on ${entries[0].path} (file)`}
-            onClick={() => openFileComment(entries[0])}
-          >
-            <MessageSquareIcon />
-            <span className="max-narrow:sr-only">Comment</span>
-          </Button>
         </div>
       )}
       {entries.length > 0 && (
@@ -644,15 +425,6 @@ function CodeSurface({
           ref={(handle) => {
             if (!handle) return;
             const release = viewer.attach(handle);
-            if (
-              reveal &&
-              revealEntry &&
-              handledReveal !== reveal.nonce &&
-              collapsed.has(revealEntry.id)
-            ) {
-              folds.setCollapsed([revealEntry.id], false);
-              return release;
-            }
             const frame = requestAnimationFrame(() => {
               viewer.restorePosition(
                 handle,
@@ -661,6 +433,24 @@ function CodeSurface({
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
                   : 0,
               );
+              const requested = interaction.fileTarget;
+              const requestedEntry = requested
+                ? entries.find((entry) => entry.path === requested.path)
+                : undefined;
+              if (
+                requested &&
+                requestedEntry &&
+                requested.nonce !== handledFile
+              ) {
+                folds.setCollapsed([requestedEntry.id], false);
+                handle.scrollTo({
+                  type: 'item',
+                  id: requestedEntry.id,
+                  align: 'start',
+                });
+                setFocusedId(requestedEntry.id);
+                setHandledFile(requested.nonce);
+              }
               const entry = entries[0];
               if (foundLine && entry && handledFound !== foundLine.nonce) {
                 setSelection({
@@ -675,37 +465,6 @@ function CodeSurface({
                 });
                 setHandledFound(foundLine.nonce);
               }
-              if (reveal && revealEntry && handledReveal !== reveal.nonce) {
-                const anchor = reveal.anchor;
-                const stale =
-                  revealEntry.comment &&
-                  codeCommentStale(
-                    anchor,
-                    revealEntry.comment,
-                    scope.review && {
-                      revision: scope.review.revision,
-                      commentRevision: threads.find(
-                        (thread) => thread.anchor === anchor,
-                      )?.review?.revision,
-                      kind: revealEntry.kind,
-                    },
-                  );
-                handle.scrollTo(
-                  anchor.kind === 'codeRange' && !stale
-                    ? {
-                        type: 'line',
-                        id: revealEntry.id,
-                        lineNumber: anchor.startLine,
-                        ...(revealEntry.kind === 'diff'
-                          ? { side: anchor.side ?? 'additions' }
-                          : {}),
-                        align: 'center',
-                      }
-                    : { type: 'item', id: revealEntry.id, align: 'start' },
-                );
-                setFocusedId(revealEntry.id);
-                setHandledReveal(reveal.nonce);
-              }
             });
             return () => {
               cancelAnimationFrame(frame);
@@ -716,169 +475,8 @@ function CodeSurface({
           onScroll={viewer.rememberPosition}
           selectedLines={selection}
           onSelectedLinesChange={(next) => {
-            if (!composer) {
-              setSelection(next);
-              if (next) setFocusedId(next.id);
-            }
-          }}
-          renderAnnotation={(...[annotation, , item]) => {
-            const note = annotation.metadata;
-            if (
-              note.kind === 'thread' &&
-              note.threads.every(({ stale }) => !stale) &&
-              compactThreads &&
-              item.type === 'file' &&
-              !expandedThreads.has(`${item.id}:${note.lineNumber}`)
-            )
-              return (
-                <Button
-                  type="button"
-                  data-file-thread-marker=""
-                  aria-expanded={false}
-                  variant="ghost"
-                  className="ml-3 w-[calc(100%-var(--spacing)*5.5)] justify-start"
-                  onClick={() =>
-                    setExpandedThreads(
-                      (current) =>
-                        new Set([...current, `${item.id}:${note.lineNumber}`]),
-                    )
-                  }
-                >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex shrink-0 items-center"
-                  >
-                    <span className="grid size-4.5 place-items-center rounded-full bg-foreground text-background">
-                      <UserIcon />
-                    </span>
-                    {note.threads.some(({ thread }) =>
-                      thread.messages.some(
-                        (message) => message.author === 'agent',
-                      ),
-                    ) && (
-                      <span className="-ml-1 grid size-4.5 place-items-center rounded-[--spacing(1)] border bg-card text-foreground">
-                        <BotIcon />
-                      </span>
-                    )}
-                  </span>
-                  {counted(note.threads.length, 'comment')}
-                  {note.threads.some(({ thread }) =>
-                    thread.messages.some(
-                      (message) => message.author === 'agent',
-                    ),
-                  ) && ' · Agent replied'}
-                  <ChevronRightIcon />
-                </Button>
-              );
-            return note.kind === 'composer' ? (
-              composer?.id === item.id && (
-                <InlineComposer
-                  key={JSON.stringify(composer.anchor)}
-                  scope={scope}
-                  context={gitContext}
-                  anchor={composer.anchor}
-                  inputRef={(input) => {
-                    if (!input || !composer.focusRequested) return;
-                    input.focus();
-                    setComposer((current) =>
-                      current === composer
-                        ? { ...current, focusRequested: false }
-                        : current,
-                    );
-                  }}
-                  onClose={closeComposer}
-                />
-              )
-            ) : (
-              <div
-                {...(threadMargin && note.lineNumber > 0
-                  ? { ref: margin.card }
-                  : {})}
-                className={cn(
-                  'm-3 flex flex-col gap-3 font-sans',
-                  threadMargin &&
-                    note.lineNumber > 0 &&
-                    '@5xl/review:absolute @5xl/review:left-full @5xl/review:z-10 @5xl/review:my-0 @5xl/review:mr-0 @5xl/review:ml-7 @5xl/review:w-51',
-                )}
-              >
-                {compactThreads &&
-                  item.type === 'file' &&
-                  expandedThreads.has(`${item.id}:${note.lineNumber}`) && (
-                    <Button
-                      type="button"
-                      aria-expanded={true}
-                      variant="link"
-                      size="sm"
-                      className="self-start"
-                      onClick={() =>
-                        setExpandedThreads(
-                          (current) =>
-                            new Set(
-                              [...current].filter(
-                                (key) =>
-                                  key !== `${item.id}:${note.lineNumber}`,
-                              ),
-                            ),
-                        )
-                      }
-                    >
-                      Collapse comments on line {note.lineNumber}
-                    </Button>
-                  )}
-                {note.threads.map(({ thread, stale }) => (
-                  <div key={thread.id} className="group/margin-thread">
-                    {stale && !thread.review && (
-                      <p className="mb-2 text-xs text-graph-4">
-                        Code changed since this comment
-                      </p>
-                    )}
-                    {stale && thread.review && (
-                      <StateNotice
-                        role="status"
-                        title="Code changed since this comment"
-                        description={`Written on r${thread.review.revision}. Read the original code before acting on this thread.`}
-                      ></StateNotice>
-                    )}
-                    <ThreadCard
-                      scope={scope}
-                      context={gitContext}
-                      thread={thread}
-                      {...(threadMargin &&
-                      note.lineNumber > 0 &&
-                      thread.anchor.kind === 'codeRange'
-                        ? {
-                            location: (
-                              <MarginThreadLocation
-                                anchor={thread.anchor}
-                                onReveal={(control) => {
-                                  const anchor = thread.anchor;
-                                  if (anchor.kind !== 'codeRange') return;
-                                  const side =
-                                    item.type === 'diff'
-                                      ? { side: anchor.side ?? 'additions' }
-                                      : {};
-                                  flushSync(() => {
-                                    setSelection({
-                                      id: item.id,
-                                      range: {
-                                        start: anchor.startLine,
-                                        end: anchor.endLine,
-                                        ...side,
-                                      },
-                                    });
-                                    setFocusedId(item.id);
-                                  });
-                                  revealMarginLine(control);
-                                }}
-                              />
-                            ),
-                          }
-                        : {})}
-                    />
-                  </div>
-                ))}
-              </div>
-            );
+            setSelection(next);
+            if (next) setFocusedId(next.id);
           }}
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
@@ -891,46 +489,14 @@ function CodeSurface({
                 Changed since reviewed
               </span>
             ) : null;
-            const commentName = commentLabel
-              ? `${commentLabel} about ${entry.path}`
-              : `Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`;
-            const commentButton = decision ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label={commentName}
-                onClick={() => openFileComment(entry)}
-              >
-                <MessageSquareIcon />
-                <span className="max-narrow:sr-only">
-                  {commentLabel ?? 'Comment'}
-                </span>
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="xs"
-                aria-label={commentName}
-                onClick={() => openFileComment(entry)}
-              >
-                <MessageSquarePlusIcon />
-                <span className="max-narrow:sr-only">
-                  {commentLabel ?? 'Comment'}
-                </span>
-              </Button>
-            );
-            const comment =
-              entry.comment && !paneFile && !column ? commentButton : null;
             if (column)
               return (
                 <span className="flex items-center gap-1.5">
                   {stale}
-                  {entry.comment && commentButton}
                   <ChangeCounts counts={entryLineCounts(entry)} />
                 </span>
               );
-            if (!stale && !leading && !actions && !comment) return null;
+            if (!stale && !leading && !actions) return null;
             return (
               <div
                 className={cn(
@@ -940,27 +506,12 @@ function CodeSurface({
               >
                 {stale}
                 {leading}
-                {decision ? (
-                  <>
-                    {actions && <ButtonGroup>{actions}</ButtonGroup>}
-                    {comment}
-                  </>
-                ) : (
-                  (actions || comment) && (
-                    <ButtonGroup>
-                      {actions}
-                      {comment}
-                    </ButtonGroup>
-                  )
-                )}
+                {actions && <ButtonGroup>{actions}</ButtonGroup>}
               </div>
             );
           }}
           disableWorkerPool={decision || column || compactThreads || framed}
           options={options}
-          {...(margin.reserve > 0
-            ? { style: { paddingBottom: margin.reserve } }
-            : {})}
           className={cn(
             compactHeight && 'max-h-48 flex-none overflow-auto',
             !compactHeight && fullHeight && 'flex-none overflow-visible',
@@ -1026,18 +577,15 @@ const COLUMN_GUTTERS =
 function CodeShortcuts({
   next,
   previous,
-  comment,
   review,
 }: {
   next: () => void;
   previous: () => void;
-  comment: () => void;
   review: () => void;
 }) {
   const options = { ignoreInputs: true };
   useHotkey(SHORTCUTS.nextFile, next, options);
   useHotkey(SHORTCUTS.previousFile, previous, options);
-  useHotkey(SHORTCUTS.commentOnFile, comment, options);
   useHotkey(SHORTCUTS.toggleReviewed, review, options);
   return null;
 }

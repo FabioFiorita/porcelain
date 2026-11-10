@@ -1,5 +1,5 @@
 import {
-  desktopResponseContentSecurityPolicy,
+  desktopContentSecurityPolicy,
   type DesktopWeb,
 } from './content-security-policy.ts';
 import { desktopAddress, localNavigation } from './navigation.ts';
@@ -57,7 +57,7 @@ export function forwardedRequestHeaders(
 }
 
 export function developmentWebPath(pathname: string): boolean {
-  return !/^\/(?:api|review-summaries)(?:\/|$)/.test(pathname);
+  return !/^\/api(?:\/|$)/.test(pathname);
 }
 
 export function forwardedWebRequestHeaders(headers: Headers): Headers {
@@ -75,13 +75,6 @@ export function forwardedResponseHeaders(
   const forwarded = new Headers(headers);
   for (const name of withheldResponseHeaders) forwarded.delete(name);
   if (!pathname.startsWith('/api/'))
-    forwarded.set(
-      'content-security-policy',
-      desktopResponseContentSecurityPolicy(
-        pathname,
-        forwarded.get('content-security-policy'),
-        web,
-      ),
-    );
+    forwarded.set('content-security-policy', desktopContentSecurityPolicy(web));
   return forwarded;
 }

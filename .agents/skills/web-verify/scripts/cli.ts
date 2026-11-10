@@ -14,7 +14,6 @@ import {
   Usage,
 } from '../../verify-core/cli.ts';
 import {
-  agentCommand,
   issuedLink,
   serverOptions,
   serverRead,
@@ -98,7 +97,7 @@ async function remoteStart(instance: WebInstance): Promise<string> {
     `the second computer did not start within ${remoteReadyMs / 1000} s; read supervisor.log`,
   );
 }
-type ServerSideValues = Parameters<typeof agentCommand>[2] & {
+type ServerSideValues = {
   remote: boolean;
   trusted: boolean;
 };
@@ -118,11 +117,6 @@ async function serverSide(
       .json(label, { command: args, output }, recorder);
     return registry.redactor(instance).known(output);
   };
-  if (name === 'agent')
-    return record(
-      `agent-${rest[0] ?? ''}`,
-      await agentCommand(manifest(), rest, values, recorder),
-    );
   if (name === 'server')
     return record(
       `server-${rest[0] ?? ''}`,

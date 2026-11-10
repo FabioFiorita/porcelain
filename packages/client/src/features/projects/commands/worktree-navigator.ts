@@ -3,11 +3,9 @@ import { Effect, Option } from 'effect';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
 import {
-  readProjectReviews,
-  readReviewPullChecks,
-  readReview,
-} from '../../reviews/queries/project-reviews.ts';
-import { readPublishedReview } from '../../reviews/queries/publication.ts';
+  readProjectPullRequests,
+  readProjectPullChecks,
+} from '../queries/pull-requests.ts';
 import { refreshInventory } from './projects.ts';
 import { readInventory } from '../queries/inventory.ts';
 import {
@@ -132,7 +130,7 @@ export const refreshWorktreeNavigator = Atom.family(
             )
           )
             continue;
-          const projectRead = readProjectReviews({
+          const projectRead = readProjectPullRequests({
             connection: source.connection,
             projectId: source.project.id,
           });
@@ -146,40 +144,19 @@ export const refreshWorktreeNavigator = Atom.family(
             AsyncResult.value(get(projectRead)),
           );
           get.refresh(projectRead);
-          for (const record of records ?? []) {
-            if (record.pullRequest)
-              get.refresh(
-                readReviewPullChecks({
-                  connection: source.connection,
-                  reviewId: record.reviewId,
-                }),
-              );
-            if (record.state !== 'open' || record.archived) continue;
-            if (
-              !source.project.worktrees.some(
-                (worktree) =>
-                  (worktree.branch ?? 'Detached HEAD') === record.branch,
-              )
-            )
-              continue;
+          for (const pull of records?.kind === 'available'
+            ? records.pullRequests
+            : []) {
             get.refresh(
-              readReview({
+              readProjectPullChecks({
                 connection: source.connection,
-                reviewId: record.reviewId,
+                projectId: source.project.id,
+                number: pull.number,
               }),
             );
           }
           for (const worktree of source.project.worktrees) {
             if (source.project.available && worktree.available) {
-              get.refresh(
-                readPublishedReview({
-                  connection: source.connection,
-                  scope: {
-                    projectId: source.project.id,
-                    worktreeId: worktree.id,
-                  },
-                }),
-              );
               get.refresh(
                 readGitStatus({
                   connection: source.connection,

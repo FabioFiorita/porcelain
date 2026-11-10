@@ -62,11 +62,13 @@ import {
   paneTabActions,
 } from '../adapters/tab-layout';
 import { useReviewPanelOpen, useTabLayoutStore } from '../store';
+import {} from '@porcelain/client/changes/rules';
 import {
-  anchorBase,
-  type RevealComment,
-} from '@porcelain/client/reviews/rules';
-import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
+  entryKey,
+  type DocumentFileTarget,
+  type OpenDocument,
+  parseEntry,
+} from '../rules/documents';
 import { openToSideText } from '../rules/tab-strip';
 
 import { DocumentTabs } from './document-tabs';
@@ -196,10 +198,10 @@ export function ReviewWorkspace({
     { ignoreInputs: true },
   );
 
-  const [reveal, setReveal] = useState<
-    (RevealComment & { pane: PaneIndex; key: string }) | undefined
+  const [fileTarget, setFileTarget] = useState<
+    (DocumentFileTarget & { pane: PaneIndex; key: string }) | undefined
   >();
-  const open: OpenDocument = (ref, anchor, options) => {
+  const open: OpenDocument = (ref, options) => {
     const key = entryKey(ref);
     const otherPane: PaneIndex = focusedPane === 0 ? 1 : 0;
     const pane = options?.toSide
@@ -209,22 +211,12 @@ export function ReviewWorkspace({
           key,
           options?.preserveFocus === true && desktop,
         );
-    setReveal(
-      anchor
-        ? {
-            anchor,
-            nonce: Date.now(),
-            pane,
-            key,
-            ...(options?.compose ? { compose: true } : {}),
-          }
+    setFileTarget(
+      options?.path
+        ? { path: options.path, nonce: Date.now(), pane, key }
         : undefined,
     );
-    const base = anchor ? anchorBase(anchor) : undefined;
-    if (options?.toSide) {
-      layout.openToSide(focusedPane, key);
-      if (base !== undefined) onSearch({ base });
-    } else if (base !== undefined) onSearch({ base });
+    if (options?.toSide) layout.openToSide(focusedPane, key);
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
@@ -344,7 +336,7 @@ export function ReviewWorkspace({
                 walkthroughCode={walkthroughCode}
                 firstDocument={firstDocument}
                 changesNavigation={changesNavigation}
-                reveal={reveal}
+                fileTarget={fileTarget}
                 scope={scope}
                 context={context}
                 overview={overview}
@@ -446,7 +438,9 @@ type PaneContext = ReviewContentProps & {
     surface: 'changes' | 'files' | 'history',
     trigger: HTMLButtonElement,
   ) => void;
-  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
+  fileTarget?:
+    | (DocumentFileTarget & { pane: PaneIndex; key: string })
+    | undefined;
   navigationTrigger: ElementTarget<HTMLButtonElement>;
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
@@ -482,7 +476,7 @@ function DocumentPanes({
   walkthroughCode,
   firstDocument,
   layout,
-  reveal,
+  fileTarget,
   scope,
   context,
   base,
@@ -529,7 +523,7 @@ function DocumentPanes({
     changesNavigation,
     walkthroughCode,
     firstDocument,
-    reveal,
+    fileTarget,
     index,
     changeCount:
       Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0,
@@ -589,7 +583,7 @@ function PaneView({
   walkthrough,
   walkthroughCode,
   firstDocument,
-  reveal,
+  fileTarget,
   index,
   layout,
   split,
@@ -776,11 +770,11 @@ function PaneView({
                   onBrowse={onBrowse}
                   active={showing && focused && !pending}
                   toolbarTarget={showing && !pending ? toolbarTarget : null}
-                  reveal={
+                  fileTarget={
                     showing &&
-                    reveal?.pane === index &&
-                    reveal.key === shownEntry
-                      ? reveal
+                    fileTarget?.pane === index &&
+                    fileTarget.key === shownEntry
+                      ? fileTarget
                       : undefined
                   }
                 />

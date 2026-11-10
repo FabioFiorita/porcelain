@@ -18,7 +18,7 @@ import {
   type SetReviewedFileRequest,
   type SetReviewedFilesRequest,
   type SetReviewedFilesResponse,
-} from '@porcelain/contracts/reviews';
+} from '@porcelain/contracts/changes';
 import { type WorktreeParams } from '@porcelain/contracts/shared';
 import { SetReviewedFilesService } from '@porcelain/reviews/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';

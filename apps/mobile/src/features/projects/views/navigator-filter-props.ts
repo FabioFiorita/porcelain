@@ -1,14 +1,4 @@
-import type {
-  NavigatorFilter,
-  NavigatorFilterSection,
-} from '@porcelain/client/projects/rules';
-
-export type NavigatorFilterProps = {
-  view: 'worktrees' | 'reviews';
-  sections: readonly NavigatorFilterSection[];
-  filter: NavigatorFilter;
-  onChange: (filter: NavigatorFilter) => void;
-};
+import type { NavigatorFilterSection } from '@porcelain/client/projects/rules';
 
 export type NavigatorScopePickerProps = {
   section: NavigatorFilterSection;
