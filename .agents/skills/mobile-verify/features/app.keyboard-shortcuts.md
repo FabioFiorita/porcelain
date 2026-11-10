@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md) on an iPad simulator in landscape, 
 
 1. Worktrees tab root: hold ⌘ for about a second. Expect the system overlay with Go (Settings, Keyboard Shortcuts) and List (Next Row, Previous Row, Search, Next List when the detail shows a list). Screenshot it.
 2. Press ↓ three times, then ↑: one worktree row shows the highlight and it moves with each press; Return opens that worktree beside the list. J and K do the same.
-3. ⌘2: the worktree page shows Files. Tab: the highlight moves into the file tree. ↓ to a closed folder, →: it opens; → again highlights its first child; ←: the highlight returns to the folder; ← again closes it. Return on a file opens it pushed full width.
+3. ⌘2: the worktree page shows Files. Tab: the highlight moves into the file tree. ↓ to a closed folder, →: it opens; → again highlights its first child; ←: the highlight returns to the folder; ← again closes it. Return on a file opens it beside the tree on a wide tablet and pushed on a narrow one.
 4. On the open file: ⌘⇧T opens Timeline; ⌘[ returns; on a Markdown file ⌘⇧S switches Show source and Show rendered; Esc returns to the worktree page.
 5. ⌘1 and ⌘3 choose Changes and History; hold ⌘ to see the Worktree group.
 6. ⌘F: the active list's search field takes focus. Type a letter: it appears in the field and does not move the highlight. ⌘F again keeps focus; Esc clears or leaves the search as UIKit does, and the shortcuts return when editing ends.
