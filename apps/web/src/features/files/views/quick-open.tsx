@@ -54,10 +54,9 @@ function QuickOpen({ scope, connection, openFiles, onOpen, bindPopup }: Props) {
     quickOpenOperations,
   );
   const preferences = useFilePreferencesRead(connection, scope.projectId);
-  const visibility =
-    AsyncResult.isSuccess(preferences.result) && !preferences.result.waiting
-      ? preferences.result.value
-      : undefined;
+  const visibility = Option.getOrUndefined(
+    AsyncResult.value(preferences.result),
+  );
   const hidden = new Set(
     visibility?.preferences
       .filter((preference) => preference.hidden)

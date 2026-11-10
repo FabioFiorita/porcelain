@@ -32,6 +32,7 @@ import {
 } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { WorkspaceReview as ReviewWorkspace } from '@/app/workspace-review';
+import { setFilePreference } from '@porcelain/client/projects';
 import type { RemoteConnection } from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
@@ -61,6 +62,8 @@ export { replaceEditorContent } from './commands.ts';
 export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
 export type Render = {
+  whenLiveConnected: () => Promise<void>;
+  pinFile: (projectId: string, path: string) => Promise<void>;
   preferences: () => Promise<typeof page>;
   workspace: () => Promise<typeof page>;
   selection: () => Promise<typeof page>;
@@ -257,6 +260,23 @@ async function mount(
   );
   return {
     router,
+    pinFile: (projectId: string, path: string) => {
+      if (!connection)
+        throw new Error('File preferences need a paired session.');
+      const atom = setFilePreference({ connection, projectId });
+      const dispose = registry.mount(atom);
+      registry.set(atom, {
+        path,
+        flag: 'pinned',
+        value: true,
+      });
+      return connection.runtime
+        .runPromise(
+          AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+        )
+        .then(() => undefined)
+        .finally(dispose);
+    },
     unmount: async () => {
       watching = false;
       root.unmount();
@@ -440,6 +460,7 @@ export const test = base
   .extend('render', async ({ world: _world }, { onCleanup }) => {
     let unmount: (() => Promise<void>) | undefined;
     const subscriptions = new Set<() => void>();
+    let pinFile: Render['pinFile'] | undefined;
     onCleanup(async () => {
       for (const unsubscribe of subscriptions) unsubscribe();
       await unmount?.();
@@ -449,8 +470,20 @@ export const test = base
         throw new Error('A test renders one feature once.');
       const mounted = await mount(view);
       unmount = mounted.unmount;
+      pinFile = mounted.pinFile;
     };
     const render: Render = {
+      async whenLiveConnected() {
+        await expect
+          .poll(
+            () => accessSession.state.value.connection?.liveUpdates.state.value,
+          )
+          .toBe('connected');
+      },
+      pinFile(projectId, path) {
+        if (!pinFile) throw new Error('Render a paired surface first.');
+        return pinFile(projectId, path);
+      },
       async preferences() {
         await show(() => <Preferences />);
         return page;
@@ -467,6 +500,7 @@ export const test = base
           unpaired: options?.unpaired === true,
         });
         unmount = mounted.unmount;
+        pinFile = mounted.pinFile;
         await mounted.router.load();
         return {
           page,

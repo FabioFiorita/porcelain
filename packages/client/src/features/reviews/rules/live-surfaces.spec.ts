@@ -19,20 +19,44 @@ describe('noticeSurfaces', () => {
 });
 
 describe('walkthrough notices', () => {
-  it.each(['run', 'conversations'] as const)(
-    'refreshes the walkthrough conversations after a %s notice',
-    (change) => {
-      expect(noticeSurfaces({ type: 'walkthrough', change, ...scope })).toEqual(
-        { scope, surfaces: new Set(['walkthrough-conversations']) },
-      );
-    },
-  );
+  it('refreshes the walkthrough and its conversations when its run changed', () => {
+    expect(
+      noticeSurfaces({ type: 'walkthrough', change: 'run', ...scope }),
+    ).toEqual({
+      scope,
+      surfaces: new Set(['walkthrough', 'walkthrough-conversations']),
+    });
+  });
+
+  it('refreshes only the conversations when a comment changed', () => {
+    expect(
+      noticeSurfaces({
+        type: 'walkthrough',
+        change: 'conversations',
+        ...scope,
+      }),
+    ).toEqual({ scope, surfaces: new Set(['walkthrough-conversations']) });
+  });
+
+  it('rechecks whether the walkthrough is out of date when the branch moved', () => {
+    expect(
+      noticeSurfaces({
+        type: 'worktree',
+        projectId,
+        worktreeId,
+        change: 'git',
+      })?.surfaces,
+    ).toContain('walkthrough');
+  });
 });
 
 describe('receiptSurfaces', () => {
-  it('refreshes the published review and its layer marks after a commit', () => {
+  it('refreshes the published review, its layer marks and the walkthrough after a commit', () => {
     expect(
       receiptSurfaces({ action: 'commit', projectId, worktreeId }),
-    ).toEqual({ scope, surfaces: new Set(['review', 'reviewed-layers']) });
+    ).toEqual({
+      scope,
+      surfaces: new Set(['review', 'reviewed-layers', 'walkthrough']),
+    });
   });
 });

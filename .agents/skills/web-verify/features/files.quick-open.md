@@ -74,6 +74,7 @@ Automated coverage: `files-quick-open.test.tsx`.
 
 - `Mod+P` belongs to the worktree document workspace. Verify it with the Files panel closed too.
 - Write setup files before loading the workspace. Name results exclude Git-ignored paths; an explicit path is an intentional direct open, not a broader search.
+- Once visibility has loaded, a preferences refresh keeps the visible results mounted and reuses the file-name read. Check this with quick open left open while a second tab changes a file pin or hidden preference.
 - While the list loads the dialog shows "Reading file names…". Wait for options before filling.
 - Matches ignore case and surrounding whitespace. Exact basenames rank first, followed by basename prefixes, basename contains, then path contains. Shorter paths win ties, followed by deterministic path order. The 50-result limit applies after ranking. Rows show the basename first and the parent folder dimmed.
 

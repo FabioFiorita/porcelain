@@ -1,5 +1,5 @@
 import type { ComponentProps, ComponentType } from 'react';
-import type { DocumentProps } from './documents';
+import type { DocumentProps, StepDocumentProps } from './documents';
 import type { ReviewIndexProps } from './review-index';
 import type { TabCount } from '../rules/tab-strip';
 import { StateSkeleton } from '@/shared/views/state-notice';
@@ -83,12 +83,20 @@ import { FilesQuickOpen } from '@/features/files/index';
 
 type Worktree = Project['worktrees'][number];
 
+export type FirstDocument = {
+  title: ReviewTitle | undefined;
+  pending: boolean;
+  guided: boolean;
+};
+
 type ReviewContentProps = {
   handoff: ComponentType<DocumentProps>;
   reviewFile: ComponentProps<typeof DocumentView>['reviewFile'];
   agentNote: DocumentProps['agentNote'];
   changesNavigation: ComponentType<ReviewIndexProps>;
   firstTabCount: TabCount | undefined;
+  stepDocument: ComponentType<StepDocumentProps>;
+  firstDocument: FirstDocument;
 };
 
 export type ReviewWorkspaceProps = {
@@ -112,6 +120,8 @@ export function ReviewWorkspace({
   agentNote,
   changesNavigation,
   firstTabCount,
+  stepDocument,
+  firstDocument,
 }: ReviewWorkspaceProps) {
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -132,7 +142,8 @@ export function ReviewWorkspace({
     open: navigatorOpen,
     openMobile: navigatorOpenMobile,
   } = useSidebar();
-  const surface = search.surface ?? 'files';
+  const surface =
+    search.surface ?? (firstDocument.guided ? 'changes' : 'files');
   const scope = { projectId, worktreeId: worktree.id };
   const {
     saved,
@@ -141,14 +152,19 @@ export function ReviewWorkspace({
   } = useTabLayoutStore(worktree.id);
   const overview = useReviewOverview(scope, context.connection);
   const published = usePublishedReview(scope, context);
+  const shownReview =
+    firstDocument.title === 'Walkthrough' ? undefined : published.review;
   const awaitingChanges = Option.isNone(AsyncResult.value(overview));
   const awaitingPublication = Option.isNone(
     AsyncResult.value(published.result),
   );
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
-  const ready = !needsDefault || (!awaitingChanges && !awaitingPublication);
+  const ready =
+    !needsDefault ||
+    (!awaitingChanges && !awaitingPublication && !firstDocument.pending);
   const defaultEntry =
+    firstDocument.title === 'Walkthrough' ||
     Boolean(published.review) ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0
@@ -238,15 +254,18 @@ export function ReviewWorkspace({
     showSurface(next);
   };
   const changes: PaneContext['changes'] = {
-    scope: search.scope ?? 'uncommitted',
+    scope: search.scope ?? (firstDocument.guided ? 'branch' : 'uncommitted'),
     onScope: (next) =>
-      onSearch({ scope: next === 'branch' ? next : undefined }),
+      onSearch({
+        scope: firstDocument.guided || next === 'branch' ? next : undefined,
+      }),
     onBase: (next) => onSearch({ base: next }),
   };
   const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
   const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
       changesNavigation={changesNavigation}
+      guided={firstDocument.title === 'Walkthrough'}
       layout={layout}
       scope={scope}
       context={context}
@@ -327,6 +346,8 @@ export function ReviewWorkspace({
                 reviewFile={reviewFile}
                 agentNote={agentNote}
                 firstTabCount={firstTabCount}
+                stepDocument={stepDocument}
+                firstDocument={firstDocument}
                 changesNavigation={changesNavigation}
                 reveal={reveal}
                 scope={scope}
@@ -368,8 +389,8 @@ export function ReviewWorkspace({
         {desktop && (
           <SideRail
             surfaces={SURFACES}
-            names={surfaceNames(published.review)}
-            published={Boolean(published.review)}
+            names={surfaceNames(shownReview)}
+            published={Boolean(shownReview)}
             surface={surface}
             open={panelOpen}
             onSelect={showSurface}
@@ -464,7 +485,10 @@ function DocumentArea(props: DocumentAreaProps) {
     AsyncResult.isFailure(props.published.result)
   )
     throw Cause.squash(props.published.result.cause);
-  if (props.needsDefault && (awaitingChanges || awaitingPublication)) {
+  if (
+    props.needsDefault &&
+    (awaitingChanges || awaitingPublication || props.firstDocument.pending)
+  ) {
     return <StateSkeleton label="Loading review" />;
   }
   return <DocumentPanes {...props} />;
@@ -476,6 +500,8 @@ function DocumentPanes({
   agentNote,
   changesNavigation,
   firstTabCount,
+  stepDocument,
+  firstDocument,
   published,
   layout,
   reveal,
@@ -526,6 +552,8 @@ function DocumentPanes({
     agentNote,
     changesNavigation,
     firstTabCount,
+    stepDocument,
+    firstDocument,
     reveal,
     index,
     layout,
@@ -533,8 +561,11 @@ function DocumentPanes({
     focused: focused === index,
     scope,
     context,
-    reviewTitle: publishedReviewTitle(published.review),
-    review: published.review ?? undefined,
+    reviewTitle: firstDocument.title ?? publishedReviewTitle(published.review),
+    review:
+      firstDocument.title === 'Walkthrough'
+        ? undefined
+        : (published.review ?? undefined),
     base,
     changes,
     onOpen,
@@ -586,6 +617,8 @@ function PaneView({
   reviewFile,
   agentNote,
   firstTabCount,
+  stepDocument,
+  firstDocument,
   reveal,
   index,
   layout,
@@ -697,30 +730,34 @@ function PaneView({
               aria-label="Document controls"
               className="flex items-center gap-1"
             >
-              {activeDocument?.kind === 'handoff' && !review && (
-                <ChangeScopeSwitch
-                  value={changes.scope}
-                  onValueChange={changes.onScope}
-                />
-              )}
+              {activeDocument?.kind === 'handoff' &&
+                !review &&
+                reviewTitle !== 'Walkthrough' && (
+                  <ChangeScopeSwitch
+                    value={changes.scope}
+                    onValueChange={changes.onScope}
+                  />
+                )}
               {(activeDocument?.kind === 'branch' ||
                 (activeDocument?.kind === 'handoff' &&
                   !review &&
-                  changes.scope === 'branch')) && (
-                <BranchBasePicker
-                  scope={scope}
-                  connection={context.connection}
-                  base={base}
-                  onBase={changes.onBase}
-                  compact
-                />
-              )}
+                  reviewTitle !== 'Walkthrough' &&
+                  changes.scope === 'branch')) &&
+                !firstDocument.guided && (
+                  <BranchBasePicker
+                    scope={scope}
+                    connection={context.connection}
+                    base={base}
+                    onBase={changes.onBase}
+                    compact
+                  />
+                )}
             </div>
             {(!split || index === 1) && tabControls(index)}
           </>
         }
       />
-      {activeDocument?.kind === 'branch-file' && (
+      {activeDocument?.kind === 'branch-file' && !firstDocument.guided && (
         <div
           role="group"
           aria-label="Branch comparison"
@@ -746,7 +783,10 @@ function PaneView({
           if (!ref) return null;
           const showing = key === shownEntry;
           const shownDocument =
-            ref.kind === 'handoff' && !review && changes.scope === 'branch'
+            ref.kind === 'handoff' &&
+            !review &&
+            reviewTitle !== 'Walkthrough' &&
+            changes.scope === 'branch'
               ? ({ kind: 'branch' } as const)
               : ref;
           return (
@@ -769,6 +809,9 @@ function PaneView({
                   handoff={handoff}
                   reviewFile={reviewFile}
                   agentNote={agentNote}
+                  stepDocument={stepDocument}
+                  changeScope={changes.scope}
+                  singleHeader={firstDocument.guided}
                   scope={scope}
                   context={context}
                   document={shownDocument}

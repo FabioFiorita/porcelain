@@ -5,6 +5,7 @@ import {
   readReviewGitSettingsResponseSchema,
   readServiceUpdateResponseSchema,
 } from '@porcelain/contracts/access';
+import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import {
   listCommitsResponseSchema,
   readBranchChangesResponseSchema,
@@ -166,6 +167,8 @@ export function serverReaders(transport: ServerTransport) {
         listReviewedLayersResponseSchema,
         await worktreePath('/reviewed-layers'),
       ),
+    walkthrough: async () =>
+      read(readWalkthroughResponseSchema, await worktreePath('/walkthrough')),
     publishedReview: async () =>
       read(readPublishedReviewResponseSchema, await worktreePath('/review')),
     commentThreads: async () =>

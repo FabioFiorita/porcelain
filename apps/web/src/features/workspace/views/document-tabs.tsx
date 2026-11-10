@@ -77,6 +77,12 @@ function describeTab(
         hint: count ? `${title} · ${count.description}` : title,
       };
     }
+    case 'walkthrough-step':
+      return {
+        Icon: FileDiffIcon,
+        title: `Step ${ref.step}`,
+        hint: `Changes in step ${ref.step}`,
+      };
     case 'all-changes':
       return {
         Icon: FileDiffIcon,

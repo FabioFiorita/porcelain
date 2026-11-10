@@ -42,8 +42,13 @@ import {
 } from '@/features/projects/index';
 import { type Inventory } from '@porcelain/client/projects/rules';
 import { WorkspaceReview } from './workspace-review';
-import { entryKey, workspaceTitle } from '@/features/workspace/index';
+import {
+  entryKey,
+  firstDocumentTitle,
+  workspaceTitle,
+} from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
+import { useAtomValue } from '@effect/atom-react';
 import {
   useOpenProjectOnThisComputer,
   worktreeLocation,
@@ -147,9 +152,13 @@ export function ConnectedWorkspace({
     projectId: review.selection.projectId,
     worktreeId: review.selection.worktree.id,
   };
+  const firstTitle = useAtomValue(
+    firstDocumentTitle(review?.selection.worktree.id ?? ''),
+  );
   useDocumentTitle(
     review
       ? workspaceTitle({
+          firstDocument: firstTitle,
           entry: review.search.entry,
           surface: review.search.surface,
           project: review.inventory.projects.find(

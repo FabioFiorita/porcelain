@@ -50,7 +50,18 @@ type Props = {
   onOpen: OpenDocument;
 };
 
-export function BranchDocument(props: Props) {
+export type DocumentHeading = {
+  title: ReactNode;
+  titleLabel: string;
+  after?: ReactNode;
+};
+
+export function BranchDocument(
+  props: Props & {
+    only?: readonly string[] | undefined;
+    heading?: DocumentHeading | undefined;
+  },
+) {
   return <BranchCode {...props} path={undefined} />;
 }
 
@@ -67,8 +78,14 @@ function BranchCode({
   interaction,
   base,
   path,
+  only,
+  heading,
   onOpen,
-}: Props & { path: string | undefined }) {
+}: Props & {
+  path: string | undefined;
+  only?: readonly string[] | undefined;
+  heading?: DocumentHeading | undefined;
+}) {
   return (
     <BranchState scope={scope} context={context} base={base}>
       {(branch) => (
@@ -79,6 +96,8 @@ function BranchCode({
           onOpen={onOpen}
           branch={branch}
           path={path}
+          only={only}
+          heading={heading}
         />
       )}
     </BranchState>
@@ -91,8 +110,12 @@ function BranchMarkedCode({
   interaction,
   branch,
   path,
+  only,
+  heading,
   onOpen,
 }: {
+  only?: readonly string[] | undefined;
+  heading?: DocumentHeading | undefined;
   onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -105,11 +128,18 @@ function BranchMarkedCode({
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
   if (branch.base === null || branch.base === undefined) return null;
-  const items = mergeBranchChanges(
-    branch.files,
-    marks,
-    path === null || path === undefined ? undefined : [path],
-  );
+  const selected = () => {
+    if (only)
+      return branch.files
+        .filter(
+          (file) =>
+            only.includes(file.path) ||
+            (file.oldPath !== undefined && only.includes(file.oldPath)),
+        )
+        .map((file) => file.path);
+    return path === null || path === undefined ? undefined : [path];
+  };
+  const items = mergeBranchChanges(branch.files, marks, selected());
   if (path !== null && path !== undefined && items.length === 0)
     return (
       <StateNotice
@@ -126,6 +156,7 @@ function BranchMarkedCode({
       range={range}
       items={items}
       single={path !== null && path !== undefined}
+      heading={heading}
       branch={{
         base: branch.base.ref,
         head: branch.head,
@@ -144,9 +175,11 @@ function BranchDiffs({
   range,
   items,
   single,
+  heading,
   branch,
   onOpen,
 }: {
+  heading?: DocumentHeading | undefined;
   onOpen: OpenDocument;
   scope: ReviewScope;
   context: ConnectionContext;
@@ -249,6 +282,7 @@ function BranchDiffs({
   const more = items.length - reached.length;
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
+  const singleHeader = interaction.singleHeader || heading !== undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -271,17 +305,33 @@ function BranchDiffs({
           ? { commentRequest: interaction.reveal.nonce }
           : {})}
         entries={entries}
-        toolbar={(collapseControl) =>
-          single && first ? (
-            <DocumentToolbar
-              target={interaction.toolbarTarget}
-              barActions={null}
-              title={basename(first.path)}
-              subtitle={`${first.path} · on the branch`}
-            >
-              {control(first, false)}
-            </DocumentToolbar>
-          ) : (
+        toolbar={(collapseControl) => {
+          if (single && first && singleHeader) return null;
+          if (single && first)
+            return (
+              <DocumentToolbar
+                target={interaction.toolbarTarget}
+                barActions={null}
+                title={basename(first.path)}
+                subtitle={`${first.path} · on the branch`}
+              >
+                {control(first, false)}
+              </DocumentToolbar>
+            );
+          if (singleHeader)
+            return (
+              <DocumentToolbar
+                inline
+                {...(heading
+                  ? { title: heading.title, titleLabel: heading.titleLabel }
+                  : { title: 'All changes' })}
+                subtitle={counted(items.length, 'file')}
+              >
+                {collapseControl}
+                {heading?.after}
+              </DocumentToolbar>
+            );
+          return (
             <DocumentToolbar
               target={interaction.toolbarTarget}
               barActions={null}
@@ -296,12 +346,13 @@ function BranchDiffs({
                 range={range}
               />
             </DocumentToolbar>
-          )
-        }
+          );
+        }}
         header={() => (
           <BranchHeader
             branch={branch}
             single={single}
+            singleHeader={singleHeader}
             uncommitted={uncommitted}
             omitted={omitted}
             patchOf={patchOf}
@@ -323,6 +374,7 @@ function BranchDiffs({
 function BranchHeader({
   branch,
   single,
+  singleHeader,
   uncommitted,
   omitted,
   patchOf,
@@ -337,6 +389,7 @@ function BranchHeader({
     commits: number;
   };
   single: boolean;
+  singleHeader: boolean;
   uncommitted: number;
   omitted: readonly BranchChangeItem[];
   patchOf: (file: BranchFile) => DiffContent | undefined;
@@ -348,9 +401,10 @@ function BranchHeader({
     branch.head.branch === null || branch.head.branch === undefined
       ? 'This commit'
       : refLabel(branch.head.branch);
+  if (singleHeader && !failed && omitted.length === 0) return null;
   return (
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
-      {!single && (
+      {!single && !singleHeader && (
         <>
           <h2 className="text-sm font-semibold">
             {head} since {refLabel(branch.base)}
@@ -366,7 +420,7 @@ function BranchHeader({
           </div>
         </>
       )}
-      {uncommitted > 0 && (
+      {uncommitted > 0 && !singleHeader && (
         <p className="mt-1 text-2xs text-muted-foreground">
           Uncommitted changes are not part of the branch review. Review them
           under Uncommitted.

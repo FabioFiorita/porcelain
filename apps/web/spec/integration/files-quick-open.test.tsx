@@ -140,6 +140,7 @@ test('quick open reads names only when opened, waits for visibility and reuses i
   const held = fetchGate.holdNextFilePreferences();
   held.arm();
   const page = await render.workspace();
+  await render.whenLiveConnected();
   await expect
     .element(page.getByRole('dialog', { name: 'Worktree review', exact: true }))
     .not.toBeInTheDocument();
@@ -178,6 +179,46 @@ test('quick open reads names only when opened, waits for visibility and reuses i
     await expect
       .element(page.getByRole('tab', { name: target, exact: true }))
       .toHaveAttribute('aria-selected', 'true');
+  } finally {
+    held.release();
+  }
+});
+
+test('a preferences refresh keeps quick open results mounted without reading names again', async ({
+  render,
+  repo,
+  server,
+  fetchGate,
+}) => {
+  await repo.write(target, '# Quick target\n');
+  const project = await server.project();
+  const reads = fetchGate.recordFileLookupReads();
+  const held = fetchGate.holdNextFilePreferences();
+  const page = await render.workspace();
+  await render.whenLiveConnected();
+  await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
+  const search = page.getByRole('combobox', {
+    name: 'Find a file by name',
+    exact: true,
+  });
+  await search.fill('quick');
+  const option = page.getByRole('option', { name: target, exact: true });
+  await expect.element(option).toBeVisible();
+  await expect.poll(() => reads.paths).toHaveLength(1);
+  held.arm();
+  try {
+    await render.pinFile(project.id, target);
+    await held.requested;
+    await expect.element(option).toBeVisible();
+    await expect.poll(() => reads.paths).toHaveLength(1);
+    await expect
+      .element(page.getByText('Reading file visibility…', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await held.finished;
+    await search.fill('quick-target');
+    await expect.element(option).toBeVisible();
+    await expect.poll(() => reads.paths).toHaveLength(1);
   } finally {
     held.release();
   }

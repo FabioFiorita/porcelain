@@ -11,7 +11,9 @@ export function DocumentToolbar({
   subtitle,
   children,
   className,
+  inline = false,
 }: {
+  inline?: boolean;
   target?: HTMLElement | null | undefined;
   barActions?: ReactNode;
   subtitle?: string;
@@ -21,6 +23,29 @@ export function DocumentToolbar({
   | { title: string; titleLabel?: string }
   | { title: ReactNode; titleLabel: string }
 )) {
+  if (inline)
+    return (
+      <header
+        data-testid="document-toolbar"
+        className="flex min-h-11 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-1.5"
+      >
+        <div className="flex min-w-0 flex-1 basis-64 items-baseline gap-2">
+          <TruncatedText
+            text={titleLabel ?? (typeof title === 'string' ? title : '')}
+            render={<h1 />}
+            className="min-w-0 text-ui font-semibold"
+          >
+            {title}
+          </TruncatedText>
+          {subtitle && (
+            <span className="shrink-0 text-caption text-muted-foreground">
+              {subtitle}
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{children}</div>
+      </header>
+    );
   if (target !== undefined)
     return (
       <>
