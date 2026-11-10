@@ -33,7 +33,7 @@ Preconditions: [surface baseline](README.md) on an iPad simulator in landscape, 
 4. On the open file: ⌘⇧T opens Timeline; ⌘[ returns; on a Markdown file ⌘⇧S switches Show source and Show rendered; Esc returns to the worktree page.
 5. ⌘1 and ⌘3 choose Changes and History; hold ⌘ to see the Worktree group.
 6. ⌘F: the active list's search field takes focus. Type a letter: it appears in the field and does not move the highlight. ⌘F again keeps focus; Esc clears or leaves the search as UIKit does, and the shortcuts return when editing ends.
-7. ⌘,: Settings opens. Open General, Esc: back to Settings; Esc again or ⌘W closes Settings.
+7. ⌘,: Settings opens. Open General, Esc: back to Settings; Esc again or ⌘W closes Settings. With Pair a computer open inside Settings, ⌘W closes that sheet first and Settings on the next press. In a worktree list taller than the screen, ↓ and ↑ keep the highlighted row in view.
 8. ⌘/: Keyboard Shortcuts (`keyboard-shortcuts`) opens as a sheet with Go, Worktree, List and Document; Back lists ⌘[ and Esc on one row. ⌘W closes it. Settings → Keyboard Shortcuts (`settings-keyboard-shortcuts`) opens the same sheet.
 9. Portrait and iPhone: steps 2, 4 and 7 behave the same with the worktree page pushed instead of beside the list.
 10. Android tablet: the app starts and behaves as before; Settings has no Keyboard Shortcuts row.
@@ -46,5 +46,5 @@ Automated coverage: the named rule tests prove the catalog has one combination p
 - A tool that injects HID keys into the simulator (for example `axe key-combo --modifiers 227 --key 56 --udid <udid>` for ⌘/) presses shortcuts without the Simulator window or the Mac's keyboard focus; it cannot hold ⌘ for the overlay.
 - Without Send Keyboard Shortcuts to Device the Simulator keeps ⌘1–⌘3, ⌘, and ⌘W for its own window menu.
 - The shortcuts live in the main menu (`UIMainMenuSystem`), so they work whatever holds focus; a doubled shortcut is logged as an error and neither owner fires.
-- The history list has no highlight yet; it is the next list to wire through the same `useListCursor`. The worktree list highlights without scrolling the row into view.
+- The history list has no highlight yet; it is the next list to wire through the same `useListCursor`.
 - Space does not page code, diffs or Markdown through Porcelain; check whether the native scroll views already page with Space before adding it.
