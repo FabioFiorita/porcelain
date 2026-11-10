@@ -35,7 +35,7 @@ Preconditions: [surface baseline](README.md).
 4. For a review linked to a PR, `worktree-pull-request` reads Pull request #n and opens the [PR document](reviews.pull-request.md); without a link it is absent.
 5. Back returns to Worktrees with its search, filters and expansion. Tap another worktree: the page and every section follow the new selection.
 6. With a worktree page open, select another worktree from the Reviews tab and return: Another worktree is selected offers Select this worktree, which restores the page.
-7. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list and rotating keeps the section and its state. Check long names and larger text.
+7. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list and rotating keeps the section and its state. Opening a file in Files folds the list (Show worktrees brings it back); see [Files](files.files.md) step 10. Check long names and larger text.
 
 Automated coverage: `workspace-selection.spec.ts`, `worktree-section.spec.ts`.
 

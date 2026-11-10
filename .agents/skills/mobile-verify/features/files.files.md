@@ -25,6 +25,8 @@ selectors:
   - 'Unpin file'
   - 'Hide folder'
   - 'Show hidden'
+  - 'Select a file'
+  - 'Show worktrees'
   - 'Pinned'
   - 'All files'
   - 'Reading file review status…'
@@ -58,7 +60,7 @@ Files browses and searches the selected worktree, manages entries and preference
 ## How to get to it (user POV)
 
 - Worktrees tab → worktree → Files in the [Worktree](projects.worktree.md) page's segmented control, or `porcelain.dev://files` for the selected worktree.
-- Top bar + (Create file or folder) on the right; hold a row for file/folder actions. Search files is the native search field in the top bar; on a tablet beside the worktree list, where that field belongs to the list, it sits at the top of the Files column.
+- Top bar + (Create file or folder) on the right; hold a row for file/folder actions. Search files is the native search field in the top bar; on a tablet beside the worktree list, where that field belongs to the list, it sits at the top of the Files column. On such a tablet a chosen file opens to the right of the tree instead of pushing; while one is open, Create file or folder joins the file's actions in the top bar.
 
 ## Driving it with agent-device
 
@@ -73,10 +75,11 @@ Preconditions: [surface baseline](README.md).
 7. Mark/unmark through Review, then update marks independently while Files stays visible. Mutate reviewed contents: Changed since review. Switch comparison/worktree, reconnect/relaunch: labels agree with independent reads. Pending/unavailable review reads keep navigation, show Reading file review status… or File review status is unavailable. plus Read file review status again, and retain no Reviewed labels.
 8. Scroll a deep tree, open a long plain code file, scroll down, return, then reopen it: query, expansion, selected file and tree offset remain, and the reader returns to its reading line. Go back to Worktrees, open another worktree's Files, then return to the first: each workspace retains its own place. While another screen or tab is active, directory/file subscriptions belong only to the visible Files owners. Plain file contents have no Reviewed control; diff review controls remain. Repeat on tablets in landscape and portrait with larger system text; changes to iOS text scaling also need larger Dynamic Type proof.
 9. Enter `.env` or a known nested relative path in Search files and use Open path (or submit the field), including an ignored file absent from indexed results. The explicit helper opens directly without requiring a parent listing and respects hidden preferences until Show hidden. Fail its parent read and repeat; the server still guards invalid/missing paths. Search or pin a known text/image path inside a folder with more than 2,000 visible entries. Open it before expanding its parent; the reader still opens when browsing that folder is refused. Follow [Preview](files.preview.md) for content, safety and return-path controls.
+10. Tablet with at least 700 units of content width, landscape: open a worktree's Files and choose a file. The worktree list folds away and the file shows to the right of the tree, which stays with its folders, search text and scroll position and marks the open file; Select a file shows until one is chosen. Choose another file, a Markdown file and a search result: the right side changes in place with no push. The native top bar names the open file with its folder and holds its actions; Create file or folder moves under More actions when the file brings three, and a file created there opens beside the tree. Show worktrees brings the list back as a third column; when the tree and file do not both fit beside it (portrait), the file steps aside until a file is chosen again, which folds the list. Switch worktree from the list and back: each keeps its own tree, search and open file.
 
 Automated coverage: `workspace-selection.spec.ts`, `directory-loading.spec.ts`, `directory-requests.spec.ts`, `file-preferences.spec.ts`, `comparison.spec.ts`, `change-marks.spec.ts`.
 
 ## Gotchas
 
-- Files uses Uncommitted marks and native routes on phones and tablets. Review status is in the accessible name only; the row shows one change mark.
+- Files uses Uncommitted marks. Phones and tablets below 700 units push the file; wider tablets show it beside the tree inside the Worktrees tab root (`ListDetail` nested in the worktree page). Review status is in the accessible name only; the row shows one change mark.
 - Creation is the header +. Workspace selection happens in the Worktrees tab; Files has no worktree picker of its own.

@@ -68,3 +68,7 @@ export function useFileNavigation(workspace: string) {
       })),
   };
 }
+
+export function useOpenedFile(workspace: string | undefined) {
+  return useAtomValue(fileNavigation(workspace ?? '')).selectedPath;
+}

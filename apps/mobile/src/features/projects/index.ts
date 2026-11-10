@@ -1,6 +1,13 @@
 export { WorkspaceGate } from './views/workspace-gate';
+export { useSelectedWorkspaceKey } from './views/workspace';
 export type { Workspace } from './commands/workspace-connection';
-export { useDocumentLeave, useComputerConnection, openedReview } from './store';
+export {
+  useDocumentLeave,
+  useComputerConnection,
+  openedReview,
+  worktreeSection,
+  worktreeListHidden,
+} from './store';
 export type { OpenedReview } from './store';
 export { ReviewInbox } from './views/review-inbox';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';

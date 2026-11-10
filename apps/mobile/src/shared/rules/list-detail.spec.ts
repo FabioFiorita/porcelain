@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { listDetailMode } from './list-detail';
+import { listDetailMode, listDetailModeChange } from './list-detail';
 
 it.each([
   {
@@ -37,4 +37,44 @@ it.each([
   },
 ] as const)('$why: $mode', ({ tablet, width, mode }) => {
   expect(listDetailMode({ tablet, width })).toBe(mode);
+});
+
+it.each([
+  {
+    tablet: true,
+    from: undefined,
+    to: 600,
+    change: undefined,
+    why: 'the first measurement of a narrow tablet is not a rotation',
+  },
+  {
+    tablet: true,
+    from: 1280,
+    to: 640,
+    change: 'stack',
+    why: 'a tablet turning narrower than the minimum',
+  },
+  {
+    tablet: true,
+    from: 640,
+    to: 1024,
+    change: 'beside',
+    why: 'a tablet turning wide enough',
+  },
+  {
+    tablet: true,
+    from: 1280,
+    to: 800,
+    change: undefined,
+    why: 'a tablet that stays wide enough',
+  },
+  {
+    tablet: false,
+    from: 400,
+    to: 900,
+    change: undefined,
+    why: 'a phone turning to landscape keeps pushing',
+  },
+] as const)('$why: $change', ({ tablet, from, to, change }) => {
+  expect(listDetailModeChange({ tablet, from, to })).toBe(change);
 });

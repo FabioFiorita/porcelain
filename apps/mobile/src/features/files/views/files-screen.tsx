@@ -40,14 +40,17 @@ import { IconButton } from '../../../components/ui/icon-button';
 import { useFilePreferences } from '../queries/file-preferences';
 import { useSetFilePreference } from '../commands/file-preferences';
 import { pinnedNavigationRows } from '../rules/file-navigation';
-
-export type FilesSearchPlacement = 'top-bar' | 'content';
+import { useOpenFileBeside } from '../commands/open-file';
+import { FilePane } from './file-screen';
+import { ListDetail } from '../../../components/ui/list-detail';
+import type { DocumentAction } from '../../../components/ui/document-header';
+import type { ListDetailMode } from '../../../shared/rules/list-detail';
 
 export function FilesScreen({
-  search,
+  mode,
   workspace,
 }: {
-  search: FilesSearchPlacement;
+  mode: ListDetailMode;
   workspace?: string | undefined;
 }) {
   return (
@@ -62,11 +65,7 @@ export function FilesScreen({
       }
     >
       {(selected) => (
-        <FilesNavigation
-          key={selected.key}
-          selected={selected}
-          search={search}
-        />
+        <FilesNavigation key={selected.key} selected={selected} mode={mode} />
       )}
     </WorkspaceGate>
   );
@@ -87,7 +86,7 @@ function restoringSearchBar(query: string) {
 
 type FilesNavigationProps = {
   selected: Workspace;
-  search: FilesSearchPlacement;
+  mode: ListDetailMode;
 };
 
 function FilesNavigation(props: FilesNavigationProps) {
@@ -97,7 +96,9 @@ function FilesNavigation(props: FilesNavigationProps) {
   ) : null;
 }
 
-function FilesNavigationView({ selected, search }: FilesNavigationProps) {
+function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
+  const search = mode === 'beside' ? 'content' : 'top-bar';
+  const openBeside = useOpenFileBeside(selected.key);
   const review = useFileReview(selected, { kind: 'worktree' });
   const preferences = {
     read: useFilePreferences(selected.connection, selected.scope.projectId),
@@ -123,7 +124,7 @@ function FilesNavigationView({ selected, search }: FilesNavigationProps) {
   const openAction = (action: FileAction) =>
     router.navigate({
       pathname: '/file-action',
-      params: { workspace: selected.key, ...action },
+      params: { workspace: selected.key, opened: mode, ...action },
     });
   const confirmTrash = (path: string) =>
     Alert.alert(
@@ -183,12 +184,34 @@ function FilesNavigationView({ selected, search }: FilesNavigationProps) {
   const pathData = Option.getOrUndefined(AsyncResult.value(paths.result));
   const searching = Boolean(query.trim());
   const open = (path: string) => {
+    if (mode === 'beside') {
+      openBeside(path);
+      return;
+    }
     setSelectedPath(path);
     router.push({
       pathname: '/file',
       params: { path, workspace: selected.key },
     });
   };
+  const create = {
+    kind: 'choice',
+    id: 'create',
+    label: 'Create file or folder',
+    icon: 'add',
+    choices: [
+      {
+        label: 'New file',
+        onPress: () =>
+          openAction({ kind: 'create', entryKind: 'file', folder: '' }),
+      },
+      {
+        label: 'New folder',
+        onPress: () =>
+          openAction({ kind: 'create', entryKind: 'directory', folder: '' }),
+      },
+    ],
+  } as const satisfies DocumentAction;
   const nodes = mergeFileTreeEntries(data);
   const preferenceEntries = filePreferenceEntries({
     entries: nodes,
@@ -446,7 +469,7 @@ function FilesNavigationView({ selected, search }: FilesNavigationProps) {
         ),
       ],
     );
-  return (
+  const tree = (createInTopBar: boolean) => (
     <Box
       className="flex-1"
       surface="background"
@@ -468,32 +491,24 @@ function FilesNavigationView({ selected, search }: FilesNavigationProps) {
           }}
         />
       ) : null}
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={headerIcon('add')}
-          accessibilityLabel="Create file or folder"
-          title="Create file or folder"
-        >
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              openAction({ kind: 'create', entryKind: 'file', folder: '' })
-            }
+      {createInTopBar ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon={headerIcon(create.icon)}
+            accessibilityLabel={create.label}
+            title={create.label}
           >
-            New file
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
-            onPress={() =>
-              openAction({
-                kind: 'create',
-                entryKind: 'directory',
-                folder: '',
-              })
-            }
-          >
-            New folder
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+            {create.choices.map((choice) => (
+              <Stack.Toolbar.MenuAction
+                key={choice.label}
+                onPress={choice.onPress}
+              >
+                {choice.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : null}
       <FileTree
         header={header}
         rows={rows}
@@ -538,5 +553,26 @@ function FilesNavigationView({ selected, search }: FilesNavigationProps) {
         contextMenu={menuFor}
       />
     </Box>
+  );
+  if (mode === 'stack') return tree(true);
+  return (
+    <ListDetail
+      list={(inner) => tree(inner === 'stack' || !selectedPath)}
+      detail={
+        selectedPath ? (
+          <FilePane
+            key={selectedPath}
+            path={selectedPath}
+            selected={selected}
+            actions={[create]}
+          />
+        ) : (
+          <Empty
+            title="Select a file"
+            description="Choose a file on the left to read it here."
+          />
+        )
+      }
+    />
   );
 }
