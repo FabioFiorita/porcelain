@@ -133,7 +133,7 @@ test('a failed answer can be retried and a walkthrough without a PR copies its b
         .getByRole('region', { name: 'Notifications', exact: true })
         .filter({ hasText: 'Copied brief' }),
     )
-    .toHaveTextContent('Copied brief');
+    .toMatchTextContent(/^Copied brief$/);
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });
 
@@ -210,7 +210,7 @@ test('retained comments on a short page without a PR can be copied together', as
         .getByRole('region', { name: 'Notifications', exact: true })
         .filter({ hasText: 'Copied brief' }),
     )
-    .toHaveTextContent('Copied brief');
+    .toMatchTextContent(/^Copied brief$/);
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });
 
