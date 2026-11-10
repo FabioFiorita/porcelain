@@ -1,6 +1,6 @@
 # Durable walkthrough writing
 
-The contract is `packages/contracts/src/walkthroughs/api.ts`. All three routes require the paired fixture credential and its Origin.
+The contract is `packages/contracts/src/walkthroughs/api.ts`. The writing routes require the paired fixture credential and its Origin.
 
 1. Commit a small fixture change on a branch and keep its base branch. POST `/api/worktrees/:worktreeId/walkthrough` with `{ "base": "refs/heads/main" }`. The response is the durable run, initially queued. Repeat the same request while the attempt is queued, running or ready: the id must match and no second writer may start. After a failed attempt, an explicit start creates a new attempt; concurrent presses share that new attempt. Earlier failures remain stored.
 2. GET the same path to observe the latest attempt, running then ready content or a failed state with a plain message. Subscribe to the worktree live channel: changes use `type: "walkthrough", change: "run"`.
