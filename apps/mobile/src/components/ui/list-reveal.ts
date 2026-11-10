@@ -3,15 +3,21 @@ import type { FlatList } from 'react-native';
 
 type Scroller = Pick<FlatList<unknown>, 'scrollToIndex' | 'scrollToOffset'>;
 
+const REVEAL_RETRIES = 3;
+
 function listReveal() {
   let list: Scroller | null = null;
   let shown: number | undefined;
   let visible = new Set<number>();
+  let retries = 0;
+  let pending: number | undefined;
   return {
     attach(next: Scroller | null, index: number) {
       list = next;
       if (!next || index < 0 || index === shown) return;
       shown = index;
+      retries = 0;
+      pending = undefined;
       if (!visible.has(index))
         next.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     },
@@ -27,6 +33,16 @@ function listReveal() {
             typeof item.index === 'number' ? [item.index] : [],
           ),
         );
+        if (pending === undefined) return;
+        const target = pending;
+        pending = undefined;
+        if (visible.has(target) || retries >= REVEAL_RETRIES) return;
+        retries += 1;
+        list?.scrollToIndex({
+          index: target,
+          viewPosition: 0.5,
+          animated: false,
+        });
       },
       onScrollToIndexFailed: (info: {
         index: number;
@@ -34,8 +50,9 @@ function listReveal() {
       }) => {
         list?.scrollToOffset({
           offset: info.index * info.averageItemLength,
-          animated: true,
+          animated: false,
         });
+        pending = info.index;
       },
     },
   };
