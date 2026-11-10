@@ -13,6 +13,9 @@ describe('Complete file icons', () => {
     ['POSTCSS.config.ts', 'postcss'],
     ['article.mdx.tsx', 'markdown'],
     ['.env.local', 'text'],
+    ['constructor', 'default'],
+    ['src/__proto__', 'default'],
+    ['notes.constructor', 'default'],
   ])('identifies %s as %s', (path, expected) => {
     expect(fileIconToken(path)).toBe(expected);
   });

@@ -15,15 +15,16 @@ export const completeFileIconRules = {
   ),
 };
 
+const names = new Map<string, string>(Object.entries(data.names));
+const extensions = new Map<string, string>(Object.entries(data.extensions));
+
 export function fileIconToken(path: string): string {
   const name = (path.split('/').at(-1) ?? path).toLowerCase();
-  const names: Readonly<Record<string, string>> = data.names;
-  const named = names[name];
+  const named = names.get(name);
   if (named) return named;
-  const extensions: Readonly<Record<string, string>> = data.extensions;
   const segments = name.split('.');
   for (let index = 1; index < segments.length; index += 1) {
-    const token = extensions[segments.slice(index).join('.')];
+    const token = extensions.get(segments.slice(index).join('.'));
     if (token) return token;
   }
   return 'default';
