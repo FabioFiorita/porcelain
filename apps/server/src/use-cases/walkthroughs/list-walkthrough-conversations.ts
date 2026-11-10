@@ -1,3 +1,4 @@
+import type { GitIoFailure } from '@porcelain/git/errors';
 import { Context, Effect, Layer } from 'effect';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { ListWalkthroughConversationsService } from '@porcelain/walkthroughs/services';
@@ -9,7 +10,10 @@ export class ListWalkthroughConversationsUseCase extends Context.Service<
   {
     readonly execute: (
       input: WorktreeParams,
-    ) => Effect.Effect<WalkthroughConversationsView, WorktreeAccessFailure>;
+    ) => Effect.Effect<
+      WalkthroughConversationsView,
+      WorktreeAccessFailure | GitIoFailure
+    >;
   }
 >()('@porcelain/server/ListWalkthroughConversationsUseCase') {
   static readonly layer = Layer.effect(

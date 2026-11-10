@@ -155,7 +155,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: worktreeParamsSchema,
           success: walkthroughConversationsResponseSchema,
-          error: worktreeFailures,
+          error: [...worktreeFailures, ...gitReadFailures],
         },
       ),
       HttpApiEndpoint.post(
@@ -168,6 +168,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: walkthroughConversationsResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
           ],
         },
@@ -181,6 +182,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: walkthroughConversationsResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
           ],
         },
@@ -195,6 +197,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: walkthroughConversationsResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
           ],
         },
@@ -208,6 +211,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: postWalkthroughMessagesResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
             httpFailure(WalkthroughPostFailedError, 'BadGateway', {
               message: { fromError: true },
@@ -227,6 +231,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: postWalkthroughMessagesResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
             httpFailure(WalkthroughPostFailedError, 'BadGateway', {
               message: { fromError: true },
@@ -247,6 +252,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           success: walkthroughBriefResponseSchema,
           error: [
             ...worktreeFailures,
+            ...gitReadFailures,
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
           ],
         },

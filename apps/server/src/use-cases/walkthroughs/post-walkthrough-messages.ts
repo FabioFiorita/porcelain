@@ -1,3 +1,4 @@
+import type { GitIoFailure } from '@porcelain/git/errors';
 import { Context, Effect, Layer } from 'effect';
 import {
   ListWalkthroughConversationsService,
@@ -27,6 +28,7 @@ export class PostWalkthroughMessagesUseCase extends Context.Service<
     ) => Effect.Effect<
       { outcome: PostResult; view: WalkthroughConversationsView },
       | WorktreeAccessFailure
+      | GitIoFailure
       | WalkthroughMessageNotFoundError
       | WalkthroughPostFailedError
       | WalkthroughRepositoryChangedError

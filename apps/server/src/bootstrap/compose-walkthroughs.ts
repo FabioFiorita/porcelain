@@ -1,3 +1,4 @@
+import { gitWalkthroughHeadReaderLayer } from '../adapters/walkthroughs/git-walkthrough-head-reader.ts';
 import { ReadWalkthroughWriterSettingsUseCase } from '../use-cases/walkthroughs/read-walkthrough-writer-settings.ts';
 import { SaveDefaultWalkthroughWriterUseCase } from '../use-cases/walkthroughs/save-default-walkthrough-writer.ts';
 import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
@@ -37,7 +38,6 @@ import {
   ChangeStatusReader,
 } from '@porcelain/changes/ports';
 import { GitHubAccountStore } from '@porcelain/reviews/ports';
-import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { gitWalkthroughSourceReaderLayer } from '../adapters/walkthroughs/git-walkthrough-source-reader.ts';
 import { AnnounceWalkthroughUseCase } from '../use-cases/walkthroughs/announce-walkthrough.ts';
 import { AnnounceWalkthroughUseCasePort } from '../ports/announce-walkthrough-use-case-port.ts';
@@ -85,6 +85,11 @@ export function composeWalkthroughs(
   );
   const ports = Layer.mergeAll(
     modelReader,
+    gitWalkthroughHeadReaderLayer.pipe(
+      Layer.provide(
+        Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
+      ),
+    ),
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
     Layer.succeed(WalkthroughInventoryReader, stores.walkthroughInventory),
     Layer.succeed(Lanes, context.lanes),
@@ -105,7 +110,6 @@ export function composeWalkthroughs(
     Layer.succeed(ResolveProjectGitHubUseCasePort, resolveProjectGitHub),
     ghPullRequestCommenterLayer(context.settings.limits.git),
     Layer.succeed(IdSource, context.ids),
-    Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
     gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
     ),
@@ -134,7 +138,6 @@ export function composeWalkthroughs(
     StartWalkthroughService.layer.pipe(
       Layer.provide(ResolveWalkthroughWriterService.layer),
     ),
-    ReadWalkthroughService.layer,
     ReadWalkthroughAssetService.layer,
     ListWalkthroughConversationsService.layer,
     AddWalkthroughMessageService.layer,
@@ -147,7 +150,10 @@ export function composeWalkthroughs(
       Layer.provideMerge(PlanWalkthroughPostService.layer),
     ),
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
-  ).pipe(Layer.provideMerge(ports));
+  ).pipe(
+    Layer.provideMerge(ReadWalkthroughService.layer),
+    Layer.provideMerge(ports),
+  );
   const engine = ClusterWorkflowEngine.layer.pipe(
     Layer.provideMerge(SingleRunner.layer({ runnerStorage: 'memory' })),
     Layer.provide(NodeCrypto.layerDigest),

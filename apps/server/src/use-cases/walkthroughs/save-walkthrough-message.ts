@@ -1,3 +1,4 @@
+import type { GitIoFailure } from '@porcelain/git/errors';
 import { Context, Effect, Layer } from 'effect';
 import type {
   SaveWalkthroughMessageRequest,
@@ -19,7 +20,7 @@ export class SaveWalkthroughMessageUseCase extends Context.Service<
       input: WalkthroughMessageParams & SaveWalkthroughMessageRequest,
     ) => Effect.Effect<
       WalkthroughConversationsView,
-      WorktreeAccessFailure | WalkthroughMessageNotFoundError
+      WorktreeAccessFailure | GitIoFailure | WalkthroughMessageNotFoundError
     >;
   }
 >()('@porcelain/server/SaveWalkthroughMessageUseCase') {

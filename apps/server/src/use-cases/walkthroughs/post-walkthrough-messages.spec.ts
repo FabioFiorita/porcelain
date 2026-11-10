@@ -1,3 +1,4 @@
+import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -8,9 +9,11 @@ import { storageLayer } from '@porcelain/storage';
 import {
   PullRequestCommenter,
   WalkthroughStore,
+  WalkthroughHeadReader,
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
+  ReadWalkthroughService,
   ListWalkthroughConversationsService,
   PlanWalkthroughPostService,
   PostWalkthroughMessagesService,
@@ -139,6 +142,10 @@ async function fixture(
   );
   const ports = Layer.mergeAll(
     database,
+    Layer.succeed(WalkthroughHeadReader, {
+      read: () =>
+        Effect.succeed({ branch: undefined, headOid: 'b'.repeat(40) }),
+    }),
     commenter,
     lanes,
     Layer.succeed(IdSource, { next: () => `message-${(next += 1)}` }),
@@ -187,7 +194,10 @@ async function fixture(
     PostWalkthroughMessagesService.layer.pipe(
       Layer.provideMerge(PlanWalkthroughPostService.layer),
     ),
-  ).pipe(Layer.provideMerge(ports));
+  ).pipe(
+    Layer.provideMerge(ReadWalkthroughService.layer),
+    Layer.provideMerge(ports),
+  );
   const runtime = ManagedRuntime.make(
     PostWalkthroughMessagesUseCase.layer.pipe(
       Layer.provideMerge(services),
@@ -224,12 +234,15 @@ async function fixture(
       Effect.gen(function* () {
         const service = yield* AddWalkthroughMessageService;
         const store = yield* WalkthroughStore;
-        const id = yield* service.execute({
-          worktreeId: 'tree',
-          runId,
-          anchor: { kind: 'stop', title: 'Keep the retry local' },
-          text,
-        });
+        const id = yield* withReadLease(
+          'tree',
+          service.execute({
+            worktreeId: 'tree',
+            runId,
+            anchor: { kind: 'stop', title: 'Keep the retry local' },
+            text,
+          }),
+        );
         if (saved) yield* store.saveForLater('tree', id, true);
         return id;
       }),

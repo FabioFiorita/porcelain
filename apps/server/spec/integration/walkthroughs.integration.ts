@@ -328,9 +328,9 @@ import fs from 'node:fs';
 const args = process.argv.slice(2);
 if (args[0] === 'auth' && args[1] === 'status') console.log(JSON.stringify(['fixture']));
 else if (args[0] === 'auth' && args[1] === 'token') console.log('fixture-token');
-else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
+else if (args.some((arg) => arg.endsWith('/issues/423/comments') || arg.endsWith('/issues/424/comments'))) {
   fs.appendFileSync(${JSON.stringify(ghCalls)}, fs.readFileSync(0, 'utf8') + '\\n');
-  console.log(JSON.stringify({ html_url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1' }));
+  console.log(JSON.stringify({ html_url: 'https://github.com/FabioFiorita/porcelain/pull/' + (args.some(arg => arg.endsWith('/issues/424/comments')) ? '424' : '423') + '#issuecomment-1' }));
 } else console.log('{}');
 `,
     { mode: 0o755 },
@@ -353,17 +353,20 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     evidence: [],
     files: [{ path, note: 'Owns the behavior' }],
   });
+  const currentBranch = (await session.git('branch', '--show-current')).trim();
   const runJob = (
     id: string,
     head: string,
     stops: readonly ReturnType<typeof stop>[],
     pullRequestNumber: number | undefined,
+    branch = currentBranch,
   ): WalkthroughJob => ({
     run: {
       id,
       projectId: session.projectId,
       worktreeId: session.worktreeId,
       pullRequestNumber,
+      branch,
       pullRequestRepository: { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
       headOid: head,
@@ -620,6 +623,92 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     .filter(Boolean);
   expect(calls).toHaveLength(3);
   expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
+  const branchA = await add(
+    undefined,
+    'Only branch A should see this.',
+    'second-run',
+  );
+  await read(session, {
+    method: 'PUT',
+    path: `${worktreeRoot}/messages/${branchA}/saved`,
+    body: { saved: true },
+  });
+  await session.git('switch', '-c', 'conversation-branch-b');
+  seed(
+    runJob(
+      'branch-b-run',
+      headB,
+      [stop('Kept step', 'src/kept.ts')],
+      424,
+      'conversation-branch-b',
+    ),
+  );
+  const branchB = await add(
+    undefined,
+    'Only branch B should see this.',
+    'branch-b-run',
+  );
+  await read(session, {
+    method: 'PUT',
+    path: `${worktreeRoot}/messages/${branchB}/saved`,
+    body: { saved: true },
+  });
+  await session.git('switch', currentBranch);
+  const branchRead = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+    await read(session, {
+      method: 'GET',
+      path: `/api/worktrees/${session.worktreeId}/walkthrough`,
+    }),
+  );
+  expect(branchRead.walkthrough?.id).toBe('second-run');
+  const onA = await conversations();
+  expect(onA.runId).toBe('second-run');
+  expect(onA.pullRequestNumber).toBe(423);
+  expect(JSON.stringify(onA)).not.toContain('Only branch B');
+  const wrongRun = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot}/messages`,
+    body: {
+      runId: 'branch-b-run',
+      anchor: { kind: 'walkthrough' },
+      text: 'Wrong branch target',
+    },
+  });
+  expect(wrongRun.status).toBe(404);
+  const branchBrief = await read(session, {
+    method: 'GET',
+    path: `${worktreeRoot}/brief`,
+  });
+  expect(branchBrief.text).toContain('Only branch A');
+  expect(branchBrief.text).not.toContain('Only branch B');
+  const wrongBrief = await session.send({
+    method: 'GET',
+    path: `${worktreeRoot}/brief?messageId=${branchB}`,
+  });
+  expect(wrongBrief.status).toBe(404);
+  const wrongPost = await session.send({
+    method: 'POST',
+    path: `${worktreeRoot}/messages/${branchB}/post`,
+  });
+  expect(wrongPost.status).toBe(404);
+  const postedA = await read(session, {
+    method: 'POST',
+    path: `${worktreeRoot}/post-saved`,
+  });
+  expect(record(postedA.outcome).url).toBe(
+    'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
+  );
+  expect(record(postedA.view).runId).toBe('second-run');
+  await session.git('switch', 'conversation-branch-b');
+  const postedB = await read(session, {
+    method: 'POST',
+    path: `${worktreeRoot}/post-saved`,
+  });
+  expect(record(postedB.outcome).url).toBe(
+    'https://github.com/FabioFiorita/porcelain/pull/424#issuecomment-1',
+  );
+  expect(record(postedB.view).runId).toBe('branch-b-run');
+  await session.git('switch', currentBranch);
   const unposted = await add(undefined, 'A private decision', 'second-run');
   await expect
     .poll(() => agentState(unposted), { timeout: 10000 })
@@ -644,7 +733,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
   );
   expect(
     (await readFile(ghCalls, 'utf8')).trim().split('\n').filter(Boolean),
-  ).toHaveLength(3);
+  ).toHaveLength(5);
   const offered = await read(session, {
     method: 'GET',
     path: `${worktreeRoot}/brief?messageId=${unposted}`,

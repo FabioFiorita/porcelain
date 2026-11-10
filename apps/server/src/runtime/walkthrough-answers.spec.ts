@@ -1,3 +1,4 @@
+import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,9 +12,11 @@ import {
   EvidenceReader,
   TranscriptReader,
   WalkthroughStore,
+  WalkthroughHeadReader,
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
+  ReadWalkthroughService,
   ResolveWalkthroughWriterService,
   AnswerWalkthroughMessageService,
   BeginWalkthroughService,
@@ -106,9 +109,14 @@ async function fixture(
       RetryWalkthroughAnswerService.layer,
       ListWalkthroughConversationsService.layer,
     ).pipe(
+      Layer.provideMerge(ReadWalkthroughService.layer),
       Layer.provideMerge(
         Layer.mergeAll(
           database,
+          Layer.succeed(WalkthroughHeadReader, {
+            read: () =>
+              Effect.succeed({ branch: undefined, headOid: 'b'.repeat(40) }),
+          }),
           cliWalkthroughWriterLayer({ processGroup, command }).pipe(
             Layer.provide(
               Layer.succeed(WalkthroughModelReader, {
@@ -185,15 +193,18 @@ async function fixture(
     runtime.runPromise(
       Effect.gen(function* () {
         const service = yield* AddWalkthroughMessageService;
-        return yield* service.execute({
-          worktreeId: 'worktree',
-          runId: 'run',
-          anchor:
-            stopTitle === undefined
-              ? { kind: 'walkthrough' }
-              : { kind: 'stop', title: stopTitle },
-          text,
-        });
+        return yield* withReadLease(
+          'worktree',
+          service.execute({
+            worktreeId: 'worktree',
+            runId: 'run',
+            anchor:
+              stopTitle === undefined
+                ? { kind: 'walkthrough' }
+                : { kind: 'stop', title: stopTitle },
+            text,
+          }),
+        );
       }),
     );
   const enqueue = () =>
@@ -207,7 +218,10 @@ async function fixture(
     runtime.runPromise(
       Effect.gen(function* () {
         const service = yield* ListWalkthroughConversationsService;
-        const view = yield* service.execute({ worktreeId: 'worktree' });
+        const view = yield* withReadLease(
+          'worktree',
+          service.execute({ worktreeId: 'worktree' }),
+        );
         return view.conversations.flatMap(
           (conversation) => conversation.messages,
         );

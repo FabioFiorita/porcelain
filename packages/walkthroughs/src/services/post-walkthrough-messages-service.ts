@@ -1,3 +1,5 @@
+import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import { Context, DateTime, Effect, Layer } from 'effect';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
 import {
@@ -26,6 +28,8 @@ export class PostWalkthroughMessagesService extends Context.Service<
       | WalkthroughMessageNotFoundError
       | WalkthroughPostFailedError
       | WalkthroughRepositoryChangedError
+      | GitIoFailure,
+      WorktreeRead
     >;
   }
 >()('@porcelain/walkthroughs/PostWalkthroughMessagesService') {

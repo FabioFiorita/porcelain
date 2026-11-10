@@ -1,3 +1,4 @@
+import type { GitIoFailure } from '@porcelain/git/errors';
 import { Context, Effect, Layer } from 'effect';
 import type { WalkthroughMessageParams } from '@porcelain/contracts/walkthroughs';
 import {
@@ -17,7 +18,7 @@ export class RetryWalkthroughAnswerUseCase extends Context.Service<
       input: WalkthroughMessageParams,
     ) => Effect.Effect<
       WalkthroughConversationsView,
-      WorktreeAccessFailure | WalkthroughMessageNotFoundError
+      WorktreeAccessFailure | GitIoFailure | WalkthroughMessageNotFoundError
     >;
   }
 >()('@porcelain/server/RetryWalkthroughAnswerUseCase') {

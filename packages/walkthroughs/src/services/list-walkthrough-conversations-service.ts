@@ -1,3 +1,6 @@
+import { ReadWalkthroughService } from './read-walkthrough-service.ts';
+import type { GitIoFailure } from '@porcelain/git/errors';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import { Context, Effect, Layer } from 'effect';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
 import type { WalkthroughConversationsView } from '../models/conversation.ts';
@@ -7,21 +10,27 @@ export class ListWalkthroughConversationsService extends Context.Service<
   {
     readonly execute: (input: {
       worktreeId: string;
-    }) => Effect.Effect<WalkthroughConversationsView>;
+    }) => Effect.Effect<
+      WalkthroughConversationsView,
+      GitIoFailure,
+      WorktreeRead
+    >;
   }
 >()('@porcelain/walkthroughs/ListWalkthroughConversationsService') {
   static readonly layer = Layer.effect(
     ListWalkthroughConversationsService,
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
+      const current = yield* ReadWalkthroughService;
       return {
         execute: Effect.fn('ListWalkthroughConversationsService.execute')(
           function* (input) {
-            const [runs, messages] = yield* Effect.all([
-              store.listReadyRuns(input.worktreeId),
-              store.listMessages(input.worktreeId),
-            ]);
-            return conversationsView(runs, messages);
+            const { readyRuns } = yield* current.execute(input);
+            const runIds = new Set(readyRuns.map((run) => run.id));
+            const messages = (yield* store.listMessages(
+              input.worktreeId,
+            )).filter((message) => runIds.has(message.runId));
+            return conversationsView(readyRuns, messages);
           },
         ),
       };
