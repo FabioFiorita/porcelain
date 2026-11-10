@@ -2,7 +2,12 @@ import { Context, Effect, Layer } from 'effect';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 export class AnnounceWalkthroughUseCase extends Context.Service<
   AnnounceWalkthroughUseCase,
-  { readonly execute: (input: { worktreeId: string }) => Effect.Effect<void> }
+  {
+    readonly execute: (input: {
+      worktreeId: string;
+      change?: 'walkthrough-conversations';
+    }) => Effect.Effect<void>;
+  }
 >()('@porcelain/server/AnnounceWalkthroughUseCase') {
   static readonly layer = Layer.effect(
     AnnounceWalkthroughUseCase,
@@ -10,7 +15,10 @@ export class AnnounceWalkthroughUseCase extends Context.Service<
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('AnnounceWalkthroughUseCase.execute')((input) =>
-          events.worktreeChanged({ ...input, change: 'walkthrough' }),
+          events.worktreeChanged({
+            worktreeId: input.worktreeId,
+            change: input.change ?? 'walkthrough',
+          }),
         ),
       };
     }),

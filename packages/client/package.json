@@ -26,7 +26,9 @@
     "./preferences": "./src/features/preferences/index.ts",
     "./notifications": "./src/features/notifications/index.ts",
     "./notifications/rules": "./src/features/notifications/rules/index.ts",
-    "./workspace": "./src/features/workspace/index.ts"
+    "./workspace": "./src/features/workspace/index.ts",
+    "./walkthroughs": "./src/features/walkthroughs/index.ts",
+    "./walkthroughs/rules": "./src/features/walkthroughs/rules/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",

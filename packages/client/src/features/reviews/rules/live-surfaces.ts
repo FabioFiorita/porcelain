@@ -11,6 +11,11 @@ const CHANGE_SURFACES = {
 } as const;
 
 export function noticeSurfaces(notice: LiveNotice) {
+  if (notice.type === 'walkthrough')
+    return {
+      scope: { projectId: notice.projectId, worktreeId: notice.worktreeId },
+      surfaces: new Set<string>(['walkthrough-conversations']),
+    };
   if (notice.type !== 'worktree') return null;
   return {
     scope: { projectId: notice.projectId, worktreeId: notice.worktreeId },

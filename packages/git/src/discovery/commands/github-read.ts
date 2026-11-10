@@ -102,6 +102,54 @@ export const listGitHubAccounts = Effect.fn('Git.listGitHubAccounts')(
   },
 );
 
+const githubCommentSchema = Schema.fromJsonString(
+  Schema.Struct({ html_url: Schema.String }),
+);
+
+export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
+  function* (
+    input: {
+      account: string;
+      owner: string;
+      repo: string;
+      number: number;
+      body: string;
+    },
+    limits: GitLimits,
+  ) {
+    const token = Redacted.make(
+      (yield* output(
+        ['auth', 'token', '--hostname', 'github.com', '--user', input.account],
+        limits,
+      )).trim(),
+    );
+    if (Redacted.value(token) === '')
+      return yield* new GitHubCommandError({ reason: 'no-access' });
+    const response = yield* output(
+      [
+        'api',
+        '--hostname',
+        'github.com',
+        `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues/${input.number}/comments`,
+        '--method',
+        'POST',
+        '-f',
+        `body=${input.body}`,
+      ],
+      limits,
+      token,
+    );
+    const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
+      response,
+    ).pipe(
+      Effect.mapError(
+        () => new GitHubCommandError({ reason: 'invalid-response' }),
+      ),
+    );
+    return decoded.html_url;
+  },
+);
+
 export const readGitHubApi = Effect.fn('Git.readGitHubApi')(function* (
   input: {
     account: string;

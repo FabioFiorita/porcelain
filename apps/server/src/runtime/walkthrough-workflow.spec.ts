@@ -21,6 +21,7 @@ import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import {
   WriteWalkthroughService,
   BeginWalkthroughService,
+  AnswerWalkthroughMessageService,
 } from '@porcelain/walkthroughs/services';
 import { cliWalkthroughWriterLayer } from '@porcelain/agents/walkthrough-writing';
 import { AnnounceWalkthroughUseCasePort } from '../ports/announce-walkthrough-use-case-port.ts';
@@ -90,6 +91,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
   const services = Layer.mergeAll(
     WriteWalkthroughService.layer,
     BeginWalkthroughService.layer,
+    AnswerWalkthroughMessageService.layer,
   ).pipe(
     Layer.provideMerge(
       Layer.mergeAll(

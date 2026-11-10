@@ -92,6 +92,7 @@ export const walkthroughRunSchema = Schema.Struct({
   ]),
 });
 export type WalkthroughRun = typeof walkthroughRunSchema.Type;
+export type WalkthroughFailure = typeof walkthroughFailureSchema.Type;
 export type WalkthroughContent = typeof walkthroughContentSchema.Type;
 export type DiffFile = {
   readonly path: string;

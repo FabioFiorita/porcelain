@@ -16,8 +16,10 @@ import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
 import {
   WriteWalkthroughService,
   BeginWalkthroughService,
+  AnswerWalkthroughMessageService,
 } from '@porcelain/walkthroughs/services';
 import { WalkthroughQueue } from '../ports/walkthrough-queue.ts';
+import { WalkthroughAnswerQueue } from '../ports/walkthrough-answer-queue.ts';
 import { AnnounceWalkthroughUseCasePort } from '../ports/announce-walkthrough-use-case-port.ts';
 const workflow = Workflow.make('PorcelainWalkthroughV1', {
   payload: { id: Schema.String },
@@ -41,6 +43,7 @@ export class WalkthroughWorkflow extends Context.Service<
       const store = yield* WalkthroughStore;
       const writer = yield* WriteWalkthroughService;
       const begin = yield* BeginWalkthroughService;
+      const answers = yield* AnswerWalkthroughMessageService;
       const events = yield* AnnounceWalkthroughUseCasePort;
       const scope = yield* Scope.make();
       const serial = yield* Semaphore.make(1);
@@ -88,7 +91,38 @@ export class WalkthroughWorkflow extends Context.Service<
           .execute({ id }, { discard: true })
           .pipe(Effect.provideService(WorkflowEngine.WorkflowEngine, engine));
       });
+      const answerNext = Effect.fn('WalkthroughWorkflow.answerNext')(
+        function* () {
+          yield* lanes.background(
+            keys.walkthroughs(),
+            () =>
+              answers.execute().pipe(
+                Effect.flatMap((worktreeId) =>
+                  worktreeId === undefined
+                    ? Effect.void
+                    : events.execute({
+                        worktreeId,
+                        change: 'walkthrough-conversations',
+                      }),
+                ),
+              ),
+            () => Effect.void,
+            { deadlineMs: 7 * 60 * 1000 },
+          );
+        },
+      );
       const recover = Effect.fn('WalkthroughWorkflow.recover')(function* () {
+        const interrupted = yield* lanes.run(keys.walkthroughs(), 'write', () =>
+          store.failAnswering({
+            kind: 'other',
+            message: 'This answer was interrupted. Ask again.',
+          }),
+        );
+        for (const worktreeId of interrupted)
+          yield* events.execute({
+            worktreeId,
+            change: 'walkthrough-conversations',
+          });
         for (const job of yield* store.listPending()) {
           if (job.run.state.status === 'running') {
             yield* lanes.run(keys.walkthroughs(), 'write', () =>
@@ -112,6 +146,7 @@ export class WalkthroughWorkflow extends Context.Service<
       });
       return Context.make(WalkthroughWorkflow, { execute, recover, stop }).pipe(
         Context.add(WalkthroughQueue, { execute }),
+        Context.add(WalkthroughAnswerQueue, { execute: answerNext }),
       );
     }),
   );
