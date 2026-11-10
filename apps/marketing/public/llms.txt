@@ -1,17 +1,19 @@
 # Porcelain
 
-> A diff does not tell you what changed. The agent that wrote it can. In Porcelain, it walks you through each decision, and you comment back before you keep the change.
+> Porcelain gives what your coding agent changed to a fresh, read-only agent that writes one page: what changed, how the system grew, and the few calls only you can make. Ask it anything while your coding agent keeps working.
 
-Agents write the code. Porcelain is where you read it. It sits beside your agent and does not replace it: the agent publishes a walkthrough to Porcelain over MCP, you read it, reply on the code, and the agent reads your reply where it is working. It works with any agent that speaks MCP.
+Agents write the code. Porcelain is where you understand it. It never runs the agent that builds. It runs its own read-only agent, through the Claude Code or Codex CLI already installed and signed in on your machine, to write a Walkthrough of a change and answer questions about it. The walkthrough agent reads the pull request, the diff and the repository first, then only your own messages to the builder, and writes down what only those messages explained. It never edits code and never produces evidence: pull request screenshots appear on the step they prove, and a step with no proof shows none.
 
-Porcelain runs on the machine that holds your repositories. The Mac app runs on Apple silicon; the server runs on Linux or Mac and starts with `npx @fabiofiorita/porcelain@latest serve`. You review in a browser, the Mac app, and soon an iPhone and iPad app. The server, the apps and the MCP tools are open source under the MIT license.
+You comment on a call or a step and the walkthrough agent answers. A requested change is posted on the pull request in one click, alone or saved and posted together, or copied as a brief when there is no pull request. A walkthrough is written when you press Write walkthrough, or automatically when a pull request opens on a project where you turned that on. New commits mark it out of date and offer Update.
+
+Around the walkthrough, Porcelain has a file tree for very large repositories (pin files, hide folders), Git history with a per-file timeline, commit, pull and push, and reviewed checkboxes on plain changes. It runs on the machine that holds your repositories: the Mac app runs on Apple silicon; the server runs on Linux or Mac and starts with `npx @fabiofiorita/porcelain@latest serve`. You read in a browser or the Mac app, locally, over your network or across remote machines; an iPhone and iPad app is coming. Porcelain has no account and no analytics. It is open source under the MIT license.
 
 ## Pages
 
-- [Porcelain](https://porcelain.fabiofiorita.com/): The walkthrough, comments on the code, proof, files, history and remote environments.
+- [Porcelain](https://porcelain.fabiofiorita.com/): The Walkthrough, how the fresh agent works, comments, files, history and remote environments.
 - [Install](https://porcelain.fabiofiorita.com/install/): The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.
-- [Privacy](https://porcelain.fabiofiorita.com/privacy/): Porcelain has no account, no analytics, and no copy of your code. Here is everything it knows about you, and the source to prove it.
+- [Privacy](https://porcelain.fabiofiorita.com/privacy/): No account, no analytics and no Porcelain server. What the walkthrough agent sends to your own Claude or Codex account, and nothing else.
 
 ## Source
 
-- [GitHub repository](https://github.com/FabioFiorita/porcelain): The server, the apps, the updater and this site, under the MIT license.
+- [GitHub repository](https://github.com/FabioFiorita/porcelain): The server, the apps, the walkthrough agent's prompts, the updater and this site, under the MIT license.

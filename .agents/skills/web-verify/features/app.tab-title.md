@@ -31,11 +31,10 @@ Preconditions: [surface baseline](README.md).
 
 The exact strings, with `P` = project name ("repository" in the disposable instance):
 
-- the handoff tab (Changes, or the Review walkthrough once an agent has published a review, whichever stop it shows): `Changes — P`; All changes: `All changes — P`; Specs: `Specs — P`
+- the handoff tab: `Changes — P`, or the walkthrough's title when the worktree opens on its Walkthrough (`Find notes by title — P` with `start --walkthrough-sample`); a walkthrough step: `Step N — P`; All changes: `All changes — P`; Specs: `Specs — P`
 - a changed file or a file opened from Files: `<file name> — P` (the last path segment, e.g. `README.md — P`)
 - a commit: `<first 7 characters of the oid> — P`
 - branch changes: `Branch changes — P`; commit graph: `Commit graph — P`; file timeline: `Timeline of <file name> — P`
-- proof: `Proof — P`
 - no document open: the surface, `Changes — P`, `Files — P` or `History — P`
 - a worktree on a remote computer, or on this computer once it has a custom name: the above followed by ` · <computer name>`
 - Settings: `Settings` (or `Settings · <computer name>` when this computer has a custom name)

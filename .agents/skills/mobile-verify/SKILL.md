@@ -23,7 +23,7 @@ When a device tool supplies a bound driver, pass its executable, private configu
 
 For a developer walkthrough, use `--manual-pairing`. It opens the development client and leaves pairing to Settings → Computers → Add computer → Use development server → Pair.
 
-The default `--fixture development` seeds Dispatch Desk: nested source/docs, previews, long lines, two worktrees, merge history, varied Git changes and a published review with verdict/comments. `fixture.json` records its seed operations. `--fixture focused` uses the small README fixture without seeded reviews/comments. Restart to reset either fixture.
+The default `--fixture development` seeds Dispatch Desk: nested source/docs, previews, long lines, two worktrees, merge history, varied Git changes. `fixture.json` records its seed operations. `--fixture focused` uses the small README fixture. For a ready walkthrough with screenshots, run `walkthrough sample` ([walkthrough page](features/reviews.walkthrough-page.md)). Restart to reset either fixture.
 
 ## Restart and stop
 

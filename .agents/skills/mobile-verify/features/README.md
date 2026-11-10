@@ -5,7 +5,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 ## Baseline preconditions
 
 - From the repository root set `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C doctor` and `$C start --fixture focused` with the owned device flags. Android uses `--device android --serial <serial>` on a booted emulator. A missing matching native build must be resolved before startup.
-- Read the card and private `connection.json`; set `REPO` to `fixtures.repositoryPath`. The focused fixture has a small README repository without published reviews/comments. Use the map's publication/setup commands when needed; restart to reset. The development fixture is a separate richer sample.
+- Read the card and private `connection.json`; set `REPO` to `fixtures.repositoryPath`. The focused fixture has a small README repository. Use the map's setup commands when needed; restart to reset. The development fixture is a separate richer sample.
 - Startup waits for the loaded app, pairs through Settings → Computers → Add computer → Use development server → enabled Pair without typing a long link, independently checks registration and closes setup. For a manual pairing journey use `--manual-pairing`; otherwise reuse the paired development client. Never use installed app data or a physical Android device.
 
 ## Driving conventions

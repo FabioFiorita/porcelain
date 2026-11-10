@@ -1,6 +1,6 @@
 # Contributing to Porcelain
 
-Porcelain is built by one developer working with coding agents, and it moves quickly. Issues are the best way to help: a bug with the steps to reproduce it, or a problem you hit while reviewing an agent's work. For anything larger than a small fix, open an issue before a pull request, so we can agree on the shape first.
+Porcelain is built by one developer working with coding agents, and it moves quickly. Issues are the best way to help: a bug with the steps to reproduce it, a walkthrough that explained a change badly, or a problem you hit while reading an agent's work. For anything larger than a small fix, open an issue before a pull request, so we can agree on the shape first.
 
 [AGENTS.md](AGENTS.md) is the full development guide, for people and agents alike. It covers how a feature crosses the repository, testing, verification and pull requests.
 
@@ -20,11 +20,11 @@ Porcelain is a TypeScript monorepo using pnpm, Turborepo and Effect. The server 
 | [apps/mobile](apps/mobile)                 | Expo native client                                                   |
 | [packages/contracts](packages/contracts)   | Schemas for data crossing the wire                                   |
 | [packages/client](packages/client)         | Shared client queries, commands, stores and rules                    |
-| Domain packages under [packages](packages) | Access, changes, files, projects, reviews and Git actions            |
+| Domain packages under [packages](packages) | Access, agents, changes, files, projects, reviews, walkthroughs and Git actions |
 
-- **Porcelain writes the Walkthrough.** Its own read-only agent explains the change and answers questions.
+- **Porcelain writes the Walkthrough.** Its own read-only agent, run through the developer's Claude Code or Codex CLI, explains the change and answers questions; it never runs the agent that builds. The CLI invocation and its isolation live in [agent-turn.ts](packages/agents/src/walkthrough-writing/agent-turn.ts), and the prompts in [writing-prompts.ts](packages/agents/src/walkthrough-writing/writing-prompts.ts).
 - **Browser devices pair with single-use links.** Local owner commands use the owner socket.
-- **Git remains Git.** Repository operations use the [Git CLI](packages/git/src/shared/commands/run-git.ts); persistent review and access data use SQLite with [migrations](packages/storage/drizzle).
+- **Git remains Git.** Repository operations use the [Git CLI](packages/git/src/shared/commands/run-git.ts); persistent walkthrough, review and access data use SQLite with [migrations](packages/storage/drizzle).
 - **Each layer has one job.** Features move from contracts through domain services, server use cases and the shared client to app views. [read-environment-service.ts](packages/access/src/services/read-environment-service.ts) shows the Effect service and Layer pattern. [Architecture checks](scripts/architecture.ts) and [dependency rules](architecture/dependency-cruiser.cjs) enforce the boundaries.
 
 [AGENTS.md](AGENTS.md) is the development guide: it explains these decisions, testing, verification and pull requests.
@@ -56,7 +56,7 @@ Check static rules and run a single named unit test, for example:
 
 ```sh
 pnpm check:local
-pnpm test --project @porcelain/client packages/client/src/features/reviews/rules/comments.spec.ts
+pnpm test --project @porcelain/client packages/client/src/features/walkthroughs/rules/conversations.spec.ts
 ```
 
 Run the tests you changed by name; CI owns the full suites. For a feature's running proof, use the relevant [verification skill](.agents/skills) and its map, such as the [web feature map](.agents/skills/web-verify/features/README.md). Development uses disposable instances and profiles; never point verification at the installed app or its data.

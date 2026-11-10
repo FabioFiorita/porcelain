@@ -1,7 +1,7 @@
 {
   "name": "porcelain",
   "version": "0.81.0",
-  "description": "Review coding agents’ changes from a browser, Mac or phone",
+  "description": "A fresh, read-only agent explains what your coding agent changed. Read it from a browser, Mac or phone.",
   "license": "MIT",
   "repository": {
     "type": "git",

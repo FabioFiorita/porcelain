@@ -3,7 +3,7 @@ import Site from '../layouts/site.astro';
 import GithubMark from '../components/github-mark.astro';
 
 const description =
-  'Porcelain has no account, no analytics, and no copy of your code. Here is everything it knows about you, and the source to prove it.';
+  'Porcelain has no account, no analytics and no server of its own. Your code stays on your machine, except what the walkthrough agent sends to the Claude or Codex account you already use.';
 const github = 'https://github.com/FabioFiorita/porcelain';
 
 const headline = [
@@ -20,12 +20,32 @@ const answers = [
   {
     question: 'Where does my code go?',
     answer:
-      'Nowhere. It stays on the computer that holds the repository. The browser, the Mac app and, soon, your phone read it from there. Pairing gives each device its own key to that one computer, and nothing to us.',
+      'It stays on the computer that holds the repository. The browser, the Mac app and, soon, your phone read it from there. Pairing gives each device its own key to that one computer, and nothing to us. The one thing that reads your code somewhere else is the walkthrough agent, next.',
+  },
+  {
+    question: 'Who writes the walkthrough?',
+    answer:
+      'An agent running on your computer, through the Claude Code or Codex CLI you already installed and signed in to. Porcelain starts it read-only, in the worktree, when you press Write walkthrough, when a pull request opens on a project where you turned that on, or when you comment on the page. It reads the change, any file in the repository it needs, the pull request’s text and screenshots, and your own messages from the coding sessions in that worktree. Like any session you run yourself, the CLI sends what it reads to Anthropic or OpenAI under your account and their terms. Porcelain sends it to nobody else, and there is no API key to set up.',
+  },
+  {
+    question: 'It reads my messages to my coding agent?',
+    answer:
+      'Only yours, and only from that worktree. Porcelain reads the Claude Code and Codex session files already on your computer, keeps the messages you typed and drops the agent’s side, then gives them to the walkthrough agent so it can say what the code alone doesn’t. They go to the provider you chose for walkthroughs, the same way the change does, and nowhere else.',
+  },
+  {
+    question: 'Anything else that uses the CLI?',
+    answer:
+      'Generating a commit message or commit groups. When you ask for one, Porcelain sends the changes in the files you selected to the CLI you choose, on your account.',
   },
   {
     question: 'And the walkthroughs and comments?',
     answer:
-      'Same computer, in Porcelain’s own folder, ~/.porcelain unless you choose another. Delete it and they are gone. We never had a copy to lose.',
+      'Same computer, in Porcelain’s own folder, ~/.porcelain unless you choose another, along with the pull request screenshots each walkthrough places. Delete it and they are gone. A comment leaves only when you press Post, and then it goes to your pull request on GitHub.',
+  },
+  {
+    question: 'Does it talk to GitHub?',
+    answer:
+      'Through the GitHub CLI, signed in as you. Porcelain reads a pull request’s text, checks and screenshots to write the walkthrough, and posts a comment only when you click to post it.',
   },
   {
     question: 'Analytics? Crash reports? One tiny pixel?',
@@ -33,14 +53,9 @@ const answers = [
       'None in the app and none on this site. We genuinely do not know how many people read this page. If it is just you, hello.',
   },
   {
-    question: 'Does it ever talk to the internet?',
+    question: 'What else talks to the internet?',
     answer:
-      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code. Phone notifications, if you turn them on, are the one other exception, below.',
-  },
-  {
-    question: 'And phone notifications?',
-    answer:
-      'They stay off until you switch them on in the phone app. Then your computer sends Expo’s push service a short notice for your phone, which Expo passes to Apple or Google to deliver: the project name, the review’s title or the start of the agent’s reply with code blocks left out, and a link back to it. Switch them off and each computer deletes the phone’s notification address; forgetting a computer on your phone asks it to do the same.',
+      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code. Your computer sends no phone notifications today.',
   },
   {
     question: 'What about working remotely?',
@@ -48,9 +63,9 @@ const answers = [
       'You reach your own computer over your own network or your own Tailscale. There is no Porcelain server in the middle, because there is no Porcelain server.',
   },
   {
-    question: 'And my agent?',
+    question: 'And my coding agent?',
     answer:
-      'Your agent is its own app with its own policy. Porcelain sends your prompts and code nowhere, but the agent may send what it reads to its provider. Read their privacy page too. You are clearly the kind of person who does.',
+      'The agent that builds your feature is its own app with its own policy, and Porcelain never runs it. Read its provider’s privacy page too. You are clearly the kind of person who does.',
   },
   {
     question: 'This website?',
@@ -90,7 +105,7 @@ const answers = [
         }
       </h1>
       <p data-reveal class="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
-        So you care where your code goes. Good, so do we. Here is everything Porcelain has ever collected about you.
+        So you care where your code goes. Good, so do we. Here is everything Porcelain has ever collected about you, and exactly where your code goes when an agent reads it.
       </p>
 
       <div
@@ -106,7 +121,7 @@ const answers = [
         </p>
         <div>
           <p class="text-2xl font-semibold tracking-[-0.035em] lg:text-3xl">Bytes of your code we have received.</p>
-          <p class="mt-3 text-muted-foreground">Also zero: accounts, emails, cookies, analytics events and crash reports.</p>
+          <p class="mt-3 text-muted-foreground">Also zero: accounts, emails, cookies, analytics events and crash reports. There is no Porcelain server to send them to.</p>
           <p class="mt-5 font-mono text-sm text-muted-foreground/80">// That was the whole database.</p>
         </div>
       </div>
@@ -147,8 +162,8 @@ const answers = [
         </p>
         <p class="text-[clamp(2.4rem,5.4vw,5rem)] leading-[0.95] font-semibold tracking-[-0.055em]">Check the source.</p>
         <p class="mt-8 max-w-lg text-lg leading-relaxed text-background/65">
-          Every line is on GitHub under the MIT license: the server, the apps, the updater, and this page. Anything that
-          could send your code somewhere would have to be in there.
+          Every line is on GitHub under the MIT license: the server, the apps, the walkthrough agent’s prompts and flags,
+          the updater, and this page. Anything that could send your code somewhere would have to be in there.
         </p>
         <a
           class="mt-10 inline-flex h-11 items-center gap-2 rounded-full bg-background px-5 text-sm font-medium text-foreground no-underline transition-transform hover:scale-[1.03] active:scale-[0.98]"
