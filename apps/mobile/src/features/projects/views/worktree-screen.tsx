@@ -112,15 +112,24 @@ export function WorktreeDetail({
         </Box>
       }
     >
-      {(workspace) => (
-        <WorktreeSections
-          key={workspace.key}
-          workspace={workspace.key}
-          details={details}
-          mode={mode}
-          content={content}
-        />
-      )}
+      {(workspace) =>
+        target && !remote ? (
+          <Box className="flex-1" padding={4}>
+            <Empty
+              title="Computer no longer paired"
+              description={`Pair ${details.computer ?? 'this computer'} again in Settings to read ${details.title ?? 'this worktree'}.`}
+            />
+          </Box>
+        ) : (
+          <WorktreeSections
+            key={workspace.key}
+            workspace={workspace.key}
+            details={details}
+            mode={mode}
+            content={content}
+          />
+        )
+      }
     </WorkspaceGate>
   );
 }
@@ -158,13 +167,13 @@ function WorktreeSections({
   return (
     <Screen layout="fixed" testID="worktree-screen">
       <Box
-        className={beside ? 'flex-row items-center' : ''}
+        className={beside ? 'flex-row flex-wrap items-center' : ''}
         paddingX={4}
         paddingY={2}
         gap={4}
       >
         {beside ? (
-          <Box className="min-w-0 flex-1">
+          <Box className="min-w-40 flex-1">
             <Text
               variant="headline"
               accessibilityRole="header"
@@ -177,7 +186,7 @@ function WorktreeSections({
             </Text>
           </Box>
         ) : null}
-        <Box className={beside ? 'w-80' : ''}>
+        <Box className={beside ? 'w-80 max-w-full' : ''}>
           <SegmentedControl
             options={worktreeSections}
             selected={section}
