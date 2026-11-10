@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { prepareNativeDatabase } from '../../../spec/kit/native-database.ts';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
@@ -581,16 +582,31 @@ it('preserves the once-per-PR marker when the migration retires old walkthroughs
         busyTimeoutMs: 5000,
       }).pipe(Layer.provide(NodeServices.layer)),
     );
-  let runtime = open();
+  let runtime: ReturnType<typeof open> | undefined;
   try {
-    const store = await runtime.runPromise(WalkthroughStore);
-    await runtime.runPromise(
-      store.accept(job('old', 'old-head'), 'handled-pr'),
-    );
-    await runtime.dispose();
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    database.exec('DELETE FROM porcelain_migrations WHERE migration_id = 15');
-    database.close();
+    const filename = await prepareNativeDatabase(directory, 14);
+    const database = new DatabaseSync(filename);
+    try {
+      const previous = job('old', 'old-head');
+      database
+        .prepare(
+          'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(
+          previous.run.id,
+          previous.run.worktreeId,
+          previous.run.headOid,
+          previous.run.state.status,
+          JSON.stringify(previous),
+        );
+      database
+        .prepare(
+          'INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (?, ?)',
+        )
+        .run('handled-pr', previous.run.id);
+    } finally {
+      database.close();
+    }
     runtime = open();
     const reopened = await runtime.runPromise(WalkthroughStore);
     const repeated = await runtime.runPromise(
@@ -611,7 +627,7 @@ it('preserves the once-per-PR marker when the migration retires old walkthroughs
       (await runtime.runPromise(reopened.accept(job('manual', 'new-head')))).id,
     ).toBe('manual');
   } finally {
-    await runtime.dispose();
+    await runtime?.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
 });

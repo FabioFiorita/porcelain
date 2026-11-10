@@ -5,14 +5,13 @@ import {
   type WalkthroughJob,
 } from '@porcelain/walkthroughs/models';
 import { SqlClient } from 'effect/sql';
-import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { expect, it } from 'vitest';
 import { databaseLayer } from './connection.ts';
-import { nativeMigrations, upgradeLegacyDatabase } from './migrate.ts';
+import { prepareNativeDatabase } from '../../spec/kit/native-database.ts';
 
 it.each([false, true])(
   'reopen=%s deletes saved reviews and discussions while preserving walkthroughs, settings and worktree marks',
@@ -21,28 +20,7 @@ it.each([false, true])(
     const filename = join(directory, 'inventory.sqlite');
     const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
     try {
-      await Effect.runPromise(
-        upgradeLegacyDatabase(filename, options).pipe(
-          Effect.provide(NodeServices.layer),
-        ),
-      );
-      const legacy = ManagedRuntime.make(
-        SqliteClient.layer({ filename }).pipe(
-          Layer.provide(NodeServices.layer),
-        ),
-      );
-      try {
-        await legacy.runPromise(
-          SqliteMigrator.run({
-            table: 'porcelain_migrations',
-            loader: nativeMigrations.pipe(
-              Effect.map((migrations) => migrations.filter(([id]) => id < 16)),
-            ),
-          }),
-        );
-      } finally {
-        await legacy.dispose();
-      }
+      await prepareNativeDatabase(directory, 15);
       const old = new DatabaseSync(filename);
       const job: WalkthroughJob = {
         worktreePath: '/repo',
@@ -216,27 +194,7 @@ it('clears retired push kinds before the remaining registration reader decodes s
       databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
     );
   try {
-    const filename = join(directory, 'inventory.sqlite');
-    await Effect.runPromise(
-      upgradeLegacyDatabase(filename, options).pipe(
-        Effect.provide(NodeServices.layer),
-      ),
-    );
-    const initial = ManagedRuntime.make(
-      SqliteClient.layer({ filename }).pipe(Layer.provide(NodeServices.layer)),
-    );
-    try {
-      await initial.runPromise(
-        SqliteMigrator.run({
-          table: 'porcelain_migrations',
-          loader: nativeMigrations.pipe(
-            Effect.map((migrations) => migrations.filter(([id]) => id < 14)),
-          ),
-        }),
-      );
-    } finally {
-      await initial.dispose();
-    }
+    await prepareNativeDatabase(directory, 13);
     const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
     stored.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
       INSERT INTO push_registrations (device_id, token, platform, kinds) VALUES ('phone', 'ExponentPushToken[fixture]', 'ios', '["review-ready","agent-reply"]');`);
@@ -264,47 +222,13 @@ it('upgrades migration 012 writer defaults while retaining the saved conversatio
     join(tmpdir(), 'porcelain-writer-default-upgrade-'),
   );
   const filename = join(directory, 'inventory.sqlite');
-  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
   try {
-    await Effect.runPromise(
-      upgradeLegacyDatabase(filename, options).pipe(
-        Effect.provide(NodeServices.layer),
-      ),
-    );
-    const prefix = ManagedRuntime.make(
-      SqliteClient.layer({ filename }).pipe(Layer.provide(NodeServices.layer)),
-    );
-    try {
-      await prefix.runPromise(
-        SqliteMigrator.run({
-          table: 'porcelain_migrations',
-          loader: nativeMigrations.pipe(
-            Effect.map((migrations) => migrations.filter(([id]) => id <= 12)),
-          ),
-        }),
-      );
-    } finally {
-      await prefix.dispose();
-    }
+    await prepareNativeDatabase(directory, 12);
     const old = new DatabaseSync(filename);
     old.exec(`INSERT INTO walkthrough_runs (id,worktree_id,head_oid,status,payload) VALUES ('legacy','worktree','head','queued','{"run":{"writer":{"provider":"claude","model":"claude-opus-5-5"}}}');
       INSERT INTO walkthrough_messages (id,run_id,worktree_id,text,created_at,post_status,answer_status,answer) VALUES ('question','legacy','worktree','Keep this question','today','saved','answering','{"status":"answering"}');`);
     old.close();
-    const current = ManagedRuntime.make(
-      SqliteClient.layer({ filename }).pipe(Layer.provide(NodeServices.layer)),
-    );
-    try {
-      await current.runPromise(
-        SqliteMigrator.run({
-          table: 'porcelain_migrations',
-          loader: nativeMigrations.pipe(
-            Effect.map((migrations) => migrations.filter(([id]) => id <= 13)),
-          ),
-        }),
-      );
-    } finally {
-      await current.dispose();
-    }
+    await prepareNativeDatabase(directory, 13);
     const stored = new DatabaseSync(filename);
     try {
       expect(
@@ -354,27 +278,9 @@ it.each([12, 14])(
           Layer.provide(NodeServices.layer),
         ),
       );
-    const filename = join(directory, 'inventory.sqlite');
-    let runtime = ManagedRuntime.make(
-      SqliteClient.layer({ filename }).pipe(Layer.provide(NodeServices.layer)),
-    );
+    let runtime: ReturnType<typeof open> | undefined;
     try {
-      await Effect.runPromise(
-        upgradeLegacyDatabase(filename, options).pipe(
-          Effect.provide(NodeServices.layer),
-        ),
-      );
-      await runtime.runPromise(
-        SqliteMigrator.run({
-          table: 'porcelain_migrations',
-          loader: nativeMigrations.pipe(
-            Effect.map((migrations) =>
-              migrations.filter(([id]) => id <= prefix),
-            ),
-          ),
-        }),
-      );
-      await runtime.dispose();
+      await prepareNativeDatabase(directory, prefix);
       const old = new DatabaseSync(join(directory, 'inventory.sqlite'));
       old.exec(`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES ('old', 'worktree', 'head', 'ready', '{}');
 
@@ -403,7 +309,7 @@ it.each([12, 14])(
         ),
       ).toEqual([{ name: 'working_tree_walkthroughs' }]);
     } finally {
-      await runtime.dispose();
+      await runtime?.dispose();
       rmSync(directory, { recursive: true, force: true });
     }
   },
