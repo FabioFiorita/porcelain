@@ -17,6 +17,8 @@ A new tab can share credentials with an existing tab. Use an isolated browser co
 
 A restarted instance reuses its worktree-derived web port while free, but needs new pairing. For a developer walkthrough, use Vite's development-only “Pair this browser” button on the not-paired page; it obtains a one-time link from the owner socket.
 
+`start --walkthrough-sample` prepares a feature branch with committed files and a ready synthetic Walkthrough. `pnpm dev:walkthrough` starts this same sample; plain `pnpm dev` uses it too.
+
 `start --desktop` exposes desktop-mode views without Electron's native bridge. `start --coding-tool` enables the fixture's fake coding tool in the disposable server's explicit coding-tool directory. Without it, no coding CLI is available. Host provider credentials and configuration variables are removed from verification supervisors.
 
 ## Drive and record

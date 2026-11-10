@@ -126,7 +126,7 @@ async function browser(): Promise<void> {
     {
       cwd: root,
       detached: true,
-      env: { ...process.env, PORCELAIN_DEV_SAMPLE: 'review' },
+      env: { ...process.env, PORCELAIN_DEV_SAMPLE: 'walkthrough' },
       stdio: ['inherit', 'pipe', 'inherit'],
     },
   );
