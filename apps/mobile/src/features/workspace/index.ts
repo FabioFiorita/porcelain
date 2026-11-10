@@ -1,11 +1,7 @@
 export { ReviewPane } from './views/review-screen';
 export type { ReviewPaneProps } from './views/review-screen';
 export { ReviewFileScreen } from './views/review-file-screen';
-export {
-  ChangesPage,
-  ChangesPageScreen,
-  type ChangesReading,
-} from './views/changes-page';
+export { ChangesPage, ChangesPageScreen } from './views/changes-page';
 export { ReviewCommentsScreen } from './views/review-comments-screen';
 export { useFileReview } from './queries/review';
 export {

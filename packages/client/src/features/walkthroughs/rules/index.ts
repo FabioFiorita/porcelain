@@ -1,5 +1,4 @@
 export {
-  firstDocument,
   groupFilesByStep,
   plainText,
   richParts,
@@ -9,10 +8,8 @@ export {
   walkthroughPullRequest,
   walkthroughStartFailure,
   walkthroughTabTitle,
-  walkthroughFileCount,
   walkthroughPhase,
   walkthroughVerdict,
-  type FirstDocument,
   type StepFiles,
   type WalkthroughContent,
   type WalkthroughEvidence,
@@ -35,7 +32,6 @@ export {
   postOutcome,
   savedSummary,
   stopConversations,
-  type PostOutcome,
   postDestination,
   savedMessageCount,
   type AgentMessage,
@@ -43,11 +39,7 @@ export {
   type DeveloperMessage,
   type WalkthroughAnchor,
 } from './conversations.ts';
-export {
-  worktreeOpening,
-  type Reading,
-  type WorktreeOpening,
-} from './opening.ts';
+export { worktreeOpening, type WorktreeOpening } from './opening.ts';
 export {
   attentionLabel,
   failureCopy,

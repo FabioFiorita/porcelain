@@ -1,6 +1,6 @@
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 
-export const worktreeSections = [
+const worktreeSections = [
   { id: 'walkthrough', label: 'Walkthrough' },
   { id: 'changes', label: 'Changes' },
   { id: 'files', label: 'Files' },
