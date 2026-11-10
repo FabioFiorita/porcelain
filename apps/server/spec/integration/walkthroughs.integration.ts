@@ -307,7 +307,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
       ),
     );
     try {
-      database.exec('PRAGMA busy_timeout = 5000');
+      database.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
       database
         .prepare(
           'INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (?, ?, ?, ?, ?)',
@@ -319,6 +319,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
           'ready',
           JSON.stringify(job),
         );
+      database.exec('COMMIT');
     } finally {
       database.close();
     }
