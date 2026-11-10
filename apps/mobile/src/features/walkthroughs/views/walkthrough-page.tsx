@@ -559,18 +559,7 @@ function Failed({
           <Text variant="title" accessibilityRole="header">
             {copy.title}
           </Text>
-          {copy.message ? (
-            <Text tone="muted">
-              {copy.message}
-              {copy.command ? (
-                <>
-                  {' '}
-                  <Text mark="code">{copy.command}</Text> on this computer, then
-                  try again.
-                </>
-              ) : null}
-            </Text>
-          ) : null}
+          {copy.message ? <Text tone="muted">{copy.message}</Text> : null}
           <Button label="Try again" pending={waiting} onPress={onRetry} />
         </Box>
       )}

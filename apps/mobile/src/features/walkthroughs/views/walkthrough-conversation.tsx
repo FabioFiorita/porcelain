@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { Linking } from 'react-native';
 import { useAtom } from '@effect/atom-react';
 import {
   developerTurns,
@@ -22,6 +21,7 @@ import { MessageComposer } from '../../../components/ui/message-composer';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
+import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import {
   useAnswerRetry,
   useAsk,
@@ -72,6 +72,7 @@ function PostActions({
 }) {
   const actions = usePostActions(owner, message);
   const { notice, waiting, copy, save, post } = actions;
+  const link = usePreviewLink();
   const state = postControls(message);
   const labels = postLabels(pullRequest);
   return (
@@ -83,8 +84,7 @@ function PostActions({
         <LinkButton
           label={postedCommentLabel(message.post.url)}
           onPress={() => {
-            if (message.post.status === 'posted')
-              void Linking.openURL(message.post.url);
+            if (message.post.status === 'posted') link.open(message.post.url);
           }}
         />
       ) : null}
@@ -121,6 +121,11 @@ function PostActions({
             />
           ) : null}
         </Box>
+      ) : null}
+      {link.error ? (
+        <Text variant="caption" tone="destructive" accessibilityRole="alert">
+          {link.error}
+        </Text>
       ) : null}
       {notice ? (
         <Box className="flex-row flex-wrap items-center" gap={2}>

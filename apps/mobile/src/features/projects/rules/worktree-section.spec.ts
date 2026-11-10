@@ -100,4 +100,11 @@ it('keeps the chosen section while it is offered, else falls back to the opening
       guide: plain,
     }),
   ).toBe('changes');
+  expect(
+    shownWorktreeSection({
+      chosen: 'changes',
+      opening: 'changes',
+      guide: guided,
+    }),
+  ).toBe('walkthrough');
 });
