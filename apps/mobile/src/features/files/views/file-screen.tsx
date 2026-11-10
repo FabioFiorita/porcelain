@@ -8,10 +8,6 @@ import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
-import {
-  DocumentComments,
-  savedFileCommentTarget,
-} from '../../workspace/index';
 import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -231,8 +227,6 @@ function FilePreview({
   path,
   text,
   selected,
-  file,
-  leaveScope,
   place,
   actions,
 }: FileProps & { text: string; file: FileContents }) {
@@ -254,39 +248,21 @@ function FilePreview({
       ]
     : [];
   return (
-    <DocumentComments
-      workspace={selected}
-      leaveScope={leaveScope}
-      path={path}
-      document={JSON.stringify(['file', path])}
-      target={savedFileCommentTarget(path, file.contentFingerprint)}
-      header={({ comments, clearSelection }) => (
-        <DocumentHeader
-          path={path}
-          place={place}
-          actions={[
-            ...mode,
-            comments,
-            ...actions,
-            ...(clearSelection ? [clearSelection] : []),
-          ]}
-        />
-      )}
-    >
-      {(selection) => (
-        <View className="flex-1">
-          {link.error ? <ErrorState message={link.error} /> : null}
-          <FileContentsPreview
-            workspace={selected.key}
-            path={path}
-            text={text}
-            rendered={rendered}
-            onLink={link.open}
-            {...selection}
-          />
-        </View>
-      )}
-    </DocumentComments>
+    <View className="flex-1">
+      <DocumentHeader
+        path={path}
+        place={place}
+        actions={[...mode, ...actions]}
+      />
+      {link.error ? <ErrorState message={link.error} /> : null}
+      <FileContentsPreview
+        workspace={selected.key}
+        path={path}
+        text={text}
+        rendered={rendered}
+        onLink={link.open}
+      />
+    </View>
   );
 }
 

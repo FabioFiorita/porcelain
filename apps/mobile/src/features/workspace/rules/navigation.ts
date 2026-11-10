@@ -1,6 +1,3 @@
-import { Schema, Option } from 'effect';
-import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
-import type { CommentAnchor } from '@porcelain/client/reviews/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 
 export function reviewComparison(
@@ -23,39 +20,6 @@ export function reviewFileDocumentKey(
       : ['branch', comparison.base ?? null],
     path,
   ]);
-}
-
-export function decodeCommentAnchor(value?: string): CommentAnchor | undefined {
-  if (!value) return undefined;
-  try {
-    const result = Schema.decodeUnknownOption(
-      createCommentThreadResponseSchema.fields.anchor,
-    )(JSON.parse(value));
-    return Option.isSome(result) ? result.value : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export type CommentReview = { reviewId: string; reviewRevision: number };
-
-export function commentReviewParams(review: {
-  reviewId?: string | undefined;
-  revision: number;
-}) {
-  return review.reviewId
-    ? { review: review.reviewId, revision: String(review.revision) }
-    : {};
-}
-
-export function decodeCommentReview(
-  reviewId?: string,
-  revision?: string,
-): CommentReview | undefined {
-  const reviewRevision = Number(revision);
-  return reviewId && Number.isInteger(reviewRevision) && reviewRevision > 0
-    ? { reviewId, reviewRevision }
-    : undefined;
 }
 
 export function reviewParams(key: string, comparison: ReviewComparison) {

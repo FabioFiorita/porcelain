@@ -8,7 +8,7 @@ import {
 
 type AvailableReview = Extract<NavigatorReview, { state: 'available' }>;
 type ReviewInboxStatus = 'decision' | 'new' | 'available';
-export type ReviewInboxRow = {
+type ReviewInboxRow = {
   key: string;
   entry: NavigatorEntry;
   review: AvailableReview;

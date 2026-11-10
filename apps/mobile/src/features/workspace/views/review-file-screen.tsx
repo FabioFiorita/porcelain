@@ -3,7 +3,7 @@ import { diffSelection } from '@porcelain/client/changes/rules';
 import { commitPaths } from '@porcelain/client/history/rules';
 import { Box } from '../../../components/ui/box';
 import { usePreferences } from '../../preferences/index';
-import { useIsFocused, useRouter } from 'expo-router';
+import { useIsFocused } from 'expo-router';
 import { View } from 'react-native';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -13,13 +13,6 @@ import {
 } from '@porcelain/client/changes';
 import { readTextFile } from '@porcelain/client/files';
 import { selectionKey, type Change } from '@porcelain/client/changes/rules';
-import {
-  type CommentTarget,
-  commentIsStale,
-  matchesCommentTarget,
-} from '@porcelain/client/reviews/rules';
-import type { DocumentCodeSelection } from './document-comments';
-import { documentCommentAnchor } from '../rules/document-comment';
 import { Empty } from '../../../components/ui/empty';
 import { Text } from '../../../components/ui/text';
 import { DiffView } from '../../../components/ui/diff-view';
@@ -30,23 +23,20 @@ import {
   type DocumentAction,
 } from '../../../components/ui/document-header';
 import { Screen } from '../../../components/ui/screen';
-import type { ReviewRange } from '../../../components/ui/review-annotation';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { useReviewSnapshot, useReviewMarks } from '../queries/review';
 import {
   reviewFiles,
-  documentReviewTarget,
   type ReviewFile,
   type ReviewSnapshot,
 } from '../rules/comparison';
-import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
+import { reviewFileDocumentKey } from '../rules/navigation';
 import { diffPresentation } from '../rules/diff-presentation';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { ReviewReadState } from './read-state';
 import { useReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
-import { documentSelectionState } from '../store';
 import { reviewFileScope } from '../store';
 
 export function ReviewFileScreen({
@@ -163,7 +153,6 @@ function ChangedFile({
   file: ReviewFile;
   comparison: ReviewComparison;
 }) {
-  const router = useRouter();
   const documentKey = reviewFileDocumentKey(file.path, comparison);
   const [comparisonScope, setComparisonScope] = useAtom(
     reviewFileScope(JSON.stringify([workspace.key, documentKey])),
@@ -175,54 +164,9 @@ function ChangedFile({
       : [];
   const change =
     changes.find((entry) => entry.scope === comparisonScope) ?? changes[0];
-  const target = documentReviewTarget(snapshot, file.path, change?.scope);
-  const [selected, setSelected] = useAtom(
-    documentSelectionState({
-      environmentId: workspace.connection.environmentId,
-      ...workspace.scope,
-      document: documentKey,
-      comparison: target?.comparison,
-    }),
-  );
-  const selection = selected?.range;
-  const anchor = documentCommentAnchor(selected?.target ?? target, selection);
-  const stale =
-    anchor &&
-    target &&
-    (commentIsStale(anchor, target) || !matchesCommentTarget(anchor, target));
   const reviewed = useReviewedAction(workspace, snapshot, file);
   const actions: DocumentAction[] = [
     ...(reviewed.action ? [reviewed.action] : []),
-    {
-      kind: 'button',
-      id: 'comment',
-      label: selection ? 'Comment on selected lines' : 'Comment on file',
-      icon: 'comment',
-      disabled: !anchor,
-      onPress: () => {
-        if (anchor)
-          router.navigate({
-            pathname: '/review-comments',
-            params: {
-              ...reviewParams(workspace.key, comparison),
-              path: anchor.filePath,
-              anchor: JSON.stringify(anchor),
-              compose: 'true',
-            },
-          });
-      },
-    },
-    ...(selection
-      ? [
-          {
-            kind: 'button' as const,
-            id: 'clear-selection',
-            label: 'Clear selection',
-            icon: 'clearSelection' as const,
-            onPress: () => setSelected(undefined),
-          },
-        ]
-      : []),
     ...(changes.length > 1
       ? [
           {
@@ -243,13 +187,6 @@ function ChangedFile({
     workspace,
     file,
     comparison,
-    target,
-    codeSelection: {
-      selection,
-      onSelect: target
-        ? (range: ReviewRange) => setSelected({ range, target })
-        : undefined,
-    },
   };
   return (
     <View className="flex-1">
@@ -259,14 +196,6 @@ function ChangedFile({
         actions={actions}
       />
       {reviewed.notice}
-      {stale ? (
-        <Box paddingX={4} paddingY={2}>
-          <Text variant="caption" tone="muted">
-            Code changed since selection. Clear it and select the current saved
-            code to update the target.
-          </Text>
-        </Box>
-      ) : null}
       {snapshot.kind === 'branch' ? (
         <BranchFile {...fileProps} snapshot={snapshot} />
       ) : null}
@@ -293,8 +222,6 @@ type FileProps = {
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
-  target: CommentTarget | undefined;
-  codeSelection: DocumentCodeSelection;
 };
 
 function WorktreeComparison(
@@ -454,10 +381,8 @@ function SelectableContent({
   workspace,
   file,
   comparison,
-  target,
   source,
   lines,
-  codeSelection,
 }: FileProps & {
   source?: string;
   lines?: Parameters<typeof DiffView>[0]['lines'];
@@ -465,11 +390,8 @@ function SelectableContent({
   const { preferences } = usePreferences();
   const reading = useDocumentReadingLine(
     workspace.key,
-    JSON.stringify([
-      reviewFileDocumentKey(file.path, comparison),
-      target?.comparison,
-    ]),
-    target?.contentFingerprint ?? source ?? '',
+    JSON.stringify([reviewFileDocumentKey(file.path, comparison)]),
+    source ?? '',
   );
   return lines ? (
     <DiffView
@@ -477,7 +399,6 @@ function SelectableContent({
       lines={lines}
       language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}
-      {...codeSelection}
     />
   ) : (
     <CodeView
@@ -485,7 +406,6 @@ function SelectableContent({
       source={source ?? ''}
       language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}
-      {...codeSelection}
     />
   );
 }

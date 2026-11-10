@@ -1,10 +1,7 @@
-import { rangeAnchor } from '@porcelain/client/reviews/rules';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { describe, expect, it } from 'vitest';
 import {
-  commentTarget,
-  documentReviewTarget,
   fileReviewLabels,
   reviewFiles,
   reviewRange,
@@ -59,13 +56,6 @@ const branch: ReviewSnapshot = {
     ],
   },
 };
-const file = {
-  path: 'new.ts',
-  fingerprint: 'current',
-  note: 'staged',
-  reviewStatus: 'unreviewed' as const,
-};
-
 describe('Files navigation change marks', () => {
   it('marks the worktree changes of an uncommitted comparison', () => {
     const marks = snapshotChangeMarks(AsyncResult.success(worktree));
@@ -230,84 +220,4 @@ describe('mobile review comparisons', () => {
       })[0]?.reviewStatus,
     ).toBe('stale');
   });
-  it('anchors deleted-line feedback to the displayed staged fingerprint', () => {
-    const target = commentTarget(worktree, file, 'staged');
-    expect(
-      target && rangeAnchor(target, { start: 9, end: 8, side: 'deletions' }),
-    ).toEqual({
-      kind: 'codeRange',
-      filePath: 'new.ts',
-      comparison: { kind: 'worktree', scope: 'staged' },
-      contentFingerprint: 'current',
-      startLine: 8,
-      endLine: 9,
-      side: 'deletions',
-    });
-  });
-  it('binds branch feedback to the displayed base and tip', () => {
-    expect(
-      commentTarget(branch, { ...file, fingerprint: 'branch-content' }),
-    ).toEqual({
-      filePath: 'new.ts',
-      comparison: { kind: 'branch', base: 'refs/heads/main' },
-      revision: 'tip',
-      contentFingerprint: 'branch-content',
-    });
-  });
-  it('does not offer file feedback without a known content fingerprint', () => {
-    expect(
-      commentTarget(worktree, { ...file, fingerprint: undefined }, 'unstaged'),
-    ).toBeUndefined();
-  });
-});
-
-it('does not submit branch feedback without a base', () => {
-  expect(
-    commentTarget(
-      { ...branch, answer: { ...branch.answer, base: undefined } },
-      file,
-    ),
-  ).toBeUndefined();
-});
-it('does not submit worktree feedback without a comparison scope', () => {
-  expect(commentTarget(worktree, file)).toBeUndefined();
-});
-
-it('binds document comments to the selected worktree scope and falls back only to an available comparison', () => {
-  const snapshot: ReviewSnapshot = {
-    ...worktree,
-    answer: {
-      ...worktree.answer,
-      changes: [
-        {
-          path: 'new.ts',
-          fingerprint: 'current',
-          comparisons: [staged, { ...staged, scope: 'unstaged' }],
-        },
-      ],
-    },
-  };
-  expect(documentReviewTarget(snapshot, 'new.ts', 'unstaged')).toEqual({
-    filePath: 'new.ts',
-    contentFingerprint: 'current',
-    comparison: { kind: 'worktree', scope: 'unstaged' },
-  });
-  expect(documentReviewTarget(snapshot, 'new.ts', 'untracked')).toEqual({
-    filePath: 'new.ts',
-    contentFingerprint: 'current',
-    comparison: { kind: 'worktree', scope: 'staged' },
-  });
-});
-it('keeps document comments disabled when a comparison disappears or its snapshot is unavailable', () => {
-  expect(documentReviewTarget(undefined, 'new.ts', 'staged')).toBeUndefined();
-  expect(documentReviewTarget(worktree, 'gone.ts', 'staged')).toBeUndefined();
-});
-it('uses the displayed branch rename destination and snapshot evidence for a document', () => {
-  expect(documentReviewTarget(branch, 'new.ts', undefined)).toEqual({
-    filePath: 'new.ts',
-    contentFingerprint: 'branch-content',
-    revision: 'tip',
-    comparison: { kind: 'branch', base: 'refs/heads/main' },
-  });
-  expect(documentReviewTarget(branch, 'old.ts', undefined)).toBeUndefined();
 });

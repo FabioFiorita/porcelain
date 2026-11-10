@@ -1,12 +1,6 @@
-export {
-  completeDecision,
-  decisionCompletionBinding,
-} from './commands/decisions.ts';
+export { completeDecision } from './commands/decisions.ts';
 export { readReviewedFiles } from './queries/reviewed.ts';
-export {
-  readPublishedReview,
-  readReviewSummary,
-} from './queries/publication.ts';
+export { readPublishedReview } from './queries/publication.ts';
 
 export {
   reviewedCommandFailure,
@@ -32,8 +26,3 @@ export {
   readProjectGitHubAccount,
 } from './queries/project-reviews.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
-
-export {
-  agentFeedbackControls,
-  type AgentFeedbackInput,
-} from './queries/agent-feedback-controls.ts';

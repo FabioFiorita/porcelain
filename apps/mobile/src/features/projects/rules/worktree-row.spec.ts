@@ -24,7 +24,6 @@ it('keeps full branch names without clean-state filler', () => {
   const branch = 'a-long-branch-name-'.repeat(12);
   expect(worktreeRow({ ...entry, branch })).toMatchObject({
     title: branch,
-    review: '',
     changes: '',
   });
 });
@@ -48,7 +47,7 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
       changes: { state: 'loading' },
       review: { state: 'loading' },
     }),
-  ).toMatchObject({ review: 'Reading review…', changes: 'Reading changes…' });
+  ).toMatchObject({ changes: 'Reading changes…' });
   expect(
     worktreeRow({
       ...entry,
@@ -56,7 +55,6 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
       review: { state: 'unavailable' },
     }),
   ).toMatchObject({
-    review: 'Review unavailable',
     changes: '—',
   });
 });

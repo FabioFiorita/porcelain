@@ -13,7 +13,6 @@ import {
   type WorktreeCleanupPlan,
 } from '@porcelain/client/projects';
 import type { EnvironmentConnection } from '@porcelain/client/access';
-import { requestDocumentLeave } from '../store';
 import {
   clientRuntime,
   selectionState,
@@ -102,8 +101,7 @@ export function useDeleteWorktree(selection: Selection) {
           else if (Exit.isFailure(exit)) onFailure();
         });
       };
-      if (selectedTarget(selection)) requestDocumentLeave(perform);
-      else perform();
+      perform();
     },
   };
 }
@@ -136,9 +134,7 @@ export function useSwitchWorktreeBranch(selection: Selection) {
             onDone();
         });
       };
-      if (!unresolved && selectedTarget(selection))
-        requestDocumentLeave(perform);
-      else perform();
+      perform();
     },
   };
 }

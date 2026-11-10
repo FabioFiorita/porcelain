@@ -16,7 +16,6 @@ import {
 } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
-  navigatorEntryLabel,
   navigatorChecksLabel,
   type NavigatorEntry,
   type NavigatorFilterSection,
@@ -39,7 +38,6 @@ import { useOpenComputers } from './open-computers';
 import { worktreeRow } from '../rules/worktree-row';
 import { useWorktreeNavigator } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
-import { useOpenPublishedReview } from './open-published-review';
 import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
@@ -52,7 +50,6 @@ const environmentGlyphs: Record<EnvironmentIcon, IconName> = {
 };
 
 function worktreeIcon(entry: NavigatorEntry): IconName {
-  if (entry.kind === 'review') return 'review';
   return entry.main ? 'home' : 'branch';
 }
 
@@ -76,7 +73,6 @@ export function WorktreeNavigator({
   const router = useRouter();
   const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
-  const openPublishedReview = useOpenPublishedReview();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -100,11 +96,6 @@ export function WorktreeNavigator({
         entry.worktreeId,
         () => onOpenWorktree(entry),
       );
-    } else if (entry.review.state === 'available') {
-      openPublishedReview({
-        reviewId: entry.review.reviewId,
-        environmentId: entry.environmentId,
-      });
     }
   };
   if (storage.status === 'ready' && paired.length === 0)
@@ -113,7 +104,7 @@ export function WorktreeNavigator({
         <Box paddingX={4} paddingY={3} gap={2}>
           <Text variant="headline">No computers paired</Text>
           <Text variant="caption" tone="muted">
-            Pair a computer to see its worktrees and reviews here.
+            Pair a computer to see its worktrees here.
           </Text>
           <Box className="items-start">
             <Button
@@ -128,7 +119,7 @@ export function WorktreeNavigator({
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
       <Stack.SearchBar
-        placeholder="Search reviews and worktrees"
+        placeholder="Search worktrees"
         autoCapitalize="none"
         hideWhenScrolling={false}
         onChangeText={(event) => setQuery(event.nativeEvent.text)}
@@ -227,131 +218,119 @@ export function WorktreeNavigator({
                 />
               </Box>
               {project.expanded
-                ? project.entries.map((entry) => {
-                    const selected = navigatorEntrySelected(entry, selection);
-                    const row = worktreeRow(entry);
-                    const review =
-                      entry.review.state === 'available'
-                        ? entry.review
-                        : undefined;
-                    const number = review?.pullRequestNumber;
-                    const checks = review?.checks;
-                    const failed =
-                      checks?.state === 'available' &&
-                      checks.result === 'failed';
-                    const pending =
-                      entry.review.state === 'loading' ||
-                      (entry.kind === 'worktree' &&
-                        entry.changes.state === 'loading');
-                    return (
-                      <Box key={entry.key} gap={1}>
-                        <Item
-                          title={row.title}
-                          {...(entry.detached ? { detail: 'Detached' } : {})}
-                          titleNumberOfLines={1}
-                          size="compact"
-                          leading={
-                            <Icon name={worktreeIcon(entry)} tone="muted" />
-                          }
-                          trailing={
-                            failed || pending ? (
-                              <Box className="flex-row items-center" gap={2}>
-                                {failed ? (
-                                  <Icon name="warning" tone="destructive" />
-                                ) : null}
-                                {pending ? (
-                                  <ActivityIndicator
+                ? project.entries
+                    .filter((entry) => entry.kind === 'worktree')
+                    .map((entry) => {
+                      const selected = navigatorEntrySelected(entry, selection);
+                      const row = worktreeRow(entry);
+                      const review =
+                        entry.review.state === 'available'
+                          ? entry.review
+                          : undefined;
+                      const number = review?.pullRequestNumber;
+                      const checks = review?.checks;
+                      const failed =
+                        checks?.state === 'available' &&
+                        checks.result === 'failed';
+                      const pending =
+                        entry.review.state === 'loading' ||
+                        (entry.kind === 'worktree' &&
+                          entry.changes.state === 'loading');
+                      return (
+                        <Box key={entry.key} gap={1}>
+                          <Item
+                            title={row.title}
+                            {...(entry.detached ? { detail: 'Detached' } : {})}
+                            titleNumberOfLines={1}
+                            size="compact"
+                            leading={
+                              <Icon name={worktreeIcon(entry)} tone="muted" />
+                            }
+                            trailing={
+                              failed || pending ? (
+                                <Box className="flex-row items-center" gap={2}>
+                                  {failed ? (
+                                    <Icon name="warning" tone="destructive" />
+                                  ) : null}
+                                  {pending ? (
+                                    <ActivityIndicator
+                                      accessible={false}
+                                      size="small"
+                                      colorClassName="accent-muted-foreground"
+                                    />
+                                  ) : null}
+                                </Box>
+                              ) : undefined
+                            }
+                            action={
+                              review && number !== undefined ? (
+                                <ButtonSurface
+                                  variant="plain"
+                                  size="sm"
+                                  className="self-end"
+                                  disabled={picker.disabled}
+                                  accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}, ${navigatorChecksLabel(checks)}`}
+                                  onPress={() =>
+                                    openPullRequest({
+                                      environmentId: entry.environmentId,
+                                      reviewId: review.reviewId,
+                                      number,
+                                      projectId: entry.projectId,
+                                    })
+                                  }
+                                >
+                                  <Text
                                     accessible={false}
-                                    size="small"
-                                    colorClassName="accent-muted-foreground"
-                                  />
-                                ) : null}
-                              </Box>
-                            ) : undefined
-                          }
-                          action={
-                            review && number !== undefined ? (
-                              <ButtonSurface
-                                variant="plain"
-                                size="sm"
-                                className="self-end"
-                                disabled={picker.disabled}
-                                accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}, ${navigatorChecksLabel(checks)}`}
-                                onPress={() =>
-                                  openPullRequest({
-                                    environmentId: entry.environmentId,
-                                    reviewId: review.reviewId,
-                                    number,
-                                    projectId: entry.projectId,
-                                  })
+                                    variant="caption"
+                                    tone="muted"
+                                  >
+                                    #{number}
+                                  </Text>
+                                </ButtonSurface>
+                              ) : undefined
+                            }
+                            selected={selected}
+                            selectionTone="neutral"
+                            disabled={picker.disabled || !entry.available}
+                            accessibilityLabel={[
+                              entry.displayTitle,
+                              row.title,
+                              row.branch,
+                              entry.projectName,
+                              entry.environmentName,
+                              row.changes,
+                              number ? navigatorChecksLabel(checks) : undefined,
+                              selected ? 'current' : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(', ')}
+                            onPress={() => open(entry)}
+                            {...(entry.kind === 'worktree' &&
+                            entry.worktreeId &&
+                            connection
+                              ? {
+                                  onLongPress: () => openActions(entry),
                                 }
+                              : {})}
+                          >
+                            {row.branch ? (
+                              <Text
+                                variant="mono"
+                                tone="muted"
+                                numberOfLines={1}
                               >
-                                <Text
-                                  accessible={false}
-                                  variant="caption"
-                                  tone="muted"
-                                >
-                                  #{number}
-                                </Text>
-                              </ButtonSurface>
-                            ) : undefined
-                          }
-                          selected={selected}
-                          selectionTone="neutral"
-                          disabled={
-                            picker.disabled ||
-                            (entry.kind === 'worktree' &&
-                              !entry.available &&
-                              !review)
-                          }
-                          accessibilityLabel={[
-                            entry.displayTitle,
-                            navigatorEntryLabel(entry),
-                            number ? navigatorChecksLabel(checks) : undefined,
-                            selected ? 'current' : undefined,
-                          ]
-                            .filter(Boolean)
-                            .join(', ')}
-                          onPress={() => open(entry)}
-                          {...(entry.kind === 'worktree' &&
-                          entry.worktreeId &&
-                          connection
-                            ? {
-                                onLongPress: () => openActions(entry),
-                              }
-                            : {})}
-                        >
-                          {row.branch ? (
-                            <Text variant="mono" tone="muted" numberOfLines={1}>
-                              {row.branch}
-                            </Text>
-                          ) : null}
-                          {row.review || row.changes ? (
-                            <Box
-                              className="flex-row flex-wrap items-center"
-                              gap={2}
-                            >
-                              {row.review ? (
-                                <Text
-                                  variant="caption"
-                                  tone="muted"
-                                  numberOfLines={1}
-                                  className="min-w-0 shrink"
-                                >
-                                  {row.review}
-                                </Text>
-                              ) : null}
-                              {row.changes ? (
-                                <Text variant="caption" tone="muted">
-                                  {row.changes}
-                                </Text>
-                              ) : null}
-                            </Box>
-                          ) : null}
-                        </Item>
-                      </Box>
-                    );
-                  })
+                                {row.branch}
+                              </Text>
+                            ) : null}
+                            {row.changes ? (
+                              <Text variant="caption" tone="muted">
+                                {row.changes}
+                              </Text>
+                            ) : null}
+                          </Item>
+                        </Box>
+                      );
+                    })
                 : null}
             </Box>
           );

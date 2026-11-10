@@ -2,7 +2,6 @@ import { useAtom } from '@effect/atom-react';
 import { Exit, type Cause } from 'effect';
 import { renameProject, removeProject } from '@porcelain/client/projects';
 import type { RuntimeConnection } from '@porcelain/client/transport';
-import { requestDocumentLeave } from '../store';
 
 export function useRenameProject(
   connection: RuntimeConnection,
@@ -31,11 +30,10 @@ export function useRemoveProject(
   return (
     onDone: () => void,
     onFailure: (cause: Cause.Cause<unknown>) => void,
-  ) =>
-    requestDocumentLeave(() => {
-      void remove(projectId).then((exit) => {
-        if (Exit.isSuccess(exit)) onDone();
-        else onFailure(exit.cause);
-      });
+  ) => {
+    void remove(projectId).then((exit) => {
+      if (Exit.isSuccess(exit)) onDone();
+      else onFailure(exit.cause);
     });
+  };
 }

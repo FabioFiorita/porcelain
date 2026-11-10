@@ -30,7 +30,6 @@ export { openProject } from './commands/open-project.ts';
 export { workspaceSelectionCleanupLayer } from './store/workspace-cleanup.ts';
 
 export {
-  readReviewInbox,
   readReviewNavigator,
   readWorktreeNavigator,
 } from './queries/worktree-navigator.ts';

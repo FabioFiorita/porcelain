@@ -230,13 +230,6 @@ export const readReviewMarks = Atom.family((input: ReviewInput) =>
     api.reviews.listReviewMarks({ params: { reviewId: input.reviewId } }),
   ).pipe(reactive(input, true), retainRead),
 );
-export const readReviewAgentFeedback = Atom.family((input: ReviewInput) =>
-  query(input.connection, (api) =>
-    api.reviews.readReviewAgentFeedback({
-      params: { reviewId: input.reviewId },
-    }),
-  ).pipe(reactive(input, true), retainRead),
-);
 const retainedReviewComments = Atom.family((input: ReviewInput) =>
   query(
     input.connection,

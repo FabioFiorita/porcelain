@@ -25,7 +25,6 @@ export function worktreeOpening(input: {
     input.branchFiles.status === 'read' ? input.branchFiles.value : 0;
   const name = firstDocument({
     read: read ?? { walkthrough: undefined, outOfDate: false },
-    publishedReview: false,
     branchHasCommits: files > 0,
   });
   return {

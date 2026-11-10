@@ -1,4 +1,3 @@
-import { requestDocumentLeave } from '../store';
 import { useAtom } from '@effect/atom-react';
 import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
@@ -52,10 +51,12 @@ export function useArchiveReview(input: {
   return {
     result,
     submit,
-    prepare: (options: ArchiveReviewRequest['options'], onStart: () => void) =>
-      requestDocumentLeave(() => {
-        onStart();
-        void submit({ options });
-      }),
+    prepare: (
+      options: ArchiveReviewRequest['options'],
+      onStart: () => void,
+    ) => {
+      onStart();
+      void submit({ options });
+    },
   };
 }

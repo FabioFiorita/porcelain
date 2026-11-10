@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-screens/experimental';
 
-function TabRoutes({ segment }: { segment: string }) {
+function TabRoutes() {
   return (
     <Stack
       screenOptions={({ theme }) => ({
@@ -10,38 +10,13 @@ function TabRoutes({ segment }: { segment: string }) {
         headerTintColor: theme.colors.text,
       })}
     >
-      {segment === '(reviews)' ? (
-        <Stack.Screen
-          name="index"
-          options={{ title: 'Reviews', headerLargeTitleEnabled: true }}
-        />
-      ) : (
-        <Stack.Screen
-          name="worktrees"
-          options={{ title: 'Worktrees', headerLargeTitleEnabled: true }}
-        />
-      )}
-      {segment === '(worktrees)' ? (
-        <Stack.Screen name="worktree" options={{ title: '' }} />
-      ) : null}
-      <Stack.Screen name="review" options={{ title: 'Review' }} />
-      <Stack.Screen name="decision" options={{ title: 'Decision' }} />
-      <Stack.Screen name="decision-step" options={{ title: 'Step' }} />
       <Stack.Screen
-        name="review-summary"
-        options={{ title: 'Agent summary' }}
+        name="worktrees"
+        options={{ title: 'Worktrees', headerLargeTitleEnabled: true }}
       />
+      <Stack.Screen name="worktree" options={{ title: '' }} />
       <Stack.Screen name="files" options={{ title: 'Files' }} />
       <Stack.Screen name="history" options={{ title: 'History' }} />
-      <Stack.Screen
-        name="open/reviews/[reviewId]"
-        options={{ title: 'Published review' }}
-      />
-      <Stack.Screen
-        name="reviews/[reviewId]"
-        options={{ title: 'Published review' }}
-      />
-      <Stack.Screen name="linked-decision" options={{ title: 'Decision' }} />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
       <Stack.Screen name="review-changes" options={{ title: 'All changes' }} />
       <Stack.Screen name="walkthrough-step" options={{ title: 'Step' }} />
@@ -58,10 +33,10 @@ function TabRoutes({ segment }: { segment: string }) {
   );
 }
 
-export function TabStack({ segment }: { segment: string }) {
+export function TabStack() {
   return (
     <SafeAreaView edges={{ left: true, right: true }} style={{ flex: 1 }}>
-      <TabRoutes segment={segment} />
+      <TabRoutes />
     </SafeAreaView>
   );
 }
