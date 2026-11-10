@@ -19,7 +19,6 @@ import {
   type FileChangeMarks,
   type FileTreeEntry,
 } from '@porcelain/client/files/rules';
-import { isNativeImagePath } from '../../shared/rules/file-tree';
 
 export type FileTreeRow =
   | { key: string; header: ReactNode }
@@ -206,14 +205,13 @@ function FileTreeItem({
           <FolderIndicator expanded={expanded.has(path)} loading={busy} />
         ) : null}
         <FileIcon
+          path={node.path}
           kind={
             node.kind === 'directory' && expanded.has(path)
               ? 'openFolder'
               : node.kind === 'directory'
                 ? 'folder'
-                : isNativeImagePath(node.path)
-                  ? 'image'
-                  : 'file'
+                : 'file'
           }
         />
       </View>

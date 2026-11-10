@@ -1,3 +1,4 @@
+import { completeFileIconColors } from '@porcelain/client/files/rules';
 import {
   createFileTreeIconResolver,
   getBuiltInSpriteSheet,
@@ -7,7 +8,7 @@ import { FILE_ICON_DEFAULT_SIZE } from '@/config/limits';
 import { FILE_ICON_SPRITE, treeIconsFor } from '../adapters/file-icons';
 
 const resolver = createFileTreeIconResolver(treeIconsFor());
-const sprite = `${getBuiltInSpriteSheet('minimal')}${FILE_ICON_SPRITE}`;
+const sprite = `${getBuiltInSpriteSheet('complete')}${FILE_ICON_SPRITE}`;
 
 export function PierreIconSprite() {
   return (
@@ -38,11 +39,17 @@ export function FileTreeIcon({
     path === undefined ? 'file-tree-icon-chevron' : 'file-tree-icon-file',
     path,
   );
+  const color = icon.token ? completeFileIconColors[icon.token] : undefined;
   const width = icon.width ?? FILE_ICON_DEFAULT_SIZE;
   const height = icon.height ?? FILE_ICON_DEFAULT_SIZE;
   return (
     <svg
       aria-hidden="true"
+      style={
+        color
+          ? { color: `light-dark(${color.light}, ${color.dark})` }
+          : undefined
+      }
       viewBox={icon.viewBox ?? `0 0 ${width} ${height}`}
       className={cn(
         'pierre-file-icon',

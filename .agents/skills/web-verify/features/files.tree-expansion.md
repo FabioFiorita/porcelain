@@ -6,6 +6,7 @@ selectors:
   - 'All files'
   - 'Search files'
 tests:
+  - packages/client/src/features/files/rules/file-icons.spec.ts
   - apps/web/spec/integration/files-tree-expansion.test.tsx
   - packages/client/src/features/files/rules/file-tree.spec.ts
   - apps/web/spec/e2e/files-search.desktop.e2e.ts
@@ -61,3 +62,7 @@ Automated coverage: `files-tree-expansion.test.tsx`, `file-tree.spec.ts`.
 ## Returning to Files
 
 Open a folder, enter a search, and open a matching file. Return through Review → Files: the query and requested folders remain. Clear search and confirm the earlier expansion. Close and reopen the panel with a closed loaded folder too: it stays closed. State is scoped to environment and worktree, and preserves the focused row and first visible tree path without retaining live tree subscriptions while closed. Pierre restores the row anchor rather than an exact pixel offset.
+
+## File type icons
+
+Files use Pierre’s coloured Complete icons, including TypeScript, React for TSX, JSON, Markdown, named configuration files and a generic fallback. Folders and chevrons keep their existing appearance. Check expanded folders and search results in light and dark mode. Mobile parses the bundled SVG artwork once before rows mount. Regenerate the shared upstream data after a Pierre upgrade with `node scripts/generate-file-icons.ts`.
