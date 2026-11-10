@@ -1,5 +1,5 @@
-import type { ComponentProps } from 'react';
-import type { CodeDocument } from './code-document';
+import type { ComponentProps, ReactNode } from 'react';
+import type { CodeDocument, CodeHeaderControls } from './code-document';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -10,10 +10,10 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
+import { useInventory } from '@/features/projects/index';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
-import { useInventory } from '@/features/projects/index';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '@porcelain/client/reviews/rules';
@@ -30,7 +30,11 @@ import {
   walkthroughStops,
 } from '@porcelain/client/reviews/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
-import { BranchDocument, BranchFileDocument } from './branch-document';
+import {
+  BranchDocument,
+  BranchFileDocument,
+  type DocumentHeading,
+} from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ChangeTable } from './change-table';
@@ -46,11 +50,18 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import type { ChangeScope } from '@/shared/workspace/search';
 import { counted } from '@porcelain/client/reviews/rules';
 import { pullRequestReviewDestination } from '../rules/review-route';
 
+export type StepDocumentProps = DocumentProps & {
+  step: number;
+  changeScope: ChangeScope;
+};
+
 export type DocumentProps = {
   agentNote?: ComponentProps<typeof CodeDocument>['agentNote'] | undefined;
+  base: string | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -76,7 +87,13 @@ export function DocumentView({
   handoff: Handoff,
   reviewFile: ReviewFileDocument,
   agentNote,
+  stepDocument: StepDocument,
+  changeScope = 'uncommitted',
+  singleHeader = false,
 }: {
+  stepDocument?: ComponentType<StepDocumentProps> | undefined;
+  changeScope?: ChangeScope | undefined;
+  singleHeader?: boolean | undefined;
   agentNote?: DocumentProps['agentNote'] | undefined;
   reviewFile?:
     | ComponentType<{
@@ -104,6 +121,7 @@ export function DocumentView({
 )) {
   const props = {
     agentNote,
+    base,
     scope,
     context,
     onOpen,
@@ -115,6 +133,7 @@ export function DocumentView({
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
       reveal,
+      singleHeader,
     },
   };
   switch (document.kind) {
@@ -136,9 +155,17 @@ export function DocumentView({
     case 'commit':
       return <CommitDocument {...props} oid={document.oid} />;
     case 'branch':
-      return <BranchDocument {...props} base={base} />;
+      return <BranchDocument {...props} />;
     case 'branch-file':
-      return <BranchFileDocument {...props} base={base} path={document.path} />;
+      return <BranchFileDocument {...props} path={document.path} />;
+    case 'walkthrough-step':
+      return StepDocument ? (
+        <StepDocument
+          {...props}
+          step={document.step}
+          changeScope={changeScope}
+        />
+      ) : null;
     case 'timeline':
       return <TimelineDocument {...props} path={document.path} />;
     case 'graph':
@@ -315,7 +342,14 @@ export function PlainChangesDocument({
   onBrowse,
   specsOnly = false,
   intro = false,
-}: DocumentProps & { specsOnly?: boolean; intro?: boolean }) {
+  only,
+  heading,
+}: DocumentProps & {
+  specsOnly?: boolean;
+  intro?: boolean;
+  only?: readonly string[] | undefined;
+  heading?: DocumentHeading | undefined;
+}) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
@@ -325,10 +359,28 @@ export function PlainChangesDocument({
   const published = usePublishedReview(scope, context);
   const review =
     !specsOnly && published.review?.active ? published.review : undefined;
-  const changes = specsOnly
-    ? allChanges.filter((item) => isSpecPath(item.path))
-    : allChanges;
+  const inScope = (path: string) =>
+    only ? only.includes(path) : !specsOnly || isSpecPath(path);
+  const changes = allChanges.filter((item) => inScope(item.path));
+  const singleHeader = interaction.singleHeader || heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
+  if (only && changes.length === 0)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {heading && (
+          <DocumentToolbar
+            inline
+            title={heading.title}
+            titleLabel={heading.titleLabel}
+          >
+            {heading.after}
+          </DocumentToolbar>
+        )}
+        <p className="p-5 text-prose text-foreground-2">
+          Nothing uncommitted in this step.
+        </p>
+      </div>
+    );
   if (!specsOnly && changes.length === 0)
     return (
       <div className="mx-auto w-full max-w-xl">
@@ -379,35 +431,54 @@ export function PlainChangesDocument({
         scope={scope}
         context={context}
         interaction={interaction}
-        {...(specsOnly ? { paths: changes.map((item) => item.path) } : {})}
-        column
-        header={(controls) => (
-          <div className={intro ? 'pt-14' : 'pt-6'}>
-            {intro && (
-              <NoReviewIntro
-                scope={scope}
-                context={context}
-                branch={list.branch?.name}
-              />
-            )}
-            <ChangeTable
-              scope={scope}
-              context={context}
-              label={changesLabel(specsOnly, changes.length)}
-              items={changes}
-              controls={controls}
-              actionsOpen={actionsOpen}
-              onActionsOpenChange={setActionsOpen}
-              actions={
-                <MarkAllReviewed
-                  scope={scope}
-                  context={context}
-                  entries={changes}
-                />
-              }
-            />
-          </div>
-        )}
+        {...(specsOnly || only
+          ? { paths: changes.map((item) => item.path) }
+          : {})}
+        column={!singleHeader}
+        {...(singleHeader
+          ? {
+              toolbar: (collapse: ReactNode) => (
+                <DocumentToolbar
+                  inline
+                  {...(heading
+                    ? { title: heading.title, titleLabel: heading.titleLabel }
+                    : { title: 'All changes' })}
+                  subtitle={changesLabel(specsOnly, changes.length)}
+                >
+                  {collapse}
+                  {heading?.after}
+                </DocumentToolbar>
+              ),
+            }
+          : {
+              header: (controls: CodeHeaderControls) => (
+                <div className={intro ? 'pt-14' : 'pt-6'}>
+                  {intro && (
+                    <NoReviewIntro
+                      scope={scope}
+                      context={context}
+                      branch={list.branch?.name}
+                    />
+                  )}
+                  <ChangeTable
+                    scope={scope}
+                    context={context}
+                    label={changesLabel(specsOnly, changes.length)}
+                    items={changes}
+                    controls={controls}
+                    actionsOpen={actionsOpen}
+                    onActionsOpenChange={setActionsOpen}
+                    actions={
+                      <MarkAllReviewed
+                        scope={scope}
+                        context={context}
+                        entries={changes}
+                      />
+                    }
+                  />
+                </div>
+              ),
+            })}
         {...(review
           ? {
               files: story,
@@ -461,26 +532,41 @@ function ChangeDocument({
               ? { commentRequest: interaction.reveal.nonce }
               : {})}
             headerActions={
-              <BarAction
-                label="Timeline"
-                iconOnly
-                icon={HistoryIcon}
-                onClick={() => onOpen({ kind: 'timeline', path })}
-              />
+              <>
+                <BarAction
+                  label="Timeline"
+                  iconOnly
+                  icon={HistoryIcon}
+                  onClick={() => onOpen({ kind: 'timeline', path })}
+                />
+                {interaction.singleHeader && (
+                  <>
+                    <BarAction
+                      label="Open file"
+                      iconOnly
+                      icon={FileIcon}
+                      onClick={() => onOpen({ kind: 'file', path })}
+                    />
+                    {trigger}
+                  </>
+                )}
+              </>
             }
             headerLeading={
-              <>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Open file"
-                  onClick={() => onOpen({ kind: 'file', path })}
-                >
-                  <FileIcon />
-                  <span className="max-narrow:sr-only">Open file</span>
-                </Button>
-                {trigger}
-              </>
+              interaction.singleHeader ? undefined : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    aria-label="Open file"
+                    onClick={() => onOpen({ kind: 'file', path })}
+                  >
+                    <FileIcon />
+                    <span className="max-narrow:sr-only">Open file</span>
+                  </Button>
+                  {trigger}
+                </>
+              )
             }
             scope={scope}
             context={context}

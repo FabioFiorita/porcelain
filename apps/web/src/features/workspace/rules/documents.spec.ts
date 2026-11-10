@@ -24,6 +24,19 @@ it.each([
   },
 );
 
+it('restores a step tab only from a positive step number', () => {
+  expect(parseEntry('walkthrough-step:3')).toEqual({
+    kind: 'walkthrough-step',
+    step: 3,
+  });
+  expect(entryKey({ kind: 'walkthrough-step', step: 3 })).toBe(
+    'walkthrough-step:3',
+  );
+  expect(parseEntry('walkthrough-step:0')).toBeNull();
+  expect(parseEntry('walkthrough-step:two')).toBeNull();
+  expect(parseEntry('walkthrough-step:1e3')).toBeNull();
+});
+
 it('restores distinct all-changes and Specs documents after navigation or reload', () => {
   expect(parseEntry('all-changes')).toEqual({ kind: 'all-changes' });
   expect(parseEntry('specs')).toEqual({ kind: 'specs' });

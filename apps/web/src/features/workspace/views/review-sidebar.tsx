@@ -41,6 +41,7 @@ type ChangesScope = {
 
 type SidebarProps = {
   changesNavigation: ComponentType<ReviewIndexProps>;
+  guided: boolean;
   scope: ReviewScope;
   context: ConnectionContext;
   worktreePath: string;
@@ -61,12 +62,13 @@ export function ReviewSidebar({
   onSurface: (surface: Surface) => void;
 }) {
   const { review } = usePublishedReview(props.scope, props.context);
+  const shown = props.guided ? null : review;
   return (
     <SidePanel
       layout={layout}
       surfaces={SURFACES}
-      names={surfaceNames(review)}
-      published={Boolean(review)}
+      names={surfaceNames(shown)}
+      published={Boolean(shown)}
       surface={props.surface}
       onSurface={onSurface}
     >
@@ -195,6 +197,7 @@ export function SurfaceIcon({
 
 function SidebarSurface({
   changesNavigation: ReviewIndex,
+  guided,
   scope,
   context,
   worktreePath,
@@ -240,6 +243,7 @@ function SidebarSurface({
           base={changes.base}
           onChangeScope={changes.onScope}
           onBase={changes.onBase}
+          allChanges={guided ? ALL_CHANGES : { kind: 'handoff' }}
           actionsTarget={actionsTarget}
         />
       )}

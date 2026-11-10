@@ -27,7 +27,8 @@ export type DocumentRef =
   | { kind: 'branch' }
   | { kind: 'branch-file'; path: string }
   | { kind: 'graph' }
-  | { kind: 'timeline'; path: string };
+  | { kind: 'timeline'; path: string }
+  | { kind: 'walkthrough-step'; step: number };
 
 const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
@@ -62,6 +63,8 @@ export function entryKey(ref: DocumentRef): string {
       return 'graph';
     case 'timeline':
       return `timeline:${ref.path}`;
+    case 'walkthrough-step':
+      return `walkthrough-step:${ref.step}`;
   }
 }
 
@@ -95,6 +98,10 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     }
     case 'branch':
       return { kind: 'branch-file', path: value };
+    case 'walkthrough-step':
+      return /^[1-9][0-9]*$/.test(value) && Number.isSafeInteger(Number(value))
+        ? { kind, step: Number(value) }
+        : null;
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
     case 'pull-request': {
@@ -147,9 +154,10 @@ export type DocumentInteraction = {
   worktreeId: string;
   entry: string;
   reveal?: RevealComment | undefined;
+  singleHeader?: boolean;
 };
 
-export type ReviewTitle = 'Review';
+export type ReviewTitle = 'Review' | 'Walkthrough';
 
 export function publishedReviewTitle(
   review: Pick<ReviewResponse, 'active'> | null | undefined,
@@ -190,6 +198,8 @@ function documentTitle(ref: DocumentRef): string {
       return ref.path.split('/').at(-1) ?? ref.path;
     case 'timeline':
       return `Timeline of ${ref.path.split('/').at(-1) ?? ref.path}`;
+    case 'walkthrough-step':
+      return `Step ${ref.step}`;
   }
 }
 

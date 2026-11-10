@@ -1,5 +1,5 @@
 export { PierreWorkers } from './adapters/pierre-workers';
-export { ReviewWorkspace } from './views/review-workspace';
+export { ReviewWorkspace, type FirstDocument } from './views/review-workspace';
 export * from './rules/documents';
 export * from './rules/tab-strip';
 
@@ -68,9 +68,22 @@ export { reviewRouteSearch } from './rules/review-route';
 
 export { changesTabCount, reviewTabCount } from './rules/tab-strip';
 
-export { PlainChangesDocument, type DocumentProps } from './views/documents';
+export {
+  PlainChangesDocument,
+  type DocumentProps,
+  type StepDocumentProps,
+} from './views/documents';
+
+export { BranchDocument, type DocumentHeading } from './views/branch-document';
 
 export { usePublishedReview } from './queries/published-review';
 
-export { ReviewIndex, type ReviewIndexProps } from './views/review-index';
+export {
+  ReviewIndex,
+  type ReviewIndexProps,
+  type ChangeGrouping,
+  type UncommittedFileGrouping,
+} from './views/review-index';
+
+export type { BranchFileGrouping } from './views/branch-index';
 export type { ReviewWorkspaceProps } from './views/review-workspace';

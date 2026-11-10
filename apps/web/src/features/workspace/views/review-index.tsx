@@ -1,5 +1,5 @@
 import type { ReviewStatus } from '@porcelain/client/reviews/rules';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { PullRequestBlock } from './pull-request-block';
 
 import { Option } from 'effect';
@@ -38,7 +38,7 @@ import {
 } from '@porcelain/client/reviews/rules';
 import { type ReviewResponse } from '@porcelain/client/reviews/rules';
 
-import { BranchIndex } from './branch-index';
+import { type BranchFileGrouping, BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
@@ -65,6 +65,7 @@ const CHANGE_SCOPES: readonly { value: ChangeScope; label: string }[] = [
 ];
 
 type ScopeProps = {
+  allChanges: DocumentRef;
   actionsTarget: HTMLElement | null;
   changeScope: ChangeScope;
   base: string | undefined;
@@ -102,11 +103,32 @@ type ReviewContentProps = {
   onReviewReadiness: (key: 'checks' | 'unexplained') => void;
 };
 
+export type UncommittedFileGrouping = ComponentType<{
+  scope: ReviewScope;
+  context: ConnectionContext;
+  paths: readonly string[];
+  row: (path: string) => ReactNode;
+  activeEntry: string | undefined;
+  onOpen: OpenDocument;
+}>;
+
+export type ChangeGrouping = {
+  branch: BranchFileGrouping;
+  uncommitted: UncommittedFileGrouping;
+};
+
+type IndexContent =
+  | (ReviewContentProps & { grouping?: never })
+  | ({ grouping: ChangeGrouping } & {
+      [Key in keyof ReviewContentProps]?: never;
+    });
+
 export function ReviewIndex({
   reviewNavigation: ReviewNavigation,
   branchReadiness: BranchReadiness,
   changeReadiness: ChangeReadiness,
   onReviewReadiness,
+  grouping,
   scope,
   context,
   activeEntry,
@@ -116,8 +138,9 @@ export function ReviewIndex({
   base,
   onChangeScope,
   onBase,
+  allChanges,
   actionsTarget,
-}: ReviewIndexProps & ReviewContentProps) {
+}: ReviewIndexProps & IndexContent) {
   const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   const [composing, setComposing] = useState(false);
@@ -125,7 +148,7 @@ export function ReviewIndex({
   usePrefetchComments(scope, context);
   const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
-  const review = published.review ?? null;
+  const review = grouping ? null : (published.review ?? null);
   const { threads } = useComments(scope, context);
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threadCounts(threads).open;
@@ -141,10 +164,10 @@ export function ReviewIndex({
     }
     setView('layers');
     if (key === 'checks' || key === 'unexplained') {
-      onReviewReadiness(key);
+      onReviewReadiness?.(key);
       onOpen({ kind: 'handoff' });
     }
-    if (key === 'files') onOpen(branch ? BRANCH : { kind: 'handoff' });
+    if (key === 'files') onOpen(branch ? BRANCH : allChanges);
     if (key === 'stale' && firstStale !== undefined)
       onOpen(
         branch
@@ -182,7 +205,7 @@ export function ReviewIndex({
         }}
         options={CHANGE_SCOPES}
       />
-      {branch ? (
+      {BranchReadiness && branch && (
         <BranchReadiness
           scope={scope}
           context={context}
@@ -191,7 +214,8 @@ export function ReviewIndex({
           threads={threads}
           onSelect={selectReadiness}
         />
-      ) : (
+      )}
+      {ChangeReadiness && !branch && (
         <ChangeReadiness
           context={context}
           files={changes}
@@ -219,6 +243,7 @@ export function ReviewIndex({
           onOpen={onOpen}
           sideLabel={sideLabel}
           onBase={onBase}
+          grouping={grouping?.branch}
         />
       )}
       {view === 'layers' && !branch && (
@@ -233,6 +258,8 @@ export function ReviewIndex({
           review={review}
           changes={changes}
           threads={threads}
+          grouping={grouping?.uncommitted}
+          allChanges={allChanges}
         />
       )}
       {view === 'comments' && (
@@ -262,9 +289,7 @@ export function ReviewIndex({
           onReveal={(anchor) => {
             if (anchor.kind === 'change') {
               onOpen(
-                anchor.comparison?.kind === 'branch'
-                  ? BRANCH
-                  : { kind: 'handoff' },
+                anchor.comparison?.kind === 'branch' ? BRANCH : allChanges,
                 anchor,
               );
               return;
@@ -294,8 +319,12 @@ function LayersView({
   review,
   changes,
   threads,
+  grouping: Grouping,
+  allChanges,
 }: WorkspaceChangesProps & {
-  reviewNavigation: ReviewContentProps['reviewNavigation'];
+  allChanges: DocumentRef;
+  grouping: UncommittedFileGrouping | undefined;
+  reviewNavigation: ReviewContentProps['reviewNavigation'] | undefined;
   list: ChangeList;
   review: ReviewResponse | null | undefined;
   changes: readonly ReviewChangeItem[];
@@ -317,6 +346,37 @@ function LayersView({
     path: string;
     nonce: number;
   } | null>(null);
+  const navigation = () => {
+    if (Grouping)
+      return (
+        <Grouping
+          scope={scope}
+          context={context}
+          paths={paths}
+          row={renderChange}
+          activeEntry={activeEntry}
+          onOpen={onOpen}
+        />
+      );
+    if (review && ReviewNavigation)
+      return (
+        <ReviewNavigation
+          context={context}
+          review={review}
+          activeEntry={activeEntry}
+          onOpen={onOpen}
+        />
+      );
+    return (
+      <SidebarDocumentRow
+        label="All changes"
+        active={activeEntry === entryKey(allChanges)}
+        onOpen={() => onOpen(allChanges)}
+      >
+        All changes
+      </SidebarDocumentRow>
+    );
+  };
   const renderChange = (path: string) => (
     <ChangeRow
       key={path}
@@ -362,26 +422,11 @@ function LayersView({
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="px-2.5 pt-2 pb-3">
-        {review ? (
-          <ReviewNavigation
-            context={context}
-            review={review}
-            activeEntry={activeEntry}
-            onOpen={onOpen}
-          />
-        ) : (
-          <SidebarDocumentRow
-            label="All changes"
-            active={activeEntry === 'handoff'}
-            onOpen={() => onOpen({ kind: 'handoff' })}
-          >
-            All changes
-          </SidebarDocumentRow>
-        )}
-        {!review && paths.length === 0 && (
+        {navigation()}
+        {!Grouping && !review && paths.length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No changes</p>
         )}
-        {mainPaths.length > 0 && (
+        {!Grouping && mainPaths.length > 0 && (
           <SidebarGroup
             name="Changed files"
             count={mainPaths.length}
@@ -396,7 +441,7 @@ function LayersView({
             {mainPaths.map(renderChange)}
           </SidebarGroup>
         )}
-        {specPaths.length > 0 && (
+        {!Grouping && specPaths.length > 0 && (
           <SidebarGroup
             name="Specs"
             count={specPaths.length}

@@ -11,14 +11,30 @@ export function SidebarDocumentRow({
   active,
   onOpen,
   className = ROW,
+  plain = false,
   children,
 }: {
   label: string;
   active: boolean;
   onOpen: () => void;
   className?: string;
+  plain?: boolean;
   children: ReactNode;
 }) {
+  if (plain)
+    return (
+      <div className="flex min-w-0 items-center">
+        <button
+          type="button"
+          className={className}
+          aria-pressed={active}
+          aria-label={label}
+          onClick={onOpen}
+        >
+          {children}
+        </button>
+      </div>
+    );
   return (
     <SidebarActionMenu
       label={`Actions for ${label}`}

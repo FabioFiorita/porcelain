@@ -18,10 +18,37 @@ describe('noticeSurfaces', () => {
   });
 });
 
+describe('noticeSurfaces for the walkthrough', () => {
+  it('refreshes the walkthrough when its run changed', () => {
+    expect(
+      noticeSurfaces({
+        type: 'walkthrough',
+        change: 'run',
+        projectId,
+        worktreeId,
+      }),
+    ).toEqual({ scope, surfaces: new Set(['walkthrough']) });
+  });
+
+  it('rechecks whether the walkthrough is out of date when the branch moved', () => {
+    expect(
+      noticeSurfaces({
+        type: 'worktree',
+        projectId,
+        worktreeId,
+        change: 'git',
+      })?.surfaces,
+    ).toContain('walkthrough');
+  });
+});
+
 describe('receiptSurfaces', () => {
-  it('refreshes the published review and its layer marks after a commit', () => {
+  it('refreshes the published review, its layer marks and the walkthrough after a commit', () => {
     expect(
       receiptSurfaces({ action: 'commit', projectId, worktreeId }),
-    ).toEqual({ scope, surfaces: new Set(['review', 'reviewed-layers']) });
+    ).toEqual({
+      scope,
+      surfaces: new Set(['review', 'reviewed-layers', 'walkthrough']),
+    });
   });
 });
