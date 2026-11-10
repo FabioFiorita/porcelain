@@ -222,6 +222,7 @@ function FileText(props: FileProps) {
   if (!data) return plain(<Loading label="Reading file…" />);
   if ('kind' in data)
     return plain(<FileNotice kind="unsupported" description={data.reason} />);
+  if (data.text === '') return plain(<FileNotice kind="empty" />);
   return (
     <View className="flex-1">
       {AsyncResult.isFailure(file.result) ? (
