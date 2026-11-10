@@ -266,22 +266,22 @@ export function usePullRequestLinkFocus(reviewId: string) {
   };
 }
 
-const firstDocumentTitles = Atom.family((_worktreeId: string) =>
-  Atom.make<OwnedTitle | undefined>(undefined).pipe(Atom.keepAlive),
+export const firstDocumentTitle = Atom.family((_worktreeId: string) =>
+  Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );
 
-export const firstDocumentTitle = Atom.family((worktreeId: string) =>
-  Atom.make((get) => get(firstDocumentTitles(worktreeId))?.title),
-);
+const titleOwners = new Map<string, OwnedTitle>();
 
 export const firstDocumentTitleOwner = Atom.family(
   (input: { worktreeId: string; title: string | undefined }) =>
     Atom.make((get) => {
-      const titles = firstDocumentTitles(input.worktreeId);
       const owner = Symbol();
-      get.set(titles, { owner, title: input.title });
-      get.addFinalizer(() =>
-        get.set(titles, releaseTitle(get.registry.get(titles), owner)),
-      );
+      titleOwners.set(input.worktreeId, { owner, title: input.title });
+      get.set(firstDocumentTitle(input.worktreeId), input.title);
+      get.addFinalizer(() => {
+        if (releaseTitle(titleOwners.get(input.worktreeId), owner)) return;
+        titleOwners.delete(input.worktreeId);
+        get.set(firstDocumentTitle(input.worktreeId), undefined);
+      });
     }),
 );
