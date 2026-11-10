@@ -363,53 +363,89 @@ test('a rename dialog for another computer’s project is disabled with the reas
 });
 
 for (const source of ['local', 'remote'] as const) {
-  test(`a ${source} PR opened beside another worktree sends its source link to its own checkout`, async ({
-    pairedPage: page,
-    app,
-    server,
-    remote,
-  }) => {
-    const sourceServer = source === 'remote' ? remote.server : server;
-    const inventory = await sourceServer.inventory();
-    const project = await sourceServer.project();
-    const main = project.worktrees.find((entry) => entry.main)?.path;
-    if (!main) throw new Error('Missing source checkout');
-    const fixture = await archiveFixture(main, { codeComment: true });
-    if (source === 'remote')
-      await addRemoteComputer(
-        page,
-        await app.remoteLink(),
-        inventory.environment.name,
+  for (const checkout of [
+    'recorded',
+    'another-checkout',
+    'not-checked-out',
+  ] as const) {
+    test(`a ${source} PR source link uses its branch checkout with ${checkout} and survives reload`, async ({
+      pairedPage: page,
+      app,
+      server,
+      remote,
+    }) => {
+      const sourceServer = source === 'remote' ? remote.server : server;
+      const inventory = await sourceServer.inventory();
+      const project = await sourceServer.project();
+      const main = project.worktrees.find((entry) => entry.main)?.path;
+      if (!main) throw new Error('Missing source checkout');
+      const fixture = await archiveFixture(main, { codeComment: true });
+      if (source === 'remote')
+        await addRemoteComputer(
+          page,
+          await app.remoteLink(),
+          inventory.environment.name,
+        );
+      await page.setViewportSize({ width: 1440, height: 896 });
+      await app.reload();
+      const target = (await sourceServer.project()).worktrees.find(
+        (entry) => entry.path === fixture.tree,
       );
-    await page.setViewportSize({ width: 1440, height: 896 });
-    await app.reload();
-    const target = (await sourceServer.project()).worktrees.find(
-      (entry) => entry.path === fixture.tree,
-    );
-    if (!target) throw new Error('Missing pull request checkout');
-    const original = app.address().path;
-    await page.getByRole('button', { name: /^Open PR #423/ }).click();
-    const pull = page.getByRole('article', {
-      name: 'Pull request #423',
-      exact: true,
+      if (!target) throw new Error('Missing pull request checkout');
+      const original = app.address().path;
+      await page.getByRole('button', { name: /^Open PR #423/ }).click();
+      const pull = page.getByRole('article', {
+        name: 'Pull request #423',
+        exact: true,
+      });
+      await expect(pull).toBeVisible();
+      await expect.poll(() => app.address().path).toBe(original);
+      let targetPath = fixture.tree;
+      if (checkout !== 'recorded') {
+        targetPath = fixture.relocateBranch(checkout);
+        await expect
+          .poll(
+            async () =>
+              (await sourceServer.project()).worktrees.find(
+                (entry) => entry.path === fixture.tree,
+              )?.branch,
+          )
+          .toBe('former-pr-checkout');
+        await expect
+          .poll(
+            async () =>
+              (await sourceServer.project()).worktrees.find(
+                (entry) => entry.branch === 'archive-fixture',
+              )?.path,
+          )
+          .toBe(checkout === 'another-checkout' ? targetPath : undefined);
+        await app.reload();
+        await expect(pull).toBeVisible();
+      }
+      const current = (await sourceServer.project()).worktrees.find(
+        (entry) => entry.path === targetPath,
+      );
+      if (!current) throw new Error('Missing current source checkout');
+      const content =
+        checkout === 'not-checked-out'
+          ? 'Different branch content.'
+          : 'A completed change.';
+      await pull
+        .getByRole('button', { name: 'Open archive.txt:1', exact: true })
+        .click();
+      const expected = `${source === 'remote' ? `/remotes/${inventory.environmentId}` : ''}/${project.id}/${current.id}`;
+      await expect.poll(() => app.address().path).toBe(expected);
+      await expect(
+        page.getByRole('tab', { name: 'archive.txt', exact: true }),
+      ).toHaveAttribute('aria-selected', 'true');
+      await expect(
+        page.getByRole('code').filter({ hasText: content }),
+      ).toBeVisible();
+      await app.reload();
+      await expect.poll(() => app.address().path).toBe(expected);
+      await expect(
+        page.getByRole('code').filter({ hasText: content }),
+      ).toBeVisible();
     });
-    await expect(pull).toBeVisible();
-    await expect.poll(() => app.address().path).toBe(original);
-    await pull
-      .getByRole('button', { name: 'Open archive.txt:1', exact: true })
-      .click();
-    const expected = `${source === 'remote' ? `/remotes/${inventory.environmentId}` : ''}/${project.id}/${target.id}`;
-    await expect.poll(() => app.address().path).toBe(expected);
-    await expect(
-      page.getByRole('tab', { name: 'archive.txt', exact: true }),
-    ).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('code').filter({ hasText: 'A completed change.' }),
-    ).toBeVisible();
-    await app.reload();
-    await expect.poll(() => app.address().path).toBe(expected);
-    await expect(
-      page.getByRole('code').filter({ hasText: 'A completed change.' }),
-    ).toBeVisible();
-  });
+  }
 }

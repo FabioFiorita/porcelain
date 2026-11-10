@@ -162,6 +162,22 @@ export async function archiveFixture(
           })
         ).body,
       ).review,
+    relocateBranch: (destination: 'another-checkout' | 'not-checked-out') => {
+      execFileSync('git', ['-C', tree, 'switch', '-c', 'former-pr-checkout']);
+      writeFileSync(join(tree, 'archive.txt'), 'Different branch content.\n');
+      execFileSync('git', ['-C', tree, 'add', 'archive.txt']);
+      execFileSync('git', [
+        '-C',
+        tree,
+        'commit',
+        '-qm',
+        'Change the former checkout',
+      ]);
+      if (destination === 'not-checked-out') return tree;
+      const current = join(home, 'current-pr-checkout');
+      git('worktree', 'add', current, 'archive-fixture');
+      return current;
+    },
     setGitHubFailure,
     lock: () => git('worktree', 'lock', tree),
     unlock: () => git('worktree', 'unlock', tree),
