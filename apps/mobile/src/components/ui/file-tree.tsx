@@ -51,7 +51,11 @@ export function fileTreeCursorRows(
         path,
         directory,
         depth: row.depth,
-        folder: directory ? (expanded.has(path) ? 'open' : 'closed') : undefined,
+        folder: directory
+          ? expanded.has(path)
+            ? 'open'
+            : 'closed'
+          : undefined,
       },
     ];
   });

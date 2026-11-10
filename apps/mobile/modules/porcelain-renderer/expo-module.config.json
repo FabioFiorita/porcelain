@@ -1,6 +1,6 @@
 {
   "platforms": ["apple", "android"],
-  "apple": { "modules": ["PorcelainRendererModule"] },
+  "apple": { "modules": ["PorcelainRendererModule", "PorcelainKeyboardModule"] },
   "android": {
     "modules": ["expo.modules.porcelainrenderer.PorcelainRendererModule"]
   }

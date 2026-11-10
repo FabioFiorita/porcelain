@@ -49,16 +49,16 @@ it('runs the handler of the pressed live shortcut only', () => {
 });
 
 it('tells the native menu which shortcuts still fire inside a text field', () => {
-  expect(
-    nativeKeyCommand({ binding: 'search', run: () => undefined }),
-  ).toEqual({
-    id: 'search',
-    title: 'Search',
-    group: 'List',
-    input: 'f',
-    modifiers: ['command'],
-    whileTyping: true,
-  });
+  expect(nativeKeyCommand({ binding: 'search', run: () => undefined })).toEqual(
+    {
+      id: 'search',
+      title: 'Search',
+      group: 'List',
+      input: 'f',
+      modifiers: ['command'],
+      whileTyping: true,
+    },
+  );
   expect(
     nativeKeyCommand({ binding: 'next', run: () => undefined }).whileTyping,
   ).toBe(false);

@@ -63,7 +63,9 @@ export function Item({
     sizes[size].row,
     description || children ? sizes[size].twoLine : sizes[size].oneLine,
     highlighted ? 'rounded-md bg-accent' : '',
-    selected && !highlighted && selectionTone === 'brand' ? 'bg-brand-soft' : '',
+    selected && !highlighted && selectionTone === 'brand'
+      ? 'bg-brand-soft'
+      : '',
     selected && !highlighted && selectionTone === 'neutral'
       ? 'rounded-md bg-muted'
       : '',

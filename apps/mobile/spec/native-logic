@@ -1,20 +1,20 @@
 #!/bin/sh
-# Run the pure Swift owners of the local native modules on macOS without Expo or a simulator.
+# Run the pure Swift owners of the native renderer and keyboard modules on macOS without Expo or a simulator.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 workspace=$(mktemp -d "${TMPDIR:-/tmp}/porcelain-native-logic.XXXXXX")
 trap 'rm -rf "$workspace"' EXIT HUP INT TERM
 target() {
-  name=$1 module=$2 tests=$3
-  shift 3
+  name=$1 tests=$2
+  shift 2
   mkdir -p "$workspace/Sources/$name" "$workspace/Tests/${name}Tests"
   for source in "$@"; do
-    cp "$root/apps/mobile/modules/$module/ios/$source.swift" "$workspace/Sources/$name/"
+    cp "$root/apps/mobile/modules/porcelain-renderer/ios/$source.swift" "$workspace/Sources/$name/"
   done
-  cp "$root/apps/mobile/modules/$module/ios/$tests.swift" "$workspace/Tests/${name}Tests/"
+  cp "$root/apps/mobile/modules/porcelain-renderer/ios/$tests.swift" "$workspace/Tests/${name}Tests/"
 }
-target CodeSelection porcelain-renderer CodeSelectionTests CodeData CodeState RenderTokens
-target KeyCommands porcelain-keyboard KeyCommandPlanTests KeyCommandPlan
+target CodeSelection CodeSelectionTests CodeData CodeState RenderTokens
+target KeyCommands KeyCommandPlanTests KeyCommandPlan
 cat > "$workspace/Package.swift" <<'SWIFT'
 // swift-tools-version: 6.0
 import PackageDescription

@@ -31,9 +31,9 @@ export function KeyboardShortcutsSheet() {
           </Box>
         ))}
         <Text variant="caption" tone="muted">
-          Hold Command on a hardware keyboard to see the shortcuts that work
-          on the current screen. Arrow keys, J, K and Return move through the
-          list you last used; Tab moves to the next list.
+          Hold Command on a hardware keyboard to see the shortcuts that work on
+          the current screen. Arrow keys, J, K and Return move through the list
+          you last used; Tab moves to the next list.
         </Text>
       </Box>
     </Sheet>

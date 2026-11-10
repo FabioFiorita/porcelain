@@ -63,7 +63,12 @@ export const keyBindings = {
     key: 'escape',
     modifiers: [],
   },
-  close: { title: 'Close', group: 'navigate', key: 'w', modifiers: ['command'] },
+  close: {
+    title: 'Close',
+    group: 'navigate',
+    key: 'w',
+    modifiers: ['command'],
+  },
   settings: {
     title: 'Settings',
     group: 'navigate',
@@ -82,7 +87,12 @@ export const keyBindings = {
     key: '1',
     modifiers: ['command'],
   },
-  files: { title: 'Files', group: 'worktree', key: '2', modifiers: ['command'] },
+  files: {
+    title: 'Files',
+    group: 'worktree',
+    key: '2',
+    modifiers: ['command'],
+  },
   history: {
     title: 'History',
     group: 'worktree',
@@ -95,7 +105,12 @@ export const keyBindings = {
   nextJ: { title: 'Next Row', group: 'list', key: 'j', modifiers: [] },
   previousK: { title: 'Previous Row', group: 'list', key: 'k', modifiers: [] },
   open: { title: 'Open Row', group: 'list', key: 'return', modifiers: [] },
-  expand: { title: 'Expand Folder', group: 'list', key: 'right', modifiers: [] },
+  expand: {
+    title: 'Expand Folder',
+    group: 'list',
+    key: 'right',
+    modifiers: [],
+  },
   collapse: {
     title: 'Collapse Folder',
     group: 'list',
@@ -113,12 +128,6 @@ export const keyBindings = {
     title: 'Show Source or Rendered',
     group: 'document',
     key: 's',
-    modifiers: ['command', 'shift'],
-  },
-  comments: {
-    title: 'Comments',
-    group: 'document',
-    key: 'c',
     modifiers: ['command', 'shift'],
   },
 } as const satisfies Record<string, KeyBinding>;
@@ -165,10 +174,7 @@ export type KeyCommandConflict = {
 export function activeKeyCommands(
   registrations: ReadonlyMap<string, readonly KeyCommand[]>,
 ) {
-  const claims = new Map<
-    string,
-    { owner: string; command: KeyCommand }[]
-  >();
+  const claims = new Map<string, { owner: string; command: KeyCommand }[]>();
   for (const [owner, commands] of registrations)
     for (const command of commands) {
       const combo = keyCombo(command.binding);

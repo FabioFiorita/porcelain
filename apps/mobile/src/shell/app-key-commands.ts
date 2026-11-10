@@ -1,4 +1,8 @@
-import { useNavigationContainerRef, useRootNavigationState, useRouter } from 'expo-router';
+import {
+  useNavigationContainerRef,
+  useRootNavigationState,
+  useRouter,
+} from 'expo-router';
 import { useKeyCommands } from '../shared/application/key-commands';
 import { navigationExits } from '../shared/rules/navigation-exits';
 
@@ -8,8 +12,8 @@ export function useAppKeyCommands() {
   const root = useRootNavigationState();
   const exits = navigationExits(root);
   useKeyCommands([
-    { binding: 'settings', run: () => router.push('/settings') },
-    { binding: 'shortcuts', run: () => router.push('/keyboard-shortcuts') },
+    { binding: 'settings', run: () => router.navigate('/settings') },
+    { binding: 'shortcuts', run: () => router.navigate('/keyboard-shortcuts') },
     ...(exits.back
       ? [
           { binding: 'back' as const, run: () => router.back() },

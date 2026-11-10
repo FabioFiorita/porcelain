@@ -3,6 +3,15 @@ import { useIsFocused } from 'expo-router';
 import { useId, useState } from 'react';
 import { Atom } from 'effect/reactivity';
 import {
+  absentList,
+  chosenList,
+  focusedList,
+  keyRegistration,
+  keyRegistrations,
+  listPresence,
+  lists,
+} from './key-registry';
+import {
   activeKeyCommands,
   nativeKeyCommand,
   pressKeyCommand,
@@ -10,7 +19,6 @@ import {
   type KeyCommand,
 } from '../rules/key-commands';
 import {
-  activeList,
   moveCursor,
   nextList,
   treeStep,
@@ -20,31 +28,6 @@ import {
   onNativeKeyCommand,
   setNativeKeyCommands,
 } from '../adapters/key-commands';
-
-type Registrations = ReadonlyMap<string, readonly KeyCommand[]>;
-
-export const keyRegistrations = Atom.make<Registrations>(new Map()).pipe(
-  Atom.keepAlive,
-);
-
-const keyRegistration = Atom.family(
-  ({ owner, commands }: { owner: string; commands: readonly KeyCommand[] }) =>
-    Atom.make((get) => {
-      if (commands.length === 0) return;
-      get.set(
-        keyRegistrations,
-        new Map(get.once(keyRegistrations)).set(owner, commands),
-      );
-      const registry = get.registry;
-      get.addFinalizer(() => {
-        const current = registry.get(keyRegistrations);
-        if (current.get(owner) !== commands) return;
-        const next = new Map(current);
-        next.delete(owner);
-        registry.set(keyRegistrations, next);
-      });
-    }),
-);
 
 export const keyCommandSync = Atom.make((get) => {
   const { commands, conflicts } = activeKeyCommands(get(keyRegistrations));
@@ -84,36 +67,17 @@ export function useDocumentKeys(
   useScreenKeyCommands(
     actions.flatMap((action) =>
       action.shortcut && action.onPress && !action.disabled
-        ? [{ binding: action.shortcut, title: action.label, run: action.onPress }]
+        ? [
+            {
+              binding: action.shortcut,
+              title: action.label,
+              run: action.onPress,
+            },
+          ]
         : [],
     ),
   );
 }
-
-const lists = Atom.make<readonly string[]>([]).pipe(Atom.keepAlive);
-const chosenList = Atom.make<string | undefined>(undefined).pipe(
-  Atom.keepAlive,
-);
-const focusedList = Atom.make((get) =>
-  activeList(get(lists), get(chosenList)),
-);
-const absentList = Atom.make(undefined);
-
-const listPresence = Atom.family((owner: string) =>
-  Atom.make((get) => {
-    get.set(lists, [
-      ...get.once(lists).filter((entry) => entry !== owner),
-      owner,
-    ]);
-    const registry = get.registry;
-    get.addFinalizer(() =>
-      registry.set(
-        lists,
-        registry.get(lists).filter((entry) => entry !== owner),
-      ),
-    );
-  }),
-);
 
 export type ListCursor = {
   highlighted: string | undefined;
@@ -157,7 +121,9 @@ export function useListCursor({
           { binding: 'nextJ', run: () => move('next') },
           { binding: 'previous', run: () => move('previous') },
           { binding: 'previousK', run: () => move('previous') },
-          ...(live ? [{ binding: 'open' as const, run: () => onOpen(live) }] : []),
+          ...(live
+            ? [{ binding: 'open' as const, run: () => onOpen(live) }]
+            : []),
           ...(onToggle
             ? [
                 { binding: 'expand' as const, run: () => step('in') },
