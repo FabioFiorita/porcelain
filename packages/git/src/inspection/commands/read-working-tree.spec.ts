@@ -127,3 +127,22 @@ it('refuses conversion filters on untracked additions before any filter can exec
   await expect(capture()).rejects.toThrow();
   expect(readdirSync(checkout)).not.toContain('filter-executed');
 });
+
+it('keeps oversized sections out of captured patch text and names their omitted paths', async () => {
+  const base = git('rev-parse', 'HEAD');
+  write('large.txt', 'large captured marker\n'.repeat(1000));
+  write('tracked.txt', 'small captured change\n');
+  const snapshot = await Effect.runPromise(
+    readWorkingTree(checkout, base, {
+      ...gitLimits,
+      inspection: { ...gitLimits.inspection, patchBytes: 1024 },
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+  expect(snapshot.sections.get('large.txt')).toEqual({
+    kind: 'omitted',
+    reason: 'size-limit',
+  });
+  expect(snapshot.patch).not.toContain('large captured marker');
+  expect(snapshot.patch).toContain('+small captured change');
+  expect(snapshot.omittedFiles).toEqual(['large.txt']);
+});

@@ -3,7 +3,6 @@ import { Effect, FileSystem, Path } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { gitRead, type GitReadOptions } from '../../shared/commands/run-git.ts';
 import { parseDiff } from '../parsers/parse-diff.ts';
-import { parseRawDiffEffect } from '../parsers/parse-raw-diff.ts';
 import { checkConversionFilters } from './check-conversion-filters.ts';
 
 export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
@@ -77,6 +76,7 @@ export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
       treeOid,
       headTreeOid,
       patch: '',
+      omittedFiles: [],
       sections: new Map<string, GitDiffResult>(),
     };
   const output = yield* read(
@@ -107,11 +107,15 @@ export const readWorkingTree = Effect.fn('Git.readWorkingTree')(function* (
     },
   );
   const sections = yield* parseDiff(output, limits);
-  const { end } = yield* parseRawDiffEffect(output);
   return {
     treeOid,
     headTreeOid,
-    patch: output.subarray(end).toString('utf8'),
+    patch: [...sections.values()]
+      .flatMap((section) => ('patch' in section ? [section.patch] : []))
+      .join(''),
+    omittedFiles: [...sections].flatMap(([paths, section]) =>
+      section.kind === 'omitted' ? [paths.split('\0').at(-1)!] : [],
+    ),
     sections,
   };
 }, Effect.scoped);

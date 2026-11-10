@@ -42,11 +42,13 @@ export class ReadWalkthroughService extends Context.Service<
           const identity =
             job === undefined
               ? undefined
-              : yield* heads.content({
-                  worktreeId: input.worktreeId,
-                  worktreePath: job.worktreePath,
-                  baseRef: job.run.baseRef,
-                });
+              : yield* heads
+                  .content({
+                    worktreeId: input.worktreeId,
+                    worktreePath: job.worktreePath,
+                    baseRef: job.run.baseRef,
+                  })
+                  .pipe(Effect.catch(() => Effect.succeed(undefined)));
           return {
             walkthrough,
             outOfDate:

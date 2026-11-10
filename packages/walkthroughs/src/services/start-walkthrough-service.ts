@@ -46,6 +46,7 @@ export class StartWalkthroughService extends Context.Service<
                 worktreePath: input.worktreePath,
                 files: snapshot.files,
                 patch: snapshot.patch,
+                omittedFiles: snapshot.omittedFiles,
                 run: {
                   id: ids.next(),
                   projectId: input.projectId,

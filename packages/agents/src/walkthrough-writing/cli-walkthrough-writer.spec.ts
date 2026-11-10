@@ -19,7 +19,7 @@ const run: WalkthroughJob['run'] = {
   baseOid: 'a'.repeat(40),
   baseRef: 'refs/heads/main',
   contentTreeOid: 'a'.repeat(40),
-  includesUncommitted: false,
+  includesUncommitted: true,
   headOid: 'b'.repeat(40),
   writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
   sessionId: undefined,

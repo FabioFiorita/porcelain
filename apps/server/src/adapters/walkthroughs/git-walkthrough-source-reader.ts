@@ -1,3 +1,4 @@
+import { UnsupportedGitFiltersError } from '@porcelain/git/errors';
 import { readWorkingTree } from '@porcelain/git/inspection';
 import { Effect, Layer } from 'effect';
 import { BranchRangeReader } from '@porcelain/changes/ports';
@@ -40,11 +41,13 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
           ).pipe(
             provideGit,
             Effect.mapError(
-              () =>
+              (error) =>
                 new WalkthroughFailedError({
                   kind: 'other',
                   message:
-                    'The working change could not be captured within the server limits.',
+                    error instanceof UnsupportedGitFiltersError
+                      ? 'This change uses Git conversion filters, which Porcelain will not execute.'
+                      : 'The working change could not be captured within the server limits.',
                 }),
             ),
           );
@@ -92,6 +95,7 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
             contentTreeOid: snapshot.treeOid,
             includesUncommitted: snapshot.treeOid !== snapshot.headTreeOid,
             patch: snapshot.patch,
+            omittedFiles: snapshot.omittedFiles,
             headOid: range.head.oid,
             branch: range.head.ref?.replace(/^refs\/heads\//, ''),
             files,

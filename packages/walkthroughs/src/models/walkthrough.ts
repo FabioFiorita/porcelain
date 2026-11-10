@@ -151,6 +151,7 @@ export const walkthroughJobSchema = Schema.Struct({
   run: walkthroughRunSchema,
   worktreePath: Schema.String,
   patch: Schema.String,
+  omittedFiles: Schema.optional(Schema.Array(Schema.String)),
   files: Schema.Array(
     Schema.Struct({
       path: Schema.String,
@@ -170,6 +171,7 @@ export type WalkthroughJob = {
   readonly run: WalkthroughRun;
   readonly worktreePath: string;
   readonly patch: string;
+  readonly omittedFiles?: readonly string[] | undefined;
   readonly files: readonly DiffFile[];
 };
 export type EvidenceAsset = {

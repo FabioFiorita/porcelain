@@ -172,3 +172,43 @@ test('edits during writing do not change the captured files or excerpt validatio
     .toBe(accepted.id);
   expect((await current()).outOfDate).toBe(true);
 });
+
+test('an unsupported untracked Git filter preserves the saved walkthrough and explains a refused update', async ({
+  session,
+}) => {
+  await session.installCodingTool();
+  await session.git('branch', 'filter-base');
+  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+  const accepted = await read(session, {
+    method: 'POST',
+    path,
+    body: { base: 'refs/heads/filter-base' },
+  });
+  const current = async () =>
+    Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await read(session, { method: 'GET', path }),
+    );
+  await expect
+    .poll(async () => (await current()).walkthrough?.state.status, {
+      timeout: 10000,
+    })
+    .toBe('ready');
+  const saved = (await current()).walkthrough;
+  await session.writeFile('.gitattributes', '*.secret filter=example\n');
+  await session.writeFile('new.secret', 'keep this untracked\n');
+  expect((await current()).walkthrough).toEqual(saved);
+  expect((await current()).walkthrough?.id).toBe(accepted.id);
+  expect((await current()).outOfDate).toBe(true);
+  const refused = await read(
+    session,
+    {
+      method: 'POST',
+      path,
+      body: { base: 'refs/heads/filter-base' },
+    },
+    422,
+  );
+  expect(refused.message).toBe(
+    'This change uses Git conversion filters, which Porcelain will not execute.',
+  );
+});
