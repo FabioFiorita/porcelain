@@ -1,0 +1,361 @@
+import { useState, type ReactNode } from 'react';
+import { useAtom } from '@effect/atom-react';
+import {
+  developerTurns,
+  earlierConversations,
+  postControls,
+  postedCommentLabel,
+  postLabels,
+  savedSummary,
+  stopConversations,
+  type AgentMessage,
+  type Conversation,
+  type DeveloperMessage,
+} from '@porcelain/client/walkthroughs/rules';
+import { Box } from '../../../components/ui/box';
+import { Button } from '../../../components/ui/button';
+import { FloatingBar } from '../../../components/ui/floating-bar';
+import { Loading } from '../../../components/ui/loading';
+import { Message } from '../../../components/ui/message';
+import { MessageComposer } from '../../../components/ui/message-composer';
+import { RichText } from '../../../components/ui/rich-text';
+import { Separator } from '../../../components/ui/separator';
+import { Text } from '../../../components/ui/text';
+import { usePreviewLink } from '../../../shared/adapters/preview-link';
+import {
+  useAnswerRetry,
+  useAsk,
+  usePostActions,
+} from '../commands/conversations';
+import {
+  useConversations,
+  type ConversationOwner,
+} from '../queries/conversations';
+import { walkthroughAsking, walkthroughDraft } from '../store';
+
+type Props = { owner: ConversationOwner };
+
+const ANSWER_LINES = 3;
+
+function LinkButton({
+  label,
+  accessibilityLabel,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel?: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      label={label}
+      variant="plain"
+      size="sm"
+      align="start"
+      className="-ml-3.5 self-start"
+      disabled={disabled}
+      onPress={onPress}
+      {...(accessibilityLabel ? { accessibilityLabel } : {})}
+    />
+  );
+}
+
+function PostActions({
+  owner,
+  message,
+  pullRequest,
+}: Props & {
+  message?: DeveloperMessage | undefined;
+  pullRequest: number | undefined;
+}) {
+  const actions = usePostActions(owner, message);
+  const { notice, waiting, copy, save, post } = actions;
+  const link = usePreviewLink();
+  const state = postControls(message);
+  const labels = postLabels(pullRequest);
+  return (
+    <Box
+      className={message ? '' : 'flex-row flex-wrap items-center'}
+      gap={message ? 1 : 2}
+    >
+      {message?.post.status === 'posted' ? (
+        <LinkButton
+          label={postedCommentLabel(message.post.url)}
+          onPress={() => {
+            if (message.post.status === 'posted') link.open(message.post.url);
+          }}
+        />
+      ) : null}
+      {state === 'saved' ? (
+        <Box className="flex-row items-center" gap={2}>
+          <Text variant="secondary" tone="muted">
+            Saved for later
+          </Text>
+          <Button
+            label="Undo"
+            variant="plain"
+            size="sm"
+            disabled={waiting}
+            onPress={() => save(false)}
+          />
+        </Box>
+      ) : null}
+      {state === 'available' ? (
+        <Box className="flex-row flex-wrap items-center" gap={2}>
+          <Button
+            label={message ? labels.single : labels.together}
+            variant={message ? 'tonal' : 'filled'}
+            size="sm"
+            pending={waiting}
+            onPress={pullRequest === undefined ? copy : post}
+          />
+          {message ? (
+            <Button
+              label="Save for later"
+              variant="plain"
+              size="sm"
+              disabled={waiting}
+              onPress={() => save(true)}
+            />
+          ) : null}
+        </Box>
+      ) : null}
+      {link.error ? (
+        <Text variant="caption" tone="destructive" accessibilityRole="alert">
+          {link.error}
+        </Text>
+      ) : null}
+      {notice ? (
+        <Box className="flex-row flex-wrap items-center" gap={2}>
+          <Text
+            variant="caption"
+            tone="muted"
+            accessibilityRole="alert"
+            numberOfLines={2}
+          >
+            {notice.text}
+          </Text>
+          {notice.copy ? (
+            <Button
+              label="Copy"
+              variant="plain"
+              size="sm"
+              disabled={waiting}
+              onPress={copy}
+            />
+          ) : null}
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function AgentReply({
+  owner,
+  message,
+  children,
+}: Props & { message: AgentMessage; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const { failure, waiting, retry } = useAnswerRetry(owner);
+  const state = message.state;
+  return (
+    <Message author="Walkthrough agent">
+      {state.status === 'answering' ? (
+        <Box className="items-start">
+          <Loading label="Working…" />
+        </Box>
+      ) : null}
+      {state.status === 'answered' ? (
+        <RichText
+          text={state.text}
+          lines={open ? undefined : ANSWER_LINES}
+          onClipped={setClipped}
+        />
+      ) : null}
+      {state.status === 'failed' ? (
+        <Text accessibilityRole="alert">{state.failure.message}</Text>
+      ) : null}
+      {state.status === 'answered' && !open && clipped ? (
+        <LinkButton label="Read all" onPress={() => setOpen(true)} />
+      ) : null}
+      {state.status === 'failed' ? (
+        <LinkButton
+          label="Try again"
+          disabled={waiting}
+          onPress={() => retry(message.replyTo)}
+        />
+      ) : null}
+      {failure ? (
+        <Text variant="caption" tone="destructive" accessibilityRole="alert">
+          {failure}
+        </Text>
+      ) : null}
+      {children}
+    </Message>
+  );
+}
+
+function Messages({
+  owner,
+  conversation,
+  number,
+}: Props & { conversation: Conversation; number: number | undefined }) {
+  return developerTurns(conversation).map(({ message, reply }) => (
+    <Box key={message.id} gap={3}>
+      <Message align="end">
+        <RichText text={message.text} />
+      </Message>
+      {reply ? (
+        <AgentReply owner={owner} message={reply}>
+          <PostActions owner={owner} message={message} pullRequest={number} />
+        </AgentReply>
+      ) : (
+        <Box className="items-end">
+          <PostActions owner={owner} message={message} pullRequest={number} />
+        </Box>
+      )}
+    </Box>
+  ));
+}
+
+function Composer({
+  owner,
+  title,
+  placeholder,
+}: Props & { title: string; placeholder: string }) {
+  const [draft, setDraft] = useAtom(
+    walkthroughDraft(JSON.stringify([owner.workspace.key, title])),
+  );
+  const { failure, waiting, ask } = useAsk(owner, title);
+  return (
+    <MessageComposer
+      value={draft}
+      placeholder={placeholder}
+      sending={waiting}
+      error={failure}
+      onChangeText={setDraft}
+      onSend={() => {
+        const text = draft.trim();
+        if (text && !waiting)
+          ask(text, () =>
+            setDraft((current) => (current === draft ? '' : current)),
+          );
+      }}
+    />
+  );
+}
+
+export function WalkthroughConversation({
+  owner,
+  title,
+  placement,
+  lead,
+}: Props & {
+  title: string;
+  placement: 'call' | 'step';
+  lead?: ReactNode;
+}) {
+  const call = placement === 'call';
+  const { view, failed, refresh } = useConversations(owner);
+  const [asking, setAsking] = useAtom(
+    walkthroughAsking(JSON.stringify([owner.workspace.key, title])),
+  );
+  const conversations = stopConversations(view, title);
+  const asked = conversations.some((item) => item.messages.length > 0);
+  return (
+    <Box gap={3}>
+      {call ? null : (
+        <Box className="-ml-3.5 flex-row flex-wrap items-center">
+          {lead}
+          <Button
+            label="Ask about this"
+            variant="plain"
+            size="sm"
+            onPress={() => setAsking(!asking)}
+          />
+        </Box>
+      )}
+      {failed ? (
+        <Box className="flex-row flex-wrap items-center" gap={2}>
+          <Text variant="caption" tone="muted" accessibilityRole="alert">
+            Comments could not be read.
+          </Text>
+          <Button
+            label="Try again"
+            variant="plain"
+            size="sm"
+            onPress={refresh}
+          />
+        </Box>
+      ) : null}
+      {call || asking || asked ? (
+        <>
+          {conversations.length > 0 ? (
+            <Box gap={4}>
+              <Separator />
+              {conversations.map((conversation) => (
+                <Messages
+                  key={conversation.runId}
+                  owner={owner}
+                  conversation={conversation}
+                  number={view?.pullRequestNumber}
+                />
+              ))}
+            </Box>
+          ) : null}
+          <Composer
+            owner={owner}
+            title={title}
+            placeholder={
+              call ? 'Decide, or ask about this' : 'Ask about this step'
+            }
+          />
+        </>
+      ) : null}
+    </Box>
+  );
+}
+
+export function EarlierComments({
+  owner,
+  titles,
+}: Props & { titles: readonly string[] }) {
+  const { view } = useConversations(owner);
+  const earlier = earlierConversations(view, titles);
+  if (!earlier.length) return null;
+  return (
+    <Box gap={3}>
+      <Separator />
+      <Text variant="secondary" weight="semibold" accessibilityRole="header">
+        Earlier comments
+      </Text>
+      {earlier.map((conversation, index) => (
+        <Messages
+          key={`${conversation.runId}:${index}`}
+          owner={owner}
+          conversation={conversation}
+          number={view?.pullRequestNumber}
+        />
+      ))}
+    </Box>
+  );
+}
+
+export function useSavedSummary(owner: ConversationOwner) {
+  return savedSummary(useConversations(owner).view);
+}
+
+export function PostSaved({ owner }: Props) {
+  const { view } = useConversations(owner);
+  const saved = savedSummary(view);
+  if (!saved) return null;
+  return (
+    <FloatingBar>
+      <Text variant="secondary">{saved}</Text>
+      <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
+    </FloatingBar>
+  );
+}

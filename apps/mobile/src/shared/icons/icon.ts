@@ -23,4 +23,6 @@ export type HeaderIconName =
   | 'files'
   | 'more'
   | 'showList'
-  | 'hideList';
+  | 'hideList'
+  | 'previous'
+  | 'next';

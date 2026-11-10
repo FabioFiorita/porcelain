@@ -70,7 +70,7 @@ Review is the overview of the selected worktree: the agent's published briefing 
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → Changes in the [Worktree](projects.worktree.md) page's segmented control.
+- Reviews tab → a published review. The Worktree page's Changes (a segment, or the [Changes list](projects.worktree-changes.md) a walkthrough opens) keeps the Comments and Changed files parts but no longer shows the published overview; the [Walkthrough](reviews.walkthrough-page.md) replaces it there.
 - `porcelain.dev://review` for the selected worktree; Reviews remains the default launch destination.
 
 ## Driving it with agent-device

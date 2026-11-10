@@ -72,3 +72,19 @@ it('shows a quiet changed-file count', () => {
     }).changes,
   ).toBe('2 files changed');
 });
+
+it('leads with the walkthrough or pull request title and keeps the branch as small text', () => {
+  expect(
+    worktreeRow({
+      ...entry,
+      displayTitle: 'Teach the sample to explain itself',
+    }),
+  ).toMatchObject({
+    title: 'Teach the sample to explain itself',
+    branch: 'feat/pinned-files',
+  });
+  expect(worktreeRow(entry)).toMatchObject({
+    title: 'feat/pinned-files',
+    branch: '',
+  });
+});

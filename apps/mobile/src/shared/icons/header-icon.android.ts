@@ -20,6 +20,8 @@ import moreVert from '@expo/material-symbols/more_vert.xml';
 import leftPanelOpen from '@expo/material-symbols/left_panel_open.xml';
 import leftPanelClose from '@expo/material-symbols/left_panel_close.xml';
 import formatListBulleted from '@expo/material-symbols/format_list_bulleted.xml';
+import chevronLeft from '@expo/material-symbols/chevron_left.xml';
+import chevronRight from '@expo/material-symbols/chevron_right.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
@@ -47,6 +49,8 @@ const symbols = {
   more: moreVert,
   showList: leftPanelOpen,
   hideList: leftPanelClose,
+  previous: chevronLeft,
+  next: chevronRight,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 
 export function headerIcon(name: HeaderIconName) {

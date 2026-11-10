@@ -59,6 +59,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [projects.archive-review](projects.archive-review.md) — Archive a merged or closed review from its pull request.
 - [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.
 - [projects.worktree](projects.worktree.md) — A selected worktree's Changes, Files and History under one native segmented control.
+- [projects.worktree-changes](projects.worktree-changes.md) — The plain Changes list a walkthrough worktree opens from its top bar.
 - [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
 - [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.comments](reviews.comments.md) — Post, reply, resolve, reopen and retain drafts.
@@ -69,6 +70,9 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 - [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
 - [reviews.review](reviews.review.md) — The review overview: briefing, walkthrough, comments and changed files.
 - [reviews.decision](reviews.decision.md) — One walkthrough stop per screen: explanation, diffs, marking and next/previous.
+- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough a fresh agent wrote: calls, growth, steps, conversations, posting and saving.
+- [reviews.walkthrough-step](reviews.walkthrough-step.md) — One step's files as a page of diffs, with previous and next step in the top bar.
+- [reviews.walkthrough-screenshot](reviews.walkthrough-screenshot.md) — A step's screenshot larger in a sheet.
 - [reviews.decision-step](reviews.decision-step.md) — A step's code pointer and its ways to the diff, Files and history.
 - [reviews.summary](reviews.summary.md) — The agent's published HTML summary.
 - [reviews.linked-decision](reviews.linked-decision.md) — One read-only stop of a published review per screen.
@@ -79,4 +83,3 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 For review documents, follow the bounded document gesture in [driving](../references/driving.md#scroll-the-review-document). Verify tablets in landscape and portrait, with fresh geometry and refs; restore the original orientation. Verify a named lower section and the return to the first card rather than treating a successful gesture as movement.
 
 - [git-actions.menu](git-actions.menu.md) — History Fetch/Pull availability, progress, results and recovery.
-

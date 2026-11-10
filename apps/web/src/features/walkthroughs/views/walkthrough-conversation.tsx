@@ -6,9 +6,16 @@ import {
 } from '@/components/ui/tooltip';
 import { ArrowUpIcon } from 'lucide-react';
 import {
-  answerTo,
-  conversationsAt,
-  savedMessageCount,
+  developerTurns,
+  earlierConversations,
+  postControls,
+  postedCommentLabel,
+  postLabels,
+  savedSummary,
+  stopConversations,
+  type AgentMessage,
+  type Conversation,
+  type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -33,14 +40,6 @@ import {
   useConversations,
   type ConversationScope,
 } from '../queries/conversations';
-import {
-  earlierConversations,
-  postControls,
-  postedCommentLabel,
-  type Conversation,
-  type DeveloperMessage,
-  type AgentMessage,
-} from '../rules/conversations';
 import { RichText } from './rich-text';
 
 type Props = { owner: ConversationScope };
@@ -51,12 +50,9 @@ function PostActions({
   number,
 }: Props & { message?: DeveloperMessage; number: number | undefined }) {
   const { notice, waiting, copy, save, post } = usePostActions(owner, message);
-  const state = message ? postControls(message) : 'available';
+  const state = postControls(message);
   const action = number === undefined ? copy : post;
-  const label =
-    number === undefined ? 'Copy together' : `Post together on #${number}`;
-  const singleLabel =
-    number === undefined ? 'Copy as prompt' : `Post on #${number}`;
+  const labels = postLabels(number);
   return (
     <div className="flex flex-col gap-2">
       {state === 'posted' && message?.post.status === 'posted' ? (
@@ -91,7 +87,7 @@ function PostActions({
             disabled={waiting}
             onClick={action}
           >
-            {message ? singleLabel : label}
+            {message ? labels.single : labels.together}
           </Button>
           {message && (
             <Button
@@ -190,36 +186,31 @@ function Messages({
   owner,
   number,
 }: Props & { conversation: Conversation; number: number | undefined }) {
-  return conversation.messages
-    .filter(
-      (message): message is DeveloperMessage => message.author === 'developer',
-    )
-    .map((message) => {
-      const reply = answerTo(conversation, message.id);
-      const controls = (
-        <PostActions owner={owner} message={message} number={number} />
-      );
-      return (
-        <div key={message.id} className="flex flex-col gap-3">
-          <Message align="end">
-            <MessageContent>
-              <Bubble align="end" variant="secondary">
-                <BubbleContent className="whitespace-pre-wrap">
-                  <RichText text={message.text} />
-                </BubbleContent>
-              </Bubble>
-            </MessageContent>
-          </Message>
-          {reply ? (
-            <AgentReply owner={owner} message={reply}>
-              {controls}
-            </AgentReply>
-          ) : (
-            <div className="flex justify-end">{controls}</div>
-          )}
-        </div>
-      );
-    });
+  return developerTurns(conversation).map(({ message, reply }) => {
+    const controls = (
+      <PostActions owner={owner} message={message} number={number} />
+    );
+    return (
+      <div key={message.id} className="flex flex-col gap-3">
+        <Message align="end">
+          <MessageContent>
+            <Bubble align="end" variant="secondary">
+              <BubbleContent className="whitespace-pre-wrap">
+                <RichText text={message.text} />
+              </BubbleContent>
+            </Bubble>
+          </MessageContent>
+        </Message>
+        {reply ? (
+          <AgentReply owner={owner} message={reply}>
+            {controls}
+          </AgentReply>
+        ) : (
+          <div className="flex justify-end">{controls}</div>
+        )}
+      </div>
+    );
+  });
 }
 
 function Composer({
@@ -297,9 +288,7 @@ export function WalkthroughConversation({
 }: Props & { title: string; call: boolean }) {
   const { view, failed, refresh } = useConversations(owner);
   const [asking, setAsking] = useState(false);
-  const conversations = view
-    ? conversationsAt(view, { kind: 'stop', title })
-    : [];
+  const conversations = stopConversations(view, title);
   const visible =
     call || asking || conversations.some((item) => item.messages.length > 0);
   return (
@@ -356,7 +345,7 @@ export function EarlierComments({
   titles,
 }: Props & { titles: readonly string[] }) {
   const { view } = useConversations(owner);
-  const conversations = view ? earlierConversations(view, titles) : [];
+  const conversations = earlierConversations(view, titles);
   if (conversations.length === 0) return null;
   return (
     <section className="flex flex-col gap-3 border-t pt-5">
@@ -377,14 +366,12 @@ export function EarlierComments({
 
 export function PostSaved({ owner }: Props) {
   const { view } = useConversations(owner);
-  const count = view ? savedMessageCount(view) : 0;
-  if (!count) return null;
+  const saved = savedSummary(view);
+  if (!saved) return null;
   return (
     <div className="sticky bottom-4 z-30 flex justify-center">
       <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border bg-popover py-1.5 pr-1.5 pl-4 text-ui shadow-sm">
-        <span>
-          {count === 1 ? '1 comment saved' : `${count} comments saved`}
-        </span>
+        <span>{saved}</span>
         <PostActions owner={owner} number={view?.pullRequestNumber} />
       </div>
     </div>

@@ -26,13 +26,15 @@ import {
 } from '../../verify-core/fixtures.ts';
 import { registry, type MobileInstance } from './instance.ts';
 import { serve, start, startProblems } from './serve.ts';
+import { walkthroughCommand } from './walkthrough.ts';
 
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
   doctor                   check startup dependencies, matching native build and active instances
   build                    build the matching development client (--device android on Linux)
-  start [--device iphone|ipad|android] [--udid <owned-ios-udid> | --serial <owned-android-serial>] [--manual-pairing] [--fixture development|focused]
+  start [--device iphone|ipad|android] [--udid <owned-ios-udid> | --serial <owned-android-serial>] [--manual-pairing] [--fixture development|focused] [--coding-tool]
                            prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
                            android selects either an owned phone or tablet emulator by serial
+                           --coding-tool installs the fake walkthrough writer
   --agent-device-command <executable> --agent-device-config <private-file> --agent-device-session <session>
                            preserve an externally supplied device driver for doctor/start and the resulting journey
   status                   report passive lifecycle status and connection metadata
@@ -41,6 +43,8 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   stop                     close this run's sessions, release its simulator and stop owned processes
   pairing-link             print a fresh one-time pairing link
                            act through the disposable server's MCP fixture
+  walkthrough sample|answer long|answer short|moved|posts
+                           write a ready walkthrough on pull request #423 with screenshots, set the next answer, refuse posts, read posted comments
   server published-review|reviewed-files|reviewed-layers|comment-threads|project|devices|pending-links|receipt ...
                            read back the disposable server's state
 Drive the app with the full agent-device invocation from the connection card.
@@ -130,6 +134,7 @@ async function command(args: readonly string[]): Promise<string> {
       'agent-device-config': { type: 'string' },
       'agent-device-command': { type: 'string' },
       'manual-pairing': { type: 'boolean', default: false },
+      'coding-tool': { type: 'boolean', default: false },
       fixture: { type: 'string', default: 'development' },
     },
     allowPositionals: true,
@@ -169,6 +174,7 @@ async function command(args: readonly string[]): Promise<string> {
       values['manual-pairing'],
       values.fixture,
       values['agent-device-session'],
+      values['coding-tool'],
     );
   }
   if (name === 'doctor')
@@ -200,7 +206,9 @@ async function command(args: readonly string[]): Promise<string> {
       })
       .listing();
   if (name === undefined) throw new Usage(usage);
-  if (!['logs', 'pairing-link', 'agent', 'server'].includes(name))
+  if (
+    !['logs', 'pairing-link', 'agent', 'server', 'walkthrough'].includes(name)
+  )
     throw new Usage(usage);
   const instance = registry.chosen(values.instance);
   if (name === 'pairing-link') {
@@ -222,7 +230,17 @@ async function command(args: readonly string[]): Promise<string> {
     const output =
       name === 'agent'
         ? await agentCommand(instance.detail.manifest, rest, values, recorder)
-        : await serverRead(instance.detail.manifest, rest, recorder);
+        : name === 'walkthrough'
+          ? await walkthroughCommand(
+              instance.detail.manifest,
+              {
+                projectId: instance.detail.projectId,
+                worktreeId: instance.detail.worktreeId,
+              },
+              rest,
+              recorder,
+            )
+          : await serverRead(instance.detail.manifest, rest, recorder);
     return `${output}\nrecorded ${await registry.evidence(instance).record(name, args, output)}\n`;
   });
 }

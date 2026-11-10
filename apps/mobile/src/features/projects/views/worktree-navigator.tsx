@@ -305,6 +305,7 @@ export function WorktreeNavigator({
                               !review)
                           }
                           accessibilityLabel={[
+                            entry.displayTitle,
                             navigatorEntryLabel(entry),
                             number ? navigatorChecksLabel(checks) : undefined,
                             selected ? 'current' : undefined,
@@ -320,6 +321,11 @@ export function WorktreeNavigator({
                               }
                             : {})}
                         >
+                          {row.branch ? (
+                            <Text variant="mono" tone="muted" numberOfLines={1}>
+                              {row.branch}
+                            </Text>
+                          ) : null}
                           {row.review || row.changes ? (
                             <Box
                               className="flex-row flex-wrap items-center"

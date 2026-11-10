@@ -33,6 +33,10 @@ export function ShellStartup() {
         options={{ title: 'File', ...sheetOptions('half') }}
       />
       <Stack.Screen
+        name="walkthrough-screenshot"
+        options={{ title: 'Screenshot', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
         name="archive-review"
         options={{ title: 'Archive review', ...sheetOptions('tall') }}
       />

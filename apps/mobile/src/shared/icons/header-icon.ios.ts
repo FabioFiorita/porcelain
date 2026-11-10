@@ -25,6 +25,8 @@ const symbols = {
   more: 'ellipsis',
   showList: 'sidebar.left',
   hideList: 'sidebar.left',
+  previous: 'chevron.left',
+  next: 'chevron.right',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function headerIcon(name: HeaderIconName) {

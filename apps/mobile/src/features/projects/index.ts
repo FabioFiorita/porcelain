@@ -13,6 +13,7 @@ export { ReviewInbox } from './views/review-inbox';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeScreen, WorktreeDetail } from './views/worktree-screen';
 export type { WorktreeSectionContent } from './views/worktree-screen';
+export type { WorktreeGuide } from './rules/worktree-section';
 
 export { useOpenPullRequest } from './views/open-pull-request';
 export { PullRequestArchive } from './views/archive-review';

@@ -22,7 +22,6 @@ For deep links use the development scheme with `__expo_disable_fab=1&__expo_disa
 
 Fixture commands remain on the lifecycle CLI: `pairing-link`, `agent`, and `server` readbacks (run the CLI without arguments for options). A one-time link expires and works once. Pairing happens through Settings; wait for the Pair control to be enabled. Keep links, config and screenshots containing them private. The CLI records its deterministic operations, not your driver calls; save snapshots/screenshots/readbacks yourself in evidenceDirectory.
 
-
 ## Scroll the review document
 
 Use the bound device command for every action. Take a fresh snapshot and screenshot, find the reading document bounds, and pan inside that document with both endpoints clear of native headers, tabs, fixed Continue controls, sidebars and nested code scrollers. Use that device’s current logical coordinates; never reuse coordinates from another device or orientation. A successful gesture is not proof: verify a named lower section, then pan back and verify the first card returns. Preserve the fixed controls throughout.

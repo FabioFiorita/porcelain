@@ -2,16 +2,16 @@
 
 The main checkout's git-ignored `.mobile-device-host.json` is shared by its worktrees. All fields are optional:
 
-| Field | Value |
-| --- | --- |
-| `agentDevice` | Absolute path to the local agent-device executable. |
-| `androidSerial` | Booted local emulator serial; `--serial` overrides it. |
-| `ssh` | SSH destination of the iOS build/device host. |
-| `checkout` | Absolute checkout path on that host, with matching native inputs. |
-| `hub` | HTTP(S) URL of the device hub as reached from this machine. |
-| `tokenVariable` | Environment-variable name holding its token; uppercase letters, digits and underscores. |
-| `ports` | At least two integer ports (1024–65535) reachable by the simulator for server and Metro. |
-| `simulatorLimit` | Positive integer host limit; verification never exceeds two. |
+| Field            | Value                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `agentDevice`    | Absolute path to the local agent-device executable.                                      |
+| `androidSerial`  | Booted local emulator serial; `--serial` overrides it.                                   |
+| `ssh`            | SSH destination of the iOS build/device host.                                            |
+| `checkout`       | Absolute checkout path on that host, with matching native inputs.                        |
+| `hub`            | HTTP(S) URL of the device hub as reached from this machine.                              |
+| `tokenVariable`  | Environment-variable name holding its token; uppercase letters, digits and underscores.  |
+| `ports`          | At least two integer ports (1024–65535) reachable by the simulator for server and Metro. |
+| `simulatorLimit` | Positive integer host limit; verification never exceeds two.                             |
 
 Configure `hub`, `tokenVariable` and `ports` together. Keep tokens in the environment, outside the file.
 

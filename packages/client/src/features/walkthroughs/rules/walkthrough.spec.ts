@@ -17,6 +17,18 @@ import {
   type WalkthroughRun,
   type WalkthroughStop,
 } from './walkthrough.ts';
+import { worktreeOpening } from './opening.ts';
+import { readingOf } from '../queries/reading.ts';
+import {
+  attentionLabel,
+  failureCopy,
+  foldedGrowth,
+  foldedNotSaid,
+  growthSign,
+  readyUpdate,
+  walkthroughMeta,
+} from './page.ts';
+import { AsyncResult } from 'effect/reactivity';
 
 const stop = (over: Partial<WalkthroughStop> = {}): WalkthroughStop => ({
   title: 'A step',
@@ -434,5 +446,141 @@ it.each([
     content: { stops: [{ title: 'A step' }] },
     outOfDate: true,
     attempt: { id: 'newer' },
+  });
+});
+
+describe('worktreeOpening', () => {
+  const settled = (walkthrough: WalkthroughRun | undefined, files: number) =>
+    worktreeOpening({
+      walkthrough: { status: 'read', value: read(walkthrough) },
+      branchFiles: { status: 'read', value: files },
+    });
+
+  it('opens a worktree that has a walkthrough on it, even with no commits', () => {
+    expect(settled(run({ status: 'running' }), 0)).toEqual({
+      name: 'walkthrough',
+      pending: false,
+      guided: true,
+    });
+  });
+
+  it('offers a walkthrough on a branch with committed changes, and keeps Changes without one', () => {
+    expect(settled(undefined, 3)).toEqual({
+      name: 'walkthrough',
+      pending: false,
+      guided: false,
+    });
+    expect(settled(undefined, 0)).toMatchObject({ name: 'changes' });
+  });
+
+  it('waits for both reads, and treats a failed read as settled', () => {
+    expect(
+      worktreeOpening({
+        walkthrough: readingOf(AsyncResult.initial(true), (value) => value),
+        branchFiles: { status: 'read', value: 3 },
+      }).pending,
+    ).toBe(true);
+    expect(
+      worktreeOpening({
+        walkthrough: readingOf(
+          AsyncResult.fail(new Error('Offline')),
+          (value: WalkthroughRead) => value,
+        ),
+        branchFiles: { status: 'failed' },
+      }),
+    ).toEqual({ name: 'changes', pending: false, guided: false });
+  });
+});
+
+describe('walkthrough page rules', () => {
+  const growth = (what: string) =>
+    ({ change: 'added', what, note: 'Note.' }) as const;
+
+  it('names each kind of call and each kind of growth', () => {
+    expect(attentionLabel({ ...attention, kind: 'risk' })).toBe(
+      'Risk to accept',
+    );
+    expect(growthSign({ change: 'removed', what: 'Old', note: 'Gone.' })).toBe(
+      '−',
+    );
+  });
+
+  it('folds growth after four items and unexplained points after three', () => {
+    const many = content({
+      growth: ['A', 'B', 'C', 'D', 'E', 'F'].map(growth),
+      onlyInTranscript: [
+        { point: 'Why?', answer: 'Because.' },
+        { point: 'When?', answer: 'Now.' },
+      ],
+      stillUnclear: ['Who?', 'Where?'],
+    });
+    expect(foldedGrowth(many, false).shown).toHaveLength(4);
+    expect(foldedGrowth(many, false).hidden).toBe(2);
+    expect(foldedGrowth(many, true).hidden).toBe(0);
+    expect(foldedNotSaid(many, false)).toMatchObject({
+      unclear: ['Who?'],
+      total: 4,
+      hidden: 1,
+    });
+  });
+
+  it('describes the pull request, files and commit a walkthrough was written for', () => {
+    const written = { ...run({ status: 'running' }), pullRequestNumber: 423 };
+    expect(
+      walkthroughMeta(
+        written,
+        content({
+          stops: [
+            stop({
+              files: [
+                { path: 'a.ts', note: 'A' },
+                { path: 'b.ts', note: 'B' },
+              ],
+            }),
+          ],
+        }),
+      ),
+    ).toBe('#423 · 2 files · written for bbbbbbb');
+    expect(walkthroughMeta(run({ status: 'running' }))).toBe(
+      'written for bbbbbbb',
+    );
+  });
+
+  it('keeps the ready page while an update runs, and blames the failed attempt’s writer', () => {
+    const ready = run({
+      status: 'ready',
+      content: content(),
+      writtenAt: '2026-11-09T00:00:01.000Z',
+      durationMs: 1,
+      costUsd: undefined,
+    });
+    const codex = { provider: 'codex', model: 'gpt', effort: 'high' } as const;
+    const failure = { kind: 'other', message: 'It stopped.' } as const;
+    const phase = (attempt: WalkthroughRun | undefined) => {
+      const current = walkthroughPhase({
+        walkthrough: ready,
+        outOfDate: true,
+        attempt,
+      });
+      if (current.kind !== 'ready') throw new Error('Expected a ready page.');
+      return current;
+    };
+    const idle = { waiting: false, failure: undefined };
+    expect(readyUpdate(phase(run({ status: 'running' })), idle)).toEqual({
+      updating: true,
+      failure: undefined,
+    });
+    expect(
+      readyUpdate(
+        phase({ ...run({ status: 'failed', failure }), writer: codex }),
+        idle,
+      ),
+    ).toEqual({ updating: false, failure: { failure, writer: codex } });
+    expect(
+      readyUpdate(phase(undefined), { waiting: false, failure }).failure,
+    ).toEqual({ failure, writer: ready.writer });
+    expect(failureCopy(failure, undefined).title).toBe(
+      "The walkthrough didn't finish.",
+    );
   });
 });

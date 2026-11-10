@@ -10,6 +10,7 @@ import { Empty } from '../../../components/ui/empty';
 import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
+import type { DocumentAction } from '../../../components/ui/document-header';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { changePageDiffs, useReviewSnapshot } from '../queries/review';
 import {
@@ -59,12 +60,23 @@ export function ChangesPageScreen({
   );
 }
 
-function ChangesPage({
+export type ChangesReading = {
+  page: string;
+  title: string;
+  only: readonly string[];
+  header: ReactNode;
+  actions: readonly DocumentAction[];
+  empty: { title: string; description: string };
+};
+
+export function ChangesPage({
   workspace,
   comparison,
+  reading,
 }: {
   workspace: Workspace;
   comparison: ReviewComparison;
+  reading?: ChangesReading | undefined;
 }) {
   const router = useRouter();
   const snapshot = useReviewSnapshot(workspace, comparison);
@@ -73,7 +85,9 @@ function ChangesPage({
     return (
       <ReviewReadState result={snapshot.result} refresh={snapshot.refresh} />
     );
-  const files = changeEntries(snapshot.result.value);
+  const files = changeEntries(snapshot.result.value).filter(
+    (file) => reading === undefined || reading.only.includes(file.path),
+  );
   const keys = files.map((file) => file.key);
   const summary = changesSummary(snapshot.result.value, files.length);
   return (
@@ -83,26 +97,38 @@ function ChangesPage({
       keys={diffChunk(keys, 0)}
     >
       <DiffPage
-        page={JSON.stringify(['changes', workspace.key, comparison])}
-        title="All changes"
+        page={JSON.stringify([
+          'changes',
+          workspace.key,
+          comparison,
+          reading?.page ?? null,
+        ])}
+        title={reading?.title ?? 'All changes'}
         subtitle={summary.subtitle}
+        actions={reading?.actions ?? []}
         files={files}
-        header={() => (
-          <Box divider="bottom" paddingX={4} paddingY={3}>
-            <Text variant="caption" tone="muted">
-              {summary.description}
-            </Text>
-          </Box>
-        )}
+        header={() =>
+          reading?.header ?? (
+            <Box divider="bottom" paddingX={4} paddingY={3}>
+              <Text variant="caption" tone="muted">
+                {summary.description}
+              </Text>
+            </Box>
+          )
+        }
         empty={
-          <Empty
-            title="No changes"
-            description={
-              comparison.kind === 'branch'
-                ? 'This branch has no changed files against this base.'
-                : 'This worktree has no uncommitted changes.'
-            }
-          />
+          reading ? (
+            <Empty {...reading.empty} />
+          ) : (
+            <Empty
+              title="No changes"
+              description={
+                comparison.kind === 'branch'
+                  ? 'This branch has no changed files against this base.'
+                  : 'This worktree has no uncommitted changes.'
+              }
+            />
+          )
         }
         onOpenFile={(file) => {
           if (file.scope)

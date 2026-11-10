@@ -5,21 +5,24 @@ import {
   useLayoutMove,
   useListDetailLayout,
 } from '../../../components/ui/list-detail';
-import { useState, type ComponentType } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
+import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
 import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
-import { workspaceKey } from '../commands/workspace-connection';
+import { workspaceKey, type Workspace } from '../commands/workspace-connection';
 import {
+  shownWorktreeSection,
+  worktreeSectionChoices,
   worktreeSectionNamed,
-  worktreeSections,
+  type WorktreeGuide,
   type WorktreeSection,
 } from '../rules/worktree-section';
 import {
@@ -37,14 +40,21 @@ export type WorktreeSectionContent = ComponentType<{
   mode: ListDetailMode;
 }>;
 
+export type WorktreeGuideReader = ComponentType<{
+  workspace: Workspace;
+  children: (guide: WorktreeGuide) => ReactNode;
+}>;
+
 type WorktreeParams = Partial<Omit<WorktreeDetails, 'opening'>> & {
   opening?: string | undefined;
 };
 
 export function WorktreeScreen({
   content,
+  guide,
 }: {
   content: WorktreeSectionContent;
+  guide: WorktreeGuideReader;
 }) {
   const params = useLocalSearchParams<WorktreeParams>();
   const title = params.title ?? 'Worktree';
@@ -69,7 +79,12 @@ export function WorktreeScreen({
           trailingItems={1}
         />
       </Stack.Title>
-      <WorktreeDetail details={params} mode="stack" content={content} />
+      <WorktreeDetail
+        details={params}
+        mode="stack"
+        content={content}
+        guide={guide}
+      />
     </View>
   );
 }
@@ -78,10 +93,12 @@ export function WorktreeDetail({
   details,
   mode,
   content,
+  guide: Guide,
 }: {
   details: WorktreeParams;
   mode: ListDetailMode;
   content: WorktreeSectionContent;
+  guide: WorktreeGuideReader;
 }) {
   const { picker, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
@@ -141,13 +158,17 @@ export function WorktreeDetail({
             />
           </Box>
         ) : (
-          <WorktreeSections
-            key={workspace.key}
-            workspace={workspace.key}
-            details={details}
-            mode={mode}
-            content={content}
-          />
+          <Guide key={workspace.key} workspace={workspace}>
+            {(guide) => (
+              <WorktreeSections
+                workspace={workspace.key}
+                details={details}
+                mode={mode}
+                content={content}
+                guide={guide}
+              />
+            )}
+          </Guide>
         )
       }
     </WorkspaceGate>
@@ -159,15 +180,25 @@ function WorktreeSections({
   details,
   mode,
   content: Content,
+  guide,
 }: {
   workspace: string;
   details: WorktreeParams;
   mode: ListDetailMode;
   content: WorktreeSectionContent;
+  guide: WorktreeGuide;
 }) {
-  const [opening] = useState(() => worktreeSectionNamed(details.opening));
+  const [opening, setOpening] = useState<WorktreeSection>();
   const [chosen, choose] = useAtom(worktreeSection(workspace));
-  const section = chosen ?? opening;
+  if (opening === undefined && !guide.pending)
+    setOpening(
+      guide.walkthrough ? 'walkthrough' : worktreeSectionNamed(details.opening),
+    );
+  const section = shownWorktreeSection({
+    chosen,
+    opening: opening ?? 'changes',
+    guide,
+  });
   const openPullRequest = useOpenPullRequest();
   const number = Number(details.number);
   const pullRequest =
@@ -206,13 +237,15 @@ function WorktreeSections({
             </Text>
           </Box>
         ) : null}
-        <Box className={beside ? 'w-80 max-w-full' : ''}>
-          <SegmentedControl
-            options={worktreeSections}
-            selected={section}
-            onSelect={choose}
-          />
-        </Box>
+        {opening === undefined ? null : (
+          <Box className={beside ? 'w-80 max-w-full' : ''}>
+            <SegmentedControl
+              options={worktreeSectionChoices(guide)}
+              selected={section}
+              onSelect={choose}
+            />
+          </Box>
+        )}
       </Box>
       {section === 'changes' && pullRequest ? (
         <Box divider="bottom">
@@ -226,7 +259,11 @@ function WorktreeSections({
         </Box>
       ) : null}
       <Box className="flex-1" collapsable={false}>
-        <Content section={section} mode={mode} />
+        {opening === undefined ? (
+          <Loading label="Reading worktree…" />
+        ) : (
+          <Content section={section} mode={mode} />
+        )}
       </Box>
     </Screen>
   );

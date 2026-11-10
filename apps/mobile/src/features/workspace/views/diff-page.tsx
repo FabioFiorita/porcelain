@@ -52,6 +52,7 @@ export function DiffPage<F extends DiffPageFile>({
   page,
   title,
   subtitle,
+  actions = [],
   header,
   files,
   empty,
@@ -63,6 +64,7 @@ export function DiffPage<F extends DiffPageFile>({
   page: string;
   title: string;
   subtitle?: string | undefined;
+  actions?: readonly DocumentAction[];
   header: (current: F | undefined) => ReactNode;
   files: readonly F[];
   empty: ReactNode;
@@ -115,7 +117,9 @@ export function DiffPage<F extends DiffPageFile>({
       <PageHeader
         title={title}
         subtitle={subtitle}
-        actions={beside || files.length < 2 ? [] : [filesAction]}
+        actions={
+          beside || files.length < 2 ? actions : [...actions, filesAction]
+        }
       />
       <ListDetail
         collapse="detail"

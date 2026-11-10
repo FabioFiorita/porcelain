@@ -107,6 +107,10 @@ export function serve(folder: string): Promise<void> {
     life.onStop(async () => {
       await environment.stop();
     });
+    if (options.codingTool)
+      await environment.server
+        .session(environment.recorder, { projectId: '', worktreeId: '' })
+        .installCodingTool();
     life.secret(
       environment.link,
       environment.server.credential,
@@ -281,6 +285,7 @@ export async function start(
   manualPairing = false,
   fixture: 'development' | 'focused' = 'development',
   agentSession?: string,
+  codingTool = false,
 ): Promise<string> {
   const { remote, simulatorLimit, androidSerial } = deviceHost();
   const host = kind === 'android' ? undefined : remote;
@@ -295,6 +300,7 @@ export async function start(
       ...(agentSession === undefined ? {} : { agentSession }),
       kind,
       manualPairing,
+      codingTool,
       fixture,
       host: host ?? null,
       simulatorLimit: Math.min(simulatorLimit ?? 2, 2),
@@ -309,5 +315,5 @@ export async function start(
   );
   const target =
     card.mobile.platform === 'android' ? card.mobile.serial : card.mobile.udid;
-  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}\nsimulator ${target} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
+  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}${codingTool ? ' with the fake walkthrough writer' : ''}\nsimulator ${target} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
 }

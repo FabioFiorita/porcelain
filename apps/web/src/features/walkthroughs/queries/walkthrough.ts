@@ -2,14 +2,15 @@ import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import {
+  readingOf,
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
 import {
-  firstDocument,
   walkthroughPhase,
   walkthroughTabTitle,
-  type FirstDocument as FirstDocumentName,
+  worktreeOpening,
+  type WorktreeOpening,
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
@@ -67,33 +68,17 @@ export function useWalkthroughTabTitle(
   return read ? walkthroughTabTitle(read) : 'Walkthrough';
 }
 
-export type WorktreeFirstDocument = {
-  name: FirstDocumentName;
-  pending: boolean;
-  guided: boolean;
-};
-
 export function useWorktreeFirstDocument(
   scope: ReviewScope,
   context: ConnectionContext,
   base: string | undefined,
-): WorktreeFirstDocument {
-  const { result, read } = useWalkthrough(scope, context);
+): WorktreeOpening {
+  const { result } = useWalkthrough(scope, context);
   const branch = useBranchChanges(scope, context.connection, base).result;
-  const committed = Option.getOrUndefined(AsyncResult.value(branch));
-  const settled =
-    read !== undefined || AsyncResult.isFailure(result)
-      ? committed !== undefined || AsyncResult.isFailure(branch)
-      : false;
-  return {
-    name: firstDocument({
-      read: read ?? { walkthrough: undefined, outOfDate: false },
-      publishedReview: false,
-      branchHasCommits: (committed?.files.length ?? 0) > 0,
-    }),
-    pending: !settled,
-    guided: read?.walkthrough !== undefined,
-  };
+  return worktreeOpening({
+    walkthrough: readingOf(result, (read) => read),
+    branchFiles: readingOf(branch, (committed) => committed.files.length),
+  });
 }
 
 const assetUrl = Atom.family(
