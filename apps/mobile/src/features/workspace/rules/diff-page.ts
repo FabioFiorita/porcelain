@@ -6,7 +6,7 @@ import type { RenderLine } from '../../../shared/rules/render-model';
 import { diffPresentation } from './diff-presentation';
 
 const DIFF_PAGE_CHUNK = 20;
-const INLINE_DIFF_LINES = 1500;
+const INLINE_DIFF_LINES = 1000;
 
 export type DiffPageFile = {
   key: string;
@@ -94,6 +94,12 @@ export function headingRow(file: number) {
 export function fileAtTop(rows: readonly number[]): number | undefined {
   if (rows.length === 0) return undefined;
   return Math.floor(Math.min(...rows) / 2);
+}
+
+export function stuckHeading(rows: readonly number[]): number | undefined {
+  if (rows.length === 0) return undefined;
+  const top = Math.min(...rows);
+  return top % 2 === 1 ? Math.floor(top / 2) : undefined;
 }
 
 export function diffChunk<T>(items: readonly T[], index: number): T[] {

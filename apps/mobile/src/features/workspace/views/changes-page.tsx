@@ -1,4 +1,5 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
@@ -6,6 +7,7 @@ import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
+import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
@@ -75,54 +77,82 @@ function ChangesPage({
   const keys = files.map((file) => file.key);
   const summary = changesSummary(snapshot.result.value, files.length);
   return (
-    <DiffPage
-      title="All changes"
-      subtitle={summary.subtitle}
-      files={files}
-      header={() => (
-        <Box divider="bottom" paddingX={4} paddingY={3}>
-          <Text variant="caption" tone="muted">
-            {summary.description}
-          </Text>
-        </Box>
-      )}
-      empty={
-        <Empty
-          title="No changes"
-          description={
-            comparison.kind === 'branch'
-              ? 'This branch has no changed files against this base.'
-              : 'This worktree has no uncommitted changes.'
-          }
-        />
-      }
-      onOpenFile={(file) => {
-        if (file.scope)
-          chooseScope({
-            owner: JSON.stringify([
-              workspace.key,
-              reviewFileDocumentKey(file.path, comparison),
-            ]),
-            scope: file.scope,
+    <FirstDiffs
+      workspace={workspace}
+      comparison={comparison}
+      keys={diffChunk(keys, 0)}
+    >
+      <DiffPage
+        page={JSON.stringify(['changes', workspace.key, comparison])}
+        title="All changes"
+        subtitle={summary.subtitle}
+        files={files}
+        header={() => (
+          <Box divider="bottom" paddingX={4} paddingY={3}>
+            <Text variant="caption" tone="muted">
+              {summary.description}
+            </Text>
+          </Box>
+        )}
+        empty={
+          <Empty
+            title="No changes"
+            description={
+              comparison.kind === 'branch'
+                ? 'This branch has no changed files against this base.'
+                : 'This worktree has no uncommitted changes.'
+            }
+          />
+        }
+        onOpenFile={(file) => {
+          if (file.scope)
+            chooseScope({
+              owner: JSON.stringify([
+                workspace.key,
+                reviewFileDocumentKey(file.path, comparison),
+              ]),
+              scope: file.scope,
+            });
+          router.push({
+            pathname: '/review-file',
+            params: {
+              ...reviewParams(workspace.key, comparison),
+              path: file.path,
+            },
           });
-        router.push({
-          pathname: '/review-file',
-          params: {
-            ...reviewParams(workspace.key, comparison),
-            path: file.path,
-          },
-        });
-      }}
-      part={(props) => (
-        <ChangePart
-          {...props}
-          workspace={workspace}
-          comparison={comparison}
-          keys={diffChunk(keys, props.index)}
-        />
-      )}
-    />
+        }}
+        part={(props) => (
+          <ChangePart
+            {...props}
+            workspace={workspace}
+            comparison={comparison}
+            keys={diffChunk(keys, props.index)}
+          />
+        )}
+      />
+    </FirstDiffs>
   );
+}
+
+function FirstDiffs({
+  workspace,
+  comparison,
+  keys,
+  children,
+}: {
+  workspace: Workspace;
+  comparison: ReviewComparison;
+  keys: readonly string[];
+  children: ReactNode;
+}) {
+  const result = useAtomValue(changePageDiffs({ workspace, comparison, keys }));
+  if (
+    keys.length > 0 &&
+    !AsyncResult.isSuccess(result) &&
+    !AsyncResult.isFailure(result)
+  )
+    return <Loading label="Loading changes…" />;
+  return children;
 }
 
 type ChangePartProps = DiffPagePartProps<ChangeEntry> & {

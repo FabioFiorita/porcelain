@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { FlatList, View, type FlatListProps } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { DiffView } from '../../../components/ui/diff-view';
@@ -18,11 +19,13 @@ import {
   diffCountsLabel,
   diffPageRows,
   fileAtTop,
+  stuckHeading,
   headingRow,
   type DiffPageBody,
   type DiffPageFile,
   type DiffPageRow,
 } from '../rules/diff-page';
+import { diffPageCurrent, diffPageStuck } from '../store';
 
 export type { DiffPageFile } from '../rules/diff-page';
 
@@ -45,6 +48,7 @@ type Viewable = Parameters<
 >[0];
 
 export function DiffPage<F extends DiffPageFile>({
+  page,
   title,
   subtitle,
   header,
@@ -54,6 +58,7 @@ export function DiffPage<F extends DiffPageFile>({
   part,
   onOpenFile,
 }: {
+  page: string;
   title: string;
   subtitle?: string | undefined;
   header: (current: F | undefined) => ReactNode;
@@ -64,17 +69,18 @@ export function DiffPage<F extends DiffPageFile>({
   onOpenFile: (file: F) => void;
 }) {
   const initial = files.findIndex((file) => file.key === initialFile);
-  const [current, setCurrent] = useState(Math.max(initial, 0));
+  const setCurrent = useAtomSet(diffPageCurrent(page));
+  const setStuck = useAtomSet(diffPageStuck(page));
   const [list, setList] = useState<FlatList<DiffPageRow> | null>(null);
   const [beside, setBeside] = useState(false);
   const [pending, setPending] = useState<number>();
   const [onViewable] = useState(() => ({ viewableItems }: Viewable) => {
-    const top = fileAtTop(
-      viewableItems.flatMap((item) =>
-        typeof item.index === 'number' ? [item.index] : [],
-      ),
+    const visible = viewableItems.flatMap((item) =>
+      typeof item.index === 'number' ? [item.index] : [],
     );
+    const top = fileAtTop(visible);
     if (top !== undefined) setCurrent(top);
+    setStuck(stuckHeading(visible));
   });
   const jump = (index: number) => {
     setCurrent(index);
@@ -82,9 +88,6 @@ export function DiffPage<F extends DiffPageFile>({
     list?.scrollToIndex({ index: headingRow(index), animated: false });
   };
   const rows = diffPageRows(files.length);
-  const sticky = rows.flatMap((row, index) =>
-    row.kind === 'heading' ? [index] : [],
-  );
   const filesAction: DocumentAction = {
     kind: 'choice',
     id: 'files',
@@ -92,7 +95,7 @@ export function DiffPage<F extends DiffPageFile>({
     icon: 'files',
     choices: files.slice(0, MENU_FILES).map((file, index) => ({
       label: fileLabel(file),
-      selected: index === current,
+      selected: false,
       onPress: () => jump(index),
     })),
   };
@@ -107,80 +110,131 @@ export function DiffPage<F extends DiffPageFile>({
         collapse="detail"
         list={() => (
           <DiffPageFiles
+            page={page}
             files={files}
-            current={current}
             onSelect={jump}
             onShown={setBeside}
           />
         )}
         detail={
-          <FlatList
-            ref={setList}
-            className="flex-1 bg-background"
-            contentInsetAdjustmentBehavior="automatic"
-            data={rows}
-            extraData={[files, pending]}
-            keyExtractor={(row) => `${row.kind}:${files[row.file]?.key ?? ''}`}
-            ListHeaderComponent={<>{header(files[current])}</>}
-            ListEmptyComponent={<>{empty}</>}
-            stickyHeaderIndices={sticky}
-            initialNumToRender={6}
-            maxToRenderPerBatch={4}
-            windowSize={9}
-            {...(initial > 0
-              ? { initialScrollIndex: headingRow(initial) }
-              : {})}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-            onViewableItemsChanged={onViewable}
-            onScrollToIndexFailed={(info) =>
-              list?.scrollToOffset({
-                offset: info.averageItemLength * info.index,
-                animated: false,
-              })
-            }
-            renderItem={({ item, index }) => {
-              const file = files[item.file];
-              if (!file) return null;
-              const content = part({
-                file,
-                index: item.file,
-                part: item.kind,
-                onOpen: () => onOpenFile(file),
-              });
-              return (
-                <View
-                  collapsable={false}
-                  {...(index === pending
-                    ? {
-                        onLayout: () => {
-                          setPending(undefined);
-                          list?.scrollToIndex({ index, animated: false });
-                        },
-                      }
-                    : {})}
-                >
-                  {content}
-                </View>
-              );
-            }}
-          />
+          <View className="flex-1" collapsable={false}>
+            <FlatList
+              ref={setList}
+              className="flex-1 bg-background"
+              contentInsetAdjustmentBehavior="automatic"
+              data={rows}
+              extraData={[files, pending]}
+              keyExtractor={(row) =>
+                `${row.kind}:${files[row.file]?.key ?? ''}`
+              }
+              ListHeaderComponent={
+                <DiffPageHeader page={page} files={files} header={header} />
+              }
+              ListEmptyComponent={<>{empty}</>}
+              initialNumToRender={6}
+              maxToRenderPerBatch={2}
+              removeClippedSubviews={false}
+              windowSize={9}
+              {...(initial > 0
+                ? { initialScrollIndex: headingRow(initial) }
+                : {})}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              onViewableItemsChanged={onViewable}
+              onScrollBeginDrag={() => setPending(undefined)}
+              onScrollToIndexFailed={(info) =>
+                list?.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: false,
+                })
+              }
+              renderItem={({ item, index }) => {
+                const file = files[item.file];
+                if (!file) return null;
+                const content = part({
+                  file,
+                  index: item.file,
+                  part: item.kind,
+                  onOpen: () => onOpenFile(file),
+                });
+                return (
+                  <View
+                    collapsable={false}
+                    {...(index === pending
+                      ? {
+                          onLayout: () =>
+                            list?.scrollToIndex({ index, animated: false }),
+                        }
+                      : {})}
+                  >
+                    {content}
+                  </View>
+                );
+              }}
+            />
+            <PinnedHeading
+              page={page}
+              files={files}
+              part={part}
+              onOpenFile={onOpenFile}
+            />
+          </View>
         }
       />
     </>
   );
 }
 
-function DiffPageFiles<F extends DiffPageFile>({
+function DiffPageHeader<F extends DiffPageFile>({
+  page,
   files,
-  current,
+  header,
+}: {
+  page: string;
+  files: readonly F[];
+  header: (current: F | undefined) => ReactNode;
+}) {
+  const current = useAtomValue(diffPageCurrent(page));
+  return <>{header(files[current])}</>;
+}
+
+function PinnedHeading<F extends DiffPageFile>({
+  page,
+  files,
+  part,
+  onOpenFile,
+}: {
+  page: string;
+  files: readonly F[];
+  part: (props: DiffPagePartProps<F>) => ReactNode;
+  onOpenFile: (file: F) => void;
+}) {
+  const stuck = useAtomValue(diffPageStuck(page));
+  const file = stuck === undefined ? undefined : files[stuck];
+  if (!file || stuck === undefined) return null;
+  return (
+    <View className="absolute inset-x-0 top-0" collapsable={false}>
+      {part({
+        file,
+        index: stuck,
+        part: 'heading',
+        onOpen: () => onOpenFile(file),
+      })}
+    </View>
+  );
+}
+
+function DiffPageFiles<F extends DiffPageFile>({
+  page,
+  files,
   onSelect,
   onShown,
 }: {
+  page: string;
   files: readonly F[];
-  current: number;
   onSelect: (index: number) => void;
   onShown: (shown: boolean) => void;
 }) {
+  const current = useAtomValue(diffPageCurrent(page));
   return (
     <FlatList
       ref={(list) => {

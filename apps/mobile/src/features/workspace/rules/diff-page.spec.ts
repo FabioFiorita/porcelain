@@ -6,6 +6,7 @@ import {
   diffPageRows,
   fileAtTop,
   headingRow,
+  stuckHeading,
   sourceBody,
 } from './diff-page';
 
@@ -66,6 +67,12 @@ describe('a page of diffs', () => {
     expect(fileAtTop([7, 5, 6])).toBe(2);
     expect(fileAtTop([4])).toBe(2);
     expect(fileAtTop([])).toBeUndefined();
+  });
+
+  it('pins a file heading only once its own heading has scrolled away', () => {
+    expect(stuckHeading([3, 4, 5])).toBe(1);
+    expect(stuckHeading([2, 3])).toBeUndefined();
+    expect(stuckHeading([])).toBeUndefined();
   });
 
   it('reads files in fixed groups of twenty so neighbours share one request', () => {
