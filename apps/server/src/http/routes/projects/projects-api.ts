@@ -1,3 +1,4 @@
+import type { SaveWalkthroughSettingsUseCase } from '../../../use-cases/projects/save-walkthrough-settings.ts';
 import type { DeleteWorktreeUseCase } from '../../../use-cases/projects/delete-worktree.ts';
 import { requestBody } from '../../hooks/request-body.ts';
 import { handlerAudit } from '../../diagnostics.ts';
@@ -15,6 +16,9 @@ import { type RenameProjectUseCase } from '../../../use-cases/projects/rename-pr
 import { type SetFilePreferenceUseCase } from '../../../use-cases/projects/set-file-preference.ts';
 
 type ProjectsUseCases = {
+  saveWalkthroughSettings: Context.Service.Shape<
+    typeof SaveWalkthroughSettingsUseCase
+  >;
   deleteWorktree: Context.Service.Shape<typeof DeleteWorktreeUseCase>;
   browseProjectFolders: Context.Service.Shape<
     typeof BrowseProjectFoldersUseCase
@@ -47,6 +51,9 @@ export function projectsRoutes(useCases: ProjectsUseCases) {
       )
       .handle('removeProject', ({ params }) =>
         useCases.removeProject.execute(params),
+      )
+      .handle('saveWalkthroughSettings', ({ params, payload }) =>
+        useCases.saveWalkthroughSettings.execute({ ...params, ...payload }),
       )
       .handle('renameProject', ({ params, payload }) =>
         useCases.renameProject.execute({ ...params, ...payload }),

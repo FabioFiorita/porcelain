@@ -7,12 +7,14 @@ import { NodeServices } from '@effect/platform-node';
 import { expect, it } from 'vitest';
 import { storageLayer } from '@porcelain/storage';
 import {
+  WalkthroughModelReader,
   EvidenceReader,
   TranscriptReader,
   WalkthroughStore,
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
+  ResolveWalkthroughWriterService,
   AnswerWalkthroughMessageService,
   BeginWalkthroughService,
   ListWalkthroughConversationsService,
@@ -38,7 +40,7 @@ const ready: WalkthroughJob = {
     pullRequestNumber: undefined,
     baseOid: 'a'.repeat(40),
     headOid: 'b'.repeat(40),
-    writer: { provider: 'claude', model: 'claude-opus-5-5' },
+    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: 'writer-session',
     createdAt: '2026-11-09T00:00:00.000Z',
     state: { status: 'queued' },
@@ -97,7 +99,9 @@ async function fixture(
     const services = Layer.mergeAll(
       WriteWalkthroughService.layer,
       BeginWalkthroughService.layer,
-      AnswerWalkthroughMessageService.layer,
+      AnswerWalkthroughMessageService.layer.pipe(
+        Layer.provide(ResolveWalkthroughWriterService.layer),
+      ),
       AddWalkthroughMessageService.layer,
       RetryWalkthroughAnswerService.layer,
       ListWalkthroughConversationsService.layer,
@@ -106,6 +110,20 @@ async function fixture(
         Layer.mergeAll(
           database,
           cliWalkthroughWriterLayer({ processGroup, command }).pipe(
+            Layer.provide(
+              Layer.succeed(WalkthroughModelReader, {
+                read: () =>
+                  Effect.succeed([
+                    {
+                      provider: 'claude',
+                      model: 'claude-opus-5-5',
+                      label: 'Opus',
+                      efforts: ['high'],
+                      defaultEffort: 'high',
+                    },
+                  ]),
+              }),
+            ),
             Layer.provide(NodeServices.layer),
           ),
           Layer.succeed(TranscriptReader, { read: () => Effect.succeed('') }),

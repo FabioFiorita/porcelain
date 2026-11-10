@@ -8,3 +8,5 @@ export {
   useReviewGitSettings,
   useSpecsApart,
 } from './queries/review-git-settings';
+
+export { WalkthroughWriterForm } from './views/walkthrough-writer-form';

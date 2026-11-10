@@ -12,7 +12,7 @@ import {
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { useLocalConnection } from '@/features/access';
-import { useProjectCommand } from './manage-project';
+import { useCommand } from '@/shared/lib/use-command';
 
 type Selection = {
   connection: Connection;
@@ -24,7 +24,7 @@ export function useDeleteWorktreeAction(
   entry: NavigatorEntry,
   onDone: () => void,
 ) {
-  const [result, run] = useProjectCommand(deleteWorktree(selection));
+  const [result, run] = useCommand(deleteWorktree(selection));
   const local = useLocalConnection();
   const router = useRouter();
   const navigate = useNavigate();
@@ -74,8 +74,8 @@ export function useDeleteWorktreeAction(
 }
 
 export function useSwitchWorktreeBranchAction(selection: Selection) {
-  const [result, run] = useProjectCommand(switchWorktreeBranch(selection));
-  const [recovered, recover] = useProjectCommand(
+  const [result, run] = useCommand(switchWorktreeBranch(selection));
+  const [recovered, recover] = useCommand(
     recoverWorktreeBranchSwitch(selection),
   );
   const [recovering, setRecovering] = useState(false);

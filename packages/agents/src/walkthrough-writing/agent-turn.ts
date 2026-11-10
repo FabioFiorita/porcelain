@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Effect, FileSystem, Schema } from 'effect';
 import { Toml } from 'effect/encoding';
 import { ChildProcessSpawner } from 'effect/process';
+import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
 import { runProvider } from '../commit-planning/commands/run-provider.ts';
@@ -79,6 +80,19 @@ export const failure = (
   message: string,
 ) => new WalkthroughFailedError({ kind, message });
 
+export const unavailableWriter = (writer: {
+  provider: string;
+  model: string;
+}) =>
+  failure(
+    'other',
+    `The walkthrough model ${writer.provider}/${writer.model} is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.`,
+  );
+const modelRefused = (detail: string) =>
+  /model.*(?:not.*(?:available|exist|found|support)|unavailable|no access)|no access.*model/i.test(
+    detail,
+  );
+
 export type AgentTurnWording = {
   readonly timedOut: string;
   readonly stopped: string;
@@ -88,6 +102,7 @@ export type AgentTurnWording = {
 export type AgentTurn = {
   readonly provider: 'claude' | 'codex';
   readonly model: string;
+  readonly effort: WalkthroughWriterChoice['effort'];
   readonly worktreePath: string;
   readonly folder: string;
   readonly session: {
@@ -222,7 +237,7 @@ export const agentTurns = (options: {
           '--model',
           turn.model,
           '--effort',
-          'high',
+          turn.effort,
           '--output-format',
           'json',
         );
@@ -256,6 +271,8 @@ export const agentTurns = (options: {
             ? ['exec', 'resume', '-c', 'sandbox_mode="read-only"']
             : ['exec', '--sandbox', 'read-only']),
           ...isolation,
+          '-c',
+          `model_reasoning_effort=${JSON.stringify(turn.effort)}`,
           '--ignore-user-config',
           '--ignore-rules',
           '--json',
@@ -293,6 +310,7 @@ export const agentTurns = (options: {
               'signed_out',
               'Sign in again to the selected agent CLI, then try again.',
             );
+          if (modelRefused(error.detail ?? '')) return unavailableWriter(turn);
           if (error.cause !== undefined)
             return failure(
               'agent_not_installed',
@@ -309,6 +327,8 @@ export const agentTurns = (options: {
             failure('unusable_output', turn.wording.unusable),
           ),
         );
+        if (envelope.is_error && modelRefused(envelope.result ?? ''))
+          return yield* unavailableWriter(turn);
         if (envelope.is_error)
           return yield* signedOutResult.test(envelope.result ?? '')
             ? failure('signed_out', 'Sign in again to the selected agent CLI.')

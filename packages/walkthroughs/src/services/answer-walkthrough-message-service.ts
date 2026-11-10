@@ -1,4 +1,5 @@
 import { Context, DateTime, Effect, Layer } from 'effect';
+import { ResolveWalkthroughWriterService } from './resolve-walkthrough-writer-service.ts';
 import { WalkthroughStore } from '../ports/walkthrough-store.ts';
 import { WalkthroughWriter } from '../ports/walkthrough-writer.ts';
 import { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
@@ -11,6 +12,7 @@ export class AnswerWalkthroughMessageService extends Context.Service<
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
       const writer = yield* WalkthroughWriter;
+      const resolveWriter = yield* ResolveWalkthroughWriterService;
       return {
         execute: Effect.fn('AnswerWalkthroughMessageService.execute')(
           function* () {
@@ -23,14 +25,25 @@ export class AnswerWalkthroughMessageService extends Context.Service<
                   kind: 'other',
                   message: 'This walkthrough is no longer available.',
                 });
+              const choice = yield* resolveWriter.execute({
+                projectId: job.run.projectId,
+                writer: message.writer,
+              });
+              const sameModel =
+                choice.provider === job.run.writer.provider &&
+                choice.model === job.run.writer.model;
               const result = yield* writer.answer({
-                run: job.run,
+                run: {
+                  ...job.run,
+                  writer: choice,
+                  sessionId: sameModel ? job.run.sessionId : undefined,
+                },
                 content: job.run.state.content,
                 worktreePath: job.worktreePath,
                 stopTitle: message.stopTitle,
                 text: message.text,
               });
-              if (result.sessionId !== job.run.sessionId)
+              if (sameModel && result.sessionId !== job.run.sessionId)
                 yield* store.save({ ...job.run, sessionId: result.sessionId });
               yield* store.settleAnswer(message.id, {
                 status: 'answered',

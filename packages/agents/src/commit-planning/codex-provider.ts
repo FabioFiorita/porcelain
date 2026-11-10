@@ -1,13 +1,5 @@
-import { homedir } from 'node:os';
-import {
-  Config,
-  Context,
-  Effect,
-  FileSystem,
-  Layer,
-  Path,
-  Schema,
-} from 'effect';
+import { installedModels } from '../shared/commands/installed-models.ts';
+import { Context, Effect, FileSystem, Layer, Path } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
 import { findExecutable } from '../shared/commands/find-executable.ts';
 import { codingModel } from './commands/coding-model.ts';
@@ -18,19 +10,6 @@ import { ProviderNotInstalledError } from './errors/provider-not-installed-error
 import { ProviderProcessFailedError } from './errors/provider-process-failed-error.ts';
 import type { Provider } from './interfaces/provider.ts';
 import { codexAnswer } from './parsers/parse-provider-answer.ts';
-
-const modelSlug = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
-const modelCacheSchema = Schema.fromJsonString(
-  Schema.Struct({
-    models: Schema.Array(
-      Schema.Struct({
-        slug: Schema.String,
-        display_name: Schema.String,
-        visibility: Schema.optional(Schema.String),
-      }),
-    ),
-  }),
-);
 
 export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
   '@porcelain/agents/CodexProvider',
@@ -47,30 +26,19 @@ export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
             Effect.provideService(FileSystem.FileSystem, fs),
             Effect.provideService(Path.Path, path),
           );
-        const models = Effect.fn('CodexProvider.models')(
-          function* () {
-            if (!(yield* executable('codex'))) return [];
-            const home = yield* Config.String('CODEX_HOME').pipe(
-              Config.withDefault(path.join(homedir(), '.codex')),
-            );
-            const text = yield* readBoundedText(
-              path.join(home, 'models_cache.json'),
-              limits.codexCacheBytes,
-            ).pipe(Effect.provideService(FileSystem.FileSystem, fs));
-            const listed =
-              yield* Schema.decodeUnknownEffect(modelCacheSchema)(text);
-            return listed.models
-              .filter(
-                (model) =>
-                  model.visibility === 'list' && modelSlug.test(model.slug),
-              )
-              .map((model) => ({
-                id: `codex:${model.slug}`,
-                label: model.display_name,
-              }));
-          },
-          Effect.orElseSucceed(() => []),
-        );
+        const models = Effect.fn('CodexProvider.models')(function* () {
+          return (yield* installedModels('codex', limits, false).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(
+              ChildProcessSpawner.ChildProcessSpawner,
+              spawner,
+            ),
+          )).map((model) => ({
+            id: `${model.provider}:${model.model}`,
+            label: model.label,
+          }));
+        });
         return {
           models,
           model: Effect.fn('CodexProvider.model')(function* (model: string) {

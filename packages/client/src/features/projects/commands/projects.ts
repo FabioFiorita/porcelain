@@ -1,3 +1,5 @@
+import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
+import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
@@ -26,6 +28,32 @@ function makeProjectCommands(connection: RuntimeConnection) {
                   entry.id === project.id ? project : entry,
                 )
               : [...inventory.projects, project],
+          }),
+        ),
+      saveDefaultWriter: (writer: SaveDefaultWalkthroughWriterRequest) =>
+        inventory.confirm(
+          client.request((api) =>
+            api.walkthroughs.saveDefaultWalkthroughWriter({ payload: writer }),
+          ),
+          (inventory) => inventory,
+        ),
+      saveWalkthroughSettings: (
+        input: { projectId: string } & WalkthroughSettings,
+      ) =>
+        inventory.confirm(
+          client.request((api) =>
+            api.projects.saveWalkthroughSettings({
+              params: { projectId: input.projectId },
+              payload: { mode: input.mode, writer: input.writer },
+            }),
+          ),
+          (inventory, walkthroughSettings) => ({
+            ...inventory,
+            projects: inventory.projects.map((project) =>
+              project.id === input.projectId
+                ? { ...project, walkthroughSettings }
+                : project,
+            ),
           }),
         ),
       rename: (input: { projectId: string; name: string }) =>
@@ -121,5 +149,24 @@ export const refreshInventories = Atom.family(
         for (const connection of connections)
           context.set(refreshInventory(connection), undefined);
       },
+    ),
+);
+
+export const saveWalkthroughSettings = Atom.family(
+  (connection: RuntimeConnection) =>
+    projectCommandRuntime(connection).fn(
+      (input: { projectId: string } & WalkthroughSettings) =>
+        ProjectCommands.use((commands) =>
+          commands.saveWalkthroughSettings(input),
+        ),
+      { concurrent: true },
+    ),
+);
+
+export const saveDefaultWalkthroughWriter = Atom.family(
+  (connection: RuntimeConnection) =>
+    projectCommandRuntime(connection).fn(
+      (writer: SaveDefaultWalkthroughWriterRequest) =>
+        ProjectCommands.use((commands) => commands.saveDefaultWriter(writer)),
     ),
 );

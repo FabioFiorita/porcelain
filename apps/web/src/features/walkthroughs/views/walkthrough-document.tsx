@@ -446,7 +446,7 @@ function Failed({
 }) {
   const copy = walkthroughFailureCopy(
     failure,
-    run?.writer ?? { provider: 'claude', model: '' },
+    run?.writer ?? { provider: 'claude', model: '', effort: 'high' },
   );
   return (
     <Column>

@@ -1,3 +1,4 @@
+import { ReadProjectWalkthroughsService } from '@porcelain/walkthroughs/services';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { Context, Effect, Layer } from 'effect';
 import {
@@ -26,6 +27,7 @@ export class ReadInventoryUseCase extends Context.Service<
   static readonly layer = Layer.effect(
     ReadInventoryUseCase,
     Effect.gen(function* () {
+      const walkthroughs = yield* ReadProjectWalkthroughsService;
       const listRegisteredProjectsCapability =
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
@@ -70,10 +72,43 @@ export class ReadInventoryUseCase extends Context.Service<
                   };
                 }),
             );
-            return {
-              ...inventoryReport(environmentId, inventory, listings, statuses),
-              environment,
-            };
+            const report = inventoryReport(
+              environmentId,
+              inventory,
+              listings,
+              statuses,
+            );
+            const projects = yield* Effect.forEach(report.projects, (project) =>
+              Effect.gen(function* () {
+                const metadata = yield* walkthroughs.execute({
+                  projectId: project.id,
+                  worktreeIds: project.worktrees.map((worktree) => worktree.id),
+                });
+                const walkthroughSettings = metadata.settings;
+                const titles = metadata.titles;
+                const worktrees = project.worktrees.map((worktree) => {
+                  const run = metadata.runs.find(
+                    (run) => run?.worktreeId === worktree.id,
+                  );
+                  const title =
+                    run?.state.status === 'ready' &&
+                    run.branch !== undefined &&
+                    run.branch === worktree.branch
+                      ? run.state.content.title
+                      : undefined;
+                  const pull = titles.find(
+                    (pull) => pull.branch === worktree.branch,
+                  );
+                  return {
+                    ...worktree,
+                    ...(title ? { walkthroughTitle: title } : {}),
+                    ...(pull ? { pullRequestTitle: pull.title } : {}),
+                  };
+                });
+                return { ...project, walkthroughSettings, worktrees };
+              }),
+            );
+            return { ...report, projects, environment };
           },
         ),
       };

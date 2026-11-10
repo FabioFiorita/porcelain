@@ -54,7 +54,7 @@ const job = (
     pullRequestRepository,
     baseOid: 'a'.repeat(40),
     headOid: id === 'run' ? 'b'.repeat(40) : 'c'.repeat(40),
-    writer: { provider: 'claude', model: 'claude-opus-5-5' },
+    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: 'session',
     createdAt: '2026-11-09T00:00:00.000Z',
     state: {

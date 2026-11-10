@@ -1,3 +1,4 @@
+import { installedModels } from '../shared/commands/installed-models.ts';
 import { Context, Effect, FileSystem, Layer, Path } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
 import { findExecutable } from '../shared/commands/find-executable.ts';
@@ -24,16 +25,21 @@ export class ClaudeProvider extends Context.Service<ClaudeProvider, Provider>()(
             Effect.provideService(FileSystem.FileSystem, fs),
             Effect.provideService(Path.Path, path),
           );
-        const models = Effect.fn('ClaudeProvider.models')(
-          function* () {
-            if (!(yield* executable('claude'))) return [];
-            return [
-              { id: 'claude:sonnet', label: 'Sonnet' },
-              { id: 'claude:haiku', label: 'Haiku' },
-            ];
-          },
-          Effect.orElseSucceed(() => []),
-        );
+        const models = Effect.fn('ClaudeProvider.models')(function* () {
+          return (yield* installedModels('claude', limits, false).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(
+              ChildProcessSpawner.ChildProcessSpawner,
+              spawner,
+            ),
+          ))
+            .filter((model) => model.model !== 'claude-opus-5-5')
+            .map((model) => ({
+              id: `${model.provider}:${model.model}`,
+              label: model.label,
+            }));
+        });
         return {
           models,
           model: Effect.fn('ClaudeProvider.model')(function* (model: string) {

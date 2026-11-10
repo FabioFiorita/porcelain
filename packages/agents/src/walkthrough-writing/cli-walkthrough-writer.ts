@@ -3,11 +3,20 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Clock, Effect, Layer, Schema } from 'effect';
-import { WalkthroughWriter } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughModelReader,
+  WalkthroughWriter,
+} from '@porcelain/walkthroughs/ports';
 import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
+import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
-import { agentTurns, failure, type AgentTurnWording } from './agent-turn.ts';
+import {
+  agentTurns,
+  failure,
+  unavailableWriter,
+  type AgentTurnWording,
+} from './agent-turn.ts';
 import {
   answerPrompts,
   firstPassSchema,
@@ -46,9 +55,25 @@ export const cliWalkthroughWriterLayer = (options: {
     WalkthroughWriter,
     Effect.gen(function* () {
       const turns = yield* agentTurns(options);
+      const models = yield* WalkthroughModelReader;
+      const validate = Effect.fn('WalkthroughWriter.validate')(function* (
+        writer: WalkthroughWriterChoice,
+      ) {
+        const available = (yield* models.read()).find(
+          (model) =>
+            model.provider === writer.provider && model.model === writer.model,
+        );
+        if (!available) return yield* unavailableWriter(writer);
+        if (!available.efforts.includes(writer.effort))
+          return yield* failure(
+            'other',
+            `The walkthrough model ${writer.model} does not support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+          );
+      });
       return WalkthroughWriter.of({
         write: Effect.fn('WalkthroughWriter.write')(
           function* (input) {
+            yield* validate(input.run.writer);
             const started = yield* Clock.currentTimeMillis;
             const folder = yield* temporaryFolder;
             const images: string[] = [];
@@ -71,7 +96,7 @@ export const cliWalkthroughWriterLayer = (options: {
                 )
                 .join('\n'),
             );
-            const { provider, model } = input.run.writer;
+            const { provider, model, effort } = input.run.writer;
             let sessionId = input.run.sessionId ?? randomUUID();
             let costUsd: number | undefined = undefined;
             let answer: unknown;
@@ -83,6 +108,7 @@ export const cliWalkthroughWriterLayer = (options: {
               const turn = yield* turns.run({
                 provider,
                 model,
+                effort,
                 worktreePath: input.worktreePath,
                 folder,
                 session: { kind: resumed ? 'resume' : 'new', id: sessionId },
@@ -133,11 +159,12 @@ export const cliWalkthroughWriterLayer = (options: {
         ),
         answer: Effect.fn('WalkthroughWriter.answer')(
           function* (input) {
+            yield* validate(input.run.writer);
             const started = yield* Clock.currentTimeMillis;
             const folder = yield* temporaryFolder;
             const deadline = options.answerDeadlineMs ?? ANSWER_DEADLINE_MS;
             const prompts = answerPrompts(input);
-            const { provider, model } = input.run.writer;
+            const { provider, model, effort } = input.run.writer;
             const ask = (
               session: { kind: 'new' | 'resume'; id: string },
               prompt: string,
@@ -148,6 +175,7 @@ export const cliWalkthroughWriterLayer = (options: {
                 .run({
                   provider,
                   model,
+                  effort,
                   worktreePath: input.worktreePath,
                   folder,
                   session,
@@ -213,3 +241,5 @@ export const cliWalkthroughWriterLayer = (options: {
       });
     }),
   );
+
+export { installedWalkthroughModelReaderLayer } from './installed-walkthrough-model-reader.ts';

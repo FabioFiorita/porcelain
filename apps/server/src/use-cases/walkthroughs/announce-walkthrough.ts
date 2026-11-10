@@ -15,10 +15,18 @@ export class AnnounceWalkthroughUseCase extends Context.Service<
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('AnnounceWalkthroughUseCase.execute')((input) =>
-          events.worktreeChanged({
-            worktreeId: input.worktreeId,
-            change: input.change ?? 'walkthrough',
-          }),
+          events
+            .worktreeChanged({
+              worktreeId: input.worktreeId,
+              change: input.change ?? 'walkthrough',
+            })
+            .pipe(
+              Effect.andThen(
+                input.change === undefined
+                  ? events.inventoryChanged()
+                  : Effect.void,
+              ),
+            ),
         ),
       };
     }),

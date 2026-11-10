@@ -1,9 +1,16 @@
-import { Effect, Layer, Schema } from 'effect';
+import { Context, Effect, Layer, Schema } from 'effect';
 import { SqlClient } from 'effect/sql';
-import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
+import {
+  WalkthroughStore,
+  WalkthroughInventoryReader,
+} from '@porcelain/walkthroughs/ports';
 import {
   answerStateSchema,
   walkthroughJobSchema,
+  walkthroughSettingsSchema,
+  writerSchema,
+  type WalkthroughWriterChoice,
+  type WalkthroughSettings,
   type EvidenceAsset,
   type AnswerState,
   type PostState,
@@ -24,6 +31,7 @@ type MessageRow = {
   postUrl: string | null;
   postedAt: string | null;
   answer: string;
+  writer: string | null;
 };
 const postState = (row: MessageRow): PostState =>
   row.postStatus === 'posted' && row.postUrl !== null && row.postedAt !== null
@@ -31,6 +39,9 @@ const postState = (row: MessageRow): PostState =>
     : row.postStatus === 'saved'
       ? { status: 'saved' }
       : { status: 'none' };
+const decodeWriter = Schema.decodeUnknownSync(
+  Schema.fromJsonString(writerSchema),
+);
 const decodeAnswer = Schema.decodeUnknownSync(
   Schema.fromJsonString(answerStateSchema),
 );
@@ -43,25 +54,130 @@ const message = (row: MessageRow): StoredWalkthroughMessage => ({
   createdAt: row.createdAt,
   post: postState(row),
   answer: decodeAnswer(row.answer),
+  writer: row.writer === null ? undefined : decodeWriter(row.writer),
 });
 
-export const sqliteWalkthroughStoreLayer = Layer.effect(
-  WalkthroughStore,
+export const sqliteWalkthroughStoreLayer = Layer.effectContext(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const decode = Schema.decodeUnknownSync(
       Schema.fromJsonString(walkthroughJobSchema),
     );
-    return WalkthroughStore.of({
-      accept: Effect.fn('WalkthroughStore.accept')(function* (
-        job: WalkthroughJob,
-      ) {
-        return yield* Effect.gen(function* () {
-          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid) WHERE status != 'failed' DO NOTHING`;
+    const store = WalkthroughStore.of({
+      readDefaultWriter: Effect.fn('WalkthroughStore.readDefaultWriter')(
+        function* () {
           const rows = yield* sql<{
             payload: string;
-          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid} ORDER BY sequence DESC LIMIT 1`;
-          return decode(rows[0]?.payload).run;
+          }>`SELECT payload FROM walkthrough_default_writer WHERE singleton = 1`.pipe(
+            Effect.orDie,
+          );
+          return rows[0]
+            ? Schema.decodeUnknownSync(Schema.fromJsonString(writerSchema))(
+                rows[0].payload,
+              )
+            : undefined;
+        },
+      ),
+      saveDefaultWriter: Effect.fn('WalkthroughStore.saveDefaultWriter')(
+        function* (writer: WalkthroughWriterChoice) {
+          yield* sql`INSERT INTO walkthrough_default_writer (singleton, payload) VALUES (1, ${JSON.stringify(writer)}) ON CONFLICT(singleton) DO UPDATE SET payload = excluded.payload`.pipe(
+            Effect.orDie,
+          );
+        },
+      ),
+      readSettings: Effect.fn('WalkthroughStore.readSettings')(function* (
+        projectId: string,
+      ) {
+        const rows = yield* sql<{
+          payload: string;
+        }>`SELECT payload FROM walkthrough_settings WHERE project_id = ${projectId}`.pipe(
+          Effect.orDie,
+        );
+        return rows[0]
+          ? Schema.decodeUnknownSync(
+              Schema.fromJsonString(walkthroughSettingsSchema),
+            )(rows[0].payload)
+          : { mode: 'manual' as const, writer: undefined };
+      }),
+      saveSettings: Effect.fn('WalkthroughStore.saveSettings')(function* (
+        projectId: string,
+        settings: WalkthroughSettings,
+      ) {
+        yield* sql`INSERT INTO walkthrough_settings (project_id, payload) VALUES (${projectId}, ${JSON.stringify(settings)}) ON CONFLICT(project_id) DO UPDATE SET payload = excluded.payload`.pipe(
+          Effect.orDie,
+        );
+      }),
+      cachePullRequests: Effect.fn('WalkthroughStore.cachePullRequests')(
+        function* (
+          projectId: string,
+          pulls: readonly { branch: string; title: string }[],
+        ) {
+          return yield* Effect.gen(function* () {
+            const before = yield* sql<{
+              branch: string;
+              title: string;
+            }>`SELECT branch, title FROM walkthrough_pull_titles WHERE project_id = ${projectId} ORDER BY branch`;
+            const byBranch = new Map<
+              string,
+              { branch: string; title: string }
+            >();
+            for (const pull of pulls)
+              if (!byBranch.has(pull.branch)) byBranch.set(pull.branch, pull);
+            const next = [...byBranch.values()];
+            if (
+              before.length === next.length &&
+              before.every(
+                (pull) => byBranch.get(pull.branch)?.title === pull.title,
+              )
+            )
+              return false;
+            yield* sql`DELETE FROM walkthrough_pull_titles WHERE project_id = ${projectId}`;
+            for (const pull of next)
+              yield* sql`INSERT INTO walkthrough_pull_titles (project_id, branch, title) VALUES (${projectId}, ${pull.branch}, ${pull.title})`;
+            return true;
+          }).pipe(sql.withTransaction, Effect.orDie);
+        },
+      ),
+      readTitles: Effect.fn('WalkthroughStore.readTitles')(function* (
+        projectId: string,
+      ) {
+        return yield* sql<{
+          branch: string;
+          title: string;
+        }>`SELECT branch, title FROM walkthrough_pull_titles WHERE project_id = ${projectId}`.pipe(
+          Effect.orDie,
+        );
+      }),
+      accept: Effect.fn('WalkthroughStore.accept')(function* (
+        job: WalkthroughJob,
+        automaticKey?: string,
+      ) {
+        return yield* Effect.gen(function* () {
+          if (automaticKey !== undefined) {
+            const previous = yield* sql<{
+              payload: string;
+            }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey})`;
+            if (previous[0]) return decode(previous[0].payload).run;
+          }
+          const latest = yield* sql<{
+            payload: string;
+          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} ORDER BY sequence DESC LIMIT 1`;
+          const current =
+            latest[0] === undefined ? undefined : decode(latest[0].payload).run;
+          const same =
+            current !== undefined &&
+            current.state.status !== 'failed' &&
+            current.headOid === job.run.headOid &&
+            current.pullRequestNumber === job.run.pullRequestNumber &&
+            current.writer.provider === job.run.writer.provider &&
+            current.writer.model === job.run.writer.model &&
+            current.writer.effort === job.run.writer.effort;
+          const run = same ? current : job.run;
+          if (!same)
+            yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${run.id}, ${run.worktreeId}, ${run.headOid}, 'queued', ${JSON.stringify(job)})`;
+          if (automaticKey !== undefined)
+            yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id})`;
+          return run;
         }).pipe(sql.withTransaction, Effect.orDie);
       }),
       read: Effect.fn('WalkthroughStore.read')(function* (worktreeId: string) {
@@ -146,7 +262,7 @@ export const sqliteWalkthroughStoreLayer = Layer.effect(
       addMessage: Effect.fn('WalkthroughStore.addMessage')(function* (
         value: StoredWalkthroughMessage,
       ) {
-        yield* sql`INSERT INTO walkthrough_messages (id, run_id, worktree_id, stop_title, text, created_at, answer) VALUES (${value.id}, ${value.runId}, ${value.worktreeId}, ${value.stopTitle ?? null}, ${value.text}, ${value.createdAt}, ${JSON.stringify(value.answer)})`.pipe(
+        yield* sql`INSERT INTO walkthrough_messages (id, run_id, worktree_id, stop_title, text, created_at, answer, writer) VALUES (${value.id}, ${value.runId}, ${value.worktreeId}, ${value.stopTitle ?? null}, ${value.text}, ${value.createdAt}, ${JSON.stringify(value.answer)}, ${value.writer === undefined ? null : JSON.stringify(value.writer)})`.pipe(
           Effect.orDie,
         );
       }),
@@ -228,5 +344,23 @@ export const sqliteWalkthroughStoreLayer = Layer.effect(
         ).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
       }),
     });
+    return Context.make(WalkthroughStore, store).pipe(
+      Context.add(WalkthroughInventoryReader, {
+        readDefaultWriter: () => store.readDefaultWriter(),
+        readProject: Effect.fn('WalkthroughInventoryReader.readProject')(
+          function* (input: {
+            projectId: string;
+            worktreeIds: readonly string[];
+          }) {
+            const settings = yield* store.readSettings(input.projectId);
+            const titles = yield* store.readTitles(input.projectId);
+            const runs = yield* Effect.forEach(input.worktreeIds, (id) =>
+              store.read(id),
+            );
+            return { settings, titles, runs };
+          },
+        ),
+      }),
+    );
   }),
 );

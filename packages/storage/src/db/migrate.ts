@@ -55,6 +55,16 @@ export const nativeMigrations = Migrator.fromRecord({
     yield* sql`CREATE INDEX walkthrough_messages_worktree ON walkthrough_messages(worktree_id, sequence)`;
     yield* sql`CREATE INDEX walkthrough_messages_answering ON walkthrough_messages(sequence) WHERE answer_status = 'answering'`;
   }),
+  '013_automatic_walkthroughs': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE walkthrough_messages ADD COLUMN writer TEXT CHECK(writer IS NULL OR json_valid(writer))`;
+    yield* sql`UPDATE walkthrough_runs SET payload = json_set(payload, '$.run.writer.effort', 'high') WHERE json_extract(payload, '$.run.writer.effort') IS NULL`;
+    yield* sql`CREATE TABLE walkthrough_default_writer (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), payload TEXT NOT NULL CHECK(json_valid(payload)))`;
+    yield* sql`DROP INDEX walkthrough_runs_current_head`;
+    yield* sql`CREATE TABLE walkthrough_settings (project_id TEXT PRIMARY KEY REFERENCES inventory_projects(id) ON DELETE CASCADE, payload TEXT NOT NULL CHECK(json_valid(payload)))`;
+    yield* sql`CREATE TABLE walkthrough_automatic (pr_key TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES walkthrough_runs(id))`;
+    yield* sql`CREATE TABLE walkthrough_pull_titles (project_id TEXT NOT NULL REFERENCES inventory_projects(id) ON DELETE CASCADE, branch TEXT NOT NULL, title TEXT NOT NULL, PRIMARY KEY(project_id, branch))`;
+  }),
   '011_walkthroughs': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE walkthrough_runs (

@@ -593,7 +593,7 @@ export function ProjectNavigator({
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
                                         {clip(
-                                          entry.name,
+                                          entry.displayTitle ?? entry.name,
                                           active
                                             ? 'min-w-0 flex-1 font-semibold'
                                             : 'min-w-0 flex-1 font-medium',
@@ -610,6 +610,14 @@ export function ProjectNavigator({
                                           />
                                         )}
                                       </div>
+                                      {entry.displayTitle && (
+                                        <div className="min-w-0 font-mono text-2xs text-muted-foreground">
+                                          {clip(
+                                            entry.branch,
+                                            'font-mono text-2xs',
+                                          )}
+                                        </div>
+                                      )}
                                       {(detail || changes) && (
                                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
                                           {detail && <span>{detail}</span>}

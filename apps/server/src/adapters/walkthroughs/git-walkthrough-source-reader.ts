@@ -14,10 +14,18 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
       const provideGit = yield* captureGitPlatform();
       return WalkthroughSourceReader.of({
         read: Effect.fn('WalkthroughSourceReader.read')(function* (input) {
-          const range = yield* ranges.readBranchRange({
+          let range = yield* ranges.readBranchRange({
             worktreeId: input.worktreeId,
-            base: input.base,
+            base:
+              input.targetBranch === undefined
+                ? input.base
+                : `refs/remotes/origin/${input.targetBranch}`,
           });
+          if (range.kind === 'missing-base' && input.targetBranch !== undefined)
+            range = yield* ranges.readBranchRange({
+              worktreeId: input.worktreeId,
+              base: `refs/heads/${input.targetBranch}`,
+            });
           if (range.kind !== 'found')
             return yield* new WalkthroughFailedError({
               kind: 'other',
@@ -77,6 +85,7 @@ export const gitWalkthroughSourceReaderLayer = (limits: Limits['git']) =>
           return {
             baseOid: range.mergeBaseOid,
             headOid: range.head.oid,
+            branch: range.head.ref?.replace(/^refs\/heads\//, ''),
             files,
             githubRepository: githubRepository(origin),
           };

@@ -1,3 +1,4 @@
+import { walkthroughSettingsSchema } from '@porcelain/walkthroughs/models';
 import { projectUnavailableReasonSchema } from '@porcelain/projects/models';
 import { environmentSchema } from '../shared/environment.ts';
 import { Schema, SchemaTransformation } from 'effect';
@@ -24,6 +25,8 @@ const worktreeSchema = Schema.Struct({
   main: Schema.Boolean,
   branch: nullableAsUndefined(Schema.String),
   headCommittedAt: Schema.optionalKey(isoDateTimeSchema),
+  walkthroughTitle: Schema.optionalKey(Schema.String),
+  pullRequestTitle: Schema.optionalKey(Schema.String),
   available: Schema.Boolean,
   status: nullableAsUndefined(
     Schema.Literals(['pending', 'reviewed', 'replied']),
@@ -33,6 +36,7 @@ const projectFields = {
   id: projectIdSchema,
   name: Schema.String,
   worktrees: Schema.Array(worktreeSchema),
+  walkthroughSettings: Schema.optionalKey(walkthroughSettingsSchema),
 };
 const projectSchema = Schema.Union([
   Schema.Struct({
@@ -46,6 +50,9 @@ const projectSchema = Schema.Union([
     unavailableReason: Schema.optionalKey(projectUnavailableReasonSchema),
   }),
 ]);
+
+export { walkthroughSettingsSchema };
+export type WalkthroughSettings = typeof walkthroughSettingsSchema.Type;
 
 export const renameProjectParamsSchema = Schema.Struct({
   projectId: projectIdSchema,

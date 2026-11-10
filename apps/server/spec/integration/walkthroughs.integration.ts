@@ -15,7 +15,7 @@ import {
 } from '@porcelain/contracts/walkthroughs';
 import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
-import { record, text } from '../kit/session.ts';
+import { list, record, text } from '../kit/session.ts';
 
 const WALKTHROUGH_ROUTES = [
   'GET /api/worktrees/:worktreeId/walkthrough',
@@ -96,7 +96,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     worktreeId: session.worktreeId,
     baseOid: firstHead,
     headOid: firstHead,
-    writer: { provider: 'claude', model: 'fixture' },
+    writer: { provider: 'claude', model: 'fixture', effort: 'high' },
     createdAt: '2026-11-09T00:00:00.000Z',
     state: {
       status: 'ready',
@@ -113,6 +113,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       },
     },
   };
+  Object.assign(run, { branch: session.fixture.branch });
   const job: WalkthroughJob = {
     run,
     worktreePath: session.repository,
@@ -161,7 +162,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   const accepted = await read(session, {
     method: 'POST',
     path,
-    body: { base: 'refs/heads/walkthrough-evidence-base' },
+    body: { base: 'refs/heads/walkthrough-evidence-base', writer: run.writer },
   });
   expect(accepted.id).toBe(secondId);
   const finished = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
@@ -198,9 +199,26 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   expect(missing.body).toEqual(
     apiError(404, 'Not Found', 'Walkthrough evidence asset not found'),
   );
+  const title = (body: Record<string, unknown>) =>
+    record(list(record(list(body.projects)[0]).worktrees)[0]).walkthroughTitle;
+  expect(
+    title(await read(session, { method: 'GET', path: '/api/inventory' })),
+  ).toBe('Finished evidence fixture');
+  await session.git('commit', '--allow-empty', '-m', 'Advance same branch');
+  expect(
+    title(await read(session, { method: 'GET', path: '/api/inventory' })),
+  ).toBe('Finished evidence fixture');
+  await session.git('switch', '-c', 'another-topic');
+  expect(
+    title(
+      await read(session, { method: 'POST', path: '/api/inventory/refresh' }),
+    ),
+  ).toBeUndefined();
   const registered = server.routes.filter(
     (route) =>
-      route.includes('/walkthrough') && !route.includes('/conversations'),
+      route.includes('/walkthrough') &&
+      !route.includes('/conversations') &&
+      !route.includes('/walkthrough-settings'),
   );
   const requested = await server.requestedRoutes();
   expect(() =>
@@ -226,6 +244,8 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     `#!${process.execPath}
 import fs from 'node:fs';
 const args = process.argv.slice(2);
+if (args[0] === 'auth') {console.log(JSON.stringify({loggedIn:true})); process.exit(0);}
+fs.appendFileSync(${JSON.stringify(join(session.projectHome, 'answer-writer-args'))}, JSON.stringify(args) + '\\n');
 fs.readFileSync(0, 'utf8');
 if (fs.existsSync(${JSON.stringify(agentFails)})) { console.error('The tool crashed.'); process.exit(1); }
 console.log(JSON.stringify({ session_id: args[args.indexOf('--resume') + 1] ?? 'fresh', total_cost_usd: 0.03, result: 'It keeps the retry local.' }));
@@ -281,7 +301,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
           : { owner: 'FabioFiorita', repo: 'porcelain' },
       baseOid: head,
       headOid: head,
-      writer: { provider: 'claude', model: 'fixture' },
+      writer: { provider: 'claude', model: 'fixture', effort: 'high' },
       sessionId: 'writer-session',
       createdAt: '2026-11-09T00:00:00.000Z',
       state: {
@@ -360,6 +380,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     title: string | undefined,
     body: string,
     runId = 'first-run',
+    writer?: { provider: 'claude'; model: string; effort: 'xhigh' },
   ) => {
     const answer = Schema.decodeUnknownSync(
       walkthroughConversationsResponseSchema,
@@ -369,6 +390,7 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
         path: `${worktreeRoot}/messages`,
         body: {
           runId,
+          writer,
           anchor:
             title === undefined
               ? { kind: 'walkthrough' }
@@ -467,7 +489,25 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     path: `${worktreeRoot}/messages/${removed}/post`,
   });
   expect(unbound.status).toBe(409);
-  const onPull = await add('Kept step', 'Ship it this way?', 'second-run');
+  const onPull = await add('Kept step', 'Ship it this way?', 'second-run', {
+    provider: 'claude',
+    model: 'sonnet',
+    effort: 'xhigh',
+  });
+  await expect
+    .poll(() => agentState(onPull), { timeout: 10000 })
+    .toBe('answered');
+  const answerArgs = list(
+    JSON.parse(
+      (await readFile(join(session.projectHome, 'answer-writer-args'), 'utf8'))
+        .trim()
+        .split('\n')
+        .at(-1) ?? 'null',
+    ),
+  ).map(text);
+  expect(answerArgs[answerArgs.indexOf('--model') + 1]).toBe('sonnet');
+  expect(answerArgs[answerArgs.indexOf('--effort') + 1]).toBe('xhigh');
+  expect(answerArgs).not.toContain('--resume');
   const first = await read(session, {
     method: 'POST',
     path: `${worktreeRoot}/messages/${onPull}/post`,
@@ -541,7 +581,13 @@ else if (args.some((arg) => arg.endsWith('/issues/423/comments'))) {
     repo: 'public-fork',
   });
   expect(
-    server.routes.filter((route) => route.includes('/walkthrough')).toSorted(),
+    server.routes
+      .filter(
+        (route) =>
+          route.includes('/walkthrough') &&
+          !route.includes('/walkthrough-settings'),
+      )
+      .toSorted(),
   ).toEqual(WALKTHROUGH_ROUTES);
   const registered = server.routes.filter((route) =>
     route.includes('/conversations'),

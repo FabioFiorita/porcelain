@@ -4,6 +4,7 @@ import {
   walkthroughRunSchema as domainRunSchema,
   walkthroughContentSchema as domainContentSchema,
   writerSchema,
+  walkthroughModelSchema,
 } from '@porcelain/walkthroughs/models';
 import {
   WalkthroughFailedError,
@@ -86,9 +87,26 @@ export const readWalkthroughResponseSchema = Schema.Struct({
   walkthrough: nullableAsUndefined(walkthroughRunSchema),
   outOfDate: Schema.Boolean,
 });
+export const walkthroughWriterSettingsSchema = Schema.Struct({
+  writer: writerSchema,
+  models: Schema.Array(walkthroughModelSchema),
+});
+export type WalkthroughWriterSettings =
+  typeof walkthroughWriterSettingsSchema.Type;
+export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
 export class WalkthroughsApi extends porcelainApi.add(
   HttpApiGroup.make('walkthroughs')
     .add(
+      HttpApiEndpoint.get(
+        'readWalkthroughWriterSettings',
+        '/api/walkthrough-settings',
+        { disableCodecs: true, success: walkthroughWriterSettingsSchema },
+      ),
+      HttpApiEndpoint.put(
+        'saveDefaultWalkthroughWriter',
+        '/api/walkthrough-settings',
+        { disableCodecs: true, payload: writerSchema, success: writerSchema },
+      ),
       HttpApiEndpoint.post(
         'startWalkthrough',
         '/api/worktrees/:worktreeId/walkthrough',

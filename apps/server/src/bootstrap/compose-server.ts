@@ -1,3 +1,4 @@
+import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
@@ -96,6 +97,7 @@ import { composeShared } from './compose-shared.ts';
 import { composeStores } from './compose-stores.ts';
 
 type RemoteRouteAdapters = {
+  githubReader: typeof ghPullRequestReaderLayer;
   networkAddressReader: (
     limits: Limits['access']['networkDiscovery'],
   ) => Layer.Layer<
@@ -290,6 +292,7 @@ function serverResources(
           checkWorktree,
         });
         const reviews = yield* composeReviews(context, {
+          githubReader: adapters.githubReader,
           stores,
           shared,
           checkWorktree,
@@ -362,13 +365,17 @@ function serverResources(
           shared,
           stores,
           checkWorktree,
+          projects.readInventory,
+          reviews.listProjectPullRequests,
+          adapters.githubReader,
           reviews.resolveProjectGitHub,
         );
+        yield* walkthroughs.workflow.recover();
         const jobs: readonly Job[] = [
           yield* makeIntervalJob(
-            'recover-walkthroughs',
-            { execute: walkthroughs.workflow.recover },
-            { atStart: true },
+            'automatic-walkthroughs',
+            jobSequence([projects.scanInventory, walkthroughs.poll]),
+            { atStart: true, every: Duration.minutes(5) },
             logger,
             observability,
           ),
@@ -508,6 +515,7 @@ const networkReaders = {
 };
 
 export const startServer = composeServer({
+  githubReader: ghPullRequestReaderLayer,
   networkAddressReader: networkReaders[readNetworkPlatform()],
   routeListenerRunner: (target) => httpRouteListenerRunnerLayer(target),
   tunnelProbe: (options) => httpTunnelProbeLayer(options),
