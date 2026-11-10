@@ -292,6 +292,29 @@ describe('firstDocument', () => {
     ).toBe('walkthrough');
   });
 
+  it.each([
+    { status: 'queued' },
+    { status: 'failed', failure: { kind: 'other', message: 'Stopped' } },
+    {
+      status: 'ready',
+      content: content(),
+      writtenAt: '2026-11-10T00:00:00Z',
+      durationMs: 1,
+      costUsd: undefined,
+    },
+  ] satisfies WalkthroughRun['state'][])(
+    'opens Walkthrough for an existing $status run even without branch commits',
+    (state) => {
+      expect(
+        firstDocument({
+          read: read(run(state)),
+          branchHasCommits: false,
+        }),
+      ).toBe('walkthrough');
+    },
+  );
+
+
   it('offers a walkthrough on a branch with commits and nothing published', () => {
     expect(
       firstDocument({
@@ -301,14 +324,17 @@ describe('firstDocument', () => {
     ).toBe('walkthrough');
   });
 
-  it('keeps the changes page when there is no committed change to explain', () => {
-    expect(
-      firstDocument({
-        read: read(undefined),
-        branchHasCommits: false,
-      }),
-    ).toBe('changes');
-  });
+  it.each(['none', 'uncommitted'] as const)(
+    'opens Changes for %s work with no walkthrough run',
+    (change) => {
+      expect(
+        firstDocument({
+          read: read(undefined),
+          branchHasCommits: false,
+        }),
+      ).toBe('changes');
+    },
+  );
 });
 
 describe('walkthroughFailureCopy', () => {

@@ -31,7 +31,7 @@ export function WalkthroughStepDocument({
       >
         <Button
           variant="outline"
-          onClick={() => props.onOpen({ kind: 'handoff' })}
+          onClick={() => props.onOpen({ kind: 'walkthrough' })}
         >
           Open walkthrough
         </Button>

@@ -9,6 +9,7 @@ export type WorktreeOpening = {
   name: 'walkthrough' | 'changes';
   pending: boolean;
   guided: boolean;
+  companion: boolean;
 };
 
 function settled<A>(reading: Reading<A>) {
@@ -18,6 +19,7 @@ function settled<A>(reading: Reading<A>) {
 export function worktreeOpening(input: {
   walkthrough: Reading<WalkthroughRead>;
   branchFiles: Reading<number>;
+  uncommittedFiles?: Reading<number>;
 }): WorktreeOpening {
   const read =
     input.walkthrough.status === 'read' ? input.walkthrough.value : undefined;
@@ -29,7 +31,8 @@ export function worktreeOpening(input: {
   });
   return {
     name: name === 'walkthrough' ? 'walkthrough' : 'changes',
-    pending: !settled(input.walkthrough) || !settled(input.branchFiles),
+    pending: !settled(input.walkthrough) || !settled(input.branchFiles) || (input.uncommittedFiles !== undefined && !settled(input.uncommittedFiles)),
     guided: read?.walkthrough !== undefined,
+    companion: read?.walkthrough === undefined && files === 0 && input.uncommittedFiles?.status === 'read' && input.uncommittedFiles.value > 0,
   };
 }

@@ -98,7 +98,10 @@ export function DocumentView({
   reveal?: RevealComment | undefined;
   base?: string | undefined;
 } & (
-  | { document: Exclude<DocumentRef, { kind: 'handoff' }>; walkthrough?: never }
+  | {
+      document: Exclude<DocumentRef, { kind: 'handoff' | 'walkthrough' }>;
+      walkthrough?: never;
+    }
   | { document: DocumentRef; walkthrough: ComponentType<DocumentProps> }
 )) {
   const props = {
@@ -119,6 +122,8 @@ export function DocumentView({
   };
   switch (document.kind) {
     case 'handoff':
+      return <PlainChangesDocument {...props} />;
+    case 'walkthrough':
       return Walkthrough ? <Walkthrough {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;

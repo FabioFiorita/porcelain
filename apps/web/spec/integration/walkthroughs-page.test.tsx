@@ -246,6 +246,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
 
   await repo.write('notes.md', 'changed again\n');
   await repo.commit('Change the notes again');
+  const updatedHead = (await server.gitStatus()).headOid;
   await expect
     .element(
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
@@ -288,6 +289,11 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
     .toBeVisible();
   await repo.remove(SCENARIO);
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect
+    .element(
+      page.getByText(new RegExp(`written for ${updatedHead?.slice(0, 7)}`)),
+    )
+    .toBeVisible();
   await expect
     .poll(async () => (await server.walkthrough()).walkthrough?.id)
     .not.toBe(firstId);
@@ -366,7 +372,7 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
     .toBeVisible();
 });
 
-test('uncommitted-only work opens the Walkthrough and stays fresh when committed, then offers Update on an edit', async ({
+test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fresh when its explained content is committed', async ({
   repo,
   codingTool,
   render,
@@ -381,7 +387,18 @@ test('uncommitted-only work opens the Walkthrough and stays fresh when committed
   const app = await render.route('/?base=refs%2Fheads%2Fworking-base');
   const page = app.page;
   await expect
-    .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .element(page.getByRole('tab', { name: 'Changes', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      page.getByRole('heading', { name: '2 uncommitted changes', exact: true }),
+    )
+    .toBeVisible();
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await expect
+    .element(
+      page.getByRole('heading', { name: 'No walkthrough yet.', exact: true }),
+    )
     .toBeVisible();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
@@ -402,6 +419,7 @@ test('uncommitted-only work opens the Walkthrough and stays fresh when committed
     .toBeVisible();
   const before = (await server.walkthrough()).walkthrough;
   await repo.commit('Commit the explained content');
+  const committedHead = (await server.gitStatus()).headOid;
   await expect
     .poll(async () => (await server.walkthrough()).outOfDate)
     .toBe(false);
@@ -424,6 +442,11 @@ test('uncommitted-only work opens the Walkthrough and stays fresh when committed
   await page
     .getByRole('button', { name: 'Update walkthrough', exact: true })
     .click();
+  await expect
+    .element(
+      page.getByText(new RegExp(`written for ${committedHead?.slice(0, 7)}`)),
+    )
+    .toBeVisible();
   await expect
     .poll(async () => (await server.walkthrough()).walkthrough?.id)
     .not.toBe(before?.id);

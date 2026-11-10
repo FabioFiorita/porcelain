@@ -86,6 +86,7 @@ export type FirstDocument = {
   title: ReviewTitle | undefined;
   pending: boolean;
   guided: boolean;
+  companion: boolean;
 };
 
 type ReviewContentProps = {
@@ -148,13 +149,17 @@ export function ReviewWorkspace({
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !firstDocument.pending);
+  const firstEntry =
+    firstDocument.title === 'Walkthrough' ? 'walkthrough' : 'handoff';
   const defaultEntry =
     firstDocument.title === 'Walkthrough' ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0
-      ? entryKey({ kind: 'handoff' })
+      ? firstEntry
       : null;
   const layout = useTabLayout({
+    firstDocument: firstEntry,
+    companion: firstDocument.companion,
     worktreeId: worktree.id,
     entry: search.entry,
     side: search.side,
@@ -524,7 +529,6 @@ function DocumentPanes({
     focused: focused === index,
     scope,
     context,
-    reviewTitle: firstDocument.title,
     base,
     changes,
     onOpen,
@@ -583,7 +587,6 @@ function PaneView({
   focused,
   scope,
   context,
-  reviewTitle,
   base,
   changes,
   onOpen,
@@ -599,7 +602,6 @@ function PaneView({
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
-  reviewTitle: ReviewTitle | undefined;
 }) {
   const { element: toolbarTarget, attach: setToolbarTarget } =
     useElement<HTMLDivElement>();
@@ -673,7 +675,7 @@ function PaneView({
         tabs={pane.tabs}
         pinned={pane.pinned}
         active={shownEntry}
-        reviewTitle={reviewTitle}
+
         side={paneSide(split, index)}
         focused={focused}
         {...paneTabActions(layout, index)}
@@ -686,16 +688,14 @@ function PaneView({
               aria-label="Document controls"
               className="flex items-center gap-1"
             >
-              {activeDocument?.kind === 'handoff' &&
-                reviewTitle !== 'Walkthrough' && (
-                  <ChangeScopeSwitch
-                    value={changes.scope}
-                    onValueChange={changes.onScope}
-                  />
-                )}
+              {activeDocument?.kind === 'handoff' && (
+                <ChangeScopeSwitch
+                  value={changes.scope}
+                  onValueChange={changes.onScope}
+                />
+              )}
               {(activeDocument?.kind === 'branch' ||
                 (activeDocument?.kind === 'handoff' &&
-                  reviewTitle !== 'Walkthrough' &&
                   changes.scope === 'branch')) &&
                 !firstDocument.guided && (
                   <BranchBasePicker
@@ -728,23 +728,19 @@ function PaneView({
         </div>
       )}
       {pane.tabs
-        .filter(
-          (key) =>
-            key === shownEntry ||
-            (key === 'handoff' && firstDocument.title === 'Walkthrough'),
-        )
+        .filter((key) => key === shownEntry || key === 'walkthrough')
         .map((key) => {
           const ref = parseEntry(key);
           if (!ref) return null;
           const showing = key === shownEntry;
           let shownDocument = ref;
-          if (ref.kind === 'handoff' && reviewTitle !== 'Walkthrough')
+          if (ref.kind === 'handoff')
             shownDocument = {
               kind: changes.scope === 'branch' ? 'branch' : 'all-changes',
             };
           return (
             <div
-              key={ref.kind === 'handoff' ? 'handoff' : 'document'}
+              key={ref.kind === 'walkthrough' ? 'walkthrough' : 'document'}
               aria-hidden={!showing}
               inert={!showing || pending}
               className={cn(

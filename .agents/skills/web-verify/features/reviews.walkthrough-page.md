@@ -30,11 +30,12 @@ api:
 
 # reviews.walkthrough-page
 
-A worktree with any change since its base branch, committed or uncommitted, shows a Walkthrough as its first tab: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. Its files are organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
+A worktree can have one Walkthrough for its whole change since the base branch, committed or uncommitted: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. Its files are organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
 
 ## How to get to it (user POV)
 
-- A worktree with committed or uncommitted changes since its base opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
+- A worktree with commits since its base opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
+- Uncommitted-only work opens on Changes until a walkthrough is written. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
 - A worktree with no change since the base keeps tab "Changes".
 - Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); buttons "Previous step" and "Next step" in its header row move between steps.
 - Changes panel on a walkthrough worktree opens by default, on Branch: "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, steps without local edits are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
@@ -67,7 +68,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### Uncommitted-only journey
 
-Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Walkthrough with "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this was written." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
+Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Changes, with a Changes window title and a Walkthrough tab beside it. Click Walkthrough once and expect "No walkthrough yet." and "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this was written." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
 
 ### 3. Failure
 

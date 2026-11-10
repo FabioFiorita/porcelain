@@ -40,9 +40,10 @@ import { Kbd } from '@/components/ui/kbd';
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
-import { parseEntry, type ReviewTitle } from '../rules/documents';
+import { parseEntry } from '../rules/documents';
 import {
   changesTabCount,
+  permanentTab,
   openToSideText,
   type TabCount,
 } from '../rules/tab-strip';
@@ -66,21 +67,23 @@ function revealTab(tab: HTMLElement | null) {
   viewport.scrollBy({ left });
 }
 
-function describeTab(
-  key: string,
-  reviewTitle: ReviewTitle | undefined,
-  count: TabCount | undefined,
-) {
+function describeTab(key: string, count: TabCount | undefined) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
     case 'handoff': {
-      const title = reviewTitle ?? 'Changes';
+      const title = 'Changes';
       return {
-        Icon: reviewTitle ? ListChecksIcon : FileDiffIcon,
+        Icon: FileDiffIcon,
         title,
         hint: count ? `${title} · ${count.description}` : title,
       };
     }
+    case 'walkthrough':
+      return {
+        Icon: ListChecksIcon,
+        title: 'Walkthrough',
+        hint: 'Walkthrough',
+      };
     case 'walkthrough-step':
       return {
         Icon: FileDiffIcon,
@@ -171,7 +174,6 @@ export function DocumentTabs({
   tabs,
   pinned,
   active,
-  reviewTitle,
   side,
   focused,
   leading,
@@ -183,7 +185,6 @@ export function DocumentTabs({
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
-  reviewTitle: ReviewTitle | undefined;
   side: 'left' | 'right' | null;
   focused: boolean;
   leading?: ReactNode;
@@ -214,14 +215,13 @@ export function DocumentTabs({
         {tabs.includes('handoff') && (
           <span className="flex shrink-0">
             <DocumentTab
-              count={reviewTitle ? undefined : changesTabCount(changeCount)}
+              count={changesTabCount(changeCount)}
               tabKey="handoff"
               active={active === 'handoff'}
               pinned={false}
               hasUnpinned={tabs.some(
-                (key) => key !== 'handoff' && !pinned.includes(key),
+                (key) => !permanentTab(key) && !pinned.includes(key),
               )}
-              reviewTitle={reviewTitle}
               side={side}
               {...actions}
             />
@@ -267,9 +267,8 @@ export function DocumentTabs({
                     active: key === active,
                     pinned: isPinned,
                     hasUnpinned: tabs.some(
-                      (item) => item !== 'handoff' && !pinned.includes(item),
+                      (item) => !permanentTab(item) && !pinned.includes(item),
                     ),
-                    reviewTitle,
                     side,
                     ...actions,
                   };
@@ -318,7 +317,6 @@ function DocumentTab({
   active,
   pinned,
   hasUnpinned,
-  reviewTitle,
   side,
   onActivate,
   onClose,
@@ -334,7 +332,6 @@ function DocumentTab({
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
-  reviewTitle: ReviewTitle | undefined;
   side: 'left' | 'right' | null;
 }) {
   const {
@@ -342,7 +339,7 @@ function DocumentTab({
     title,
     hint,
     accessibleName = title,
-  } = describeTab(tabKey, reviewTitle, count);
+  } = describeTab(tabKey, count);
   const countId = useId();
   const tabTitle = commitSubject ? `${title} ${commitSubject}` : title;
   const tabHint = commitSubject ? `${hint} · ${commitSubject}` : hint;
@@ -387,11 +384,15 @@ function DocumentTab({
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent/50',
-                    active && tabKey !== 'handoff' && !pinned && 'pr-0.5',
+                    active && !permanentTab(tabKey) && !pinned && 'pr-0.5',
                   )}
                   onClick={() => onActivate(tabKey)}
                   onAuxClick={(event) => {
-                    if (event.button === 1 && !pinned && tabKey !== 'handoff') {
+                    if (
+                      event.button === 1 &&
+                      !pinned &&
+                      !permanentTab(tabKey)
+                    ) {
                       event.preventDefault();
                       onClose(tabKey);
                     }
@@ -405,7 +406,7 @@ function DocumentTab({
             >
               <Icon
                 className="size-3.5 shrink-0"
-                strokeWidth={tabKey === 'handoff' ? 1.75 : undefined}
+                strokeWidth={permanentTab(tabKey) ? 1.75 : undefined}
               />
               {label}
               {count && (
@@ -416,7 +417,7 @@ function DocumentTab({
                   {count.value}
                 </span>
               )}
-              {tabKey !== 'handoff' && pinned && (
+              {!permanentTab(tabKey) && pinned && (
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
@@ -437,7 +438,7 @@ function DocumentTab({
                   <TooltipContent>{`Unpin ${title}`}</TooltipContent>
                 </Tooltip>
               )}
-              {tabKey !== 'handoff' && active && (
+              {!permanentTab(tabKey) && active && (
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger
                     render={
@@ -469,7 +470,7 @@ function DocumentTab({
         </TruncatedText>
         <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
           <ContextMenuItem
-            disabled={tabKey === 'handoff'}
+            disabled={permanentTab(tabKey)}
             onClick={() => onTogglePin(tabKey)}
           >
             {pinned ? <PinOffIcon /> : <PinIcon />}
@@ -496,7 +497,7 @@ function DocumentTab({
           )}
           <ContextMenuSeparator />
           <ContextMenuItem
-            disabled={tabKey === 'handoff'}
+            disabled={permanentTab(tabKey)}
             onClick={() => onClose(tabKey)}
           >
             <XIcon />

@@ -50,6 +50,7 @@ function WorkspaceReviewContent(props: Props) {
     title: showsWalkthrough ? 'Walkthrough' : undefined,
     pending: worktreeFirstDocument.pending,
     guided: worktreeFirstDocument.guided,
+    companion: worktreeFirstDocument.companion,
   };
   return (
     <ReviewWorkspace

@@ -14,7 +14,7 @@ import {
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { useChanges, useBranchChanges } from '@/features/changes/index';
+import { useReviewOverview, useBranchChanges } from '@/features/changes/index';
 
 function worktreeSelection(scope: ReviewScope, context: ConnectionContext) {
   return {
@@ -75,9 +75,11 @@ export function useWorktreeFirstDocument(
 ): WorktreeOpening {
   const { result } = useWalkthrough(scope, context);
   const branch = useBranchChanges(scope, context.connection, base).result;
+  const changes = useReviewOverview(scope, context.connection);
   return worktreeOpening({
     walkthrough: readingOf(result, (read) => read),
     branchFiles: readingOf(branch, (committed) => committed.files.length),
+    uncommittedFiles: readingOf(changes, (dirty) => dirty.changes.length),
   });
 }
 
