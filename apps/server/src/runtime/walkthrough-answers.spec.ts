@@ -41,6 +41,9 @@ const ready: WalkthroughJob = {
     worktreeId: 'worktree',
     pullRequestNumber: undefined,
     baseOid: 'a'.repeat(40),
+    baseRef: 'refs/heads/main',
+    contentTreeOid: 'a'.repeat(40),
+    includesUncommitted: false,
     headOid: 'b'.repeat(40),
     writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
     sessionId: 'writer-session',
@@ -48,6 +51,7 @@ const ready: WalkthroughJob = {
     state: { status: 'queued' },
   },
   worktreePath: '',
+  patch: '',
   files: [],
 };
 const content = {

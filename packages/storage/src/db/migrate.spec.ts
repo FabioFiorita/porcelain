@@ -103,6 +103,7 @@ it.each([false, true])(
               { migrationId: 12 },
               { migrationId: 13 },
               { migrationId: 14 },
+              { migrationId: 15 },
             ],
           });
           await expect(
@@ -138,7 +139,7 @@ it('clears retired push kinds before the remaining registration reader decodes s
     await initial.dispose();
     const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
     stored.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
-      DELETE FROM porcelain_migrations WHERE migration_id = 14;
+      DELETE FROM porcelain_migrations WHERE migration_id >= 14;
       INSERT INTO push_registrations (device_id, token, platform, kinds) VALUES ('phone', 'ExponentPushToken[fixture]', 'ios', '["review-ready","agent-reply"]');`);
     stored.close();
     const migrated = open();
@@ -155,6 +156,49 @@ it('clears retired push kinds before the remaining registration reader decodes s
       await migrated.dispose();
     }
   } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('drops old commit-bound walkthrough runs and their dependent data at the content identity switch', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'walkthrough-tree-migration-'));
+  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
+  const open = () =>
+    ManagedRuntime.make(
+      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
+    );
+  let runtime = open();
+  try {
+    await runtime.runPromise(SqlClient.SqlClient);
+    await runtime.dispose();
+    const old = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    old.exec(`DELETE FROM porcelain_migrations WHERE migration_id = 15;
+      INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES ('old', 'worktree', 'head', 'ready', '{}');
+      INSERT INTO walkthrough_automatic VALUES ('pr', 'old');
+      INSERT INTO walkthrough_evidence VALUES ('old', 'image', 'image/png', '', X'01');
+      INSERT INTO walkthrough_messages (id, run_id, worktree_id, text, created_at, answer) VALUES ('message', 'old', 'worktree', 'Why?', 'today', '{}');`);
+    old.close();
+    runtime = open();
+    const sql = await runtime.runPromise(SqlClient.SqlClient);
+    expect(
+      await runtime.runPromise(sql`SELECT * FROM walkthrough_runs`),
+    ).toEqual([]);
+    expect(
+      await runtime.runPromise(sql`SELECT * FROM walkthrough_automatic`),
+    ).toEqual([]);
+    expect(
+      await runtime.runPromise(sql`SELECT * FROM walkthrough_evidence`),
+    ).toEqual([]);
+    expect(
+      await runtime.runPromise(sql`SELECT * FROM walkthrough_messages`),
+    ).toEqual([]);
+    expect(
+      await runtime.runPromise(
+        sql`SELECT name FROM porcelain_migrations WHERE migration_id = 15`,
+      ),
+    ).toEqual([{ name: 'working_tree_walkthroughs' }]);
+  } finally {
+    await runtime.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
 });

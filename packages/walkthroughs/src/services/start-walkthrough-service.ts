@@ -45,6 +45,7 @@ export class StartWalkthroughService extends Context.Service<
               {
                 worktreePath: input.worktreePath,
                 files: snapshot.files,
+                patch: snapshot.patch,
                 run: {
                   id: ids.next(),
                   projectId: input.projectId,
@@ -53,6 +54,9 @@ export class StartWalkthroughService extends Context.Service<
                   pullRequestRepository: snapshot.githubRepository,
                   baseOid: snapshot.baseOid,
                   headOid: snapshot.headOid,
+                  contentTreeOid: snapshot.contentTreeOid,
+                  baseRef: snapshot.baseRef,
+                  includesUncommitted: snapshot.includesUncommitted,
                   branch: snapshot.branch,
                   writer,
                   sessionId: undefined,

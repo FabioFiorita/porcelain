@@ -60,6 +60,9 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
       worktreeId: 'worktree',
       pullRequestNumber: undefined,
       baseOid: head,
+      baseRef: 'refs/heads/main',
+      contentTreeOid: head,
+      includesUncommitted: false,
       headOid: head,
       writer: { provider: 'claude', model: 'fixture', effort: 'high' },
       sessionId: undefined,
@@ -67,6 +70,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
       state: { status: 'queued' },
     },
     worktreePath: repo,
+    patch: '',
     files: [],
   };
   const command = join(folder, 'writer');
@@ -281,12 +285,16 @@ it.each(['signed_out', 'other'] as const)(
         projectId: 'project',
         worktreeId: 'worktree',
         baseOid: headOid,
+        baseRef: 'refs/heads/main',
+        contentTreeOid: headOid,
+        includesUncommitted: false,
         headOid,
         writer: { provider: 'claude', model: 'fixture', effort: 'high' },
         createdAt: '2026-11-09T00:00:00Z',
         state: { status: 'queued' },
       },
       worktreePath: repo,
+      patch: '',
       files: [],
     };
     const command = join(folder, 'writer');

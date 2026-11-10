@@ -24,6 +24,7 @@ function job(
 ): WalkthroughJob {
   return {
     worktreePath: '/fixture',
+    patch: '',
     files: [],
     run: {
       id,
@@ -31,6 +32,9 @@ function job(
       worktreeId: 'worktree',
       headOid,
       baseOid: 'base',
+      baseRef: 'refs/heads/main',
+      contentTreeOid: headOid,
+      includesUncommitted: false,
       pullRequestNumber,
       writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
       sessionId: undefined,
@@ -508,6 +512,47 @@ it('never starts another automatic run for one PR after branch, worktree, head, 
     } finally {
       database.close();
     }
+  } finally {
+    await runtime.dispose();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('deduplicates identical base and content across commits, and accepts changed content or base', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'walkthrough-content-dedup-'));
+  const runtime = ManagedRuntime.make(
+    storageLayer(directory, { worktreeIdLength: 32, busyTimeoutMs: 5000 }).pipe(
+      Layer.provide(NodeServices.layer),
+    ),
+  );
+  try {
+    const store = await runtime.runPromise(WalkthroughStore);
+    const first = job('uncommitted', 'head-before');
+    expect((await runtime.runPromise(store.accept(first))).id).toBe(
+      'uncommitted',
+    );
+    const committed = {
+      ...first,
+      run: { ...first.run, id: 'committed', headOid: 'head-after' },
+    };
+    expect((await runtime.runPromise(store.accept(committed))).id).toBe(
+      'uncommitted',
+    );
+    const edited = {
+      ...committed,
+      run: { ...committed.run, id: 'edited', contentTreeOid: 'edited-tree' },
+    };
+    expect((await runtime.runPromise(store.accept(edited))).id).toBe('edited');
+    expect(
+      (
+        await runtime.runPromise(
+          store.accept({
+            ...edited,
+            run: { ...edited.run, id: 'rebased', baseOid: 'another-base' },
+          }),
+        )
+      ).id,
+    ).toBe('rebased');
   } finally {
     await runtime.dispose();
     rmSync(directory, { recursive: true, force: true });

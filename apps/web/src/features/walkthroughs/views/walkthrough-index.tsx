@@ -138,9 +138,7 @@ function UncommittedSteps({
   if (paths.length === 0)
     return (
       <p className="p-3 text-sm text-muted-foreground">
-        {ready
-          ? "Nothing uncommitted. The walkthrough covers this branch's commits."
-          : 'No changes'}
+        {ready ? 'Nothing uncommitted.' : 'No changes'}
       </p>
     );
   const allChanges = (

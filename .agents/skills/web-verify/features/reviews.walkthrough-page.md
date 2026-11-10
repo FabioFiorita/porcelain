@@ -30,12 +30,12 @@ api:
 
 # reviews.walkthrough-page
 
-A worktree with commits to explain shows a Walkthrough as its first tab: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. Its files are organized by step in the Changes panel, and the page marks itself out of date when new commits land.
+A worktree with any change since its base branch, committed or uncommitted, shows a Walkthrough as its first tab: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. Its files are organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
 
 ## How to get to it (user POV)
 
-- A worktree on a branch with commits opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
-- A worktree with no committed change keeps tab "Changes".
+- A worktree with committed or uncommitted changes since its base opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
+- A worktree with no change since the base keeps tab "Changes".
 - Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); buttons "Previous step" and "Next step" in its header row move between steps.
 - Changes panel on a walkthrough worktree opens by default, on Branch: "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, steps without local edits are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
@@ -63,7 +63,11 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 2. Uncommitted and out of date
 
 5. Edit a file the walkthrough covers and add a new one, then choose tab "Uncommitted" in the panel. Expect "All changes", only steps with edits, and "Not in the walkthrough yet" listing the new file.
-6. Commit a change from a terminal. Expect "New commits landed after this was written." and button "Update walkthrough"; clicking it writes a new attempt (the meta line names the new head commit).
+6. Commit exactly the content already explained: the page stays fresh. Edit a file or commit different content. Expect "The work changed after this was written." and button "Update walkthrough"; clicking it writes a new attempt (the meta line names the new head commit).
+
+### Uncommitted-only journey
+
+Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Walkthrough with "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this was written." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
 
 ### 3. Failure
 

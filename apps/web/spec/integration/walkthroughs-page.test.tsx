@@ -365,3 +365,69 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
     .element(page.getByRole('heading', { name: 'All changes', exact: true }))
     .toBeVisible();
 });
+
+test('uncommitted-only work opens the Walkthrough and stays fresh when committed, then offers Update on an edit', async ({
+  repo,
+  codingTool,
+  render,
+  server,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await repo.branch('working-base');
+  await repo.branch('working-feature');
+  await repo.switch('working-feature');
+  await repo.write('notes.md', 'first line\nsecond line\n');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Fworking-base');
+  const page = app.page;
+  await expect
+    .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .toBeVisible();
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  await expect
+    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText(/written for .* and uncommitted work/))
+    .toBeVisible();
+  const sidebar = page.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  await sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }).click();
+  await expect
+    .element(sidebar.getByText('By step', { exact: true }))
+    .toBeVisible();
+  const before = (await server.walkthrough()).walkthrough;
+  await repo.commit('Commit the explained content');
+  await expect
+    .poll(async () => (await server.walkthrough()).outOfDate)
+    .toBe(false);
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Update walkthrough', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  await repo.write('notes.md', 'first line\nsecond line\nnew edit\n');
+  await expect
+    .element(
+      page.getByText('The work changed after this was written.', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .poll(async () => (await server.walkthrough()).walkthrough?.id)
+    .toBe(before?.id);
+  await page
+    .getByRole('button', { name: 'Update walkthrough', exact: true })
+    .click();
+  await expect
+    .poll(async () => (await server.walkthrough()).walkthrough?.id)
+    .not.toBe(before?.id);
+  await expect
+    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .toBeVisible();
+});

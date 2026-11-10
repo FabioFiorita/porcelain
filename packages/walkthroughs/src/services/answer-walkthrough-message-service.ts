@@ -40,6 +40,7 @@ export class AnswerWalkthroughMessageService extends Context.Service<
                 },
                 content: job.run.state.content,
                 worktreePath: job.worktreePath,
+                patch: job.patch,
                 stopTitle: message.stopTitle,
                 text: message.text,
               });

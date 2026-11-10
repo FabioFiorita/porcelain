@@ -16,6 +16,11 @@ export type GitReadOptions = {
   config?: readonly string[];
   leading?: readonly string[];
   input?: Buffer;
+  storage?: {
+    indexFile: string;
+    objectDirectory: string;
+    alternateObjectDirectory: string;
+  };
 };
 
 export type GitWriteOptions = {
@@ -103,7 +108,18 @@ function readCommand(
   return {
     command: 'git',
     args: gitArguments('read', checkout, args, limits, options),
-    env: gitEnvironment('read'),
+    env: {
+      ...gitEnvironment('read'),
+      ...(options.storage === undefined
+        ? {}
+        : {
+            GIT_INDEX_FILE: options.storage.indexFile,
+            GIT_OBJECT_DIRECTORY: options.storage.objectDirectory,
+            GIT_ALTERNATE_OBJECT_DIRECTORIES: JSON.stringify(
+              options.storage.alternateObjectDirectory,
+            ),
+          }),
+    },
     stdin: options.input,
     timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
     maxBytes: options.maxBytes ?? limits.outputBytes,

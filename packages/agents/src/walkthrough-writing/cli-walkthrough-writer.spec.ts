@@ -17,6 +17,9 @@ const run: WalkthroughJob['run'] = {
   worktreeId: 'worktree',
   pullRequestNumber: undefined,
   baseOid: 'a'.repeat(40),
+  baseRef: 'refs/heads/main',
+  contentTreeOid: 'a'.repeat(40),
+  includesUncommitted: false,
   headOid: 'b'.repeat(40),
   writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
   sessionId: undefined,
@@ -75,6 +78,7 @@ async function fixture(
           .write({
             run: { ...run, writer: selectedWriter },
             worktreePath: folder,
+            patch: 'diff --git a/notes.md b/notes.md\n+captured notes\n',
             files: [],
             transcript: 'The human intent',
             evidence: {
@@ -127,6 +131,7 @@ async function fixture(
               stillUnclear: [],
             },
             worktreePath: folder,
+            patch: 'diff --git a/notes.md b/notes.md\n+captured notes\n',
             stopTitle: 'Keep the retry local',
             text: 'Why is the retry here?',
           })
@@ -201,7 +206,8 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   expect(calls).toContain('--resume');
   expect(calls).toContain('fixture-image.png');
   expect(calls).toContain('--add-dir');
-  expect(calls).toContain(run.baseOid + '..' + run.headOid);
+  expect(calls).toContain('captured notes');
+  expect(calls).toContain('captured working state');
   expect(calls.split('Second and final pass').length).toBe(2);
   expect(test.sessions.length).toBeGreaterThan(1);
   expect(new Set(test.sessions).size).toBe(1);

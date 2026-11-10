@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -93,7 +94,7 @@ function answerPrompt(args: readonly string[], prompt: string): Answer {
 }
 
 const WALKTHROUGH_SCENARIO = 'porcelain-fake-walkthrough';
-const WALKTHROUGH_RANGE = 'porcelain-fake-walkthrough-range';
+const WALKTHROUGH_FILES = 'porcelain-fake-walkthrough-files';
 
 function git(...args: readonly string[]): string {
   return execFileSync('git', [...args], { encoding: 'utf8' }).trim();
@@ -103,11 +104,7 @@ function pause(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-function changedFiles(range: string): string[] {
-  return git('diff', '--name-only', range).split('\n').filter(Boolean);
-}
-
-function walkthroughContent(range: string, outcome: string) {
+function walkthroughContent(files: readonly string[], outcome: string) {
   if (outcome === 'nothing')
     return {
       outcome: 'nothing',
@@ -119,7 +116,6 @@ function walkthroughContent(range: string, outcome: string) {
       stillUnclear: [],
       checks: null,
     };
-  const files = changedFiles(range);
   return {
     outcome: 'needs_you',
     title: 'Teach the sample to explain itself',
@@ -160,10 +156,13 @@ function walkthroughContent(range: string, outcome: string) {
 function answerWalkthrough(args: readonly string[], prompt: string): Answer {
   const common = resolve(git('rev-parse', '--git-common-dir'));
   const scenarioPath = resolve(common, WALKTHROUGH_SCENARIO);
-  const rangePath = resolve(common, WALKTHROUGH_RANGE);
+  const filesPath = resolve(common, WALKTHROUGH_FILES);
   const first = prompt.startsWith('You did not build');
   if (first)
-    writeFileSync(rangePath, /Only the range (\S+)/.exec(prompt)?.[1] ?? '');
+    writeFileSync(
+      filesPath,
+      /<changed_files>([^\n]*)<\/changed_files>/.exec(prompt)?.[1] ?? '[]',
+    );
   while (
     existsSync(scenarioPath) &&
     readFileSync(scenarioPath, 'utf8').trim() === 'hold'
@@ -194,7 +193,9 @@ function answerWalkthrough(args: readonly string[], prompt: string): Answer {
   else
     output = {
       structured_output: walkthroughContent(
-        readFileSync(rangePath, 'utf8').trim(),
+        Schema.decodeUnknownSync(
+          Schema.fromJsonString(Schema.Array(Schema.String)),
+        )(readFileSync(filesPath, 'utf8')),
         scenario,
       ),
     };

@@ -308,7 +308,7 @@ function Written({
   };
   let notice = (
     <>
-      <span>New commits landed after this was written.</span>
+      <span>The work changed after this was written.</span>
       <Button size="sm" variant="outline" onClick={onUpdate}>
         Update walkthrough
       </Button>

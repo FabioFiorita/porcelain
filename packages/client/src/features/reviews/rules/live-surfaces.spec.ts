@@ -19,6 +19,14 @@ describe('noticeSurfaces', () => {
 });
 
 describe('walkthrough notices', () => {
+  it('rechecks content freshness on file edits without refetching conversations', () => {
+    expect(
+      noticeSurfaces({ type: 'worktree', change: 'files', ...scope }),
+    ).toEqual({
+      scope,
+      surfaces: new Set(['review', 'reviewed-layers', 'walkthrough']),
+    });
+  });
   it('refreshes the walkthrough and its conversations when its run changed', () => {
     expect(
       noticeSurfaces({ type: 'walkthrough', change: 'run', ...scope }),

@@ -25,6 +25,7 @@ export interface WalkthroughWriter {
   readonly answer: (input: {
     readonly run: WalkthroughRun;
     readonly content: WalkthroughContent;
+    readonly patch: string;
     readonly worktreePath: string;
     readonly stopTitle: string | undefined;
     readonly text: string;

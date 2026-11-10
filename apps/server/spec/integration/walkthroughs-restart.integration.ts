@@ -393,7 +393,7 @@ test('keeps a failed automatic PR handled across repeated startup polls and late
   await fixture.restart();
   const changed = await fixture.read();
   expect(changed.walkthrough?.id).toBe(before.walkthrough?.id);
-  expect(changed.outOfDate).toBe(true);
+  expect(changed.outOfDate).toBe(false);
   expect(await fixture.writerCalls()).toEqual(['called']);
   expect(fixture.githubCalls()).toBeGreaterThanOrEqual(3);
 });

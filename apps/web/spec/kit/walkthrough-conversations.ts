@@ -163,6 +163,7 @@ export async function walkthroughConversationsFixture(
               state,
             },
             worktreePath: session.repository,
+            patch: '',
             files: [],
           },
         ],

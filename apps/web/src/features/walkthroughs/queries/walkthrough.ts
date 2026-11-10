@@ -14,7 +14,7 @@ import {
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { useBranchChanges } from '@/features/changes/index';
+import { useChanges, useBranchChanges } from '@/features/changes/index';
 
 function worktreeSelection(scope: ReviewScope, context: ConnectionContext) {
   return {

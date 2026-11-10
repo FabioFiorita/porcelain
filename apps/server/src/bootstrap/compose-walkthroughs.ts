@@ -93,9 +93,12 @@ export function composeWalkthroughs(
         gitProjectRepositoryReaderLayer(context.settings.limits.git),
       ),
     ),
-    gitWalkthroughHeadReaderLayer.pipe(
+    gitWalkthroughHeadReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(
-        Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
+        Layer.mergeAll(
+          Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
+          Layer.succeed(BranchRangeReader, shared.branchRangeReader),
+        ),
       ),
     ),
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
