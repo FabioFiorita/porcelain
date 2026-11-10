@@ -8,7 +8,6 @@ import {
 import { remoteConnectionState } from '../../../shared/application/store';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { worktreeRow } from '../rules/worktree-row';
-import { openingWorktreeSection } from '../rules/worktree-section';
 import { openedWorktree } from '../store';
 import { WorktreeNavigator } from './worktree-navigator';
 import type { WorktreeDetails } from '../store';
@@ -55,7 +54,6 @@ function worktreeDetails(entry: NavigatorEntry): WorktreeDetails {
     environment: entry.environmentId,
     projectId: entry.projectId,
     worktreeId: entry.worktreeId ?? '',
-    opening: openingWorktreeSection(entry),
     ...(entry.review.state === 'available'
       ? {
           reviewId: entry.review.reviewId,

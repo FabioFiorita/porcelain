@@ -34,11 +34,11 @@ A worktree can have one Walkthrough for its whole change since the base branch, 
 
 ## How to get to it (user POV)
 
-- A worktree with commits since its base opens on tab "Walkthrough", state "No walkthrough yet.", button "Write walkthrough".
-- Uncommitted-only work opens on Changes until a walkthrough is written. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
+- A worktree opens on "Walkthrough" only when its current branch has a queued, running, failed or ready walkthrough run, regardless of commits.
+- Without a run, every worktree opens on Changes, regardless of commits. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
 - A worktree with no change since the base keeps tab "Changes".
 - Each step: button "See the code for step N" opens document "Step N" (`entry=walkthrough-step:N`); the code view selects the comparisons containing the step’s files independently of the selected Changes tab. Uncommitted-only work shows its working diff, committed-only work shows Branch, and mixed work shows Branch then Uncommitted in one scrollable document, each file once per comparison. "See every changed file" opens both comparisons as "All changes" (`entry=walkthrough-changes`); buttons "Previous step" and "Next step" in its header row move between steps.
-- Changes panel on a walkthrough worktree opens by default, on Branch: "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, steps without local edits are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
+- Changes panel on a walkthrough worktree opens by default, on Uncommitted when there are local files and no committed files, otherwise Branch (an explicit tab choice wins): "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, empty step groups and their "By step" heading are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
 ## Driving it with browser
 
@@ -56,7 +56,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 1. Writing and reading
 
-1. Navigate to `/`. Expect tab "Walkthrough", heading "No walkthrough yet.", button "Write walkthrough".
+1. Navigate to `/`. Expect selected tab "Changes" and a matching window title, with "Walkthrough" beside it. Select "Walkthrough"; expect "No walkthrough yet." and "Write walkthrough". Reload after a run is running, ready or failed; it opens on Walkthrough.
 2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, click "Write walkthrough". Expect status "Reading the change".
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Expect heading ending "One call is yours.", then "How the system grew" and "What the code doesn't say"; the Changes panel on Branch with "By step".
 4. Click button "See the code for step 1". Expect tab "Step 1", heading "Step 1 of N: …", previous and next arrows in that one header row; no second title block and no "Mark all reviewed".

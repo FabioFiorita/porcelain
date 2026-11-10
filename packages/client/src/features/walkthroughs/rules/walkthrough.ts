@@ -49,12 +49,8 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
 
 export type FirstDocument = 'walkthrough' | 'changes';
 
-export function firstDocument(input: {
-  read: WalkthroughRead;
-  branchHasCommits: boolean;
-}): FirstDocument {
-  if (input.read.walkthrough !== undefined) return 'walkthrough';
-  return input.branchHasCommits ? 'walkthrough' : 'changes';
+export function firstDocument(read: WalkthroughRead): FirstDocument {
+  return read.walkthrough === undefined ? 'changes' : 'walkthrough';
 }
 
 const CALL_WORDS = ['One', 'Two', 'Three', 'Four', 'Five'];

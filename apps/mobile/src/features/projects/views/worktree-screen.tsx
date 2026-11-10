@@ -21,7 +21,6 @@ import { workspaceKey, type Workspace } from '../commands/workspace-connection';
 import {
   shownWorktreeSection,
   worktreeSectionChoices,
-  worktreeSectionNamed,
   type WorktreeGuide,
   type WorktreeSection,
 } from '../rules/worktree-section';
@@ -45,9 +44,7 @@ export type WorktreeGuideReader = ComponentType<{
   children: (guide: WorktreeGuide) => ReactNode;
 }>;
 
-type WorktreeParams = Partial<Omit<WorktreeDetails, 'opening'>> & {
-  opening?: string | undefined;
-};
+type WorktreeParams = Partial<WorktreeDetails>;
 
 export function WorktreeScreen({
   content,
@@ -191,9 +188,7 @@ function WorktreeSections({
   const [opening, setOpening] = useState<WorktreeSection>();
   const [chosen, choose] = useAtom(worktreeSection(workspace));
   if (opening === undefined && !guide.pending)
-    setOpening(
-      guide.walkthrough ? 'walkthrough' : worktreeSectionNamed(details.opening),
-    );
+    setOpening(guide.walkthrough ? 'walkthrough' : 'changes');
   const section = shownWorktreeSection({
     chosen,
     opening: opening ?? 'changes',

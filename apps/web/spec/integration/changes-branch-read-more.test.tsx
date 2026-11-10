@@ -77,9 +77,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .element(workspace.getByText('note 25', { exact: true }))
     .toBeVisible();
   await workspace.getByText('note 25', { exact: true }).click();
-  await workspace
-    .getByRole('tab', { name: 'Walkthrough', exact: true })
-    .click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace
     .getByRole('tablist', { name: 'Open documents', exact: true })
     .getByRole('tab', { name: 'Branch', exact: true })

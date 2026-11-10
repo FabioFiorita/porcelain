@@ -1,5 +1,3 @@
-import type { NavigatorEntry } from '@porcelain/client/projects/rules';
-
 const worktreeSections = [
   { id: 'walkthrough', label: 'Walkthrough' },
   { id: 'changes', label: 'Changes' },
@@ -9,28 +7,12 @@ const worktreeSections = [
 
 export type WorktreeSection = (typeof worktreeSections)[number]['id'];
 
-export function openingWorktreeSection({
-  review,
-  changes,
-}: Pick<NavigatorEntry, 'review' | 'changes'>): Exclude<
-  WorktreeSection,
-  'walkthrough'
-> {
-  const clean = changes.state === 'available' && changes.count === 0;
-  return review.state === 'none' && clean ? 'files' : 'changes';
-}
-
-export function worktreeSectionNamed(name: string | undefined) {
-  return (
-    worktreeSections.find((section) => section.id === name)?.id ?? 'changes'
-  );
-}
-
 export type WorktreeGuide = { walkthrough: boolean; pending: boolean };
 
 export function worktreeSectionChoices(guide: WorktreeGuide) {
-  const replaced = guide.walkthrough ? 'changes' : 'walkthrough';
-  return worktreeSections.filter((section) => section.id !== replaced);
+  return guide.walkthrough
+    ? worktreeSections.filter((section) => section.id !== 'changes')
+    : [worktreeSections[1], worktreeSections[0], ...worktreeSections.slice(2)];
 }
 
 export function shownWorktreeSection({

@@ -27,6 +27,11 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
   await expect
     .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toBeVisible();
+  await expect.poll(() => app.title()).toMatch(/^Changes — /);
+  await expect
+    .element(page.getByRole('tab', { name: 'Changes', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await expect.poll(() => app.title()).toMatch(/^Walkthrough — /);
   await expect
     .element(
@@ -129,6 +134,7 @@ test('local edits group by step, and files the walkthrough never read stand apar
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -171,6 +177,7 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -232,6 +239,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -321,6 +329,7 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
   await repo.write(SCENARIO, 'signed-out');
   const app = await render.route('/');
   const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -354,6 +363,7 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
   await repo.write(SCENARIO, 'nothing');
   const app = await render.route('/');
   const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -413,10 +423,28 @@ test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fr
     name: 'Review sidebar',
     exact: true,
   });
-  await sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }).click();
+  await expect
+    .element(sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(sidebar.getByText('By step', { exact: true }))
     .toBeVisible();
+  await sidebar.getByRole('tab', { name: 'Branch', exact: true }).click();
+  await expect
+    .element(sidebar.getByText('No changes since main', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(sidebar.getByText('By step', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .poll(() =>
+      new URL(app.location(), 'http://test').searchParams.get('scope'),
+    )
+    .toBe('branch');
+  await expect
+    .element(sidebar.getByRole('tab', { name: 'Branch', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }).click();
   const before = (await server.walkthrough()).walkthrough;
   await repo.commit('Commit the explained content');
   const committedHead = (await server.gitStatus()).headOid;
@@ -474,8 +502,7 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
     await codingTool.install();
     const app = await render.route('/?base=refs%2Fheads%2Fcode-base');
     const page = app.page;
-    if (state === 'uncommitted')
-      await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
     await page
       .getByRole('button', { name: 'Write walkthrough', exact: true })
       .click();

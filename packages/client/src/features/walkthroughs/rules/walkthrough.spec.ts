@@ -286,12 +286,7 @@ describe('walkthroughPhase', () => {
 
 describe('firstDocument', () => {
   it('shows the walkthrough when the worktree has one', () => {
-    expect(
-      firstDocument({
-        read: read(run({ status: 'running' })),
-        branchHasCommits: false,
-      }),
-    ).toBe('walkthrough');
+    expect(firstDocument(read(run({ status: 'running' })))).toBe('walkthrough');
   });
 
   it.each([
@@ -307,31 +302,12 @@ describe('firstDocument', () => {
   ] satisfies WalkthroughRun['state'][])(
     'opens Walkthrough for an existing $status run even without branch commits',
     (state) => {
-      expect(
-        firstDocument({
-          read: read(run(state)),
-          branchHasCommits: false,
-        }),
-      ).toBe('walkthrough');
+      expect(firstDocument(read(run(state)))).toBe('walkthrough');
     },
   );
 
-  it('offers a walkthrough on a branch with commits and nothing published', () => {
-    expect(
-      firstDocument({
-        read: read(undefined),
-        branchHasCommits: true,
-      }),
-    ).toBe('walkthrough');
-  });
-
-  it('opens Changes for uncommitted-only work with no walkthrough run', () => {
-    expect(
-      firstDocument({
-        read: read(undefined),
-        branchHasCommits: false,
-      }),
-    ).toBe('changes');
+  it('opens Changes when no run exists, independently of Git changes', () => {
+    expect(firstDocument(read(undefined))).toBe('changes');
   });
 });
 
@@ -464,14 +440,13 @@ it.each([
 });
 
 describe('worktreeOpening', () => {
-  const settled = (walkthrough: WalkthroughRun | undefined, files: number) =>
+  const settled = (walkthrough: WalkthroughRun | undefined) =>
     worktreeOpening({
       walkthrough: { status: 'read', value: read(walkthrough) },
-      branchFiles: { status: 'read', value: files },
     });
 
   it('opens a worktree that has a walkthrough on it, even with no commits', () => {
-    expect(settled(run({ status: 'running' }), 0)).toEqual({
+    expect(settled(run({ status: 'running' }))).toEqual({
       name: 'walkthrough',
       pending: false,
       guided: true,
@@ -479,24 +454,8 @@ describe('worktreeOpening', () => {
     });
   });
 
-  it('offers a walkthrough on a branch with committed changes, and keeps Changes without one', () => {
-    expect(settled(undefined, 3)).toEqual({
-      name: 'walkthrough',
-      pending: false,
-      guided: false,
-      companion: false,
-    });
-    expect(settled(undefined, 0)).toMatchObject({ name: 'changes' });
-  });
-
-  it('keeps the mobile opening rule on Changes for uncommitted-only work and exposes its web companion tab', () => {
-    expect(
-      worktreeOpening({
-        walkthrough: { status: 'read', value: read(undefined) },
-        branchFiles: { status: 'read', value: 0 },
-        uncommittedFiles: { status: 'read', value: 1 },
-      }),
-    ).toEqual({
+  it('opens Changes with a companion Walkthrough regardless of branch commits', () => {
+    expect(settled(undefined)).toEqual({
       name: 'changes',
       pending: false,
       guided: false,
@@ -504,11 +463,10 @@ describe('worktreeOpening', () => {
     });
   });
 
-  it('waits for both reads, and treats a failed read as settled', () => {
+  it('waits for the walkthrough read, and treats a failed read as settled', () => {
     expect(
       worktreeOpening({
         walkthrough: readingOf(AsyncResult.initial(true), (value) => value),
-        branchFiles: { status: 'read', value: 3 },
       }).pending,
     ).toBe(true);
     expect(
@@ -517,7 +475,6 @@ describe('worktreeOpening', () => {
           AsyncResult.fail(new Error('Offline')),
           (value: WalkthroughRead) => value,
         ),
-        branchFiles: { status: 'failed' },
       }),
     ).toEqual({
       name: 'changes',

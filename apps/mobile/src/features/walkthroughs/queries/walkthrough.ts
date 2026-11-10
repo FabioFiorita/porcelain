@@ -54,10 +54,8 @@ export function useWalkthroughFiles(workspace: Selection) {
 export function useWorktreeGuide(workspace: Selection): WorktreeGuide {
   const selection = walkthroughSelection(workspace);
   const walkthrough = useAtomValue(readWalkthrough(selection));
-  const branch = useAtomValue(readBranchChanges(selection));
   const opening = worktreeOpening({
     walkthrough: readingOf(walkthrough, (read) => read),
-    branchFiles: readingOf(branch, (answer) => answer.files.length),
   });
   return {
     walkthrough: opening.name === 'walkthrough',
