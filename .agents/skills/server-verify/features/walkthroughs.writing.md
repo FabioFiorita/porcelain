@@ -1,6 +1,6 @@
 # Durable walkthrough writing
 
-The contract is `packages/contracts/src/walkthroughs/api.ts`. All three routes require the paired fixture credential and its Origin.
+The contract is `packages/contracts/src/walkthroughs/api.ts`. The writing routes require the paired fixture credential and its Origin.
 
 1. Commit a small fixture change on a branch and keep its base branch. POST `/api/worktrees/:worktreeId/walkthrough` with `{ "base": "refs/heads/main" }`. The response is the durable run, initially queued. Repeat the same request while the attempt is queued, running or ready: the id must match and no second writer may start. After a failed attempt, an explicit start creates a new attempt; concurrent presses share that new attempt. Earlier failures remain stored.
 2. GET the same path to observe the latest attempt, running then ready content or a failed state with a plain message. Subscribe to the worktree live channel: changes use `type: "walkthrough", change: "run"`.
@@ -37,3 +37,17 @@ Checked Codex 0.167.0 against its [configuration reference](https://developers.o
 | Shell startup and launch wrappers | An isolated home and `ZDOTDIR` prevent user profile discovery. `BASH_ENV`, `ENV`, Claude shell/prefix/plugin-directory/process-wrapper settings and Node/Bun preload options are cleared. Worktree cwd and pinned commit range are unchanged. |
 
 Administrator-enforced hooks and callbacks are trusted; user/repository command configuration is isolated, and model-callable MCP servers that cannot be disabled cause the walkthrough to fail.
+
+## Walkthrough conversations
+
+The contract is `packages/contracts/src/walkthroughs/conversations.ts`. Every route needs the paired credential and the Origin, under `/api/worktrees/:worktreeId/walkthrough/conversations`.
+
+1. A walkthrough must be finished (`status: "ready"`). POST `.../messages` with `{ "runId": "<id>", "anchor": { "kind": "walkthrough" } | { "kind": "stop", "title": "<exact stop title>" }, "text": "Why?" }`. The response is the conversation view with the developer message and its agent reply in state `answering`. An unknown stop, an unfinished run or a run from another worktree answers 404.
+2. GET `.../conversations` for the view: `runId` is the latest finished run and each conversation keeps the run it was made on. After a newer finished run, a stop whose title still exists keeps its anchor and the rest appear under `kind: "walkthrough"`. No conversation is deleted by a new commit or walkthrough.
+3. Answers run in the walkthrough serial queue. A live notice `type: "walkthrough", change: "conversations"` follows a message, an answer, a retry, a save and a post. POST `.../messages/:messageId/retry` re-queues only a failed answer.
+4. PUT `.../messages/:messageId/saved` with `{ "saved": true | false }`. POST `.../messages/:messageId/post` posts one message; POST `.../post-saved` posts every saved message as one comment. With a pull request on the latest finished run the outcome is `{ "status": "posted", "url": "..." }`, without one `{ "status": "brief", "text": "..." }`; nothing saved is `{ "status": "nothing" }`. Posting one message again returns the same URL and posts nothing; posting saved again finds nothing saved and answers `nothing`. GET `.../brief[?messageId=...]` reads the same text. A start with a pull request records the GitHub repository from `origin`; posting goes only there, and when `origin` no longer matches it, posting answers 409 and posts nothing, while the brief stays readable. A message posts only when its own run recorded the same repository; `post-saved` posts the eligible ones and lists the rest in `notPosted`, and refuses with 409 when none are eligible.
+5. On restart, answers still answering become failed with `This answer was interrupted. Ask again.`
+
+Run `apps/server/spec/integration/walkthroughs.integration.ts` (fake agent and fake `gh`, real SQLite) and the auth sweep through the integration runner, then `apps/server/src/runtime/walkthrough-answers.spec.ts`, `apps/server/src/use-cases/walkthroughs/post-walkthrough-messages.spec.ts`, `packages/walkthroughs/src/rules/conversations.spec.ts`, `packages/agents/src/walkthrough-writing/cli-walkthrough-writer.spec.ts` and `packages/client/src/features/walkthroughs` by name.
+
+A real answer needs the host's installed CLI through a bounded, owned bridge (the sandbox has no agent, sign-in or network), on a public Porcelain change with no pull request, so posting cannot reach GitHub. Report the answered state's `durationMs` and `costUsd`. Never post to a real pull request as a test: the post path is verified against a fake `gh`.

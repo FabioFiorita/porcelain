@@ -15,7 +15,11 @@ export function noticeSurfaces(notice: LiveNotice) {
   if (notice.type === 'walkthrough')
     return {
       scope: { projectId: notice.projectId, worktreeId: notice.worktreeId },
-      surfaces: new Set<string>(['walkthrough']),
+      surfaces: new Set<string>(
+        notice.change === 'run'
+          ? ['walkthrough', 'walkthrough-conversations']
+          : ['walkthrough-conversations'],
+      ),
     };
   if (notice.type !== 'worktree') return null;
   return {

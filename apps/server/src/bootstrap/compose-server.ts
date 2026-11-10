@@ -362,6 +362,7 @@ function serverResources(
           shared,
           stores,
           checkWorktree,
+          reviews.resolveProjectGitHub,
         );
         const jobs: readonly Job[] = [
           yield* makeIntervalJob(

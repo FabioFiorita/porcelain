@@ -31,6 +31,7 @@ import { Badge } from '../../../components/ui/badge';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
+import { GroupHeader } from '../../../components/ui/group-header';
 import { Input } from '../../../components/ui/input';
 import { Loading } from '../../../components/ui/loading';
 import { Switch } from '../../../components/ui/switch';
@@ -42,10 +43,8 @@ export function ComputerWaysIn({ environmentId }: { environmentId: string }) {
     (entry) => entry.remote.environmentId === environmentId,
   )?.connection;
   return (
-    <Box gap={3}>
-      <Text variant="headline" tone="muted">
-        Ways in
-      </Text>
+    <Box>
+      <GroupHeader variant="section" label="Ways in" />
       {connection ? (
         <ConnectedWaysIn connection={connection} />
       ) : (

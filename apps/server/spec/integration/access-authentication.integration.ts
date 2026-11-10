@@ -16,7 +16,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 103;
+const PAIRED_ROUTES = 110;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -32,7 +32,7 @@ function parameter(session: Session, name: string, route: string): string {
   if (name === 'reviewId') return UNKNOWN_UUID;
   if (name === 'revision') return '1';
   if (name === 'oid') return unknownOid;
-  if (['threadId', 'requestId', 'runId', 'assetId'].includes(name))
+  if (['threadId', 'requestId', 'runId', 'assetId', 'messageId'].includes(name))
     return UNKNOWN_UUID;
   throw new Error(`${route} has a parameter the sweep cannot fill: ${name}`);
 }
@@ -96,6 +96,13 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'POST /api/worktrees/:worktreeId/walkthrough',
         'GET /api/worktrees/:worktreeId/walkthrough',
         'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
+        'GET /api/worktrees/:worktreeId/walkthrough/conversations',
+        'GET /api/worktrees/:worktreeId/walkthrough/conversations/brief',
+        'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages',
+        'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/retry',
+        'PUT /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/saved',
+        'POST /api/worktrees/:worktreeId/walkthrough/conversations/messages/:messageId/post',
+        'POST /api/worktrees/:worktreeId/walkthrough/conversations/post-saved',
         'GET /api/projects/:projectId/pull-requests',
         'GET /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/github-account',

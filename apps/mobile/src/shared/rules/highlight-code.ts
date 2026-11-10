@@ -22,6 +22,8 @@ export function sourceLanguage(path: string): string | undefined {
 
 import type { RenderToken } from './render-model.ts';
 
+export const isHighlightable = (source: string) => source.length <= 64_000;
+
 type SyntaxToken = { content: string; color?: string; fontStyle?: number };
 export async function highlightCode(
   source: string,

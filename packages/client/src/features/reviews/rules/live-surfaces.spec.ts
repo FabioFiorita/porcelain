@@ -18,16 +18,24 @@ describe('noticeSurfaces', () => {
   });
 });
 
-describe('noticeSurfaces for the walkthrough', () => {
-  it('refreshes the walkthrough when its run changed', () => {
+describe('walkthrough notices', () => {
+  it('refreshes the walkthrough and its conversations when its run changed', () => {
+    expect(
+      noticeSurfaces({ type: 'walkthrough', change: 'run', ...scope }),
+    ).toEqual({
+      scope,
+      surfaces: new Set(['walkthrough', 'walkthrough-conversations']),
+    });
+  });
+
+  it('refreshes only the conversations when a comment changed', () => {
     expect(
       noticeSurfaces({
         type: 'walkthrough',
-        change: 'run',
-        projectId,
-        worktreeId,
+        change: 'conversations',
+        ...scope,
       }),
-    ).toEqual({ scope, surfaces: new Set(['walkthrough']) });
+    ).toEqual({ scope, surfaces: new Set(['walkthrough-conversations']) });
   });
 
   it('rechecks whether the walkthrough is out of date when the branch moved', () => {

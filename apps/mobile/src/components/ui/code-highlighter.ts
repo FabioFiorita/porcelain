@@ -38,6 +38,8 @@ function nextFrame(signal: AbortSignal): Promise<void> {
   });
 }
 
+const MAX_BUSY_MS = 100;
+
 export async function createCodeHighlighter(engine: RegexEngine) {
   const highlighter = await createHighlighterCore({
     engine,
@@ -85,6 +87,11 @@ export async function createCodeHighlighter(engine: RegexEngine) {
             return tokens;
           }
         : undefined;
-    return highlightCode(source, tokenize, signal, () => nextFrame(signal));
+    let resumedAt = performance.now();
+    return highlightCode(source, tokenize, signal, async () => {
+      if (performance.now() - resumedAt < MAX_BUSY_MS) return;
+      await nextFrame(signal);
+      resumedAt = performance.now();
+    });
   };
 }

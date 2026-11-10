@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
 import { Empty } from '../../../components/ui/empty';
+import { GroupHeader } from '../../../components/ui/group-header';
 import { Item } from '../../../components/ui/item';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
@@ -28,15 +29,13 @@ export function ComputerScreen({
   return (
     <Screen layout="scroll">
       <Stack.Screen options={{ title: remote.name }} />
-      <Box gap={6} paddingX={6} paddingY={8}>
+      <Box gap={6} padding={4}>
         <Text variant="caption" tone="muted" selectable>
           {remote.address}
         </Text>
         <ComputerWaysIn environmentId={remote.environmentId} />
-        <Box gap={3}>
-          <Text variant="headline" tone="muted">
-            Devices
-          </Text>
+        <Box>
+          <GroupHeader variant="section" label="Devices" />
           <Card>
             <Item
               title="Paired devices"
@@ -44,10 +43,8 @@ export function ComputerScreen({
             />
           </Card>
         </Box>
-        <Box gap={3}>
-          <Text variant="headline" tone="muted">
-            Pair a device
-          </Text>
+        <Box>
+          <GroupHeader variant="section" label="Pair a device" />
           <Card>
             <Item
               title="Pair a device"

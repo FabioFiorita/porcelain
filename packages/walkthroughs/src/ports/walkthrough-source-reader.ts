@@ -6,9 +6,15 @@ import type { DiffFile } from '../models/walkthrough.ts';
 export interface WalkthroughSourceReader {
   readonly read: (input: {
     worktreeId: string;
+    worktreePath: string;
     base: string | undefined;
   }) => Effect.Effect<
-    { baseOid: string; headOid: string; files: readonly DiffFile[] },
+    {
+      baseOid: string;
+      headOid: string;
+      files: readonly DiffFile[];
+      githubRepository: { owner: string; repo: string } | undefined;
+    },
     GitIoFailure | WalkthroughFailedError,
     WorktreeRead
   >;

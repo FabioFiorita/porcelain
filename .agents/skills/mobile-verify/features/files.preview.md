@@ -8,6 +8,7 @@ selectors:
   - 'Comments'
   - 'Clear selection'
 tests:
+  - apps/mobile/src/shared/rules/highlight-diff.spec.ts
   - packages/client/src/features/files/queries/text.spec.ts
   - packages/client/src/features/files/queries/asset.spec.ts
   - apps/mobile/src/features/workspace/rules/document-comment.spec.ts
@@ -38,8 +39,9 @@ Preconditions: [surface baseline](README.md).
 4. General → Long lines → Scroll. Open text with a short first line and longer later line; drag horizontally and release: position stays within content, without springing to the start. Scroll vertically to another long line; horizontal range must not depend on the first visible row. Rotate the tablet between landscape and portrait and repeat. Wrap reflows within current width.
 5. Repeat scrolling/wrapping on Review and History diffs with gutters, merge parents, styled tokens, Unicode and tabs.
 6. Seed a disposable `wide/` folder with 2,001 visible entries, including a small `target.txt` and decodable `target.png`. Confirm that listing `wide/` is refused while the individual text and asset reads succeed. Search for each exact path and open it, then repeat from a saved pin and a direct file link without expanding the folder. Expect content and native Back to the entry surface despite the directory limit. Repeat with a normal-size parent and an empty text file. Remove the target or replace it with a symlink, directory or submodule: reopen and expect the server's not-found or refusal reason, never the linked contents. Restore a regular file and retry; content recovers. Repeat light and dark.
-7. Open a long plain code Files document and scroll to a named line. Close it, switch workspace and back, and reopen it: the plain code reader returns to the same reading line. Scroll positions belong to each workspace/path independently. Reopen after a content refresh and ensure the reading line is bounded by the current file. Markdown/HTML/image preview positions are outside this plain-code retention check.
-8. On Android, repeat Files Markdown Reader → Source → Review file → History commit diff → Settings theme → Files → reopen Markdown for five cycles, moving between them through the Worktree screen. Include an image preview and empty source, then repeat after changing the system font scale. Each native renderer must draw after returning, preserve its assigned bounds and remain interactive. Retain per-cycle results and bounded logcat; `Cannot locate windowRecomposer` is a failure even if the app recovers.
+7. Open a 600-line source file fresh and record it: the area under the bar stays empty and then shows the code fully coloured in one paint, never plain first. Reopen it within five minutes: colours are there at once. A source above 64,000 characters paints plain once and stays plain. Scrolling stays smooth throughout.
+8. Open a long plain code Files document and scroll to a named line. Close it, switch workspace and back, and reopen it: the plain code reader returns to the same reading line. Scroll positions belong to each workspace/path independently. Reopen after a content refresh and ensure the reading line is bounded by the current file. Markdown/HTML/image preview positions are outside this plain-code retention check.
+9. On Android, repeat Files Markdown Reader → Source → Review file → History commit diff → Settings theme → Files → reopen Markdown for five cycles, moving between them through the Worktree screen. Include an image preview and empty source, then repeat after changing the system font scale. Each native renderer must draw after returning, preserve its assigned bounds and remain interactive. Retain per-cycle results and bounded logcat; `Cannot locate windowRecomposer` is a failure even if the app recovers.
 
 Automated coverage: `text.spec.ts` and `asset.spec.ts` cover the client reads and server refusals; `document-comment.spec.ts` covers comment targets. Device journeys prove rendering and navigation.
 

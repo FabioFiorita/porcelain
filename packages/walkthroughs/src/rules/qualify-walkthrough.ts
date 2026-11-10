@@ -1,5 +1,25 @@
 import type { DiffFile, WalkthroughContent } from '../models/walkthrough.ts';
 
+const LEFTOVER_TITLE = 'Everything else';
+
+function withUniqueTitles<Stop extends { readonly title: string }>(
+  stops: readonly Stop[],
+): Stop[] {
+  const taken = new Set(stops.map((stop) => stop.title));
+  const seen = new Set<string>();
+  return stops.map((stop) => {
+    if (!seen.has(stop.title)) {
+      seen.add(stop.title);
+      return stop;
+    }
+    let number = 2;
+    while (taken.has(`${stop.title} (${number})`)) number += 1;
+    const title = `${stop.title} (${number})`;
+    taken.add(title);
+    return { ...stop, title };
+  });
+}
+
 export function qualifyWalkthrough(
   content: WalkthroughContent,
   files: readonly DiffFile[],
@@ -66,17 +86,34 @@ export function qualifyWalkthrough(
     };
   });
   const remaining = files.filter((file) => !claimed.has(file.path));
-  if (remaining.length)
-    stops.push({
-      title: 'Everything else',
-      explanation: 'These changed files complete the change.',
-      attention: undefined,
-      excerpts: [],
-      evidence: [],
-      files: remaining.map((file) => ({
-        path: file.path,
-        note: 'Supporting change',
-      })),
-    });
-  return { ...content, stops, stillUnclear: content.stillUnclear.slice(0, 8) };
+  const leftovers = remaining.map((file) => ({
+    path: file.path,
+    note: 'Supporting change',
+  }));
+  const existing = stops.findIndex((stop) => stop.title === LEFTOVER_TITLE);
+  const covered =
+    leftovers.length === 0
+      ? stops
+      : existing === -1
+        ? [
+            ...stops,
+            {
+              title: LEFTOVER_TITLE,
+              explanation: 'These changed files complete the change.',
+              attention: undefined,
+              excerpts: [],
+              evidence: [],
+              files: leftovers,
+            },
+          ]
+        : stops.map((stop, index) =>
+            index === existing
+              ? { ...stop, files: [...stop.files, ...leftovers] }
+              : stop,
+          );
+  return {
+    ...content,
+    stops: withUniqueTitles(covered),
+    stillUnclear: content.stillUnclear.slice(0, 8),
+  };
 }
