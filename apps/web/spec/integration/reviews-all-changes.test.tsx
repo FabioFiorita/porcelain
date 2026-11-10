@@ -272,7 +272,7 @@ test('Changes file rows reach non-text content without line counts', async ({
           exact: true,
         }),
       )
-      .toBeVisible();
+      .not.toBeInTheDocument();
   } finally {
     held.release();
   }

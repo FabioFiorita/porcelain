@@ -1,4 +1,3 @@
-import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('reading more of a long branch keeps its diffs during loading and after a new commit', async ({
@@ -85,11 +84,6 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(workspace.getByText('note 25', { exact: true }))
     .toBeVisible();
-  await userEvent.keyboard('c');
-  await expect
-    .element(workspace.getByText('notes-25.md · Whole file', { exact: true }))
-    .toBeVisible();
-  await workspace.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect
     .element(
       workspace.getByText(

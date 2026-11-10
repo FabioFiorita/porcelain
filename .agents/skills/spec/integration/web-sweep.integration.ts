@@ -104,9 +104,11 @@ test(
       ['long-text', true],
       ['many-items', true],
     ]);
-    expect(list(printed(await web('server', 'comment-threads')))).toHaveLength(
-      31,
-    );
+    expect(
+      list(printed(await web('server', 'devices')))
+        .map(record)
+        .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
+    ).toHaveLength(12);
 
     const failing = await web(
       'sweep',
@@ -252,9 +254,11 @@ test(
         .map((shot) => text(shot.entry))
         .filter((entry, at, all) => all.indexOf(entry) === at),
     ).toStrictEqual(['/sweep-error.html', '/sweep-unavailable.html']);
-    expect(list(printed(await web('server', 'comment-threads')))).toHaveLength(
-      31,
-    );
+    expect(
+      list(printed(await web('server', 'devices')))
+        .map(record)
+        .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
+    ).toHaveLength(12);
   },
   SWEEP_CASE_MS,
 );

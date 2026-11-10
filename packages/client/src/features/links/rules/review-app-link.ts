@@ -14,7 +14,7 @@ const destinationSchema = Schema.Struct({
 });
 
 type Destination = typeof destinationSchema.Type;
-export type ReviewAppLink = Destination & { readonly webUrl: string };
+type ReviewAppLink = Destination & { readonly webUrl: string };
 
 export function parseReviewAppLink(value: string): ReviewAppLink | undefined {
   try {

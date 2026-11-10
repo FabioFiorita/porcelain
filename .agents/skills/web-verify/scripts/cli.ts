@@ -41,11 +41,10 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
              [--board-directory <folder>]
                           compare mapped roles with approved HTML; write Markdown and JSON;
                           fail on style mismatches, missing roles or unavailable pages
-  agent comment <path> "<body>" | reply <threadId|latest> "<body>"
-  server published-review | reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
+  server reviewed-files [<branch ref>] | project | devices | pending-links | receipt <requestId>
   remote start            start a second disposable computer
   remote pairing-link [--trusted]
-                          mint a link for that computer; agent/server accept --remote
+                          mint a link for that computer; server accepts --remote
 Drive the browser with your own tools. Startup neither opens nor pairs a browser.
 `;
 async function doctor(): Promise<string> {
@@ -197,7 +196,6 @@ async function command(args: readonly string[]): Promise<string> {
   if (
     ![
       'logs',
-      'agent',
       'server',
       'pairing-link',
       'remote',

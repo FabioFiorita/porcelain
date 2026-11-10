@@ -73,21 +73,6 @@ export const reviewLayout = {
       scrolls: element.scrollHeight > element.clientHeight,
     };
   },
-  codeHeaderOutsideScroll(locator: Locator) {
-    const root = locator.element();
-    const comment = root.querySelector('button[aria-label^="Comment on "]');
-    if (!comment) return false;
-    const header = comment.parentElement;
-    if (!header) return false;
-    const viewport = codeScroller(locator);
-    const frame = root.getBoundingClientRect();
-    const bounds = header.getBoundingClientRect();
-    return (
-      !viewport.contains(header) &&
-      bounds.top >= frame.top &&
-      bounds.bottom <= viewport.getBoundingClientRect().top
-    );
-  },
   codeLineInsideFrame(locator: Locator, number: number) {
     const line = locator
       .element()

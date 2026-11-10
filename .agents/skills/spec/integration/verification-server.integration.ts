@@ -89,8 +89,8 @@ test('a server card exposes private connections and deterministic operations ret
   const ids = await server('ids');
   const issued = await server('pairing-link');
   const code = new URL(issued.stdout.trim()).hash.split('&')[0]?.slice(3) ?? '';
-  const published = await server('agent', 'publish-review', 'CLI review');
-  const layers = await server('server', 'published-review');
+  const refused = await server('not-a-command');
+  const reviewed = await server('server', 'reviewed-files');
   const status = await server('status');
   const connectionMode = (await stat(connectionPath)).mode & 0o777;
   const folderMode = (await stat(dirname(connectionPath))).mode & 0o777;
@@ -175,9 +175,12 @@ test('a server card exposes private connections and deterministic operations ret
   expect(issued.code).toBe(0);
   expect(issued.stdout).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/pair#c=pcp_/);
   expect(code).not.toBe('');
-  expect(published.code).toBe(2);
-  expect(layers.code).toBe(0);
-  expect(JSON.parse(layers.stdout)).toEqual({});
+  expect(refused.code).toBe(2);
+  expect(reviewed.code).toBe(0);
+  expect(JSON.parse(reviewed.stdout)).toEqual({
+    worktreeId: instance.detail.worktreeId,
+    marks: [],
+  });
   expect(status.code).toBe(0);
   expect(record(JSON.parse(status.stdout)).stale).toBe(null);
   expect(stopped.code).toBe(0);

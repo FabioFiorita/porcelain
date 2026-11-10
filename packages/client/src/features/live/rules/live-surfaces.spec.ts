@@ -11,7 +11,7 @@ describe('walkthrough notices', () => {
       noticeSurfaces({ type: 'worktree', change: 'files', ...scope }),
     ).toEqual({
       scope,
-      surfaces: new Set(['review', 'reviewed-layers', 'walkthrough']),
+      surfaces: new Set(['walkthrough']),
     });
   });
   it('refreshes the walkthrough and its conversations when its run changed', () => {

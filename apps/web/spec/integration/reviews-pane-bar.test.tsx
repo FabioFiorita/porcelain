@@ -58,7 +58,7 @@ test('a split has controls in each pane, one Git button, and closes with its las
     });
     await expect
       .element(controls.getByRole('button', { name: 'Comment', exact: true }))
-      .toBeVisible();
+      .not.toBeInTheDocument();
     await expect
       .element(controls.getByRole('button', { name: 'Timeline', exact: true }))
       .toBeVisible();

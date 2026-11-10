@@ -153,8 +153,7 @@ test('a retained line selection cannot target changed code after a refresh', asy
   await expect
     .element(code.getByText('after line 3', { exact: true }))
     .toBeVisible();
-  await code.getByText('after line 3', { exact: true }).hover();
-  await code.getByRole('button', { name: '', exact: true }).last().click();
+  await code.getByText('3', { exact: true }).last().click();
   await expect
     .poll(() => reviewLayout.highlightedCode(code))
     .toContain('after line 3');

@@ -18,7 +18,6 @@ const inventory = {
           main: true,
           available: true,
           branch: null,
-          status: null,
         },
       ],
     },
@@ -26,7 +25,7 @@ const inventory = {
 };
 
 describe('Projects wire contracts', () => {
-  it('keeps nullable branch and status on the wire while exposing absent values to the client', () => {
+  it('keeps nullable branch on the wire while exposing absent values to the client', () => {
     const decoded = Schema.decodeUnknownSync(readInventoryResponseSchema)(
       inventory,
     );
@@ -36,7 +35,6 @@ describe('Projects wire contracts', () => {
       main: true,
       available: true,
       branch: undefined,
-      status: undefined,
     });
     expect(Schema.encodeSync(readInventoryResponseSchema)(decoded)).toEqual(
       inventory,

@@ -7,7 +7,6 @@ it('opens a pull request only from complete route parameters', () => {
   const target = {
     environmentId: 'desk',
     projectId: 'project',
-    reviewId: 'review',
     number: 42,
   };
   expect(decode(target)).toEqual(Option.some(target));
