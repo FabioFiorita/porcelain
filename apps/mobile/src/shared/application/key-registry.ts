@@ -2,12 +2,18 @@ import { Atom } from 'effect/reactivity';
 import type { KeyCommand } from '../rules/key-commands';
 import { activeList } from '../rules/list-cursor';
 
+export type KeyOwner =
+  | 'app'
+  | 'worktree-sections'
+  | 'list-cursor'
+  | `document:${string}`;
+
 export const keyRegistrations = Atom.make<
-  ReadonlyMap<string, readonly KeyCommand[]>
+  ReadonlyMap<KeyOwner, readonly KeyCommand[]>
 >(new Map()).pipe(Atom.keepAlive);
 
 export const keyRegistration = Atom.family(
-  ({ owner, commands }: { owner: string; commands: readonly KeyCommand[] }) =>
+  ({ owner, commands }: { owner: KeyOwner; commands: readonly KeyCommand[] }) =>
     Atom.make((get) => {
       if (commands.length === 0) return;
       get.set(

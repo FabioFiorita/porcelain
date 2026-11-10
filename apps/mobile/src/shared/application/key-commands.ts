@@ -9,6 +9,7 @@ import {
   keyRegistration,
   keyRegistrations,
   listPresence,
+  type KeyOwner,
   lists,
 } from './key-registry';
 import {
@@ -49,14 +50,19 @@ export const keyCommandRouting = Atom.make((get) => {
   );
 });
 
-export function useKeyCommands(commands: readonly KeyCommand[]) {
-  const owner = useId();
+export function useKeyCommands(
+  owner: KeyOwner,
+  commands: readonly KeyCommand[],
+) {
   useAtomMount(keyRegistration({ owner, commands }));
 }
 
-export function useScreenKeyCommands(commands: readonly KeyCommand[]) {
+export function useScreenKeyCommands(
+  owner: KeyOwner,
+  commands: readonly KeyCommand[],
+) {
   const focused = useIsFocused();
-  useKeyCommands(focused ? commands : []);
+  useKeyCommands(owner, focused ? commands : []);
 }
 
 export function useDocumentKeys(
@@ -68,9 +74,13 @@ export function useDocumentKeys(
     onPress?: () => void;
   }[],
 ) {
+  const keyed = actions.flatMap((action) =>
+    action.shortcut ? [{ ...action, shortcut: action.shortcut }] : [],
+  );
   useScreenKeyCommands(
-    actions.flatMap((action) =>
-      action.shortcut && action.onPress && !action.disabled
+    `document:${keyed.map((action) => action.shortcut).join(',')}`,
+    keyed.flatMap((action) =>
+      action.onPress && !action.disabled
         ? [
             {
               binding: action.shortcut,
@@ -119,6 +129,7 @@ export function useListCursor({
     else if (next) setHighlighted(next.key);
   };
   useScreenKeyCommands(
+    'list-cursor',
     active
       ? [
           { binding: 'next', run: () => move('next') },

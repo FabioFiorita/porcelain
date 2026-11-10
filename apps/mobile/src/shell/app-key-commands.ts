@@ -11,7 +11,7 @@ export function useAppKeyCommands() {
   const navigation = useNavigationContainerRef();
   const root = useRootNavigationState();
   const exits = navigationExits(root);
-  useKeyCommands([
+  useKeyCommands('app', [
     { binding: 'settings', run: () => router.navigate('/settings') },
     { binding: 'shortcuts', run: () => router.navigate('/keyboard-shortcuts') },
     ...(exits.back

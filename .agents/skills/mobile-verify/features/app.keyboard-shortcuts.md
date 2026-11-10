@@ -8,6 +8,7 @@ tests:
   - apps/mobile/src/shared/rules/key-commands.spec.ts
   - apps/mobile/src/shared/rules/list-cursor.spec.ts
   - apps/mobile/src/shared/rules/navigation-exits.spec.ts
+  - apps/mobile/src/shared/application/key-registry.spec.ts
 api: []
 ---
 
@@ -37,7 +38,7 @@ Preconditions: [surface baseline](README.md) on an iPad simulator in landscape, 
 9. Portrait and iPhone: steps 2, 4 and 7 behave the same with the worktree page pushed instead of beside the list.
 10. Android tablet: the app starts and behaves as before; Settings has no Keyboard Shortcuts row.
 
-Automated coverage: the named rule tests prove the catalog has one combination per shortcut, a doubled live shortcut is dropped for both owners, presses route to the live handler, Command shortcuts alone stay live while typing, cursor and tree movement, list focus, Back and Close availability, and that the sheet lists every shortcut. `apps/mobile/spec/native-logic` runs the Swift menu plan tests on macOS; the Swift lives in `modules/porcelain-renderer` beside the renderer.
+Automated coverage: the named rule tests prove the catalog has one combination per shortcut, a doubled live shortcut is dropped for both owners, presses route to the live handler, Command shortcuts alone stay live while typing, cursor and tree movement, list focus, Back and Close availability, that the sheet lists every shortcut, and that a remount hands its shortcuts over without a conflict. `apps/mobile/spec/native-logic` runs the Swift menu plan tests on macOS; the Swift lives in `modules/porcelain-renderer` beside the renderer.
 
 ## Gotchas
 

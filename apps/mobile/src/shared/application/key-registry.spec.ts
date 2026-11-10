@@ -13,30 +13,46 @@ import {
 const run = () => undefined;
 const appIdleTTL = 400;
 
-test('a remounted owner takes over its shortcut without a conflict', () => {
+const sections = (title: string) => [
+  { binding: 'changes' as const, title, run },
+];
+
+test('a remount in one commit hands its shortcut over before the scheduler runs', () => {
   const { registry, flush } = scheduledRegistry(appIdleTTL);
   const leave = registry.mount(
-    keyRegistration({ owner: 'old', commands: [{ binding: 'changes', run }] }),
+    keyRegistration({ owner: 'worktree-sections', commands: sections('old') }),
   );
   leave();
-  flush();
   registry.mount(
-    keyRegistration({ owner: 'new', commands: [{ binding: 'changes', run }] }),
+    keyRegistration({ owner: 'worktree-sections', commands: sections('new') }),
   );
-  const { commands, conflicts } = activeKeyCommands(
-    registry.get(keyRegistrations),
+  const live = () => activeKeyCommands(registry.get(keyRegistrations));
+  expect(live().conflicts).toEqual([]);
+  expect(live().commands.map((command) => command.title)).toEqual(['new']);
+  flush();
+  expect(live().commands.map((command) => command.title)).toEqual(['new']);
+});
+
+test('two different owners of one shortcut stay a conflict', () => {
+  const { registry } = scheduledRegistry(appIdleTTL);
+  registry.mount(keyRegistration({ owner: 'app', commands: sections('app') }));
+  registry.mount(
+    keyRegistration({ owner: 'worktree-sections', commands: sections('page') }),
   );
-  expect(conflicts).toEqual([]);
-  expect(commands.map((command) => command.binding)).toEqual(['changes']);
-  expect([...registry.get(keyRegistrations).keys()]).toEqual(['new']);
+  expect(activeKeyCommands(registry.get(keyRegistrations)).conflicts).toEqual([
+    { combo: 'command+1', owners: ['app', 'worktree-sections'] },
+  ]);
 });
 
 test('an owner that stops declaring commands leaves the live set', () => {
   const { registry, flush } = scheduledRegistry(appIdleTTL);
   const leave = registry.mount(
-    keyRegistration({ owner: 'list', commands: [{ binding: 'next', run }] }),
+    keyRegistration({
+      owner: 'list-cursor',
+      commands: [{ binding: 'next', run }],
+    }),
   );
-  registry.mount(keyRegistration({ owner: 'list', commands: [] }));
+  registry.mount(keyRegistration({ owner: 'list-cursor', commands: [] }));
   leave();
   flush();
   expect(registry.get(keyRegistrations).size).toBe(0);

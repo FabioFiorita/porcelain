@@ -48,4 +48,8 @@ it('goes back and closes when a sheet or Settings is presented', () => {
 
 it('is quiet before navigation is ready', () => {
   expect(navigationExits(undefined)).toEqual({ back: false, close: false });
+  expect(navigationExits({ type: 'stack', index: 0 })).toEqual({
+    back: false,
+    close: false,
+  });
 });
