@@ -13,6 +13,20 @@ import type {
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainWalkthroughConversations: (
+      action:
+        | 'pr'
+        | 'no-pr'
+        | 'fail'
+        | 'recover'
+        | 'moved'
+        | 'posts'
+        | 'short-pr'
+        | 'short-copy'
+        | 'changed-pr'
+        | 'running-update'
+        | 'failed-update',
+    ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
     porcelainReplaceEditorContent: (
       selector: string,

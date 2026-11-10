@@ -23,6 +23,11 @@ import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import { useWalkthrough } from '../queries/walkthrough';
 import { RichText } from './rich-text';
+import {
+  WalkthroughConversation,
+  EarlierComments,
+  PostSaved,
+} from './walkthrough-conversation';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 const GROWTH_SIGNS = { added: '+', changed: '~', removed: '−' } as const;
@@ -312,8 +317,22 @@ function Written({
   props: DocumentProps;
   onUpdate: () => void;
   updating: boolean;
-  updateFailure: WalkthroughFailure | undefined;
+  updateFailure:
+    | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
+    | undefined;
 }) {
+  const conversation: Conversation = ({ kind, step }) => {
+    const title = content.stops[step - 1]!.title;
+    return (
+      <WalkthroughConversation
+        key={title}
+        owner={props}
+        title={title}
+        runId={run.id}
+        call={kind === 'call'}
+      />
+    );
+  };
   let notice = (
     <>
       <span>New commits landed after this was written.</span>
@@ -327,8 +346,11 @@ function Written({
     notice = (
       <>
         <span role="alert">
-          {walkthroughFailureCopy(updateFailure, run.writer).title}{' '}
-          {updateFailure.message}
+          {
+            walkthroughFailureCopy(updateFailure.failure, updateFailure.writer)
+              .title
+          }{' '}
+          {updateFailure.failure.message}
         </span>
         <Button size="sm" variant="outline" onClick={onUpdate}>
           Try again
@@ -360,6 +382,8 @@ function Written({
             </Button>
           </div>
         </header>
+        <EarlierComments owner={props} titles={[]} />
+        <PostSaved owner={props} />
       </Column>
     );
   return (
@@ -372,7 +396,7 @@ function Written({
         </p>
         {(outOfDate || updating || updateFailure) && stale}
       </header>
-      <Calls content={content} conversation={undefined} />
+      <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth items={content.growth} />}
       <ol className="flex flex-col gap-10">
         {content.stops.map((stop, index) => (
@@ -382,11 +406,15 @@ function Written({
             step={index + 1}
             run={run}
             props={props}
-            conversation={undefined}
+            conversation={conversation}
           />
         ))}
       </ol>
       <NotSaid content={content} />
+      <EarlierComments
+        owner={props}
+        titles={content.stops.map((stop) => stop.title)}
+      />
       <footer className="border-t pt-5">
         <div className="-ml-2">
           <Button variant="link" size="sm" onClick={() => props.onOpen(BRANCH)}>
@@ -394,6 +422,7 @@ function Written({
           </Button>
         </div>
       </footer>
+      <PostSaved owner={props} />
     </Column>
   );
 }
@@ -519,7 +548,14 @@ export function WalkthroughDocument(props: DocumentProps) {
             onRetry={write.start}
           />
         );
-      case 'ready':
+      case 'ready': {
+        const updateFailure =
+          phase.attempt?.state.status === 'failed'
+            ? {
+                failure: phase.attempt.state.failure,
+                writer: phase.attempt.writer,
+              }
+            : undefined;
         return (
           <Written
             run={phase.run}
@@ -533,13 +569,16 @@ export function WalkthroughDocument(props: DocumentProps) {
               phase.attempt?.state.status === 'running'
             }
             updateFailure={
-              write.failure ??
-              (phase.attempt?.state.status === 'failed'
-                ? phase.attempt.state.failure
-                : undefined)
+              write.failure
+                ? {
+                    failure: write.failure,
+                    writer: phase.attempt?.writer ?? phase.run.writer,
+                  }
+                : updateFailure
             }
           />
         );
+      }
     }
   };
   return <div className="@container h-full overflow-auto">{body()}</div>;

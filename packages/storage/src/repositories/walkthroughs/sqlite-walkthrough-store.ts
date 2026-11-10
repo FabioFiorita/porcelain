@@ -156,12 +156,12 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           if (automaticKey !== undefined) {
             const previous = yield* sql<{
               payload: string;
-            }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey})`;
+            }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey}) AND worktree_id = ${job.run.worktreeId} AND json_extract(payload, '$.run.branch') IS ${job.run.branch ?? null}`;
             if (previous[0]) return decode(previous[0].payload).run;
           }
           const latest = yield* sql<{
             payload: string;
-          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} ORDER BY sequence DESC LIMIT 1`;
+          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND json_extract(payload, '$.run.branch') IS ${job.run.branch ?? null} ORDER BY sequence DESC LIMIT 1`;
           const current =
             latest[0] === undefined ? undefined : decode(latest[0].payload).run;
           const same =
@@ -176,7 +176,7 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           if (!same)
             yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${run.id}, ${run.worktreeId}, ${run.headOid}, 'queued', ${JSON.stringify(job)})`;
           if (automaticKey !== undefined)
-            yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id})`;
+            yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id}) ON CONFLICT (pr_key) DO UPDATE SET run_id = excluded.run_id`;
           return run;
         }).pipe(sql.withTransaction, Effect.orDie);
       }),

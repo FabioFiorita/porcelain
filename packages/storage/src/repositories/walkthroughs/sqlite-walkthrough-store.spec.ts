@@ -469,3 +469,60 @@ it.each(['queued', 'running', 'ready'] as const)(
     }
   },
 );
+
+it.each([undefined, 'https://github.com/fixture/project/pull/42'])(
+  'keeps same-head acceptance and deduplication on each branch with automatic key %s',
+  async (automaticKey) => {
+    const directory = mkdtempSync(join(tmpdir(), 'branch-walkthrough-'));
+    const runtime = ManagedRuntime.make(
+      storageLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+    try {
+      const store = await runtime.runPromise(WalkthroughStore);
+      const onBranch = (id: string, branch: string): WalkthroughJob => {
+        const input = job(id, 'same-head');
+        return { ...input, run: { ...input.run, branch } };
+      };
+      expect(
+        (
+          await runtime.runPromise(
+            store.accept(onBranch('first-a', 'a'), automaticKey),
+          )
+        ).id,
+      ).toBe('first-a');
+      expect(
+        (
+          await runtime.runPromise(
+            store.accept(onBranch('first-b', 'b'), automaticKey),
+          )
+        ).id,
+      ).toBe('first-b');
+      expect(
+        (await runtime.runPromise(store.read('worktree', { branch: 'b' })))?.id,
+      ).toBe('first-b');
+      expect(
+        (
+          await runtime.runPromise(
+            store.accept(onBranch('repeat-b', 'b'), automaticKey),
+          )
+        ).id,
+      ).toBe('first-b');
+      expect(
+        (
+          await runtime.runPromise(
+            store.accept(onBranch('repeat-a', 'a'), automaticKey),
+          )
+        ).id,
+      ).toBe('first-a');
+      expect(
+        (await runtime.runPromise(store.read('worktree', { branch: 'a' })))?.id,
+      ).toBe('first-a');
+    } finally {
+      await runtime.dispose();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
