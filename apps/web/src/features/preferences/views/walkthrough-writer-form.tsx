@@ -10,6 +10,7 @@ import {
 } from '@porcelain/client/projects';
 import {
   selectedWalkthroughWriter,
+  canSaveWalkthroughWriter,
   type Project,
 } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -272,17 +273,25 @@ function WriterForm({
           Saved on this computer.
         </p>
       )}
-      <form.Subscribe selector={(state) => state.values.writer}>
-        {(writer) => (
+      <form.Subscribe
+        selector={(state) => ({
+          writer: state.values.writer,
+          effort: state.values.effort,
+        })}
+      >
+        {({ writer, effort }) => (
           <Button
             type="submit"
             disabled={
               result.waiting ||
               unavailable !== undefined ||
-              (writer !== 'default' &&
-                !settings.models.some(
-                  (model) => `${model.provider}:${model.model}` === writer,
-                ))
+              !canSaveWalkthroughWriter({
+                writer,
+                effort,
+                current,
+                project: project !== undefined,
+                models: settings.models,
+              })
             }
           >
             {result.waiting && <Spinner />}Save

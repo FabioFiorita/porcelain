@@ -342,7 +342,7 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
     const before = new DatabaseSync(join(directory, 'inventory.sqlite'));
     try {
       before.exec(
-        "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id=13;",
+        "DROP TABLE walkthrough_default_writer; DROP TABLE walkthrough_automatic; DROP TABLE walkthrough_pull_titles; DROP TABLE walkthrough_settings; ALTER TABLE walkthrough_messages DROP COLUMN writer; DROP INDEX IF EXISTS walkthrough_runs_current_head; CREATE UNIQUE INDEX walkthrough_runs_current_head ON walkthrough_runs(worktree_id,head_oid) WHERE status != 'failed'; UPDATE walkthrough_runs SET payload=json_remove(payload,'$.run.writer.effort'); DELETE FROM porcelain_migrations WHERE migration_id=13;",
       );
     } finally {
       before.close();
@@ -387,3 +387,85 @@ it('upgrades migration 012 runs to the saved high effort and preserves existing 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it.each(['queued', 'running', 'ready'] as const)(
+  'only reuses the current %s attempt and makes a returning writer current after another writer fails',
+  async (status) => {
+    const directory = mkdtempSync(join(tmpdir(), 'current-walkthrough-'));
+    const runtime = ManagedRuntime.make(
+      storageLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+    try {
+      const store = await runtime.runPromise(WalkthroughStore);
+      const first = await runtime.runPromise(
+        store.accept(job('first-ready', 'same-head')),
+      );
+      const ready = {
+        status: 'ready',
+        writtenAt: '2026-11-09T00:00:00.000Z',
+        durationMs: 1,
+        content: {
+          outcome: 'worth_knowing',
+          title: 'First writer',
+          summary: 'Summary',
+          growth: [],
+          stops: [],
+          onlyInTranscript: [],
+          stillUnclear: [],
+        },
+      } as const;
+      await runtime.runPromise(store.save({ ...first, state: ready }));
+      const baseOther = job('other-failed', 'same-head');
+      const other: WalkthroughJob = {
+        ...baseOther,
+        run: {
+          ...baseOther.run,
+          writer: { provider: 'codex', model: 'gpt-5.5', effort: 'medium' },
+        },
+      };
+      await runtime.runPromise(store.accept(other));
+      await runtime.runPromise(
+        store.save({
+          ...other.run,
+          state: {
+            status: 'failed',
+            failure: { kind: 'other', message: 'Writer failed' },
+          },
+        }),
+      );
+      const returning = await runtime.runPromise(
+        store.accept(job('returning', 'same-head')),
+      );
+      expect(returning.id).toBe('returning');
+      expect((await runtime.runPromise(store.read('worktree')))?.id).toBe(
+        'returning',
+      );
+      const state = status === 'ready' ? ready : { status };
+      await runtime.runPromise(store.save({ ...returning, state }));
+      expect(
+        (await runtime.runPromise(store.accept(job('duplicate', 'same-head'))))
+          .id,
+      ).toBe('returning');
+      const again = { ...other, run: { ...other.run, id: 'other-again' } };
+      expect((await runtime.runPromise(store.accept(again))).id).toBe(
+        'other-again',
+      );
+      expect(
+        (
+          await runtime.runPromise(
+            store.accept(job('first-again', 'same-head')),
+          )
+        ).id,
+      ).toBe('first-again');
+      expect((await runtime.runPromise(store.read('worktree')))?.id).toBe(
+        'first-again',
+      );
+    } finally {
+      await runtime.dispose();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);

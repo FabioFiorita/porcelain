@@ -78,11 +78,9 @@ test('the branch base is selectable from its document with the side panel closed
   await expect.poll(async () => (await server.branchChanges()).commits).toBe(2);
   const app = await render.route('/');
   await expect
-    .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(app.page.getByRole('tab', { name: 'Walkthrough', exact: true }))
     .toBeVisible();
-  await app.navigate(
-    `${app.location().split('?')[0]}?entry=handoff&scope=branch`,
-  );
+  await app.navigate(`${app.location().split('?')[0]}?entry=branch`);
   const controls = app.page.getByRole('toolbar', {
     name: 'Document controls',
     exact: true,

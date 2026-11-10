@@ -159,11 +159,22 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
             }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey})`;
             if (previous[0]) return decode(previous[0].payload).run;
           }
-          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid, COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0), json_extract(payload, '$.run.writer.provider'), json_extract(payload, '$.run.writer.model'), json_extract(payload, '$.run.writer.effort')) WHERE status != 'failed' DO NOTHING`;
-          const rows = yield* sql<{
+          const latest = yield* sql<{
             payload: string;
-          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid} AND COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0) = ${job.run.pullRequestNumber ?? 0} AND json_extract(payload, '$.run.writer.provider') = ${job.run.writer.provider} AND json_extract(payload, '$.run.writer.model') = ${job.run.writer.model} AND json_extract(payload, '$.run.writer.effort') = ${job.run.writer.effort} ORDER BY sequence DESC LIMIT 1`;
-          const run = decode(rows[0]?.payload).run;
+          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} ORDER BY sequence DESC LIMIT 1`;
+          const current =
+            latest[0] === undefined ? undefined : decode(latest[0].payload).run;
+          const same =
+            current !== undefined &&
+            current.state.status !== 'failed' &&
+            current.headOid === job.run.headOid &&
+            current.pullRequestNumber === job.run.pullRequestNumber &&
+            current.writer.provider === job.run.writer.provider &&
+            current.writer.model === job.run.writer.model &&
+            current.writer.effort === job.run.writer.effort;
+          const run = same ? current : job.run;
+          if (!same)
+            yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${run.id}, ${run.worktreeId}, ${run.headOid}, 'queued', ${JSON.stringify(job)})`;
           if (automaticKey !== undefined)
             yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id})`;
           return run;

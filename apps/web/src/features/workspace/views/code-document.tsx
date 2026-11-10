@@ -492,7 +492,10 @@ function CodeSurface({
   const collapseControl = entries.length > 1 ? collapseButton : null;
   const paneFile =
     interaction.toolbarTarget !== undefined &&
-    /^(file|review-file|review-change|change|branch):/.test(interaction.entry);
+    (/^(file|review-file|review-change|change|branch|walkthrough-step):/.test(
+      interaction.entry,
+    ) ||
+      (interaction.singleHeader && interaction.entry === 'branch'));
   const focusedEntry = entries[focused] ?? entries[0];
   const paneActions =
     paneFile &&

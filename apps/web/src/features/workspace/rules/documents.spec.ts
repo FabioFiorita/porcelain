@@ -24,6 +24,39 @@ it.each([
   },
 );
 
+it('names a walkthrough worktree after its first document until another tab is chosen', () => {
+  const walkthrough = { firstDocument: 'Add notes', project: 'sample' };
+  expect(
+    workspaceTitle({ entry: undefined, surface: 'changes', ...walkthrough }),
+  ).toBe('Add notes — sample');
+  expect(
+    workspaceTitle({ entry: 'handoff', surface: undefined, ...walkthrough }),
+  ).toBe('Add notes — sample');
+  expect(
+    workspaceTitle({
+      entry: 'walkthrough-step:2',
+      surface: undefined,
+      ...walkthrough,
+    }),
+  ).toBe('Step 2 — sample');
+  expect(
+    workspaceTitle({ entry: 'handoff', surface: undefined, project: 'sample' }),
+  ).toBe('Changes — sample');
+});
+
+it('restores a step tab only from a positive step number', () => {
+  expect(parseEntry('walkthrough-step:3')).toEqual({
+    kind: 'walkthrough-step',
+    step: 3,
+  });
+  expect(entryKey({ kind: 'walkthrough-step', step: 3 })).toBe(
+    'walkthrough-step:3',
+  );
+  expect(parseEntry('walkthrough-step:0')).toBeNull();
+  expect(parseEntry('walkthrough-step:two')).toBeNull();
+  expect(parseEntry('walkthrough-step:1e3')).toBeNull();
+});
+
 it('restores distinct all-changes and Specs documents after navigation or reload', () => {
   expect(parseEntry('all-changes')).toEqual({ kind: 'all-changes' });
   expect(parseEntry('specs')).toEqual({ kind: 'specs' });
