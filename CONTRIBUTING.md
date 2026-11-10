@@ -39,10 +39,10 @@ The private Agent review, Explain CI failure and Release notes workflows retain 
 git clone https://github.com/FabioFiorita/porcelain.git
 cd porcelain
 pnpm install --frozen-lockfile
-pnpm dev:review
+pnpm dev:walkthrough
 ```
 
-Open the web address in the connection card and choose **Pair this browser**. The sample review opens with a briefing; choose **Continue with 2. Revoke access across devices**, then a numbered step to reach its diff and note. The card also prints the command that stops that disposable instance.
+Open the web address in the connection card and choose **Pair this browser**. The sample worktree opens a ready Walkthrough with one developer call, two steps and a summary of how the system grew. The card also prints the command that stops that disposable instance.
 
 Build the server and browser app into the npm package:
 

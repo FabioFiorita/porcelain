@@ -22,6 +22,8 @@ The short card prints server/web/WebSocket URLs, the exact pairing command, evid
 
 The app uses an isolated home and removes host provider credentials and configuration variables. Coding CLI lookup is explicitly disabled by default, even after login-shell PATH restoration. In-process journeys can supply an absolute `codingToolDirectory` containing only their fixture executables; missing executables never fall back to PATH.
 
+For a ready Walkthrough in desktop-mode web views, use the web verification CLI with `start --desktop --walkthrough-sample`. The native launcher below keeps its unregistered fixture for folder-picker proof.
+
 The sample repository starts unregistered so the real folder-picker journey can prove registration. `fixtures.projectId` and `worktreeId` are empty until a project is opened; read `/api/inventory` through the app renderer for its IDs. The app's local server credential remains in the app host's memory. `credentialFiles.remoteEncrypted` names the disposable encrypted remote-store file, which may not exist yet.
 
 Use the published renderer CDP endpoint with a browser tool that supports attachment, or Computer Use on the exact development app identity. For Playwright, attach with `chromium.connectOverCDP(card.rendererCdpEndpoint)` and select the page whose URL equals `card.rendererUrl`. Close the driver connection after the journey.

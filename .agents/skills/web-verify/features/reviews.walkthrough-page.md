@@ -43,6 +43,8 @@ A worktree with commits to explain shows a Walkthrough as its first tab: a fresh
 
 Preconditions: [surface baseline](README.md), started with `$C start --coding-tool`, which installs the fake writer. The fake answers from a scenario file in the repository's Git directory: no file writes a ready walkthrough; `hold` waits until the file changes; `signed-out` fails signed out; `nothing` writes the short page.
 
+For a ready synthetic page without running the fake writer, start with `$C start --walkthrough-sample` and open the initial worktree. Expect one call, two steps, "How the system grew" and "What the code doesn't say".
+
 ### Setup
 
 ```sh

@@ -34,7 +34,6 @@ import {
 } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
 import { verificationEnvironment } from '../../verify-core/environment.ts';
-import { agentActs } from '@porcelain/server/kit/agent';
 
 export const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;
@@ -44,7 +43,7 @@ export const remoteFailed = 'remote-failed';
 const startOptions = Schema.Struct({
   desktop: Schema.Boolean,
   codingTool: Schema.Boolean,
-  reviewSample: Schema.Boolean,
+  walkthroughSample: Schema.Boolean,
   gitInterruption: Schema.optional(Schema.Boolean),
 });
 
@@ -116,7 +115,7 @@ function serveRemote(
 }
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { desktop, codingTool, reviewSample, gitInterruption } =
+    const { desktop, codingTool, walkthroughSample, gitInterruption } =
       Schema.decodeUnknownSync(startOptions)(life.options);
     const evidence = registry.evidenceFolder(life.id);
     const build = join(folder, 'build');
@@ -124,7 +123,11 @@ export function serve(folder: string): Promise<void> {
     const server = await IsolatedServer.start(
       root,
       build,
-      gitInterruption ? 'git-interruption' : undefined,
+      walkthroughSample
+        ? 'walkthrough'
+        : gitInterruption
+          ? 'git-interruption'
+          : undefined,
       (text) => appendFileSync(join(evidence, 'server.log'), text),
     );
     server.exited.then(
@@ -139,7 +142,6 @@ export function serve(folder: string): Promise<void> {
     recorder.phase = 'follow-up';
     const owner = server.session(recorder, { projectId: '', worktreeId: '' });
     if (codingTool) await owner.installCodingTool();
-    if (reviewSample) await agentActs(owner, { kind: 'publish-architecture' });
     const port = await worktreePort(root);
     const origin = `http://127.0.0.1:${port}`;
     const log = openSync(join(evidence, 'vite.log'), 'a', 0o600);
