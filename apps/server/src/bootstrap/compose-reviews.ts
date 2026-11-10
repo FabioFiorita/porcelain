@@ -1,3 +1,6 @@
+import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
+import { CacheWalkthroughPullTitlesService } from '@porcelain/walkthroughs/services';
+import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
 import { AgentFeedbackUseCase } from '../use-cases/reviews/agent-feedback.ts';
 import { AgentFeedbackService } from '@porcelain/reviews/services';
 import { AgentFeedbackStore } from '@porcelain/reviews/ports';
@@ -21,7 +24,6 @@ import {
   ReadReviewRecordService,
 } from '@porcelain/reviews/services';
 import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
-import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { GitHubAccountStore } from '@porcelain/reviews/ports';
 import {
   ObserveReviewPullRequestService,
@@ -178,6 +180,7 @@ import { type Shared } from './compose-shared.ts';
 import { type Stores } from './compose-stores.ts';
 
 type ReviewsDependencies = {
+  githubReader: typeof ghPullRequestReaderLayer;
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
@@ -205,10 +208,11 @@ export function composeReviews(
     Layer.provide(gitProjectRepositoryReaderLayer(context.settings.limits.git)),
   );
   const ports = Layer.mergeAll(
+    Layer.succeed(WalkthroughStore, stores.walkthroughs),
     Layer.succeed(AgentFeedbackStore, stores.agentFeedback),
     t3ReviewAgentHostLayer(context.settings.limits.git),
     gitReviewArchiverLayer(context.settings.limits.git),
-    ghPullRequestReaderLayer(context.settings.limits.git),
+    dependencies.githubReader(context.settings.limits.git),
     Layer.succeed(GitHubAccountStore, stores.githubAccounts),
     Layer.succeed(InventoryStore, stores.inventory),
     gitReviewCodeReaderLayer(context.settings.limits),
@@ -273,6 +277,7 @@ export function composeReviews(
     GitHubAccountPreferenceService.layer,
     ReadGitHubPullRequestService.layer,
     ReadGitHubPullChecksService.layer,
+    CacheWalkthroughPullTitlesService.layer,
     ListGitHubPullRequestsService.layer,
     ReadReviewRecordService.layer,
     CheckProjectService.layer,

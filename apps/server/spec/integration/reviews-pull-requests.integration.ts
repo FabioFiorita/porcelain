@@ -38,6 +38,7 @@ test('reads GitHub PRs with per-project accounts, closes merged reviews, and nev
     readable: ['personal', 'work'],
     holdAccounts: false,
     missingPull: '',
+    paginated: false,
   };
   const save = () => writeFile(statePath, JSON.stringify(state));
   await save();
@@ -77,6 +78,7 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
  author: { login: 'author', avatarUrl }, createdAt: detailQuery.includes('body createdAt baseRefName') ? '2026-10-18T10:00:00Z' : undefined, headRefName: fixture.headBranch, updatedAt: '2026-10-19T12:00:00Z', commits: { nodes: fixture.checkState ? [{ commit: { statusCheckRollup: {state: fixture.checkState, contexts:{nodes:[],pageInfo} } } }] : [] }, body: fixture.description, bodyHTML: detailQuery.includes('bodyHTML') ? fixture.descriptionHTML : undefined, baseRefName: 'main', headRefOid: 'a'.repeat(40), mergeable: 'UNKNOWN', labels: { nodes: [], pageInfo },
  comments: { nodes: [{ id: 'comment', author: null, createdAt: '2026-10-19T11:00:00Z', body: 'A comment', url: 'https://github.com/comment' }], pageInfo }, reviews: { nodes: [{ id: 'review', author: { login: 'reviewer', avatarUrl }, submittedAt: '2026-10-19T12:00:00Z', body: 'A review', url: 'https://github.com/review', state: 'COMMENTED', comments: { nodes: [{ id: 'inline', author: { login: 'reviewer', avatarUrl }, createdAt: '2026-10-19T10:00:00Z', body: 'Inline comment', url: 'https://github.com/inline', path: 'README.md', line: 1, originalLine: 1, diffHunk }], pageInfo } }], pageInfo } };
  if (listQuery && !listQuery.includes('contexts')) for (const node of pr.commits.nodes) delete node.commit.statusCheckRollup.contexts;
+ if (fixture.paginated && listQuery) { const next = args.includes('cursor=older-page'); console.log(JSON.stringify({ data: { repository: { open: { nodes: next ? [{ ...pr, number: 43, headRefName: 'older-topic' }] : [pr], pageInfo: { hasNextPage: !next, endCursor: next ? null : 'older-page' } }, recent: { nodes: [], pageInfo } } } })); process.exit(0); }
  console.log(JSON.stringify({ data: { repository: args.some(arg => arg.includes('PullRequestList')) ? { open: { nodes: fixture.state === 'OPEN' ? [pr] : [], pageInfo }, recent: { nodes: fixture.state === 'OPEN' ? [] : [pr], pageInfo } } : { pullRequest: pr } } }));
 }
 `,
@@ -220,6 +222,14 @@ else if (args.includes('repos/FabioFiorita/porcelain')) {
     expect(await readFile(listQueryPath, 'utf8')).not.toMatch(
       /\b(body|comments|reviews|labels|contexts)\b/,
     );
+    state.paginated = true;
+    await save();
+    expect(await request(`${project}/pull-requests`)).toMatchObject({
+      pullRequests: [{ headBranch: branch }, { headBranch: 'older-topic' }],
+      truncated: false,
+    });
+    state.paginated = false;
+    await save();
     const linkingViewer = await session.live();
     expect(await setPull(pullRequest)).toEqual({ kind: 'updated' });
     expect(

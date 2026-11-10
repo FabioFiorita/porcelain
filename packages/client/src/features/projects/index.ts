@@ -15,6 +15,7 @@ export {
   refreshInventories,
   registerProject,
   renameProject,
+  saveWalkthroughSettings,
   removeProject,
 } from './commands/projects.ts';
 export { setFilePreference } from './commands/file-preferences.ts';

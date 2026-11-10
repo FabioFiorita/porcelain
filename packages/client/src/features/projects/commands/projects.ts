@@ -1,3 +1,4 @@
+import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
@@ -26,6 +27,25 @@ function makeProjectCommands(connection: RuntimeConnection) {
                   entry.id === project.id ? project : entry,
                 )
               : [...inventory.projects, project],
+          }),
+        ),
+      saveWalkthroughSettings: (
+        input: { projectId: string } & WalkthroughSettings,
+      ) =>
+        inventory.confirm(
+          client.request((api) =>
+            api.projects.saveWalkthroughSettings({
+              params: { projectId: input.projectId },
+              payload: { mode: input.mode, provider: input.provider },
+            }),
+          ),
+          (inventory, walkthroughSettings) => ({
+            ...inventory,
+            projects: inventory.projects.map((project) =>
+              project.id === input.projectId
+                ? { ...project, walkthroughSettings }
+                : project,
+            ),
           }),
         ),
       rename: (input: { projectId: string; name: string }) =>
@@ -121,5 +141,16 @@ export const refreshInventories = Atom.family(
         for (const connection of connections)
           context.set(refreshInventory(connection), undefined);
       },
+    ),
+);
+
+export const saveWalkthroughSettings = Atom.family(
+  (connection: RuntimeConnection) =>
+    projectCommandRuntime(connection).fn(
+      (input: { projectId: string } & WalkthroughSettings) =>
+        ProjectCommands.use((commands) =>
+          commands.saveWalkthroughSettings(input),
+        ),
+      { concurrent: true },
     ),
 );

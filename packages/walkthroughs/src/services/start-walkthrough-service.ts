@@ -10,6 +10,7 @@ export class StartWalkthroughService extends Context.Service<
   StartWalkthroughService,
   {
     readonly execute: (input: {
+      automaticKey?: string;
       worktreeId: string;
       worktreePath: string;
       projectId: string;
@@ -36,25 +37,28 @@ export class StartWalkthroughService extends Context.Service<
             const createdAt = yield* DateTime.now.pipe(
               Effect.map(DateTime.formatIso),
             );
-            return yield* store.accept({
-              worktreePath: input.worktreePath,
-              files: snapshot.files,
-              run: {
-                id: ids.next(),
-                projectId: input.projectId,
-                worktreeId: input.worktreeId,
-                pullRequestNumber: input.pullRequestNumber,
-                baseOid: snapshot.baseOid,
-                headOid: snapshot.headOid,
-                writer: input.writer ?? {
-                  provider: 'claude',
-                  model: 'claude-opus-5-5',
+            return yield* store.accept(
+              {
+                worktreePath: input.worktreePath,
+                files: snapshot.files,
+                run: {
+                  id: ids.next(),
+                  projectId: input.projectId,
+                  worktreeId: input.worktreeId,
+                  pullRequestNumber: input.pullRequestNumber,
+                  baseOid: snapshot.baseOid,
+                  headOid: snapshot.headOid,
+                  writer: input.writer ?? {
+                    provider: 'claude',
+                    model: 'claude-opus-5-5',
+                  },
+                  sessionId: undefined,
+                  createdAt,
+                  state: { status: 'queued' },
                 },
-                sessionId: undefined,
-                createdAt,
-                state: { status: 'queued' },
               },
-            });
+              input.automaticKey,
+            );
           },
         ),
       };

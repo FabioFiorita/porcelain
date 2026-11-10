@@ -44,15 +44,18 @@ const checksSchema = Schema.Struct({
     }),
   }),
 });
-const listQuery = `query PullRequestList($owner: String!, $repo: String!) {
+const listQuery = `query PullRequestList($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
-    open: pullRequests(first: 50, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } ${PAGE} }
+    open: pullRequests(first: 50, after: $cursor, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } pageInfo { hasNextPage endCursor } }
     recent: pullRequests(first: 50, states: [CLOSED, MERGED], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } ${PAGE} }
   }
 }`;
 const listPage = Schema.Struct({
   nodes: Schema.Array(githubPullSummarySchema),
-  pageInfo: Schema.Struct({ hasNextPage: Schema.Boolean }),
+  pageInfo: Schema.Struct({
+    hasNextPage: Schema.Boolean,
+    endCursor: Schema.optional(Schema.NullOr(Schema.String)),
+  }),
 });
 const listSchema = Schema.Struct({
   data: Schema.Struct({
@@ -161,25 +164,41 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
           return pullRequest;
         }),
         list: Effect.fn('GitHubReader.list')(function* (input) {
-          const json = yield* api({
-            account: input.account,
-            endpoint: 'graphql',
-            query: listQuery,
-            variables: { owner: input.owner, repo: input.repo },
-          }).pipe(Effect.mapError(unavailable));
-          const decoded = yield* Schema.decodeEffect(
-            Schema.fromJsonString(listSchema),
-          )(json).pipe(
-            Effect.mapError(
-              () => new GitHubReadError({ reason: 'invalid-response' }),
-            ),
-          );
-          const { open, recent } = decoded.data.repository;
-          return {
-            open: open.nodes,
-            recent: recent.nodes,
-            truncated: open.pageInfo.hasNextPage || recent.pageInfo.hasNextPage,
-          };
+          const open: (typeof githubPullSummarySchema.Type)[] = [];
+          let cursor: string | undefined;
+          let recent: readonly (typeof githubPullSummarySchema.Type)[] = [];
+          let truncated = false;
+          do {
+            const json = yield* api({
+              account: input.account,
+              endpoint: 'graphql',
+              query: listQuery,
+              variables: {
+                owner: input.owner,
+                repo: input.repo,
+                ...(cursor === undefined ? {} : { cursor }),
+              },
+            }).pipe(Effect.mapError(unavailable));
+            const decoded = yield* Schema.decodeEffect(
+              Schema.fromJsonString(listSchema),
+            )(json).pipe(
+              Effect.mapError(
+                () => new GitHubReadError({ reason: 'invalid-response' }),
+              ),
+            );
+            const page = decoded.data.repository;
+            open.push(...page.open.nodes);
+            if (cursor === undefined) {
+              recent = page.recent.nodes;
+              truncated = page.recent.pageInfo.hasNextPage;
+            }
+            if (!page.open.pageInfo.hasNextPage) break;
+            const next = page.open.pageInfo.endCursor;
+            if (!next || next === cursor)
+              return yield* new GitHubReadError({ reason: 'invalid-response' });
+            cursor = next;
+          } while (true);
+          return { open, recent, truncated };
         }),
       });
     }),

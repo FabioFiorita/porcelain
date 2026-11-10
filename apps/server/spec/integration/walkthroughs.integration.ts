@@ -181,8 +181,10 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
   expect(missing.body).toEqual(
     apiError(404, 'Not Found', 'Walkthrough evidence asset not found'),
   );
-  const registered = server.routes.filter((route) =>
-    route.includes('/walkthrough'),
+  const registered = server.routes.filter(
+    (route) =>
+      route.includes('/walkthrough') &&
+      !route.includes('/walkthrough-settings'),
   );
   expect(registered.toSorted()).toEqual([
     'GET /api/worktrees/:worktreeId/walkthrough',

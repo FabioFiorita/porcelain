@@ -32,6 +32,7 @@ import {
   registerProjectResponseSchema,
   removeProjectParamsSchema,
   removeProjectResponseSchema,
+  walkthroughSettingsSchema,
   renameProjectParamsSchema,
   renameProjectRequestSchema,
   renameProjectResponseSchema,
@@ -105,6 +106,17 @@ export class ProjectsApi extends porcelainApi.add(
         success: removeProjectResponseSchema,
         error: projectNotFound,
       }),
+      HttpApiEndpoint.put(
+        'saveWalkthroughSettings',
+        '/api/projects/:projectId/walkthrough-settings',
+        {
+          disableCodecs: true,
+          params: renameProjectParamsSchema,
+          payload: walkthroughSettingsSchema,
+          success: walkthroughSettingsSchema,
+          error: projectNotFound,
+        },
+      ),
       HttpApiEndpoint.patch('renameProject', '/api/projects/:projectId', {
         disableCodecs: true,
         params: renameProjectParamsSchema,

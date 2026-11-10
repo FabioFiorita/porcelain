@@ -70,29 +70,33 @@ function recordReview(
 function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
   const { project, connection, environmentName } = input;
   return project.worktrees
-    .map((worktree): NavigatorEntry => ({
-      key: `${connection.environmentId}/${project.id}/${worktree.id}`,
-      kind: 'worktree',
-      environmentId: connection.environmentId,
-      environmentName,
-      projectId: project.id,
-      projectName: project.name,
-      worktreeId: worktree.id,
-      path: worktree.path,
-      name: worktree.branch ?? checkoutFolder(worktree.path).name,
-      branch: worktreeLabel(worktree.branch),
-      main: worktree.main,
-      ...(worktree.headCommittedAt
-        ? { headCommittedAt: worktree.headCommittedAt }
-        : {}),
-      detached: !worktree.branch,
-      available: project.available && worktree.available,
-      review: { state: 'loading' },
-      changes: {
-        state:
-          project.available && worktree.available ? 'loading' : 'unavailable',
-      },
-    }))
+    .map((worktree): NavigatorEntry => {
+      const title = worktree.walkthroughTitle || worktree.pullRequestTitle;
+      return {
+        key: `${connection.environmentId}/${project.id}/${worktree.id}`,
+        kind: 'worktree',
+        environmentId: connection.environmentId,
+        environmentName,
+        projectId: project.id,
+        projectName: project.name,
+        worktreeId: worktree.id,
+        path: worktree.path,
+        name: worktree.branch ?? checkoutFolder(worktree.path).name,
+        displayTitle: title !== worktree.branch ? title : undefined,
+        branch: worktreeLabel(worktree.branch),
+        main: worktree.main,
+        ...(worktree.headCommittedAt
+          ? { headCommittedAt: worktree.headCommittedAt }
+          : {}),
+        detached: !worktree.branch,
+        available: project.available && worktree.available,
+        review: { state: 'loading' },
+        changes: {
+          state:
+            project.available && worktree.available ? 'loading' : 'unavailable',
+        },
+      };
+    })
     .sort(navigatorWorktreeOrder);
 }
 const readWorktreeReviewEntries = Atom.family(

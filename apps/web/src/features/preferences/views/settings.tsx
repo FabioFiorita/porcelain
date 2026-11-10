@@ -49,6 +49,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsHeading } from '@/shared/views/settings-heading';
 import { usePreferences } from '../store';
+import { WalkthroughSettings } from './walkthrough-settings';
 import { GitHubAccounts } from './github-accounts';
 
 type ReviewGitSettingsChange = Partial<ReviewGitSettings>;
@@ -315,6 +316,7 @@ function ReviewGitSettingsForm({
           />
         </ItemGroup>
       </FieldSet>
+      <WalkthroughSettings connection={connection} />
       <GitHubAccounts connection={connection} />
       <FieldSet>
         <FieldLegend variant="label">When archiving a review</FieldLegend>

@@ -73,6 +73,7 @@ export type NavigatorEntry = {
   worktreeId: string | undefined;
   path: string | undefined;
   name: string;
+  displayTitle?: string | undefined;
   branch: string;
   main: boolean;
   headCommittedAt?: string;
@@ -188,6 +189,7 @@ export function navigatorEntryMatches(
   }
   const text = [
     entry.name,
+    entry.displayTitle ?? '',
     entry.branch,
     entry.path,
     entry.projectName,

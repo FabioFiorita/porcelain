@@ -14,7 +14,9 @@ selectors:
 tests:
   - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
   - apps/web/spec/e2e/app-settings-history.e2e.ts
-api: []
+api:
+  - PUT /api/projects/:projectId/walkthrough-settings
+  - GET /api/inventory
 ---
 
 # app.settings-page
@@ -44,3 +46,5 @@ Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2
 ## Gotchas
 
 - Full navigation can discard in-memory drafts/history. Use the entry specified by each case.
+
+Walkthrough settings in Reviews & Git list every project with Manual (default) / Automatic and a Claude / Codex automatic writer. Save both, reload and independently read `/api/inventory`; switch back to Manual. Automatic polls open PRs every five minutes and handles each PR once, including failed runs and server restarts.

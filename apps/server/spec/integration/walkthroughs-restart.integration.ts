@@ -10,6 +10,7 @@ import { SqlClient } from 'effect/sql';
 import { DatabaseSync } from 'node:sqlite';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import { expect, vi } from 'vitest';
+import { GitHubReader } from '@porcelain/reviews/ports';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
@@ -21,7 +22,7 @@ import { scratchFolder } from '../kit/sandbox.ts';
 import { test } from '../kit/server-test.ts';
 import { record, list, text } from '../kit/session.ts';
 
-test('restarts the HTTP server during an active writer, drains its process and reads the defined interruption from the same database', async () => {
+test('automatically handles an open PR once across restarts and new commits, drains its writer and preserves evidence after interruption', async () => {
   const root = await mkdtemp(
     join(scratchFolder(), 'porcelain-walkthrough-restart-'),
   );
@@ -44,16 +45,20 @@ test('restarts the HTTP server during an active writer, drains its process and r
     ]);
   git('commit', '-qm', 'Initial', '--allow-empty');
   git('branch', 'walkthrough-base');
+  git('switch', '-qc', 'topic');
+  git('remote', 'add', 'origin', 'https://github.com/fixture/project.git');
   await writeFile(join(repo, 'change.txt'), 'A small change.\n');
   git('add', 'change.txt');
   git('commit', '-qm', 'Add change');
   await writeFile(
     join(bin, 'claude'),
     '#!/usr/bin/env node\n' +
-      `require('fs').writeFileSync(${JSON.stringify(join(root, 'writer-started'))},String(process.pid));setInterval(()=>{},1000);`,
+      `require('fs').writeFileSync(${JSON.stringify(join(root, 'writer-started'))},String(process.pid));require('fs').appendFileSync(${JSON.stringify(join(root, 'writer-calls'))},'called'+String.fromCharCode(10));setInterval(()=>{},1000);`,
     { mode: 0o700 },
   );
   vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`);
+  let githubCalls = 0;
+  let pullState: 'OPEN' | 'CLOSED' = 'CLOSED';
   const deviceId = randomUUID();
   const secret = randomBytes(32).toString('base64url');
   const database = ManagedRuntime.make(
@@ -80,6 +85,51 @@ test('restarts the HTTP server during an active writer, drains its process and r
   let application: Runtime | undefined;
   const start = async () => {
     const launch = composeServer({
+      githubReader: () =>
+        Layer.succeed(GitHubReader, {
+          accounts: () => Effect.succeed(['fixture']),
+          canRead: () => Effect.succeed(true),
+          read: () =>
+            Effect.succeed({
+              number: 42,
+              title: 'Readable pull request',
+              url: 'https://github.com/fixture/project/pull/42',
+              state: 'OPEN' as const,
+              isDraft: false,
+              author: { login: 'fixture', avatarUrl: '' },
+              headRefName: 'topic',
+              updatedAt: '2026-11-09T00:00:00.000Z',
+              commits: { nodes: [] },
+              body: '',
+              bodyHTML: '',
+              baseRefName: 'main',
+              headRefOid: git('rev-parse', 'HEAD').toString().trim(),
+              mergeable: 'MERGEABLE',
+              labels: { nodes: [], pageInfo: { hasNextPage: false } },
+              comments: { nodes: [], pageInfo: { hasNextPage: false } },
+              reviews: { nodes: [], pageInfo: { hasNextPage: false } },
+            }),
+          checks: () => Effect.die('No check read is needed'),
+          list: () => {
+            githubCalls++;
+            const pull = {
+              number: 42,
+              title: 'Readable pull request',
+              url: 'https://github.com/fixture/project/pull/42',
+              state: pullState,
+              isDraft: false,
+              author: { login: 'fixture', avatarUrl: '' },
+              headRefName: 'topic',
+              updatedAt: '2026-11-09T00:00:00.000Z',
+              commits: { nodes: [] },
+            };
+            return Effect.succeed({
+              open: pullState === 'OPEN' ? [pull] : [],
+              recent: pullState === 'CLOSED' ? [pull] : [],
+              truncated: false,
+            });
+          },
+        }),
       networkAddressReader: () => new FixedNetworkAddressReader([], []).layer,
       routeListenerRunner: () =>
         InMemoryRouteListenerRunner.layer(
@@ -139,6 +189,22 @@ test('restarts the HTTP server during an active writer, drains its process and r
     const project = await request('POST', '/api/projects', { path: repo });
     const worktreeId = text(record(list(project.worktrees)[0]).id);
     const path = `/api/worktrees/${worktreeId}/walkthrough`;
+    expect(githubCalls).toBe(0);
+    await request(
+      'PUT',
+      `/api/projects/${text(project.id)}/walkthrough-settings`,
+      { mode: 'automatic', provider: 'claude' },
+    );
+    await runtime.runPromise(application.close());
+    application = await start();
+    expect(
+      Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+        await request('GET', path),
+      ).walkthrough,
+    ).toBeUndefined();
+    await runtime.runPromise(application.close());
+    application = undefined;
+    pullState = 'OPEN';
     const watcher = watch(root);
     const started = new Promise<void>((resolve) =>
       watcher.on('change', (_event, name) => {
@@ -149,7 +215,7 @@ test('restarts the HTTP server during an active writer, drains its process and r
       }),
     );
     try {
-      await request('POST', path, { base: 'refs/heads/walkthrough-base' });
+      application = await start();
       await started;
     } finally {
       watcher.close();
@@ -158,6 +224,7 @@ test('restarts the HTTP server during an active writer, drains its process and r
       await request('GET', path),
     );
     expect(before.walkthrough?.state.status).toBe('running');
+    expect(before.walkthrough?.pullRequestNumber).toBe(42);
     const image = Buffer.from('89504e470d0a1a0a', 'hex');
     const sql = new DatabaseSync(join(state, 'inventory.sqlite'));
     try {
@@ -209,6 +276,18 @@ test('restarts the HTTP server during an active writer, drains its process and r
     expect(asset.status).toBe(200);
     expect(asset.headers.get('content-type')).toBe('image/png');
     expect(Buffer.from(await asset.arrayBuffer())).toEqual(image);
+    await runtime.runPromise(application.close());
+    application = undefined;
+    git('commit', '-qm', 'A later commit', '--allow-empty');
+    application = await start();
+    const changed = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+      await request('GET', path),
+    );
+    expect(changed.walkthrough?.id).toBe(before.walkthrough?.id);
+    expect(changed.outOfDate).toBe(true);
+    expect(
+      (await readFile(join(root, 'writer-calls'), 'utf8')).trim().split('\n'),
+    ).toEqual(['called']);
   } finally {
     if (application) await runtime.runPromise(application.close());
     await runtime.dispose();

@@ -138,3 +138,9 @@ export type WalkthroughEvidence = {
   readonly checks: WalkthroughContent['checks'];
   readonly assets: readonly EvidenceAsset[];
 };
+
+export const walkthroughSettingsSchema = Schema.Struct({
+  mode: Schema.Literals(['manual', 'automatic']),
+  provider: Schema.Literals(['claude', 'codex']),
+});
+export type WalkthroughSettings = typeof walkthroughSettingsSchema.Type;

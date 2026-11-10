@@ -3,6 +3,8 @@ import { SqlClient } from 'effect/sql';
 import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
 import {
   walkthroughJobSchema,
+  walkthroughSettingsSchema,
+  type WalkthroughSettings,
   type WalkthroughJob,
   type WalkthroughRun,
   type EvidenceAsset,
@@ -16,15 +18,69 @@ export const sqliteWalkthroughStoreLayer = Layer.effect(
       Schema.fromJsonString(walkthroughJobSchema),
     );
     return WalkthroughStore.of({
+      readSettings: Effect.fn('WalkthroughStore.readSettings')(function* (
+        projectId: string,
+      ) {
+        const rows = yield* sql<{
+          payload: string;
+        }>`SELECT payload FROM walkthrough_settings WHERE project_id = ${projectId}`.pipe(
+          Effect.orDie,
+        );
+        return rows[0]
+          ? Schema.decodeUnknownSync(
+              Schema.fromJsonString(walkthroughSettingsSchema),
+            )(rows[0].payload)
+          : { mode: 'manual' as const, provider: 'claude' as const };
+      }),
+      saveSettings: Effect.fn('WalkthroughStore.saveSettings')(function* (
+        projectId: string,
+        settings: WalkthroughSettings,
+      ) {
+        yield* sql`INSERT INTO walkthrough_settings (project_id, payload) VALUES (${projectId}, ${JSON.stringify(settings)}) ON CONFLICT(project_id) DO UPDATE SET payload = excluded.payload`.pipe(
+          Effect.orDie,
+        );
+      }),
+      cachePullRequests: Effect.fn('WalkthroughStore.cachePullRequests')(
+        function* (
+          projectId: string,
+          pulls: readonly { branch: string; title: string }[],
+        ) {
+          yield* Effect.gen(function* () {
+            yield* sql`DELETE FROM walkthrough_pull_titles WHERE project_id = ${projectId}`;
+            for (const pull of pulls)
+              yield* sql`INSERT INTO walkthrough_pull_titles (project_id, branch, title) VALUES (${projectId}, ${pull.branch}, ${pull.title}) ON CONFLICT DO NOTHING`;
+          }).pipe(sql.withTransaction, Effect.orDie);
+        },
+      ),
+      readTitles: Effect.fn('WalkthroughStore.readTitles')(function* (
+        projectId: string,
+      ) {
+        return yield* sql<{
+          branch: string;
+          title: string;
+        }>`SELECT branch, title FROM walkthrough_pull_titles WHERE project_id = ${projectId}`.pipe(
+          Effect.orDie,
+        );
+      }),
       accept: Effect.fn('WalkthroughStore.accept')(function* (
         job: WalkthroughJob,
+        automaticKey?: string,
       ) {
         return yield* Effect.gen(function* () {
-          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid) WHERE status != 'failed' DO NOTHING`;
+          if (automaticKey !== undefined) {
+            const previous = yield* sql<{
+              payload: string;
+            }>`SELECT payload FROM walkthrough_runs WHERE id = (SELECT run_id FROM walkthrough_automatic WHERE pr_key = ${automaticKey})`;
+            if (previous[0]) return decode(previous[0].payload).run;
+          }
+          yield* sql`INSERT INTO walkthrough_runs (id, worktree_id, head_oid, status, payload) VALUES (${job.run.id}, ${job.run.worktreeId}, ${job.run.headOid}, 'queued', ${JSON.stringify(job)}) ON CONFLICT(worktree_id, head_oid, COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0)) WHERE status != 'failed' DO NOTHING`;
           const rows = yield* sql<{
             payload: string;
-          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid} ORDER BY sequence DESC LIMIT 1`;
-          return decode(rows[0]?.payload).run;
+          }>`SELECT payload FROM walkthrough_runs WHERE worktree_id = ${job.run.worktreeId} AND head_oid = ${job.run.headOid} AND COALESCE(json_extract(payload, '$.run.pullRequestNumber'), 0) = ${job.run.pullRequestNumber ?? 0} ORDER BY sequence DESC LIMIT 1`;
+          const run = decode(rows[0]?.payload).run;
+          if (automaticKey !== undefined)
+            yield* sql`INSERT INTO walkthrough_automatic (pr_key, run_id) VALUES (${automaticKey}, ${run.id})`;
+          return run;
         }).pipe(sql.withTransaction, Effect.orDie);
       }),
       read: Effect.fn('WalkthroughStore.read')(function* (worktreeId: string) {
