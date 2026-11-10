@@ -18,6 +18,7 @@ import {
   worktreeListHidden,
   worktreeSection,
 } from '../features/projects';
+import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
 
 export function WorktreesHome() {
@@ -69,6 +70,7 @@ export function WorktreesHome() {
               details={selected}
               mode="beside"
               content={WorktreeSectionView}
+              guide={WalkthroughGuide}
             />
           ) : (
             <Empty

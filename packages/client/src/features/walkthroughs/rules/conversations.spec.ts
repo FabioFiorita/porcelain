@@ -4,7 +4,17 @@ import {
   answerTo,
   canPostMessage,
   canRetryAnswer,
+  conversationFailure,
   conversationsAt,
+  developerTurns,
+  earlierConversations,
+  postLabels,
+  postOutcome,
+  savedSummary,
+  stopConversations,
+  postControls,
+  postedCommentLabel,
+  type DeveloperMessage,
   isAnswering,
   postDestination,
   savedMessageCount,
@@ -111,5 +121,163 @@ describe('walkthrough conversation rules', () => {
     expect(isAnswering(view([first]))).toBe(false);
     expect(postDestination(view([], 41))).toBe('pull-request');
     expect(postDestination(view([]))).toBe('copy');
+  });
+});
+
+const posted: DeveloperMessage = {
+  author: 'developer',
+  id: 'a',
+  text: 'Why?',
+  createdAt: '',
+  post: { status: 'none' },
+};
+it('offers posting until saved, Undo while saved, and only the link once posted', () => {
+  expect(postControls(posted)).toBe('available');
+  expect(postControls({ ...posted, post: { status: 'saved' } })).toBe('saved');
+  expect(
+    postControls({
+      ...posted,
+      post: {
+        status: 'posted',
+        url: 'https://example.com/comment',
+        postedAt: '',
+      },
+    }),
+  ).toBe('posted');
+});
+it('keeps whole-walkthrough and removed-stop threads together near the end', () => {
+  const whole = {
+    runId: 'old',
+    anchor: { kind: 'walkthrough' as const },
+    messages: [posted],
+  };
+  const removed = {
+    runId: 'old',
+    anchor: { kind: 'stop' as const, title: 'Removed stop' },
+    messages: [posted],
+  };
+  const current = {
+    runId: 'run',
+    anchor: { kind: 'stop' as const, title: 'Kept stop' },
+    messages: [posted],
+  };
+  expect(
+    earlierConversations(
+      {
+        runId: 'run',
+        pullRequestNumber: undefined,
+        conversations: [whole, current, removed],
+      },
+      ['Kept stop'],
+    ),
+  ).toEqual([whole, removed]);
+});
+it('explains a refused post and offers the brief without hiding other failures', () => {
+  expect(conversationFailure({ status: 409, message: 'Moved' })).toEqual({
+    text: 'Nothing was posted. Copy the brief instead.',
+    copy: true,
+  });
+  expect(
+    conversationFailure(
+      Object.assign(new Error('The repository moved.'), {
+        name: 'WalkthroughRepositoryChangedError',
+      }),
+    ),
+  ).toEqual({
+    text: 'Nothing was posted. Copy the brief instead.',
+    copy: true,
+  });
+  expect(conversationFailure(new Error('Offline'))).toEqual({
+    text: 'Offline',
+    copy: false,
+  });
+});
+
+it.each([
+  [
+    'https://github.com/example/sample/pull/423#issuecomment-1',
+    'Posted on #423',
+  ],
+  [
+    'https://github.example.com/example/sample/issues/17#issuecomment-9',
+    'Posted on #17',
+  ],
+  ['https://example.com/comments/9', 'Posted comment'],
+  ['not a URL', 'Posted comment'],
+])('labels the stored comment destination %s as %s', (url, label) => {
+  expect(postedCommentLabel(url)).toBe(label);
+});
+
+describe('posting and saving', () => {
+  const answered = { status: 'answered' as const, text: 'Because.' };
+  const asked = stop('Keep sessions', [
+    developer('a', { status: 'saved' }),
+    agent('a', answered),
+    developer('b', { status: 'saved' }),
+  ]);
+
+  it('posts on the pull request when there is one, and copies a prompt otherwise', () => {
+    expect(postLabels(423)).toEqual({
+      single: 'Post on #423',
+      together: 'Post together on #423',
+    });
+    expect(postLabels(undefined)).toEqual({
+      single: 'Copy as prompt',
+      together: 'Copy together',
+    });
+  });
+
+  it('pairs each developer message with its answer, if any', () => {
+    expect(
+      developerTurns(asked).map(({ message, reply }) => [
+        message.id,
+        reply?.state.status,
+      ]),
+    ).toEqual([
+      ['a', 'answered'],
+      ['b', undefined],
+    ]);
+    expect(stopConversations(view([asked]), 'Keep sessions')).toEqual([asked]);
+    expect(stopConversations(undefined, 'Keep sessions')).toEqual([]);
+  });
+
+  it('counts saved comments for the bar', () => {
+    expect(savedSummary(view([asked]))).toBe('2 comments saved');
+    expect(
+      savedSummary(view([stop('One', [developer('c', { status: 'saved' })])])),
+    ).toBe('1 comment saved');
+    expect(savedSummary(view([]))).toBeUndefined();
+  });
+
+  it('names the comments a partial post left saved, and hands back a brief', () => {
+    expect(
+      postOutcome({
+        outcome: {
+          status: 'posted',
+          url: 'https://example.com',
+          notPosted: ['b'],
+        },
+        view: view([asked]),
+      }),
+    ).toEqual({
+      kind: 'still-saved',
+      messages: [developer('b', { status: 'saved' })],
+    });
+    expect(
+      postOutcome({
+        outcome: { status: 'brief', text: 'Do this.' },
+        view: view([]),
+      }),
+    ).toEqual({ kind: 'brief', text: 'Do this.' });
+    expect(
+      postOutcome({
+        outcome: {
+          status: 'posted',
+          url: 'https://example.com',
+          notPosted: [],
+        },
+        view: view([]),
+      }),
+    ).toEqual({ kind: 'done' });
   });
 });

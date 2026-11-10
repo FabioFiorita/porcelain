@@ -17,3 +17,15 @@ export function WorkspaceReviewPane(
     />
   );
 }
+
+const noOverview = () => null;
+
+export function WorktreeChangesPane() {
+  return (
+    <ReviewPane
+      linkedReview={LinkedReviewPane}
+      currentReview={CurrentWorkspaceReview}
+      publishedOverview={noOverview}
+    />
+  );
+}

@@ -23,10 +23,38 @@ export {
 export {
   answerTo,
   canPostMessage,
+  conversationFailure,
+  earlierConversations,
+  postControls,
+  postedCommentLabel,
   canRetryAnswer,
   conversationsAt,
+  developerTurns,
   isAnswering,
+  postLabels,
+  postOutcome,
+  savedSummary,
+  stopConversations,
+  type PostOutcome,
   postDestination,
   savedMessageCount,
+  type AgentMessage,
+  type Conversation,
+  type DeveloperMessage,
   type WalkthroughAnchor,
 } from './conversations.ts';
+export {
+  readingOf,
+  worktreeOpening,
+  type Reading,
+  type WorktreeOpening,
+} from './opening.ts';
+export {
+  attentionLabel,
+  failureCopy,
+  readyUpdate,
+  foldedGrowth,
+  foldedNotSaid,
+  growthSign,
+  walkthroughMeta,
+} from './page.ts';

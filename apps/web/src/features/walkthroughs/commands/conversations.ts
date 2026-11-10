@@ -2,27 +2,22 @@ import { useState } from 'react';
 import { copyText } from '@/shared/workspace/copy';
 import {
   conversationFailure,
+  postOutcome,
   type DeveloperMessage,
-} from '../rules/conversations';
+} from '@porcelain/client/walkthroughs/rules';
 import { useAtom } from '@effect/atom-react';
-import { Cause, Exit } from 'effect';
-import { AsyncResult, type Atom } from 'effect/reactivity';
-import { walkthroughConversationCommands } from '@porcelain/client/walkthroughs';
+import { type Atom } from 'effect/reactivity';
+import {
+  walkthroughCommandBinding,
+  walkthroughConversationCommands,
+} from '@porcelain/client/walkthroughs';
 import {
   conversationSelection,
   type ConversationScope,
 } from '../queries/conversations';
 
 function useCommand<I, A, E>(atom: Atom.AtomResultFn<I, A, E>) {
-  const [result, send] = useAtom(atom, { mode: 'promiseExit' });
-  return {
-    waiting: AsyncResult.isWaiting(result),
-    run: async (input: I) => {
-      const exit = await send(input);
-      if (Exit.isFailure(exit)) throw Cause.squash(exit.cause);
-      return exit.value;
-    },
-  };
+  return walkthroughCommandBinding(useAtom(atom, { mode: 'promiseExit' }));
 }
 
 function useConversationCommands(props: ConversationScope) {
@@ -65,25 +60,13 @@ export function usePostActions(
       ? commands.post.run(message.id)
       : commands.postSaved.run(undefined);
     void pending.then((result) => {
-      if (result.outcome.status === 'brief')
-        copyText(result.outcome.text, 'brief', false);
-      if (
-        result.outcome.status === 'posted' &&
-        result.outcome.notPosted.length > 0
-      ) {
-        const ids = result.outcome.notPosted;
-        const texts = result.view.conversations
-          .flatMap((item) => item.messages)
-          .filter(
-            (item): item is DeveloperMessage =>
-              item.author === 'developer' && ids.includes(item.id),
-          )
-          .map((item) => item.text);
+      const outcome = postOutcome(result);
+      if (outcome.kind === 'brief') copyText(outcome.text, 'brief', false);
+      if (outcome.kind === 'still-saved')
         setNotice({
-          text: `Still saved: ${texts.join('; ')}. These comments belong to a different repository.`,
+          text: `Still saved: ${outcome.messages.map((item) => item.text).join('; ')}. These comments belong to a different repository.`,
           copy: false,
         });
-      }
     }, failed);
   };
 

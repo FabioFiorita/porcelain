@@ -1,13 +1,17 @@
 import { type ReactNode, useState } from 'react';
 import { SparklesIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
-import { shortOid } from '@porcelain/client/history/rules';
-import { counted } from '@porcelain/client/reviews/rules';
 import {
+  attentionLabel,
+  failureCopy,
+  foldedGrowth,
+  foldedNotSaid,
+  growthSign,
+  readyUpdate,
   stopPaths,
   walkthroughCalls,
   walkthroughFailureCopy,
-  walkthroughFileCount,
+  walkthroughMeta,
   walkthroughVerdict,
   type WalkthroughContent,
   type WalkthroughFailure,
@@ -29,21 +33,6 @@ import {
   PostSaved,
 } from './walkthrough-conversation';
 import { WalkthroughProof } from './walkthrough-evidence';
-
-const GROWTH_SIGNS = { added: '+', changed: '~', removed: '−' } as const;
-const GROWTH_SHOWN = 4;
-const NOT_SAID_SHOWN = 3;
-
-const KIND_LABELS: Record<
-  NonNullable<WalkthroughStop['attention']>['kind'],
-  string
-> = {
-  product: 'Product call',
-  contract: 'Contract call',
-  tradeoff: 'Tradeoff',
-  risk: 'Risk to accept',
-  accessibility: 'Accessibility call',
-};
 
 const scrollToId = (id: string) =>
   document
@@ -67,18 +56,9 @@ function Meta({
   run: WalkthroughRun;
   content?: WalkthroughContent;
 }) {
-  const parts = [
-    ...(run.pullRequestNumber === undefined
-      ? []
-      : [`#${run.pullRequestNumber}`]),
-    ...(content && walkthroughFileCount(content) > 0
-      ? [counted(walkthroughFileCount(content), 'file')]
-      : []),
-    `written for ${shortOid(run.headOid)}`,
-  ];
   return (
     <p className="font-mono text-caption text-muted-foreground">
-      {parts.join(' · ')}
+      {walkthroughMeta(run, content)}
     </p>
   );
 }
@@ -92,6 +72,18 @@ function Headline({ content }: { content: WalkthroughContent }) {
       {walkthroughVerdict(content)}
     </h1>
   );
+}
+
+function useFolded<T extends { hidden: number }>(fold: (open: boolean) => T) {
+  const [open, setOpen] = useState(false);
+  const folded = fold(open);
+  return {
+    ...folded,
+    more:
+      folded.hidden > 0 ? (
+        <FoldedLink hidden={folded.hidden} onClick={() => setOpen(true)} />
+      ) : null,
+  };
 }
 
 function FoldedLink({
@@ -110,9 +102,8 @@ function FoldedLink({
   );
 }
 
-function Growth({ items }: { items: WalkthroughContent['growth'] }) {
-  const [open, setOpen] = useState(false);
-  const shown = open ? items : items.slice(0, GROWTH_SHOWN);
+function Growth({ content }: { content: WalkthroughContent }) {
+  const { shown, more } = useFolded((open) => foldedGrowth(content, open));
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-ui font-semibold">How the system grew</h2>
@@ -131,7 +122,7 @@ function Growth({ items }: { items: WalkthroughContent['growth'] }) {
                 item.change === 'changed' && 'text-muted-foreground',
               )}
             >
-              {GROWTH_SIGNS[item.change]}
+              {growthSign(item)}
             </span>
             <span className="wrap-anywhere">
               <span className="font-medium">
@@ -144,29 +135,16 @@ function Growth({ items }: { items: WalkthroughContent['growth'] }) {
           </li>
         ))}
       </ul>
-      {items.length > GROWTH_SHOWN && !open && (
-        <FoldedLink
-          hidden={items.length - GROWTH_SHOWN}
-          onClick={() => setOpen(true)}
-        />
-      )}
+      {more}
     </section>
   );
 }
 
 function NotSaid({ content }: { content: WalkthroughContent }) {
-  const [open, setOpen] = useState(false);
-  const total = content.onlyInTranscript.length + content.stillUnclear.length;
+  const { explained, unclear, total, more } = useFolded((open) =>
+    foldedNotSaid(content, open),
+  );
   if (total === 0) return null;
-  const explained = open
-    ? content.onlyInTranscript
-    : content.onlyInTranscript.slice(0, NOT_SAID_SHOWN);
-  const unclear = open
-    ? content.stillUnclear
-    : content.stillUnclear.slice(
-        0,
-        Math.max(0, NOT_SAID_SHOWN - explained.length),
-      );
   return (
     <section className="flex flex-col gap-2 border-t pt-5">
       <h2 className="text-ui font-semibold">What the code doesn&apos;t say</h2>
@@ -187,12 +165,7 @@ function NotSaid({ content }: { content: WalkthroughContent }) {
           </li>
         ))}
       </ul>
-      {!open && total > NOT_SAID_SHOWN && (
-        <FoldedLink
-          hidden={total - NOT_SAID_SHOWN}
-          onClick={() => setOpen(true)}
-        />
-      )}
+      {more}
     </section>
   );
 }
@@ -214,7 +187,7 @@ function Calls({
           className="flex flex-col gap-3 rounded-xl border bg-card p-4 @3xl:p-5"
         >
           <div className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground">
-            <span>{KIND_LABELS[attention.kind]}</span>
+            <span>{attentionLabel(attention)}</span>
             <button
               type="button"
               className="hover:text-foreground"
@@ -398,7 +371,7 @@ function Written({
         {(outOfDate || updating || updateFailure) && stale}
       </header>
       <Calls content={content} conversation={conversation} />
-      {content.growth.length > 0 && <Growth items={content.growth} />}
+      {content.growth.length > 0 && <Growth content={content} />}
       <ol className="flex flex-col gap-10">
         {content.stops.map((stop, index) => (
           <Step
@@ -481,10 +454,7 @@ function Failed({
   waiting: boolean;
   onRetry: () => void;
 }) {
-  const copy = walkthroughFailureCopy(
-    failure,
-    run?.writer ?? { provider: 'claude', model: '', effort: 'high' },
-  );
+  const copy = failureCopy(failure, run);
   return (
     <Column>
       <header className="flex flex-col items-start gap-3">
@@ -543,13 +513,7 @@ export function WalkthroughDocument(props: DocumentProps) {
           />
         );
       case 'ready': {
-        const updateFailure =
-          phase.attempt?.state.status === 'failed'
-            ? {
-                failure: phase.attempt.state.failure,
-                writer: phase.attempt.writer,
-              }
-            : undefined;
+        const update = readyUpdate(phase, write);
         return (
           <Written
             key={phase.run.id}
@@ -558,19 +522,8 @@ export function WalkthroughDocument(props: DocumentProps) {
             outOfDate={phase.outOfDate}
             props={props}
             onUpdate={write.start}
-            updating={
-              write.waiting ||
-              phase.attempt?.state.status === 'queued' ||
-              phase.attempt?.state.status === 'running'
-            }
-            updateFailure={
-              write.failure
-                ? {
-                    failure: write.failure,
-                    writer: phase.attempt?.writer ?? phase.run.writer,
-                  }
-                : updateFailure
-            }
+            updating={update.updating}
+            updateFailure={update.failure}
           />
         );
       }

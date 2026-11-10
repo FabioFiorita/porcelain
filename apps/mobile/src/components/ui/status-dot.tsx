@@ -6,6 +6,7 @@ const tones = {
   warning: 'bg-graph-4',
   info: 'bg-graph-1',
   muted: 'bg-muted-foreground',
+  foreground: 'bg-foreground',
 };
 
 export function StatusDot({
