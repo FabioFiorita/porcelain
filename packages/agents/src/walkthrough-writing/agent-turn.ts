@@ -250,6 +250,13 @@ export const agentTurns = (options: {
       const isolated = isolatedEnvironment(turn.folder);
       const env =
         turn.provider === 'claude' ? claudeEnvironment(isolated) : isolated;
+      if (turn.provider === 'claude' && process.platform === 'darwin') {
+        const home = join(turn.folder, `home-${turn.label}`);
+        yield* fs.makeDirectory(join(home, 'Library'), { recursive: true });
+        for (const path of ['.claude', '.claude.json', 'Library/Keychains'])
+          yield* fs.symlink(join(homedir(), path), join(home, path));
+        env.HOME = home;
+      }
       const command = options.command ?? turn.provider;
       const resuming = turn.session.kind === 'resume';
       const answerPath = join(turn.folder, `answer-${turn.label}.json`);
