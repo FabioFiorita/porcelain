@@ -39,7 +39,7 @@ Preconditions: [surface baseline](README.md).
 3. Open a file from Files, a changed file from Changes and a commit from History; Back returns to the same section and position. Choose a section, go back to Worktrees and reopen: the same section shows.
 4. For a branch matched to a GitHub PR, `worktree-pull-request` reads Pull request #n and opens the [PR document](reviews.pull-request.md); without a matching PR it is absent.
 5. Back returns to Worktrees with its search, filters and expansion. Tap another worktree: the page and every section follow the new selection.
-6. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list with the four buttons in the top bar, and rotating keeps the destination and its state. Opening a file in Files folds the list (Show worktrees brings it back); see [Files](files.files.md) step 10. Check long names and larger text; on the smallest phone the subtitle truncates before the title.
+6. On a tablet, in landscape and portrait, choose a worktree: the page shows beside the list with the four buttons in the top bar, and rotating keeps the destination and its state. Opening a file in Files folds the list (Show worktrees brings it back); see [Files](files.files.md) step 10. Check long names and larger text; on the Small Phone the title truncates to a few letters, and to only an ellipsis when a destination adds its own top-bar action (Files, History).
 
 Automated coverage: `workspace-selection.spec.ts`, `worktree-section.spec.ts`.
 
