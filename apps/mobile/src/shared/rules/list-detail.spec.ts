@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  listPresentation,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
@@ -209,3 +210,33 @@ it.each([
     ).toBe(kind);
   },
 );
+
+it.each([
+  {
+    input: { overlay: true, portrait: false, hidden: false, open: false },
+    shown: 'beside',
+    why: 'landscape keeps the list beside the content',
+  },
+  {
+    input: { overlay: true, portrait: false, hidden: true, open: true },
+    shown: 'hidden',
+    why: 'landscape honours the hide button, not the portrait panel',
+  },
+  {
+    input: { overlay: true, portrait: true, hidden: false, open: false },
+    shown: 'hidden',
+    why: 'portrait gives the content the full width',
+  },
+  {
+    input: { overlay: true, portrait: true, hidden: true, open: true },
+    shown: 'over',
+    why: 'portrait slides the opened list over the content',
+  },
+  {
+    input: { overlay: false, portrait: true, hidden: false, open: false },
+    shown: 'beside',
+    why: 'a list that never overlays stays beside in portrait',
+  },
+] as const)('$why', ({ input, shown }) => {
+  expect(listPresentation(input)).toBe(shown);
+});

@@ -70,3 +70,20 @@ export function layoutMove({
     ? { kind: 'push', file }
     : { kind: 'none' };
 }
+
+export type ListPresentation = 'beside' | 'over' | 'hidden';
+
+export function listPresentation({
+  overlay,
+  portrait,
+  hidden,
+  open,
+}: {
+  overlay: boolean;
+  portrait: boolean;
+  hidden: boolean;
+  open: boolean;
+}): ListPresentation {
+  if (overlay && portrait) return open ? 'over' : 'hidden';
+  return hidden ? 'hidden' : 'beside';
+}

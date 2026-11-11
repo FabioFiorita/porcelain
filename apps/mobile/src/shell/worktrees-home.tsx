@@ -7,6 +7,7 @@ import {
   ListDetail,
   useLayoutMove,
   useListDetailLayout,
+  usePortrait,
 } from '../components/ui/list-detail';
 import { SettingsToolbar } from '../features/access';
 import { useOpenedFile } from '../features/files';
@@ -47,21 +48,37 @@ export function WorktreesHome() {
     },
   });
   const beside = layout.mode === 'beside' && selected !== undefined;
+  const portrait = usePortrait();
+  const shown = selected
+    ? `${selected.environment}/${selected.projectId}/${selected.worktreeId}`
+    : undefined;
+  const [open, setOpen] = useState(false);
+  const [close] = useState(() => () => setOpen(false));
+  const [seen, setSeen] = useState({ shown, portrait });
+  if (seen.shown !== shown || seen.portrait !== portrait) {
+    setSeen({ shown, portrait });
+    setOpen(false);
+  }
+  const listShown = portrait ? open : !hidden;
   return (
     <>
       <Stack.Screen options={{ headerLargeTitleEnabled: !beside }} />
       <SettingsToolbar>
         {beside ? (
           <Stack.Toolbar.Button
-            icon={headerIcon(hidden ? 'showList' : 'hideList')}
-            accessibilityLabel={hidden ? 'Show worktrees' : 'Hide worktrees'}
-            onPress={() => setHidden(!hidden)}
+            icon={headerIcon(listShown ? 'hideList' : 'showList')}
+            accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
+            onPress={() => (portrait ? setOpen(!open) : setHidden(!hidden))}
           />
         ) : null}
       </SettingsToolbar>
       <ListDetail
         layout={layout}
         listHidden={beside && hidden}
+        overlay={{
+          open: open || !selected,
+          onDismiss: selected ? close : undefined,
+        }}
         list={(mode) => <WorktreesScreen mode={mode} />}
         detail={
           selected ? (
