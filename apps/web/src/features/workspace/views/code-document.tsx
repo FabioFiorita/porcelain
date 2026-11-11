@@ -417,10 +417,12 @@ function CodeSurface({
         <CodeView
           ref={(handle) => {
             if (!handle) return;
-            const release = viewer.attach(handle);
+            const instance = handle.getInstance();
+            if (!instance) return;
+            const release = viewer.attach(instance);
             const frame = requestAnimationFrame(() => {
               viewer.restorePosition(
-                handle,
+                instance,
                 options.stickyHeaders && !options.disableFileHeader
                   ? (options.itemMetrics?.diffHeaderHeight ??
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)

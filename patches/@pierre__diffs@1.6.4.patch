@@ -1,5 +1,109 @@
+diff --git a/dist/components/CodeView.d.ts b/dist/components/CodeView.d.ts
+index 234ec4baa4a9364088917b24a64a6377d16583f8..5ebe87df36fb7c02d751247523dc4a3ffd98a9fc 100644
+--- a/dist/components/CodeView.d.ts
++++ b/dist/components/CodeView.d.ts
+@@ -208,6 +208,7 @@ declare class CodeView<LAnnotation = undefined, Caret = undefined> {
+   private readonly diffOptionsPrototype;
+   private pendingScrollTarget;
+   private pendingLayoutAnchor;
++  private headerResizeAnchor;
+   private shouldFixContainerFocus;
+   private scrollAnimation;
+   private root;
+diff --git a/dist/components/CodeView.js b/dist/components/CodeView.js
+index ee5c91c5ab44742994d900a81dbd8e9c508efb49..652f9040f4e4e58d577266ca41a06fe4dbf141e4 100644
+--- a/dist/components/CodeView.js
++++ b/dist/components/CodeView.js
+@@ -187,6 +187,7 @@ var CodeView = class CodeView {
+ 	diffOptionsPrototype;
+ 	pendingScrollTarget;
+ 	pendingLayoutAnchor;
++	headerResizeAnchor;
+ 	shouldFixContainerFocus = false;
+ 	scrollAnimation;
+ 	root;
+@@ -458,6 +459,7 @@ var CodeView = class CodeView {
+ 			bottom: 0
+ 		};
+ 		this.pendingLayoutAnchor = void 0;
++		this.headerResizeAnchor = void 0;
+ 		this.shouldFixContainerFocus = false;
+ 		this.height = 0;
+ 		this.scrollTop = 0;
+@@ -1809,6 +1811,7 @@ var CodeView = class CodeView {
+ 		this.render();
+ 	};
+ 	clearPendingScroll = () => {
++		this.headerResizeAnchor = void 0;
+ 		this.pendingScrollTarget = void 0;
+ 		this.pendingLayoutAnchor = void 0;
+ 		this.scrollAnimation = void 0;
+@@ -1875,14 +1878,21 @@ var CodeView = class CodeView {
+ 	* words, the first file or first line who's top is fully in the viewport).
+ 	*/
+ 	getScrollAnchor(scrollTop, availableItems = this.idToItem) {
++		const headerChanged = this.header.element != null && this.header.element.getBoundingClientRect().height !== this.header.height;
++		const remember = (anchor) => {
++			if (!headerChanged) this.headerResizeAnchor = anchor == null ? void 0 : { anchor, item: this.idToItem.get(anchor.id) };
++			return anchor;
++		};
+ 		let skippedItem;
+ 		const { pendingLayoutAnchor } = this;
+ 		if (pendingLayoutAnchor != null) {
+ 			const pendingItem = this.idToItem.get(pendingLayoutAnchor.id);
+-			if (pendingItem != null && availableItems.get(pendingLayoutAnchor.id) === pendingItem) return pendingLayoutAnchor;
++			if (pendingItem != null && availableItems.get(pendingLayoutAnchor.id) === pendingItem) return remember(pendingLayoutAnchor);
+ 			if (pendingItem != null) skippedItem = pendingItem;
+ 		}
+-		if (scrollTop <= 0) return;
++		const previous = this.headerResizeAnchor;
++		if (headerChanged && this.pendingScrollTarget == null && previous != null && this.idToItem.get(previous.anchor.id) === previous.item && availableItems.get(previous.anchor.id) === previous.item) return previous.anchor;
++		if (scrollTop <= 0) return remember(void 0);
+ 		const { firstIndex, lastIndex, stickyTop, stickyBottom } = this.renderState;
+ 		if (firstIndex === -1 || lastIndex === -1) return;
+ 		const viewportHeight = this.getHeight();
+@@ -1897,32 +1907,33 @@ var CodeView = class CodeView {
+ 				skippedItem ??= item;
+ 				continue;
+ 			}
+-			if (absoluteItemTop >= scrollTop) return {
++			if (absoluteItemTop >= scrollTop) return remember({
+ 				type: "item",
+ 				id: item.item.id,
+ 				viewportOffset: absoluteItemTop - scrollTop
+-			};
++			});
+ 			const localViewportTop = this.getScrollAnchorViewportTop(absoluteItemTop, scrollTop) - absoluteItemTop;
+ 			const lineAnchor = item.instance.getNumericScrollAnchor(localViewportTop);
+ 			if (lineAnchor != null) {
+ 				const absoluteLineTop = absoluteItemTop + lineAnchor.top;
+-				return {
++				return remember({
+ 					type: "line",
+ 					id: item.item.id,
+ 					lineNumber: lineAnchor.lineNumber,
+ 					side: lineAnchor.side,
+ 					viewportOffset: absoluteLineTop - scrollTop
+-				};
++				});
+ 			}
+ 		}
+ 		if (skippedItem != null) for (let index = skippedItem.index + 1; index < this.items.length; index++) {
+ 			const candidate = this.items[index];
+-			if (candidate != null && availableItems.get(candidate.item.id) === candidate) return {
++			if (candidate != null && availableItems.get(candidate.item.id) === candidate) return remember({
+ 				type: "item",
+ 				id: candidate.item.id,
+ 				viewportOffset: 0
+-			};
++			});
+ 		}
++		return remember(void 0);
+ 	}
+ 	/**
+ 	* Given a scroll anchor, attempt to resolve a newly updated (and clamped)
 diff --git a/package.json b/package.json
-index 0cc43c4a7de60dc1a80a4b383f1fe4a477ae6d07..deac4748348d9c155c9892163a98569c020cac08 100644
+index fa94face3ec7ea38fa8242b81d7169dce0d6bcb1..f83acdc689a45839c70713dc70963cca183fd068 100644
 --- a/package.json
 +++ b/package.json
 @@ -33,6 +33,18 @@
