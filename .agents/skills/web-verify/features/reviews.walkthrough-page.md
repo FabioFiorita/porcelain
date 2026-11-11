@@ -102,3 +102,9 @@ Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations
 13. After a later walkthrough has outcome `nothing`, retained threads still appear under "Earlier comments" with Undo, copy/post controls and the saved bar. A posted link always labels its original comment destination, even when the current walkthrough names another PR; an unrecognized URL reads "Posted comment".
 
 14. With two ready walkthroughs on different branches in one checkout, read A’s comment and switch to B. B’s heading, comments and saved bar must name B; A’s comments disappear. Every conversation request includes the displayed ready run ID, so a pending A post remains targeted to A even if the branch switches.
+
+### Pull request evidence at another commit
+
+With a PR behind the local captured head, write a walkthrough. It becomes ready and keeps the PR target for comments, with no PR images or checks. The meta line says once: “Screenshots and checks are not shown: the pull request is at another commit. Push, then update.” Update remains available even without local edits. Push that head, then Update: the new run clears the notice and can show matching evidence. Missing GitHub accounts and GitHub read failures likewise leave the page ready with their shared explanatory notice. A walkthrough without a PR needs no notice.
+
+A successfully loaded list supplies the open PR for the current branch, including during background refresh and when it replaces the displayed run's PR. If no open PR for this branch is known from that list, retain the displayed run's PR. With neither, the write has no PR target. A failed read with cached success still uses that last loaded list; a never-loaded list or failure without cached success supplies none.

@@ -1,3 +1,5 @@
+import { GitHubReadError } from '@porcelain/reviews/errors';
+import type { githubPullRequestSchema } from '@porcelain/reviews/models';
 import { expect, it } from 'vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer } from 'effect';
@@ -153,4 +155,129 @@ it('stops a redirect loop after five redirects', async () => {
   );
   expect(requested).toHaveLength(6);
   expect(evidence.assets).toEqual([]);
+});
+
+const missingJob: WalkthroughJob = {
+  worktreePath: '/unused',
+  patch: '',
+  files: [],
+  run: {
+    id: 'run',
+    projectId: 'project',
+    worktreeId: 'worktree',
+    pullRequestNumber: 42,
+    baseOid: 'base',
+    headOid: 'local',
+    contentTreeOid: 'tree',
+    baseRef: 'main',
+    includesUncommitted: false,
+    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
+    createdAt: '2026-11-10T00:00:00Z',
+    state: { status: 'queued' },
+  },
+};
+
+it('reads matching images and checks but never fetches images at another commit or without GitHub access', async () => {
+  let head = 'local';
+  let account: string | undefined = 'fixture';
+  let outage = false;
+  const fetched: string[] = [];
+  const fetchImage: typeof fetch = async (input) => {
+    fetched.push(input instanceof Request ? input.url : input.toString());
+    return new Response(new Uint8Array([137, 80, 78, 71]), {
+      headers: { 'content-type': 'image/png' },
+    });
+  };
+  const pr: typeof githubPullRequestSchema.Type = {
+    number: 42,
+    title: 'Change',
+    body: 'Change',
+    bodyHTML: '<img src="https://github.com/user-attachments/assets/fixture">',
+    state: 'OPEN',
+    url: 'https://github.com/o/r/pull/42',
+    isDraft: false,
+    author: { login: 'fixture' },
+    headRefName: 'topic',
+    baseRefName: 'main',
+    headRefOid: 'local',
+    updatedAt: '2026-11-10T00:00:00Z',
+    mergeable: 'MERGEABLE',
+    commits: {
+      nodes: [
+        {
+          commit: {
+            statusCheckRollup: {
+              state: 'SUCCESS',
+              contexts: { nodes: [], pageInfo: { hasNextPage: false } },
+            },
+          },
+        },
+      ],
+    },
+    labels: { nodes: [], pageInfo: { hasNextPage: false } },
+    comments: { nodes: [], pageInfo: { hasNextPage: false } },
+    reviews: { nodes: [], pageInfo: { hasNextPage: false } },
+  };
+  const dependencies = Layer.mergeAll(
+    NodeServices.layer,
+    Layer.succeed(FetchHttpClient.Fetch, fetchImage),
+    Layer.succeed(GitHubAccountStore, {
+      read: () =>
+        Effect.succeed({
+          repository: 'o/r',
+          detected: account,
+          override: undefined,
+        }),
+      detect: () => Effect.void,
+      override: () => Effect.void,
+    }),
+    Layer.succeed(GitHubReader, {
+      accounts: () => Effect.succeed([]),
+      canRead: () => Effect.succeed(true),
+      read: () =>
+        outage
+          ? Effect.fail(new GitHubReadError({ reason: 'invalid-response' }))
+          : Effect.succeed({ ...pr, headRefOid: head }),
+      list: () => Effect.die('Unused'),
+      checks: () => Effect.die('Unused'),
+    }),
+  );
+  const read = () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        return yield* (yield* EvidenceReader).read(missingJob);
+      }).pipe(
+        Effect.provide(
+          githubEvidenceReaderLayer(LIMITS.git).pipe(
+            Layer.provide(dependencies),
+          ),
+        ),
+      ),
+    );
+  const matching = await read();
+  expect(matching.checks).toBe('SUCCESS: ');
+  expect(matching.assets[0]?.bytes).toEqual(Buffer.from([137, 80, 78, 71]));
+  expect(fetched).toEqual([
+    'https://github.com/user-attachments/assets/fixture',
+  ]);
+  head = 'behind';
+  expect(await read()).toMatchObject({
+    unavailable: 'head_mismatch',
+    assets: [],
+    checks: undefined,
+  });
+  account = undefined;
+  expect(await read()).toMatchObject({
+    unavailable: 'github_account',
+    assets: [],
+  });
+  account = 'fixture';
+  outage = true;
+  expect(await read()).toMatchObject({
+    unavailable: 'github_unavailable',
+    assets: [],
+  });
+  expect(fetched).toEqual([
+    'https://github.com/user-attachments/assets/fixture',
+  ]);
 });

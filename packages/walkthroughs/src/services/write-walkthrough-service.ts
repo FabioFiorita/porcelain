@@ -26,6 +26,7 @@ export class WriteWalkthroughService extends Context.Service<
           let run = { ...job.run, state: { status: 'running' as const } };
           yield* Effect.gen(function* () {
             const evidence = yield* evidenceReader.read(job);
+            run = { ...run, evidenceUnavailable: evidence.unavailable };
             yield* store.saveAssets(run.id, evidence.assets);
             const transcript = yield* transcripts.read(job.worktreePath);
             const result = yield* writer.write({
@@ -38,7 +39,13 @@ export class WriteWalkthroughService extends Context.Service<
               },
             });
             const content = qualifyWalkthrough(
-              result.content,
+              {
+                ...result.content,
+                checks:
+                  evidence.unavailable === undefined
+                    ? result.content.checks
+                    : undefined,
+              },
               job.files,
               evidence.assets.map((asset) => asset.id),
             );

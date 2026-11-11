@@ -176,6 +176,10 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           const same =
             current !== undefined &&
             current.state.status !== 'failed' &&
+            !(
+              current.state.status === 'ready' &&
+              current.evidenceUnavailable !== undefined
+            ) &&
             current.baseOid === job.run.baseOid &&
             current.baseRef === job.run.baseRef &&
             current.contentTreeOid === job.run.contentTreeOid &&

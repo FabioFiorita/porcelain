@@ -10,7 +10,7 @@ import {
   walkthroughFailureCopy,
   walkthroughFileCount,
   walkthroughPhase,
-  walkthroughPullRequest,
+  walkthroughStartRequest,
   walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughVerdict,
@@ -29,6 +29,7 @@ import {
   growthSign,
   readyUpdate,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
 } from './page.ts';
 import { AsyncResult } from 'effect/reactivity';
 
@@ -377,20 +378,60 @@ describe('walkthroughStartFailure', () => {
   });
 });
 
-describe('walkthroughPullRequest', () => {
-  const pulls = [
+describe('walkthroughStartRequest', () => {
+  const pullRequests = [
     { number: 7, headBranch: 'feature', state: 'closed' },
     { number: 8, headBranch: 'feature', state: 'open' },
     { number: 9, headBranch: 'other', state: 'open' },
   ];
-
-  it('finds the open pull request of the worktree branch', () => {
-    expect(walkthroughPullRequest(pulls, 'feature')).toBe(8);
+  it('keeps the displayed PR in the request when the list is unavailable or loading', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests: undefined,
+        branch: 'feature',
+        displayedRun: { pullRequestNumber: 423 },
+        base: 'main',
+      }),
+    ).toEqual({ base: 'main', pullRequestNumber: 423 });
   });
-
-  it('has no number without a branch or an open pull request', () => {
-    expect(walkthroughPullRequest(pulls, undefined)).toBeUndefined();
-    expect(walkthroughPullRequest(pulls, 'main')).toBeUndefined();
+  it('uses an open PR for this branch and otherwise keeps the displayed target', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'feature',
+        displayedRun: { pullRequestNumber: 423 },
+      }),
+    ).toEqual({ pullRequestNumber: 8 });
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'main',
+        displayedRun: { pullRequestNumber: 423 },
+      }),
+    ).toEqual({ pullRequestNumber: 423 });
+  });
+  it('writes without a PR when neither the list nor the displayed run names one', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests: undefined,
+        branch: 'feature',
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: undefined,
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'main',
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
   });
 });
 
@@ -656,4 +697,33 @@ describe('walkthrough code scopes', () => {
       }),
     ).toEqual({ branch: ['renamed.ts'], worktree: ['renamed-again.ts'] });
   });
+});
+
+it('explains missing PR evidence once with shared web and mobile copy and clears on a matching run', () => {
+  const ready = run({ status: 'running' });
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'head_mismatch',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: the pull request is at another commit. Push, then update.',
+  );
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'github_account',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: choose a GitHub account for this project, then update.',
+  );
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'github_unavailable',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: GitHub could not be reached. Try updating later.',
+  );
+  expect(walkthroughEvidenceNotice(ready)).toBeUndefined();
 });

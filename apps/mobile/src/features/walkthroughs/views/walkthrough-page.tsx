@@ -13,6 +13,7 @@ import {
   walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
   WALKTHROUGH_STALE_TEXT,
   type walkthroughPhase,
   walkthroughVerdict,
@@ -114,6 +115,9 @@ function Meta({
   return (
     <Text variant="mono" tone="muted">
       {walkthroughMeta(run, content)}
+      {walkthroughEvidenceNotice(run)
+        ? `\n${walkthroughEvidenceNotice(run)}`
+        : ''}
     </Text>
   );
 }
@@ -278,18 +282,20 @@ function Calls({
   ));
 }
 
-function updateText(failure: UpdateFailure | undefined) {
-  if (!failure) return WALKTHROUGH_STALE_TEXT;
+function updateText(failure: UpdateFailure | undefined, outOfDate: boolean) {
+  if (!failure) return outOfDate ? WALKTHROUGH_STALE_TEXT : undefined;
   const { title } = walkthroughFailureCopy(failure.failure, failure.writer);
   if (failure.failure.kind === 'signed_out') return title;
   return `${title} ${failure.failure.message}`;
 }
 
 function UpdateNotice({
+  outOfDate,
   updating,
   failure,
   onUpdate,
 }: {
+  outOfDate: boolean;
   updating: boolean;
   failure: UpdateFailure | undefined;
   onUpdate: () => void;
@@ -308,7 +314,7 @@ function UpdateNotice({
         className="shrink"
         {...(failure ? { accessibilityRole: 'alert' as const } : {})}
       >
-        {updateText(failure)}
+        {updateText(failure, outOfDate)}
       </Text>
       <Button
         label={failure ? 'Try again' : 'Update walkthrough'}
@@ -353,8 +359,9 @@ function Written({
       <Meta run={run} content={content} />
       <Headline content={content} />
       <RichText text={content.summary} />
-      {outOfDate || updating || updateFailure ? (
+      {outOfDate || run.evidenceUnavailable || updating || updateFailure ? (
         <UpdateNotice
+          outOfDate={outOfDate}
           updating={updating}
           failure={updateFailure}
           onUpdate={onUpdate}
@@ -578,7 +585,10 @@ export function WalkthroughPage({
   workspace: Workspace;
   phase: Phase;
 }) {
-  const write = useStartWalkthrough(workspace);
+  const write = useStartWalkthrough(
+    workspace,
+    phase.kind !== 'unwritten' ? phase.run : undefined,
+  );
   const startFailure =
     write.failure && (phase.kind === 'unwritten' || phase.kind === 'failed')
       ? write.failure

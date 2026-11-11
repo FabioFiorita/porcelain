@@ -1,4 +1,7 @@
-export { startWalkthrough } from './commands/start-walkthrough.ts';
+export {
+  startWalkthrough,
+  walkthroughStartBinding,
+} from './commands/start-walkthrough.ts';
 export { walkthroughConversationCommands } from './commands/conversations.ts';
 export { walkthroughCommandBinding } from './commands/command-binding.ts';
 export { readWalkthroughConversations } from './queries/conversations.ts';

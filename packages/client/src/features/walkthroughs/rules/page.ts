@@ -120,3 +120,16 @@ export function readyUpdate(
       : failed,
   };
 }
+
+export function walkthroughEvidenceNotice(run: WalkthroughRun) {
+  switch (run.evidenceUnavailable) {
+    case 'head_mismatch':
+      return 'Screenshots and checks are not shown: the pull request is at another commit. Push, then update.';
+    case 'github_account':
+      return 'Screenshots and checks are not shown: choose a GitHub account for this project, then update.';
+    case 'github_unavailable':
+      return 'Screenshots and checks are not shown: GitHub could not be reached. Try updating later.';
+    case undefined:
+      return undefined;
+  }
+}

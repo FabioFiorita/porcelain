@@ -1,16 +1,17 @@
 import { useAtom, useAtomValue } from '@effect/atom-react';
-import { Cause } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { readProjectPullRequests } from '@porcelain/client/projects';
-import { startWalkthrough } from '@porcelain/client/walkthroughs';
 import {
-  walkthroughPullRequest,
-  walkthroughStartFailure,
-} from '@porcelain/client/walkthroughs/rules';
+  startWalkthrough,
+  walkthroughStartBinding,
+} from '@porcelain/client/walkthroughs';
+import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import type { Workspace } from '../../projects/index';
 import { walkthroughSelection } from '../queries/walkthrough';
 
-export function useStartWalkthrough(workspace: Workspace) {
+export function useStartWalkthrough(
+  workspace: Workspace,
+  displayedRun: WalkthroughRun | undefined,
+) {
   const [result, start] = useAtom(
     startWalkthrough(walkthroughSelection(workspace)),
     { mode: 'promiseExit' },
@@ -21,20 +22,9 @@ export function useStartWalkthrough(workspace: Workspace) {
       projectId: workspace.scope.projectId,
     }),
   );
-  const available = AsyncResult.isSuccess(pulls) ? pulls.value : undefined;
-  const pullRequestNumber =
-    available?.kind === 'available'
-      ? walkthroughPullRequest(
-          available.pullRequests,
-          workspace.worktree.branch ?? undefined,
-        )
-      : undefined;
-  return {
-    waiting: AsyncResult.isWaiting(result),
-    failure: AsyncResult.isFailure(result)
-      ? walkthroughStartFailure(Cause.squash(result.cause))
-      : undefined,
-    start: () =>
-      void start(pullRequestNumber === undefined ? {} : { pullRequestNumber }),
-  };
+  return walkthroughStartBinding([result, start], {
+    pulls,
+    branch: workspace.worktree.branch ?? undefined,
+    displayedRun,
+  });
 }

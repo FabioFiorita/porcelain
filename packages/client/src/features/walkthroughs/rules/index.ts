@@ -6,8 +6,6 @@ export {
   stopPaths,
   walkthroughCalls,
   walkthroughFailureCopy,
-  walkthroughPullRequest,
-  walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughPhase,
   walkthroughVerdict,
@@ -49,5 +47,6 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
   WALKTHROUGH_STALE_TEXT,
 } from './page.ts';

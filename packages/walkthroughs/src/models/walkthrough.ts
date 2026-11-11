@@ -109,6 +109,9 @@ export const walkthroughRunSchema = Schema.Struct({
   pullRequestRepository: Schema.optional(
     Schema.Struct({ owner: Schema.String, repo: Schema.String }),
   ),
+  evidenceUnavailable: Schema.optional(
+    Schema.Literals(['head_mismatch', 'github_account', 'github_unavailable']),
+  ),
   baseOid: Schema.String,
   headOid: Schema.String,
   contentTreeOid: Schema.String,
@@ -181,6 +184,7 @@ export type EvidenceAsset = {
   readonly caption: string;
 };
 export type WalkthroughEvidence = {
+  readonly unavailable?: WalkthroughRun['evidenceUnavailable'];
   readonly title: string;
   readonly body: string;
   readonly checks: WalkthroughContent['checks'];
