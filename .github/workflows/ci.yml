@@ -136,6 +136,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-apt-mirrors
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -163,6 +164,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-apt-mirrors
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -195,6 +197,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-apt-mirrors
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow the disposable server's user namespace
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
