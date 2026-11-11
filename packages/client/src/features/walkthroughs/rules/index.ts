@@ -49,5 +49,6 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
   WALKTHROUGH_STALE_TEXT,
 } from './page.ts';

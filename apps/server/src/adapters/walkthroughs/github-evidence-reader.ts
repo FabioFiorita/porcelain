@@ -4,9 +4,18 @@ import { FetchHttpClient } from 'effect/http';
 import { GitHubReader, GitHubAccountStore } from '@porcelain/reviews/ports';
 import { EvidenceReader } from '@porcelain/walkthroughs/ports';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
-import type { EvidenceAsset } from '@porcelain/walkthroughs/models';
+import type {
+  EvidenceAsset,
+  WalkthroughEvidence,
+} from '@porcelain/walkthroughs/models';
 import { captureGitPlatform, readOriginUrl } from '@porcelain/git/discovery';
 import type { Limits } from '../../config/limits.ts';
+
+function withoutEvidence(
+  unavailable: WalkthroughEvidence['unavailable'],
+): WalkthroughEvidence {
+  return { title: '', body: '', checks: undefined, assets: [], unavailable };
+}
 
 function allowedImageUrl(url: URL): boolean {
   return (
@@ -66,11 +75,7 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
                 .replace(/\.git$/, '');
               const available = yield* github.accounts();
               const account = available[0];
-              if (!account)
-                return yield* new WalkthroughFailedError({
-                  kind: 'other',
-                  message: 'Sign in to GitHub to read this pull request.',
-                });
+              if (!account) return withoutEvidence('github_account');
               preference = {
                 repository,
                 detected: account,
@@ -80,10 +85,7 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
             const [owner, repo] = preference.repository.split('/');
             const account = preference.override ?? preference.detected;
             if (!owner || !repo || !account)
-              return yield* new WalkthroughFailedError({
-                kind: 'other',
-                message: 'Choose a GitHub account for this project.',
-              });
+              return withoutEvidence('github_account');
             const pr = yield* github.read({
               owner,
               repo,
@@ -91,11 +93,7 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
               number: job.run.pullRequestNumber,
             });
             if (pr.headRefOid !== job.run.headOid)
-              return yield* new WalkthroughFailedError({
-                kind: 'other',
-                message:
-                  'The pull request head no longer matches the pinned walkthrough head.',
-              });
+              return withoutEvidence('head_mismatch');
             const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
             const checks = rollup
               ? `${rollup.state}: ${rollup.contexts.nodes.map((check) => (check.__typename === 'CheckRun' ? `${check.name}: ${check.conclusion ?? check.status}` : `${check.context}: ${check.state}`)).join('; ')}`
@@ -169,14 +167,7 @@ export const githubEvidenceReaderLayer = (limits: Limits['git']) =>
             }
             return { title: pr.title, body: pr.body, checks, assets };
           },
-          Effect.mapError(
-            () =>
-              new WalkthroughFailedError({
-                kind: 'other',
-                message:
-                  'The pull request evidence could not be read from GitHub.',
-              }),
-          ),
+          Effect.orElseSucceed(() => withoutEvidence('github_unavailable')),
         ),
       });
     }),

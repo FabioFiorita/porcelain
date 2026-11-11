@@ -29,6 +29,7 @@ import {
   growthSign,
   readyUpdate,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
 } from './page.ts';
 import { AsyncResult } from 'effect/reactivity';
 
@@ -656,4 +657,33 @@ describe('walkthrough code scopes', () => {
       }),
     ).toEqual({ branch: ['renamed.ts'], worktree: ['renamed-again.ts'] });
   });
+});
+
+it('explains missing PR evidence once with shared web and mobile copy and clears on a matching run', () => {
+  const ready = run({ status: 'running' });
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'head_mismatch',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: the pull request is at another commit. Push, then update.',
+  );
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'github_account',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: choose a GitHub account for this project, then update.',
+  );
+  expect(
+    walkthroughEvidenceNotice({
+      ...ready,
+      evidenceUnavailable: 'github_unavailable',
+    }),
+  ).toBe(
+    'Screenshots and checks are not shown: GitHub could not be reached. Try updating later.',
+  );
+  expect(walkthroughEvidenceNotice(ready)).toBeUndefined();
 });

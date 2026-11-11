@@ -12,6 +12,7 @@ import {
   walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughMeta,
+  walkthroughEvidenceNotice,
   WALKTHROUGH_STALE_TEXT,
   walkthroughVerdict,
   type WalkthroughContent,
@@ -58,8 +59,11 @@ function Meta({
   content?: WalkthroughContent;
 }) {
   return (
-    <p className="font-mono text-caption text-muted-foreground">
+    <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
       {walkthroughMeta(run, content)}
+      {walkthroughEvidenceNotice(run)
+        ? `\n${walkthroughEvidenceNotice(run)}`
+        : ''}
     </p>
   );
 }
@@ -233,7 +237,7 @@ function Step({
       id={stepId(step)}
       className="flex scroll-mt-6 flex-col gap-2.5 border-t pt-5"
     >
-      <p className="font-mono text-caption text-muted-foreground">
+      <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
         Step {step}
         {stop.attention && (
           <button
@@ -309,7 +313,7 @@ function Written({
   };
   let notice = (
     <>
-      <span>{WALKTHROUGH_STALE_TEXT}</span>
+      {outOfDate && <span>{WALKTHROUGH_STALE_TEXT}</span>}
       <Button size="sm" variant="outline" onClick={onUpdate}>
         Update walkthrough
       </Button>
@@ -346,7 +350,11 @@ function Written({
           <p className="text-prose text-foreground-2">
             <RichText text={content.summary} />
           </p>
-          {(outOfDate || updating || updateFailure) && stale}
+          {(outOfDate ||
+            run.evidenceUnavailable ||
+            updating ||
+            updateFailure) &&
+            stale}
           <div className="-ml-2">
             <Button
               variant="link"
@@ -369,7 +377,8 @@ function Written({
         <p className="text-prose text-foreground-2">
           <RichText text={content.summary} />
         </p>
-        {(outOfDate || updating || updateFailure) && stale}
+        {(outOfDate || run.evidenceUnavailable || updating || updateFailure) &&
+          stale}
       </header>
       <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth content={content} />}
