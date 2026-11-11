@@ -24,7 +24,7 @@ Fixture commands remain on the lifecycle CLI: `pairing-link`, `agent`, and `serv
 
 Relaunch the development client with that development-client URL, not `open --relaunch`: a plain relaunch brings back the Expo tools button, which covers the top bar's trailing buttons. Never run `close` on a device tool's bound session; it ends the lease's session, and only a new lease (device close with shutdown, then open) recovers it.
 
-Rotate with `orientation landscape-left` and `orientation portrait` (not `rotate`), on iPad as on Android.
+Rotate an iPad with `orientation landscape-left` and `orientation portrait` (not `rotate`). The Simlock Medium Tablet emulator did not rotate this way (the driver reports the rotation unconfirmed), so check a screenshot after every rotation.
 
 ## Scroll the review document
 
