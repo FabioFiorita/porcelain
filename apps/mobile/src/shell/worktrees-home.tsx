@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { WorktreeSectionView } from './worktree-section-view';
@@ -21,6 +21,7 @@ import {
 } from '../features/projects';
 import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
+import { chosenList } from '../shared/application/key-registry';
 
 export function WorktreesHome() {
   const selected = useSelectedWorktree();
@@ -50,6 +51,7 @@ export function WorktreesHome() {
   const beside = layout.mode === 'beside' && selected !== undefined;
   const portrait = usePortrait();
   const [open, setOpen] = useState(false);
+  const chooseList = useAtomSet(chosenList);
   const [close] = useState(() => () => setOpen(false));
   const [seenPortrait, setSeenPortrait] = useState(portrait);
   if (seenPortrait !== portrait) {
@@ -65,7 +67,11 @@ export function WorktreesHome() {
           <Stack.Toolbar.Button
             icon={headerIcon(listShown ? 'hideList' : 'showList')}
             accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
-            onPress={() => (portrait ? setOpen(!open) : setHidden(!hidden))}
+            onPress={() => {
+              if (!portrait) return setHidden(!hidden);
+              if (!open) chooseList(undefined);
+              return setOpen(!open);
+            }}
           />
         ) : null}
       </SettingsToolbar>
@@ -73,7 +79,9 @@ export function WorktreesHome() {
         layout={layout}
         listHidden={beside && hidden}
         overlay={selected ? { open, onDismiss: close } : undefined}
-        list={(mode) => <WorktreesScreen mode={mode} onOpen={close} />}
+        list={(mode, listHidden) => (
+          <WorktreesScreen mode={mode} hidden={listHidden} onOpen={close} />
+        )}
         detail={
           selected ? (
             <WorktreeDetail

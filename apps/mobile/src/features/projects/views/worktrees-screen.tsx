@@ -16,14 +16,17 @@ import { useWorkspacePickerModel } from './workspace-picker-model';
 export function WorktreesScreen({
   mode,
   onOpen,
+  hidden,
 }: {
   mode: ListDetailMode;
   onOpen?: (() => void) | undefined;
+  hidden?: boolean | undefined;
 }) {
   const router = useRouter();
   const remember = useAtomSet(openedWorktree);
   return (
     <WorktreeNavigator
+      hidden={hidden}
       onOpenWorktree={(entry) => {
         const details = worktreeDetails(entry);
         onOpen?.();

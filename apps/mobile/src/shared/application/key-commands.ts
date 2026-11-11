@@ -104,7 +104,9 @@ export function useListCursor({
   onOpen,
   onToggle,
   onSearch,
+  hidden = false,
 }: {
+  hidden?: boolean | undefined;
   rows: readonly CursorRow[];
   selected?: string | undefined;
   onOpen: (key: string) => void;
@@ -113,7 +115,7 @@ export function useListCursor({
 }): ListCursor {
   const owner = useId();
   const focused = useIsFocused();
-  useAtomMount(focused ? listPresence(owner) : absentList);
+  useAtomMount(focused && !hidden ? listPresence(owner) : absentList);
   const present = useAtomValue(lists);
   const active = useAtomValue(focusedList) === owner;
   const choose = useAtomSet(chosenList);

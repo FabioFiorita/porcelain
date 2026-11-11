@@ -58,8 +58,10 @@ function worktreeIcon(entry: NavigatorEntry): IconName {
 
 export function WorktreeNavigator({
   onOpenWorktree,
+  hidden = false,
 }: {
   onOpenWorktree: (entry: NavigatorEntry) => void;
+  hidden?: boolean | undefined;
 }) {
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
@@ -111,6 +113,7 @@ export function WorktreeNavigator({
   );
   const reveal = useScrollReveal();
   const cursor = useListCursor({
+    hidden,
     rows: visibleEntries,
     selected: visibleEntries.find((entry) =>
       navigatorEntrySelected(entry, selection),
@@ -141,14 +144,16 @@ export function WorktreeNavigator({
     );
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
-      <Stack.SearchBar
-        ref={searchBar}
-        placeholder="Search worktrees"
-        autoCapitalize="none"
-        hideWhenScrolling={false}
-        onChangeText={(event) => setQuery(event.nativeEvent.text)}
-        onCancelButtonPress={() => setQuery('')}
-      />
+      {hidden ? null : (
+        <Stack.SearchBar
+          ref={searchBar}
+          placeholder="Search worktrees"
+          autoCapitalize="none"
+          hideWhenScrolling={false}
+          onChangeText={(event) => setQuery(event.nativeEvent.text)}
+          onCancelButtonPress={() => setQuery('')}
+        />
+      )}
       <ScrollView
         {...reveal.scroller}
         className="flex-1"
