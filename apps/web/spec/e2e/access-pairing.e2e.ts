@@ -1,5 +1,26 @@
 import { expect, observeBrowserFailures, test } from './fixtures.ts';
 
+test('a fresh pairing link received during session restore still opens the workspace', async ({
+  page,
+  app,
+}) => {
+  const restore = await app.holdPairingRestore();
+  restore.arm();
+  const opening = app.open('/pair');
+  try {
+    await restore.requested;
+    await app.followPairingHash(await app.link('this'));
+    restore.release();
+    await opening;
+    await expect(
+      page.getByRole('region', { name: 'Review content', exact: true }),
+    ).toBeVisible();
+  } finally {
+    restore.release();
+    await opening;
+  }
+});
+
 test('a paired browser that opens the pairing page goes to its workspace instead of being told it is not paired', async ({
   pairedPage,
   app,

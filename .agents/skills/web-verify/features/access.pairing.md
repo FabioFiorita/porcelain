@@ -50,6 +50,9 @@ A browser with a valid session goes to its workspace when it opens `/pair` witho
 8. Open that used link in a fresh browser context
    Expect: "This browser is not paired" and "This pairing link is not usable. Ask for a new one."; no extra device. Reload keeps the browser unpaired. Mint and open a fresh link to return to the workspace.
 
+9. In another fresh context, hold the initial `GET /api/session` while opening `/pair`. Deliver a fresh pairing link to that same tab and observe its hash-change event before releasing the session read.
+   Expect: completing the older unpaired restore still consumes the fresh link, redeems exactly one device and opens the workspace without a pairing fragment. The pairing view must handle a link already present when it mounts, as well as later hash changes.
+
 ### Observable proof
 
 Reload: workspace remains without `#c=`; `$C server devices` contains Verification browser.
