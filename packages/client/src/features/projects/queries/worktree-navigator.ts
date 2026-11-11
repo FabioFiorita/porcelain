@@ -100,10 +100,20 @@ const readProjectEntries = Atom.family(
       });
       const result = get(readProjectPullRequests(input));
       const answer = Option.getOrUndefined(AsyncResult.value(result));
+      const previous = Option.getOrUndefined(
+        get.self<{ entries: readonly NavigatorEntry[]; messages: string[] }>(),
+      );
       for (const entry of entries) {
-        if (AsyncResult.isFailure(result) || answer?.kind === 'unavailable')
-          entry.pullRequest = { state: 'unavailable' };
-        else if (answer?.kind === 'available') {
+        if (AsyncResult.isFailure(result) || answer?.kind === 'unavailable') {
+          const known = previous?.entries.find(
+            (candidate) =>
+              candidate.key === entry.key && candidate.branch === entry.branch,
+          )?.pullRequest;
+          entry.pullRequest =
+            known?.state === 'available'
+              ? { state: 'available', number: known.number }
+              : { state: 'unavailable' };
+        } else if (answer?.kind === 'available') {
           const pull = answer.pullRequests.find(
             (pull) => pull.headBranch === entry.branch,
           );
