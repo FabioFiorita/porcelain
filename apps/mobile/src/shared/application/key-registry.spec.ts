@@ -92,3 +92,16 @@ test('a list open over the page keeps the keys until it closes', () => {
   expect(registry.get(keyLists)).toEqual(['files']);
   expect(registry.get(focusedList)).toBe('files');
 });
+
+test('a list that stops covering the page shares the keys again', () => {
+  const { registry, flush } = scheduledRegistry(appIdleTTL);
+  registry.mount(focusedList);
+  registry.mount(listPresence('files'));
+  registry.mount(listPresence('worktrees'));
+  const leaveOver = registry.mount(listOver('worktrees'));
+  expect(registry.get(keyLists)).toEqual(['worktrees']);
+  leaveOver();
+  flush();
+  expect(registry.get(keyLists)).toEqual(['files', 'worktrees']);
+  expect(nextList(registry.get(keyLists), 'worktrees')).toBe('files');
+});
