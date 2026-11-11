@@ -13,13 +13,20 @@ import { WorktreeNavigator } from './worktree-navigator';
 import type { WorktreeDetails } from '../store';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
-export function WorktreesScreen({ mode }: { mode: ListDetailMode }) {
+export function WorktreesScreen({
+  mode,
+  onOpen,
+}: {
+  mode: ListDetailMode;
+  onOpen?: (() => void) | undefined;
+}) {
   const router = useRouter();
   const remember = useAtomSet(openedWorktree);
   return (
     <WorktreeNavigator
       onOpenWorktree={(entry) => {
         const details = worktreeDetails(entry);
+        onOpen?.();
         if (mode === 'beside') remember(details);
         else router.push({ pathname: '/worktree', params: details });
       }}

@@ -49,14 +49,11 @@ export function WorktreesHome() {
   });
   const beside = layout.mode === 'beside' && selected !== undefined;
   const portrait = usePortrait();
-  const shown = selected
-    ? `${selected.environment}/${selected.projectId}/${selected.worktreeId}`
-    : undefined;
   const [open, setOpen] = useState(false);
   const [close] = useState(() => () => setOpen(false));
-  const [seen, setSeen] = useState({ shown, portrait });
-  if (seen.shown !== shown || seen.portrait !== portrait) {
-    setSeen({ shown, portrait });
+  const [seenPortrait, setSeenPortrait] = useState(portrait);
+  if (seenPortrait !== portrait) {
+    setSeenPortrait(portrait);
     setOpen(false);
   }
   const listShown = portrait ? open : !hidden;
@@ -79,7 +76,7 @@ export function WorktreesHome() {
           open: open || !selected,
           onDismiss: selected ? close : undefined,
         }}
-        list={(mode) => <WorktreesScreen mode={mode} />}
+        list={(mode) => <WorktreesScreen mode={mode} onOpen={close} />}
         detail={
           selected ? (
             <WorktreeDetail
