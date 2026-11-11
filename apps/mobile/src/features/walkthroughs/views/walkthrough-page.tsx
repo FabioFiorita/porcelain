@@ -23,7 +23,7 @@ import {
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
-import { KeyboardRevealScope } from '../../../components/ui/keyboard-reveal';
+import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
 import { Loading } from '../../../components/ui/loading';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
@@ -65,7 +65,7 @@ function Column({
 }: {
   workspace: Workspace;
   bottom?: boolean;
-  children: (jump: Jump, place: Place) => ReactNode;
+  children: (jump: Jump, place: Place, scroller: KeyboardScroller) => ReactNode;
   onReady?: ReactNode;
 }) {
   const { initial, remember } = useWalkthroughOffset(workspace.key);
@@ -98,9 +98,7 @@ function Column({
           bottom ? 'pb-28' : 'pb-10',
         ].join(' ')}
       >
-        <KeyboardRevealScope value={scroll}>
-          {children(jump, place)}
-        </KeyboardRevealScope>
+        {children(jump, place, scroll)}
       </ScrollView>
       {onReady}
     </Box>
@@ -250,10 +248,12 @@ function Calls({
   content,
   owner,
   jump,
+  scroller,
 }: {
   content: WalkthroughContent;
   owner: ConversationOwner;
   jump: Jump;
+  scroller: KeyboardScroller;
 }) {
   return walkthroughCalls(content).map(({ attention, step, stop }) => (
     <Card key={step} gap={3} padding={4}>
@@ -276,6 +276,7 @@ function Calls({
         owner={owner}
         title={stop.title}
         placement="call"
+        scroller={scroller}
       />
     </Card>
   ));
@@ -396,7 +397,7 @@ function Written({
       bottom={saved}
       onReady={<PostSaved owner={owner} />}
     >
-      {(jump, place) => (
+      {(jump, place, scroller) => (
         <>
           {header}
           {walkthroughCalls(content).length > 0 ? (
@@ -404,7 +405,12 @@ function Written({
               gap={3}
               onLayout={(event) => place('calls')(event.nativeEvent.layout.y)}
             >
-              <Calls content={content} owner={owner} jump={jump} />
+              <Calls
+                content={content}
+                owner={owner}
+                jump={jump}
+                scroller={scroller}
+              />
             </Box>
           ) : null}
           {content.growth.length > 0 ? <Growth content={content} /> : null}
@@ -448,6 +454,7 @@ function Written({
                   owner={owner}
                   title={stop.title}
                   placement="step"
+                  scroller={scroller}
                   lead={
                     stopPaths(stop).length > 0 ? (
                       <Button

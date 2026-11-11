@@ -17,7 +17,7 @@ async function deviceDriver(
   failOpen: boolean,
   failClose: boolean,
   failPrepare = false,
-  platform = 'ios',
+  platform: 'ios' | 'android' = 'ios',
   failPairingLink = false,
 ) {
   const launcher = join(directory, 'driver');
@@ -179,7 +179,7 @@ it('hands driving to the exact supplied launcher, config and session without tar
   expect(driver.platform).toBe('android');
 });
 
-it.each(['ios', 'android'])(
+it.each(['ios', 'android'] as const)(
   'pairs %s through the development server without synthesizing link text',
   async (platform) => {
     const { driver, arguments: calls } = await deviceDriver(

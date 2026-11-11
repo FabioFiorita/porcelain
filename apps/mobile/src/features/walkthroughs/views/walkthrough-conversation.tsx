@@ -18,6 +18,7 @@ import { Button } from '../../../components/ui/button';
 import { FloatingBar } from '../../../components/ui/floating-bar';
 import { Loading } from '../../../components/ui/loading';
 import { Message } from '../../../components/ui/message';
+import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
 import { MessageComposer } from '../../../components/ui/message-composer';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
@@ -238,7 +239,12 @@ function Composer({
   owner,
   title,
   placeholder,
-}: Props & { title: string; placeholder: string }) {
+  scroller,
+}: Props & {
+  title: string;
+  placeholder: string;
+  scroller: KeyboardScroller;
+}) {
   const [draft, setDraft] = useAtom(
     walkthroughDraft(JSON.stringify([owner.workspace.key, title])),
   );
@@ -250,6 +256,7 @@ function Composer({
       sending={waiting}
       error={failure}
       onChangeText={setDraft}
+      scroller={scroller}
       onSend={() => {
         const text = draft.trim();
         if (!text || waiting) return;
@@ -267,10 +274,12 @@ export function WalkthroughConversation({
   title,
   placement,
   lead,
+  scroller,
 }: Props & {
   title: string;
   placement: 'call' | 'step';
   lead?: ReactNode;
+  scroller: KeyboardScroller;
 }) {
   const call = placement === 'call';
   const { view, failed, refresh } = useConversations(owner);
@@ -323,6 +332,7 @@ export function WalkthroughConversation({
           <Composer
             owner={owner}
             title={title}
+            scroller={scroller}
             placeholder={
               call ? 'Decide, or ask about this' : 'Ask about this step'
             }

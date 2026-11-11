@@ -1,19 +1,16 @@
-import { createContext, useContext, useState, type ComponentRef } from 'react';
+import { useState, type ComponentRef } from 'react';
 import {
   Keyboard,
-  type EmitterSubscription,
+  type EventSubscription,
   type ScrollView,
   type View,
 } from 'react-native';
 
-type Scroller = ComponentRef<typeof ScrollView>;
+export type KeyboardScroller = ComponentRef<typeof ScrollView> | null;
+type Scroller = NonNullable<KeyboardScroller>;
 type Field = ComponentRef<typeof View>;
 
 const KEYBOARD_MARGIN = 12;
-
-const KeyboardRevealScroller = createContext<Scroller | null>(null);
-
-export const KeyboardRevealScope = KeyboardRevealScroller.Provider;
 
 function reveal(scroller: Scroller, field: Field, keyboardTop: number) {
   const content = scroller.getInnerViewRef();
@@ -34,7 +31,7 @@ function reveal(scroller: Scroller, field: Field, keyboardTop: number) {
 
 function keyboardReveal() {
   let field: Field | null = null;
-  let waiting: EmitterSubscription | undefined;
+  let waiting: EventSubscription | undefined;
   const stop = () => {
     waiting?.remove();
     waiting = undefined;
@@ -44,7 +41,7 @@ function keyboardReveal() {
       field = node;
     },
     stop,
-    start: (scroller: Scroller | null) => {
+    start: (scroller: KeyboardScroller) => {
       stop();
       const target = field;
       if (!scroller || !target) return;
@@ -61,8 +58,7 @@ function keyboardReveal() {
   };
 }
 
-export function useKeyboardReveal() {
-  const scroller = useContext(KeyboardRevealScroller);
+export function useKeyboardReveal(scroller: KeyboardScroller) {
   const [field] = useState(keyboardReveal);
   return {
     field: { ref: field.attach, collapsable: false },
