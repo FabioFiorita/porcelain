@@ -46,5 +46,12 @@ test.for(['pause', 'shortcut', 'Done', 'tab close'] as const)(
       .poll(async () => (await server.text(readme)).text)
       .toBe(marker);
     await expect.poll(() => server.fileWriteCount()).toBe(1);
+    if (method !== 'shortcut') return;
+    await replaceEditorContent(editor, 'Browser second shortcut marker');
+    await userEvent.keyboard('{ControlOrMeta>}s{/ControlOrMeta}');
+    await expect
+      .poll(async () => (await server.text(readme)).text)
+      .toBe('Browser second shortcut marker');
+    await expect.poll(() => server.fileWriteCount()).toBe(2);
   },
 );
