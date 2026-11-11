@@ -46,3 +46,21 @@ test('owners publish in a fixed order and leave when they unmount', () => {
   flush();
   expect(labels()).toEqual(['Git']);
 });
+
+test('an action two owners publish while a file opens shows once', () => {
+  const { registry } = scheduledRegistry(appIdleTTL);
+  registry.mount(
+    topBarPublication({ owner: 'files-create', actions: button('Create') }),
+  );
+  registry.mount(
+    topBarPublication({
+      owner: 'document-pane',
+      actions: [...button('Timeline'), ...button('Create')],
+    }),
+  );
+  expect(
+    publishedTopBarActions(registry.get(topBarPublications)).map(
+      (action) => action.id,
+    ),
+  ).toEqual(['Timeline', 'Create']);
+});

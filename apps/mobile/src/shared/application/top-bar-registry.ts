@@ -12,7 +12,11 @@ const ownerOrder: readonly TopBarOwner[] = [
 export function publishedTopBarActions(
   published: ReadonlyMap<TopBarOwner, readonly TopBarAction[]>,
 ): TopBarAction[] {
-  return ownerOrder.flatMap((owner) => published.get(owner) ?? []);
+  const actions = ownerOrder.flatMap((owner) => published.get(owner) ?? []);
+  return actions.filter(
+    (action, index) =>
+      actions.findIndex((other) => other.id === action.id) === index,
+  );
 }
 
 export const topBarPublications = Atom.make<
