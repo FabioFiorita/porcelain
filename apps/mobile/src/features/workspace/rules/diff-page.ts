@@ -111,3 +111,20 @@ export function openingFile(focused: number, reading: number, files: number) {
   if (focused >= 0) return focused;
   return reading < files ? reading : 0;
 }
+
+export function fileMenuLabels(files: readonly DiffPageFile[]): string[] {
+  const name = (path: string) => path.split('/').at(-1) ?? path;
+  const count = (same: (other: DiffPageFile) => boolean) =>
+    files.filter(same).length;
+  return files.map((file) => {
+    const shown =
+      count((other) => name(other.path) === name(file.path)) >
+      count((other) => other.path === file.path)
+        ? file.path
+        : name(file.path);
+    const comparison = file.details[0];
+    return count((other) => other.path === file.path) > 1 && comparison
+      ? `${shown} · ${comparison}`
+      : shown;
+  });
+}

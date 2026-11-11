@@ -14,11 +14,11 @@ From the repository root, `C=.agents/skills/mobile-verify/scripts/cli`. Run `$C`
 3. Run `$C start --fixture focused` with those flags for mapped journeys. The CLI prepares the disposable server, Metro and device claim, waits for the loaded app, pairs through Use development server → enabled Pair without typing a long link, independently checks its native registration, then closes setup.
 4. Read the short card and private `connection.json`: build identity, fixture paths, app/Metro URLs, complete agent-device command, logs, evidence and stop command.
 
-When a device tool supplies a bound driver, pass its executable, private configuration and session with `--agent-device-command`, `--agent-device-config` and `--agent-device-session`, alongside that device's `--serial` or `--udid`. Use the same flags for `doctor` and `start`; preserve the resulting card's full invocation throughout the journey. The external tool owns emulator boot/shutdown; this CLI owns the disposable app run and releases its claim before the device is closed.
+When a device tool supplies a bound driver, pass its executable, private configuration and session with `--agent-device-command`, `--agent-device-config` and `--agent-device-session`, alongside that device's `--serial` or `--udid`. Use the same flags for `doctor` and `start`; preserve the resulting card's full invocation throughout the journey. A bound driver already targets its device and refuses `--platform`, `--udid` and `--serial`, so the CLI never passes them to it and the card's invocation carries only config and session. The external tool owns emulator boot/shutdown; this CLI owns the disposable app run and releases its claim before the device is closed.
 
 ## Drive
 
-5. Use the card's entire agent-device CLI invocation, including config, session, platform and device flags. Open its app with `--foreground`; on iOS, then run `prepare ios-runner`. See [driving](references/driving.md).
+5. Use the card's entire agent-device CLI invocation, including every flag it prints. Open its app with `--foreground`; on iOS, then run `prepare ios-runner`. See [driving](references/driving.md).
 6. Read [the feature map](features/README.md). Drive its entry points and return path; retain fresh snapshots, screenshots and independent server/storage readbacks in the card's evidence directory. Keep pairing links and host tokens private.
 
 For a developer walkthrough, use `--manual-pairing`. It opens the development client and leaves pairing to Settings → Computers → Add computer → Use development server → Pair.

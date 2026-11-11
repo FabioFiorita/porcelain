@@ -19,6 +19,7 @@ import {
   diffCountsLabel,
   diffPageRows,
   fileAtTop,
+  fileMenuLabels,
   openingFile,
   stuckHeading,
   headingRow,
@@ -106,11 +107,13 @@ export function DiffPage<F extends DiffPageFile>({
     id: 'files',
     label: 'Files',
     icon: 'files',
-    choices: files.slice(0, MENU_FILES).map((file, index) => ({
-      label: fileLabel(file),
-      selected: false,
-      onPress: () => jump(index),
-    })),
+    choices: fileMenuLabels(files)
+      .slice(0, MENU_FILES)
+      .map((label, index) => ({
+        label,
+        selected: false,
+        onPress: () => jump(index),
+      })),
   };
   return (
     <>

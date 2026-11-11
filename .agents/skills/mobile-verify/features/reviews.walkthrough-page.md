@@ -71,7 +71,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 1. Writing and reading
 
-1. Open the worktree. With no run, expect Changes selected, followed by Walkthrough, Files and History. Select Walkthrough for "No walkthrough yet." and "Write walkthrough". With an existing run (queued, running, failed or ready), Walkthrough is first and opens by default; its top-bar Changes button pushes the Changes list and Back returns.
+1. Open the worktree. With no run, expect Changes selected, followed by Walkthrough, Files and History. Select Walkthrough for "No walkthrough yet." and "Write walkthrough". With an existing run (queued, running, failed or ready), Walkthrough is first and opens by default; its top-bar Changes button (the `</>` code icon) pushes the Changes list and Back returns. Without a run there is no top-bar Changes button: the Changes segment is the way there.
 2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Reading the change" under the `written for <sha>` line.
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", the call card ("Product call", "Step 1", the question, "Decide, or ask about this"), "How the system grew" with "1 more", the steps, "What the code doesn't say" with "2 more" and "See every changed file". Step 1 → scrolls to the step; Your call → back to the calls.
 4. Open See the code on an uncommitted-only ready walkthrough: the existing one-page diff reader shows its dirty file. Back → See every changed file shows the same file. With committed and dirty files, both entries show Branch first, then Uncommitted; each comparison appears once and opening a file preserves that comparison. The steps list includes dirty files, and All changes opens the same complete reader.
@@ -85,8 +85,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. Conversations
 
-8. Type in "Decide, or ask about this" and Send. Expect a right-aligned bubble, "Walkthrough agent" with "Working…", then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". Leave the segment and return: an unsent draft is still there.
-9. "Save for later" → "Saved for later" with Undo; the bar at the bottom reads "1 comment saved" with Copy together. Without a pull request, Copy as prompt and Copy together show the one line "Copied brief" and never the brief; read the clipboard independently.
+8. Focus "Decide, or ask about this": the whole field, border included, sits above the keyboard. Type and Send: the keyboard closes and, without touching anything, expect a right-aligned bubble, "Walkthrough agent" with "Working…", then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". Leave the segment and return: an unsent draft is still there.
+9. With the composer focused, "Save for later" → "Saved for later" with Undo and the keyboard closed (Post and Copy close it too); the bar at the bottom reads "1 comment saved" with Copy together. Without a pull request, Copy as prompt and Copy together show the one line "Copied brief" and never the brief; read the clipboard independently.
 10. Pull request, screenshots and long answers: `$C walkthrough sample` writes a ready walkthrough for pull request #423 with two screenshots on step 2, then reopen the worktree. `$C walkthrough answer long` before asking: the answer is clamped to three lines with Read all. "Post on #423" turns into the link "Posted on #423"; `$C walkthrough posts` reads what the fake GitHub received. Save two, "Post together on #423" posts them once. `$C walkthrough moved` then Post: "Nothing was posted. Copy the brief instead." with Copy.
 
 ### 4. Tablet

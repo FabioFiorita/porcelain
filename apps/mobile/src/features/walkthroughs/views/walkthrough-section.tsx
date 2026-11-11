@@ -6,19 +6,24 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { ListDetail } from '../../../components/ui/list-detail';
 import { Loading } from '../../../components/ui/loading';
 import { AsyncResult } from 'effect/reactivity';
-import { WorkspaceGate, type Workspace } from '../../projects/index';
-import { useWalkthrough } from '../queries/walkthrough';
+import {
+  changesInTopBar,
+  WorkspaceGate,
+  type Workspace,
+} from '../../projects/index';
+import { useWalkthrough, useWorktreeGuide } from '../queries/walkthrough';
 import { WalkthroughPage } from './walkthrough-page';
 import { WalkthroughSteps } from './walkthrough-steps';
 
 function ChangesButton({ workspace }: { workspace: Workspace }) {
   const router = useRouter();
   const focused = useIsFocused();
-  if (!focused) return null;
+  const guide = useWorktreeGuide(workspace);
+  if (!focused || !changesInTopBar(guide)) return null;
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
-        icon={headerIcon('comparison')}
+        icon={headerIcon('changes')}
         accessibilityLabel="Changes"
         onPress={() =>
           router.push({

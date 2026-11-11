@@ -23,6 +23,7 @@ import {
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
+import { KeyboardRevealScope } from '../../../components/ui/keyboard-reveal';
 import { Loading } from '../../../components/ui/loading';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
@@ -97,7 +98,9 @@ function Column({
           bottom ? 'pb-28' : 'pb-10',
         ].join(' ')}
       >
-        {children(jump, place)}
+        <KeyboardRevealScope value={scroll}>
+          {children(jump, place)}
+        </KeyboardRevealScope>
       </ScrollView>
       {onReady}
     </Box>

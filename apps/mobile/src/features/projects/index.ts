@@ -10,6 +10,7 @@ export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeScreen, WorktreeDetail } from './views/worktree-screen';
 export type { WorktreeSectionContent } from './views/worktree-screen';
 export type { WorktreeGuide } from './rules/worktree-section';
+export { changesInTopBar } from './rules/worktree-section';
 export { PullRequestArchive } from './views/archive-pull-request';
 export {
   WorktreeActionsSheet,

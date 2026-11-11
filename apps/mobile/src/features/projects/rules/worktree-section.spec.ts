@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import {
+  changesInTopBar,
   shownWorktreeSection,
   worktreeSectionChoices,
 } from './worktree-section';
@@ -55,4 +56,10 @@ it('keeps the chosen section while it is offered, else falls back to the opening
       guide: guided,
     }),
   ).toBe('walkthrough');
+});
+
+it('puts Changes in the top bar only when the Walkthrough has taken its segment', () => {
+  expect(changesInTopBar({ walkthrough: true, pending: false })).toBe(true);
+  expect(changesInTopBar({ walkthrough: false, pending: false })).toBe(false);
+  expect(changesInTopBar({ walkthrough: false, pending: true })).toBe(false);
 });

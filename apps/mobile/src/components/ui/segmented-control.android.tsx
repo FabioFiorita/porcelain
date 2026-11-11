@@ -11,10 +11,14 @@ export function SegmentedControl<Id extends string>({
   options,
   selected,
   onSelect,
+  width = 'fill',
 }: SegmentedControlProps<Id>) {
+  const content = width === 'content';
   return (
-    <Host matchContents={{ vertical: true }}>
-      <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
+    <Host matchContents={content ? true : { vertical: true }}>
+      <SingleChoiceSegmentedButtonRow
+        modifiers={content ? [] : [fillMaxWidth()]}
+      >
         {options.map((option) => (
           <SegmentedButton
             key={option.id}
@@ -22,7 +26,9 @@ export function SegmentedControl<Id extends string>({
             onClick={() => onSelect(option.id)}
           >
             <SegmentedButton.Label>
-              <Text>{option.label}</Text>
+              <Text maxLines={1} softWrap={false}>
+                {option.label}
+              </Text>
             </SegmentedButton.Label>
           </SegmentedButton>
         ))}

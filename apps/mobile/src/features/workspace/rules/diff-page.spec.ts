@@ -5,6 +5,7 @@ import {
   diffCountsLabel,
   diffPageRows,
   fileAtTop,
+  fileMenuLabels,
   headingRow,
   openingFile,
   stuckHeading,
@@ -89,4 +90,22 @@ describe('a page of diffs', () => {
     expect(openingFile(-1, 3, 40)).toBe(3);
     expect(openingFile(-1, 12, 5)).toBe(0);
   });
+});
+
+it('keeps each Files menu label to the file name, adding the folder only when names collide and the comparison only for a file listed twice', () => {
+  expect(
+    fileMenuLabels([
+      { key: 'a', path: 'docs/retry-notes.txt', details: ['Branch', 'added'] },
+      { key: 'b', path: 'README.md', details: ['Branch', 'modified'] },
+      { key: 'c', path: 'README.md', details: ['Uncommitted', 'unstaged'] },
+      { key: 'd', path: 'src/a/index.ts', details: ['Branch', 'added'] },
+      { key: 'e', path: 'src/b/index.ts', details: ['Branch', 'added'] },
+    ]),
+  ).toEqual([
+    'retry-notes.txt',
+    'README.md · Branch',
+    'README.md · Uncommitted',
+    'src/a/index.ts',
+    'src/b/index.ts',
+  ]);
 });

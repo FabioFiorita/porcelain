@@ -164,14 +164,19 @@ process.exit(result.status ?? 1);
     config,
     '--session',
     session,
-    '--platform',
-    platform,
-    platform === 'ios' ? '--udid' : '--serial',
-    udid,
+    ...(suppliedCommand === undefined
+      ? [
+          '--platform',
+          platform,
+          platform === 'ios' ? '--udid' : '--serial',
+          udid,
+        ]
+      : []),
   ];
   return {
     launcher,
     config,
+    platform,
     targetArgs,
     command: shellCommand([launcher, ...targetArgs]),
   };
@@ -184,7 +189,10 @@ export function setupCommand(
   optional = false,
 ): string {
   const target = [...driver.targetArgs];
-  if (args[0] === 'connect' || args[0] === 'disconnect')
+  if (
+    (args[0] === 'connect' || args[0] === 'disconnect') &&
+    target.includes('--platform')
+  )
     target.splice(target.indexOf('--platform'));
   if (session !== undefined) target[target.indexOf('--session') + 1] = session;
   const result = spawnSync(driver.launcher, [...args, ...target], {
@@ -208,8 +216,7 @@ export function pairClient(
   const closeOwnedSession = () => {
     if (ownsSession) run(['close']);
   };
-  const ios =
-    driver.targetArgs[driver.targetArgs.indexOf('--platform') + 1] === 'ios';
+  const ios = driver.platform === 'ios';
   try {
     run(['open', identity.bundleIdentifier, '--foreground']);
     if (ios) run(['prepare', 'ios-runner']);

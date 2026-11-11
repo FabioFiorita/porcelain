@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Keyboard } from 'react-native';
 import { useAtom } from '@effect/atom-react';
 import {
   developerTurns,
@@ -71,7 +72,19 @@ function PostActions({
   pullRequest: number | undefined;
 }) {
   const actions = usePostActions(owner, message);
-  const { notice, waiting, copy, save, post } = actions;
+  const { notice, waiting } = actions;
+  const copy = () => {
+    Keyboard.dismiss();
+    actions.copy();
+  };
+  const save = (saved: boolean) => {
+    Keyboard.dismiss();
+    actions.save(saved);
+  };
+  const post = () => {
+    Keyboard.dismiss();
+    actions.post();
+  };
   const link = usePreviewLink();
   const state = postControls(message);
   const labels = postLabels(pullRequest);
@@ -239,10 +252,11 @@ function Composer({
       onChangeText={setDraft}
       onSend={() => {
         const text = draft.trim();
-        if (text && !waiting)
-          ask(text, () =>
-            setDraft((current) => (current === draft ? '' : current)),
-          );
+        if (!text || waiting) return;
+        Keyboard.dismiss();
+        ask(text, () =>
+          setDraft((current) => (current === draft ? '' : current)),
+        );
       }}
     />
   );

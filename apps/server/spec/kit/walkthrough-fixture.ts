@@ -5,11 +5,12 @@ import { Effect, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { readWorkingTree } from '@porcelain/git/inspection';
 import { LIMITS } from '../../src/config/limits.ts';
-import type {
-  EvidenceAsset,
-  StoredWalkthroughMessage,
-  WalkthroughContent,
-  WalkthroughJob,
+import {
+  walkthroughJobSchema,
+  type EvidenceAsset,
+  type StoredWalkthroughMessage,
+  type WalkthroughContent,
+  type WalkthroughJob,
 } from '@porcelain/walkthroughs/models';
 import {
   walkthroughConversationsResponseSchema,
@@ -90,6 +91,38 @@ export function seedStoredWalkthroughs(
   });
 }
 
+async function followWorktree(session: Session) {
+  const live = await session.live();
+  await live.follow({
+    projects: [session.projectId],
+    worktrees: [
+      {
+        projectId: session.projectId,
+        worktreeId: session.worktreeId,
+        paths: [],
+      },
+    ],
+  });
+  await live.next((notice) => notice.type === 'subscribed');
+  return live;
+}
+
+function storedJob(directory: string, runId: string): WalkthroughJob {
+  const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+  try {
+    const row = record(
+      database
+        .prepare('SELECT payload FROM walkthrough_runs WHERE id = ?')
+        .get(runId),
+    );
+    return Schema.decodeUnknownSync(
+      Schema.fromJsonString(walkthroughJobSchema),
+    )(text(row.payload));
+  } finally {
+    database.close();
+  }
+}
+
 export async function scriptedWalkthroughs(
   session: Session,
   manifestPath: string,
@@ -155,19 +188,8 @@ else if (endpoint) {
       post: 'saved' | 'posted',
     ) => {
       const root = `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/conversations`;
-      const live = await session.live();
+      const live = await followWorktree(session);
       try {
-        await live.follow({
-          projects: [session.projectId],
-          worktrees: [
-            {
-              projectId: session.projectId,
-              worktreeId: session.worktreeId,
-              paths: [],
-            },
-          ],
-        });
-        await live.next((notice) => notice.type === 'subscribed');
         const added = Schema.decodeUnknownSync(
           walkthroughConversationsResponseSchema,
         )(
@@ -218,6 +240,64 @@ else if (endpoint) {
         await live.close();
       }
     },
+    attachEvidence: async (
+      runId: string,
+      step: number,
+      assets: readonly EvidenceAsset[],
+    ) => {
+      const directory = join(
+        session.projectHome,
+        session.fixture.folders.state,
+      );
+      const job = storedJob(directory, runId);
+      const state = job.run.state;
+      if (state.status !== 'ready')
+        throw new Error('Evidence attaches only to a ready walkthrough.');
+      const live = await followWorktree(session);
+      try {
+        seedStoredWalkthroughs(directory, {
+          jobs: [
+            {
+              ...job,
+              run: {
+                ...job.run,
+                state: {
+                  ...state,
+                  content: {
+                    ...state.content,
+                    stops: state.content.stops.map((stop, index) =>
+                      index === step - 1
+                        ? {
+                            ...stop,
+                            evidence: assets.map((asset) => ({
+                              assetId: asset.id,
+                              shows: asset.caption,
+                            })),
+                          }
+                        : stop,
+                    ),
+                  },
+                },
+              },
+            },
+          ],
+          assets: assets.map((asset) => ({ ...asset, runId })),
+        });
+        await session.git(
+          'update-ref',
+          'refs/porcelain-fixture/evidence',
+          'HEAD',
+        );
+        await live.next(
+          (notice) =>
+            notice.type === 'worktree' &&
+            notice.change === 'git' &&
+            notice.worktreeId === session.worktreeId,
+        );
+      } finally {
+        await live.close();
+      }
+    },
     write: async (
       content: WalkthroughContent,
       input: { base: string; pullRequestNumber?: number },
@@ -233,19 +313,8 @@ else if (endpoint) {
           })),
         }),
       );
-      const live = await session.live();
+      const live = await followWorktree(session);
       try {
-        await live.follow({
-          projects: [session.projectId],
-          worktrees: [
-            {
-              projectId: session.projectId,
-              worktreeId: session.worktreeId,
-              paths: [],
-            },
-          ],
-        });
-        await live.next((notice) => notice.type === 'subscribed');
         const accepted = await read(session, {
           method: 'POST',
           path: `/api/worktrees/${session.worktreeId}/walkthrough`,

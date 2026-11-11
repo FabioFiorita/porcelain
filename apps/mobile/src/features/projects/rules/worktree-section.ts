@@ -15,6 +15,12 @@ export function worktreeSectionChoices(guide: WorktreeGuide) {
     : [worktreeSections[1], worktreeSections[0], ...worktreeSections.slice(2)];
 }
 
+export function changesInTopBar(guide: WorktreeGuide) {
+  return !worktreeSectionChoices(guide).some(
+    (section) => section.id === 'changes',
+  );
+}
+
 export function shownWorktreeSection({
   chosen,
   opening,
