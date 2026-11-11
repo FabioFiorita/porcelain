@@ -3,7 +3,7 @@ import {
   walkthroughStartRequest,
   walkthroughStartFailure,
 } from '../rules/walkthrough.ts';
-import { Cause, Effect, type Exit } from 'effect';
+import { Cause, Effect, Option, type Exit } from 'effect';
 import { AsyncResult, Atom, Reactivity } from 'effect/reactivity';
 import type { StartWalkthroughRequest } from '@porcelain/contracts/walkthroughs';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
@@ -43,10 +43,7 @@ export function walkthroughStartBinding<A, E, PE>(
     pulls: AsyncResult.AsyncResult<ListPullRequestsResponse, PE>;
   },
 ) {
-  const available =
-    AsyncResult.isSuccess(input.pulls) && !AsyncResult.isWaiting(input.pulls)
-      ? input.pulls.value
-      : undefined;
+  const available = Option.getOrUndefined(AsyncResult.value(input.pulls));
   const request = walkthroughStartRequest({
     ...input,
     pullRequests:

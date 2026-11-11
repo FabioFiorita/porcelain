@@ -394,14 +394,14 @@ describe('walkthroughStartRequest', () => {
       }),
     ).toEqual({ base: 'main', pullRequestNumber: 423 });
   });
-  it('uses a loaded open PR for this branch and keeps the displayed target when none is listed', () => {
+  it('keeps the displayed target even when the loaded list names another PR', () => {
     expect(
       walkthroughStartRequest({
         pullRequests,
         branch: 'feature',
         displayedRun: { pullRequestNumber: 423 },
       }),
-    ).toEqual({ pullRequestNumber: 8 });
+    ).toEqual({ pullRequestNumber: 423 });
     expect(
       walkthroughStartRequest({
         pullRequests,

@@ -219,7 +219,7 @@ export function walkthroughStartRequest(input: {
       : input.pullRequests?.find(
           (pull) => pull.headBranch === input.branch && pull.state === 'open',
         )?.number;
-  const pullRequestNumber = listed ?? input.displayedRun?.pullRequestNumber;
+  const pullRequestNumber = input.displayedRun?.pullRequestNumber ?? listed;
   return {
     ...(input.base === undefined ? {} : { base: input.base }),
     ...(pullRequestNumber === undefined ? {} : { pullRequestNumber }),
