@@ -1,6 +1,7 @@
 import shadcnPins from './shadcn-pins.json' with { type: 'json' };
 import { replacesGlobal } from './spec-globals.mjs';
 import { variableOf } from './scope.mjs';
+import { testOverrides } from './test-overrides.mjs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, shadcnRegistry, webPart } from './policy.ts';
@@ -1629,10 +1630,7 @@ export function browserSpecNoSkips(context) {
       ].includes(root);
       if (
         (testFunctions.has(root) || hook) &&
-        ((node.arguments.length > (hook ? 1 : 2) &&
-          !['ArrowFunctionExpression', 'FunctionExpression'].includes(
-            node.arguments.at(-1)?.type,
-          )) ||
+        (testOverrides(node, context, hook) ||
           node.arguments.some(
             (argument) => argument.type === 'ObjectExpression',
           ))

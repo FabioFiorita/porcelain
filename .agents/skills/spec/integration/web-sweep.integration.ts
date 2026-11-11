@@ -1,3 +1,5 @@
+import { openNodeHttpServer } from '@porcelain/server/kit/http';
+import { captureSweepPage } from '../../web-verify/scripts/sweep.ts';
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -12,7 +14,6 @@ import {
   WEB_CLI,
 } from './verification-cli.ts';
 
-const SWEEP_CASE_MS = 10 * 60_000;
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
 const pages = {
   'sweep-fixture.html': `<!doctype html><title>Sweep fixture</title>${themed}<h1>Page not found</h1><p>Fits every width.</p><pre>Computer unavailable</pre><span data-slot="breadcrumb-page" aria-current="page">Computer unavailable</span>`,
@@ -55,210 +56,294 @@ async function filesUnder(folder: string) {
     .toSorted();
 }
 
-test(
-  'a sweep captures each route in every state, theme and width beside its board, fails on a page error, a console error or overflow without retrying them, and labels a rerun’s first state as-left',
-  async ({ onTestFinished }) => {
-    const publicFolder = join(repositoryRoot, 'apps/web/public');
-    for (const [name, html] of Object.entries(pages))
-      await writeFile(join(publicFolder, name), html);
-    onTestFinished(async () => {
-      for (const name of Object.keys(pages))
-        await rm(join(publicFolder, name), { force: true });
-    });
-    const boards = await mkdtemp(join(tmpdir(), 'porcelain-sweep-board-'));
-    onTestFinished(() => rm(boards, { recursive: true, force: true }));
-    const board = join(boards, 'Fixture.png');
-    await writeFile(board, onePixelPng);
-    await writeFile(join(boards, 'Fixture-D.png'), onePixelPng);
-    const instance = await started(onTestFinished, { path: WEB_CLI });
-    const web = (...args: string[]) =>
-      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+test('a sweep captures each route in every state, theme and width beside its board, fails on a page error, a console error or overflow without retrying them, and labels a rerun’s first state as-left', async ({
+  onTestFinished,
+}) => {
+  const publicFolder = join(repositoryRoot, 'apps/web/public');
+  for (const [name, html] of Object.entries(pages))
+    await writeFile(join(publicFolder, name), html);
+  onTestFinished(async () => {
+    for (const name of Object.keys(pages))
+      await rm(join(publicFolder, name), { force: true });
+  });
+  const boards = await mkdtemp(join(tmpdir(), 'porcelain-sweep-board-'));
+  onTestFinished(() => rm(boards, { recursive: true, force: true }));
+  const board = join(boards, 'Fixture.png');
+  await writeFile(board, onePixelPng);
+  await writeFile(join(boards, 'Fixture-D.png'), onePixelPng);
+  const instance = await started(onTestFinished, { path: WEB_CLI });
+  const web = (...args: string[]) =>
+    cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
 
-    const clean = await web('sweep', '/sweep-fixture.html', '--board', board);
-    const index = /\nindex (\S+)\n/.exec(`\n${clean.stdout}`)?.[1] ?? '';
-    const folder = index.replace(/\/index\.md$/, '');
-
-    expect(clean.code, clean.stderr).toBe(0);
-    expect(clean.stdout).toBe(
-      `swept 18 captures with no problems\nindex ${index}\n`,
-    );
-    expect(relative(instance.evidence, folder)).toMatch(/^\d{3}-sweep$/);
-    expect(await filesUnder(folder)).toStrictEqual(
-      [
-        'index.md',
-        '01-sweep-fixture.html/as-is/board-light-1440.png',
-        '01-sweep-fixture.html/as-is/board-dark-1440.png',
-        ...captures('01-sweep-fixture.html'),
-      ].toSorted(),
-    );
-    const cleanIndex = await readFile(index, 'utf8');
-    expect(cleanIndex).toContain('## Problems\n\nNone.\n');
-    expect(cleanIndex).not.toContain('## Retries');
-    expect(cleanIndex).toContain(
-      '| as-is | dark | [pass](01-sweep-fixture.html/as-is/dark-1440.png) | [pass](01-sweep-fixture.html/as-is/dark-1080.png) | [pass](01-sweep-fixture.html/as-is/dark-414.png) |',
-    );
-    const seeds = list(
-      record(JSON.parse(await readFile(`${folder}.json`, 'utf8'))).seeds,
-    ).map(record);
-    expect(seeds.map((seed) => [seed.variant, seed.applied])).toStrictEqual([
-      ['long-text', true],
-      ['many-items', true],
-    ]);
-    expect(
-      list(printed(await web('server', 'devices')))
-        .map(record)
-        .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
-    ).toHaveLength(12);
-
-    const failing = await web(
+  const runSweep = (...args: string[]) =>
+    cli(
+      repositoryRoot,
+      process.execPath,
+      join(repositoryRoot, '.agents/skills/spec/integration/sweep-driver.ts'),
       'sweep',
-      '/sweep-error.html',
-      '/sweep-unavailable.html',
+      ...args,
+      '--instance',
+      instance.id,
     );
-    const failingIndex = /read (\S+)\n$/.exec(failing.stderr)?.[1] ?? '';
-    const failed = await readFile(failingIndex, 'utf8');
-    const failedRecord = record(
-      JSON.parse(
-        await readFile(failingIndex.replace(/\/index\.md$/, '.json'), 'utf8'),
-      ),
-    );
-    const shots = list(failedRecord.shots).map(record);
-    const errors = shots.filter((shot) => shot.entry === '/sweep-error.html');
-    const unavailable = shots.filter(
-      (shot) => shot.entry === '/sweep-unavailable.html',
-    );
+  const clean = await runSweep('/sweep-fixture.html', '--board', board);
+  const index = /\nindex (\S+)\n/.exec(`\n${clean.stdout}`)?.[1] ?? '';
+  const folder = index.replace(/\/index\.md$/, '');
 
-    expect(failing.code).toBe(1);
-    expect(failing.stderr).toMatch(
-      /^The sweep found \d+ problems in 36 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
-    );
-    expect(failedRecord.states).toStrictEqual([
-      'as-left',
-      'long-text',
-      'many-items',
-    ]);
-    expect(failed).toContain(
-      'States in order: as-left, long-text, many-items. An earlier sweep already seeded this instance',
-    );
-    expect(
-      await filesUnder(failingIndex.replace(/\/index\.md$/, '')),
-    ).toStrictEqual(
+  expect(clean.code, clean.stderr).toBe(0);
+  expect(clean.stdout).toBe(
+    `swept 18 captures with no problems\nindex ${index}\n`,
+  );
+  expect(relative(instance.evidence, folder)).toMatch(/^\d{3}-sweep$/);
+  expect(await filesUnder(folder)).toStrictEqual(
+    [
+      'index.md',
+      '01-sweep-fixture.html/as-is/board-light-1440.png',
+      '01-sweep-fixture.html/as-is/board-dark-1440.png',
+      ...captures('01-sweep-fixture.html'),
+    ].toSorted(),
+  );
+  const cleanIndex = await readFile(index, 'utf8');
+  expect(cleanIndex).toContain('## Problems\n\nNone.\n');
+  expect(cleanIndex).not.toContain('## Retries');
+  expect(cleanIndex).toContain(
+    '| as-is | dark | [pass](01-sweep-fixture.html/as-is/dark-1440.png) | [pass](01-sweep-fixture.html/as-is/dark-1080.png) | [pass](01-sweep-fixture.html/as-is/dark-414.png) |',
+  );
+  const seeds = list(
+    record(JSON.parse(await readFile(`${folder}.json`, 'utf8'))).seeds,
+  ).map(record);
+  expect(seeds.map((seed) => [seed.variant, seed.applied])).toStrictEqual([
+    ['long-text', true],
+    ['many-items', true],
+  ]);
+  expect(
+    list(printed(await web('server', 'devices')))
+      .map(record)
+      .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
+  ).toHaveLength(12);
+
+  const failing = await runSweep(
+    '/sweep-error.html',
+    '/sweep-unavailable.html',
+  );
+  const failingIndex = /read (\S+)\n$/.exec(failing.stderr)?.[1] ?? '';
+  const failed = await readFile(failingIndex, 'utf8');
+  const failedRecord = record(
+    JSON.parse(
+      await readFile(failingIndex.replace(/\/index\.md$/, '.json'), 'utf8'),
+    ),
+  );
+  const shots = list(failedRecord.shots).map(record);
+  const errors = shots.filter((shot) => shot.entry === '/sweep-error.html');
+  const unavailable = shots.filter(
+    (shot) => shot.entry === '/sweep-unavailable.html',
+  );
+
+  expect(failing.code).toBe(1);
+  expect(failing.stderr).toMatch(
+    /^The sweep found \d+ problems in 36 captures\. First: `\/sweep-error\.html` as-left light 1440: page error: sweep fixture page error\nread \S+\/index\.md\n$/,
+  );
+  expect(failedRecord.states).toStrictEqual([
+    'as-left',
+    'long-text',
+    'many-items',
+  ]);
+  expect(failed).toContain(
+    'States in order: as-left, long-text, many-items. An earlier sweep already seeded this instance',
+  );
+  expect(
+    await filesUnder(failingIndex.replace(/\/index\.md$/, '')),
+  ).toStrictEqual(
+    [
+      'index.md',
+      ...captures('01-sweep-error.html', 'as-left'),
+      ...captures('02-sweep-unavailable.html', 'as-left'),
+    ].toSorted(),
+  );
+  expect(failed).toContain(
+    '- `/sweep-error.html` as-left light 1440: page error: sweep fixture page error\n',
+  );
+  expect(failed).toContain(
+    '- `/sweep-error.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
+  );
+  expect(failed).toContain(
+    '`/sweep-unavailable.html` as-left light 1440: unavailable page: Page not found',
+  );
+  expect(failed).toContain(
+    '`/sweep-unavailable.html` as-left dark 1440: unavailable page: Computer unavailable',
+  );
+  expect(failed).not.toContain('`/sweep-fixture.html`');
+  expect(failed).not.toContain('## Retries');
+  expect(
+    errors.map((shot) => [
+      shot.state,
+      shot.theme,
+      shot.width,
+      list(shot.problems),
+      shot.retried,
+    ]),
+  ).toStrictEqual(
+    ['as-left', 'long-text', 'many-items'].flatMap((state) => [
       [
-        'index.md',
-        ...captures('01-sweep-error.html', 'as-left'),
-        ...captures('02-sweep-unavailable.html', 'as-left'),
-      ].toSorted(),
-    );
-    expect(failed).toContain(
-      '- `/sweep-error.html` as-left light 1440: page error: sweep fixture page error\n',
-    );
-    expect(failed).toContain(
-      '- `/sweep-error.html` as-left light 414: overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)\n',
-    );
-    expect(failed).toContain(
-      '`/sweep-unavailable.html` as-left light 1440: unavailable page: Page not found',
-    );
-    expect(failed).toContain(
-      '`/sweep-unavailable.html` as-left dark 1440: unavailable page: Computer unavailable',
-    );
-    expect(failed).not.toContain('`/sweep-fixture.html`');
-    expect(failed).not.toContain('## Retries');
-    expect(
-      errors.map((shot) => [
-        shot.state,
-        shot.theme,
-        shot.width,
-        list(shot.problems),
-        shot.retried,
-      ]),
-    ).toStrictEqual(
-      ['as-left', 'long-text', 'many-items'].flatMap((state) => [
+        state,
+        'light',
+        1440,
+        ['page error: sweep fixture page error'],
+        undefined,
+      ],
+      [
+        state,
+        'light',
+        1080,
+        ['console error: sweep fixture console error'],
+        undefined,
+      ],
+      [
+        state,
+        'light',
+        414,
         [
-          state,
-          'light',
-          1440,
-          ['page error: sweep fixture page error'],
-          undefined,
+          'overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)',
         ],
-        [
-          state,
-          'light',
-          1080,
-          ['console error: sweep fixture console error'],
-          undefined,
-        ],
-        [
-          state,
-          'light',
-          414,
-          [
-            'overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)',
-          ],
-          undefined,
-        ],
-        [state, 'dark', 1440, [], undefined],
-        [state, 'dark', 1080, [], undefined],
-        [
-          state,
-          'dark',
-          414,
-          ['console error: Target crashed: the review socket has been closed'],
-          undefined,
-        ],
-      ]),
-    );
-    expect(
-      unavailable.map((shot) => [
-        shot.state,
-        shot.theme,
-        shot.width,
-        list(shot.problems),
-        shot.retried,
-      ]),
-    ).toStrictEqual(
-      ['as-left', 'long-text', 'many-items'].flatMap((state) => [
-        [state, 'light', 1440, ['unavailable page: Page not found'], undefined],
-        [state, 'light', 1080, ['unavailable page: Page not found'], undefined],
-        [state, 'light', 414, ['unavailable page: Page not found'], undefined],
-        [
-          state,
-          'dark',
-          1440,
-          ['unavailable page: Computer unavailable'],
-          undefined,
-        ],
-        [
-          state,
-          'dark',
-          1080,
-          ['unavailable page: Computer unavailable'],
-          undefined,
-        ],
-        [
-          state,
-          'dark',
-          414,
-          ['unavailable page: Computer unavailable'],
-          undefined,
-        ],
-      ]),
-    );
-    expect(
-      list(failedRecord.seeds)
-        .map(record)
-        .map((seed) => seed.applied),
-    ).toStrictEqual([false, false]);
-    expect(
-      shots
-        .filter((shot) => list(shot.problems).length > 0)
-        .map((shot) => text(shot.entry))
-        .filter((entry, at, all) => all.indexOf(entry) === at),
-    ).toStrictEqual(['/sweep-error.html', '/sweep-unavailable.html']);
-    expect(
-      list(printed(await web('server', 'devices')))
-        .map(record)
-        .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
-    ).toHaveLength(12);
+        undefined,
+      ],
+      [state, 'dark', 1440, [], undefined],
+      [state, 'dark', 1080, [], undefined],
+      [
+        state,
+        'dark',
+        414,
+        ['console error: Target crashed: the review socket has been closed'],
+        undefined,
+      ],
+    ]),
+  );
+  expect(
+    unavailable.map((shot) => [
+      shot.state,
+      shot.theme,
+      shot.width,
+      list(shot.problems),
+      shot.retried,
+    ]),
+  ).toStrictEqual(
+    ['as-left', 'long-text', 'many-items'].flatMap((state) => [
+      [state, 'light', 1440, ['unavailable page: Page not found'], undefined],
+      [state, 'light', 1080, ['unavailable page: Page not found'], undefined],
+      [state, 'light', 414, ['unavailable page: Page not found'], undefined],
+      [
+        state,
+        'dark',
+        1440,
+        ['unavailable page: Computer unavailable'],
+        undefined,
+      ],
+      [
+        state,
+        'dark',
+        1080,
+        ['unavailable page: Computer unavailable'],
+        undefined,
+      ],
+      [
+        state,
+        'dark',
+        414,
+        ['unavailable page: Computer unavailable'],
+        undefined,
+      ],
+    ]),
+  );
+  expect(
+    list(failedRecord.seeds)
+      .map(record)
+      .map((seed) => seed.applied),
+  ).toStrictEqual([false, false]);
+  expect(
+    shots
+      .filter((shot) => list(shot.problems).length > 0)
+      .map((shot) => text(shot.entry))
+      .filter((entry, at, all) => all.indexOf(entry) === at),
+  ).toStrictEqual(['/sweep-error.html', '/sweep-unavailable.html']);
+  expect(
+    list(printed(await web('server', 'devices')))
+      .map(record)
+      .filter((device) => /^Device [0-9]{2}$/.test(text(device.label))),
+  ).toHaveLength(12);
+});
+
+test.for([
+  { entry: 'sweep-fixture.html', width: 1440, theme: 'light', problems: [] },
+  {
+    entry: 'sweep-error.html',
+    width: 1440,
+    theme: 'light',
+    problems: ['page error: sweep fixture page error'],
   },
-  SWEEP_CASE_MS,
+  {
+    entry: 'sweep-error.html',
+    width: 1080,
+    theme: 'light',
+    problems: ['console error: sweep fixture console error'],
+  },
+  {
+    entry: 'sweep-error.html',
+    width: 414,
+    theme: 'light',
+    problems: [
+      'overflows horizontally: 2000 px of content in 414 px (<div> "Too wide" ends at 2000 px)',
+    ],
+  },
+  {
+    entry: 'sweep-error.html',
+    width: 414,
+    theme: 'dark',
+    problems: [
+      'console error: Target crashed: the review socket has been closed',
+    ],
+  },
+  {
+    entry: 'sweep-unavailable.html',
+    width: 1440,
+    theme: 'light',
+    problems: ['unavailable page: Page not found'],
+  },
+  {
+    entry: 'sweep-unavailable.html',
+    width: 1440,
+    theme: 'dark',
+    problems: ['unavailable page: Computer unavailable'],
+  },
+] as const)(
+  'a real sweep capture diagnoses $entry at $width in $theme',
+  async ({ entry, width, theme, problems }, { onTestFinished }) => {
+    const host = await openNodeHttpServer((_request, response) => {
+      response.setHeader('content-type', 'text/html');
+      response.end(pages[entry]);
+    });
+    onTestFinished(() => host.close());
+    const address = host.server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('The capture fixture has no TCP address');
+    const directory = await mkdtemp(join(tmpdir(), 'porcelain-capture-'));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const file = join(directory, 'capture.png');
+    const shot = {
+      target: 0,
+      entry,
+      state: 'as-is' as const,
+      theme,
+      width,
+      problems: [] as string[],
+    };
+    await captureSweepPage(
+      { cookies: [], origins: [] },
+      new URL(`http://127.0.0.1:${address.port}/${entry}`),
+      shot,
+      file,
+    );
+    expect(shot.problems).toEqual(problems);
+    expect((await readFile(file)).subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+  },
 );

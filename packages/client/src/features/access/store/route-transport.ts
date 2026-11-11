@@ -1,4 +1,4 @@
-import { Effect, Option, Semaphore } from 'effect';
+import { Clock, Effect, Option, Semaphore } from 'effect';
 import { AtomRef } from 'effect/reactivity';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
@@ -19,6 +19,7 @@ import { REMOTE_ROUTE_TIMEOUT_MS } from '../../../config/limits.ts';
 export function createRouteTransport(
   remote: Remote,
   send: AccessPlatformValue['send'],
+  clock: Clock.Clock = Effect.runSync(Clock.Clock),
 ) {
   const active = AtomRef.make<ConnectionRoute | undefined>(undefined);
   const routes = connectionRoutes(remote);
@@ -71,7 +72,10 @@ export function createRouteTransport(
             'None of this computer’s saved connections could be reached and authorized.',
         }),
       );
-    }).pipe(Semaphore.withPermit(gate)),
+    }).pipe(
+      Effect.provideService(Clock.Clock, clock),
+      Semaphore.withPermit(gate),
+    ),
   );
   const transportFor = (route: ConnectionRoute) =>
     remoteTransport(route.address, route.credential, send);

@@ -107,5 +107,4 @@ test.runIf(process.platform === 'darwin')(
     borrowedActive = false;
     expect(await isBooted(second.udid)).toBe(true);
   },
-  180_000,
 );

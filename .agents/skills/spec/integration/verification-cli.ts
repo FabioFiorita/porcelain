@@ -21,7 +21,6 @@ const sourceRoot = resolve(
 );
 export const SERVER_CLI = '.agents/skills/server-verify/scripts/cli';
 export const WEB_CLI = '.agents/skills/web-verify/scripts/cli';
-export const WEB_CASE_MS = 3 * 60_000;
 export const STALE =
   'server or CLI code changed since start, run start again\n';
 const copiedAway = new Set([
@@ -43,7 +42,7 @@ export function cli(
 ): Promise<Run> {
   return new Promise((resolveRun) => {
     execFile(
-      join(root, path),
+      resolve(root, path),
       args,
       { cwd: root, maxBuffer: 64 * 1024 * 1024 },
       (error, stdout, stderr) => {

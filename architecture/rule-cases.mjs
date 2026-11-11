@@ -1817,8 +1817,35 @@ export const saveBoth = Atom.writable(
     invalid: "test.each([1])('keeps %s', async () => {}, 30000);",
     errors: 1,
   },
+  {
+    rule: 'spec-no-skips',
+    path: 'packages/client/src/sample.spec.ts',
+    valid:
+      "async function runCase() {}; it('case', { concurrent: true }, runCase);",
+    invalid:
+      "async function runCase() {}; it('case', { timeout: 30000 }, runCase);",
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-skips',
+    path: 'packages/client/src/sample.spec.ts',
+    valid:
+      "const options = { concurrent: true }; async function runCase() {}; it('case', options, runCase);",
+    invalid:
+      "const options = { retry: 2 }; async function runCase() {}; it('case', options, runCase);",
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-skips',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: "test('case', async () => {});",
+    invalid:
+      "const deadline = { timeout: 30000 }; const options = { ...deadline }; test('case', options, async () => {});",
+    errors: 1,
+  },
   ...[
     'packages/client/src/sample.spec.ts',
+    '.agents/skills/spec/integration/sample.integration.ts',
     'apps/web/spec/integration/sample.test.tsx',
     'apps/desktop/spec/e2e/sample.e2e.ts',
   ].flatMap((path) => [

@@ -207,7 +207,7 @@ const imagesLoadedScript =
 
 type Signed = Awaited<ReturnType<BrowserContext['storageState']>>;
 
-async function shoot(
+export async function captureSweepPage(
   signed: Signed,
   url: URL,
   shot: Shot,
@@ -470,6 +470,7 @@ async function captureAll(
   targets: readonly Target[],
   folder: string,
   found: Found,
+  capture: typeof captureSweepPage,
 ) {
   const pairing = await browser.newContext();
   const signed = await pair(await pairing.newPage(), instance, recorder).then(
@@ -507,7 +508,7 @@ async function captureAll(
           }
           shot.path = path;
           await captureOnceMore(shot, () =>
-            shoot(
+            capture(
               signed,
               new URL(path, instance.detail.web),
               shot,
@@ -522,6 +523,7 @@ async function captureAll(
 export async function sweep(
   instance: WebInstance,
   args: readonly string[],
+  capture: typeof captureSweepPage = captureSweepPage,
 ): Promise<string> {
   const targets = sweepTargets(args);
   for (const target of targets) resolved(instance, target.entry);
@@ -538,7 +540,15 @@ export async function sweep(
   };
   const browser = await chromium.launch();
   try {
-    await captureAll(instance, browser, recorder, targets, folder, found);
+    await captureAll(
+      instance,
+      browser,
+      recorder,
+      targets,
+      folder,
+      found,
+      capture,
+    );
     await compareBoards(browser, targets, folder, found);
   } catch (error) {
     found.notes.push(`The sweep stopped: ${firstLine(error)}`);
