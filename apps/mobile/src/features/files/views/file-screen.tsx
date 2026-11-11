@@ -10,7 +10,11 @@ import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import { WorkspaceGate, type Workspace } from '../../projects/index';
+import {
+  WorkspaceGate,
+  useWorktreeBarItems,
+  type Workspace,
+} from '../../projects/index';
 import type { ReviewRange } from '../../../components/ui/code-range';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -155,6 +159,8 @@ function useFileActions(props: FileProps) {
   return [timeline, ...props.actions];
 }
 
+const paneBarChrome = 2;
+
 function FileHeader({
   path,
   actions,
@@ -164,9 +170,17 @@ function FileHeader({
   actions: readonly TopBarAction[];
   place: FileProps['place'];
 }) {
+  const worktreeBarItems = useWorktreeBarItems();
   return (
     <>
-      <DocumentHeader path={path} actions={actions} place={place} />
+      <DocumentHeader
+        path={path}
+        actions={actions}
+        place={place}
+        barItems={
+          place === 'pane' ? worktreeBarItems + paneBarChrome : undefined
+        }
+      />
       {place === 'pane' ? (
         <TopBarActions owner="document-pane" actions={actions} />
       ) : null}

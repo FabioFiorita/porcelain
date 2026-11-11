@@ -25,17 +25,20 @@ export function DocumentHeader({
   details = [],
   actions = [],
   place = 'screen',
+  barItems,
 }: {
   path: string;
   details?: readonly (string | undefined)[];
   actions?: readonly TopBarAction[];
   place?: 'screen' | 'pane';
+  barItems?: number | undefined;
 }) {
   return (
     <PageHeader
       {...documentHeading(path, details)}
       actions={actions}
       place={place}
+      barItems={barItems}
     />
   );
 }
@@ -45,11 +48,13 @@ export function PageHeader({
   subtitle,
   actions = [],
   place = 'screen',
+  barItems,
 }: {
   title: string;
   subtitle?: string | undefined;
   actions?: readonly TopBarAction[];
   place?: 'screen' | 'pane';
+  barItems?: number | undefined;
 }) {
   const items = topBarItems(actions);
   return (
@@ -61,7 +66,7 @@ export function PageHeader({
         <HeaderTitle
           title={title}
           subtitle={subtitle}
-          trailingItems={items.length}
+          trailingItems={barItems ?? items.length}
         />
       </Stack.Title>
       {place === 'screen' && items.length > 0 ? (

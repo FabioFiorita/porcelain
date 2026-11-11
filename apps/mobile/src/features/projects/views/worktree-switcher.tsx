@@ -4,6 +4,7 @@ import { useCSSVariable } from 'uniwind';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../../shared/icons/icon';
 import { shortcutHint } from '../../../components/ui/shortcut-hint';
+import { usePublishedTopBar } from '../../../shared/application/top-bar';
 import {
   worktreeSections,
   type WorktreeSection,
@@ -15,6 +16,10 @@ const icons = {
   files: 'browse',
   history: 'history',
 } as const satisfies Record<WorktreeSection, HeaderIconName>;
+
+export function useWorktreeBarItems() {
+  return worktreeSections.length + usePublishedTopBar().length;
+}
 
 function color(value: string | number | undefined) {
   return typeof value === 'string' ? value : undefined;

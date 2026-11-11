@@ -24,8 +24,7 @@ import {
   type WorktreeGuide,
   type WorktreeSection,
 } from '../rules/worktree-section';
-import { useWorktreeSwitcher } from './worktree-switcher';
-import { usePublishedTopBar } from '../../../shared/application/top-bar';
+import { useWorktreeBarItems, useWorktreeSwitcher } from './worktree-switcher';
 import {
   worktreeListHidden,
   worktreeSection,
@@ -246,14 +245,10 @@ function WorktreeTitle({
   title: string;
   subtitle: string;
 }) {
-  const actions = usePublishedTopBar();
+  const barItems = useWorktreeBarItems();
   return (
     <Stack.Title asChild>
-      <HeaderTitle
-        title={title}
-        subtitle={subtitle}
-        trailingItems={worktreeSections.length + actions.length}
-      />
+      <HeaderTitle title={title} subtitle={subtitle} trailingItems={barItems} />
     </Stack.Title>
   );
 }
