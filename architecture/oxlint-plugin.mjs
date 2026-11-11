@@ -2894,6 +2894,55 @@ export default {
         const message =
           'Every spec runs every time; remove the skip, only, todo, fails, fixme or fail, because a skipped or exclusive case leaves regressions unchecked.';
         return {
+          CallExpression(node) {
+            const root = chainRoot(node.callee);
+            const binding = root
+              ? findVariable(context.sourceCode.getScope(node), root)?.defs[0]
+              : undefined;
+            if (binding && binding.type !== 'ImportBinding') return;
+            if (
+              ![
+                ...testFunctions,
+                'beforeAll',
+                'beforeEach',
+                'afterAll',
+                'afterEach',
+              ].includes(root)
+            )
+              return;
+            const hook = [
+              'beforeAll',
+              'beforeEach',
+              'afterAll',
+              'afterEach',
+            ].includes(root);
+            if (
+              node.arguments.length > (hook ? 1 : 2) &&
+              !isFunction(node.arguments.at(-1))
+            ) {
+              context.report({
+                node,
+                message:
+                  'Use the runner deadline, because a positional test or hook timeout hides slow or racing setup. Await its observable milestone or move the promise to a deterministic layer.',
+              });
+              return;
+            }
+            for (const argument of node.arguments) {
+              if (argument.type !== 'ObjectExpression') continue;
+              for (const property of argument.properties)
+                if (
+                  property.type === 'Property' &&
+                  ['retry', 'repeats', 'timeout'].includes(
+                    propertyName(property, context),
+                  )
+                )
+                  context.report({
+                    node: property,
+                    message:
+                      'Every test passes once under the runner deadline, because retry and timeout options hide intermittent failures. Fix their cause or preserve the promise deterministically.',
+                  });
+            }
+          },
           MemberExpression(node) {
             const testMember = testFunctions.has(chainRoot(node) ?? '');
             const gate =

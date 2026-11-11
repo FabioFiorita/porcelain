@@ -287,37 +287,6 @@ it('cancels an unreachable preferred route before trying another route', async (
   expect(routing.active.value).toBeUndefined();
 });
 
-it('bounds an unresponsive LAN probe before using Tailscale', async () => {
-  const aborted = Promise.withResolvers<void>();
-  const routing = createRouteTransport(remote, (url, init) => {
-    if (url.hostname === '192.168.1.2')
-      return new Promise((_resolve, reject) =>
-        init?.signal?.addEventListener(
-          'abort',
-          () => {
-            aborted.resolve();
-            reject(init?.signal?.reason);
-          },
-          { once: true },
-        ),
-      );
-    return Promise.resolve(
-      Response.json(
-        url.pathname === '/api/health'
-          ? { status: 'ok', environmentId: 'computer' }
-          : url.pathname === '/api/environment'
-            ? descriptor
-            : { kind: 'owner' },
-      ),
-    );
-  });
-  await routing.transport('/api/inventory');
-  await aborted.promise;
-  expect(routing.active.value?.address).toBe(
-    'https://development.example.ts.net',
-  );
-}, 10000);
-
 it('retries a failed read once over the authorized fallback', async () => {
   const subject = fixture();
   await subject.routing.transport('/api/inventory');

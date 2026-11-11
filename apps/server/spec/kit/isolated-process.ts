@@ -9,10 +9,18 @@ export class IsolatedProcess {
     code: number | null;
     signal: NodeJS.Signals | null;
   }>;
+  private readonly deadline: (expired: () => void) => () => void;
   private stopping: Promise<void> | undefined;
 
-  constructor(child: ChildProcess) {
+  constructor(
+    child: ChildProcess,
+    deadline: (expired: () => void) => () => void = (expired) => {
+      const timer = setTimeout(expired, STOP_TIMEOUT_MS);
+      return () => clearTimeout(timer);
+    },
+  ) {
     this.child = child;
+    this.deadline = deadline;
     this.result = new Promise((resolve) =>
       child.once('close', (code, signal) => resolve({ code, signal })),
     );
@@ -25,14 +33,12 @@ export class IsolatedProcess {
 
   private async shutDown(): Promise<void> {
     this.child.kill('SIGTERM');
-    let timer: NodeJS.Timeout | undefined;
+    let cancelDeadline: (() => void) | undefined;
     const result = await Promise.race([
       this.result,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(new Error('Isolated server did not stop within 10 seconds')),
-          STOP_TIMEOUT_MS,
+        cancelDeadline = this.deadline(() =>
+          reject(new Error('Isolated server did not stop within 10 seconds')),
         );
       }),
     ])
@@ -42,7 +48,7 @@ export class IsolatedProcess {
         throw error;
       })
       .finally(() => {
-        if (timer) clearTimeout(timer);
+        cancelDeadline?.();
       });
     if (result.code !== 0)
       throw new Error(

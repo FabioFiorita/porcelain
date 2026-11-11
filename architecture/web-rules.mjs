@@ -1618,9 +1618,24 @@ export function browserSpecNoSkips(context) {
         context.report({ node, message });
     },
     CallExpression(node) {
+      let callee = node.callee;
+      while (callee.type === 'CallExpression') callee = callee.callee;
+      const root = rootName(callee) ?? '';
+      const hook = [
+        'beforeAll',
+        'beforeEach',
+        'afterAll',
+        'afterEach',
+      ].includes(root);
       if (
-        testFunctions.has(rootName(node.callee) ?? '') &&
-        node.arguments.some((argument) => argument.type === 'ObjectExpression')
+        (testFunctions.has(root) || hook) &&
+        ((node.arguments.length > (hook ? 1 : 2) &&
+          !['ArrowFunctionExpression', 'FunctionExpression'].includes(
+            node.arguments.at(-1)?.type,
+          )) ||
+          node.arguments.some(
+            (argument) => argument.type === 'ObjectExpression',
+          ))
       )
         context.report({ node, message });
     },

@@ -1802,6 +1802,48 @@ export const saveBoth = Atom.writable(
       errors: 1,
     })),
   ]),
+  {
+    rule: 'spec-no-skips',
+    path: 'packages/client/src/sample.spec.ts',
+    valid:
+      "const test = { add: (...args) => args }; test.add('draft', false, 'run');",
+    invalid: 'beforeAll(async () => {}, 30000);',
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-skips',
+    path: 'apps/web/spec/integration/sample.test.tsx',
+    valid: "test.each([1])('keeps %s', async () => {});",
+    invalid: "test.each([1])('keeps %s', async () => {}, 30000);",
+    errors: 1,
+  },
+  ...[
+    'packages/client/src/sample.spec.ts',
+    'apps/web/spec/integration/sample.test.tsx',
+    'apps/desktop/spec/e2e/sample.e2e.ts',
+  ].flatMap((path) => [
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid: "test('keeps the result', async () => {});",
+      invalid: "test('keeps the result', async () => {}, 30000);",
+      errors: 1,
+    },
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid: "test('keeps the result', async () => {});",
+      invalid: "test('keeps the result', { retry: 2 }, async () => {});",
+      errors: 1,
+    },
+    {
+      rule: 'spec-no-skips',
+      path,
+      valid: "test('keeps the result', async () => {});",
+      invalid: "test('keeps the result', { timeout: 30000 }, async () => {});",
+      errors: 1,
+    },
+  ]),
   ...[
     'apps/server/spec/integration/sample.integration.ts',
     'apps/desktop/spec/e2e/sample.e2e.ts',

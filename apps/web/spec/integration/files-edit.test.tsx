@@ -51,4 +51,4 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
     .click();
   await expect.poll(saved).toBe('Browser close marker');
   await expect.poll(() => server.fileWriteCount()).toBe(4);
-}, 30_000);
+});
