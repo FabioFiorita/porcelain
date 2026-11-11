@@ -7,6 +7,7 @@ import {
   type WalkthroughModel,
 } from '@porcelain/walkthroughs/models';
 import { findExecutable } from './find-executable.ts';
+import { claudeEnvironment } from './claude-environment.ts';
 import { readBoundedText } from '../../commit-planning/commands/read-bounded-text.ts';
 import type { AgentLimits } from '../../commit-planning/dtos/agent-limits.ts';
 const cacheSchema = Schema.fromJsonString(
@@ -31,18 +32,18 @@ export const installedModels = Effect.fn('Agents.installedModels')(
     signedInOnly: boolean,
   ) {
     const path = yield* Path.Path;
-    const homeKey = provider === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR';
-    const home = yield* Config.String(homeKey).pipe(
-      Config.withDefault(
-        path.join(homedir(), provider === 'codex' ? '.codex' : '.claude'),
-      ),
+    const home = yield* Config.String('CODEX_HOME').pipe(
+      Config.withDefault(path.join(homedir(), '.codex')),
     );
     const command = yield* findExecutable(provider);
     if (!command) return [];
     if (signedInOnly) {
       const result = yield* runCommand({
         command,
-        env: { ...process.env, [homeKey]: home },
+        env:
+          provider === 'claude'
+            ? claudeEnvironment(process.env)
+            : { ...process.env, CODEX_HOME: home },
         args:
           provider === 'claude'
             ? ['auth', 'status', '--json']

@@ -144,7 +144,7 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd()})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd(), gitConfigGlobal: process.env.GIT_CONFIG_GLOBAL})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
     onTestFinished,
   );
   const result = await test.result({
@@ -167,11 +167,18 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
     .map((line) =>
       Schema.decodeUnknownSync(
         Schema.fromJsonString(
-          Schema.Struct({ args: Schema.Array(Schema.String) }),
+          Schema.Struct({
+            args: Schema.Array(Schema.String),
+            gitConfigGlobal: Schema.optional(Schema.String),
+          }),
         ),
       )(line),
     );
   expect(invocations).toHaveLength(2);
+  expect(invocations.map(({ gitConfigGlobal }) => gitConfigGlobal)).toEqual([
+    '/dev/null',
+    '/dev/null',
+  ]);
   expect(
     invocations.map(({ args }) => args[args.indexOf('--effort') + 1]),
   ).toEqual(['xhigh', 'xhigh']);
