@@ -27,6 +27,26 @@ test.for([
     await expect
       .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
       .toBeVisible();
+    if (path === 'data.bin') {
+      const content = app.page.getByRole('listitem', {
+        name: 'data.bin: Binary change',
+        exact: true,
+      });
+      await expect.element(content).toBeVisible();
+      await app.page
+        .getByRole('region', { name: '1 uncommitted change', exact: true })
+        .getByRole('button', { name: 'data.bin', exact: true })
+        .click();
+      await expect.element(content).toHaveFocus();
+      await expect
+        .element(
+          content.getByRole('button', {
+            name: 'Comment on data.bin',
+            exact: true,
+          }),
+        )
+        .not.toBeInTheDocument();
+    }
     await app.navigate(`${app.location().split('?')[0]}?entry=change:${path}`);
     const controls = app.page.getByRole('toolbar', {
       name: 'Document controls',
