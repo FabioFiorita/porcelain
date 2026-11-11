@@ -34,7 +34,7 @@ function SectionBody({
     case 'changes':
       return <WorktreeChangesPane />;
     case 'files':
-      return <FilesScreen mode={mode} />;
+      return <FilesScreen mode={mode} search="content" />;
     case 'history':
       return <HistoryScreen />;
   }

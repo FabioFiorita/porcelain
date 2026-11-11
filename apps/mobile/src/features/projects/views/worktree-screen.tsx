@@ -25,6 +25,7 @@ import {
   type WorktreeSection,
 } from '../rules/worktree-section';
 import { useWorktreeSwitcher } from './worktree-switcher';
+import { usePublishedTopBar } from '../../../shared/application/top-bar';
 import {
   worktreeListHidden,
   worktreeSection,
@@ -71,13 +72,7 @@ export function WorktreeScreen({
   return (
     <View className="flex-1" collapsable={false} onLayout={layout.onLayout}>
       <Stack.Screen options={{ title }} />
-      <Stack.Title asChild>
-        <HeaderTitle
-          title={title}
-          subtitle={worktreePlace(params)}
-          trailingItems={4}
-        />
-      </Stack.Title>
+      <WorktreeTitle title={title} subtitle={worktreePlace(params)} />
       <WorktreeDetail
         details={params}
         mode="stack"
@@ -241,6 +236,25 @@ function WorktreeSections({
         <Content section={section} mode={mode} switcher={switcher} />
       </Box>
     </Screen>
+  );
+}
+
+function WorktreeTitle({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  const actions = usePublishedTopBar();
+  return (
+    <Stack.Title asChild>
+      <HeaderTitle
+        title={title}
+        subtitle={subtitle}
+        trailingItems={worktreeSections.length + actions.length}
+      />
+    </Stack.Title>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
+import { TopBarActions } from '../../../shared/application/top-bar';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
@@ -154,6 +155,25 @@ function useFileActions(props: FileProps) {
   return [timeline, ...props.actions];
 }
 
+function FileHeader({
+  path,
+  actions,
+  place,
+}: {
+  path: string;
+  actions: readonly TopBarAction[];
+  place: FileProps['place'];
+}) {
+  return (
+    <>
+      <DocumentHeader path={path} actions={actions} place={place} />
+      {place === 'pane' ? (
+        <TopBarActions owner="document-pane" actions={actions} />
+      ) : null}
+    </>
+  );
+}
+
 function FileContentView(props: FileProps) {
   const { path, selected } = props;
   const actions = useFileActions(props);
@@ -162,7 +182,7 @@ function FileContentView(props: FileProps) {
     <Box className="flex-1" surface="background">
       {isNativeImagePath(path) ? (
         <>
-          <DocumentHeader path={path} actions={actions} place={props.place} />
+          <FileHeader path={path} actions={actions} place={props.place} />
           <FileImage path={path} selected={selected} />
         </>
       ) : (
@@ -199,7 +219,7 @@ function FileText(props: FileProps) {
   const data = Option.getOrUndefined(AsyncResult.value(file.result));
   const plain = (content: ReactNode) => (
     <>
-      <DocumentHeader path={props.path} actions={actions} place={props.place} />
+      <FileHeader path={props.path} actions={actions} place={props.place} />
       {content}
     </>
   );
@@ -254,11 +274,7 @@ function FilePreview({
   useDocumentKeys(mode);
   return (
     <View className="flex-1">
-      <DocumentHeader
-        path={path}
-        place={place}
-        actions={[...mode, ...actions]}
-      />
+      <FileHeader path={path} place={place} actions={[...mode, ...actions]} />
       {link.error ? <ErrorState message={link.error} /> : null}
       <FileContentsPreview
         workspace={selected.key}

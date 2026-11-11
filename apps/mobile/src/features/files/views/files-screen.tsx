@@ -55,9 +55,11 @@ import type { ListDetailMode } from '../../../shared/rules/list-detail';
 export function FilesScreen({
   mode,
   workspace,
+  search,
 }: {
   mode: ListDetailMode;
   workspace?: string | undefined;
+  search?: 'content' | 'top-bar';
 }) {
   return (
     <WorkspaceGate
@@ -71,7 +73,12 @@ export function FilesScreen({
       }
     >
       {(selected) => (
-        <FilesNavigation key={selected.key} selected={selected} mode={mode} />
+        <FilesNavigation
+          key={selected.key}
+          selected={selected}
+          mode={mode}
+          search={search ?? (mode === 'beside' ? 'content' : 'top-bar')}
+        />
       )}
     </WorkspaceGate>
   );
@@ -93,6 +100,7 @@ function restoringSearchBar(query: string) {
 type FilesNavigationProps = {
   selected: Workspace;
   mode: ListDetailMode;
+  search: 'content' | 'top-bar';
 };
 
 function FilesNavigation(props: FilesNavigationProps) {
@@ -102,8 +110,7 @@ function FilesNavigation(props: FilesNavigationProps) {
   ) : null;
 }
 
-function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
-  const search = mode === 'beside' ? 'content' : 'top-bar';
+function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
   const openBeside = useOpenFileBeside(selected.key);
   const review = useFileReview(selected, { kind: 'worktree' });
   const preferences = {
