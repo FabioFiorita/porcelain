@@ -1,3 +1,4 @@
+import { claudeEnvironment } from '../shared/commands/claude-environment.ts';
 import { installedModels } from '../shared/commands/installed-models.ts';
 import { Context, Effect, FileSystem, Layer, Path } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
@@ -54,6 +55,7 @@ export class ClaudeProvider extends Context.Service<ClaudeProvider, Provider>()(
 
                 const output = yield* runProvider({
                   command,
+                  env: claudeEnvironment(process.env),
                   args: [
                     '--print',
                     '--safe-mode',

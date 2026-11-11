@@ -1,3 +1,4 @@
+import { claudeEnvironment } from '../shared/commands/claude-environment.ts';
 import { providerFailure, logProviderFailure } from './provider-failure.ts';
 import { codexOutputSchema } from './codex-output-schema.ts';
 import { writeFile } from 'node:fs/promises';
@@ -149,8 +150,6 @@ const isolatedEnvironment = (folder: string) => ({
   ...process.env,
   HOME: folder,
   CODEX_HOME: process.env.CODEX_HOME ?? join(homedir(), '.codex'),
-  CLAUDE_CONFIG_DIR:
-    process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
   BASH_ENV: '',
   ENV: '',
   ZDOTDIR: folder,
@@ -162,6 +161,7 @@ const isolatedEnvironment = (folder: string) => ({
   NODE_OPTIONS: '',
   BUN_OPTIONS: '',
   GIT_NO_LAZY_FETCH: '1',
+  GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_CONFIG_COUNT: '2',
   GIT_CONFIG_KEY_0: 'core.hooksPath',
   GIT_CONFIG_VALUE_0: '/dev/null',
@@ -247,7 +247,16 @@ export const agentTurns = (options: {
       return [...configArgs, ...mcpOverrides];
     });
     const run = Effect.fn('AgentTurns.run')(function* (turn: AgentTurn) {
-      const env = isolatedEnvironment(turn.folder);
+      const isolated = isolatedEnvironment(turn.folder);
+      const env =
+        turn.provider === 'claude' ? claudeEnvironment(isolated) : isolated;
+      if (turn.provider === 'claude' && process.platform === 'darwin') {
+        const home = join(turn.folder, `home-${turn.label}`);
+        yield* fs.makeDirectory(join(home, 'Library'), { recursive: true });
+        for (const path of ['.claude', '.claude.json', 'Library/Keychains'])
+          yield* fs.symlink(join(homedir(), path), join(home, path));
+        env.HOME = home;
+      }
       const command = options.command ?? turn.provider;
       const resuming = turn.session.kind === 'resume';
       const answerPath = join(turn.folder, `answer-${turn.label}.json`);

@@ -1,4 +1,12 @@
-import { mkdtemp, writeFile, readFile, readdir, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  writeFile,
+  readFile,
+  readdir,
+  rm,
+  mkdir,
+} from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
@@ -140,11 +148,60 @@ async function fixture(
     );
   return { folder, result, sessions, answer };
 }
+it('keeps Claude sessions across temporary homes without executing developer shell profiles', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `const fs = require('fs'); const cp = require('child_process'); const path = require('path'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const home = process.env.HOME; const session = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(home, '.claude'), 'session'); const resuming = args.includes('--resume'); if (resuming && fs.readFileSync(session, 'utf8') !== 'saved session') process.exit(2); fs.writeFileSync(session, 'saved session'); for (const shell of process.platform === 'darwin' ? ['/bin/bash', '/bin/zsh'] : ['/bin/bash']) cp.execFileSync(shell, ['-lc', '[ ! -f "$HOME/.zshrc" ] || . "$HOME/.zshrc"']); console.log(JSON.stringify({structured_output: resuming ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
+    onTestFinished,
+  );
+  const home = join(test.folder, 'developer');
+  await mkdir(join(home, '.claude'), { recursive: true });
+  await mkdir(join(home, 'Library/Keychains'), { recursive: true });
+  await writeFile(join(home, '.claude.json'), '{}');
+  const marker = join(home, 'startup-ran');
+  for (const profile of [
+    '.bash_profile',
+    '.profile',
+    '.zshenv',
+    '.zprofile',
+    '.zshrc',
+    '.zlogin',
+  ])
+    await writeFile(join(home, profile), `printf ran >> '${marker}'\n`);
+  for (const shell of process.platform === 'darwin'
+    ? ['/bin/bash', '/bin/zsh']
+    : ['/bin/bash'])
+    execFileSync(shell, ['-lc', 'true'], {
+      env: { ...process.env, HOME: home, ZDOTDIR: home },
+    });
+  expect(await readFile(marker, 'utf8')).toContain('ran');
+  await rm(marker);
+  const previous = {
+    HOME: process.env.HOME,
+    SHELL: process.env.SHELL,
+    CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
+  };
+  onTestFinished(() => {
+    for (const [key, value] of Object.entries(previous))
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
+  process.env.HOME = home;
+  process.env.SHELL = '/bin/bash';
+  delete process.env.CLAUDE_CONFIG_DIR;
+  const result = await test.result();
+  expect(result._tag).toBe('Success');
+  expect(await readFile(join(home, '.claude/session'), 'utf8')).toBe(
+    'saved session',
+  );
+  expect(await readdir(home)).not.toContain('startup-ran');
+});
 it('uses two passes in the same read-only session, disables hooks and pins both commits', async ({
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd()})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd(), gitConfigGlobal: process.env.GIT_CONFIG_GLOBAL})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
     onTestFinished,
   );
   const result = await test.result({
@@ -167,11 +224,18 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
     .map((line) =>
       Schema.decodeUnknownSync(
         Schema.fromJsonString(
-          Schema.Struct({ args: Schema.Array(Schema.String) }),
+          Schema.Struct({
+            args: Schema.Array(Schema.String),
+            gitConfigGlobal: Schema.optional(Schema.String),
+          }),
         ),
       )(line),
     );
   expect(invocations).toHaveLength(2);
+  expect(invocations.map(({ gitConfigGlobal }) => gitConfigGlobal)).toEqual([
+    '/dev/null',
+    '/dev/null',
+  ]);
   expect(
     invocations.map(({ args }) => args[args.indexOf('--effort') + 1]),
   ).toEqual(['xhigh', 'xhigh']);
