@@ -67,6 +67,13 @@ export async function liveRouter(context: BrowserContext) {
 
 export type LiveRouter = Awaited<ReturnType<typeof liveRouter>>;
 
+export function holdPairingRestore(context: BrowserContext) {
+  return browserNetwork(context).holdNext(
+    (request) =>
+      request.method() === 'GET' && pathOf(request) === '/api/session',
+  );
+}
+
 export function holdNextPost(context: BrowserContext, ending: string) {
   return browserNetwork(context).holdNext(
     (request) =>

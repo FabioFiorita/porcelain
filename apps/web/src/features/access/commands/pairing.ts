@@ -31,6 +31,7 @@ export const pairingLinkChanges = Atom.family((invalidate: () => void) =>
       if (window.location.hash) invalidate();
     };
     window.addEventListener('hashchange', pairFromLink);
+    pairFromLink();
     get.addFinalizer(() =>
       window.removeEventListener('hashchange', pairFromLink),
     );

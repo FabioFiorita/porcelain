@@ -27,6 +27,7 @@ import {
   waitForRemoteStatusFailure,
   failChangesRead,
   holdNextPost,
+  holdPairingRestore,
   liveRouter,
 } from './network.ts';
 
@@ -53,6 +54,11 @@ declare const navigation: { entries(): { url: string | null }[] };
 declare const location: { href: string };
 declare const document: { hasFocus(): boolean };
 declare const window: {
+  addEventListener(
+    event: string,
+    listener: () => void,
+    options: { once: boolean },
+  ): void;
   dispatchEvent(event: Event): boolean;
   __INSTANCE?: {
     getContainerElement():
@@ -222,6 +228,23 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
         .getAttribute('style'),
     async follow(address: string) {
       await page.goto(address);
+    },
+    holdPairingRestore: () => holdPairingRestore(page.context()),
+    async followPairingHash(address: string) {
+      const changed = page.waitForEvent('console', {
+        predicate: (message) => message.text() === 'Pairing hash delivered',
+      });
+      await page.evaluate(() => {
+        window.addEventListener(
+          'hashchange',
+          () => console.info('Pairing hash delivered'),
+          { once: true },
+        );
+      });
+      await page.evaluate((address) => {
+        location.href = address;
+      }, address);
+      await changed;
     },
     visited: () =>
       page.evaluate(() =>
