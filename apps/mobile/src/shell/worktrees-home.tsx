@@ -72,10 +72,7 @@ export function WorktreesHome() {
       <ListDetail
         layout={layout}
         listHidden={beside && hidden}
-        overlay={{
-          open: open || !selected,
-          onDismiss: selected ? close : undefined,
-        }}
+        overlay={selected ? { open, onDismiss: close } : undefined}
         list={(mode) => <WorktreesScreen mode={mode} onOpen={close} />}
         detail={
           selected ? (
