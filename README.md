@@ -59,6 +59,10 @@ Choose **Write walkthrough** on a worktree with work to explain, or let the proj
 
 The walkthrough agent runs read-only in the worktree: it reads and searches, and never edits. Your hooks and the MCP servers in your own agent configuration are switched off for it.
 
+### Getting the most out of it
+
+A walkthrough is only as rich as what its agent can read: your own words to your coding agent, a pull request that says what changed and how it was verified, and screenshots uploaded into that pull request's description. The [guide](https://porcelain.fabiofiorita.com/guide) shows what the agent reads and the habits that make a repository agent-ready, with instructions you can paste into your `AGENTS.md`.
+
 ## Privacy
 
 Porcelain has no account, no analytics and no server of its own. Your code stays on your machine, with one exception you choose: the walkthrough agent, and commit message generation if you use it, run through your own Claude Code or Codex sign-in, so what they read goes to Anthropic or OpenAI under your account, as in any session you run yourself. That includes your own messages from the coding sessions in that worktree, which Porcelain reads locally to explain intent. Porcelain reads your pull requests through the GitHub CLI, signed in as you, and downloads the screenshots in a pull request's description from GitHub's image hosts. It posts a comment only when you click. The [privacy page](https://porcelain.fabiofiorita.com/privacy) has the details, and the source is right here.

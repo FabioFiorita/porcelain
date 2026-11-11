@@ -11,6 +11,7 @@ Around the walkthrough, Porcelain has a file tree for very large repositories (p
 ## Pages
 
 - [Porcelain](https://porcelain.fabiofiorita.com/): The Walkthrough, how the fresh agent works, comments, files, history and remote environments.
+- [Guide](https://porcelain.fabiofiorita.com/guide/): What the walkthrough agent reads, how pull request screenshots reach a step, and the habits that make a repository agent-ready, with instructions to paste into AGENTS.md.
 - [Install](https://porcelain.fabiofiorita.com/install/): The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.
 - [Privacy](https://porcelain.fabiofiorita.com/privacy/): No account, no analytics and no Porcelain server. What the walkthrough agent sends to your own Claude or Codex account, and nothing else.
 
