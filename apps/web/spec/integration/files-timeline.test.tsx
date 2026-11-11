@@ -1,50 +1,66 @@
+import { page } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('a paginated timeline returns from an older commit with its loaded rows, selection and reading position', async ({
+test('a file timeline keeps its selection and reading position after returning from a commit', async ({
   render,
   repo,
   reviewLayout,
 }) => {
-  await repo.paginatedTimeline();
-  const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
-  await workspace
-    .getByRole('treeitem', { name: 'notes.txt', exact: true })
-    .click({ button: 'right' });
-  await workspace
-    .getByRole('menuitem', { name: 'Show timeline', exact: true })
-    .click();
-  const timeline = workspace.getByRole('list', {
-    name: 'Timeline of notes.txt',
-    exact: true,
-  });
-  await expect.element(timeline.getByRole('listitem')).toHaveLength(101);
-  await workspace
-    .getByRole('button', { name: 'Load older commits', exact: true })
-    .click();
-  await expect.element(timeline.getByRole('listitem')).toHaveLength(103);
-  const viewport = workspace.getByRole('region', {
-    name: 'Timeline reading area',
-    exact: true,
-  });
-  reviewLayout.scrollToEnd(viewport);
-  await expect.poll(() => reviewLayout.scrollTop(viewport)).toBeGreaterThan(0);
-  const position = reviewLayout.scrollTop(viewport);
-  await timeline.getByRole('button', { name: /^Timeline oldest/ }).click();
-  await expect
-    .element(
-      workspace.getByRole('heading', { name: 'Timeline oldest', exact: true }),
-    )
-    .toBeVisible();
-  await workspace
-    .getByRole('tab', { name: 'Timeline of notes.txt', exact: true })
-    .click();
-  await expect.element(timeline.getByRole('listitem')).toHaveLength(103);
-  await expect
-    .element(timeline.getByRole('button', { name: /^Timeline oldest/ }))
-    .toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(() => reviewLayout.scrollTop(viewport)).toBe(position);
+  await page.viewport(414, 600);
+  try {
+    for (let index = 1; index <= 12; index += 1) {
+      await repo.write('notes.txt', `Note ${index}\n`);
+      await repo.commit(`Timeline note ${index}`);
+    }
+    const workspace = await render.workspace();
+    await workspace
+      .getByRole('button', { name: 'Review', exact: true })
+      .click();
+    await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+    await workspace
+      .getByRole('treeitem', { name: 'notes.txt', exact: true })
+      .click({ button: 'right' });
+    await workspace
+      .getByRole('menuitem', { name: 'Show timeline', exact: true })
+      .click();
+    await expect
+      .element(
+        workspace.getByRole('dialog', { name: 'Worktree review', exact: true }),
+      )
+      .not.toBeInTheDocument();
+    const timeline = workspace.getByRole('list', {
+      name: 'Timeline of notes.txt',
+      exact: true,
+    });
+    await expect.element(timeline.getByRole('listitem')).toHaveLength(13);
+    const viewport = workspace.getByRole('region', {
+      name: 'Timeline reading area',
+      exact: true,
+    });
+    reviewLayout.scrollToEnd(viewport);
+    await expect
+      .poll(() => reviewLayout.scrollTop(viewport))
+      .toBeGreaterThan(0);
+    const position = reviewLayout.scrollTop(viewport);
+    const oldest = timeline.getByRole('button', { name: /^Timeline note 1 /u });
+    await oldest.click();
+    await expect
+      .element(
+        workspace.getByRole('heading', {
+          name: 'Timeline note 1',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await workspace
+      .getByRole('tab', { name: 'Timeline of notes.txt', exact: true })
+      .click();
+    await expect.element(timeline.getByRole('listitem')).toHaveLength(13);
+    await expect.element(oldest).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => reviewLayout.scrollTop(viewport)).toBe(position);
+  } finally {
+    await page.viewport(414, 896);
+  }
 });
 
 test('the timeline of a renamed file lists its commits across the rename and opens the diff of one', async ({

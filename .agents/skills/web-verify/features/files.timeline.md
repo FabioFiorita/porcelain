@@ -13,6 +13,9 @@ selectors:
   - "Show timeline"
 tests:
   - apps/web/spec/integration/files-timeline.test.tsx
+  - packages/client/src/features/history/queries/history.spec.ts
+  - packages/git/src/history/commands/list-file-commits.spec.ts
+  - apps/server/spec/integration/changes-list-file-commits.integration.ts
   - apps/web/spec/integration/reviews-reopen-document.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files

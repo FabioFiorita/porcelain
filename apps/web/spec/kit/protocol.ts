@@ -17,7 +17,6 @@ export type ServerRead = {
 };
 
 export type RepoStep =
-  | { kind: 'paginated-timeline-fixture' }
   | {
       kind: 'service-update-fixture';
       state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;
