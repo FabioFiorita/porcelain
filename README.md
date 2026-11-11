@@ -25,7 +25,7 @@ Porcelain does not run your coding agent. It sits beside the one you already use
 - **What the code doesn't say.** The agent reads the pull request, the diff and the repository first. Then it reads only your own messages to the builder, and writes down whatever only those explained.
 - **Proof where it belongs.** Screenshots from the pull request sit on the step they prove. The agent never edits code and never makes evidence up: no proof, nothing shown.
 - **Ask, then post.** Comment on a call or a step and the walkthrough agent answers. A requested change goes on the pull request in one click, alone or saved and posted together, or is copied as a brief when there is no pull request.
-- **Code by step.** The Changes panel groups the branch by step. Reviewed checkboxes stay on plain Changes.
+- **Code by step.** The Changes panel groups committed and uncommitted work by step. Reviewed checkboxes stay on plain Changes.
 - **Made for big repositories.** Pin the files you read, hide the ones you never open, and browse History as a commit graph with a timeline for each file, with commit, pull and push in the same place.
 - **Every machine, one place.** Run a server where each repository lives and reach all of them from one Porcelain, locally, over your network or remotely.
 
@@ -55,7 +55,7 @@ npx @fabiofiorita/porcelain@latest service install
 
 Porcelain writes walkthroughs through the Claude Code (`claude`) or Codex (`codex`) CLI on the machine that runs the server. Install one and sign in; there is no API key to set up. Choose the writer's model and effort under **Walkthroughs** in Settings. A project's **Walkthrough settings**, in its menu, can choose another writer for that project and turn on automatic walkthroughs.
 
-Choose **Write walkthrough** on a worktree with work to explain, or let the project write one when a pull request opens; automatic writing is off until you turn it on. New commits mark the page out of date and offer **Update**.
+Choose **Write walkthrough** on a worktree with work to explain, or let the project write one when a pull request opens; automatic writing is off until you turn it on. New commits or edits mark the page out of date and offer **Update**.
 
 The walkthrough agent runs read-only in the worktree: it reads and searches, and never edits. Your hooks and the MCP servers in your own agent configuration are switched off for it.
 
