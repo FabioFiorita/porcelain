@@ -90,11 +90,13 @@ export function WorktreeDetail({
   mode,
   content,
   guide: Guide,
+  onDestination,
 }: {
   details: WorktreeParams;
   mode: ListDetailMode;
   content: WorktreeSectionContent;
   guide: WorktreeGuideReader;
+  onDestination?: (() => void) | undefined;
 }) {
   const { picker, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
@@ -162,6 +164,7 @@ export function WorktreeDetail({
                 mode={mode}
                 content={content}
                 guide={guide}
+                onDestination={onDestination}
               />
             )}
           </Guide>
@@ -177,15 +180,21 @@ function WorktreeSections({
   mode,
   content: Content,
   guide,
+  onDestination,
 }: {
   workspace: string;
   details: WorktreeParams;
   mode: ListDetailMode;
   content: WorktreeSectionContent;
   guide: WorktreeGuide;
+  onDestination?: (() => void) | undefined;
 }) {
   const [opening, setOpening] = useState<WorktreeSection>();
-  const [chosen, choose] = useAtom(worktreeSection(workspace));
+  const [chosen, setChosen] = useAtom(worktreeSection(workspace));
+  const choose = (next: WorktreeSection) => {
+    setChosen(next);
+    onDestination?.();
+  };
   const answered = openingWorktreeSection(guide);
   if (opening === undefined && answered !== undefined) setOpening(answered);
   const section =

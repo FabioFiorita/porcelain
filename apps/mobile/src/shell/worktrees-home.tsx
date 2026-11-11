@@ -101,6 +101,7 @@ export function WorktreesHome() {
               mode="beside"
               content={WorktreeSectionView}
               guide={WalkthroughGuide}
+              onDestination={close}
             />
           ) : (
             <Empty
