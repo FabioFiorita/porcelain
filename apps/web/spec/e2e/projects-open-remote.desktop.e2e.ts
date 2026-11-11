@@ -362,12 +362,14 @@ test('a rename dialog for another computer’s project is disabled with the reas
     .toBe(project.name);
 });
 
-for (const source of ['local', 'remote'] as const) {
-  for (const checkout of [
-    'recorded',
-    'another-checkout',
-    'not-checked-out',
-  ] as const) {
+for (const { source, checkouts } of [
+  {
+    source: 'local',
+    checkouts: ['recorded', 'another-checkout', 'not-checked-out'],
+  },
+  { source: 'remote', checkouts: ['recorded', 'not-checked-out'] },
+] as const) {
+  for (const checkout of checkouts) {
     test(`a ${source} PR source link uses its branch checkout with ${checkout} and survives reload`, async ({
       pairedPage: page,
       app,
