@@ -24,7 +24,9 @@ export function createPierreCodeView() {
       },
     }),
   );
-  const viewer = new CodeView();
+  const header = document.createElement('div');
+  header.style.height = '100px';
+  const viewer = new CodeView({ renderCodeViewHeader: () => header });
   const spies: CleanupSpy[] = [];
   const captured = new Set<DisposableInstance>();
   let disposed = false;
@@ -51,6 +53,19 @@ export function createPierreCodeView() {
     throw error;
   }
   return {
+    async jumpThenResizeHeader() {
+      await expect
+        .poll(() => viewer.getRenderedItems().map((item) => item.id))
+        .toEqual(['discarded']);
+      for (const position of [500, 1500]) {
+        viewer.scrollTo({ type: 'position', position, behavior: 'instant' });
+        viewer.render(true);
+      }
+      const destination = element.scrollTop;
+      header.style.height = '140px';
+      return destination;
+    },
+    scrollTop: () => element.scrollTop,
     async observeRecycled() {
       await expect
         .poll(() => viewer.getRenderedItems().map((item) => item.id))
