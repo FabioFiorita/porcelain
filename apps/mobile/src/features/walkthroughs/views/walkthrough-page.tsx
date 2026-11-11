@@ -585,7 +585,10 @@ export function WalkthroughPage({
   workspace: Workspace;
   phase: Phase;
 }) {
-  const write = useStartWalkthrough(workspace);
+  const write = useStartWalkthrough(
+    workspace,
+    phase.kind !== 'unwritten' ? phase.run : undefined,
+  );
   const startFailure =
     write.failure && (phase.kind === 'unwritten' || phase.kind === 'failed')
       ? write.failure

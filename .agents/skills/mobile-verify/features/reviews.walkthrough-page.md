@@ -105,3 +105,5 @@ Automated coverage: `walkthrough.spec.ts` (opening rule, page rules, update stat
 ### Pull request evidence at another commit
 
 With a PR behind the local captured head, write a walkthrough. It becomes ready and keeps the PR target for comments, with no PR images or checks. The meta line says once: “Screenshots and checks are not shown: the pull request is at another commit. Push, then update.” Update remains available even without local edits. Push that head, then Update: the new run clears the notice and can show matching evidence. Missing GitHub accounts and GitHub read failures likewise leave the page ready with their shared explanatory notice. A walkthrough without a PR needs no notice.
+
+When updating a displayed PR walkthrough during an unavailable or loading PR list, the request retains the displayed PR number; the notice and retry remain while GitHub is unavailable. A loaded list overrides that target only when it names another open PR for the current branch.

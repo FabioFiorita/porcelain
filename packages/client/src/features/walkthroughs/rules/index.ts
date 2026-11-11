@@ -6,8 +6,6 @@ export {
   stopPaths,
   walkthroughCalls,
   walkthroughFailureCopy,
-  walkthroughPullRequest,
-  walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughPhase,
   walkthroughVerdict,

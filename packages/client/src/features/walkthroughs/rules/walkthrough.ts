@@ -1,4 +1,5 @@
 import type {
+  StartWalkthroughRequest,
   readWalkthroughResponseSchema,
   walkthroughContentSchema,
 } from '@porcelain/contracts/walkthroughs';
@@ -204,14 +205,25 @@ export function walkthroughStartFailure(error: unknown): WalkthroughFailure {
   };
 }
 
-export function walkthroughPullRequest(
-  pulls: readonly { number: number; headBranch: string; state: string }[],
-  branch: string | undefined,
-) {
-  if (branch === undefined) return undefined;
-  return pulls.find(
-    (pull) => pull.headBranch === branch && pull.state === 'open',
-  )?.number;
+export function walkthroughStartRequest(input: {
+  pullRequests:
+    | readonly { number: number; headBranch: string; state: string }[]
+    | undefined;
+  branch: string | undefined;
+  displayedRun: Pick<WalkthroughRun, 'pullRequestNumber'> | undefined;
+  base?: string | undefined;
+}): StartWalkthroughRequest {
+  const listed =
+    input.branch === undefined
+      ? undefined
+      : input.pullRequests?.find(
+          (pull) => pull.headBranch === input.branch && pull.state === 'open',
+        )?.number;
+  const pullRequestNumber = listed ?? input.displayedRun?.pullRequestNumber;
+  return {
+    ...(input.base === undefined ? {} : { base: input.base }),
+    ...(pullRequestNumber === undefined ? {} : { pullRequestNumber }),
+  };
 }
 
 export function walkthroughTabTitle(read: WalkthroughRead) {

@@ -488,7 +488,12 @@ function Failed({
 
 export function WalkthroughDocument(props: DocumentProps) {
   const { result, phase, refresh } = useWalkthrough(props.scope, props.context);
-  const write = useStartWalkthrough(props.scope, props.context, props.base);
+  const write = useStartWalkthrough(
+    props.scope,
+    props.context,
+    props.base,
+    phase && phase.kind !== 'unwritten' ? phase.run : undefined,
+  );
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
       <StateFailure

@@ -10,7 +10,7 @@ import {
   walkthroughFailureCopy,
   walkthroughFileCount,
   walkthroughPhase,
-  walkthroughPullRequest,
+  walkthroughStartRequest,
   walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughVerdict,
@@ -378,20 +378,60 @@ describe('walkthroughStartFailure', () => {
   });
 });
 
-describe('walkthroughPullRequest', () => {
-  const pulls = [
+describe('walkthroughStartRequest', () => {
+  const pullRequests = [
     { number: 7, headBranch: 'feature', state: 'closed' },
     { number: 8, headBranch: 'feature', state: 'open' },
     { number: 9, headBranch: 'other', state: 'open' },
   ];
-
-  it('finds the open pull request of the worktree branch', () => {
-    expect(walkthroughPullRequest(pulls, 'feature')).toBe(8);
+  it('keeps the displayed PR in the request when the list is unavailable or loading', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests: undefined,
+        branch: 'feature',
+        displayedRun: { pullRequestNumber: 423 },
+        base: 'main',
+      }),
+    ).toEqual({ base: 'main', pullRequestNumber: 423 });
   });
-
-  it('has no number without a branch or an open pull request', () => {
-    expect(walkthroughPullRequest(pulls, undefined)).toBeUndefined();
-    expect(walkthroughPullRequest(pulls, 'main')).toBeUndefined();
+  it('uses a loaded open PR for this branch and keeps the displayed target when none is listed', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'feature',
+        displayedRun: { pullRequestNumber: 423 },
+      }),
+    ).toEqual({ pullRequestNumber: 8 });
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'main',
+        displayedRun: { pullRequestNumber: 423 },
+      }),
+    ).toEqual({ pullRequestNumber: 423 });
+  });
+  it('writes without a PR when neither the list nor the displayed run names one', () => {
+    expect(
+      walkthroughStartRequest({
+        pullRequests: undefined,
+        branch: 'feature',
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: undefined,
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
+    expect(
+      walkthroughStartRequest({
+        pullRequests,
+        branch: 'main',
+        displayedRun: undefined,
+      }),
+    ).toEqual({});
   });
 });
 
