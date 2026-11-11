@@ -40,11 +40,16 @@ function notePath(variant: StressVariant) {
   return `porcelain-stress/${variant}.md`;
 }
 
-function appliedMarker(session: Session, variant: StressVariant) {
+function appliedMarker(
+  session: Pick<Session, 'projectHome'>,
+  variant: StressVariant,
+) {
   return join(session.projectHome, `.porcelain-stress-${variant}`);
 }
 
-export function appliedStressVariants(session: Session): StressVariant[] {
+export function appliedStressVariants(
+  session: Pick<Session, 'projectHome'>,
+): StressVariant[] {
   return stressVariants.filter((variant) =>
     existsSync(appliedMarker(session, variant)),
   );

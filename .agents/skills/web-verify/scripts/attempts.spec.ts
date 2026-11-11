@@ -42,6 +42,17 @@ it.each<{
       'console error: Target crashed: the review socket has been closed',
     ],
   },
+  ...[
+    'page error: fixture failed',
+    'console error: fixture failed',
+    'overflows horizontally: 2000 px of content in 414 px',
+    'unavailable page: Computer unavailable',
+  ].map((problem) => ({
+    name: `${problem} is captured once`,
+    outcomes: [{ problems: [problem] }],
+    calls: 1,
+    problems: [problem],
+  })),
   {
     name: 'a capture that fails for another reason is not retried',
     outcomes: [
