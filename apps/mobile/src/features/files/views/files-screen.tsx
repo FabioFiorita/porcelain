@@ -33,7 +33,6 @@ import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { Empty } from '../../../components/ui/empty';
-import { headerIcon } from '../../../shared/icons/header-icon';
 import { useListCursor } from '../../../shared/application/key-commands';
 import { useDirectories } from '../queries/directory';
 import { directoryLoading } from '../rules/directory-loading';
@@ -48,16 +47,19 @@ import { useSetFilePreference } from '../commands/file-preferences';
 import { pinnedNavigationRows } from '../rules/file-navigation';
 import { useOpenFileBeside } from '../commands/open-file';
 import { FilePane } from './file-screen';
+import { TopBarActions } from '../../../shared/application/top-bar';
 import { ListDetail } from '../../../components/ui/list-detail';
-import type { DocumentAction } from '../../../components/ui/document-header';
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 
 export function FilesScreen({
   mode,
   workspace,
+  search,
 }: {
   mode: ListDetailMode;
   workspace?: string | undefined;
+  search?: 'content' | 'top-bar';
 }) {
   return (
     <WorkspaceGate
@@ -71,7 +73,12 @@ export function FilesScreen({
       }
     >
       {(selected) => (
-        <FilesNavigation key={selected.key} selected={selected} mode={mode} />
+        <FilesNavigation
+          key={selected.key}
+          selected={selected}
+          mode={mode}
+          search={search ?? (mode === 'beside' ? 'content' : 'top-bar')}
+        />
       )}
     </WorkspaceGate>
   );
@@ -93,6 +100,7 @@ function restoringSearchBar(query: string) {
 type FilesNavigationProps = {
   selected: Workspace;
   mode: ListDetailMode;
+  search: 'content' | 'top-bar';
 };
 
 function FilesNavigation(props: FilesNavigationProps) {
@@ -102,8 +110,7 @@ function FilesNavigation(props: FilesNavigationProps) {
   ) : null;
 }
 
-function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
-  const search = mode === 'beside' ? 'content' : 'top-bar';
+function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
   const openBeside = useOpenFileBeside(selected.key);
   const review = useFileReview(selected, { kind: 'worktree' });
   const preferences = {
@@ -220,7 +227,7 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
           openAction({ kind: 'create', entryKind: 'directory', folder: '' }),
       },
     ],
-  } as const satisfies DocumentAction;
+  } as const satisfies TopBarAction;
   const nodes = mergeFileTreeEntries(data);
   const preferenceEntries = filePreferenceEntries({
     entries: nodes,
@@ -540,22 +547,7 @@ function FilesNavigationView({ selected, mode }: FilesNavigationProps) {
         />
       ) : null}
       {createInTopBar ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon={headerIcon(create.icon)}
-            accessibilityLabel={create.label}
-            title={create.label}
-          >
-            {create.choices.map((choice) => (
-              <Stack.Toolbar.MenuAction
-                key={choice.label}
-                onPress={choice.onPress}
-              >
-                {choice.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
+        <TopBarActions owner="files-create" actions={[create]} />
       ) : null}
       <FileTree
         header={header}

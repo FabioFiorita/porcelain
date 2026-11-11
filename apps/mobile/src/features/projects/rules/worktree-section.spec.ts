@@ -1,65 +1,29 @@
 import { expect, it } from 'vitest';
 import {
-  changesInTopBar,
+  openingWorktreeSection,
   shownWorktreeSection,
-  worktreeSectionChoices,
 } from './worktree-section';
 
-it('puts Walkthrough in the first slot, instead of Changes, when a run exists and keeps it one tap away otherwise', () => {
+it('opens on Walkthrough only when a run exists, on Changes otherwise, and waits while the walkthrough is read', () => {
+  expect(openingWorktreeSection({ walkthrough: true, pending: false })).toBe(
+    'walkthrough',
+  );
+  expect(openingWorktreeSection({ walkthrough: false, pending: false })).toBe(
+    'changes',
+  );
   expect(
-    worktreeSectionChoices({ walkthrough: true, pending: false }).map(
-      (section) => section.label,
-    ),
-  ).toEqual(['Walkthrough', 'Files', 'History']);
-  expect(
-    worktreeSectionChoices({ walkthrough: false, pending: false }).map(
-      (section) => section.label,
-    ),
-  ).toEqual(['Changes', 'Walkthrough', 'Files', 'History']);
+    openingWorktreeSection({ walkthrough: false, pending: true }),
+  ).toBeUndefined();
 });
 
-it('keeps the chosen section while it is offered, else falls back to the opening one', () => {
-  const guided = { walkthrough: true, pending: false };
-  const plain = { walkthrough: false, pending: false };
+it('shows the destination the developer chose, else the opening one', () => {
   expect(
-    shownWorktreeSection({
-      chosen: 'history',
-      opening: 'walkthrough',
-      guide: guided,
-    }),
+    shownWorktreeSection({ chosen: 'history', opening: 'walkthrough' }),
   ).toBe('history');
   expect(
-    shownWorktreeSection({
-      chosen: undefined,
-      opening: 'walkthrough',
-      guide: guided,
-    }),
-  ).toBe('walkthrough');
-  expect(
-    shownWorktreeSection({
-      chosen: 'walkthrough',
-      opening: 'files',
-      guide: plain,
-    }),
-  ).toBe('walkthrough');
-  expect(
-    shownWorktreeSection({
-      chosen: undefined,
-      opening: 'changes',
-      guide: plain,
-    }),
+    shownWorktreeSection({ chosen: 'changes', opening: 'walkthrough' }),
   ).toBe('changes');
-  expect(
-    shownWorktreeSection({
-      chosen: 'changes',
-      opening: 'changes',
-      guide: guided,
-    }),
-  ).toBe('walkthrough');
-});
-
-it('puts Changes in the top bar only when the Walkthrough has taken its segment', () => {
-  expect(changesInTopBar({ walkthrough: true, pending: false })).toBe(true);
-  expect(changesInTopBar({ walkthrough: false, pending: false })).toBe(false);
-  expect(changesInTopBar({ walkthrough: false, pending: true })).toBe(false);
+  expect(shownWorktreeSection({ chosen: undefined, opening: 'changes' })).toBe(
+    'changes',
+  );
 });

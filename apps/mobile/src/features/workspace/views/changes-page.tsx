@@ -10,7 +10,7 @@ import { Loading } from '../../../components/ui/loading';
 import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
-import type { DocumentAction } from '../../../components/ui/document-header';
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { changePageDiffs, useReviewSnapshot } from '../queries/review';
 import {
@@ -69,7 +69,7 @@ type ChangesReading = {
   title: string;
   only: readonly string[];
   header: ReactNode;
-  actions: readonly DocumentAction[];
+  actions: readonly TopBarAction[];
   empty: { title: string; description: string };
 };
 

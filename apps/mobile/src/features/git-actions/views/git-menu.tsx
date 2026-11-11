@@ -1,11 +1,10 @@
-import { Stack } from 'expo-router';
 import { networkLabel } from '@porcelain/client/git-actions/rules';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Loading } from '../../../components/ui/loading';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Button } from '../../../components/ui/button';
-import { headerIcon } from '../../../shared/icons/header-icon';
+import { TopBarActions } from '../../../shared/application/top-bar';
 import { useGitMenu } from '../commands/git-menu';
 import type { Workspace } from '../../projects';
 
@@ -17,27 +16,26 @@ export function GitMenu({
   const menu = useGitMenu(selection);
   return (
     <>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={headerIcon('more')}
-          accessibilityLabel="Git actions"
-          title="Git actions"
-        >
-          {(['fetch', 'pull'] as const).map((action) => {
-            const reason = menu.blocker(action);
-            const label = action === 'fetch' ? 'Fetch' : 'Pull';
-            return (
-              <Stack.Toolbar.MenuAction
-                key={action}
-                disabled={Boolean(reason)}
-                onPress={() => menu.run(action)}
-              >
-                {reason ? `${label} — ${reason}` : label}
-              </Stack.Toolbar.MenuAction>
-            );
-          })}
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      <TopBarActions
+        owner="git-actions"
+        actions={[
+          {
+            kind: 'choice',
+            id: 'git-actions',
+            label: 'Git actions',
+            icon: 'branch',
+            choices: (['fetch', 'pull'] as const).map((action) => {
+              const reason = menu.blocker(action);
+              const label = action === 'fetch' ? 'Fetch' : 'Pull';
+              return {
+                label: reason ? `${label} — ${reason}` : label,
+                disabled: Boolean(reason),
+                onPress: () => menu.run(action),
+              };
+            }),
+          },
+        ]}
+      />
       {menu.running ? (
         <Box gap={2}>
           <Loading label={`${networkLabel(menu.running.action)}…`} />

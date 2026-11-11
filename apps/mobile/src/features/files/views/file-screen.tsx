@@ -1,3 +1,5 @@
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
+import { TopBarActions } from '../../../shared/application/top-bar';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
@@ -8,7 +10,11 @@ import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import { WorkspaceGate, type Workspace } from '../../projects/index';
+import {
+  WorkspaceGate,
+  useWorktreeBarItems,
+  type Workspace,
+} from '../../projects/index';
 import type { ReviewRange } from '../../../components/ui/code-range';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -22,7 +28,6 @@ import { FileNotice } from '../../../components/ui/file-notice';
 import {
   DocumentHeader,
   DocumentScreen,
-  type DocumentAction,
 } from '../../../components/ui/document-header';
 import { CodeView } from '../../../components/ui/code-view';
 import {
@@ -82,7 +87,7 @@ export function FilePane({
 }: {
   path: string;
   selected: Workspace;
-  actions: readonly DocumentAction[];
+  actions: readonly TopBarAction[];
 }) {
   return (
     <FileContent
@@ -129,7 +134,7 @@ function ReturnBeside({
 type FileProps = ContentProps & {
   selected: Workspace;
   place: 'screen' | 'pane';
-  actions: readonly DocumentAction[];
+  actions: readonly TopBarAction[];
 };
 
 function FileContent(props: FileProps) {
@@ -139,7 +144,7 @@ function FileContent(props: FileProps) {
 
 function useFileActions(props: FileProps) {
   const router = useRouter();
-  const timeline: DocumentAction = {
+  const timeline: TopBarAction = {
     kind: 'button',
     id: 'timeline',
     label: 'Timeline',
@@ -154,6 +159,35 @@ function useFileActions(props: FileProps) {
   return [timeline, ...props.actions];
 }
 
+const paneBarChrome = 2;
+
+function FileHeader({
+  path,
+  actions,
+  place,
+}: {
+  path: string;
+  actions: readonly TopBarAction[];
+  place: FileProps['place'];
+}) {
+  const worktreeBarItems = useWorktreeBarItems();
+  return (
+    <>
+      <DocumentHeader
+        path={path}
+        actions={actions}
+        place={place}
+        barItems={
+          place === 'pane' ? worktreeBarItems + paneBarChrome : undefined
+        }
+      />
+      {place === 'pane' ? (
+        <TopBarActions owner="document-pane" actions={actions} />
+      ) : null}
+    </>
+  );
+}
+
 function FileContentView(props: FileProps) {
   const { path, selected } = props;
   const actions = useFileActions(props);
@@ -162,7 +196,7 @@ function FileContentView(props: FileProps) {
     <Box className="flex-1" surface="background">
       {isNativeImagePath(path) ? (
         <>
-          <DocumentHeader path={path} actions={actions} place={props.place} />
+          <FileHeader path={path} actions={actions} place={props.place} />
           <FileImage path={path} selected={selected} />
         </>
       ) : (
@@ -199,7 +233,7 @@ function FileText(props: FileProps) {
   const data = Option.getOrUndefined(AsyncResult.value(file.result));
   const plain = (content: ReactNode) => (
     <>
-      <DocumentHeader path={props.path} actions={actions} place={props.place} />
+      <FileHeader path={props.path} actions={actions} place={props.place} />
       {content}
     </>
   );
@@ -239,7 +273,7 @@ function FilePreview({
     preferences.documentsDefault === 'rendered',
   );
   const toggle = documentModeToggle(path, rendered);
-  const mode: DocumentAction[] = toggle
+  const mode: TopBarAction[] = toggle
     ? [
         {
           kind: 'button',
@@ -254,11 +288,7 @@ function FilePreview({
   useDocumentKeys(mode);
   return (
     <View className="flex-1">
-      <DocumentHeader
-        path={path}
-        place={place}
-        actions={[...mode, ...actions]}
-      />
+      <FileHeader path={path} place={place} actions={[...mode, ...actions]} />
       {link.error ? <ErrorState message={link.error} /> : null}
       <FileContentsPreview
         workspace={selected.key}

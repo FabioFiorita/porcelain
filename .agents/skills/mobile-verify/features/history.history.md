@@ -30,7 +30,7 @@ History offers Fetch and Pull in its native top-bar Git actions menu; see [git-a
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → History in the [Worktree](projects.worktree.md) page's segmented control, or `porcelain.dev://history` for the selected worktree.
+- Worktrees tab → worktree → the History button in the [Worktree](projects.worktree.md) page's top bar, or `porcelain.dev://history` for the selected worktree.
 
 ## Driving it with agent-device
 

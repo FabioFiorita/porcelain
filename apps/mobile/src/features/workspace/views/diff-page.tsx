@@ -1,12 +1,10 @@
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import { useState, type ReactNode } from 'react';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { FlatList, View, type FlatListProps } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { DiffView } from '../../../components/ui/diff-view';
-import {
-  PageHeader,
-  type DocumentAction,
-} from '../../../components/ui/document-header';
+import { PageHeader } from '../../../components/ui/document-header';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
@@ -65,7 +63,7 @@ export function DiffPage<F extends DiffPageFile>({
   page: string;
   title: string;
   subtitle?: string | undefined;
-  actions?: readonly DocumentAction[];
+  actions?: readonly TopBarAction[];
   header: (current: F | undefined) => ReactNode;
   files: readonly F[];
   empty: ReactNode;
@@ -102,7 +100,7 @@ export function DiffPage<F extends DiffPageFile>({
       list?.scrollToIndex({ index, animated: false }),
     );
   const rows = diffPageRows(files.length);
-  const filesAction: DocumentAction = {
+  const filesAction: TopBarAction = {
     kind: 'choice',
     id: 'files',
     label: 'Files',

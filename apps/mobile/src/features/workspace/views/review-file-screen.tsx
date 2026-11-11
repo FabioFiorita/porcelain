@@ -1,3 +1,4 @@
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { diffSelection } from '@porcelain/client/changes/rules';
 import { commitPaths } from '@porcelain/client/history/rules';
@@ -20,7 +21,6 @@ import { CodeView } from '../../../components/ui/code-view';
 import {
   DocumentHeader,
   DocumentScreen,
-  type DocumentAction,
 } from '../../../components/ui/document-header';
 import { Screen } from '../../../components/ui/screen';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
@@ -168,7 +168,7 @@ function ChangedFile({
   const change =
     changes.find((entry) => entry.scope === comparisonScope) ?? changes[0];
   const reviewed = useReviewedAction(workspace, snapshot, file);
-  const actions: DocumentAction[] = [
+  const actions: TopBarAction[] = [
     ...(reviewed.action ? [reviewed.action] : []),
     ...(changes.length > 1
       ? [

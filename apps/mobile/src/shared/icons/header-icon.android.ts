@@ -8,6 +8,7 @@ import settings from '@expo/material-symbols/settings.xml';
 import taskAlt from '@expo/material-symbols/task_alt.xml';
 import undo from '@expo/material-symbols/undo.xml';
 import history from '@expo/material-symbols/history.xml';
+import callSplit from '@expo/material-symbols/call_split.xml';
 import forum from '@expo/material-symbols/forum.xml';
 import commentsDisabled from '@expo/material-symbols/comments_disabled.xml';
 import addComment from '@expo/material-symbols/add_comment.xml';
@@ -22,6 +23,9 @@ import leftPanelClose from '@expo/material-symbols/left_panel_close.xml';
 import formatListBulleted from '@expo/material-symbols/format_list_bulleted.xml';
 import chevronLeft from '@expo/material-symbols/chevron_left.xml';
 import chevronRight from '@expo/material-symbols/chevron_right.xml';
+import checklist from '@expo/material-symbols/checklist.xml';
+import difference from '@expo/material-symbols/difference.xml';
+import fileCopy from '@expo/material-symbols/file_copy.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
@@ -43,7 +47,11 @@ const symbols = {
   markReviewed: checkCircle,
   unmarkReviewed: taskAlt,
   comparison: compareArrows,
-  changes: code,
+  walkthrough: checklist,
+  changes: difference,
+  browse: fileCopy,
+  history,
+  branch: callSplit,
   showSource: code,
   showRendered: article,
   files: formatListBulleted,
