@@ -75,7 +75,7 @@ export function WorktreesHome() {
             accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
             onPress={() => {
               if (!portrait) return setHidden(!hidden);
-              return setOpen(!open);
+              return open ? close() : setOpen(true);
             }}
           />
         ) : null}
