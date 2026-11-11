@@ -1,7 +1,9 @@
+import { providerFailure, logProviderFailure } from './provider-failure.ts';
+import { codexOutputSchema } from './codex-output-schema.ts';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { Effect, FileSystem, Schema } from 'effect';
+import { Effect, FileSystem, Result, Schema } from 'effect';
 import { Toml } from 'effect/encoding';
 import { ChildProcessSpawner } from 'effect/process';
 import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
@@ -20,7 +22,27 @@ const envelopeSchema = Schema.Struct({
 const eventSchema = Schema.Struct({
   type: Schema.String,
   thread_id: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+  error: Schema.optional(
+    Schema.Struct({ message: Schema.optional(Schema.String) }),
+  ),
 });
+const codexErrorDetail = (output: string) => {
+  let lastError: string | undefined;
+  for (const line of output.split('\n')) {
+    const decoded = Schema.decodeUnknownResult(
+      Schema.fromJsonString(eventSchema),
+    )(line);
+    if (Result.isSuccess(decoded)) {
+      const event = decoded.success;
+      if (event.type === 'error' || event.type === 'turn.failed') {
+        const detail = event.error?.message ?? event.message;
+        if (detail) lastError = detail;
+      }
+    }
+  }
+  return lastError ?? output;
+};
 const signedOutResult = /sign.?in|login|oauth|token.*expired|unauthorized/i;
 const signedOutOutput =
   /not logged in|sign.?in|login|authentication|oauth|token.*expired|unauthorized/i;
@@ -110,7 +132,7 @@ export type AgentTurn = {
     readonly id: string;
   };
   readonly label: string;
-  readonly schema: unknown;
+  readonly schema: Schema.Top | undefined;
   readonly images: readonly string[];
   readonly prompt: string;
   readonly timeoutMs: number;
@@ -242,7 +264,10 @@ export const agentTurns = (options: {
           'json',
         );
         if (turn.schema !== undefined)
-          args.push('--json-schema', JSON.stringify(turn.schema));
+          args.push(
+            '--json-schema',
+            JSON.stringify(Schema.toJsonSchemaDocument(turn.schema).schema),
+          );
         args.push(
           '--tools',
           'Read,Grep,Glob,Bash',
@@ -281,8 +306,9 @@ export const agentTurns = (options: {
         );
         if (turn.schema !== undefined) {
           const schemaPath = join(turn.folder, `schema-${turn.label}.json`);
+          const schema = codexOutputSchema(turn.schema);
           yield* Effect.tryPromise(() =>
-            writeFile(schemaPath, JSON.stringify(turn.schema)),
+            writeFile(schemaPath, JSON.stringify(schema)),
           );
           args.push('--output-schema', schemaPath);
         }
@@ -291,6 +317,8 @@ export const agentTurns = (options: {
         args.push('-');
         if (resuming) for (const path of turn.images) args.push('-i', path);
       }
+      const failureDetail = (detail = '') =>
+        turn.provider === 'codex' ? codexErrorDetail(detail) : detail;
       const output = yield* runProvider({
         command,
         args,
@@ -302,21 +330,38 @@ export const agentTurns = (options: {
         processGroup: options.processGroup,
       }).pipe(
         provideSpawner,
+        Effect.tapError((error) =>
+          logProviderFailure(
+            providerFailure(
+              turn.provider,
+              failureDetail(error.detail),
+              turn.wording.stopped,
+            ),
+            failureDetail(error.detail),
+          ),
+        ),
         Effect.mapError((error) => {
+          const detail = failureDetail(error.detail);
           if (error.reason === 'deadline')
             return failure('timed_out', turn.wording.timedOut);
-          if (signedOutOutput.test(error.detail ?? ''))
+          if (
+            /invalid_request_error|invalid_json_schema|invalid schema/i.test(
+              detail,
+            )
+          )
+            return providerFailure(turn.provider, detail, turn.wording.stopped);
+          if (signedOutOutput.test(detail))
             return failure(
               'signed_out',
               'Sign in again to the selected agent CLI, then try again.',
             );
-          if (modelRefused(error.detail ?? '')) return unavailableWriter(turn);
+          if (modelRefused(detail)) return unavailableWriter(turn);
           if (error.cause !== undefined)
             return failure(
               'agent_not_installed',
               'The selected agent CLI could not be started. Check that it is installed.',
             );
-          return failure('other', turn.wording.stopped);
+          return providerFailure(turn.provider, detail, turn.wording.stopped);
         }),
       );
       if (turn.provider === 'claude') {
@@ -343,6 +388,8 @@ export const agentTurns = (options: {
         } satisfies AgentTurnResult;
       }
       let sessionId = turn.session.id;
+      let lastError: string | undefined;
+      let ending: 'completed' | 'failed' | undefined;
       for (const line of output.split('\n').filter(Boolean)) {
         const event = yield* Schema.decodeUnknownEffect(
           Schema.fromJsonString(eventSchema),
@@ -351,21 +398,59 @@ export const agentTurns = (options: {
             failure('unusable_output', turn.wording.unusable),
           ),
         );
+        if (event.type === 'turn.failed' || event.type === 'error') {
+          const detail = event.error?.message ?? event.message;
+          if (detail) lastError = detail;
+        }
+        if (event.type === 'turn.failed') ending = 'failed';
+        if (event.type === 'turn.completed') ending = 'completed';
         if (event.type === 'thread.started' && event.thread_id)
           sessionId = event.thread_id;
       }
-      const text = yield* readBoundedText(answerPath, 4 * 1024 * 1024).pipe(
+      const schema = turn.schema;
+      const answer = yield* readBoundedText(answerPath, 4 * 1024 * 1024).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
+        Effect.flatMap((text) =>
+          schema === undefined
+            ? Effect.succeed(text)
+            : Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(
+                text,
+              ),
+        ),
+        Effect.result,
       );
+      if (
+        ending === 'failed' ||
+        (lastError !== undefined && ending !== 'completed') ||
+        answer._tag === 'Failure' ||
+        (typeof answer.success === 'string' && answer.success.trim() === '')
+      ) {
+        if (lastError === undefined)
+          return yield* failure('unusable_output', turn.wording.unusable);
+        const error =
+          /invalid_request_error|invalid_json_schema|invalid schema/i.test(
+            lastError,
+          )
+            ? providerFailure(turn.provider, lastError, turn.wording.stopped)
+            : signedOutOutput.test(lastError)
+              ? failure(
+                  'signed_out',
+                  'Sign in again to the selected agent CLI.',
+                )
+              : modelRefused(lastError)
+                ? unavailableWriter(turn)
+                : providerFailure(
+                    turn.provider,
+                    lastError,
+                    turn.wording.stopped,
+                  );
+        yield* logProviderFailure(error, lastError);
+        return yield* error;
+      }
       return {
         sessionId,
         costUsd: undefined,
-        output:
-          turn.schema === undefined
-            ? text
-            : yield* Schema.decodeUnknownEffect(
-                Schema.fromJsonString(Schema.Unknown),
-              )(text),
+        output: answer.success,
       } satisfies AgentTurnResult;
     });
     return { run };

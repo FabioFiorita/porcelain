@@ -1,0 +1,35 @@
+---
+interface Props {
+  file: string;
+  text: string;
+}
+
+const { file, text } = Astro.props;
+---
+
+<div class="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_30px_80px_-50px_rgb(0_0_0/0.35)]">
+  <div class="flex h-12 items-center gap-2 border-b border-border px-5 font-mono text-xs text-muted-foreground">
+    <span class="size-2.5 rounded-full bg-border"></span>
+    <span class="size-2.5 rounded-full bg-border"></span>
+    <span class="size-2.5 rounded-full bg-border"></span>
+    <span class="ml-2">{file}</span>
+  </div>
+  <pre class="p-5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground sm:p-6 sm:text-[0.8125rem]"><code>{text}</code></pre>
+  <button
+    type="button"
+    class="absolute top-2 right-2 inline-flex h-8 cursor-pointer items-center gap-2 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    data-copy={text}
+    data-copy-selected="Instructions selected"
+    aria-label={`Copy the ${file} instructions`}
+  >
+    <svg data-copy-icon viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <rect x="8" y="8" width="12" height="12" rx="2.5"></rect>
+      <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"></path>
+    </svg>
+    <svg data-copied-icon viewBox="0 0 24 24" class="hidden size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="m5 12.5 4.5 4.5L19 7.5"></path>
+    </svg>
+    Copy
+    <span data-copy-status class="sr-only" aria-live="polite"></span>
+  </button>
+</div>
