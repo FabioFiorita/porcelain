@@ -13,6 +13,7 @@ import {
   worktreeStatusNotices,
 } from '../store/worktree-navigator.ts';
 import { readWorktreeNavigator } from './worktree-navigator.ts';
+import { readProjectPullRequests } from './pull-requests.ts';
 
 const create = clientFixtures();
 const environmentId = '10000000-0000-4000-8000-000000000001';
@@ -146,6 +147,12 @@ function observeNavigator(transport: Transport) {
       );
     },
   };
+}
+
+function topicEntry(navigator: ReturnType<typeof observeNavigator>) {
+  return navigator
+    .view()
+    .projects[0]?.entries.find((row) => row.worktreeId === topicId);
 }
 
 function expectNavigatorNames(
@@ -621,3 +628,79 @@ it.each([
     }
   },
 );
+
+it.each(['rate-limited', 'transport'] as const)(
+  'keeps the known PR through pending and %s lists until an authoritative list removes it',
+  async (failure) => {
+    let next: Promise<Response> | undefined;
+    const navigator = observeNavigator((path) =>
+      path.endsWith('/pull-requests') && next ? next : navigatorResponse(path),
+    );
+    const list = readProjectPullRequests({
+      connection: navigator.connection,
+      projectId,
+    });
+    const entry = () => topicEntry(navigator);
+    try {
+      await expect
+        .poll(() => entry()?.pullRequest)
+        .toMatchObject({ state: 'available', number: 42 });
+      const order = navigator.view().projects[0]?.entries.map((row) => row.key);
+      const pending = Promise.withResolvers<Response>();
+      next = pending.promise;
+      navigator.registry.refresh(list);
+      await idleClientAtoms(navigator.registry);
+      expect(entry()?.pullRequest).toMatchObject({
+        state: 'available',
+        number: 42,
+      });
+      pending.resolve(
+        failure === 'rate-limited'
+          ? Response.json({ kind: 'unavailable', reason: 'rate-limited' })
+          : new Response('Unavailable', { status: 503 }),
+      );
+      await expect.poll(() => navigator.registry.get(list).waiting).toBe(false);
+      expect(entry()?.pullRequest).toMatchObject({
+        state: 'available',
+        number: 42,
+      });
+      expect(
+        navigator.view().projects[0]?.entries.map((row) => row.key),
+      ).toEqual(order);
+      next = Promise.resolve(
+        Response.json({ ...pullList(), pullRequests: [] }),
+      );
+      navigator.registry.refresh(list);
+      await expect.poll(() => entry()?.pullRequest).toEqual({ state: 'none' });
+    } finally {
+      navigator.stop();
+    }
+  },
+);
+
+it('does not carry a known PR onto a changed branch when GitHub is unavailable', async () => {
+  const snapshot = inventory();
+  let unavailable = false;
+  const navigator = observeNavigator((path) =>
+    unavailable && path.endsWith('/pull-requests')
+      ? Promise.resolve(
+          Response.json({ kind: 'unavailable', reason: 'rate-limited' }),
+        )
+      : navigatorResponse(path, snapshot),
+  );
+  const entry = () => topicEntry(navigator);
+  try {
+    await expect
+      .poll(() => entry()?.pullRequest)
+      .toMatchObject({ state: 'available', number: 42 });
+    unavailable = true;
+    snapshot.projects[0]!.worktrees[0]!.branch = 'another-topic';
+    await navigator.refresh();
+    await expect.poll(() => entry()?.branch).toBe('another-topic');
+    await expect
+      .poll(() => entry()?.pullRequest)
+      .toEqual({ state: 'unavailable' });
+  } finally {
+    navigator.stop();
+  }
+});

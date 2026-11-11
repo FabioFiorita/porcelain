@@ -18,7 +18,7 @@ api:
 
 A sidebar PR button opens a document in the current workspace, using the PR's project, number and computer. The displaying workspace stays selected. PR payloads are fetched on opening; the navigator reads only the lightweight list and checks.
 
-Use the disposable GitHub fixture in `apps/web/spec/kit/archive-fixture.ts`, with `codeComment: true` for a source link. At desktop and phone widths, open a local PR beside another checkout, then a PR from a second computer. Description, checks and GitHub comments stay scoped to the PR's computer. A rate limit or missing PR keeps the document identity and offers retry.
+Use the disposable GitHub fixture in `apps/web/spec/kit/archive-fixture.ts`, with `codeComment: true` for a source link. At desktop and phone widths, open a local PR beside another checkout, then a PR from a second computer. Description, checks and GitHub comments stay scoped to the PR's computer. A rate limit or missing PR keeps the document identity and offers retry. After a PR list has loaded, an unavailable refresh keeps its sidebar PR button mounted on the same worktree and branch; a successful list can remove or replace that association.
 
 A conversation source link opens the PR branch's current available checkout. Move that branch to another checkout and verify the new checkout and original source. If no checkout holds the branch, the document remains readable and has no source-opening button; it never opens another branch's file.
 
