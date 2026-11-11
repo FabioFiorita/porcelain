@@ -28,14 +28,27 @@ it.each([
   {
     label: 'displayed run and failed list',
     pulls: AsyncResult.fail('offline'),
-    displayedRun: { pullRequestNumber: 423 },
-    expected: { pullRequestNumber: 423 },
+    displayedRun: { pullRequestNumber: 7 },
+    expected: { pullRequestNumber: 7 },
   },
   {
-    label: 'displayed run and loaded list naming another PR',
+    label: 'displayed run and loaded list naming replacement PR',
     pulls: AsyncResult.success(loaded),
-    displayedRun: { pullRequestNumber: 423 },
-    expected: { pullRequestNumber: 423 },
+    displayedRun: { pullRequestNumber: 7 },
+    expected: { pullRequestNumber: 8 },
+  },
+  {
+    label: 'displayed run and loaded list has no open PR for the branch',
+    pulls: AsyncResult.success({
+      ...loaded,
+      pullRequests: loaded.pullRequests.map((pull) => ({
+        ...pull,
+        number: 7,
+        state: 'closed' as const,
+      })),
+    }),
+    displayedRun: { pullRequestNumber: 7 },
+    expected: { pullRequestNumber: 7 },
   },
   {
     label: 'no run and loaded list refreshing',
