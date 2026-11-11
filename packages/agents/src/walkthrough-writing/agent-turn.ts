@@ -1,3 +1,5 @@
+import { providerFailure, logProviderFailure } from './provider-failure.ts';
+import { codexOutputSchema } from './codex-output-schema.ts';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +22,10 @@ const envelopeSchema = Schema.Struct({
 const eventSchema = Schema.Struct({
   type: Schema.String,
   thread_id: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+  error: Schema.optional(
+    Schema.Struct({ message: Schema.optional(Schema.String) }),
+  ),
 });
 const signedOutResult = /sign.?in|login|oauth|token.*expired|unauthorized/i;
 const signedOutOutput =
@@ -110,7 +116,7 @@ export type AgentTurn = {
     readonly id: string;
   };
   readonly label: string;
-  readonly schema: unknown;
+  readonly schema: Schema.Top | undefined;
   readonly images: readonly string[];
   readonly prompt: string;
   readonly timeoutMs: number;
@@ -242,7 +248,10 @@ export const agentTurns = (options: {
           'json',
         );
         if (turn.schema !== undefined)
-          args.push('--json-schema', JSON.stringify(turn.schema));
+          args.push(
+            '--json-schema',
+            JSON.stringify(Schema.toJsonSchemaDocument(turn.schema).schema),
+          );
         args.push(
           '--tools',
           'Read,Grep,Glob,Bash',
@@ -281,8 +290,9 @@ export const agentTurns = (options: {
         );
         if (turn.schema !== undefined) {
           const schemaPath = join(turn.folder, `schema-${turn.label}.json`);
+          const schema = codexOutputSchema(turn.schema);
           yield* Effect.tryPromise(() =>
-            writeFile(schemaPath, JSON.stringify(turn.schema)),
+            writeFile(schemaPath, JSON.stringify(schema)),
           );
           args.push('--output-schema', schemaPath);
         }
@@ -302,9 +312,29 @@ export const agentTurns = (options: {
         processGroup: options.processGroup,
       }).pipe(
         provideSpawner,
+        Effect.tapError((error) =>
+          logProviderFailure(
+            providerFailure(
+              turn.provider,
+              error.detail ?? '',
+              turn.wording.stopped,
+            ),
+            error.detail,
+          ),
+        ),
         Effect.mapError((error) => {
           if (error.reason === 'deadline')
             return failure('timed_out', turn.wording.timedOut);
+          if (
+            /invalid_request_error|invalid_json_schema|invalid schema/i.test(
+              error.detail ?? '',
+            )
+          )
+            return providerFailure(
+              turn.provider,
+              error.detail ?? '',
+              turn.wording.stopped,
+            );
           if (signedOutOutput.test(error.detail ?? ''))
             return failure(
               'signed_out',
@@ -316,7 +346,11 @@ export const agentTurns = (options: {
               'agent_not_installed',
               'The selected agent CLI could not be started. Check that it is installed.',
             );
-          return failure('other', turn.wording.stopped);
+          return providerFailure(
+            turn.provider,
+            error.detail ?? '',
+            turn.wording.stopped,
+          );
         }),
       );
       if (turn.provider === 'claude') {
@@ -351,6 +385,28 @@ export const agentTurns = (options: {
             failure('unusable_output', turn.wording.unusable),
           ),
         );
+        if (event.type === 'turn.failed' || event.type === 'error') {
+          const detail = event.error?.message ?? event.message ?? '';
+          const error =
+            /invalid_request_error|invalid_json_schema|invalid schema/i.test(
+              detail,
+            )
+              ? providerFailure(turn.provider, detail, turn.wording.stopped)
+              : signedOutOutput.test(detail)
+                ? failure(
+                    'signed_out',
+                    'Sign in again to the selected agent CLI.',
+                  )
+                : modelRefused(detail)
+                  ? unavailableWriter(turn)
+                  : providerFailure(
+                      turn.provider,
+                      detail,
+                      turn.wording.stopped,
+                    );
+          yield* logProviderFailure(error, detail);
+          return yield* error;
+        }
         if (event.type === 'thread.started' && event.thread_id)
           sessionId = event.thread_id;
       }

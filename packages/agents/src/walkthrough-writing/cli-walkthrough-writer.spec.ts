@@ -728,3 +728,37 @@ it.for([
     expect((await calls(test.folder)).length).toBe(1);
   },
 );
+
+it.each([
+  [
+    'nonzero exit',
+    `console.error('invalid_request_error invalid_json_schema authentication SECRET'); process.exit(1);`,
+  ],
+  [
+    'failed turn',
+    `console.log(JSON.stringify({type:'turn.failed',error:{message:'invalid_json_schema SECRET'}}));`,
+  ],
+  [
+    'error event',
+    `console.log(JSON.stringify({type:'error',message:'invalid_request_error SECRET'}));`,
+  ],
+])('keeps a safe request rejection for a Codex %s', async (_name, script) => {
+  const test = await fixture(
+    `const args=process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} ${script}`,
+    onTestFinished,
+  );
+  const result = await test.result({
+    provider: 'codex',
+    model: 'gpt-5.5',
+    effort: 'low',
+  });
+  expect(result).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message: script.includes('invalid_json_schema')
+        ? 'Codex rejected the request: invalid output format.'
+        : 'Codex rejected the request: invalid request.',
+    },
+  });
+});
