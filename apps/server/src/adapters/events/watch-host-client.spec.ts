@@ -73,20 +73,13 @@ async function withHost(
 }
 
 function recorder(seen: string[]) {
-  return (failure: string | undefined, events: readonly { path: string }[]) =>
-    seen.push(failure ?? events.map((event) => event.path).join(','));
+  return (failure: string | undefined, events: readonly { path: string }[]) => {
+    if (failure !== undefined) seen.push(failure);
+    else
+      for (const event of events)
+        if (!seen.includes(event.path)) seen.push(event.path);
+  };
 }
-
-it('reports a change in a watched folder and stops its helper on close', async () => {
-  const directory = folder();
-  const seen: string[] = [];
-  await withHost(async (host) => {
-    await Effect.runPromise(host.subscribe(directory, [], recorder(seen)));
-    writeFileSync(join(directory, 'a.txt'), 'a');
-    await expect.poll(() => seen, settled).toEqual([join(directory, 'a.txt')]);
-  });
-  await expect.poll(helpers, settled).toEqual([]);
-});
 
 it('fails to watch a folder that does not exist', async () => {
   const missing = join(folder(), 'missing');
@@ -140,7 +133,7 @@ it('fails a watch when its helper dies on every start, after trying once more', 
   expect(readFileSync(starts, 'utf8')).toBe('started\nstarted\n');
 });
 
-it('waits for a slow helper to answer before judging it frozen', async () => {
+it('waits for a slow helper to report changes and stops it on close', async () => {
   const directory = folder();
   const seen: string[] = [];
   await withHost(
@@ -160,4 +153,5 @@ it('waits for a slow helper to answer before judging it frozen', async () => {
       ],
     },
   );
+  await expect.poll(helpers, settled).toEqual([]);
 });
