@@ -762,3 +762,78 @@ it.each([
     },
   });
 });
+
+it('accepts a completed Codex turn after a recoverable reconnect error', async () => {
+  const events = [
+    { type: 'thread.started', thread_id: 'codex-session' },
+    { type: 'turn.started' },
+    { type: 'error', message: 'Reconnecting... 1/1' },
+    {
+      type: 'item.completed',
+      item: { type: 'agent_message', text: 'Recovered answer.' },
+    },
+    { type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 3 } },
+  ];
+  const test = await fixture(
+    `const fs=require('fs');const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}fs.readFileSync(0,'utf8');fs.writeFileSync(args[args.indexOf('--output-last-message')+1],'Recovered answer.');for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
+    onTestFinished,
+  );
+  expect(
+    await test.answer({
+      writer: { provider: 'codex', model: 'gpt-5.5', effort: 'low' },
+    }),
+  ).toMatchObject({
+    _tag: 'Success',
+    success: { text: 'Recovered answer.', sessionId: 'codex-session' },
+  });
+});
+
+it('classifies the last Codex error when reconnecting ends in a failed turn', async () => {
+  const events = [
+    { type: 'thread.started', thread_id: 'codex-session' },
+    { type: 'turn.started' },
+    { type: 'error', message: 'Reconnecting... 1/1' },
+    {
+      type: 'error',
+      message: 'invalid_request_error invalid_json_schema SECRET',
+    },
+    {
+      type: 'turn.failed',
+      error: { message: 'invalid_request_error invalid_json_schema SECRET' },
+    },
+  ];
+  const test = await fixture(
+    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
+    onTestFinished,
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'low' }),
+  ).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message: 'Codex rejected the request: invalid output format.',
+    },
+  });
+});
+
+it('uses the last Codex error on a nonzero exit instead of an earlier rejection', async () => {
+  const events = [
+    { type: 'error', message: 'invalid_json_schema' },
+    { type: 'error', message: 'invalid_request_error' },
+    { type: 'turn.failed', error: { message: 'invalid_request_error' } },
+  ];
+  const test = await fixture(
+    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));process.exitCode=1;`,
+    onTestFinished,
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'low' }),
+  ).toMatchObject({
+    _tag: 'Failure',
+    failure: {
+      kind: 'other',
+      message: 'Codex rejected the request: invalid request.',
+    },
+  });
+});
