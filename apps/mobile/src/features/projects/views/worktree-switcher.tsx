@@ -5,6 +5,7 @@ import { useCSSVariable } from 'uniwind';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../../shared/icons/icon';
 import { shortcutHint } from '../../../components/ui/shortcut-hint';
+import { headerBarSpace } from '../../../components/ui/header-title-frame';
 import { usePublishedTopBar } from '../../../shared/application/top-bar';
 import {
   worktreeSections,
@@ -32,6 +33,7 @@ function useWorktreeSwitcherForm(
   return {
     form: worktreeSwitcherForm({
       barWidth: width,
+      bar: headerBarSpace,
       place,
       fontScale,
       title,

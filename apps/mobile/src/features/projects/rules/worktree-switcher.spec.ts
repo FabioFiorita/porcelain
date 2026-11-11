@@ -2,7 +2,14 @@ import { expect, it } from 'vitest';
 import { worktreeSwitcherForm } from './worktree-switcher';
 
 const longTitle = 'Keep retries beside their owner';
-const phone = { barWidth: 412, place: 'pushed', fontScale: 1 } as const;
+const android = { leading: 72, item: 48 };
+const ios = { leading: 88, item: 56 };
+const phone = {
+  barWidth: 412,
+  bar: android,
+  place: 'pushed',
+  fontScale: 1,
+} as const;
 
 it('keeps the four buttons beside a short title on a phone', () => {
   expect(worktreeSwitcherForm({ ...phone, title: 'main', otherItems: 0 })).toBe(
@@ -54,6 +61,26 @@ it('keeps the four buttons on a tablet with a file and its actions open', () => 
   expect(
     worktreeSwitcherForm({
       barWidth: 800,
+      bar: android,
+      place: 'beside',
+      fontScale: 1,
+      title: undefined,
+      otherItems: 3,
+    }),
+  ).toBe('buttons');
+});
+
+it('uses the wider iOS bar items: a 402-point iPhone collapses where a 440-point one keeps the buttons', () => {
+  const iphone = { ...phone, bar: ios, title: 'main', otherItems: 0 };
+  expect(worktreeSwitcherForm({ ...iphone, barWidth: 402 })).toBe('menu');
+  expect(worktreeSwitcherForm({ ...iphone, barWidth: 440 })).toBe('buttons');
+});
+
+it('keeps the four buttons on an iPad in portrait with a file open', () => {
+  expect(
+    worktreeSwitcherForm({
+      barWidth: 834,
+      bar: ios,
       place: 'beside',
       fontScale: 1,
       title: undefined,

@@ -1,7 +1,6 @@
 import { useWindowDimensions } from 'react-native';
 
-const navigationSpace = 72;
-const barItemSpace = 48;
+export const headerBarSpace = { leading: 72, item: 48 };
 
 export const headerTitleText = { variant: 'title', weight: 'medium' } as const;
 
@@ -12,7 +11,7 @@ export function useHeaderTitleFrame(trailingItems: number) {
     style: {
       maxWidth: Math.max(
         0,
-        width - navigationSpace - barItemSpace * trailingItems,
+        width - headerBarSpace.leading - headerBarSpace.item * trailingItems,
       ),
     },
   };
