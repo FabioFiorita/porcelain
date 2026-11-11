@@ -29,6 +29,14 @@
   opacity: 0;
 }
 
+.motion :is([data-arrive], [data-shot], [data-post-comment], [data-stale-commit], [data-stale-notice]) {
+  opacity: 0;
+}
+
+.motion [data-fill] {
+  opacity: 0.3;
+}
+
 .motion [data-callout-line] {
   transform: scaleX(0);
 }

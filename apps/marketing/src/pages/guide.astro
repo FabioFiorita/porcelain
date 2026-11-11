@@ -1,0 +1,916 @@
+---
+import Site from '../layouts/site.astro';
+import Command from '../components/command.astro';
+import Snippet from '../components/snippet.astro';
+
+const description =
+  'How to get the most out of Porcelain: what the walkthrough agent reads, how screenshots reach a step, and five habits that make a repository agent-ready.';
+const serve = 'npx @fabiofiorita/porcelain@latest serve';
+
+const headline = [
+  { words: ['It', 'explains', 'what', 'is', 'there.'], tone: 'text-muted-foreground' },
+  { words: ['Give', 'it', 'more', 'to', 'explain.'], tone: 'text-foreground' },
+];
+
+const chapters = [
+  ['reads', 'What it reads'],
+  ['proof', 'Proof'],
+  ['habits', 'Habits'],
+  ['instructions', 'Instructions'],
+  ['pull-requests', 'Pull requests'],
+  ['settings', 'Settings'],
+  ['checklist', 'Checklist'],
+] as const;
+
+/* What the walkthrough agent is given, in the order it reads it. */
+const passes = [
+  {
+    name: 'First pass',
+    note: 'Like a new teammate',
+    sources: [
+      { label: 'Pull request text', detail: 'Its title and description' },
+      { label: 'The change', detail: 'Commits and uncommitted work since the base branch' },
+      { label: 'The repository', detail: 'Any file it needs to understand it' },
+    ],
+  },
+  {
+    name: 'Second pass',
+    note: 'Intent and proof',
+    sources: [
+      { label: 'Your messages', detail: 'What you typed to Claude Code or Codex in this worktree' },
+      { label: 'Screenshots', detail: 'Images uploaded to the pull request description' },
+      { label: 'CI results', detail: 'The checks recorded on the pull request' },
+    ],
+  },
+] as const;
+
+const habits = [
+  {
+    title: 'Say what and why',
+    body: 'What only your words explain ends up under “What the code doesn’t say”.',
+    art: 'say',
+  },
+  {
+    title: 'Verify by running',
+    body: 'Ask the agent to start the app and use what it changed, not only compile it.',
+    art: 'run',
+  },
+  {
+    title: 'Open a pull request',
+    body: 'Its text is read on the first pass, beside the code.',
+    art: 'pr',
+  },
+  {
+    title: 'Attach proof',
+    body: 'Upload screenshots into the description. A link to a file in the repository is not read.',
+    art: 'proof',
+  },
+  {
+    title: 'One concern each',
+    body: 'A small pull request reads as a few clear steps.',
+    art: 'small',
+  },
+] as const;
+
+const instructions = `## Before you hand back work
+
+- Keep each pull request to one concern.
+- Verify the change by running it: start the app with \`npm run dev\`, use what you changed, then run its tests.
+- Take screenshots of what you ran.
+- Open a pull request whose description says what changed, why, and how you verified it.
+- Upload the screenshots into that description. Do not link to image files in the repository.
+- Say what you could not verify.`;
+
+const withoutPull = ['Write walkthrough', 'Comments answered by the walkthrough agent', 'Copy as prompt, for your coding agent'];
+const withPull = ['Screenshots on the step they prove', 'Post on #42, alone or together', 'Automatic walkthroughs, if you turn them on'];
+
+const leaves = [
+  { not: 'Run or interrupt your coding agent', who: 'Your coding agent keeps building in its own app.' },
+  { not: 'Edit your code', who: 'The walkthrough agent runs read-only.' },
+  { not: 'Hunt for bugs', who: 'CI and review agents do that.' },
+] as const;
+
+const checklist = [
+  'An AGENTS.md or CLAUDE.md that asks for running, a pull request and screenshots',
+  'Your coding agent runs in the worktree Porcelain shows',
+  'You told it what you want, and why',
+  'One concern in this pull request',
+  'Screenshots uploaded to its description, and the branch pushed',
+  'A writer chosen in Settings, and Automatic on where you want it',
+] as const;
+
+const eyebrow = 'font-mono text-xs tracking-[0.18em] text-muted-foreground uppercase';
+const heading = 'mt-5 text-[clamp(2.2rem,4.2vw,4rem)] leading-[0.98] font-semibold tracking-[-0.05em]';
+const caption = 'mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground';
+const card = 'rounded-2xl border border-border bg-card shadow-[0_30px_80px_-50px_rgb(0_0_0/0.35)]';
+---
+
+<Site title="Guide — Porcelain" description={description}>
+  <main class="overflow-x-clip">
+    <!-- Opening -->
+    <section class="relative isolate mx-auto max-w-[1440px] px-5 pt-16 lg:px-10 lg:pt-28">
+      <div
+        class="pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_60%_70%_at_20%_0%,black,transparent)]"
+        aria-hidden="true"
+      >
+        <div
+          class="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] opacity-70"
+        >
+        </div>
+      </div>
+
+      <p data-reveal class={eyebrow}>Guide</p>
+      <h1 class="mt-6 text-[clamp(2.8rem,6.6vw,6.5rem)] leading-[0.94] font-semibold tracking-[-0.055em]">
+        {
+          headline.map((line) => (
+            <span class:list={['block', line.tone]}>
+              {line.words.map((word) => (
+                <>
+                  <span data-word class="inline-block">
+                    {word}
+                  </span>{' '}
+                </>
+              ))}
+            </span>
+          ))
+        }
+      </h1>
+      <p data-reveal class="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
+        A walkthrough is only as rich as what the agent can read. Five habits in your repository fill it in.
+      </p>
+      <nav data-reveal class="mt-10 flex flex-wrap gap-2" aria-label="On this page">
+        {
+          chapters.map(([id, label]) => (
+            <a
+              class="inline-flex h-9 items-center rounded-full border border-border bg-background/70 px-4 text-sm text-muted-foreground no-underline backdrop-blur transition-colors hover:text-foreground"
+              href={`#${id}`}
+            >
+              {label}
+            </a>
+          ))
+        }
+      </nav>
+    </section>
+
+    <!-- What it reads -->
+    <section id="reads" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>What it reads</p>
+        <h2 data-reveal class={heading}>
+          Code first.{' '}<span class="text-muted-foreground">Then you.</span>
+        </h2>
+        <p data-reveal class={caption}>
+          The walkthrough agent reads the change the way a new teammate would. Then it reads your messages, and writes
+          down what only they explained.
+        </p>
+      </div>
+
+      <div
+        data-reveal
+        data-reads
+        class="mt-14 grid grid-cols-1 items-center gap-5 lg:grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,15rem)_4.5rem_minmax(0,1fr)] lg:gap-0"
+      >
+        <div class="flex flex-col gap-5">
+          {
+            passes.map((pass, passIndex) => (
+              <div class="rounded-2xl border border-border bg-card p-3">
+                <div class="flex items-baseline justify-between px-2 pt-1 pb-3">
+                  <span class="text-sm font-semibold tracking-[-0.01em]">{pass.name}</span>
+                  <span class="text-xs text-muted-foreground">{pass.note}</span>
+                </div>
+                <ul class="flex flex-col gap-1.5">
+                  {pass.sources.map((source) => (
+                    <li
+                      data-arrive
+                      data-pass={passIndex}
+                      class="flex items-center gap-3 rounded-xl bg-background px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--border)]"
+                    >
+                      <span
+                        class:list={[
+                          'size-2 shrink-0 rounded-full',
+                          passIndex === 0 ? 'bg-graph-1' : 'bg-graph-3',
+                        ]}
+                      />
+                      <span class="min-w-0">
+                        <span class="block text-sm font-medium">{source.label}</span>
+                        <span class="block text-xs leading-snug text-muted-foreground">{source.detail}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="relative h-8 lg:h-20" aria-hidden="true">
+          <div class="absolute top-0 bottom-0 left-1/2 w-px bg-border lg:top-1/2 lg:right-2 lg:bottom-auto lg:left-2 lg:h-px lg:w-auto"></div>
+          <span data-flow="in" class="absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full bg-graph-1 opacity-0 shadow-[0_0_12px_var(--graph-1)] lg:top-1/2 lg:left-2 lg:-translate-y-1/2"></span>
+        </div>
+
+        <div data-agent class="relative rounded-2xl bg-foreground p-6 text-background shadow-[0_30px_80px_-30px_rgb(0_0_0/0.5)]">
+          <span class="absolute top-5 right-5 rounded-full border border-background/20 px-2 py-0.5 font-mono text-[0.68rem] text-background/70">read-only</span>
+          <img src="/apple-touch-icon.png" alt="" width="40" height="40" class="size-10 rounded-xl" loading="lazy" />
+          <p class="mt-5 text-lg font-semibold tracking-[-0.02em]">Walkthrough agent</p>
+          <p class="mt-1 text-sm text-background/65">Your Claude Code or Codex CLI, on your machine.</p>
+          <p class="mt-4 grid font-mono text-xs text-background/80 [&>*]:[grid-area:1/1]">
+            <span data-agent-status="idle">Write walkthrough</span>
+            <span data-agent-status="reading" class="opacity-0">Reading the change</span>
+          </p>
+        </div>
+
+        <div class="relative h-8 lg:h-20" aria-hidden="true">
+          <div class="absolute top-0 bottom-0 left-1/2 w-px bg-border lg:top-1/2 lg:right-2 lg:bottom-auto lg:left-2 lg:h-px lg:w-auto"></div>
+          <span data-flow="out" class="absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full bg-graph-2 opacity-0 shadow-[0_0_12px_var(--graph-2)] lg:top-1/2 lg:left-2 lg:-translate-y-1/2"></span>
+        </div>
+
+        <div class:list={[card, 'p-4']}>
+          <p class="px-1 font-mono text-xs text-muted-foreground">Walkthrough</p>
+          <p class="mt-2 px-1 text-lg font-semibold tracking-[-0.02em]">Find notes by title</p>
+          <div class="mt-4 flex flex-col gap-2">
+            <div data-fill="calls" class="rounded-xl border border-border bg-background p-3">
+              <p class="flex justify-between text-xs text-muted-foreground"><span>Product call</span><span>Step 1</span></p>
+              <p class="mt-1 text-sm font-medium">Should an empty search show every note?</p>
+            </div>
+            <div data-fill="grew" class="rounded-xl border border-border bg-background p-3">
+              <p class="text-xs font-semibold">How the system grew</p>
+              <p class="mt-1 text-xs text-muted-foreground">+ Title search&ensp;+ Result label</p>
+            </div>
+            <div data-fill="steps" class="rounded-xl border border-border bg-background p-3">
+              <p class="font-mono text-[0.7rem] text-muted-foreground">Step 1 · Step 2</p>
+              <div class="mt-1 flex items-center justify-between gap-3">
+                <p class="text-sm font-medium">Choose the empty search behavior</p>
+                <span data-arrive data-pass="1" class="block h-7 w-10 shrink-0 rounded-md bg-muted shadow-[inset_0_0_0_1px_var(--border)]">
+                  <span class="mx-1.5 mt-1.5 block h-1 rounded-full bg-graph-3/60"></span>
+                  <span class="mx-1.5 mt-1 block h-1 w-4 rounded-full bg-border"></span>
+                </span>
+              </div>
+            </div>
+            <div data-fill="unsaid" class="rounded-xl border border-border bg-background p-3">
+              <p class="text-xs font-semibold">What the code doesn’t say</p>
+              <p class="mt-1 text-xs text-muted-foreground">Empty search: you wanted a quiet first view</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-reveal class="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-2">
+        <div class="bg-background p-6">
+          <p class="font-semibold tracking-[-0.02em]">Say what you want and why</p>
+          <p class="mt-1 text-sm leading-relaxed text-muted-foreground">In your own words, to your coding agent.</p>
+        </div>
+        <div class="bg-background p-6">
+          <p class="font-semibold tracking-[-0.02em]">Stay in the worktree</p>
+          <p class="mt-1 text-sm leading-relaxed text-muted-foreground">Sessions are matched by the worktree’s folder.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Proof -->
+    <section id="proof" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>Proof</p>
+        <h2 data-reveal class={heading}>
+          No screenshot, nothing shown.{' '}<span class="text-muted-foreground">On purpose.</span>
+        </h2>
+        <p data-reveal class={caption}>
+          Porcelain’s agent never makes evidence up. Images uploaded to the pull request description land on the step
+          they prove.
+        </p>
+      </div>
+
+      <div data-reveal data-proof class="mt-14 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+        {
+          [false, true].map((attached) => (
+            <figure class="min-w-0">
+              <figcaption class="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <span class:list={['size-2 rounded-full', attached ? 'bg-graph-2' : 'bg-border']} />
+                {attached ? 'With screenshots on the pull request' : 'Without'}
+              </figcaption>
+              <div class:list={[card, 'p-5 sm:p-6']}>
+                <p class="font-mono text-xs text-muted-foreground">
+                  Step 1<span class="ml-2 text-foreground">Your call</span>
+                </p>
+                <p class="mt-2 text-lg font-semibold tracking-[-0.02em]">Choose the empty search behavior</p>
+                <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  Search matches a title when it contains the query. An empty query currently returns every note.
+                </p>
+                {attached && (
+                  <div class="mt-4 flex gap-3">
+                    {[0, 1].map((index) => (
+                      <div data-shot class="flex w-36 shrink-0 flex-col gap-1.5">
+                        <div class="aspect-[4/3] overflow-hidden rounded-lg bg-background p-2 shadow-[0_0_0_1px_var(--border),0_8px_24px_-12px_rgb(0_0_0/0.35)]">
+                          <div class="flex h-4 items-center rounded-md border border-border px-1.5">
+                            <span class="h-1 w-8 rounded-full bg-graph-3/70" />
+                          </div>
+                          {index === 0 ? (
+                            <div class="mt-2 flex flex-col gap-1.5">
+                              {[0, 1, 2, 3].map(() => (
+                                <span class="h-2 rounded bg-foreground/15" />
+                              ))}
+                            </div>
+                          ) : (
+                            <div class="mt-2 flex h-[calc(100%-1.5rem)] items-center justify-center">
+                              <span class="h-2 w-14 rounded bg-foreground/15" />
+                            </div>
+                          )}
+                        </div>
+                        <span class="text-xs leading-4 text-muted-foreground">
+                          {index === 0 ? 'An empty search lists every note.' : 'Typing a title narrows the list.'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p class="mt-4 text-sm font-medium underline decoration-border underline-offset-4">See the code</p>
+              </div>
+            </figure>
+          ))
+        }
+      </div>
+
+      <div data-reveal class="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-2">
+        <div class="bg-background p-6">
+          <p class="font-semibold tracking-[-0.02em]">Push first</p>
+          <p class="mt-1 text-sm leading-relaxed text-muted-foreground">It reads the pull request at the commit it explains.</p>
+        </div>
+        <div class="bg-background p-6">
+          <p class="font-semibold tracking-[-0.02em]">PNG, JPEG, WebP or GIF</p>
+          <p class="mt-1 text-sm leading-relaxed text-muted-foreground">Up to twenty images from the description, each under 10 MB.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Habits -->
+    <section id="habits" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>Habits</p>
+        <h2 data-reveal class={heading}>
+          An agent-ready repository.{' '}<span class="text-muted-foreground">Five habits.</span>
+        </h2>
+        <p data-reveal class={caption}>None of them is about Porcelain. Each one makes a change easier to trust.</p>
+      </div>
+
+      <div class="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 xl:grid-cols-5">
+        {
+          habits.map((habit, index) => (
+            <div data-reveal class:list={['flex flex-col bg-background p-6 lg:p-7', index === habits.length - 1 && 'sm:col-span-2 xl:col-span-1']}>
+              <div class="flex h-28 items-center justify-center rounded-xl bg-muted/60 p-3" aria-hidden="true">
+                {habit.art === 'say' && (
+                  <div class="w-full max-w-[12rem]">
+                    <div class="ml-auto w-fit rounded-2xl bg-background px-3 py-1.5 text-[0.7rem] leading-snug shadow-[inset_0_0_0_1px_var(--border)]">
+                      Show none until someone types. The full list is noise.
+                    </div>
+                    <p class="mt-2 text-[0.65rem] text-muted-foreground">→ What the code doesn’t say</p>
+                  </div>
+                )}
+                {habit.art === 'run' && (
+                  <div class="w-full max-w-[12rem] rounded-lg bg-foreground p-2.5 font-mono text-[0.65rem] leading-relaxed text-background">
+                    <p>
+                      <span class="opacity-50">$</span> npm run dev
+                    </p>
+                    <p class="opacity-60">ready on :3000</p>
+                    <p class="text-graph-2">✓ used the search</p>
+                  </div>
+                )}
+                {habit.art === 'pr' && (
+                  <div class="w-full max-w-[12rem] rounded-lg border border-border bg-background p-2.5 text-[0.65rem] leading-relaxed">
+                    <p class="font-semibold">Find notes by title #42</p>
+                    <p class="mt-1 text-muted-foreground">What · Why · How it was verified</p>
+                  </div>
+                )}
+                {habit.art === 'proof' && (
+                  <div class="flex w-full max-w-[12rem] items-center gap-2">
+                    <span class="block h-10 w-12 shrink-0 rounded-md border border-border bg-background p-1">
+                      <span class="block h-1.5 rounded-full bg-graph-3/60" />
+                      <span class="mt-1 block h-1.5 w-6 rounded-full bg-muted" />
+                    </span>
+                    <span class="text-muted-foreground">→</span>
+                    <span class="block flex-1 rounded-md border border-border bg-background p-1.5 text-[0.6rem] text-muted-foreground">
+                      Description
+                      <span class="mt-1 block h-4 rounded bg-graph-3/20" />
+                    </span>
+                  </div>
+                )}
+                {habit.art === 'small' && (
+                  <div class="flex items-end gap-3">
+                    <span class="flex flex-col items-center gap-1 text-[0.6rem] text-muted-foreground">
+                      <span class="flex gap-0.5">
+                        <span class="h-6 w-2 rounded-sm bg-graph-1/70" />
+                        <span class="h-6 w-2 rounded-sm bg-graph-1/70" />
+                      </span>
+                      2 steps
+                    </span>
+                    <span class="flex flex-col items-center gap-1 text-[0.6rem] text-muted-foreground">
+                      <span class="flex gap-0.5">
+                        {Array.from({ length: 9 }, () => (
+                          <span class="h-6 w-1 rounded-sm bg-border" />
+                        ))}
+                      </span>
+                      everything
+                    </span>
+                  </div>
+                )}
+              </div>
+              <span class="mt-6 font-mono text-xs text-muted-foreground">0{index + 1}</span>
+              <h3 class="mt-2 text-lg font-semibold tracking-[-0.025em]">{habit.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{habit.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- Instructions -->
+    <section id="instructions" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>Instructions</p>
+        <h2 data-reveal class={heading}>
+          Tell your agent once.{' '}<span class="text-muted-foreground">It does it every time.</span>
+        </h2>
+        <p data-reveal class={caption}>Paste this into AGENTS.md or CLAUDE.md, then change the commands to yours.</p>
+      </div>
+
+      <div class="mt-14 grid grid-cols-1 items-center gap-5 lg:grid-cols-[minmax(0,1.15fr)_3rem_minmax(0,1fr)] lg:gap-0">
+        <div data-reveal class="min-w-0">
+          <Snippet file="AGENTS.md" text={instructions} />
+        </div>
+        <div class="hidden justify-center text-muted-foreground lg:flex" aria-hidden="true">→</div>
+        <figure data-reveal class="min-w-0">
+          <figcaption class="mb-3 text-sm text-muted-foreground">The pull request it opens</figcaption>
+          <div class:list={[card, 'p-5 sm:p-6']}>
+            <p class="text-lg font-semibold tracking-[-0.02em]">
+              Find notes by title <span class="font-normal text-muted-foreground">#42</span>
+            </p>
+            <dl class="mt-4 flex flex-col gap-3 text-sm">
+              <div>
+                <dt class="font-semibold">What and why</dt>
+                <dd class="mt-0.5 text-muted-foreground">Search notes by title. People could not find old notes.</dd>
+              </div>
+              <div>
+                <dt class="font-semibold">Verified</dt>
+                <dd class="mt-0.5 text-muted-foreground">Ran the app, searched with and without a query, ran the search tests.</dd>
+              </div>
+              <div>
+                <dt class="font-semibold">Not verified</dt>
+                <dd class="mt-0.5 text-muted-foreground">A library with thousands of notes.</dd>
+              </div>
+            </dl>
+            <div class="mt-4 flex gap-2" aria-hidden="true">
+              {[0, 1].map(() => (
+                <span class="block h-14 w-20 rounded-md border border-border bg-background p-1.5">
+                  <span class="block h-2 rounded-sm border border-border" />
+                  <span class="mt-1.5 block h-1.5 rounded-full bg-muted" />
+                  <span class="mt-1 block h-1.5 w-8 rounded-full bg-muted" />
+                </span>
+              ))}
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Pull requests -->
+    <section id="pull-requests" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>Pull requests</p>
+        <h2 data-reveal class={heading}>
+          Everything works locally.{' '}<span class="text-muted-foreground">A pull request adds three things.</span>
+        </h2>
+      </div>
+
+      <div class="mt-14 grid grid-cols-1 gap-5 md:grid-cols-2">
+        {
+          [
+            { title: 'Without a pull request', items: withoutPull, tone: 'bg-border' },
+            { title: 'With one', items: withPull, tone: 'bg-graph-2' },
+          ].map((column) => (
+            <div data-reveal class:list={[card, 'p-6 sm:p-7']}>
+              <p class="flex items-center gap-2 font-semibold tracking-[-0.02em]">
+                <span class:list={['size-2 rounded-full', column.tone]} />
+                {column.title}
+              </p>
+              <ul class="mt-4 flex flex-col gap-2.5 text-sm text-muted-foreground">
+                {column.items.map((item) => (
+                  <li class="flex items-start gap-3">
+                    <svg viewBox="0 0 24 24" class="mt-0.5 size-4 shrink-0 text-graph-2" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                      <path d="m5 12.5 4.5 4.5L19 7.5" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+
+      <div data-reveal data-post class="mt-5 grid grid-cols-1 items-center gap-5 lg:grid-cols-[minmax(0,1fr)_4rem_minmax(0,1fr)] lg:gap-0">
+        <div class:list={[card, 'p-5 sm:p-6']}>
+          <div class="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Ask about this step</span>
+            <span>Step 1</span>
+          </div>
+          <div class="mt-4 ml-auto w-fit max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm leading-relaxed shadow-[inset_0_0_0_1px_var(--border)]">
+            Show none until someone types.
+          </div>
+          <p class="mt-4 text-xs text-muted-foreground">Walkthrough agent</p>
+          <p class="mt-1.5 text-sm leading-relaxed">
+            That is a decision: return no notes for an empty query in
+            <code class="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">src/search.ts</code>.
+          </p>
+          <div class="mt-4 grid text-sm [&>*]:[grid-area:1/1]">
+            <span data-post-before class="flex flex-wrap items-center gap-3">
+              <span data-post-button class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
+              <span class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Save for later</span>
+            </span>
+            <span data-post-after class="flex h-8 items-center text-xs text-muted-foreground opacity-0">Posted on #42</span>
+          </div>
+        </div>
+
+        <div class="relative h-8 lg:h-20" aria-hidden="true">
+          <div class="absolute top-0 bottom-0 left-1/2 w-px bg-border lg:top-1/2 lg:right-2 lg:bottom-auto lg:left-2 lg:h-px lg:w-auto"></div>
+          <span data-post-flow class="absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full bg-graph-1 opacity-0 shadow-[0_0_12px_var(--graph-1)] lg:top-1/2 lg:left-2 lg:-translate-y-1/2"></span>
+        </div>
+
+        <figure data-post-comment class="min-w-0">
+          <div class="rounded-2xl border border-border bg-background">
+            <figcaption class="border-b border-border px-5 py-3 text-sm text-muted-foreground">
+              Comment on pull request #42
+            </figcaption>
+            <div class="px-5 py-4 text-sm leading-relaxed">
+              <p>From the walkthrough of this change:</p>
+              <p class="mt-3 border-l-2 border-border pl-3 text-muted-foreground">Show none until someone types.</p>
+              <p class="mt-3">
+                <strong>Step:</strong> Choose the empty search behavior
+                (<code class="font-mono text-[0.8em]">README.md</code>, <code class="font-mono text-[0.8em]">src/search.ts</code>)
+              </p>
+              <p class="mt-1">
+                <strong>Agent’s answer:</strong> That is a decision: return no notes for an empty query in
+                <code class="font-mono text-[0.8em]">src/search.ts</code>.
+              </p>
+            </div>
+          </div>
+          <p class="mt-3 text-sm text-muted-foreground">The request waits on the pull request, with the rest of the review.</p>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>Settings</p>
+        <h2 data-reveal class={heading}>
+          Who writes it, and when.{' '}<span class="text-muted-foreground">Your choice.</span>
+        </h2>
+      </div>
+
+      <div class="mt-14 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <article data-reveal class="flex flex-col rounded-3xl border border-border bg-card p-6 lg:p-8">
+          <div class="rounded-xl border border-border bg-background p-4 text-sm" aria-hidden="true">
+            <p class="text-xs text-muted-foreground">Writer</p>
+            <div data-writer class="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-center font-medium">
+              <span data-writer-option="claude" class="rounded-md bg-background py-1.5 shadow-[0_0_0_1px_var(--border)]">Claude</span>
+              <span data-writer-option="codex" class="rounded-md py-1.5 text-muted-foreground">Codex</span>
+            </div>
+            <p class="mt-3 text-xs text-muted-foreground">Effort</p>
+            <div class="mt-2 flex h-9 items-center justify-between rounded-lg border border-border px-3">
+              high<span class="text-muted-foreground">⌄</span>
+            </div>
+          </div>
+          <h3 class="mt-6 text-xl font-semibold tracking-[-0.03em]">Claude or Codex</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Pick the model and effort. Set a default in Settings, and override it in a project’s Walkthrough settings.
+          </p>
+        </article>
+
+        <article data-reveal class="flex flex-col rounded-3xl border border-border bg-card p-6 lg:p-8">
+          <div class="rounded-xl border border-border bg-background p-4 text-sm" aria-hidden="true">
+            <p class="text-xs text-muted-foreground">Write walkthroughs</p>
+            <ul data-mode class="mt-2 flex flex-col gap-1 rounded-lg border border-border p-1">
+              {['Manual', 'Automatic when a pull request opens'].map((option, index) => (
+                <li data-mode-option={index} class="flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5">
+                  {option}
+                  <svg data-mode-check viewBox="0 0 24 24" class:list={['size-4 shrink-0', index === 1 && 'opacity-0']} fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="m5 12.5 4.5 4.5L19 7.5" />
+                  </svg>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <h3 class="mt-6 text-xl font-semibold tracking-[-0.03em]">Manual or automatic</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Manual waits for Write walkthrough. Automatic writes one when a pull request opens for a branch checked out in Porcelain.
+          </p>
+        </article>
+
+        <article data-reveal data-stale class="flex flex-col rounded-3xl border border-border bg-card p-6 lg:p-8">
+          <div class="rounded-xl border border-border bg-background p-4 text-sm" aria-hidden="true">
+            <div class="flex items-center gap-2">
+              <span class="size-2.5 rounded-full bg-graph-1"></span>
+              <span class="h-px w-6 bg-border"></span>
+              <span class="size-2.5 rounded-full bg-graph-1"></span>
+              <span class="h-px w-6 bg-border"></span>
+              <span data-stale-commit class="size-2.5 rounded-full bg-graph-4 ring-4 ring-graph-4/20"></span>
+              <span class="ml-auto font-mono text-[0.68rem] text-muted-foreground">new commit</span>
+            </div>
+            <div class="mt-4 grid [&>*]:[grid-area:1/1]">
+              <div data-stale-notice class="flex flex-col items-start gap-2">
+                <span class="text-muted-foreground">The work changed after this was written.</span>
+                <span data-stale-button class="inline-flex h-8 items-center rounded-lg border border-border px-3 font-medium">Update walkthrough</span>
+              </div>
+              <div data-stale-updating class="flex items-start text-muted-foreground opacity-0">Updating…</div>
+            </div>
+          </div>
+          <h3 class="mt-6 text-xl font-semibold tracking-[-0.03em]">Out of date, then Update</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+            New commits or edits mark the page out of date. The old page stays readable while Update writes the new one.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- What it leaves to others -->
+    <section class="mx-auto max-w-[1440px] px-5 pt-28 lg:px-10 lg:pt-40">
+      <div class="max-w-3xl">
+        <p data-reveal class={eyebrow}>What it does not do</p>
+        <h2 data-reveal class={heading}>
+          It explains.{' '}<span class="text-muted-foreground">The rest has an owner.</span>
+        </h2>
+      </div>
+
+      <div class="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-2 xl:grid-cols-4">
+        {
+          leaves.map((item) => (
+            <div data-reveal class="bg-background p-7">
+              <p class="text-lg font-semibold tracking-[-0.025em] text-muted-foreground line-through decoration-muted-foreground/50">
+                {item.not}
+              </p>
+              <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{item.who}</p>
+            </div>
+          ))
+        }
+        <div data-reveal class="bg-foreground p-7 text-background">
+          <p class="text-lg font-semibold tracking-[-0.025em]">You</p>
+          <p class="mt-2 text-sm leading-relaxed text-background/65">Make the few calls, and keep a picture of how your system is built.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Checklist -->
+    <section id="checklist" class="mx-auto max-w-[1440px] scroll-mt-24 px-5 pt-28 pb-24 lg:px-10 lg:pt-40 lg:pb-32">
+      <div
+        data-reveal
+        class="relative isolate overflow-hidden rounded-[2rem] bg-foreground px-6 py-14 text-background sm:px-8 lg:px-16 lg:py-20"
+      >
+        <div
+          class="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--background)_9%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--background)_9%,transparent)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_60%_80%_at_100%_0%,black,transparent)]"
+          aria-hidden="true"
+        >
+        </div>
+        <div class="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-20">
+          <div>
+            <h2 class="max-w-[14ch] text-[clamp(2.4rem,5vw,4.75rem)] leading-[0.95] font-semibold tracking-[-0.055em]">
+              Before your next walkthrough.
+            </h2>
+            <div class="mt-10 flex flex-wrap items-center gap-3">
+              <a
+                class="inline-flex h-11 items-center gap-2 rounded-full bg-background px-5 text-sm font-medium text-foreground no-underline transition-transform hover:scale-[1.03] active:scale-[0.98]"
+                href="/install"
+              >
+                Download
+              </a>
+              <Command command={serve} tone="inverse" />
+            </div>
+          </div>
+          <ul class="flex flex-col gap-1">
+            {
+              checklist.map((item) => (
+                <li>
+                  <label class="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-background/10">
+                    <input type="checkbox" class="peer sr-only" />
+                    <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--background)_45%,transparent)] peer-checked:bg-background peer-checked:text-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-background/60 [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100">
+                      <svg viewBox="0 0 24 24" class="size-3.5" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                        <path d="m5 12.5 4.5 4.5L19 7.5" />
+                      </svg>
+                    </span>
+                    <span class="leading-relaxed text-background/80 peer-checked:text-background">{item}</span>
+                  </label>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    import { animate, inView, stagger } from 'motion';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spring = { type: 'spring', stiffness: 120, damping: 22, mass: 0.9 } as const;
+    const ease = [0.22, 1, 0.36, 1] as const;
+    const instant = { duration: 0 };
+    const all = (selector: string, root: ParentNode = document) => Array.from(root.querySelectorAll<HTMLElement>(selector));
+    const one = (selector: string, root: ParentNode = document) => root.querySelector<HTMLElement>(selector);
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    /* Runs a demo while its element is in view. Leaving ends that run, so coming back never stacks a second loop. */
+    function whileVisible(element: Element, amount: number, play: (live: () => boolean) => Promise<void>) {
+      let generation = 0;
+      inView(
+        element,
+        () => {
+          const run = ++generation;
+          void play(() => run === generation);
+          return () => {
+            generation += 1;
+          };
+        },
+        { amount },
+      );
+    }
+
+    /* A dot runs along a connector. On a phone the connector is vertical, so it travels down instead of across. */
+    async function travel(dot: HTMLElement) {
+      const across = window.matchMedia('(min-width: 64rem)').matches;
+      const track = dot.parentElement;
+      const distance = track ? (across ? track.clientWidth - 16 : track.clientHeight - 8) : 0;
+      await animate(
+        dot,
+        across ? { x: [0, distance], opacity: [0, 1, 1, 0] } : { y: [0, distance], opacity: [0, 1, 1, 0] },
+        { duration: 0.9, ease: 'easeInOut' },
+      );
+    }
+
+    /* The first pass arrives and fills the calls, the growth and the steps. The second adds the screenshot and what only you said. */
+    function playReads() {
+      const diagram = one('[data-reads]');
+      if (!diagram) return;
+      const first = all('[data-arrive][data-pass="0"]', diagram);
+      const second = all('[data-arrive][data-pass="1"]', diagram);
+      const thumb = second.find((element) => element.tagName === 'SPAN');
+      const sources = second.filter((element) => element !== thumb);
+      const fills = Object.fromEntries(all('[data-fill]', diagram).map((element) => [element.dataset.fill, element]));
+      const flowIn = one('[data-flow="in"]', diagram);
+      const flowOut = one('[data-flow="out"]', diagram);
+      const idle = one('[data-agent-status="idle"]', diagram);
+      const reading = one('[data-agent-status="reading"]', diagram);
+      if (!flowIn || !flowOut || !idle || !reading || !thumb) return;
+      const status = (busy: boolean) => {
+        animate(idle, { opacity: busy ? 0 : 1 }, { duration: 0.25 });
+        animate(reading, { opacity: busy ? [0.4, 1, 0.4, 1] : 0 }, { duration: busy ? 1.4 : 0.25 });
+      };
+      const light = (key: string) => {
+        const element = fills[key];
+        if (element) animate(element, { opacity: [0.3, 1], scale: [0.98, 1] }, spring);
+      };
+
+      whileVisible(diagram, 0.3, async (live) => {
+        while (live()) {
+          animate([...first, ...sources, thumb], { opacity: 0 }, instant);
+          animate(Object.values(fills), { opacity: 0.3 }, instant);
+          await wait(300);
+          await animate(first, { opacity: [0, 1], x: [-12, 0] }, { delay: stagger(0.18), duration: 0.5, ease });
+          if (!live()) return;
+          status(true);
+          await travel(flowIn);
+          await wait(500);
+          if (!live()) return;
+          await travel(flowOut);
+          light('calls');
+          await wait(250);
+          light('grew');
+          await wait(250);
+          light('steps');
+          status(false);
+          await wait(900);
+          if (!live()) return;
+          await animate(sources, { opacity: [0, 1], x: [-12, 0] }, { delay: stagger(0.18), duration: 0.5, ease });
+          if (!live()) return;
+          status(true);
+          await travel(flowIn);
+          await wait(500);
+          if (!live()) return;
+          await travel(flowOut);
+          animate(thumb, { opacity: [0, 1], y: [-14, 0], scale: [0.8, 1] }, spring);
+          light('unsaid');
+          status(false);
+          await wait(4200);
+        }
+      });
+    }
+
+    /* The screenshots drop onto the step they prove. */
+    function playProof() {
+      const proof = one('[data-proof]');
+      if (!proof) return;
+      const shots = all('[data-shot]', proof);
+      whileVisible(proof, 0.4, async (live) => {
+        while (live()) {
+          animate(shots, { opacity: 0 }, instant);
+          await wait(700);
+          if (!live()) return;
+          for (const shot of shots) {
+            animate(shot, { opacity: [0, 1], y: [-28, 0], rotate: [-3, 0] }, spring);
+            await wait(260);
+          }
+          await wait(4200);
+        }
+      });
+    }
+
+    /* Post on #42 sends the comment, with its step and the agent's answer, to the pull request. */
+    function playPost() {
+      const post = one('[data-post]');
+      if (!post) return;
+      const before = one('[data-post-before]', post);
+      const after = one('[data-post-after]', post);
+      const button = one('[data-post-button]', post);
+      const flow = one('[data-post-flow]', post);
+      const comment = one('[data-post-comment]', post);
+      if (!before || !after || !button || !flow || !comment) return;
+      whileVisible(post, 0.4, async (live) => {
+        while (live()) {
+          animate(before, { opacity: 1 }, instant);
+          animate([after, comment], { opacity: 0 }, instant);
+          await wait(1200);
+          if (!live()) return;
+          await animate(button, { scale: [1, 0.94, 1] }, { duration: 0.25 });
+          await travel(flow);
+          animate(comment, { opacity: [0, 1], y: [12, 0] }, spring);
+          animate(before, { opacity: 0 }, { duration: 0.2 });
+          animate(after, { opacity: [0, 1] }, { duration: 0.3 });
+          await wait(4200);
+        }
+      });
+    }
+
+    /* The writer switches between providers, and the mode between manual and automatic. */
+    function playSettings() {
+      const writer = one('[data-writer]');
+      const mode = one('[data-mode]');
+      if (!writer || !mode) return;
+      const providers = all('[data-writer-option]', writer);
+      const checks = all('[data-mode-check]', mode);
+      const pick = (index: number) => {
+        for (const [current, option] of providers.entries()) {
+          option.classList.toggle('bg-background', current === index);
+          option.classList.toggle('shadow-[0_0_0_1px_var(--border)]', current === index);
+          option.classList.toggle('text-muted-foreground', current !== index);
+        }
+        for (const [current, check] of checks.entries()) {
+          animate(check, { opacity: current === index ? 1 : 0, scale: current === index ? [0.6, 1] : 1 }, spring);
+        }
+      };
+      whileVisible(writer, 0.5, async (live) => {
+        let index = 0;
+        while (live()) {
+          await wait(2600);
+          if (!live()) return;
+          index = 1 - index;
+          pick(index);
+        }
+      });
+    }
+
+    /* A commit lands, the page says it is out of date, and Update writes a new one. */
+    function playStale() {
+      const stale = one('[data-stale]');
+      if (!stale) return;
+      const commit = one('[data-stale-commit]', stale);
+      const notice = one('[data-stale-notice]', stale);
+      const button = one('[data-stale-button]', stale);
+      const updating = one('[data-stale-updating]', stale);
+      if (!commit || !notice || !button || !updating) return;
+      whileVisible(stale, 0.5, async (live) => {
+        while (live()) {
+          animate([commit, notice, updating], { opacity: 0 }, instant);
+          await wait(900);
+          if (!live()) return;
+          await animate(commit, { opacity: [0, 1], scale: [0.4, 1] }, spring);
+          await animate(notice, { opacity: [0, 1], y: [6, 0] }, { duration: 0.4 });
+          await wait(1400);
+          if (!live()) return;
+          await animate(button, { scale: [1, 0.94, 1] }, { duration: 0.25 });
+          animate(notice, { opacity: 0 }, { duration: 0.2 });
+          await animate(updating, { opacity: [0, 1, 0.4, 1, 0.4, 1] }, { duration: 2 });
+          if (!live()) return;
+          animate(updating, { opacity: 0 }, { duration: 0.3 });
+          await animate(commit, { backgroundColor: ['var(--graph-4)', 'var(--graph-1)'] }, { duration: 0.5 });
+          await wait(2400);
+          animate(commit, { backgroundColor: 'var(--graph-4)' }, instant);
+        }
+      });
+    }
+
+    if (!reduced) {
+      playReads();
+      playProof();
+      playPost();
+      playSettings();
+      playStale();
+    }
+  </script>
+</Site>

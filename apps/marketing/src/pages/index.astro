@@ -445,6 +445,14 @@ const treeRows = [
           ))
         }
       </div>
+      <a
+        data-reveal
+        class="mt-6 inline-flex items-center gap-2 text-sm text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
+        href="/guide"
+      >
+        Get more from every walkthrough: read the guide
+        <span aria-hidden="true">→</span>
+      </a>
     </section>
 
     <!-- The tour -->
@@ -839,6 +847,9 @@ const treeRows = [
           <Command command={serve} tone="inverse" />
         </div>
         <p class="mt-6 text-sm text-background/55">Mac app on Apple silicon. Server on Linux or Mac.</p>
+        <a class="mt-3 inline-block text-sm text-background underline decoration-background/30 underline-offset-4 hover:decoration-background" href="/guide">
+          Get the most out of it: read the guide
+        </a>
         <div class="pointer-events-none absolute top-1/2 right-[8%] hidden -translate-y-1/2 lg:block" aria-hidden="true">
           <div class="absolute inset-6 rounded-[3rem] bg-graph-1/50 blur-[70px]"></div>
           <img data-float src={icon.src} width={icon.width} height={icon.height} alt="" class="relative size-64 rounded-[3.5rem] shadow-[0_40px_80px_-20px_rgb(0_0_0/0.6)] xl:size-80" />
