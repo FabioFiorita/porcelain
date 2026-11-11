@@ -1,0 +1,21 @@
+name: Setup APT mirrors
+description: Download Ubuntu packages with automatic failover to mirrors outside ubuntu.com.
+runs:
+  using: composite
+  steps:
+    - name: List mirrors that APT tries in order for each file
+      shell: bash
+      run: |
+        printf '%s\tpriority:%s\n' \
+          http://azure.archive.ubuntu.com/ubuntu/ 1 \
+          https://mirrors.edge.kernel.org/ubuntu/ 2 \
+          https://mirror.math.princeton.edu/pub/ubuntu/ 3 \
+          | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+        sudo find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name '*.sources' \) \
+          -exec sed -i -E \
+          's#https?://(([^/]+\.)?archive|security)\.ubuntu\.com/ubuntu/?#mirror+file:/etc/apt/apt-mirrors.txt#g' {} +
+    - name: Move on from an unreachable mirror after 15 seconds
+      shell: bash
+      run: |
+        printf '%s\n' 'Acquire::http::Timeout "15";' 'Acquire::https::Timeout "15";' \
+          | sudo tee /etc/apt/apt.conf.d/80-mirror-timeouts > /dev/null
