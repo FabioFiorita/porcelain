@@ -22,6 +22,11 @@ import {
 } from '../features/projects';
 import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
+import {
+  closedListDrawer,
+  listDrawer,
+  type ListDrawerEvent,
+} from '../shared/rules/list-detail';
 
 export function WorktreesHome() {
   const selected = useSelectedWorktree();
@@ -50,19 +55,26 @@ export function WorktreesHome() {
   });
   const beside = layout.mode === 'beside' && selected !== undefined;
   const portrait = usePortrait();
-  const [open, setOpen] = useState(false);
+  const [drawer, setDrawer] = useState(closedListDrawer);
+  const [send] = useState(
+    () => (event: ListDrawerEvent) =>
+      setDrawer((current) => listDrawer(current, event)),
+  );
+  const { open } = drawer;
   const [searchBarRef] = useState(() => ({
     current: null as SearchBarCommands | null,
   }));
   const close = () => {
     if (portrait) searchBarRef.current?.cancelSearch();
-    setOpen(false);
+    send('close');
   };
-  const [reveal] = useState(() => () => setOpen(true));
+  const [searchFocusChange] = useState(
+    () => (focused: boolean) => send(focused ? 'searchFocus' : 'searchBlur'),
+  );
   const [seenPortrait, setSeenPortrait] = useState(portrait);
   if (seenPortrait !== portrait) {
     setSeenPortrait(portrait);
-    setOpen(false);
+    setDrawer(listDrawer(drawer, 'rotate'));
   }
   const listShown = portrait ? open : !hidden;
   return (
@@ -75,7 +87,7 @@ export function WorktreesHome() {
             accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
             onPress={() => {
               if (!portrait) return setHidden(!hidden);
-              return open ? close() : setOpen(true);
+              return open ? close() : send('show');
             }}
           />
         ) : null}
@@ -89,7 +101,7 @@ export function WorktreesHome() {
             mode={mode}
             presentation={presentation}
             onOpen={close}
-            onSearchFocus={reveal}
+            onSearchFocusChange={searchFocusChange}
             searchBarRef={searchBarRef}
           />
         )}

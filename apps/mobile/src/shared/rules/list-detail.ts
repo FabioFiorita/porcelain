@@ -87,3 +87,32 @@ export function listPresentation({
   if (overlay && portrait) return open ? 'over' : 'hidden';
   return hidden ? 'hidden' : 'beside';
 }
+
+export type ListDrawer = { open: boolean; searching: boolean };
+
+export type ListDrawerEvent =
+  | 'show'
+  | 'close'
+  | 'searchFocus'
+  | 'searchBlur'
+  | 'rotate';
+
+export const closedListDrawer: ListDrawer = { open: false, searching: false };
+
+export function listDrawer(
+  drawer: ListDrawer,
+  event: ListDrawerEvent,
+): ListDrawer {
+  switch (event) {
+    case 'show':
+      return { ...drawer, open: true };
+    case 'close':
+      return { ...drawer, open: false };
+    case 'searchFocus':
+      return { open: true, searching: true };
+    case 'searchBlur':
+      return { ...drawer, searching: false };
+    case 'rotate':
+      return { ...drawer, open: drawer.searching };
+  }
+}

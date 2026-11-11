@@ -1,10 +1,13 @@
 import { expect, it } from 'vitest';
 import {
+  closedListDrawer,
+  listDrawer,
   listPresentation,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
   movesWithLayout,
+  type ListDrawerEvent,
 } from './list-detail';
 
 it.each([
@@ -239,4 +242,43 @@ it.each([
   },
 ] as const)('$why', ({ input, shown }) => {
   expect(listPresentation(input)).toBe(shown);
+});
+
+it.each([
+  {
+    events: ['searchFocus', 'rotate'],
+    open: true,
+    why: 'rotating while typing a search keeps its results on screen',
+  },
+  {
+    events: ['show', 'searchFocus', 'rotate', 'rotate'],
+    open: true,
+    why: 'turning back keeps the search and its list open',
+  },
+  {
+    events: ['show', 'rotate'],
+    open: false,
+    why: 'rotating closes a list that is only being browsed',
+  },
+  {
+    events: ['searchFocus', 'searchBlur', 'rotate'],
+    open: false,
+    why: 'a search that lost focus no longer holds the list open',
+  },
+  {
+    events: ['searchFocus', 'close', 'searchBlur', 'rotate'],
+    open: false,
+    why: 'a closed list stays closed once its search ends',
+  },
+  {
+    events: ['searchFocus', 'close', 'rotate'],
+    open: true,
+    why: 'a search still focused after the list closed brings it back on rotation',
+  },
+] as const satisfies readonly {
+  events: readonly ListDrawerEvent[];
+  open: boolean;
+  why: string;
+}[])('$why', ({ events, open }) => {
+  expect(events.reduce(listDrawer, closedListDrawer).open).toBe(open);
 });
