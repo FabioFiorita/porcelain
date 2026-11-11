@@ -98,6 +98,14 @@ function menuItem(action: TopBarAction) {
   );
 }
 
+export function topBarMenuEntries(actions: readonly TopBarAction[]) {
+  return actions.flatMap((action) =>
+    action.kind === 'choice'
+      ? action.choices.map(choiceItem)
+      : [menuItem(action)],
+  );
+}
+
 function choiceItem(choice: TopBarChoice) {
   return (
     <Stack.Toolbar.MenuAction

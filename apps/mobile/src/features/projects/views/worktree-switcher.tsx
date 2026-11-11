@@ -1,21 +1,22 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
-import { useWindowDimensions } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../../shared/icons/icon';
 import { shortcutHint } from '../../../components/ui/shortcut-hint';
-import { headerBarSpace } from '../../../components/ui/header-title-frame';
+import { topBarMenuEntries } from '../../../components/ui/top-bar-items';
 import { usePublishedTopBar } from '../../../shared/application/top-bar';
+import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import {
   worktreeSections,
   type WorktreeSection,
 } from '../rules/worktree-section';
-import {
-  worktreeSwitcherForm,
-  worktreeSwitcherItems,
-  type WorktreeBarPlace,
-} from '../rules/worktree-switcher';
+import { phoneTopBar } from '../rules/worktree-switcher';
+
+export type WorktreeSwitcher = {
+  items: readonly ReactNode[];
+  holdsPageActions: boolean;
+};
 
 const icons = {
   walkthrough: 'walkthrough',
@@ -24,31 +25,11 @@ const icons = {
   history: 'history',
 } as const satisfies Record<WorktreeSection, HeaderIconName>;
 
-function useWorktreeSwitcherForm(
-  title: string | undefined,
-  place: WorktreeBarPlace,
-) {
-  const { width, fontScale } = useWindowDimensions();
-  const otherItems = usePublishedTopBar().length;
-  return {
-    form: worktreeSwitcherForm({
-      barWidth: width,
-      bar: headerBarSpace,
-      place,
-      fontScale,
-      title,
-      otherItems,
-    }),
-    otherItems,
-  };
-}
+const label = (section: WorktreeSection) =>
+  worktreeSections.find((entry) => entry.id === section)?.label ?? section;
 
-export function useWorktreeBarItems(
-  title: string | undefined,
-  place: WorktreeBarPlace,
-) {
-  const { form, otherItems } = useWorktreeSwitcherForm(title, place);
-  return worktreeSwitcherItems(form) + otherItems;
+export function useWorktreeBarItems() {
+  return worktreeSections.length + usePublishedTopBar().length;
 }
 
 function color(value: string | number | undefined) {
@@ -58,52 +39,67 @@ function color(value: string | number | undefined) {
 export function useWorktreeSwitcher(
   section: WorktreeSection | undefined,
   choose: (section: WorktreeSection) => void,
-  { title, place }: { title: string | undefined; place: WorktreeBarPlace },
-): ReactNode[] {
+  mode: ListDetailMode,
+): WorktreeSwitcher {
   const current = color(useCSSVariable('--brand'));
   const other = color(useCSSVariable('--muted-foreground'));
-  const { form } = useWorktreeSwitcherForm(title, place);
-  if (form === 'menu') {
-    const shown = worktreeSections.find((entry) => entry.id === section);
-    const tint = shown ? current : other;
-    return [
-      <Stack.Toolbar.Menu
-        key="destinations"
-        icon={headerIcon(shown ? icons[shown.id] : 'more')}
-        accessibilityLabel={
-          shown
-            ? `${shown.label}, choose a destination`
-            : 'Choose a destination'
-        }
-        title="Go to"
-        {...(tint ? { tintColor: tint } : {})}
-      >
-        {worktreeSections.map((entry) => (
-          <Stack.Toolbar.MenuAction
-            key={`destination:${entry.id}`}
-            icon={headerIcon(icons[entry.id])}
-            isOn={entry.id === section}
-            onPress={() => choose(entry.id)}
+  const pageActions = usePublishedTopBar();
+  if (mode === 'stack')
+    return {
+      holdsPageActions: true,
+      items: phoneTopBar(section, pageActions).map((button) =>
+        button.kind === 'current' ? (
+          <Stack.Toolbar.Button
+            key="destination:current"
+            icon={headerIcon(icons[button.section])}
+            accessibilityLabel={`${label(button.section)}, current destination`}
+            {...(current ? { tintColor: current } : {})}
+            selected
+          />
+        ) : (
+          <Stack.Toolbar.Menu
+            key="destination:more"
+            icon={headerIcon('more')}
+            accessibilityLabel="More"
           >
-            {entry.label}
-          </Stack.Toolbar.MenuAction>
-        ))}
-      </Stack.Toolbar.Menu>,
-    ];
-  }
-  return worktreeSections.map((entry) => {
-    const hint = shortcutHint(entry.id);
-    const tint = entry.id === section ? current : other;
-    return (
-      <Stack.Toolbar.Button
-        key={`destination:${entry.id}`}
-        icon={headerIcon(icons[entry.id])}
-        accessibilityLabel={entry.label}
-        {...(hint ? { accessibilityHint: hint } : {})}
-        {...(tint ? { tintColor: tint } : {})}
-        selected={entry.id === section}
-        onPress={() => choose(entry.id)}
-      />
-    );
-  });
+            {button.destinations.map((id) => {
+              const hint = shortcutHint(id);
+              return (
+                <Stack.Toolbar.MenuAction
+                  key={`destination:${id}`}
+                  icon={headerIcon(icons[id])}
+                  {...(hint ? { discoverabilityLabel: hint } : {})}
+                  onPress={() => choose(id)}
+                >
+                  {label(id)}
+                </Stack.Toolbar.MenuAction>
+              );
+            })}
+            {button.actions.length > 0 ? (
+              <Stack.Toolbar.Menu key="page-actions" inline>
+                {topBarMenuEntries(button.actions)}
+              </Stack.Toolbar.Menu>
+            ) : null}
+          </Stack.Toolbar.Menu>
+        ),
+      ),
+    };
+  return {
+    holdsPageActions: false,
+    items: worktreeSections.map((entry) => {
+      const hint = shortcutHint(entry.id);
+      const tint = entry.id === section ? current : other;
+      return (
+        <Stack.Toolbar.Button
+          key={`destination:${entry.id}`}
+          icon={headerIcon(icons[entry.id])}
+          accessibilityLabel={entry.label}
+          {...(hint ? { accessibilityHint: hint } : {})}
+          {...(tint ? { tintColor: tint } : {})}
+          selected={entry.id === section}
+          onPress={() => choose(entry.id)}
+        />
+      );
+    }),
+  };
 }

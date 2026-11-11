@@ -170,7 +170,7 @@ function FileHeader({
   actions: readonly TopBarAction[];
   place: FileProps['place'];
 }) {
-  const worktreeBarItems = useWorktreeBarItems(undefined, 'beside');
+  const worktreeBarItems = useWorktreeBarItems();
   return (
     <>
       <DocumentHeader

@@ -24,7 +24,10 @@ import {
   type WorktreeGuide,
   type WorktreeSection,
 } from '../rules/worktree-section';
-import { useWorktreeBarItems, useWorktreeSwitcher } from './worktree-switcher';
+import {
+  useWorktreeSwitcher,
+  type WorktreeSwitcher,
+} from './worktree-switcher';
 import {
   worktreeListHidden,
   worktreeSection,
@@ -38,7 +41,7 @@ import { useWorkspacePickerModel } from './workspace-picker-model';
 export type WorktreeSectionContent = ComponentType<{
   section: WorktreeSection | undefined;
   mode: ListDetailMode;
-  switcher: readonly ReactNode[];
+  switcher: WorktreeSwitcher;
 }>;
 
 export type WorktreeGuideReader = ComponentType<{
@@ -187,10 +190,7 @@ function WorktreeSections({
   if (opening === undefined && answered !== undefined) setOpening(answered);
   const section =
     opening === undefined ? chosen : shownWorktreeSection({ chosen, opening });
-  const switcher = useWorktreeSwitcher(section, choose, {
-    title: mode === 'beside' ? undefined : (details.title ?? 'Worktree'),
-    place: mode === 'beside' ? 'beside' : 'pushed',
-  });
+  const switcher = useWorktreeSwitcher(section, choose, mode);
   const openPullRequest = useOpenPullRequest();
   const number = Number(details.number);
   const pullRequest =
@@ -241,6 +241,8 @@ function WorktreeSections({
   );
 }
 
+const phoneBarButtons = 2;
+
 function WorktreeTitle({
   title,
   subtitle,
@@ -248,10 +250,13 @@ function WorktreeTitle({
   title: string;
   subtitle: string;
 }) {
-  const barItems = useWorktreeBarItems(title, 'pushed');
   return (
     <Stack.Title asChild>
-      <HeaderTitle title={title} subtitle={subtitle} trailingItems={barItems} />
+      <HeaderTitle
+        title={title}
+        subtitle={subtitle}
+        trailingItems={phoneBarButtons}
+      />
     </Stack.Title>
   );
 }

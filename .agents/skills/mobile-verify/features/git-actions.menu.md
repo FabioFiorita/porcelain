@@ -19,11 +19,11 @@ api:
 
 # git-actions.menu
 
-Worktrees → selected worktree → History → native top-bar Git actions (a branch icon: SF Symbols `arrow.triangle.branch` on iOS, Material `call_split` on Android, so it is told apart from the collapsed destination menu). Only Fetch and Pull appear. Leaving History removes its menu. Progress and results appear inside History, leaving commits readable. Shared client rules, receipt recovery and the computer's Reviews & Git pull strategy match web.
+Worktrees → selected worktree → History → on a phone, the top bar's three dots, whose menu holds Fetch and Pull under the other destinations; on a tablet, the top-bar Git actions button (a branch icon: SF Symbols `arrow.triangle.branch` on iOS, Material `call_split` on Android). Only Fetch and Pull appear. Leaving History removes its menu. Progress and results appear inside History, leaving commits readable. Shared client rules, receipt recovery and the computer's Reviews & Git pull strategy match web.
 
 ## Driving it with agent-device
 
-1. Start the development fixture. Open History without an upstream. Open Git actions: Fetch and Pull are disabled with the shared web reasons, including `No upstream branch to pull from.`. Switch to Files and Changes: the Git menu is absent; return to History.
+1. Start the development fixture. Open History without an upstream. Open Git actions (the three dots on a phone): Fetch and Pull are disabled with the shared web reasons, including `No upstream branch to pull from.`. Switch to Files and Changes: Fetch and Pull are absent; return to History.
 2. In the disposable repository, create a bare clone as origin and configure the current branch's upstream. Commit the fixture's seeded work before Pull so local changes do not block it. Clone origin into a second disposable repository and push one new commit there.
 3. Save a before screenshot. Run Fetch. Observe inline progress and outcome while commits remain readable. Independently read `git rev-parse HEAD`, the remote-tracking ref and `git rev-list --left-right --count HEAD...@{upstream}`: HEAD is unchanged and History shows `0 ahead · 1 behind`.
 4. Run Pull. Observe progress, result, the new commit appearing in place and `0 ahead · 0 behind`. Independently check HEAD equals the second clone's pushed commit. Save after screenshots.

@@ -14,7 +14,7 @@ export const WorktreeSectionView: WorktreeSectionContent = ({
   switcher,
 }) => (
   <>
-    <TopBar leading={switcher} />
+    <TopBar switcher={switcher} />
     <SectionBody section={section} mode={mode} />
   </>
 );

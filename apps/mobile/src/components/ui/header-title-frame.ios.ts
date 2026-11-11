@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native';
 
-export const headerBarSpace = { leading: 88, item: 56 };
+const headerBarSpace = { leading: 88, item: 56 };
 const widestTitle = 480;
 
 export const headerTitleText = { variant: 'headline' } as const;

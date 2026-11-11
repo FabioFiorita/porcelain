@@ -1,90 +1,47 @@
 import { expect, it } from 'vitest';
-import { worktreeSwitcherForm } from './worktree-switcher';
+import { phoneTopBar } from './worktree-switcher';
 
-const longTitle = 'Keep retries beside their owner';
-const android = { leading: 72, item: 48 };
-const ios = { leading: 88, item: 56 };
-const phone = {
-  barWidth: 412,
-  bar: android,
-  place: 'pushed',
-  fontScale: 1,
-} as const;
-
-it('keeps the four buttons beside a short title on a phone', () => {
-  expect(worktreeSwitcherForm({ ...phone, title: 'main', otherItems: 0 })).toBe(
-    'buttons',
-  );
-});
-
-it('collapses into one menu when a long title would be cut to a few letters', () => {
-  expect(
-    worktreeSwitcherForm({ ...phone, title: longTitle, otherItems: 0 }),
-  ).toBe('menu');
-});
-
-it('collapses on a small phone even for a short title', () => {
-  expect(
-    worktreeSwitcherForm({
-      ...phone,
-      barWidth: 360,
-      title: 'main',
-      otherItems: 0,
-    }),
-  ).toBe('menu');
-});
-
-it('collapses for larger text where the default size fits', () => {
-  const title = 'release';
-  expect(worktreeSwitcherForm({ ...phone, title, otherItems: 0 })).toBe(
-    'buttons',
-  );
-  expect(
-    worktreeSwitcherForm({ ...phone, title, otherItems: 0, fontScale: 1.3 }),
-  ).toBe('menu');
-});
+const create = { label: 'Create file or folder' };
+const fetch = { label: 'Fetch' };
+const pull = { label: 'Pull' };
 
 it.each([
-  ['a short title', 'main'],
-  ['a medium title', 'feature-branch'],
-  ['a long title', longTitle],
-])(
-  'keeps the same form for %s when a destination adds its one action',
-  (_, title) => {
-    expect(worktreeSwitcherForm({ ...phone, title, otherItems: 1 })).toBe(
-      worktreeSwitcherForm({ ...phone, title, otherItems: 0 }),
-    );
+  ['Walkthrough with no page actions', 'walkthrough', []],
+  ['Changes with no page actions', 'changes', []],
+  ['Files with Create', 'files', [create]],
+  ['History with Fetch and Pull', 'history', [fetch, pull]],
+] as const)(
+  'shows at most two buttons on %s: the current destination, then a menu of the rest',
+  (_, section, actions) => {
+    expect(phoneTopBar(section, actions)).toEqual([
+      { kind: 'current', section },
+      {
+        kind: 'menu',
+        destinations: ['walkthrough', 'changes', 'files', 'history'].filter(
+          (id) => id !== section,
+        ),
+        actions,
+      },
+    ]);
   },
 );
 
-it('keeps the four buttons on a tablet with a file and its actions open', () => {
-  expect(
-    worktreeSwitcherForm({
-      barWidth: 800,
-      bar: android,
-      place: 'beside',
-      fontScale: 1,
-      title: undefined,
-      otherItems: 3,
-    }),
-  ).toBe('buttons');
+it('keeps page actions inside the menu however many there are', () => {
+  const buttons = phoneTopBar('history', [create, fetch, pull]);
+  expect(buttons).toHaveLength(2);
+  expect(buttons[1]).toEqual({
+    kind: 'menu',
+    destinations: ['walkthrough', 'changes', 'files'],
+    actions: [create, fetch, pull],
+  });
 });
 
-it('uses the wider iOS bar items: a 402-point iPhone collapses where a 440-point one keeps the buttons', () => {
-  const iphone = { ...phone, bar: ios, title: 'main', otherItems: 0 };
-  expect(worktreeSwitcherForm({ ...iphone, barWidth: 402 })).toBe('menu');
-  expect(worktreeSwitcherForm({ ...iphone, barWidth: 440 })).toBe('buttons');
-});
-
-it('keeps the four buttons on an iPad in portrait with a file open', () => {
-  expect(
-    worktreeSwitcherForm({
-      barWidth: 834,
-      bar: ios,
-      place: 'beside',
-      fontScale: 1,
-      title: undefined,
-      otherItems: 3,
-    }),
-  ).toBe('buttons');
+it('shows only the menu with all four destinations before one is known', () => {
+  expect(phoneTopBar(undefined, [])).toEqual([
+    {
+      kind: 'menu',
+      destinations: ['walkthrough', 'changes', 'files', 'history'],
+      actions: [],
+    },
+  ]);
 });
