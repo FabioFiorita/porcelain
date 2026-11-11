@@ -107,13 +107,11 @@ export function DiffPage<F extends DiffPageFile>({
     id: 'files',
     label: 'Files',
     icon: 'files',
-    choices: fileMenuLabels(files)
-      .slice(0, MENU_FILES)
-      .map((label, index) => ({
-        label,
-        selected: false,
-        onPress: () => jump(index),
-      })),
+    choices: fileMenuLabels(files, MENU_FILES).map((label, index) => ({
+      label,
+      selected: false,
+      onPress: () => jump(index),
+    })),
   };
   return (
     <>

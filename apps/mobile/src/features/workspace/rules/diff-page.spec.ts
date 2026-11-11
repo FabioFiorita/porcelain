@@ -109,3 +109,22 @@ it('keeps each Files menu label to the file name, adding the folder only when na
     'src/b/index.ts',
   ]);
 });
+
+it('tells apart two sections of one file by the first detail they differ in, and labels only the files the menu shows', () => {
+  const files = [
+    { key: 'a', path: 'src/file.ts', details: ['Branch', 'modified'] },
+    { key: 'b', path: 'src/file.ts', details: ['Uncommitted', 'staged'] },
+    { key: 'c', path: 'src/file.ts', details: ['Uncommitted', 'unstaged'] },
+    { key: 'd', path: 'README.md', details: ['Branch', 'added'] },
+  ];
+  expect(fileMenuLabels(files)).toEqual([
+    'file.ts · Branch',
+    'file.ts · Uncommitted · staged',
+    'file.ts · Uncommitted · unstaged',
+    'README.md',
+  ]);
+  expect(fileMenuLabels(files, 2)).toEqual([
+    'file.ts · Branch',
+    'file.ts · Uncommitted · staged',
+  ]);
+});
