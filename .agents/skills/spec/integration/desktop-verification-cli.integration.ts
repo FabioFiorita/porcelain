@@ -122,7 +122,6 @@ test.runIf(CAN_LAUNCH)(
     await opened.stop();
     expect(existsSync(workspace)).toBe(false);
   },
-  LAUNCH_WITHIN_MS,
 );
 
 test.runIf(CAN_LAUNCH)(
@@ -169,5 +168,4 @@ test.runIf(CAN_LAUNCH)(
     expect(repeated.code).toBe(0);
     expect(repeated.stdout).toContain(`already stopped ${id}`);
   },
-  LAUNCH_WITHIN_MS,
 );

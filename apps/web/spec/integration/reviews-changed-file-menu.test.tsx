@@ -53,4 +53,4 @@ test('right-clicking a changed file marks it reviewed and opens its timeline wit
       }),
     )
     .toBeVisible();
-}, 30_000);
+});

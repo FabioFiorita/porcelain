@@ -124,9 +124,10 @@ function inspectHost(ssh: string, checkout: string): Promise<Inspection> {
 async function nativeProblem(
   ssh: string,
   checkout: string,
+  localFingerprint: () => Promise<string>,
 ): Promise<string | undefined> {
   const [local, mac] = await Promise.all([
-    nativeFingerprint(),
+    localFingerprint(),
     inspectHost(ssh, checkout),
   ]);
   const build = `run ${buildCommand} on the Mac in ${checkout} (ssh ${ssh})`;
@@ -141,6 +142,7 @@ async function nativeProblem(
 export async function hostProblems(
   host: RemoteHost,
   ownDriver: boolean,
+  localFingerprint: () => Promise<string> = nativeFingerprint,
 ): Promise<string[]> {
   const problems = [...sandboxProblems()];
   if (host.ssh === undefined || host.checkout === undefined)
@@ -148,7 +150,11 @@ export async function hostProblems(
       'Add ssh (the Mac SSH alias) and checkout (a matching Mac worktree) to the private device-host config; the launcher prepares and releases simulators there.',
     );
   else {
-    const native = await nativeProblem(host.ssh, host.checkout);
+    const native = await nativeProblem(
+      host.ssh,
+      host.checkout,
+      localFingerprint,
+    );
     if (native !== undefined) problems.push(native);
   }
   if (!ownDriver) problems.push(...(await hubProblems(host)));

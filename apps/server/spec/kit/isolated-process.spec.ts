@@ -4,7 +4,10 @@ import { once } from 'node:events';
 import { expect, it } from 'vitest';
 import { IsolatedProcess } from './isolated-process.ts';
 
-async function listeningChild(shutdown: 'graceful' | 'stuck' | 'failed') {
+async function listeningChild(
+  shutdown: 'graceful' | 'stuck' | 'failed',
+  deadline?: (expired: () => void) => () => void,
+) {
   const child = spawn(
     process.execPath,
     [
@@ -28,7 +31,7 @@ server.listen(0, '127.0.0.1', () => process.send(server.address().port));
     ],
     { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] },
   );
-  const lifetime = new IsolatedProcess(child);
+  const lifetime = new IsolatedProcess(child, deadline);
   const opened: unknown[] = await once(child, 'message');
   const socket = connect(Number(opened[0]), '127.0.0.1');
   const received: unknown[] = await once(socket, 'data');
@@ -65,10 +68,16 @@ it('waits for the owned live connection to close and shares successful shutdown'
 });
 
 it('rejects after forcing a live peer to exit at the existing deadline and retains that failure', async () => {
-  const running = await listeningChild('stuck');
+  let expire: (() => void) | undefined;
+  const running = await listeningChild('stuck', (expired) => {
+    expire = expired;
+    return () => undefined;
+  });
   try {
     expect(running.message).toBe('connected');
     const stopping = running.lifetime.stop();
+    expect(expire).toBeDefined();
+    expire?.();
     const failure = await stopping.catch((error: unknown) => error);
     expect(failure).toEqual(
       new Error('Isolated server did not stop within 10 seconds'),
@@ -81,7 +90,7 @@ it('rejects after forcing a live peer to exit at the existing deadline and retai
   } finally {
     await running.cleanup();
   }
-}, 15_000);
+});
 
 it('retains an unsuccessful child exit even when it beats the stop deadline', async () => {
   const running = await listeningChild('failed');

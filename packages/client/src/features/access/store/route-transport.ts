@@ -1,4 +1,4 @@
-import { Effect, Option, Semaphore } from 'effect';
+import { Clock, Effect, Option, Semaphore } from 'effect';
 import { AtomRef } from 'effect/reactivity';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
@@ -19,6 +19,7 @@ import { REMOTE_ROUTE_TIMEOUT_MS } from '../../../config/limits.ts';
 export function createRouteTransport(
   remote: Remote,
   send: AccessPlatformValue['send'],
+  clock: Clock.Clock = Effect.runSync(Clock.Clock),
 ) {
   const active = AtomRef.make<ConnectionRoute | undefined>(undefined);
   const routes = connectionRoutes(remote);
@@ -77,7 +78,10 @@ export function createRouteTransport(
     remoteTransport(route.address, route.credential, send);
   const transport: Transport = async (path, init) => {
     const options = { ...(init?.signal ? { signal: init.signal } : {}) };
-    const route = await Effect.runPromise(select(), options);
+    const route = await Effect.runPromise(
+      select().pipe(Effect.provideService(Clock.Clock, clock)),
+      options,
+    );
     const read =
       init?.method === undefined ||
       init.method === 'GET' ||
@@ -97,14 +101,17 @@ export function createRouteTransport(
       response = await sendRoute(route);
     } catch (error) {
       if (!read || init?.signal?.aborted || routes.length === 1) throw error;
-      const fallback = await Effect.runPromise(select(), options);
+      const fallback = await Effect.runPromise(
+        select().pipe(Effect.provideService(Clock.Clock, clock)),
+        options,
+      );
       if (fallback.address === route.address) throw error;
       return sendRoute(fallback);
     }
     if (response.status !== 401) return response;
     if (!read || routes.length === 1) return response;
     const fallback = await Effect.runPromise(
-      select().pipe(Effect.option),
+      select().pipe(Effect.option, Effect.provideService(Clock.Clock, clock)),
       options,
     );
     return Option.isSome(fallback) && fallback.value.address !== route.address

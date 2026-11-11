@@ -13,6 +13,7 @@ import { mobileRules } from './mobile-rules.mjs';
 import { nativeHttpRules } from './native-http-rules.mjs';
 import { hollowTests, testSource } from './hollow-tests.mjs';
 import { findVariable } from './scope.mjs';
+import { testOverrides } from './test-overrides.mjs';
 
 const domainPackage =
   '(?:projects|changes|reviews|files|git-actions|access|walkthroughs)';
@@ -2890,11 +2891,48 @@ export default {
           !normalizedFilename(context.filename).includes('/apps/desktop/')
         )
           return browserSpecNoSkips(context);
-        if (!antiFlakeSpec(context)) return {};
+        const regularSpec = antiFlakeSpec(context);
+        if (
+          !regularSpec &&
+          !/\/\.agents\/skills\/spec\/integration\/.+\.integration\.ts$/.test(
+            normalizedFilename(context.filename),
+          )
+        )
+          return {};
         const message =
           'Every spec runs every time; remove the skip, only, todo, fails, fixme or fail, because a skipped or exclusive case leaves regressions unchecked.';
         return {
+          CallExpression(node) {
+            const root = chainRoot(node.callee);
+            const binding = root
+              ? findVariable(context.sourceCode.getScope(node), root)?.defs[0]
+              : undefined;
+            if (binding && binding.type !== 'ImportBinding') return;
+            if (
+              ![
+                ...testFunctions,
+                'beforeAll',
+                'beforeEach',
+                'afterAll',
+                'afterEach',
+              ].includes(root)
+            )
+              return;
+            const hook = [
+              'beforeAll',
+              'beforeEach',
+              'afterAll',
+              'afterEach',
+            ].includes(root);
+            if (testOverrides(node, context, hook))
+              context.report({
+                node,
+                message:
+                  'Use the runner deadline and run every case once, because positional deadlines and retry or timeout options hide slow or racing setup. Await its observable milestone or preserve the promise deterministically.',
+              });
+          },
           MemberExpression(node) {
+            if (!regularSpec) return;
             const testMember = testFunctions.has(chainRoot(node) ?? '');
             const gate =
               node.parent?.type === 'CallExpression'
@@ -2934,6 +2972,7 @@ export default {
               context.report({ node: node.property, message });
           },
           ObjectPattern(node) {
+            if (!regularSpec) return;
             for (const property of node.properties)
               if (
                 property.type === 'Property' &&

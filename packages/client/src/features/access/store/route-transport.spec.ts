@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
-import { Effect, Redacted } from 'effect';
+import { Clock, Effect, ManagedRuntime, Redacted } from 'effect';
+import { TestClock } from 'effect/testing';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
@@ -257,66 +258,79 @@ it('never replays a write whose acknowledgement was lost', async () => {
   );
 });
 
-it('cancels an unreachable preferred route before trying another route', async () => {
-  const requested = Promise.withResolvers<void>();
+function hangingRoute() {
+  const requested = Promise.withResolvers<AbortSignal | undefined>();
   const aborted = Promise.withResolvers<void>();
-  const controller = new AbortController();
-  const calls: string[] = [];
-  const routing = createRouteTransport(remote, (url, init) => {
-    calls.push(url.origin);
-    requested.resolve();
+  const send: AccessPlatformValue['send'] = (_url, init) => {
+    requested.resolve(init?.signal ?? undefined);
     return new Promise((_resolve, reject) =>
       init?.signal?.addEventListener(
         'abort',
         () => {
           aborted.resolve();
-          reject(init?.signal?.reason);
+          reject(init.signal?.reason);
         },
         { once: true },
       ),
     );
+  };
+  return { send, requested: requested.promise, aborted: aborted.promise };
+}
+
+it('cancels an unreachable preferred route before trying another route', async () => {
+  const preferred = hangingRoute();
+  const controller = new AbortController();
+  const calls: string[] = [];
+  const routing = createRouteTransport(remote, (url, init) => {
+    calls.push(url.origin);
+    return preferred.send(url, init);
   });
   const pending = routing.transport('/api/inventory', {
     signal: controller.signal,
   });
-  await requested.promise;
+  await preferred.requested;
   controller.abort();
   await expect(pending).rejects.toBeDefined();
-  await aborted.promise;
+  await preferred.aborted;
   expect(calls).toEqual(['http://192.168.1.2:4738']);
   expect(routing.active.value).toBeUndefined();
 });
 
-it('bounds an unresponsive LAN probe before using Tailscale', async () => {
-  const aborted = Promise.withResolvers<void>();
-  const routing = createRouteTransport(remote, (url, init) => {
-    if (url.hostname === '192.168.1.2')
-      return new Promise((_resolve, reject) =>
-        init?.signal?.addEventListener(
-          'abort',
-          () => {
-            aborted.resolve();
-            reject(init?.signal?.reason);
-          },
-          { once: true },
+it('bounds an unresponsive LAN probe before using Tailscale', async ({
+  onTestFinished,
+}) => {
+  const runtime = ManagedRuntime.make(TestClock.layer());
+  onTestFinished(() => runtime.dispose());
+  const clock = await runtime.runPromise(Clock.Clock);
+  const preferred = hangingRoute();
+  const routing = createRouteTransport(
+    remote,
+    (url, init) => {
+      if (url.hostname === '192.168.1.2') return preferred.send(url, init);
+      return Promise.resolve(
+        Response.json(
+          url.pathname === '/api/health'
+            ? { status: 'ok', environmentId: 'computer' }
+            : url.pathname === '/api/environment'
+              ? descriptor
+              : { kind: 'owner' },
         ),
       );
-    return Promise.resolve(
-      Response.json(
-        url.pathname === '/api/health'
-          ? { status: 'ok', environmentId: 'computer' }
-          : url.pathname === '/api/environment'
-            ? descriptor
-            : { kind: 'owner' },
-      ),
-    );
-  });
-  await routing.transport('/api/inventory');
-  await aborted.promise;
+    },
+    clock,
+  );
+  const result = routing.transport('/api/inventory');
+  const signal = await preferred.requested;
+  await runtime.runPromise(TestClock.adjust(2499));
+  expect(signal?.aborted).toBe(false);
+  await runtime.runPromise(TestClock.adjust(1));
+  expect(signal?.aborted).toBe(true);
+  await result;
+  await preferred.aborted;
   expect(routing.active.value?.address).toBe(
     'https://development.example.ts.net',
   );
-}, 10000);
+});
 
 it('retries a failed read once over the authorized fallback', async () => {
   const subject = fixture();

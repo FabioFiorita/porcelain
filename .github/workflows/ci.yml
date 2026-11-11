@@ -94,6 +94,8 @@ jobs:
           key: turbo-units-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-units-${{ runner.os }}-
       - run: pnpm exec turbo run test --affected --concurrency=1 --continue
+      - name: Verify affected production mobile exports
+        run: pnpm exec turbo run build --affected --filter=@porcelain/mobile --concurrency=1
 
   package:
     needs: affected

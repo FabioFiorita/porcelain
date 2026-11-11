@@ -1,6 +1,7 @@
 import shadcnPins from './shadcn-pins.json' with { type: 'json' };
 import { replacesGlobal } from './spec-globals.mjs';
 import { variableOf } from './scope.mjs';
+import { testOverrides } from './test-overrides.mjs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, shadcnRegistry, webPart } from './policy.ts';
@@ -1618,9 +1619,21 @@ export function browserSpecNoSkips(context) {
         context.report({ node, message });
     },
     CallExpression(node) {
+      let callee = node.callee;
+      while (callee.type === 'CallExpression') callee = callee.callee;
+      const root = rootName(callee) ?? '';
+      const hook = [
+        'beforeAll',
+        'beforeEach',
+        'afterAll',
+        'afterEach',
+      ].includes(root);
       if (
-        testFunctions.has(rootName(node.callee) ?? '') &&
-        node.arguments.some((argument) => argument.type === 'ObjectExpression')
+        (testFunctions.has(root) || hook) &&
+        (testOverrides(node, context, hook) ||
+          node.arguments.some(
+            (argument) => argument.type === 'ObjectExpression',
+          ))
       )
         context.report({ node, message });
     },
