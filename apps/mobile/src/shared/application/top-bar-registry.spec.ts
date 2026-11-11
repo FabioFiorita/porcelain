@@ -4,7 +4,7 @@ import {
   publishedTopBarActions,
   topBarPublication,
   topBarPublications,
-} from './top-bar';
+} from './top-bar-registry';
 
 const onPress = () => undefined;
 const button = (label: string) =>
