@@ -100,7 +100,7 @@ it.effect(
 );
 
 it.effect(
-  'a returning file timeline rereads fresh data to its previously loaded depth',
+  'a returning file timeline restores its loaded depth, selection and reading position while rereading fresh data',
   () =>
     Effect.gen(function* () {
       let reads = 0;
@@ -146,6 +146,12 @@ it.effect(
       yield* AtomRegistry.getResult(subject.registry, timeline, {
         suspendOnWaiting: true,
       });
+      const place = historyPlace({ ...selection, kind: 'file' });
+      subject.registry.set(place, {
+        ...subject.registry.get(place),
+        selected: root,
+        scrollOffset: 240,
+      });
       stop();
       yield* Effect.promise(() => idleClientAtoms(subject.registry));
       subject.registry.refresh(timeline);
@@ -159,6 +165,11 @@ it.effect(
         'Fresh oldest',
       ]);
       expect(reads).toBe(4);
+      expect(subject.registry.get(place)).toMatchObject({
+        loaded: 2,
+        selected: root,
+        scrollOffset: 240,
+      });
     }),
 );
 

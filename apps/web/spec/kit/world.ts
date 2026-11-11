@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { paginatedTimelineFixture } from './history-fixture.ts';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { agentActs } from '@porcelain/server/kit/agent';
@@ -141,8 +140,6 @@ export class World {
         throw new Error('The computer name fixture could not be saved');
       return '';
     }
-    if (step.kind === 'paginated-timeline-fixture')
-      return paginatedTimelineFixture(repository);
     if (step.kind === 'agent') {
       await agentActs(repository, step.action);
       return '';
