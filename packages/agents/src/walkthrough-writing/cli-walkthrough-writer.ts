@@ -113,9 +113,7 @@ export const cliWalkthroughWriterLayer = (options: {
                 folder,
                 session: { kind: resumed ? 'resume' : 'new', id: sessionId },
                 label: String(pass),
-                schema: Schema.toJsonSchemaDocument(
-                  pass === 0 ? firstPassSchema : walkthroughContentSchema,
-                ).schema,
+                schema: pass === 0 ? firstPassSchema : walkthroughContentSchema,
                 images,
                 prompt: pass === 0 ? prompts.first : prompts.second,
                 timeoutMs: options.deadlineMs ?? 20 * 60 * 1000,
@@ -127,10 +125,16 @@ export const cliWalkthroughWriterLayer = (options: {
               answer = turn.output;
               yield* input.recordSession(sessionId);
               if (pass === 0)
-                yield* Schema.decodeUnknownEffect(firstPassSchema)(answer);
+                yield* Schema.decodeUnknownEffect(
+                  provider === 'codex'
+                    ? Schema.toCodecJson(firstPassSchema)
+                    : firstPassSchema,
+                )(answer);
             }
             const content = yield* Schema.decodeUnknownEffect(
-              walkthroughContentSchema,
+              provider === 'codex'
+                ? Schema.toCodecJson(walkthroughContentSchema)
+                : walkthroughContentSchema,
             )(answer);
             if (
               content.outcome === 'needs_you' &&
