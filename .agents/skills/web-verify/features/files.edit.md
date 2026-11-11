@@ -11,6 +11,7 @@ selectors:
   - "Saving edits the changes you are reviewing."
 tests:
   - apps/web/spec/integration/files-edit.test.tsx
+  - apps/web/spec/integration/pierre-editor-input.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/text
   - POST /api/worktrees/:worktreeId/files

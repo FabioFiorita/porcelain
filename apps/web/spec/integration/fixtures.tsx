@@ -48,6 +48,7 @@ import {
   type SampleRepository,
 } from '../kit/shapes.ts';
 import { createPierreCodeView } from './pierre-code-view.ts';
+import { createPierreEditor } from './pierre-editor.ts';
 import { refChips } from './ref-chips.ts';
 import { reviewLayout } from './review-layout.ts';
 import { host } from './commands.ts';
@@ -543,6 +544,11 @@ export const test = base
     const viewer = createPierreCodeView();
     onCleanup(() => viewer.dispose());
     return viewer;
+  })
+  .extend('pierreEditor', ({ world: _world }, { onCleanup }) => {
+    const editor = createPierreEditor();
+    onCleanup(() => editor.dispose());
+    return editor;
   })
   .extend('refChips', () => refChips)
   .extend('reviewLayout', () => reviewLayout)

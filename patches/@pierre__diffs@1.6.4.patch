@@ -121,6 +121,19 @@ index ee5c91c5ab44742994d900a81dbd8e9c508efb49..d9e013da241149a7d3adb78cb2fb1eed
  	}
  	/**
  	* Given a scroll anchor, attempt to resolve a newly updated (and clamped)
+diff --git a/dist/highlighter/highlights-editor.js b/dist/highlighter/highlights-editor.js
+index 1c28b317c963657aedd4487c889b65c8609a5b74..a5fd2ffdc93a0ad7ee9aff2f9a3d42671daa24a0 100644
+--- a/dist/highlighter/highlights-editor.js
++++ b/dist/highlighter/highlights-editor.js
+@@ -76,7 +76,7 @@ var HighlightsEditorTokenizer = class {
+ 			if (this.#pendingDelivery != null) for (const line of lines.keys()) this.#pendingDelivery.delete(line);
+ 			return lines;
+ 		}
+-		if (change.lineDelta === 0 ? change.changedLineChanges?.some(([, , lineDelta]) => lineDelta !== 0) ?? false : !hostRealignsRows) this.#readLines(lines, returnedStart, end);
++		this.#readLines(lines, returnedStart, end);
+ 		return lines;
+ 	}
+ 	#syncDocument(change, renderRange) {
 diff --git a/package.json b/package.json
 index fa94face3ec7ea38fa8242b81d7169dce0d6bcb1..f83acdc689a45839c70713dc70963cca183fd068 100644
 --- a/package.json
