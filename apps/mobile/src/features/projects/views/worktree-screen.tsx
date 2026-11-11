@@ -187,7 +187,10 @@ function WorktreeSections({
   if (opening === undefined && answered !== undefined) setOpening(answered);
   const section =
     opening === undefined ? chosen : shownWorktreeSection({ chosen, opening });
-  const switcher = useWorktreeSwitcher(section, choose);
+  const switcher = useWorktreeSwitcher(section, choose, {
+    title: mode === 'beside' ? undefined : (details.title ?? 'Worktree'),
+    place: mode === 'beside' ? 'beside' : 'pushed',
+  });
   const openPullRequest = useOpenPullRequest();
   const number = Number(details.number);
   const pullRequest =
@@ -245,7 +248,7 @@ function WorktreeTitle({
   title: string;
   subtitle: string;
 }) {
-  const barItems = useWorktreeBarItems();
+  const barItems = useWorktreeBarItems(title, 'pushed');
   return (
     <Stack.Title asChild>
       <HeaderTitle title={title} subtitle={subtitle} trailingItems={barItems} />
