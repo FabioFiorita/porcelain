@@ -11,20 +11,20 @@ import { Empty } from '../../../components/ui/empty';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
-import { Loading } from '../../../components/ui/loading';
 import { Screen } from '../../../components/ui/screen';
-import { SegmentedControl } from '../../../components/ui/segmented-control';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { useScreenKeyCommands } from '../../../shared/application/key-commands';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
 import { workspaceKey, type Workspace } from '../commands/workspace-connection';
 import {
+  openingWorktreeSection,
   shownWorktreeSection,
-  worktreeSectionChoices,
+  worktreeSections,
   type WorktreeGuide,
   type WorktreeSection,
 } from '../rules/worktree-section';
+import { useWorktreeSwitcher } from './worktree-switcher';
 import {
   worktreeListHidden,
   worktreeSection,
@@ -36,8 +36,9 @@ import { WorkspaceGate } from './workspace-gate';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export type WorktreeSectionContent = ComponentType<{
-  section: WorktreeSection;
+  section: WorktreeSection | undefined;
   mode: ListDetailMode;
+  switcher: readonly ReactNode[];
 }>;
 
 export type WorktreeGuideReader = ComponentType<{
@@ -74,7 +75,7 @@ export function WorktreeScreen({
         <HeaderTitle
           title={title}
           subtitle={worktreePlace(params)}
-          trailingItems={1}
+          trailingItems={4}
         />
       </Stack.Title>
       <WorktreeDetail
@@ -186,16 +187,13 @@ function WorktreeSections({
   content: WorktreeSectionContent;
   guide: WorktreeGuide;
 }) {
-  const router = useRouter();
   const [opening, setOpening] = useState<WorktreeSection>();
   const [chosen, choose] = useAtom(worktreeSection(workspace));
-  if (opening === undefined && !guide.pending)
-    setOpening(guide.walkthrough ? 'walkthrough' : 'changes');
-  const section = shownWorktreeSection({
-    chosen,
-    opening: opening ?? 'changes',
-    guide,
-  });
+  const answered = openingWorktreeSection(guide);
+  if (opening === undefined && answered !== undefined) setOpening(answered);
+  const section =
+    opening === undefined ? chosen : shownWorktreeSection({ chosen, opening });
+  const switcher = useWorktreeSwitcher(section, choose);
   const openPullRequest = useOpenPullRequest();
   const number = Number(details.number);
   const pullRequest =
@@ -209,63 +207,25 @@ function WorktreeSections({
           number,
         }
       : undefined;
-  const beside = mode === 'beside';
-  const shown = worktreeSectionChoices(guide).map((entry) => entry.id);
-  useScreenKeyCommands('worktree-sections', [
-    ...(['changes', 'files', 'history'] as const).map((id) => ({
-      binding: id,
-      run: () =>
-        shown.includes(id)
-          ? choose(id)
-          : router.push({
-              pathname: '/worktree-changes',
-              params: { workspace },
-            }),
+  useScreenKeyCommands(
+    'worktree-sections',
+    worktreeSections.map((entry) => ({
+      binding: entry.id,
+      run: () => choose(entry.id),
     })),
-    ...(shown.includes('walkthrough')
-      ? [
-          {
-            binding: 'walkthrough' as const,
-            run: () => choose('walkthrough'),
-          },
-        ]
-      : []),
-  ]);
+  );
   return (
     <Screen layout="fixed" testID="worktree-screen">
-      <Box
-        className={beside ? 'flex-row flex-wrap items-center' : ''}
-        paddingX={4}
-        paddingY={2}
-        gap={4}
-        surface="background"
-        divider="bottom"
-      >
-        {beside ? (
-          <Box className="min-w-40 flex-1">
-            <Text
-              variant="headline"
-              accessibilityRole="header"
-              numberOfLines={1}
-            >
-              {details.title ?? 'Worktree'}
-            </Text>
-            <Text variant="caption" tone="muted" numberOfLines={1}>
-              {worktreePlace(details)}
-            </Text>
-          </Box>
-        ) : null}
-        {opening === undefined ? null : (
-          <Box className={beside ? 'max-w-full' : ''}>
-            <SegmentedControl
-              options={worktreeSectionChoices(guide)}
-              selected={section}
-              onSelect={choose}
-              width={beside ? 'content' : 'fill'}
-            />
-          </Box>
-        )}
-      </Box>
+      {mode === 'beside' ? (
+        <Box paddingX={4} paddingY={2} surface="background" divider="bottom">
+          <Text variant="headline" accessibilityRole="header" numberOfLines={1}>
+            {details.title ?? 'Worktree'}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {worktreePlace(details)}
+          </Text>
+        </Box>
+      ) : null}
       {section === 'changes' && pullRequest ? (
         <Box divider="bottom">
           <Item
@@ -278,11 +238,7 @@ function WorktreeSections({
         </Box>
       ) : null}
       <Box className="flex-1" collapsable={false}>
-        {opening === undefined ? (
-          <Loading label="Reading worktree…" />
-        ) : (
-          <Content section={section} mode={mode} />
-        )}
+        <Content section={section} mode={mode} switcher={switcher} />
       </Box>
     </Screen>
   );

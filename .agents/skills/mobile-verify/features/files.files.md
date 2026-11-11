@@ -60,7 +60,7 @@ Files browses and searches the selected worktree, manages entries and preference
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → Files in the [Worktree](projects.worktree.md) page's segmented control, or `porcelain.dev://files` for the selected worktree.
+- Worktrees tab → worktree → the Files button in the [Worktree](projects.worktree.md) page's top bar, or `porcelain.dev://files` for the selected worktree.
 - Top bar + (Create file or folder) on the right; hold a row for file/folder actions. Search files is the native search field in the top bar; on a tablet beside the worktree list, where that field belongs to the list, it sits at the top of the Files column. On such a tablet a chosen file opens to the right of the tree instead of pushing; while one is open, Create file or folder joins the file's actions in the top bar.
 
 ## Driving it with agent-device

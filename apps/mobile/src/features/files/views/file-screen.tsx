@@ -1,3 +1,4 @@
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
@@ -22,7 +23,6 @@ import { FileNotice } from '../../../components/ui/file-notice';
 import {
   DocumentHeader,
   DocumentScreen,
-  type DocumentAction,
 } from '../../../components/ui/document-header';
 import { CodeView } from '../../../components/ui/code-view';
 import {
@@ -82,7 +82,7 @@ export function FilePane({
 }: {
   path: string;
   selected: Workspace;
-  actions: readonly DocumentAction[];
+  actions: readonly TopBarAction[];
 }) {
   return (
     <FileContent
@@ -129,7 +129,7 @@ function ReturnBeside({
 type FileProps = ContentProps & {
   selected: Workspace;
   place: 'screen' | 'pane';
-  actions: readonly DocumentAction[];
+  actions: readonly TopBarAction[];
 };
 
 function FileContent(props: FileProps) {
@@ -139,7 +139,7 @@ function FileContent(props: FileProps) {
 
 function useFileActions(props: FileProps) {
   const router = useRouter();
-  const timeline: DocumentAction = {
+  const timeline: TopBarAction = {
     kind: 'button',
     id: 'timeline',
     label: 'Timeline',
@@ -239,7 +239,7 @@ function FilePreview({
     preferences.documentsDefault === 'rendered',
   );
   const toggle = documentModeToggle(path, rendered);
-  const mode: DocumentAction[] = toggle
+  const mode: TopBarAction[] = toggle
     ? [
         {
           kind: 'button',

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box } from '../../../components/ui/box';
-import type { DocumentAction } from '../../../components/ui/document-header';
+import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import { useAtom } from '@effect/atom-react';
 import {
   reviewedCommandFailure,
@@ -20,7 +20,7 @@ export function useReviewedAction(
   workspace: Workspace,
   snapshot: ReviewSnapshot,
   file: ReviewFile,
-): { action: DocumentAction | undefined; notice: ReactNode } {
+): { action: TopBarAction | undefined; notice: ReactNode } {
   const commands = reviewedCommands({
     connection: workspace.connection,
     scope: workspace.scope,

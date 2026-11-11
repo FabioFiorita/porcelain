@@ -1,40 +1,13 @@
-import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { Box } from '../../../components/ui/box';
-import { headerIcon } from '../../../shared/icons/header-icon';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { ListDetail } from '../../../components/ui/list-detail';
 import { Loading } from '../../../components/ui/loading';
 import { AsyncResult } from 'effect/reactivity';
-import {
-  changesInTopBar,
-  WorkspaceGate,
-  type Workspace,
-} from '../../projects/index';
-import { useWalkthrough, useWorktreeGuide } from '../queries/walkthrough';
+import { WorkspaceGate, type Workspace } from '../../projects/index';
+import { useWalkthrough } from '../queries/walkthrough';
 import { WalkthroughPage } from './walkthrough-page';
 import { WalkthroughSteps } from './walkthrough-steps';
-
-function ChangesButton({ workspace }: { workspace: Workspace }) {
-  const router = useRouter();
-  const focused = useIsFocused();
-  const guide = useWorktreeGuide(workspace);
-  if (!focused || !changesInTopBar(guide)) return null;
-  return (
-    <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button
-        icon={headerIcon('changes')}
-        accessibilityLabel="Changes"
-        onPress={() =>
-          router.push({
-            pathname: '/worktree-changes',
-            params: { workspace: workspace.key },
-          })
-        }
-      />
-    </Stack.Toolbar>
-  );
-}
 
 export function WalkthroughSection() {
   return (
@@ -49,10 +22,7 @@ export function WalkthroughSection() {
       }
     >
       {(workspace) => (
-        <>
-          <ChangesButton workspace={workspace} />
-          <WalkthroughReader key={workspace.key} workspace={workspace} />
-        </>
+        <WalkthroughReader key={workspace.key} workspace={workspace} />
       )}
     </WorkspaceGate>
   );
