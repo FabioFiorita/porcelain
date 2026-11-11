@@ -8,7 +8,7 @@ import {
   type Recorder,
   ServerHandle,
 } from '@porcelain/server/kit/isolated-server';
-import { stressVariants } from '@porcelain/server/kit/session';
+import { type Session, stressVariants } from '@porcelain/server/kit/session';
 import {
   appliedStressVariants,
   seedStressSample,
@@ -340,8 +340,10 @@ function statesLine(states: readonly State[]) {
     : `${order} The seeds stay on the instance; restart it for a clean preview.`;
 }
 
-function indexMarkdown(
-  instance: WebInstance,
+export function indexMarkdown(
+  instance: Pick<WebInstance, 'id'> & {
+    detail: Pick<WebInstance['detail'], 'desktop'>;
+  },
   folder: string,
   targets: readonly Target[],
   found: Found,
@@ -463,6 +465,13 @@ async function compareBoards(
   }
 }
 
+export function sweepStates(session: Pick<Session, 'projectHome'>): State[] {
+  return [
+    appliedStressVariants(session).length > 0 ? 'as-left' : 'as-is',
+    ...stressVariants,
+  ];
+}
+
 async function captureAll(
   instance: WebInstance,
   browser: Browser,
@@ -478,10 +487,7 @@ async function captureAll(
   );
   await pairing.close();
   const session = await sessionOf(instance, recorder);
-  const states: State[] = [
-    appliedStressVariants(session).length > 0 ? 'as-left' : 'as-is',
-    ...stressVariants,
-  ];
+  const states = sweepStates(session);
   for (const state of states) {
     found.states.push(state);
     if (state !== 'as-is' && state !== 'as-left')
@@ -587,6 +593,14 @@ export async function sweep(
     ),
     { mode: 0o600 },
   );
+  return sweepResult(found, index, safe);
+}
+
+export function sweepResult(
+  found: Found,
+  index: string,
+  safe: (text: string) => string,
+): string {
   const problems = problemLines(found);
   const captured = found.shots.filter((shot) => shot.file !== undefined).length;
   if (problems.length > 0)

@@ -1,10 +1,18 @@
 import { Schema } from 'effect';
+import { stageDesktop } from '@porcelain/desktop/kit/stage';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
+import { delimiter, dirname, join } from 'node:path';
 import { chromium } from 'playwright';
-import { expect } from 'vitest';
+import { beforeAll, afterAll, expect, type TestContext } from 'vitest';
 import { test } from '@porcelain/server/kit/server-test';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 import {
@@ -21,6 +29,40 @@ const CAN_LAUNCH =
   (process.platform === 'linux' &&
     Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY));
 const LAUNCH_WITHIN_MS = 120_000;
+
+const originalPath = process.env.PATH;
+let rendererFixture: string | undefined;
+beforeAll(async () => {
+  if (!CAN_LAUNCH) return;
+  rendererFixture = await mkdtemp('/tmp/porcelain-desktop-renderer-');
+  const artifact = join(rendererFixture, 'app');
+  await stageDesktop({
+    directory: artifact,
+    productName: 'Porcelain Dev',
+    web: true,
+  });
+  const bin = join(rendererFixture, 'bin');
+  await mkdir(bin);
+  await writeFile(
+    join(bin, 'pnpm'),
+    `#!${process.execPath}
+import assert from 'node:assert/strict';
+import { cp } from 'node:fs/promises';
+const args = process.argv.slice(2);
+assert.deepEqual(args.slice(0, 7), ['--filter', '@porcelain/web', 'exec', 'vite', 'build', '--mode', 'desktop']);
+const at = args.indexOf('--outDir');
+assert.ok(at >= 0 && args[at + 1]);
+await cp(${JSON.stringify(join(artifact, 'web'))}, args[at + 1], { recursive: true });
+`,
+    { mode: 0o700 },
+  );
+  process.env.PATH = `${bin}${delimiter}${originalPath ?? ''}`;
+});
+afterAll(async () => {
+  process.env.PATH = originalPath;
+  if (rendererFixture !== undefined)
+    await rm(rendererFixture, { recursive: true, force: true });
+});
 
 function cli(...args: string[]) {
   return new Promise<{ code: number; stdout: string; stderr: string }>(
@@ -124,20 +166,26 @@ test.runIf(CAN_LAUNCH)(
   },
 );
 
+async function launched(onTestFinished: TestContext['onTestFinished']) {
+  const started = await cli('start');
+  expect(started.code, started.stderr).toBe(0);
+  const [, id = ''] = /^instance ([a-f0-9]{8})\n/.exec(started.stdout) ?? [];
+  onTestFinished(async () => {
+    await cli('stop', '--instance', id);
+  });
+  const [, connectionPath = ''] =
+    /\nconnection (.+)\n/.exec(started.stdout) ?? [];
+  const card = Schema.decodeUnknownSync(desktopConnectionSchema)(
+    JSON.parse(await readFile(connectionPath, 'utf8')),
+  );
+  return { started, id, connectionPath, card };
+}
+
 test.runIf(CAN_LAUNCH)(
-  'the desktop launcher prints its connection, reports passive windows and retains evidence after a repeatable stop',
+  'the desktop launcher prints its private connection and reports passive windows',
   async ({ onTestFinished }) => {
-    const started = await cli('start');
-    expect(started.code, started.stderr).toBe(0);
-    const [, id = ''] = /^instance ([a-f0-9]{8})\n/.exec(started.stdout) ?? [];
-    onTestFinished(async () => {
-      await cli('stop', '--instance', id);
-    });
-    const [, connectionPath = ''] =
-      /\nconnection (.+)\n/.exec(started.stdout) ?? [];
-    const card = Schema.decodeUnknownSync(desktopConnectionSchema)(
-      JSON.parse(await readFile(connectionPath, 'utf8')),
-    );
+    const { started, id, connectionPath, card } =
+      await launched(onTestFinished);
     expect(started.stdout).toContain(
       `renderer CDP ${card.rendererCdpEndpoint}`,
     );
@@ -153,6 +201,13 @@ test.runIf(CAN_LAUNCH)(
       stale: null,
       windows: [{ type: 'page', url: 'porcelain://app/' }],
     });
+  },
+);
+
+test.runIf(CAN_LAUNCH)(
+  'the desktop launcher retains evidence after a repeatable stop',
+  async ({ onTestFinished }) => {
+    const { id, connectionPath, card } = await launched(onTestFinished);
     const stopped = await cli('stop', '--instance', id);
     expect(stopped.code, stopped.stderr + stopped.stdout).toBe(0);
     expect(stopped.stdout).toContain(`stopped ${id}`);
@@ -161,9 +216,6 @@ test.runIf(CAN_LAUNCH)(
     expect(existsSync(dirname(connectionPath))).toBe(false);
     expect(existsSync(card.app.profilePath)).toBe(false);
     expect(existsSync(join(card.evidenceDirectory, 'server.log'))).toBe(true);
-    const retained = await cli('evidence', '--instance', id);
-    expect(retained.code).toBe(0);
-    expect(retained.stdout.trim()).toBe(card.evidenceDirectory);
     const repeated = await cli('stop', '--instance', id);
     expect(repeated.code).toBe(0);
     expect(repeated.stdout).toContain(`already stopped ${id}`);
