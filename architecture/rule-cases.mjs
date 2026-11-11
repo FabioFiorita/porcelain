@@ -1843,6 +1843,15 @@ export const saveBoth = Atom.writable(
       "const deadline = { timeout: 30000 }; const options = { ...deadline }; test('case', options, async () => {});",
     errors: 1,
   },
+  {
+    rule: 'spec-no-skips',
+    path: 'packages/client/src/sample.spec.ts',
+    valid:
+      "import { runCase } from './cases'; it('case', { concurrent: true }, runCase);",
+    invalid:
+      "import { limit } from './limits'; it('case', async () => {}, limit);",
+    errors: 1,
+  },
   ...[
     'packages/client/src/sample.spec.ts',
     '.agents/skills/spec/integration/sample.integration.ts',

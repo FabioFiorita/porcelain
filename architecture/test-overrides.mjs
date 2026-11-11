@@ -15,20 +15,11 @@ function resolved(node, context, seen = new Set()) {
 }
 
 function callback(node, context) {
-  const value = resolved(node, context);
-  if (
-    [
-      'FunctionDeclaration',
-      'FunctionExpression',
-      'ArrowFunctionExpression',
-    ].includes(value?.type)
-  )
-    return true;
-  return (
-    value?.type === 'Identifier' &&
-    findVariable(context.sourceCode.getScope(value), value.name)?.defs[0]
-      ?.type === 'ImportBinding'
-  );
+  return [
+    'FunctionDeclaration',
+    'FunctionExpression',
+    'ArrowFunctionExpression',
+  ].includes(resolved(node, context)?.type);
 }
 
 function forbiddenOptions(node, context, seen = new Set()) {
