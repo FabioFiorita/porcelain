@@ -1,4 +1,5 @@
-import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
+import type { SearchBarCommands } from 'react-native-screens';
+import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { WorktreeSectionView } from './worktree-section-view';
@@ -21,7 +22,6 @@ import {
 } from '../features/projects';
 import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
-import { chosenList } from '../shared/application/key-registry';
 
 export function WorktreesHome() {
   const selected = useSelectedWorktree();
@@ -51,8 +51,14 @@ export function WorktreesHome() {
   const beside = layout.mode === 'beside' && selected !== undefined;
   const portrait = usePortrait();
   const [open, setOpen] = useState(false);
-  const chooseList = useAtomSet(chosenList);
-  const [close] = useState(() => () => setOpen(false));
+  const [searchBarRef] = useState(() => ({
+    current: null as SearchBarCommands | null,
+  }));
+  const close = () => {
+    if (portrait) searchBarRef.current?.cancelSearch();
+    setOpen(false);
+  };
+  const [reveal] = useState(() => () => setOpen(true));
   const [seenPortrait, setSeenPortrait] = useState(portrait);
   if (seenPortrait !== portrait) {
     setSeenPortrait(portrait);
@@ -69,7 +75,6 @@ export function WorktreesHome() {
             accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
             onPress={() => {
               if (!portrait) return setHidden(!hidden);
-              if (!open) chooseList(undefined);
               return setOpen(!open);
             }}
           />
@@ -79,8 +84,14 @@ export function WorktreesHome() {
         layout={layout}
         listHidden={beside && hidden}
         overlay={selected ? { open, onDismiss: close } : undefined}
-        list={(mode, listHidden) => (
-          <WorktreesScreen mode={mode} hidden={listHidden} onOpen={close} />
+        list={(mode, presentation) => (
+          <WorktreesScreen
+            mode={mode}
+            presentation={presentation}
+            onOpen={close}
+            onSearchFocus={reveal}
+            searchBarRef={searchBarRef}
+          />
         )}
         detail={
           selected ? (

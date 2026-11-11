@@ -6,6 +6,7 @@ import {
   absentList,
   chosenList,
   focusedList,
+  listClaim,
   keyRegistration,
   keyRegistrations,
   listPresence,
@@ -105,8 +106,10 @@ export function useListCursor({
   onToggle,
   onSearch,
   hidden = false,
+  claim = false,
 }: {
   hidden?: boolean | undefined;
+  claim?: boolean | undefined;
   rows: readonly CursorRow[];
   selected?: string | undefined;
   onOpen: (key: string) => void;
@@ -116,6 +119,7 @@ export function useListCursor({
   const owner = useId();
   const focused = useIsFocused();
   useAtomMount(focused && !hidden ? listPresence(owner) : absentList);
+  useAtomMount(focused && !hidden && claim ? listClaim(owner) : absentList);
   const present = useAtomValue(lists);
   const active = useAtomValue(focusedList) === owner;
   const choose = useAtomSet(chosenList);

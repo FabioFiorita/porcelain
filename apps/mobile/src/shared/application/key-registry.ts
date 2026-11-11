@@ -43,6 +43,12 @@ export const focusedList = Atom.make((get) =>
 
 export const absentList = Atom.make(undefined);
 
+export const listClaim = Atom.family((owner: string) =>
+  Atom.make((get) => {
+    get.set(chosenList, owner);
+  }).pipe(Atom.setIdleTTL(0)),
+);
+
 export const listPresence = Atom.family((owner: string) =>
   Atom.make((get) => {
     get.set(lists, [

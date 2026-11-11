@@ -26,6 +26,7 @@ import {
   listDetailModeChange,
   movesWithLayout,
   type LayoutMove,
+  type ListPresentation,
   type ListDetailMode,
 } from '../../shared/rules/list-detail';
 
@@ -124,7 +125,7 @@ export function ListDetail({
   overlay,
   layout,
 }: {
-  list: (mode: ListDetailMode, hidden: boolean) => ReactNode;
+  list: (mode: ListDetailMode, presentation: ListPresentation) => ReactNode;
   detail: ReactNode;
   collapse?: 'list' | 'detail';
   listHidden?: boolean;
@@ -190,7 +191,7 @@ export function ListDetail({
           importantForAccessibility={shown ? 'auto' : 'no-hide-descendants'}
           style={[beside ? { width: LIST_COLUMN_WIDTH } : undefined, panel]}
         >
-          {list(mode, !shown)}
+          {list(mode, shown ? (over ? 'over' : 'beside') : 'hidden')}
         </Animated.View>
       ) : null}
       {showDetail ? (

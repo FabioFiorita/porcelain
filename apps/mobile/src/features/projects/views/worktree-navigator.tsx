@@ -59,9 +59,15 @@ function worktreeIcon(entry: NavigatorEntry): IconName {
 export function WorktreeNavigator({
   onOpenWorktree,
   hidden = false,
+  claimKeys = false,
+  onSearchFocus,
+  searchBarRef,
 }: {
   onOpenWorktree: (entry: NavigatorEntry) => void;
   hidden?: boolean | undefined;
+  claimKeys?: boolean | undefined;
+  onSearchFocus?: (() => void) | undefined;
+  searchBarRef?: { current: SearchBarCommands | null } | undefined;
 }) {
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
@@ -103,9 +109,10 @@ export function WorktreeNavigator({
       );
     }
   };
-  const [searchBar] = useState(() => ({
+  const [ownSearchBar] = useState(() => ({
     current: null as SearchBarCommands | null,
   }));
+  const searchBar = searchBarRef ?? ownSearchBar;
   const visibleEntries = projects.flatMap((project) =>
     project.expanded
       ? project.entries.filter((entry) => entry.kind === 'worktree')
@@ -114,6 +121,7 @@ export function WorktreeNavigator({
   const reveal = useScrollReveal();
   const cursor = useListCursor({
     hidden,
+    claim: claimKeys,
     rows: visibleEntries,
     selected: visibleEntries.find((entry) =>
       navigatorEntrySelected(entry, selection),
@@ -144,16 +152,15 @@ export function WorktreeNavigator({
     );
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
-      {hidden ? null : (
-        <Stack.SearchBar
-          ref={searchBar}
-          placeholder="Search worktrees"
-          autoCapitalize="none"
-          hideWhenScrolling={false}
-          onChangeText={(event) => setQuery(event.nativeEvent.text)}
-          onCancelButtonPress={() => setQuery('')}
-        />
-      )}
+      <Stack.SearchBar
+        ref={searchBar}
+        placeholder="Search worktrees"
+        autoCapitalize="none"
+        hideWhenScrolling={false}
+        onFocus={onSearchFocus}
+        onChangeText={(event) => setQuery(event.nativeEvent.text)}
+        onCancelButtonPress={() => setQuery('')}
+      />
       <ScrollView
         {...reveal.scroller}
         className="flex-1"
