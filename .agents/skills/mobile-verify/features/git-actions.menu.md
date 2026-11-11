@@ -19,7 +19,7 @@ api:
 
 # git-actions.menu
 
-Worktrees → selected worktree → History → native top-bar Git actions. Only Fetch and Pull appear. Leaving History removes its menu. Progress and results appear inside History, leaving commits readable. Shared client rules, receipt recovery and the computer's Reviews & Git pull strategy match web.
+Worktrees → selected worktree → History → native top-bar Git actions (a branch icon: SF Symbols `arrow.triangle.branch` on iOS, Material `call_split` on Android, so it is told apart from the collapsed destination menu). Only Fetch and Pull appear. Leaving History removes its menu. Progress and results appear inside History, leaving commits readable. Shared client rules, receipt recovery and the computer's Reviews & Git pull strategy match web.
 
 ## Driving it with agent-device
 

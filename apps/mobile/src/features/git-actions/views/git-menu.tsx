@@ -23,7 +23,7 @@ export function GitMenu({
             kind: 'choice',
             id: 'git-actions',
             label: 'Git actions',
-            icon: 'more',
+            icon: 'branch',
             choices: (['fetch', 'pull'] as const).map((action) => {
               const reason = menu.blocker(action);
               const label = action === 'fetch' ? 'Fetch' : 'Pull';

@@ -20,6 +20,7 @@ export type HeaderIconName =
   | 'changes'
   | 'browse'
   | 'history'
+  | 'branch'
   | 'showSource'
   | 'showRendered'
   | 'files'
