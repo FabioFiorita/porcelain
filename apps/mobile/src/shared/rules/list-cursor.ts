@@ -53,6 +53,10 @@ export function activeList(
   return chosen !== undefined && lists.includes(chosen) ? chosen : lists.at(-1);
 }
 
+export function keyedLists(lists: readonly string[], over: string | undefined) {
+  return over !== undefined && lists.includes(over) ? [over] : lists;
+}
+
 export function nextList(lists: readonly string[], chosen: string | undefined) {
   const active = activeList(lists, chosen);
   const index = active === undefined ? -1 : lists.indexOf(active);

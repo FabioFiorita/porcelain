@@ -6,12 +6,12 @@ import {
   absentList,
   chosenList,
   focusedList,
-  listClaim,
+  keyLists,
   keyRegistration,
   keyRegistrations,
+  listOver,
   listPresence,
   type KeyOwner,
-  lists,
 } from './key-registry';
 import {
   activeKeyCommands,
@@ -106,10 +106,10 @@ export function useListCursor({
   onToggle,
   onSearch,
   hidden = false,
-  claim = false,
+  over = false,
 }: {
   hidden?: boolean | undefined;
-  claim?: boolean | undefined;
+  over?: boolean | undefined;
   rows: readonly CursorRow[];
   selected?: string | undefined;
   onOpen: (key: string) => void;
@@ -119,8 +119,8 @@ export function useListCursor({
   const owner = useId();
   const focused = useIsFocused();
   useAtomMount(focused && !hidden ? listPresence(owner) : absentList);
-  useAtomMount(focused && !hidden && claim ? listClaim(owner) : absentList);
-  const present = useAtomValue(lists);
+  useAtomMount(focused && !hidden && over ? listOver(owner) : absentList);
+  const present = useAtomValue(keyLists);
   const active = useAtomValue(focusedList) === owner;
   const choose = useAtomSet(chosenList);
   const [highlighted, setHighlighted] = useState<string>();

@@ -59,14 +59,14 @@ function worktreeIcon(entry: NavigatorEntry): IconName {
 export function WorktreeNavigator({
   onOpenWorktree,
   hidden = false,
-  claimKeys = false,
-  onSearchFocus,
+  over = false,
+  onSearchFocusChange,
   searchBarRef,
 }: {
   onOpenWorktree: (entry: NavigatorEntry) => void;
   hidden?: boolean | undefined;
-  claimKeys?: boolean | undefined;
-  onSearchFocus?: (() => void) | undefined;
+  over?: boolean | undefined;
+  onSearchFocusChange?: ((focused: boolean) => void) | undefined;
   searchBarRef?: { current: SearchBarCommands | null } | undefined;
 }) {
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
@@ -121,7 +121,7 @@ export function WorktreeNavigator({
   const reveal = useScrollReveal();
   const cursor = useListCursor({
     hidden,
-    claim: claimKeys,
+    over,
     rows: visibleEntries,
     selected: visibleEntries.find((entry) =>
       navigatorEntrySelected(entry, selection),
@@ -157,7 +157,8 @@ export function WorktreeNavigator({
         placeholder="Search worktrees"
         autoCapitalize="none"
         hideWhenScrolling={false}
-        onFocus={onSearchFocus}
+        onFocus={() => onSearchFocusChange?.(true)}
+        onBlur={() => onSearchFocusChange?.(false)}
         onChangeText={(event) => setQuery(event.nativeEvent.text)}
         onCancelButtonPress={() => setQuery('')}
       />

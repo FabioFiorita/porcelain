@@ -20,13 +20,13 @@ import { useWorkspacePickerModel } from './workspace-picker-model';
 export function WorktreesScreen({
   mode,
   onOpen,
-  onSearchFocus,
+  onSearchFocusChange,
   searchBarRef,
   presentation = 'beside',
 }: {
   mode: ListDetailMode;
   onOpen?: (() => void) | undefined;
-  onSearchFocus?: (() => void) | undefined;
+  onSearchFocusChange?: ((focused: boolean) => void) | undefined;
   searchBarRef?: { current: SearchBarCommands | null } | undefined;
   presentation?: ListPresentation | undefined;
 }) {
@@ -35,8 +35,8 @@ export function WorktreesScreen({
   return (
     <WorktreeNavigator
       hidden={presentation === 'hidden'}
-      claimKeys={presentation === 'over'}
-      onSearchFocus={onSearchFocus}
+      over={presentation === 'over'}
+      onSearchFocusChange={onSearchFocusChange}
       searchBarRef={searchBarRef}
       onOpenWorktree={(entry) => {
         const details = worktreeDetails(entry);

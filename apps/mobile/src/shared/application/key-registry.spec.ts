@@ -4,11 +4,14 @@ import { activeKeyCommands } from '../rules/key-commands';
 import {
   chosenList,
   focusedList,
+  keyLists,
   keyRegistration,
   keyRegistrations,
+  listOver,
   listPresence,
   lists,
 } from './key-registry';
+import { nextList } from '../rules/list-cursor';
 
 const run = () => undefined;
 const appIdleTTL = 400;
@@ -71,4 +74,21 @@ test('the list that leaves the screen hands the keys to the one still there', ()
   flush();
   expect(registry.get(lists)).toEqual(['worktrees']);
   expect(registry.get(focusedList)).toBe('worktrees');
+});
+
+test('a list open over the page keeps the keys until it closes', () => {
+  const { registry, flush } = scheduledRegistry(appIdleTTL);
+  registry.mount(focusedList);
+  registry.mount(listPresence('files'));
+  registry.set(chosenList, 'files');
+  const leaveList = registry.mount(listPresence('worktrees'));
+  const leaveOver = registry.mount(listOver('worktrees'));
+  expect(registry.get(focusedList)).toBe('worktrees');
+  expect(registry.get(keyLists)).toEqual(['worktrees']);
+  expect(nextList(registry.get(keyLists), 'worktrees')).toBe('worktrees');
+  leaveOver();
+  leaveList();
+  flush();
+  expect(registry.get(keyLists)).toEqual(['files']);
+  expect(registry.get(focusedList)).toBe('files');
 });

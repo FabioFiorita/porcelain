@@ -1,6 +1,6 @@
 import { Atom } from 'effect/reactivity';
 import type { KeyCommand } from '../rules/key-commands';
-import { activeList } from '../rules/list-cursor';
+import { activeList, keyedLists } from '../rules/list-cursor';
 
 export type KeyOwner =
   | 'app'
@@ -37,15 +37,25 @@ export const chosenList = Atom.make<string | undefined>(undefined).pipe(
   Atom.keepAlive,
 );
 
+const overList = Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive);
+
+export const keyLists = Atom.make((get) =>
+  keyedLists(get(lists), get(overList)),
+);
+
 export const focusedList = Atom.make((get) =>
-  activeList(get(lists), get(chosenList)),
+  activeList(get(keyLists), get(chosenList)),
 );
 
 export const absentList = Atom.make(undefined);
 
-export const listClaim = Atom.family((owner: string) =>
+export const listOver = Atom.family((owner: string) =>
   Atom.make((get) => {
-    get.set(chosenList, owner);
+    get.set(overList, owner);
+    const registry = get.registry;
+    get.addFinalizer(() => {
+      if (registry.get(overList) === owner) registry.set(overList, undefined);
+    });
   }).pipe(Atom.setIdleTTL(0)),
 );
 
