@@ -111,3 +111,43 @@ export function openingFile(focused: number, reading: number, files: number) {
   if (focused >= 0) return focused;
   return reading < files ? reading : 0;
 }
+
+function fileName(path: string) {
+  return path.split('/').at(-1) ?? path;
+}
+
+function sectionSuffix(
+  file: DiffPageFile,
+  siblings: readonly DiffPageFile[],
+): string | undefined {
+  if (siblings.length < 2) return undefined;
+  const details = file.details.filter(Boolean);
+  for (let length = 1; length <= details.length; length++) {
+    const prefix = details.slice(0, length).join(' · ');
+    const same = siblings.filter(
+      (other) =>
+        other.details.filter(Boolean).slice(0, length).join(' · ') === prefix,
+    );
+    if (same.length === 1) return prefix;
+  }
+  return details.join(' · ') || undefined;
+}
+
+export function fileMenuLabels(
+  files: readonly DiffPageFile[],
+  shown = files.length,
+): string[] {
+  const byPath = new Map<string, DiffPageFile[]>();
+  const paths = new Map<string, Set<string>>();
+  for (const file of files) {
+    byPath.set(file.path, [...(byPath.get(file.path) ?? []), file]);
+    const name = fileName(file.path);
+    paths.set(name, (paths.get(name) ?? new Set()).add(file.path));
+  }
+  return files.slice(0, shown).map((file) => {
+    const name = fileName(file.path);
+    const title = (paths.get(name)?.size ?? 0) > 1 ? file.path : name;
+    const suffix = sectionSuffix(file, byPath.get(file.path) ?? []);
+    return suffix ? `${title} · ${suffix}` : title;
+  });
+}

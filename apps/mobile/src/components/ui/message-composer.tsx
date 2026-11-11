@@ -1,5 +1,6 @@
 import { TextInput, View } from 'react-native';
 import { IconButton } from './icon-button';
+import { useKeyboardReveal, type KeyboardScroller } from './keyboard-reveal';
 import { Text } from './text';
 
 export function MessageComposer({
@@ -9,6 +10,7 @@ export function MessageComposer({
   error,
   onChangeText,
   onSend,
+  scroller = null,
 }: {
   value: string;
   placeholder: string;
@@ -16,10 +18,15 @@ export function MessageComposer({
   error?: string | undefined;
   onChangeText: (value: string) => void;
   onSend: () => void;
+  scroller?: KeyboardScroller | undefined;
 }) {
+  const reveal = useKeyboardReveal(scroller);
   return (
     <View className="gap-1.5">
-      <View className="flex-row items-end gap-2 rounded-xl border border-input bg-input/20 py-1 pr-1 pl-3 dark:bg-input/30">
+      <View
+        {...reveal.field}
+        className="flex-row items-end gap-2 rounded-xl border border-input bg-input/20 py-1 pr-1 pl-3 dark:bg-input/30"
+      >
         <TextInput
           value={value}
           multiline
@@ -31,6 +38,7 @@ export function MessageComposer({
           textAlignVertical="center"
           className="max-h-40 min-h-8 flex-1 py-1.5 text-base leading-5.5 text-foreground"
           onChangeText={onChangeText}
+          {...reveal.input}
         />
         <IconButton
           icon="send"

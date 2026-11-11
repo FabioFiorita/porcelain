@@ -756,3 +756,92 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   const requested = await server.requestedRoutes();
   expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });
+
+test('announces screenshots attached to a ready walkthrough to a client that is already following it', async ({
+  session,
+  server,
+}) => {
+  const writer = await scriptedWalkthroughs(session, server.manifestPath, {
+    answer: 'Unused.',
+    costUsd: 0.01,
+    failurePath: join(session.projectHome, 'evidence-writer-fails'),
+    postsPath: join(session.projectHome, 'evidence-posts'),
+  });
+  await session.git('branch', 'evidence-live-base');
+  await session.writeFile('evidence-live.txt', 'Shown in a screenshot.\n');
+  await session.git('add', 'evidence-live.txt');
+  await session.git('commit', '-m', 'Prepare live evidence fixture');
+  const run = await writer.write(
+    {
+      outcome: 'worth_knowing',
+      title: 'Live evidence',
+      summary: 'A walkthrough that gains screenshots.',
+      growth: [],
+      stops: [
+        {
+          title: 'Shown step',
+          explanation: 'Why it changed.',
+          excerpts: [],
+          evidence: [],
+          files: [{ path: 'evidence-live.txt', note: 'Owns the behavior' }],
+        },
+      ],
+      onlyInTranscript: [],
+      stillUnclear: [],
+    },
+    { base: 'refs/heads/evidence-live-base' },
+  );
+  const client = await session.live();
+  try {
+    await client.follow({
+      projects: [session.projectId],
+      worktrees: [
+        {
+          projectId: session.projectId,
+          worktreeId: session.worktreeId,
+          paths: [],
+        },
+      ],
+    });
+    await client.next((notice) => notice.type === 'subscribed');
+    const bytes = Uint8Array.from([137, 80, 78, 71]);
+    await writer.attachEvidence(run.id, 1, [
+      {
+        id: 'live-screen',
+        mediaType: 'image/png',
+        caption: 'The live screen',
+        bytes,
+      },
+    ]);
+    await client.next(
+      (notice) =>
+        notice.type === 'worktree' &&
+        notice.change === 'git' &&
+        notice.worktreeId === session.worktreeId,
+      5000,
+    );
+  } finally {
+    await client.close();
+  }
+  const path = `/api/worktrees/${session.worktreeId}/walkthrough`;
+  const shown = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+    await read(session, { method: 'GET', path }),
+  );
+  expect(
+    shown.walkthrough?.state.status === 'ready'
+      ? shown.walkthrough.state.content.stops[0]?.evidence
+      : undefined,
+  ).toEqual([{ assetId: 'live-screen', shows: 'The live screen' }]);
+  const asset = await fetch(
+    `${session.address}${path}/${run.id}/assets/live-screen`,
+    {
+      headers: {
+        authorization: `Bearer ${server.credential}`,
+        origin: session.address,
+      },
+    },
+  );
+  expect(Buffer.from(await asset.arrayBuffer())).toEqual(
+    Buffer.from([137, 80, 78, 71]),
+  );
+});

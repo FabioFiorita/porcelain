@@ -19,6 +19,7 @@ const symbols = {
   markReviewed: 'checkmark.circle',
   unmarkReviewed: 'checkmark.circle.fill',
   comparison: 'arrow.left.arrow.right',
+  changes: 'chevron.left.forwardslash.chevron.right',
   showSource: 'chevron.left.forwardslash.chevron.right',
   showRendered: 'doc.richtext',
   files: 'list.bullet',

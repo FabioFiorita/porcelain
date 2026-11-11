@@ -43,6 +43,7 @@ const symbols = {
   markReviewed: checkCircle,
   unmarkReviewed: taskAlt,
   comparison: compareArrows,
+  changes: code,
   showSource: code,
   showRendered: article,
   files: formatListBulleted,

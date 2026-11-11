@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import {
   Host,
   SegmentedButton,
@@ -11,22 +12,28 @@ export function SegmentedControl<Id extends string>({
   options,
   selected,
   onSelect,
+  width = 'fill',
 }: SegmentedControlProps<Id>) {
   return (
-    <Host matchContents={{ vertical: true }}>
-      <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
-        {options.map((option) => (
-          <SegmentedButton
-            key={option.id}
-            selected={option.id === selected}
-            onClick={() => onSelect(option.id)}
-          >
-            <SegmentedButton.Label>
-              <Text>{option.label}</Text>
-            </SegmentedButton.Label>
-          </SegmentedButton>
-        ))}
-      </SingleChoiceSegmentedButtonRow>
-    </Host>
+    <View
+      className={width === 'content' ? 'w-xl max-w-full' : ''}
+      collapsable={false}
+    >
+      <Host matchContents={{ vertical: true }}>
+        <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
+          {options.map((option) => (
+            <SegmentedButton
+              key={option.id}
+              selected={option.id === selected}
+              onClick={() => onSelect(option.id)}
+            >
+              <SegmentedButton.Label>
+                <Text>{option.label}</Text>
+              </SegmentedButton.Label>
+            </SegmentedButton>
+          ))}
+        </SingleChoiceSegmentedButtonRow>
+      </Host>
+    </View>
   );
 }

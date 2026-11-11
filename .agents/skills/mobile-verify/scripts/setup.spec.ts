@@ -17,7 +17,7 @@ async function deviceDriver(
   failOpen: boolean,
   failClose: boolean,
   failPrepare = false,
-  platform = 'ios',
+  platform: 'ios' | 'android' = 'ios',
   failPairingLink = false,
 ) {
   const launcher = join(directory, 'driver');
@@ -55,6 +55,7 @@ if (args[0] === 'close' && ${failClose}) {
     driver: {
       launcher,
       config: join(directory, 'config.json'),
+      platform,
       targetArgs: [
         '--session',
         'journey',
@@ -157,7 +158,7 @@ it('pairs Android without invoking the Apple runner or iOS alerts and releases s
   ]);
 });
 
-it('hands Android driving to the exact supplied launcher, config and session with its serial', () => {
+it('hands driving to the exact supplied launcher, config and session without target flags the bound driver refuses', () => {
   const driver = makeDriver(
     directory,
     null,
@@ -174,14 +175,11 @@ it('hands Android driving to the exact supplied launcher, config and session wit
     '/private/t3/host.json',
     '--session',
     't3-session',
-    '--platform',
-    'android',
-    '--serial',
-    'emulator-5580',
   ]);
+  expect(driver.platform).toBe('android');
 });
 
-it.each(['ios', 'android'])(
+it.each(['ios', 'android'] as const)(
   'pairs %s through the development server without synthesizing link text',
   async (platform) => {
     const { driver, arguments: calls } = await deviceDriver(

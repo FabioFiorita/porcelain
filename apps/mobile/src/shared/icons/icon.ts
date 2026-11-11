@@ -16,6 +16,7 @@ export type HeaderIconName =
   | 'markReviewed'
   | 'unmarkReviewed'
   | 'comparison'
+  | 'changes'
   | 'showSource'
   | 'showRendered'
   | 'files'

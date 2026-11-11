@@ -17,7 +17,13 @@ export function Sheet({ title, layout = 'scroll', children }: SheetProps) {
   const router = useRouter();
   return (
     <View className="flex-1 bg-background" collapsable={false}>
-      <Stack.Screen options={{ title, headerBackButtonMenuEnabled: false }} />
+      <Stack.Screen
+        options={{
+          title,
+          headerBackButtonMenuEnabled: false,
+          ...(layout === 'fixed' ? { headerTransparent: false } : {}),
+        }}
+      />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon={headerIcon('close')}

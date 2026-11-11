@@ -24,9 +24,10 @@ A screenshot the walkthrough placed on a step opens larger in a native sheet, wi
 
 Preconditions: [reviews.walkthrough-page](reviews.walkthrough-page.md) after `$C walkthrough sample` (two screenshots on step 2).
 
-1. Step 2 shows two thumbnails with captions. Tap the first: the sheet shows its caption and the image; "1 of 2" with Next screenshot moves to the second; Previous screenshot returns.
+1. Step 2 shows two thumbnails with captions. Tap the first: under the sheet's title bar (never beneath it, on iPhone and iPad) the sheet shows its caption and the image; "1 of 2" with Next screenshot moves to the second; Previous screenshot returns. Close stays the only control in the title bar.
 2. Write a new walkthrough while the sheet is open: "Screenshot unavailable".
+3. Write `$C walkthrough sample` while the page is open: step 2's thumbnails appear without reopening the page.
 
 ## Gotchas
 
-- The bytes are stored with the walkthrough; the stock fake writer never produces screenshots.
+- The bytes are stored with the walkthrough; the stock fake writer never produces screenshots. `walkthrough sample` attaches them after the run is ready and returns only once the server has announced them.

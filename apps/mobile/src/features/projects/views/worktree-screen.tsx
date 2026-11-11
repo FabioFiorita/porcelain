@@ -238,6 +238,8 @@ function WorktreeSections({
         paddingX={4}
         paddingY={2}
         gap={4}
+        surface="background"
+        divider="bottom"
       >
         {beside ? (
           <Box className="min-w-40 flex-1">
@@ -254,11 +256,12 @@ function WorktreeSections({
           </Box>
         ) : null}
         {opening === undefined ? null : (
-          <Box className={beside ? 'w-80 max-w-full' : ''}>
+          <Box className={beside ? 'max-w-full' : ''}>
             <SegmentedControl
               options={worktreeSectionChoices(guide)}
               selected={section}
               onSelect={choose}
+              width={beside ? 'content' : 'fill'}
             />
           </Box>
         )}

@@ -6,11 +6,7 @@ import {
   ServerHandle,
   type Recorder,
 } from '@porcelain/server/kit/isolated-server';
-import {
-  scriptedWalkthroughs,
-  captureWalkthroughFixture,
-  seedStoredWalkthroughs,
-} from '@porcelain/server/kit/walkthrough-fixture';
+import { scriptedWalkthroughs } from '@porcelain/server/kit/walkthrough-fixture';
 import type { ReadWalkthroughResult } from '@porcelain/contracts/walkthroughs';
 import { Usage } from '../../verify-core/cli.ts';
 
@@ -168,59 +164,19 @@ export async function walkthroughCommand(
   });
   if (run.state.status !== 'ready')
     throw new Error('The sample walkthrough did not finish.');
-  const assets = [
+  await writer.attachEvidence(run.id, 2, [
     {
-      runId: run.id,
       id: 'sample-screen-1',
       mediaType: 'image/png',
       caption: 'The retry setting on its owner',
       bytes: screenshot([37, 99, 235]),
     },
     {
-      runId: run.id,
       id: 'sample-screen-2',
       mediaType: 'image/png',
       caption: 'The failure message after three tries',
       bytes: screenshot([220, 38, 38]),
     },
-  ];
-  const captured = await captureWalkthroughFixture(
-    session.repository,
-    run.baseOid,
-  );
-  seedStoredWalkthroughs(
-    join(session.projectHome, session.fixture.folders.state),
-    {
-      jobs: [
-        {
-          run: {
-            ...run,
-            state: {
-              ...run.state,
-              content: {
-                ...run.state.content,
-                stops: run.state.content.stops.map((item, index) =>
-                  index === 1
-                    ? {
-                        ...item,
-                        evidence: assets.map((asset) => ({
-                          assetId: asset.id,
-                          shows: asset.caption,
-                        })),
-                      }
-                    : item,
-                ),
-              },
-            },
-          },
-          worktreePath: session.repository,
-          patch: captured.patch,
-          omittedFiles: captured.omittedFiles,
-          files: [],
-        },
-      ],
-      assets,
-    },
-  );
+  ]);
   return `wrote walkthrough ${run.id} for pull request #423 with two screenshots on step 2\n`;
 }
