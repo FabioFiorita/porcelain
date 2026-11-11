@@ -245,6 +245,43 @@ ${await readFile(entry, 'utf8')}`,
     );
   expect(nativeAddress).not.toBeNull();
   expect(diagnostic).toContain(`port: ${nativeAddress?.[1]}`);
+  if (process.platform === 'linux') {
+    const snapshotLine = diagnostic
+      .split('\n')
+      .find((line) => line.startsWith('{"kind":"startup-bind-snapshot"'));
+    expect(snapshotLine).toBeDefined();
+    const snapshot = Schema.decodeUnknownSync(
+      Schema.fromJsonString(
+        Schema.Struct({
+          port: Schema.Number,
+          pid: Schema.Number,
+          namespace: Schema.String,
+          tcp: Schema.String,
+          owners: Schema.Array(
+            Schema.Struct({
+              pid: Schema.Number,
+              sockets: Schema.Array(Schema.String),
+            }),
+          ),
+        }),
+      ),
+    )(snapshotLine ?? '{}');
+    expect(snapshot.port).toBe(Number(nativeAddress?.[1]));
+    expect(snapshot.namespace).toMatch(/^net:\[\d+\]$/);
+    const portHex = Number(nativeAddress?.[1])
+      .toString(16)
+      .toUpperCase()
+      .padStart(4, '0');
+    const occupied = snapshot.tcp
+      .split('\n')
+      .map((line) => line.trim().split(/\s+/))
+      .find(
+        (fields) => fields[1]?.endsWith(`:${portHex}`) && fields[3] === '0A',
+      );
+    expect(occupied).toBeDefined();
+    const owner = snapshot.owners.find((entry) => entry.pid === snapshot.pid);
+    expect(owner?.sockets).toContain(`socket:[${occupied?.[9]}]`);
+  }
 });
 
 test('startup keeps its original failure and the failed cleanup outcome', async () => {

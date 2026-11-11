@@ -22,7 +22,14 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
-import { mkdir, symlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  readlink,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
 import { inspect, promisify } from 'node:util';
@@ -518,6 +525,42 @@ try {
     );
 } catch (error) {
   if (!shutdown.signal.aborted) {
+    if (process.platform === 'linux' && inspect(error).includes('EADDRINUSE')) {
+      try {
+        const [tcp, tcp6, namespace, entries] = await Promise.all([
+          readFile('/proc/net/tcp', 'utf8'),
+          readFile('/proc/net/tcp6', 'utf8'),
+          readlink('/proc/self/ns/net'),
+          readdir('/proc'),
+        ]);
+        const owners = (
+          await Promise.all(
+            entries
+              .filter((entry) => /^\d+$/.test(entry))
+              .map(async (pid) => {
+                const descriptors = await readdir(`/proc/${pid}/fd`).catch(
+                  () => [],
+                );
+                const sockets = (
+                  await Promise.all(
+                    descriptors.map((fd) =>
+                      readlink(`/proc/${pid}/fd/${fd}`).catch(() => ''),
+                    ),
+                  )
+                ).filter((target) => target.startsWith('socket:['));
+                return { pid: Number(pid), sockets };
+              }),
+          )
+        ).filter((owner) => owner.sockets.length > 0);
+        process.stderr.write(
+          `${JSON.stringify({ kind: 'startup-bind-snapshot', pid: process.pid, port, namespace, tcp, tcp6, owners })}\n`,
+        );
+      } catch (snapshotError) {
+        process.stderr.write(
+          `${JSON.stringify({ kind: 'startup-bind-snapshot-unavailable', reason: String(snapshotError) })}\n`,
+        );
+      }
+    }
     process.stderr.write(`${inspect(error)}\n`);
     process.exitCode = 1;
   }
