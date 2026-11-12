@@ -9,7 +9,7 @@ import {
 import { remoteConnectionState } from '../../../shared/application/store';
 import type {
   ListDetailMode,
-  ListPresentation,
+  ListPlace,
 } from '../../../shared/rules/list-detail';
 import { worktreeRow } from '../rules/worktree-row';
 import { openedWorktree } from '../store';
@@ -28,13 +28,13 @@ export function WorktreesScreen({
   onOpen?: (() => void) | undefined;
   onSearchFocusChange?: ((focused: boolean) => void) | undefined;
   searchBarRef?: { current: SearchBarCommands | null } | undefined;
-  presentation?: ListPresentation | undefined;
+  presentation?: ListPlace | undefined;
 }) {
   const router = useRouter();
   const remember = useAtomSet(openedWorktree);
   return (
     <WorktreeNavigator
-      hidden={presentation === 'hidden'}
+      hidden={presentation === 'away' || presentation === 'hidden'}
       over={presentation === 'over'}
       onSearchFocusChange={onSearchFocusChange}
       searchBarRef={searchBarRef}

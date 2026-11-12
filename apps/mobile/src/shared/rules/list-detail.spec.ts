@@ -2,12 +2,11 @@ import { expect, it } from 'vitest';
 import {
   closedListDrawer,
   listDrawer,
-  listDrawerShown,
-  listPresentation,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
   movesWithLayout,
+  worktreeList,
   type ListDrawerEvent,
 } from './list-detail';
 
@@ -215,86 +214,168 @@ it.each([
   },
 );
 
-it.each([
-  {
-    input: { overlay: true, portrait: false, hidden: false, open: false },
-    shown: 'beside',
-    why: 'landscape keeps the list beside the content',
-  },
-  {
-    input: { overlay: true, portrait: false, hidden: true, open: true },
-    shown: 'hidden',
-    why: 'landscape honours the hide button, not the portrait panel',
-  },
-  {
-    input: { overlay: true, portrait: true, hidden: false, open: false },
-    shown: 'hidden',
-    why: 'portrait gives the content the full width',
-  },
-  {
-    input: { overlay: true, portrait: true, hidden: true, open: true },
-    shown: 'over',
-    why: 'portrait slides the opened list over the content',
-  },
-  {
-    input: { overlay: false, portrait: true, hidden: false, open: false },
-    shown: 'beside',
-    why: 'a list that never overlays stays beside in portrait',
-  },
-] as const)('$why', ({ input, shown }) => {
-  expect(listPresentation(input)).toBe(shown);
-});
+const tablet = {
+  layout: 'beside',
+  selected: true,
+  portrait: true,
+  hiddenInLandscape: false,
+  events: [],
+  query: '',
+} as const;
 
 it.each([
   {
-    events: ['searchFocus', 'rotate'],
-    query: 'mai',
-    shown: true,
-    why: 'rotating while typing a search keeps its results on screen',
+    situation: { ...tablet, layout: 'stack', query: 'mai' },
+    place: 'beside',
+    closing: 'none',
+    toggle: undefined,
+    why: 'a phone keeps its search when a result opens a worktree',
   },
   {
-    events: ['searchFocus', 'searchBlur', 'rotate'],
-    query: 'mai',
-    shown: true,
+    situation: {
+      ...tablet,
+      layout: 'stack',
+      portrait: false,
+      events: ['searchFocus'],
+    },
+    place: 'beside',
+    closing: 'none',
+    toggle: undefined,
+    why: 'a narrow tablet stacks like a phone and never ends a search',
+  },
+  {
+    situation: { ...tablet, portrait: false },
+    place: 'beside',
+    closing: 'none',
+    toggle: { label: 'hide', press: 'hide' },
+    why: 'landscape keeps the list beside the content',
+  },
+  {
+    situation: { ...tablet, portrait: false, hiddenInLandscape: true },
+    place: 'hidden',
+    closing: 'none',
+    toggle: { label: 'show', press: 'unhide' },
+    why: 'landscape honours the saved hide preference',
+  },
+  {
+    situation: {
+      ...tablet,
+      portrait: false,
+      hiddenInLandscape: true,
+      query: 'mai',
+    },
+    place: 'beside',
+    closing: 'none',
+    toggle: { label: 'hide', press: 'close' },
+    why: 'a live query keeps the list in landscape even when it is hidden there',
+  },
+  {
+    situation: {
+      ...tablet,
+      portrait: false,
+      hiddenInLandscape: true,
+      events: ['searchFocus'],
+    },
+    place: 'beside',
+    closing: 'none',
+    toggle: { label: 'hide', press: 'close' },
+    why: 'a focused search keeps the list in landscape even when it is hidden there',
+  },
+  {
+    situation: tablet,
+    place: 'away',
+    closing: 'close',
+    toggle: { label: 'show', press: 'open' },
+    why: 'portrait gives the content the full width',
+  },
+  {
+    situation: { ...tablet, events: ['show'] },
+    place: 'over',
+    closing: 'close',
+    toggle: { label: 'hide', press: 'close' },
+    why: 'Show worktrees slides the list over the content and any close ends its search',
+  },
+  {
+    situation: { ...tablet, events: ['show', 'close'] },
+    place: 'away',
+    closing: 'close',
+    toggle: { label: 'show', press: 'open' },
+    why: 'closing the list slides it away',
+  },
+  {
+    situation: { ...tablet, events: ['show', 'rotate'] },
+    place: 'away',
+    closing: 'close',
+    toggle: { label: 'show', press: 'open' },
+    why: 'a list opened only to browse closes on rotation to portrait',
+  },
+  {
+    situation: { ...tablet, events: ['searchFocus', 'rotate'] },
+    place: 'over',
+    closing: 'close',
+    toggle: { label: 'hide', press: 'close' },
+    why: 'rotating to portrait while typing keeps the list over the content',
+  },
+  {
+    situation: {
+      ...tablet,
+      events: ['searchFocus', 'searchBlur', 'rotate'],
+      query: 'mai',
+    },
+    place: 'over',
+    closing: 'close',
+    toggle: { label: 'hide', press: 'close' },
     why: 'a query left after the keyboard went away keeps the list through rotation',
   },
   {
-    events: ['searchFocus', 'rotate', 'rotate'],
-    query: '',
-    shown: true,
-    why: 'a focused search keeps the list open in both directions',
+    situation: { ...tablet, events: ['searchFocus', 'searchBlur', 'rotate'] },
+    place: 'away',
+    closing: 'close',
+    toggle: { label: 'show', press: 'open' },
+    why: 'a search left empty no longer holds the list',
   },
   {
-    events: ['show', 'rotate'],
-    query: '',
-    shown: false,
-    why: 'rotating closes a list that is only being browsed',
+    situation: { ...tablet, hiddenInLandscape: true, events: ['searchFocus'] },
+    place: 'over',
+    closing: 'close',
+    toggle: { label: 'hide', press: 'close' },
+    why: 'the landscape preference does not hide a portrait search',
   },
   {
-    events: ['searchFocus', 'searchBlur', 'rotate'],
-    query: '',
-    shown: false,
-    why: 'a search that was left empty no longer holds the list open',
+    situation: { ...tablet, selected: false, query: 'mai' },
+    place: 'beside',
+    closing: 'close',
+    toggle: undefined,
+    why: 'with nothing selected in portrait the list stays beside, and choosing a row ends its search',
   },
   {
-    events: ['show', 'searchFocus', 'close'],
-    query: '',
-    shown: false,
-    why: 'closing the list ends its search',
-  },
-  {
-    events: ['show'],
-    query: '',
-    shown: true,
-    why: 'Show worktrees opens the list',
+    situation: { ...tablet, selected: false, portrait: false, query: 'mai' },
+    place: 'beside',
+    closing: 'none',
+    toggle: undefined,
+    why: 'with nothing selected in landscape choosing a row keeps the search',
   },
 ] as const satisfies readonly {
-  events: readonly ListDrawerEvent[];
-  query: string;
-  shown: boolean;
+  situation: {
+    layout: 'beside' | 'stack';
+    selected: boolean;
+    portrait: boolean;
+    hiddenInLandscape: boolean;
+    events: readonly ListDrawerEvent[];
+    query: string;
+  };
+  place: string;
+  closing: string;
+  toggle: { label: string; press: string } | undefined;
   why: string;
-}[])('$why', ({ events, query, shown }) => {
-  expect(
-    listDrawerShown(events.reduce(listDrawer, closedListDrawer), query),
-  ).toBe(shown);
-});
+}[])(
+  '$why',
+  ({ situation: { events, ...situation }, place, closing, toggle }) => {
+    expect(
+      worktreeList({
+        ...situation,
+        drawer: events.reduce(listDrawer, closedListDrawer),
+      }),
+    ).toEqual({ place, closing, toggle });
+  },
+);

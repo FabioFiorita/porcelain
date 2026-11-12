@@ -71,22 +71,7 @@ export function layoutMove({
     : { kind: 'none' };
 }
 
-export type ListPresentation = 'beside' | 'over' | 'hidden';
-
-export function listPresentation({
-  overlay,
-  portrait,
-  hidden,
-  open,
-}: {
-  overlay: boolean;
-  portrait: boolean;
-  hidden: boolean;
-  open: boolean;
-}): ListPresentation {
-  if (overlay && portrait) return open ? 'over' : 'hidden';
-  return hidden ? 'hidden' : 'beside';
-}
+export type ListPlace = 'beside' | 'over' | 'away' | 'hidden';
 
 export type ListDrawer = { open: boolean; focused: boolean };
 
@@ -117,6 +102,65 @@ export function listDrawer(
   }
 }
 
-export function listDrawerShown(drawer: ListDrawer, query: string) {
-  return drawer.open || drawer.focused || query !== '';
+export type ListAction = 'open' | 'close' | 'hide' | 'unhide';
+
+export type WorktreeListView = {
+  place: ListPlace;
+  closing: 'close' | 'none';
+  toggle: { label: 'show' | 'hide'; press: ListAction } | undefined;
+};
+
+export function worktreeList({
+  layout,
+  selected,
+  portrait,
+  hiddenInLandscape,
+  drawer,
+  query,
+}: {
+  layout: ListDetailMode;
+  selected: boolean;
+  portrait: boolean;
+  hiddenInLandscape: boolean;
+  drawer: ListDrawer;
+  query: string;
+}): WorktreeListView {
+  if (layout === 'stack')
+    return { place: 'beside', closing: 'none', toggle: undefined };
+  if (!selected)
+    return {
+      place: 'beside',
+      closing: portrait ? 'close' : 'none',
+      toggle: undefined,
+    };
+  const live = drawer.focused || query !== '';
+  if (portrait)
+    return drawer.open || live
+      ? {
+          place: 'over',
+          closing: 'close',
+          toggle: { label: 'hide', press: 'close' },
+        }
+      : {
+          place: 'away',
+          closing: 'close',
+          toggle: { label: 'show', press: 'open' },
+        };
+  if (!hiddenInLandscape)
+    return {
+      place: 'beside',
+      closing: 'none',
+      toggle: { label: 'hide', press: 'hide' },
+    };
+  return live
+    ? {
+        place: 'beside',
+        closing: 'none',
+        toggle: { label: 'hide', press: 'close' },
+      }
+    : {
+        place: 'hidden',
+        closing: 'none',
+        toggle: { label: 'show', press: 'unhide' },
+      };
 }

@@ -26,7 +26,8 @@ import { headerIcon } from '../shared/icons/header-icon';
 import {
   closedListDrawer,
   listDrawer,
-  listDrawerShown,
+  worktreeList,
+  type ListAction,
   type ListDrawerEvent,
 } from '../shared/rules/list-detail';
 
@@ -63,16 +64,9 @@ export function WorktreesHome() {
       setDrawer((current) => listDrawer(current, event)),
   );
   const search = useWorktreeNavigator();
-  const open = listDrawerShown(drawer, search.query);
   const [searchBarRef] = useState(() => ({
     current: null as SearchBarCommands | null,
   }));
-  const close = () => {
-    if (!portrait) return;
-    searchBarRef.current?.cancelSearch();
-    search.setQuery('');
-    send('close');
-  };
   const [searchFocusChange] = useState(
     () => (focused: boolean) => send(focused ? 'searchFocus' : 'searchBlur'),
   );
@@ -81,26 +75,50 @@ export function WorktreesHome() {
     setSeenPortrait(portrait);
     setDrawer(listDrawer(drawer, 'rotate'));
   }
-  const listShown = portrait ? open : !hidden;
+  const view = worktreeList({
+    layout: layout.mode,
+    selected: selected !== undefined,
+    portrait,
+    hiddenInLandscape: hidden,
+    drawer,
+    query: search.query,
+  });
+  const act = (action: ListAction) => {
+    switch (action) {
+      case 'open':
+        return send('show');
+      case 'close':
+        searchBarRef.current?.cancelSearch();
+        search.setQuery('');
+        return send('close');
+      case 'hide':
+        return setHidden(true);
+      case 'unhide':
+        return setHidden(false);
+    }
+  };
+  const close = () => {
+    if (view.closing === 'close') act('close');
+  };
+  const { toggle } = view;
   return (
     <>
       <Stack.Screen options={{ headerLargeTitleEnabled: !beside }} />
       <SettingsToolbar>
-        {beside ? (
+        {toggle ? (
           <Stack.Toolbar.Button
-            icon={headerIcon(listShown ? 'hideList' : 'showList')}
-            accessibilityLabel={listShown ? 'Hide worktrees' : 'Show worktrees'}
-            onPress={() => {
-              if (!portrait) return setHidden(!hidden);
-              return open ? close() : send('show');
-            }}
+            icon={headerIcon(toggle.label === 'hide' ? 'hideList' : 'showList')}
+            accessibilityLabel={
+              toggle.label === 'hide' ? 'Hide worktrees' : 'Show worktrees'
+            }
+            onPress={() => act(toggle.press)}
           />
         ) : null}
       </SettingsToolbar>
       <ListDetail
         layout={layout}
-        listHidden={beside && hidden}
-        overlay={selected ? { open, onDismiss: close } : undefined}
+        place={view.place}
+        onDismiss={close}
         list={(mode, presentation) => (
           <WorktreesScreen
             mode={mode}

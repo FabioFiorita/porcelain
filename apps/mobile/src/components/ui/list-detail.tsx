@@ -20,14 +20,13 @@ import {
   useRoute,
 } from 'expo-router';
 import {
-  listPresentation,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
   movesWithLayout,
   type LayoutMove,
-  type ListPresentation,
   type ListDetailMode,
+  type ListPlace,
 } from '../../shared/rules/list-detail';
 
 const LIST_COLUMN_WIDTH = 340;
@@ -100,8 +99,6 @@ export function usePortrait() {
   return height > width;
 }
 
-type ListOverlay = { open: boolean; onDismiss?: (() => void) | undefined };
-
 const dismissOnBack = Atom.family((dismiss: () => void) =>
   Atom.make((get) => {
     const subscription = BackHandler.addEventListener(
@@ -121,34 +118,25 @@ export function ListDetail({
   list,
   detail,
   collapse = 'list',
-  listHidden = false,
-  overlay,
+  place = 'beside',
+  onDismiss,
   layout,
 }: {
-  list: (mode: ListDetailMode, presentation: ListPresentation) => ReactNode;
+  list: (mode: ListDetailMode, place: ListPlace) => ReactNode;
   detail: ReactNode;
   collapse?: 'list' | 'detail';
-  listHidden?: boolean;
-  overlay?: ListOverlay | undefined;
+  place?: ListPlace;
+  onDismiss?: (() => void) | undefined;
   layout?: ListDetailLayout;
 }) {
   const own = useListDetailLayout();
-  const portrait = usePortrait();
   const focused = useIsFocused();
   const { mode, onLayout } = layout ?? own;
   const beside = mode === 'beside';
-  const presentation = listPresentation({
-    overlay: overlay !== undefined,
-    portrait,
-    hidden: listHidden,
-    open: overlay?.open ?? false,
-  });
-  const sliding = beside && overlay !== undefined && portrait;
-  const over = sliding && presentation === 'over';
+  const sliding = beside && (place === 'over' || place === 'away');
+  const over = beside && place === 'over';
   useAtomMount(
-    over && focused && overlay?.onDismiss
-      ? dismissOnBack(overlay.onDismiss)
-      : keepBack,
+    over && focused && onDismiss ? dismissOnBack(onDismiss) : keepBack,
   );
   const panel = useAnimatedStyle(
     () => ({
@@ -164,11 +152,10 @@ export function ListDetail({
     () => ({ opacity: withTiming(over ? 1 : 0) }),
     [over],
   );
-  const showList = beside
-    ? sliding || presentation === 'beside'
-    : collapse === 'list';
+  const showList = beside ? place !== 'hidden' : collapse === 'list';
   const showDetail = beside || collapse === 'detail';
   const shown = !sliding || over;
+  const listPlace = beside ? place : 'beside';
   return (
     <View
       className="flex-1 flex-row bg-background"
@@ -191,7 +178,7 @@ export function ListDetail({
           importantForAccessibility={shown ? 'auto' : 'no-hide-descendants'}
           style={[beside ? { width: LIST_COLUMN_WIDTH } : undefined, panel]}
         >
-          {list(mode, shown ? (over ? 'over' : 'beside') : 'hidden')}
+          {list(mode, listPlace)}
         </Animated.View>
       ) : null}
       {showDetail ? (
@@ -203,14 +190,14 @@ export function ListDetail({
         <Animated.View
           key="scrim"
           className="absolute inset-0 z-5 bg-black/25"
-          pointerEvents={over && overlay?.onDismiss ? 'auto' : 'none'}
+          pointerEvents={over && onDismiss ? 'auto' : 'none'}
           style={dim}
         >
           <Pressable
             className="flex-1"
             accessibilityRole="button"
             accessibilityLabel="Close list"
-            onPress={overlay?.onDismiss}
+            onPress={onDismiss}
           />
         </Animated.View>
       ) : null}
