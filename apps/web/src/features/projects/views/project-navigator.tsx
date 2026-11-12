@@ -525,7 +525,7 @@ export function ProjectNavigator({
                                         <div className="min-w-0 font-mono text-2xs text-muted-foreground">
                                           {clip(
                                             entry.branch,
-                                            'font-mono text-2xs',
+                                            'block font-mono text-2xs',
                                           )}
                                         </div>
                                       )}
